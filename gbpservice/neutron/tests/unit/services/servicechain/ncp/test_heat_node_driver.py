@@ -217,10 +217,16 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
         self.assertEqual('NoDriverAvailableForAction',
                          res['NeutronError']['type'])
 
-    def _create_simple_service_chain(self, number_of_nodes=1):
+    def _create_simple_service_chain(self, number_of_nodes=1,
+                                     service_type='LOADBALANCER'):
+        prof = self.create_service_profile(
+            service_type=service_type,
+            vendor=self.SERVICE_PROFILE_VENDOR)['service_profile']
+
         node_ids = []
         for x in xrange(number_of_nodes):
             node_ids.append(self.create_servicechain_node(
+                service_profile_id=prof['id'],
                 service_type='LOADBALANCER',
                 config=self.DEFAULT_LB_CONFIG,
                 expected_res_status=201)['servicechain_node']['id'])
