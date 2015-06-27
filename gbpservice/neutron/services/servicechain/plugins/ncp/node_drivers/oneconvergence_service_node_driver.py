@@ -71,9 +71,12 @@ class InvalidServiceType(exc.NodeCompositionPluginBadRequest):
     message = _("The OneConvergence Node driver only supports the services "
                 "VPN, Firewall and LB in a Service Chain")
 
+<<<<<<< HEAD
 class ServiceInfoNotAvailableOnUpdate(n_exc.NeutronException):
     message = _("Service information is not available with Service Manager "
                 "on node update")
+=======
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
 
 # REVISIT(Magesh): The Port and PT names have to be changed
 class TrafficStitchingDriver(object):
@@ -88,6 +91,7 @@ class TrafficStitchingDriver(object):
         Then create a new port with the same ip address
         """
         subnet = context.core_plugin.get_subnet(context._plugin_context,
+<<<<<<< HEAD
                                                 subnet_id)
         network_id = subnet['network_id']
         # REVISIT(Magesh): The next for loop can be avoided if we can
@@ -99,6 +103,21 @@ class TrafficStitchingDriver(object):
         router_port = ports and ports[0] or {}
         router_id = router_port.get('device_id')
 
+=======
+                                              subnet_id)
+        network_id = subnet['network_id']
+        ports = context.core_plugin.get_ports(
+            context._plugin_context,
+            filters={'device_owner': ['network:router_interface']})
+        router_id = None
+        router_port = None
+        if ports:
+            for port in ports:
+                if port['fixed_ips'][0]['subnet_id'] == subnet_id:
+                    router_id = port['device_id']
+                    router_port = port
+                    break
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         if router_id:
             context.l3_plugin.remove_router_interface(
                 context._plugin_context,
@@ -109,6 +128,10 @@ class TrafficStitchingDriver(object):
 
         ip_address = subnet['gateway_ip']
         port_name = "hotplug-" + ip_address
+<<<<<<< HEAD
+=======
+        # mac_address can not be None
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         if admin_context:
             tenant_id = admin_context.tenant_id
         else:
@@ -123,6 +146,7 @@ class TrafficStitchingDriver(object):
         else:
             LOG.error(_("Unable to create hotplug port"))
         # FIXME(Magesh): Temporary Workaround for FW-VPN sharing
+<<<<<<< HEAD
         filters={'fixed_ips': {'subnet_id': [subnet_id],
                                'ip_address': [ip_address]}}
         ports = context.core_plugin.get_ports(admin_context, filters=filters)
@@ -132,6 +156,16 @@ class TrafficStitchingDriver(object):
         return port['id'], port['mac_address']
 
     def setup_stitching(self, context, admin_context, service_type,
+=======
+        ports = context.core_plugin.get_ports(admin_context)
+        for port in ports:
+            if port['fixed_ips'][0]['ip_address'] == ip_address:
+                return port['id'], port['mac_address']
+        raise
+
+    def setup_stitching(self, context, admin_context, service_type,
+                        is_consumer_external=False,
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                         provider=None, stitching_port_id=None):
         stitching_subnet_id = self._get_stitching_subnet_id(
                                 context, create_if_not_present=True)
@@ -144,7 +178,11 @@ class TrafficStitchingDriver(object):
             stitching_port_ip = context.core_plugin.get_port(
                     admin_context,
                     stitching_port_id)['fixed_ips'][0]['ip_address']
+<<<<<<< HEAD
         if context.is_consumer_external:
+=======
+        if is_consumer_external:
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
             self._add_extra_route(
                 context, stitching_port_ip, stitching_subnet_id,
                 provider['subnets'][0])
@@ -158,11 +196,17 @@ class TrafficStitchingDriver(object):
         return port
 
     def create_service_management_port(self, context, admin_context):
+<<<<<<< HEAD
         # REVISIT(Magesh): Retrieving management PTG by name will not be
         # required when the service_ptg patch is merged
         filters = {'name': [SVC_MGMT_PTG_NAME]}
         svc_mgmt_ptgs = context.gbp_plugin.get_policy_target_groups(
                                                 admin_context, filters)
+=======
+        filters = {'name': [SVC_MGMT_PTG_NAME]}
+        svc_mgmt_ptgs = context.gbp_plugin.get_policy_target_groups(
+            admin_context, filters)
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         if not svc_mgmt_ptgs:
             LOG.error(_("Service Management Group is not created by "
                         "Admin"))
@@ -178,7 +222,11 @@ class TrafficStitchingDriver(object):
             LOG.error(_("Floating IP is not allocated for Service "
                         "Port"))
             raise
+<<<<<<< HEAD
         #model.set_service_target(context, svc_mgmt_pt['id'], 'management')
+=======
+        model.set_service_target(context, svc_mgmt_pt['id'], 'management')
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         return (svc_mgmt_port, floatingips[0])
 
     def revert_stitching(self, context, provider_subnet):
@@ -249,6 +297,7 @@ class TrafficStitchingDriver(object):
 
     def _add_extra_route(self, context, stitching_interface_ip,
                          stitching_subnet_id, provider_subnet_id):
+<<<<<<< HEAD
         # TODO(Magesh): Pass subnet ID in filters
         ports = context.core_plugin.get_ports(
             context._plugin_context,
@@ -256,6 +305,17 @@ class TrafficStitchingDriver(object):
                      'fixed_ips':  {'subnet_id': [stitching_subnet_id]}})
         router_port = ports and ports[0] or {}
         router_id = router_port.get('device_id')
+=======
+        ports = context.core_plugin.get_ports(
+            context._plugin_context,
+            filters={'device_owner': ['network:router_interface']})
+        router_id = None
+        if ports:
+            for port in ports:
+                if port['fixed_ips'][0]['subnet_id'] == stitching_subnet_id:
+                    router_id = port['device_id']
+                    break
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
 
         if not router_id:
             LOG.error(_("Router not attached to stitching network"))
@@ -272,10 +332,20 @@ class TrafficStitchingDriver(object):
                            provider_subnet_id):
         ports = context.core_plugin.get_ports(
             context._plugin_context,
+<<<<<<< HEAD
             filters={'device_owner': ['network:router_interface'],
                      'fixed_ips':  {'subnet_id': [stitching_subnet_id]}})
         router_port = ports and ports[0] or {}
         router_id = router_port.get('device_id')
+=======
+            filters={'device_owner': ['network:router_interface']})
+        router_id = None
+        if ports:
+            for port in ports:
+                if port['fixed_ips'][0]['subnet_id'] == stitching_subnet_id:
+                    router_id = port['device_id']
+                    break
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
 
         if not router_id:
             LOG.error(_("Router not attached to stitching network"))
@@ -369,7 +439,11 @@ class TrafficStitchingDriver(object):
         return port
 
     def _dhcp_agent_notifier(self, context):
+<<<<<<< HEAD
         # REVISIT(Magesh): Need initialization method after all
+=======
+        # REVISIT(rkukura): Need initialization method after all
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         # plugins are loaded to grab and store notifier.
         if not self._cached_agent_notifier:
             agent_notifiers = getattr(
@@ -386,7 +460,12 @@ class TrafficStitchingDriver(object):
                 'port.' + action + '.end')
 
 
+<<<<<<< HEAD
 class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
+=======
+## BASED OFF COMMIT 054a4fe14c4919771de71f4f24406b6c781efaef #########
+class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
 
     sc_supported_type = [pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN]
     vendor_name = 'oneconvergence'
@@ -416,6 +495,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     @log.log
     def validate_create(self, context):
+<<<<<<< HEAD
         # Heat Node driver in Juno supports non service-profile based model
         if not context.current_profile:
             raise heat_node_driver.ServiceProfileRequired()
@@ -466,6 +546,49 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             self._wait_for_stack_operation_complete(
                                 heatclient, stack.stack_id, 'update')
             heatclient.update(stack.stack_id, stack_template, stack_params)
+=======
+        if context.current_node['service_profile_id'] is None:
+            service_type = context.current_node['service_type']
+            if service_type not in self.sc_supported_type:
+                raise InvalidServiceType()
+        else:
+            if context.current_profile['vendor'] != self.vendor_name:
+                raise template_node_driver.NodeVendorMismatch(
+                                                vendor=self.vendor_name)
+            service_type = context.current_profile['service_type']
+            if service_type not in self.sc_supported_type:
+                raise InvalidServiceType()
+
+        service_template = jsonutils.loads(context.current_node['config'])
+        self._validate_service_config(service_template, service_type)
+        return True
+
+    @log.log
+    def validate_update(self, context):
+        if context.current_profile != context.original_profile:
+            raise template_node_driver.ProfileUpdateNotSupported()
+        if (context.current_node['service_type'] !=
+            context.original_node['service_type']):
+            raise template_node_driver.ServiceTypeUpdateNotSupported()
+        else:
+            service_type = (context.current_node['service_type'] or
+                            context.current_profile['service_type'])
+            service_template = jsonutils.loads(context.current_node['config'])
+            self._validate_service_config(service_template, service_type)
+        return True
+
+    @log.log
+    def update_policy_target_added(self, context, policy_target):
+        pass
+
+    @log.log
+    def update_policy_target_removed(self, context, policy_target):
+        pass
+
+    @log.log
+    def update(self, context):
+        pass
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
 
     def _get_admin_context(self):
         admin_context = n_context.get_admin_context()
@@ -475,6 +598,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         admin_context.tenant_id = admin_tenant.id
         return admin_context
 
+<<<<<<< HEAD
     # REVISIT(Magesh): This method shares a lot of common code with the next
     # one, club the common code together
     def _fetch_template_and_params_for_update(self, context):
@@ -582,6 +706,22 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         return (stack_template, stack_params)
 
     def _fetch_template_and_params(self, context, update=False):
+=======
+    def _is_consumer_external(self, consumer):
+        if 'subnets' in consumer:
+            return False
+        else:
+            return True
+
+    def _get_service_type(self, context):
+        if context.current_node['service_profile_id']:
+            service_type = context.current_profile['service_type']
+        else:
+            service_type = context.current_node['service_type']
+        return service_type
+
+    def _fetch_template_and_params(self, context):
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         sc_instance = context.instance
         sc_node = context.current_node
         provider_ptg = context.provider
@@ -590,7 +730,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         provider_ptg_subnet_id = provider_ptg['subnets'][0]
         provider_subnet = context.core_plugin.get_subnet(
                             context._plugin_context, provider_ptg_subnet_id)
+<<<<<<< HEAD
         service_type = context.current_profile['service_type']
+=======
+        is_consumer_external = self._is_consumer_external(context.consumer)
+        service_type = self._get_service_type(context)
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
 
         stack_template = sc_node.get('config')
         stack_template = (jsonutils.loads(stack_template) if
@@ -611,7 +756,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         properties_key = ('Properties' if is_template_aws_version
                           else 'properties')
 
+<<<<<<< HEAD
         insert_type = 'north_south' if context.is_consumer_external else 'east_west'
+=======
+        insert_type = 'north_south' if is_consumer_external else 'east_west'
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
 
         if service_type == pconst.LOADBALANCER:
             self._generate_pool_members(context, stack_template,
@@ -621,17 +770,27 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
         consumer_port_id = None
         stitching_port_id = None
+<<<<<<< HEAD
         rvpn_client_pool_cidr = None
+=======
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
 
         # copying to _plugin_context should not be required if we are not
         # mixing service chain context with plugin context anywhere
         admin_context = self._get_admin_context()
+<<<<<<< HEAD
         service_info = self.svc_mgr.get_existing_service_for_sharing(
+=======
+        service_info = self.svc_mgr.get_service_info_with_srvc_type(
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                 context=context.plugin_context, service_type=service_type,
                 tenant_id=context.plugin_context.tenant_id,
                 insert_type=insert_type)
 
+<<<<<<< HEAD
         LOG.info(_("Sharing service info: %s") %(service_info))
+=======
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         # If we are going to share an already launched VM, we do not have
         # to create new ports/PTs for management and stitching
         if service_info:
@@ -652,20 +811,33 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 self.ts_driver.setup_stitching(
                     context, admin_context, service_type,
                     stitching_port_id=stitching_port_id,
+<<<<<<< HEAD
                     provider=provider_ptg))
             # TODO(Magesh): Handle VPN-FW sharing here itself
+=======
+                    is_consumer_external=is_consumer_external,
+                    provider=provider_ptg))
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
             provider_port_id, provider_port_mac = (
                 self.ts_driver.reclaim_gw_port_for_servicevm(
                     context, provider_ptg_subnet_id,
                     admin_context=admin_context))
             if service_type != pconst.VPN:
+<<<<<<< HEAD
                 if not context.is_consumer_external:
+=======
+                if not is_consumer_external:
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                     consumer_ptg_subnet_id = context.consumer['subnets'][0]
                     consumer_subnet = context.core_plugin.get_subnet(
                         context._plugin_context, consumer_ptg_subnet_id)
                     consumer_cidr = consumer_subnet['cidr']
                     consumer_port_id, consumer_port_mac = (
+<<<<<<< HEAD
                         self.ts_driver.reclaim_gw_port_for_servicevm(
+=======
+                        self.ts_driver.self.reclaim_gw_port_for_servicevm(
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                                         context, consumer_ptg_subnet_id,
                                         admin_context=admin_context))
                 else:
@@ -703,6 +875,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 stack_template[resources_key]['Firewall'][properties_key][
                     'description'] = str(firewall_desc)
             else:
+<<<<<<< HEAD
                 #For remote vpn - we need to create a implicit l3 policy
                 #for client pool cidr, to avoid this cidr being reused.
                 #a) Check for this tenant if this l3 policy is defined.
@@ -738,16 +911,22 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 config_param_values['ClientAddressPoolCidr'] = \
                     rvpn_client_pool_cidr
 
+=======
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                 config_param_values['Subnet'] = stitching_subnet_id
                 l2p = context.gbp_plugin.get_l2_policy(
                         context.plugin_context, provider_ptg['l2_policy_id'])
                 l3p = context.gbp_plugin.get_l3_policy(
                         context.plugin_context, l2p['l3_policy_id'])
                 config_param_values['RouterId'] = l3p['routers'][0]
+<<<<<<< HEAD
                 access_ip = self.svc_mgr.get_vpn_access_ip(
                     context._plugin_context, stitching_port_id)
                 desc = ('fip=' + floating_ip + ";tunnel_local_cidr=" +
                         provider_subnet['cidr']+";user_access_ip=" + access_ip)
+=======
+                desc = 'fip=' + floating_ip + ";" + "tunnel_local_cidr=" + provider_subnet['cidr']
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                 stack_params['ServiceDescription'] = desc
         else:
             # FIXME(Magesh): Raise error or autocorrect template if the key
@@ -758,9 +937,13 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
         node_params = (stack_template.get(parameters_key) or [])
         for parameter in node_params:
+<<<<<<< HEAD
             # For VPN, we are filling in Subnet as Stitching Subnet as
             # stitching already
             if parameter == "Subnet" and service_type != pconst.VPN:
+=======
+            if parameter == "Subnet":
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                 stack_params[parameter] = provider_ptg_subnet_id
             elif parameter in config_param_values:
                 stack_params[parameter] = config_param_values[parameter]
@@ -819,6 +1002,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     i += 1
 
         if consumer_cidr != '0.0.0.0/0' or not fw_rule_key:
+<<<<<<< HEAD
             resource_name = 'OS::Neutron::FirewallPolicy'
             fw_policy_key = self._get_heat_resource_key(
                             stack_template[resources_key],
@@ -928,23 +1112,42 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def delete(self, context):
         service_type = context.current_profile['service_type']
         insert_type = ('north_south' if context.is_consumer_external else
+=======
+            stack_template[resources_key]['Firewall_Policy'][properties_key][
+                'firewall_rules'] = fw_rule_list
+        return stack_template
+
+    @log.log
+    def delete(self, context):
+        is_consumer_ptg_external = self._is_consumer_external(context.consumer)
+        service_type = self._get_service_type(context)
+        insert_type = ('north_south' if is_consumer_ptg_external else
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                        'east_west')
         admin_context = n_context.get_admin_context()
 
         self.ts_driver.revert_stitching(
                         context, context.provider['subnets'][0])
+<<<<<<< HEAD
+=======
+
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         ports_to_cleanup = self.svc_mgr.delete_service_instance(
                             context=context._plugin_context,
                             tenant_id=context._plugin_context.tenant_id,
                             insert_type=insert_type,
                             service_chain_instance_id=context.instance['id'],
                             service_type=service_type)
+<<<<<<< HEAD
 
+=======
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         for key in ports_to_cleanup or {}:
             if ports_to_cleanup.get(key):
                 filters = {'port_id': [ports_to_cleanup[key]]}
                 admin_required = True
                 policy_targets = context.gbp_plugin.get_policy_targets(
+<<<<<<< HEAD
                             context.admin_context, filters)
                 if policy_targets:
                     for policy_target in policy_targets:
@@ -956,10 +1159,20 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                             # Mysql deadlock was detected once. Investigation
                             # is required
                             LOG.exception(_("Failed to delete Policy Target"))
+=======
+                            context._plugin_context, filters)
+                self._delete_service_targets(context, admin_context)
+                if policy_targets:
+                    context.gbp_plugin.delete_policy_target(
+                        admin_context,
+                        policy_targets[0]['id'],
+                        notify_sc=False)
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                 else:
                     self.ts_driver.delete_port(
                         context, ports_to_cleanup[key], admin_required)
 
+<<<<<<< HEAD
                 # Workaround for Mgmt PT cleanup. In Juno, instance delete
                 # deletes the user created port also. So we cant retrieve the
                 # exact PT unless we extend DB
@@ -981,6 +1194,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
                 #if key == 'mgmt_port_id':
                 #    self._delete_service_targets(context, admin_context)
+=======
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         super(OneConvergenceServiceNodeDriver, self).delete(context)
 
     def _delete_service_targets(self, context, admin_context):
@@ -998,12 +1213,19 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                          {'err': err.message})
 
     def _get_heat_client(self, plugin_context):
+<<<<<<< HEAD
         self.assign_admin_user_to_project(plugin_context.tenant)
+=======
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         admin_token = self.keystone(tenant_id=plugin_context.tenant).get_token(
                                                         plugin_context.tenant)
         return heat_api_client.HeatClient(
                                 plugin_context,
+<<<<<<< HEAD
                                 cfg.CONF.oneconvergence_node_driver.heat_uri,
+=======
+                                cfg.CONF.servicechain.heat_uri,
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
                                 auth_token=admin_token)
 
     def keystone(self, tenant_id=None):
@@ -1030,6 +1252,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 username=user, password=pw, auth_url=auth_url,
                 tenant_name=tenant_name)
 
+<<<<<<< HEAD
     def get_v3_keystone_admin_client(self):
         """ Returns keystone v3 client with admin credentials
             Using this client one can perform CRUD operations over
@@ -1069,4 +1292,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         keystone_conf = cfg.CONF.keystone_authtoken
         admin_tenant = v3client.projects.find(
             name=keystone_conf.get('admin_tenant_name'))
+=======
+    def get_admin_tenant_object(self):
+        keystone_client = self.keystone()
+        tenants = keystone_client.tenants.list()
+        admin_tenant = [tenant for tenant in tenants if
+                        tenant.name == cfg.CONF.keystone_authtoken.get(
+                                                  'admin_tenant_name')][0]
+>>>>>>> de3c6f7... Commit Initial Version of One Convergence Service Node driver
         return admin_tenant
