@@ -15,7 +15,6 @@ import copy
 import yaml
 
 from keystoneclient.v2_0 import client as keyclient
-from keystoneclient.v3 import client as keyclientv3
 from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
 from neutron.api.v2 import attributes
 from neutron.common import constants as const
@@ -44,9 +43,6 @@ oneconvergence_driver_opts = [
                default='svc_management_ptg',
                help=_("Name of the PTG that is associated with the "
                       "service management network")),
-    cfg.StrOpt('remote_vpn_client_pool_cidr',
-               default='192.168.254.0/24',
-               help=_("CIDR pool for remote vpn clients"))
 ]
 
 cfg.CONF.register_opts(oneconvergence_driver_opts, "servicechain")
@@ -67,9 +63,6 @@ class InvalidServiceType(exc.NodeCompositionPluginBadRequest):
     message = _("The OneConvergence Node driver only supports the services "
                 "VPN, Firewall and LB in a Service Chain")
 
-class ServiceInfoNotAvailableOnUpdate(n_exc.NeutronException):
-    message = _("Service information is not available with Service Manager "
-                "on node update")
 
 # REVISIT(Magesh): The Port and PT names have to be changed
 class TrafficStitchingDriver(object):
@@ -84,17 +77,19 @@ class TrafficStitchingDriver(object):
         Then create a new port with the same ip address
         """
         subnet = context.core_plugin.get_subnet(context._plugin_context,
-                                                subnet_id)
+                                              subnet_id)
         network_id = subnet['network_id']
-        # REVISIT(Magesh): The next for loop can be avoided if we can
-        # pass subnetid also as filter in fixed_ips
         ports = context.core_plugin.get_ports(
             context._plugin_context,
-            filters={'device_owner': ['network:router_interface'],
-                     'fixed_ips':  {'subnet_id': [subnet_id]}})
-        router_port = ports and ports[0] or {}
-        router_id = router_port.get('device_id')
-
+            filters={'device_owner': ['network:router_interface']})
+        router_id = None
+        router_port = None
+        if ports:
+            for port in ports:
+                if port['fixed_ips'][0]['subnet_id'] == subnet_id:
+                    router_id = port['device_id']
+                    router_port = port
+                    break
         if router_id:
             context.l3_plugin.remove_router_interface(
                 context._plugin_context,
@@ -105,6 +100,7 @@ class TrafficStitchingDriver(object):
 
         ip_address = subnet['gateway_ip']
         port_name = "hotplug-" + ip_address
+        # mac_address can not be None
         if admin_context:
             tenant_id = admin_context.tenant_id
         else:
@@ -119,13 +115,11 @@ class TrafficStitchingDriver(object):
         else:
             LOG.error(_("Unable to create hotplug port"))
         # FIXME(Magesh): Temporary Workaround for FW-VPN sharing
-        filters={'fixed_ips': {'subnet_id': [subnet_id],
-                               'ip_address': [ip_address]}}
-        ports = context.core_plugin.get_ports(admin_context, filters=filters)
-        if not ports:
-            raise
-        port = ports and ports[0]
-        return port['id'], port['mac_address']
+        ports = context.core_plugin.get_ports(admin_context)
+        for port in ports:
+            if port['fixed_ips'][0]['ip_address'] == ip_address:
+                return port['id'], port['mac_address']
+        raise
 
     def setup_stitching(self, context, admin_context, service_type,
                         is_consumer_external=False,
@@ -155,11 +149,9 @@ class TrafficStitchingDriver(object):
         return port
 
     def create_service_management_port(self, context, admin_context):
-        # REVISIT(Magesh): Retrieving management PTG by name will not be
-        # required when the service_ptg patch is merged
         filters = {'name': [SVC_MGMT_PTG_NAME]}
         svc_mgmt_ptgs = context.gbp_plugin.get_policy_target_groups(
-                                                admin_context, filters)
+            admin_context, filters)
         if not svc_mgmt_ptgs:
             LOG.error(_("Service Management Group is not created by "
                         "Admin"))
@@ -175,7 +167,7 @@ class TrafficStitchingDriver(object):
             LOG.error(_("Floating IP is not allocated for Service "
                         "Port"))
             raise
-        #model.set_service_target(context, svc_mgmt_pt['id'], 'management')
+        model.set_service_target(context, svc_mgmt_pt['id'], 'management')
         return (svc_mgmt_port, floatingips[0])
 
     def revert_stitching(self, context, provider_subnet):
@@ -246,13 +238,15 @@ class TrafficStitchingDriver(object):
 
     def _add_extra_route(self, context, stitching_interface_ip,
                          stitching_subnet_id, provider_subnet_id):
-        # TODO(Magesh): Pass subnet ID in filters
         ports = context.core_plugin.get_ports(
             context._plugin_context,
-            filters={'device_owner': ['network:router_interface'],
-                     'fixed_ips':  {'subnet_id': [stitching_subnet_id]}})
-        router_port = ports and ports[0] or {}
-        router_id = router_port.get('device_id')
+            filters={'device_owner': ['network:router_interface']})
+        router_id = None
+        if ports:
+            for port in ports:
+                if port['fixed_ips'][0]['subnet_id'] == stitching_subnet_id:
+                    router_id = port['device_id']
+                    break
 
         if not router_id:
             LOG.error(_("Router not attached to stitching network"))
@@ -269,10 +263,13 @@ class TrafficStitchingDriver(object):
                            provider_subnet_id):
         ports = context.core_plugin.get_ports(
             context._plugin_context,
-            filters={'device_owner': ['network:router_interface'],
-                     'fixed_ips':  {'subnet_id': [stitching_subnet_id]}})
-        router_port = ports and ports[0] or {}
-        router_id = router_port.get('device_id')
+            filters={'device_owner': ['network:router_interface']})
+        router_id = None
+        if ports:
+            for port in ports:
+                if port['fixed_ips'][0]['subnet_id'] == stitching_subnet_id:
+                    router_id = port['device_id']
+                    break
 
         if not router_id:
             LOG.error(_("Router not attached to stitching network"))
@@ -366,7 +363,7 @@ class TrafficStitchingDriver(object):
         return port
 
     def _dhcp_agent_notifier(self, context):
-        # REVISIT(Magesh): Need initialization method after all
+        # REVISIT(rkukura): Need initialization method after all
         # plugins are loaded to grab and store notifier.
         if not self._cached_agent_notifier:
             agent_notifiers = getattr(
@@ -411,45 +408,50 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
     @log.log
     def get_plumbing_info(self, context):
         return False
-    
-    # Validate methods are reused from base class(Reference driver)
-    # TODO(Magesh): Need to handle the following three methods
+
+    @log.log
+    def validate_create(self, context):
+        if context.current_node['service_profile_id'] is None:
+            service_type = context.current_node['service_type']
+            if service_type not in self.sc_supported_type:
+                raise InvalidServiceType()
+        else:
+            if context.current_profile['vendor'] != self.vendor_name:
+                raise template_node_driver.NodeVendorMismatch(
+                                                vendor=self.vendor_name)
+            service_type = context.current_profile['service_type']
+            if service_type not in self.sc_supported_type:
+                raise InvalidServiceType()
+
+        service_template = jsonutils.loads(context.current_node['config'])
+        self._validate_service_config(service_template, service_type)
+        return True
+
+    @log.log
+    def validate_update(self, context):
+        if context.current_profile != context.original_profile:
+            raise template_node_driver.ProfileUpdateNotSupported()
+        if (context.current_node['service_type'] !=
+            context.original_node['service_type']):
+            raise template_node_driver.ServiceTypeUpdateNotSupported()
+        else:
+            service_type = (context.current_node['service_type'] or
+                            context.current_profile['service_type'])
+            service_template = jsonutils.loads(context.current_node['config'])
+            self._validate_service_config(service_template, service_type)
+        return True
+
     @log.log
     def update_policy_target_added(self, context, policy_target):
-        if context.current_node['service_profile_id']:
-            service_type = context.current_profile['service_type']
-        else:
-            service_type = context.current_node['service_type']
-
-        if service_type != pconst.LOADBALANCER:
-            return
-
-        self.update(context)
+        pass
 
     @log.log
     def update_policy_target_removed(self, context, policy_target):
-        if context.current_node['service_profile_id']:
-            service_type = context.current_profile['service_type']
-        else:
-            service_type = context.current_node['service_type']
-
-        if service_type != pconst.LOADBALANCER:
-            return
-
-        self.update(context)
+        pass
 
     @log.log
     def update(self, context):
-        heatclient = self._get_heat_client(context.plugin_context)
-        stack_template, stack_params = (
-                        self._fetch_template_and_params_for_update(context))
-        stack_ids = self._get_node_instance_stacks(context.plugin_session,
-                                                   context.current_node['id'],
-                                                   context.instance['id'])
-        for stack in stack_ids:
-            self._wait_for_stack_operation_complete(
-                                heatclient, stack.stack_id, 'update')
-            heatclient.update(stack.stack_id, stack_template, stack_params)
+        pass
 
     def _get_admin_context(self):
         admin_context = n_context.get_admin_context()
@@ -472,113 +474,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
             service_type = context.current_node['service_type']
         return service_type
 
-    # REVISIT(Magesh): This method shares a lot of common code with the next
-    # one, club the common code together
-    def _fetch_template_and_params_for_update(self, context):
-        sc_instance = context.instance
-        sc_node = context.current_node
-        provider_ptg = context.provider
-
-        # TODO(Magesh): Handle multiple subnets
-        provider_ptg_subnet_id = provider_ptg['subnets'][0]
-        provider_subnet = context.core_plugin.get_subnet(
-                            context._plugin_context, provider_ptg_subnet_id)
-        is_consumer_external = self._is_consumer_external(context.consumer)
-        service_type = self._get_service_type(context)
-
-        stack_template = sc_node.get('config')
-        stack_template = (jsonutils.loads(stack_template) if
-                          stack_template.startswith('{') else
-                          yaml.load(stack_template))
-        config_param_values = sc_instance.get('config_param_values', {})
-        stack_params = {}
-
-        if config_param_values:
-            config_param_values = jsonutils.loads(config_param_values)
-
-        is_template_aws_version = stack_template.get(
-                                        'AWSTemplateFormatVersion', False)
-        resources_key = ('Resources' if is_template_aws_version
-                         else 'resources')
-        parameters_key = ('Parameters' if is_template_aws_version
-                          else 'parameters')
-        properties_key = ('Properties' if is_template_aws_version
-                          else 'properties')
-
-        insert_type = 'north_south' if is_consumer_external else 'east_west'
-
-        if service_type == pconst.LOADBALANCER:
-            self._generate_pool_members(context, stack_template,
-                                        config_param_values,
-                                        provider_ptg,
-                                        is_template_aws_version)
-
-        # copying to _plugin_context should not be required if we are not
-        # mixing service chain context with plugin context anywhere
-        admin_context = self._get_admin_context()
-        service_info = self.svc_mgr.get_service_info_with_srvc_type(
-                context=context.plugin_context, service_type=service_type,
-                tenant_id=context.plugin_context.tenant_id,
-                insert_type=insert_type)
-
-        # If we are going to share an already launched VM, we do not have
-        # to create new ports/PTs for management and stitching
-        if service_info:
-            floating_ip = service_info['floating_ip']
-            provider_port_id = service_info['provider_port_id']
-            provider_port_mac = context.core_plugin.get_port(
-                    admin_context, provider_port_id)['mac_address']
-        else:
-            raise ServiceInfoNotAvailableOnUpdate()
-
-        if service_type != pconst.LOADBALANCER:
-            if service_type == pconst.FIREWALL:
-                if not is_consumer_external:
-                    consumer_ptg_subnet_id = context.consumer['subnets'][0]
-                    consumer_subnet = context.core_plugin.get_subnet(
-                        context._plugin_context, consumer_ptg_subnet_id)
-                    consumer_cidr = consumer_subnet['cidr']
-                else:
-                    consumer_cidr = '0.0.0.0/0'
-
-                provider_cidr = provider_subnet['cidr']
-                stack_template = self._update_template_with_firewall_rules(
-                    context, provider_ptg, provider_cidr, consumer_cidr,
-                    stack_template, is_template_aws_version)
-                firewall_desc = {'vm_management_ip': floating_ip,
-                                 'provider_ptg_info': [provider_port_mac],
-                                 'insert_type': insert_type}
-                stack_template[resources_key]['Firewall'][properties_key][
-                    'description'] = str(firewall_desc)
-            elif service_type == pconst.VPN:
-                stitching_subnet_id = self.ts_driver._get_stitching_subnet_id(
-                                context, create_if_not_present=False)
-                config_param_values['Subnet'] = stitching_subnet_id
-                l2p = context.gbp_plugin.get_l2_policy(
-                        context.plugin_context, provider_ptg['l2_policy_id'])
-                l3p = context.gbp_plugin.get_l3_policy(
-                        context.plugin_context, l2p['l3_policy_id'])
-                config_param_values['RouterId'] = l3p['routers'][0]
-                desc = 'fip=' + floating_ip + ";" + "tunnel_local_cidr=" + provider_subnet['cidr']
-                stack_params['ServiceDescription'] = desc
-        else:
-            config_param_values['service_chain_metadata'] = (
-                SC_METADATA % (sc_instance['id'], insert_type, floating_ip,
-                               provider_port_mac))
-
-        node_params = (stack_template.get(parameters_key) or [])
-        for parameter in node_params:
-            if parameter == "Subnet":
-                stack_params[parameter] = provider_ptg_subnet_id
-            elif parameter in config_param_values:
-                stack_params[parameter] = config_param_values[parameter]
-
-        LOG.info(_("Final stack_template : %(template)s, stack_params : "
-                   "%(param)s"), {'template': stack_template,
-                                  'param': stack_params})
-        return (stack_template, stack_params)
-
-    def _fetch_template_and_params(self, context, update=False):
+    def _fetch_template_and_params(self, context):
         sc_instance = context.instance
         sc_node = context.current_node
         provider_ptg = context.provider
@@ -619,17 +515,15 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
 
         consumer_port_id = None
         stitching_port_id = None
-        rvpn_client_pool_cidr = None
 
         # copying to _plugin_context should not be required if we are not
         # mixing service chain context with plugin context anywhere
         admin_context = self._get_admin_context()
-        service_info = self.svc_mgr.get_existing_service_for_sharing(
+        service_info = self.svc_mgr.get_service_info_with_srvc_type(
                 context=context.plugin_context, service_type=service_type,
                 tenant_id=context.plugin_context.tenant_id,
                 insert_type=insert_type)
 
-        LOG.info(_("Sharing service info: %s") %(service_info))
         # If we are going to share an already launched VM, we do not have
         # to create new ports/PTs for management and stitching
         if service_info:
@@ -652,7 +546,6 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                     stitching_port_id=stitching_port_id,
                     is_consumer_external=is_consumer_external,
                     provider=provider_ptg))
-            # TODO(Magesh): Handle VPN-FW sharing here itself
             provider_port_id, provider_port_mac = (
                 self.ts_driver.reclaim_gw_port_for_servicevm(
                     context, provider_ptg_subnet_id,
@@ -664,7 +557,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                         context._plugin_context, consumer_ptg_subnet_id)
                     consumer_cidr = consumer_subnet['cidr']
                     consumer_port_id, consumer_port_mac = (
-                        self.ts_driver.reclaim_gw_port_for_servicevm(
+                        self.ts_driver.self.reclaim_gw_port_for_servicevm(
                                         context, consumer_ptg_subnet_id,
                                         admin_context=admin_context))
                 else:
@@ -702,42 +595,6 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                 stack_template[resources_key]['Firewall'][properties_key][
                     'description'] = str(firewall_desc)
             else:
-                #For remote vpn - we need to create a implicit l3 policy
-                #for client pool cidr, to avoid this cidr being reused.
-                #a) Check for this tenant if this l3 policy is defined.
-                #   1) If yes, get the cidr
-                #   2) Else, goto b)
-                #b) Create one for this tenant and do step a.1)
-                rvpn_l3policy_filter = {
-                    'tenant_id': [context.plugin_context.tenant_id],
-                    'name': ["remote-vpn-client-pool-cidr-l3policy"]}
-                rvpn_l3_policy = context.gbp_plugin.get_l3_policies(
-                    context._plugin_context,
-                    rvpn_l3policy_filter)
-
-                if not rvpn_l3_policy:
-                    rvpn_l3_policy = {
-                        'l3_policy':{
-                        'name': "remote-vpn-client-pool-cidr-l3policy",
-                        'description': "L3 Policy for \
-                            remote vpn client pool cidr",
-                        'ip_pool': cfg.CONF.servicechain.\
-                            remote_vpn_client_pool_cidr,
-                        'ip_version': 4,
-                        'subnet_prefix_length': 24,
-                        'tenant_id': context.plugin_context.tenant_id}}
-
-                    rvpn_l3_policy = context.gbp_plugin.create_l3_policy(
-                            context.plugin_context,
-                            rvpn_l3_policy)
-                else:
-                    rvpn_l3_policy = rvpn_l3_policy[0]
-                rvpn_client_pool_cidr = rvpn_l3_policy['ip_pool']
-
-                config_param_values['ClientAddressPoolCidr'] = \
-                    rvpn_client_pool_cidr
-
-                config_param_values['Subnet'] = stitching_subnet_id
                 l2p = context.gbp_plugin.get_l2_policy(
                         context.plugin_context, provider_ptg['l2_policy_id'])
                 l3p = context.gbp_plugin.get_l3_policy(
@@ -754,9 +611,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
 
         node_params = (stack_template.get(parameters_key) or [])
         for parameter in node_params:
-            # For VPN, we are filling in Subnet as Stitching Subnet as
-            # stitching already
-            if parameter == "Subnet" and service_type != pconst.VPN:
+            if parameter == "Subnet":
                 stack_params[parameter] = provider_ptg_subnet_id
             elif parameter in config_param_values:
                 stack_params[parameter] = config_param_values[parameter]
@@ -835,48 +690,22 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                             insert_type=insert_type,
                             service_chain_instance_id=context.instance['id'],
                             service_type=service_type)
-
         for key in ports_to_cleanup or {}:
             if ports_to_cleanup.get(key):
                 filters = {'port_id': [ports_to_cleanup[key]]}
                 admin_required = True
                 policy_targets = context.gbp_plugin.get_policy_targets(
-                            context.admin_context, filters)
+                            context._plugin_context, filters)
+                self._delete_service_targets(context, admin_context)
                 if policy_targets:
-                    for policy_target in policy_targets:
-                        try:
-                            context.gbp_plugin.delete_policy_target(
-                                admin_context, policy_target['id'],
-                                notify_sc=False)
-                        except Exception:
-                            # Mysql deadlock was detected once. Investigation
-                            # is required
-                            LOG.exception(_("Failed to delete Policy Target"))
+                    context.gbp_plugin.delete_policy_target(
+                        admin_context,
+                        policy_targets[0]['id'],
+                        notify_sc=False)
                 else:
                     self.ts_driver.delete_port(
                         context, ports_to_cleanup[key], admin_required)
 
-                # Workaround for Mgmt PT cleanup. In Juno, instance delete
-                # deletes the user created port also. So we cant retrieve the
-                # exact PT unless we extend DB
-                if key == 'mgmt_port_id':
-                    filters = {'name': ['mgmt-pt']}
-                    policy_targets = context.gbp_plugin.get_policy_targets(
-                            context.admin_context, filters)
-                    for policy_target in policy_targets:
-                        if policy_target['port_id']:
-                            continue
-                        try:
-                            context.gbp_plugin.delete_policy_target(
-                                admin_context, policy_target['id'],
-                                notify_sc=False)
-                        except Exception:
-                            # Mysql deadlock was detected once. Investigation
-                            # is required
-                            LOG.exception(_("Failed to delete Policy Target"))
-
-                #if key == 'mgmt_port_id':
-                #    self._delete_service_targets(context, admin_context)
         super(OneConvergenceServiceNodeDriver, self).delete(context)
 
     def _delete_service_targets(self, context, admin_context):
@@ -894,7 +723,6 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                          {'err': err.message})
 
     def _get_heat_client(self, plugin_context):
-        self.assign_admin_user_to_project(plugin_context.tenant)
         admin_token = self.keystone(tenant_id=plugin_context.tenant).get_token(
                                                         plugin_context.tenant)
         return heat_api_client.HeatClient(
@@ -925,40 +753,6 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
             return keyclient.Client(
                 username=user, password=pw, auth_url=auth_url,
                 tenant_name=tenant_name)
-
-    def get_v3_keystone_admin_client(self):
-        """ Returns keystone v3 client with admin credentials
-            Using this client one can perform CRUD operations over
-            keystone resources.
-        """
-        keystone_conf = cfg.CONF.keystone_authtoken
-        user = (keystone_conf.get('admin_user') or keystone_conf.username)
-        pw = (keystone_conf.get('admin_password') or
-              keystone_conf.password)
-        v3_auth_url = auth_url = ('%s://%s:%s/v3/' % (
-            keystone_conf.auth_protocol, keystone_conf.auth_host,
-            keystone_conf.auth_port))
-        v3client = keyclientv3.Client(
-            username=user, password=pw, auth_url=v3_auth_url)
-        return v3client
-
-    def get_role_by_name(self, v3client, name):
-        '''returns role object by this name
-        '''
-        role = v3client.roles.list(name=name)
-        if role:
-            return role[0]
-
-    def assign_admin_user_to_project(self, project_id):
-        v3client = self.get_v3_keystone_admin_client()
-        keystone_conf = cfg.CONF.keystone_authtoken
-        admin_id = v3client.users.list(domain='default',
-            name=keystone_conf.get('admin_user'))[0].id
-        neutron_admin_role = self.get_role_by_name(v3client, "neutron_admin")
-        v3client.roles.grant(neutron_admin_role.id, user=admin_id,
-                             project=project_id)
-        heat_role = self.get_role_by_name(v3client, "heat_stack_owner")
-        v3client.roles.grant(heat_role.id, user=admin_id, project=project_id)
 
     def get_admin_tenant_object(self):
         keystone_client = self.keystone()
