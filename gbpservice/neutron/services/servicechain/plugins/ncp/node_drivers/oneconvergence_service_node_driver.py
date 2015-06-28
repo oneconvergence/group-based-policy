@@ -83,15 +83,11 @@ class TrafficStitchingDriver(object):
         # pass subnetid also as filter in fixed_ips
         ports = context.core_plugin.get_ports(
             context._plugin_context,
-            filters={'device_owner': ['network:router_interface']})
-        router_id = None
-        router_port = None
-        if ports:
-            for port in ports:
-                if port['fixed_ips'][0]['subnet_id'] == subnet_id:
-                    router_id = port['device_id']
-                    router_port = port
-                    break
+            filters={'device_owner': ['network:router_interface'],
+                     'fixed_ips':  {'subnet_id': [subnet_id]}})
+        router_port = ports and ports[0] or {}
+        router_id = router_port.get('device_id')
+
         if router_id:
             context.l3_plugin.remove_router_interface(
                 context._plugin_context,
@@ -116,11 +112,13 @@ class TrafficStitchingDriver(object):
         else:
             LOG.error(_("Unable to create hotplug port"))
         # FIXME(Magesh): Temporary Workaround for FW-VPN sharing
-        ports = context.core_plugin.get_ports(admin_context)
-        for port in ports:
-            if port['fixed_ips'][0]['ip_address'] == ip_address:
-                return port['id'], port['mac_address']
-        raise
+        filters={'fixed_ips': {'subnet_id': [subnet_id],
+                               'ip_address': [ip_address]}}
+        ports = context.core_plugin.get_ports(admin_context, filters=filters)
+        if not ports:
+            raise
+        port = ports and ports[0]
+        return port['id'], port['mac_address']
 
     def setup_stitching(self, context, admin_context, service_type,
                         is_consumer_external=False,
@@ -244,13 +242,10 @@ class TrafficStitchingDriver(object):
         # TODO(Magesh): Pass subnet ID in filters
         ports = context.core_plugin.get_ports(
             context._plugin_context,
-            filters={'device_owner': ['network:router_interface']})
-        router_id = None
-        if ports:
-            for port in ports:
-                if port['fixed_ips'][0]['subnet_id'] == stitching_subnet_id:
-                    router_id = port['device_id']
-                    break
+            filters={'device_owner': ['network:router_interface'],
+                     'fixed_ips':  {'subnet_id': [stitching_subnet_id]}})
+        router_port = ports and ports[0] or {}
+        router_id = router_port.get('device_id')
 
         if not router_id:
             LOG.error(_("Router not attached to stitching network"))
@@ -267,13 +262,10 @@ class TrafficStitchingDriver(object):
                            provider_subnet_id):
         ports = context.core_plugin.get_ports(
             context._plugin_context,
-            filters={'device_owner': ['network:router_interface']})
-        router_id = None
-        if ports:
-            for port in ports:
-                if port['fixed_ips'][0]['subnet_id'] == stitching_subnet_id:
-                    router_id = port['device_id']
-                    break
+            filters={'device_owner': ['network:router_interface'],
+                     'fixed_ips':  {'subnet_id': [stitching_subnet_id]}})
+        router_port = ports and ports[0] or {}
+        router_id = router_port.get('device_id')
 
         if not router_id:
             LOG.error(_("Router not attached to stitching network"))
