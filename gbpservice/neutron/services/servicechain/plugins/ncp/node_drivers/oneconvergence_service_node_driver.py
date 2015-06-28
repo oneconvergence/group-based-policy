@@ -77,8 +77,10 @@ class TrafficStitchingDriver(object):
         Then create a new port with the same ip address
         """
         subnet = context.core_plugin.get_subnet(context._plugin_context,
-                                              subnet_id)
+                                                subnet_id)
         network_id = subnet['network_id']
+        # REVISIT(Magesh): The next for loop can be avoided if we can
+        # pass subnetid also as filter in fixed_ips
         ports = context.core_plugin.get_ports(
             context._plugin_context,
             filters={'device_owner': ['network:router_interface']})
@@ -100,7 +102,6 @@ class TrafficStitchingDriver(object):
 
         ip_address = subnet['gateway_ip']
         port_name = "hotplug-" + ip_address
-        # mac_address can not be None
         if admin_context:
             tenant_id = admin_context.tenant_id
         else:
@@ -149,9 +150,11 @@ class TrafficStitchingDriver(object):
         return port
 
     def create_service_management_port(self, context, admin_context):
+        # REVISIT(Magesh): Retrieving management PTG by name will not be
+        # required when the service_ptg patch is merged
         filters = {'name': [SVC_MGMT_PTG_NAME]}
         svc_mgmt_ptgs = context.gbp_plugin.get_policy_target_groups(
-            admin_context, filters)
+                                                admin_context, filters)
         if not svc_mgmt_ptgs:
             LOG.error(_("Service Management Group is not created by "
                         "Admin"))
@@ -238,6 +241,7 @@ class TrafficStitchingDriver(object):
 
     def _add_extra_route(self, context, stitching_interface_ip,
                          stitching_subnet_id, provider_subnet_id):
+        # TODO(Magesh): Pass subnet ID in filters
         ports = context.core_plugin.get_ports(
             context._plugin_context,
             filters={'device_owner': ['network:router_interface']})
@@ -363,7 +367,7 @@ class TrafficStitchingDriver(object):
         return port
 
     def _dhcp_agent_notifier(self, context):
-        # REVISIT(rkukura): Need initialization method after all
+        # REVISIT(Magesh): Need initialization method after all
         # plugins are loaded to grab and store notifier.
         if not self._cached_agent_notifier:
             agent_notifiers = getattr(
@@ -408,39 +412,9 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
     @log.log
     def get_plumbing_info(self, context):
         return False
-
-    @log.log
-    def validate_create(self, context):
-        if context.current_node['service_profile_id'] is None:
-            service_type = context.current_node['service_type']
-            if service_type not in self.sc_supported_type:
-                raise InvalidServiceType()
-        else:
-            if context.current_profile['vendor'] != self.vendor_name:
-                raise template_node_driver.NodeVendorMismatch(
-                                                vendor=self.vendor_name)
-            service_type = context.current_profile['service_type']
-            if service_type not in self.sc_supported_type:
-                raise InvalidServiceType()
-
-        service_template = jsonutils.loads(context.current_node['config'])
-        self._validate_service_config(service_template, service_type)
-        return True
-
-    @log.log
-    def validate_update(self, context):
-        if context.current_profile != context.original_profile:
-            raise template_node_driver.ProfileUpdateNotSupported()
-        if (context.current_node['service_type'] !=
-            context.original_node['service_type']):
-            raise template_node_driver.ServiceTypeUpdateNotSupported()
-        else:
-            service_type = (context.current_node['service_type'] or
-                            context.current_profile['service_type'])
-            service_template = jsonutils.loads(context.current_node['config'])
-            self._validate_service_config(service_template, service_type)
-        return True
-
+    
+    # Validate methods are reused from base class(Reference driver)
+    # TODO(Magesh): Need to handle the following three methods
     @log.log
     def update_policy_target_added(self, context, policy_target):
         pass
@@ -546,6 +520,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                     stitching_port_id=stitching_port_id,
                     is_consumer_external=is_consumer_external,
                     provider=provider_ptg))
+            # TODO(Magesh): Handle VPN-FW sharing here itself
             provider_port_id, provider_port_mac = (
                 self.ts_driver.reclaim_gw_port_for_servicevm(
                     context, provider_ptg_subnet_id,
