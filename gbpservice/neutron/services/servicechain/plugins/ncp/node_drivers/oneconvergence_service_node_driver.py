@@ -485,11 +485,12 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
         # copying to _plugin_context should not be required if we are not
         # mixing service chain context with plugin context anywhere
         admin_context = self._get_admin_context()
-        service_info = self.svc_mgr.get_service_info_with_srvc_type(
+        service_info = self.svc_mgr.get_existing_service_for_sharing(
                 context=context.plugin_context, service_type=service_type,
                 tenant_id=context.plugin_context.tenant_id,
                 insert_type=insert_type)
 
+        LOG.info(_("Sharing service info: %s") %(service_info))
         # If we are going to share an already launched VM, we do not have
         # to create new ports/PTs for management and stitching
         if service_info:
