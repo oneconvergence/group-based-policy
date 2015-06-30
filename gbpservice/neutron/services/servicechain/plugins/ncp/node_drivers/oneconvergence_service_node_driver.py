@@ -62,6 +62,9 @@ class InvalidServiceType(exc.NodeCompositionPluginBadRequest):
     message = _("The OneConvergence Node driver only supports the services "
                 "VPN, Firewall and LB in a Service Chain")
 
+class ServiceInfoNotAvailableOnUpdate(n_exc.NeutronException):
+    message = _("Service information is not available with Service Manager "
+                "on node update")
 
 # REVISIT(Magesh): The Port and PT names have to be changed
 class TrafficStitchingDriver(object):
@@ -408,15 +411,40 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
     # TODO(Magesh): Need to handle the following three methods
     @log.log
     def update_policy_target_added(self, context, policy_target):
-        pass
+        if context.current_node['service_profile_id']:
+            service_type = context.current_profile['service_type']
+        else:
+            service_type = context.current_node['service_type']
+
+        if service_type != pconst.LOADBALANCER:
+            return
+
+        self.update(context)
 
     @log.log
     def update_policy_target_removed(self, context, policy_target):
-        pass
+        if context.current_node['service_profile_id']:
+            service_type = context.current_profile['service_type']
+        else:
+            service_type = context.current_node['service_type']
+
+        if service_type != pconst.LOADBALANCER:
+            return
+
+        self.update(context)
 
     @log.log
     def update(self, context):
-        pass
+        heatclient = self._get_heat_client(context.plugin_context)
+        stack_template, stack_params = (
+                        self._fetch_template_and_params_for_update(context))
+        stack_ids = self._get_node_instance_stacks(context.plugin_session,
+                                                   context.current_node['id'],
+                                                   context.instance['id'])
+        for stack in stack_ids:
+            self._wait_for_stack_operation_complete(
+                                heatclient, stack.stack_id, 'update')
+            heatclient.update(stack.stack_id, stack_template, stack_params)
 
     def _get_admin_context(self):
         admin_context = n_context.get_admin_context()
@@ -439,7 +467,113 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
             service_type = context.current_node['service_type']
         return service_type
 
-    def _fetch_template_and_params(self, context):
+    # REVISIT(Magesh): This method shares a lot of common code with the next
+    # one, club the common code together
+    def _fetch_template_and_params_for_update(self, context):
+        sc_instance = context.instance
+        sc_node = context.current_node
+        provider_ptg = context.provider
+
+        # TODO(Magesh): Handle multiple subnets
+        provider_ptg_subnet_id = provider_ptg['subnets'][0]
+        provider_subnet = context.core_plugin.get_subnet(
+                            context._plugin_context, provider_ptg_subnet_id)
+        is_consumer_external = self._is_consumer_external(context.consumer)
+        service_type = self._get_service_type(context)
+
+        stack_template = sc_node.get('config')
+        stack_template = (jsonutils.loads(stack_template) if
+                          stack_template.startswith('{') else
+                          yaml.load(stack_template))
+        config_param_values = sc_instance.get('config_param_values', {})
+        stack_params = {}
+
+        if config_param_values:
+            config_param_values = jsonutils.loads(config_param_values)
+
+        is_template_aws_version = stack_template.get(
+                                        'AWSTemplateFormatVersion', False)
+        resources_key = ('Resources' if is_template_aws_version
+                         else 'resources')
+        parameters_key = ('Parameters' if is_template_aws_version
+                          else 'parameters')
+        properties_key = ('Properties' if is_template_aws_version
+                          else 'properties')
+
+        insert_type = 'north_south' if is_consumer_external else 'east_west'
+
+        if service_type == pconst.LOADBALANCER:
+            self._generate_pool_members(context, stack_template,
+                                        config_param_values,
+                                        provider_ptg,
+                                        is_template_aws_version)
+
+        # copying to _plugin_context should not be required if we are not
+        # mixing service chain context with plugin context anywhere
+        admin_context = self._get_admin_context()
+        service_info = self.svc_mgr.get_service_info_with_srvc_type(
+                context=context.plugin_context, service_type=service_type,
+                tenant_id=context.plugin_context.tenant_id,
+                insert_type=insert_type)
+
+        # If we are going to share an already launched VM, we do not have
+        # to create new ports/PTs for management and stitching
+        if service_info:
+            floating_ip = service_info['floating_ip']
+            provider_port_id = service_info['provider_port_id']
+            provider_port_mac = context.core_plugin.get_port(
+                    admin_context, provider_port_id)['mac_address']
+        else:
+            raise ServiceInfoNotAvailableOnUpdate()
+
+        if service_type != pconst.LOADBALANCER:
+            if service_type == pconst.FIREWALL:
+                if not is_consumer_external:
+                    consumer_ptg_subnet_id = context.consumer['subnets'][0]
+                    consumer_subnet = context.core_plugin.get_subnet(
+                        context._plugin_context, consumer_ptg_subnet_id)
+                    consumer_cidr = consumer_subnet['cidr']
+                else:
+                    consumer_cidr = '0.0.0.0/0'
+
+                provider_cidr = provider_subnet['cidr']
+                stack_template = self._update_template_with_firewall_rules(
+                    context, provider_ptg, provider_cidr, consumer_cidr,
+                    stack_template, is_template_aws_version)
+                firewall_desc = {'vm_management_ip': floating_ip,
+                                 'provider_ptg_info': [provider_port_mac],
+                                 'insert_type': insert_type}
+                stack_template[resources_key]['Firewall'][properties_key][
+                    'description'] = str(firewall_desc)
+            elif service_type == pconst.VPN:
+                stitching_subnet_id = self.ts_driver._get_stitching_subnet_id(
+                                context, create_if_not_present=False)
+                config_param_values['Subnet'] = stitching_subnet_id
+                l2p = context.gbp_plugin.get_l2_policy(
+                        context.plugin_context, provider_ptg['l2_policy_id'])
+                l3p = context.gbp_plugin.get_l3_policy(
+                        context.plugin_context, l2p['l3_policy_id'])
+                config_param_values['RouterId'] = l3p['routers'][0]
+                desc = 'fip=' + floating_ip + ";" + "tunnel_local_cidr=" + provider_subnet['cidr']
+                stack_params['ServiceDescription'] = desc
+        else:
+            config_param_values['service_chain_metadata'] = (
+                SC_METADATA % (sc_instance['id'], insert_type, floating_ip,
+                               provider_port_mac))
+
+        node_params = (stack_template.get(parameters_key) or [])
+        for parameter in node_params:
+            if parameter == "Subnet":
+                stack_params[parameter] = provider_ptg_subnet_id
+            elif parameter in config_param_values:
+                stack_params[parameter] = config_param_values[parameter]
+
+        LOG.info(_("Final stack_template : %(template)s, stack_params : "
+                   "%(param)s"), {'template': stack_template,
+                                  'param': stack_params})
+        return (stack_template, stack_params)
+
+    def _fetch_template_and_params(self, context, update=False):
         sc_instance = context.instance
         sc_node = context.current_node
         provider_ptg = context.provider
