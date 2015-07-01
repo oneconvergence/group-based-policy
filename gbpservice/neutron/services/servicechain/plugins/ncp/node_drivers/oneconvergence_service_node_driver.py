@@ -659,7 +659,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                         context._plugin_context, consumer_ptg_subnet_id)
                     consumer_cidr = consumer_subnet['cidr']
                     consumer_port_id, consumer_port_mac = (
-                        self.ts_driver.self.reclaim_gw_port_for_servicevm(
+                        self.ts_driver.reclaim_gw_port_for_servicevm(
                                         context, consumer_ptg_subnet_id,
                                         admin_context=admin_context))
                 else:
