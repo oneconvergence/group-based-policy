@@ -887,7 +887,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
         keystone_conf = cfg.CONF.keystone_authtoken
         admin_id = v3client.users.list(domain='default',
             name=keystone_conf.get('admin_user'))[0].id
-        role = self.get_role_by_name("neutron_Admin")
+        role = self.get_role_by_name(v3client, "neutron_Admin")
         if not role:
             # create neutron_admin role and assign it to admin user in admin
             # project.
