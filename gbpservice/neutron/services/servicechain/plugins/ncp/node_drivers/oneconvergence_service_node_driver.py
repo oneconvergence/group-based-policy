@@ -827,7 +827,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                          {'err': err.message})
 
     def _get_heat_client(self, plugin_context):
-        self.assign_neutron_admin_role_in_project(plugin_context.tenant)
+        self.assign_admin_user_to_project(plugin_context.tenant)
         admin_token = self.keystone(tenant_id=plugin_context.tenant).get_token(
                                                         plugin_context.tenant)
         return heat_api_client.HeatClient(
@@ -882,21 +882,16 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
         if role:
             return role[0]
 
-    def assign_neutron_admin_role_in_project(self, project_id):
+    def assign_admin_user_to_project(self, project_id):
         v3client = self.get_v3_keystone_admin_client()
         keystone_conf = cfg.CONF.keystone_authtoken
         admin_id = v3client.users.list(domain='default',
             name=keystone_conf.get('admin_user'))[0].id
-        role = self.get_role_by_name(v3client, "neutron_Admin")
-        if not role:
-            # create neutron_admin role and assign it to admin user in admin
-            # project.
-            role = v3client.roles.create("neutron_Admin")
-            admin_project = v3client.projects.list(
-                name=keystone_conf.get('admin_tenant_name'))[0].id
-            v3client.roles.grant(role.id, user=admin_id,
-                                 project=admin_project)
-        v3client.roles.grant(role.id, user=admin_id, project=project_id)
+        neutron_admin_role = self.get_role_by_name(v3client, "neutron_Admin")
+        v3client.roles.grant(neutron_admin_role.id, user=admin_id,
+                             project=project_id)
+        heat_role = self.get_role_by_name(v3client, "heat_stack_owner")
+        v3client.roles.grant(heat_role.id, user=admin_id, project=project_id)
 
     def get_admin_tenant_object(self):
         keystone_client = self.keystone()
