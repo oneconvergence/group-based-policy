@@ -891,7 +891,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
         if not role:
             # create neutron_admin role and assign it to admin user in admin
             # project.
-            role = v3client.role.create("neutron_admin")
+            role = v3client.roles.create("neutron_Admin")
             admin_project = v3client.projects.list(
                 name=keystone_conf.get('admin_tenant_name'))[0].id
             v3client.roles.grant(role.id, user=admin_id,
