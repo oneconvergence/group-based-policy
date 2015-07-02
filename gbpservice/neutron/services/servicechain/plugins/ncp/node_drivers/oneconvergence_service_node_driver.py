@@ -15,6 +15,7 @@ import copy
 import yaml
 
 from keystoneclient.v2_0 import client as keyclient
+from keystoneclient.v3 import client as keyclientv3
 from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
 from neutron.api.v2 import attributes
 from neutron.common import constants as const
@@ -827,6 +828,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                          {'err': err.message})
 
     def _get_heat_client(self, plugin_context):
+        self.assign_neutron_admin_role_in_project(plugin_context.tenant)
         admin_token = self.keystone(tenant_id=plugin_context.tenant).get_token(
                                                         plugin_context.tenant)
         return heat_api_client.HeatClient(
@@ -857,6 +859,45 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
             return keyclient.Client(
                 username=user, password=pw, auth_url=auth_url,
                 tenant_name=tenant_name)
+
+    def get_v3_keystone_admin_client(self):
+        """ Returns keystone v3 client with admin credentials
+            Using this client one can perform CRUD operations over
+            keystone resources.
+        """
+        keystone_conf = cfg.CONF.keystone_authtoken
+        user = (keystone_conf.get('admin_user') or keystone_conf.username)
+        pw = (keystone_conf.get('admin_password') or
+              keystone_conf.password)
+        v3_auth_url = auth_url = ('%s://%s:%s/v3/' % (
+            keystone_conf.auth_protocol, keystone_conf.auth_host,
+            keystone_conf.auth_port))
+        v3client = keyclientv3.Client(
+            username=user, password=pw, auth_url=v3_auth_url)
+        return v3client
+
+    def get_role_by_name(self, v3client, name):
+        '''returns role object by this name
+        '''
+        role = v3client.roles.list(name=name)
+        if role:
+            return role[0]
+
+    def assign_neutron_admin_role_in_project(self, project_id):
+        v3client = self.get_v3_keystone_admin_client()
+        keystone_conf = cfg.CONF.keystone_authtoken
+        admin_id = v3client.users.list(domain='default',
+            name=keystone_conf.get('admin_user'))[0].id
+        role = self.get_role_by_name("neutron_Admin")
+        if not role:
+            # create neutron_admin role and assign it to admin user in admin
+            # project.
+            role = v3client.role.create("neutron_admin")
+            admin_project = v3client.projects.list(
+                name=keystone_conf.get('admin_tenant_name'))[0].id
+            v3client.roles.grant(role.id, user=admin_id,
+                                 project=admin_project)
+        v3client.roles.grant(role.id, user=admin_id, project=project_id)
 
     def get_admin_tenant_object(self):
         keystone_client = self.keystone()
