@@ -927,7 +927,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
         keystone_conf = cfg.CONF.keystone_authtoken
         admin_id = v3client.users.list(domain='default',
             name=keystone_conf.get('admin_user'))[0].id
-        neutron_admin_role = self.get_role_by_name(v3client, "neutron_Admin")
+        neutron_admin_role = self.get_role_by_name(v3client, "neutron_admin")
         v3client.roles.grant(neutron_admin_role.id, user=admin_id,
                              project=project_id)
         heat_role = self.get_role_by_name(v3client, "heat_stack_owner")
