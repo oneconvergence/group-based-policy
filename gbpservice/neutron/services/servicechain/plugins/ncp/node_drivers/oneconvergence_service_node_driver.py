@@ -44,6 +44,9 @@ oneconvergence_driver_opts = [
                default='svc_management_ptg',
                help=_("Name of the PTG that is associated with the "
                       "service management network")),
+    cfg.StrOpt('remote_vpn_client_pool_cidr',
+               default='192.168.254.0/24',
+               help=_("CIDR pool for remote vpn clients"))
 ]
 
 cfg.CONF.register_opts(oneconvergence_driver_opts, "servicechain")
@@ -617,6 +620,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
 
         consumer_port_id = None
         stitching_port_id = None
+        rvpn_client_pool_cidr = None
 
         # copying to _plugin_context should not be required if we are not
         # mixing service chain context with plugin context anywhere
@@ -699,6 +703,42 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                 stack_template[resources_key]['Firewall'][properties_key][
                     'description'] = str(firewall_desc)
             else:
+                #For remote vpn - we need to create a implicit l3 policy
+                #for client pool cidr, to avoid this cidr being reused.
+                #a) Check for this tenant if this l3 policy is defined.
+                #   1) If yes, get the cidr
+                #   2) Else, goto b)
+                #b) Create one for this tenant and do step a.1)
+                rvpn_l3policy_filter = {
+                    'tenant_id': [context.plugin_context.tenant_id],
+                    'name': ["remote-vpn-client-pool-cidr-l3policy"]}
+                rvpn_l3_policy = context.gbp_plugin.get_l3_policies(
+                    context._plugin_context,
+                    rvpn_l3policy_filter)
+
+                if not rvpn_l3_policy:
+                    rvpn_l3_policy = {
+                        'l3_policy':{
+                        'name': "remote-vpn-client-pool-cidr-l3policy",
+                        'description': "L3 Policy for \
+                            remote vpn client pool cidr",
+                        'ip_pool': cfg.CONF.servicechain.\
+                            remote_vpn_client_pool_cidr,
+                        'ip_version': 4,
+                        'subnet_prefix_length': 24,
+                        'tenant_id': context.plugin_context.tenant_id}}
+
+                    rvpn_l3_policy = context.gbp_plugin.create_l3_policy(
+                            context.plugin_context,
+                            rvpn_l3_policy)
+                else:
+                    rvpn_l3_policy = rvpn_l3_policy[0]
+                rvpn_client_pool_cidr = rvpn_l3_policy['ip_pool']
+
+                config_param_values['ClientAddressPoolCidr'] = \
+                    rvpn_client_pool_cidr
+
+                config_param_values['Subnet'] = stitching_subnet_id
                 l2p = context.gbp_plugin.get_l2_policy(
                         context.plugin_context, provider_ptg['l2_policy_id'])
                 l3p = context.gbp_plugin.get_l3_policy(
