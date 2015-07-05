@@ -175,7 +175,7 @@ class TrafficStitchingDriver(object):
             LOG.error(_("Floating IP is not allocated for Service "
                         "Port"))
             raise
-        model.set_service_target(context, svc_mgmt_pt['id'], 'management')
+        #model.set_service_target(context, svc_mgmt_pt['id'], 'management')
         return (svc_mgmt_port, floatingips[0])
 
     def revert_stitching(self, context, provider_subnet):
@@ -836,20 +836,34 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
                             service_type=service_type)
         for key in ports_to_cleanup or {}:
             if ports_to_cleanup.get(key):
-                filters = {'port_id': [ports_to_cleanup[key]]}
+                # Workaround for Mgmt PT cleanup. In Juno, instance delete
+                # deletes the user created port also. So we cant retrieve the
+                # exact PT unless we extend DB
+                if key == 'mgmt_port_id':
+                    filters = {'name': ['mgmt-pt']}
+                else:
+                    filters = {'port_id': [ports_to_cleanup[key]]}
                 admin_required = True
                 policy_targets = context.gbp_plugin.get_policy_targets(
-                            context._plugin_context, filters)
-                self._delete_service_targets(context, admin_context)
+                            context.admin_context, filters)
                 if policy_targets:
-                    context.gbp_plugin.delete_policy_target(
-                        admin_context,
-                        policy_targets[0]['id'],
-                        notify_sc=False)
+                    for policy_target in policy_targets:
+                        if (key == 'mgmt_port_id' and
+                            policy_target['port_id']):
+                            continue
+                        try:
+                            context.gbp_plugin.delete_policy_target(
+                                admin_context, policy_target['id'],
+                                notify_sc=False)
+                        except Exception:
+                            # Mysql deadlock was detected once. Investigation
+                            # is required
+                            LOG.exception(_("Failed to delete Policy Target"))
                 else:
                     self.ts_driver.delete_port(
                         context, ports_to_cleanup[key], admin_required)
-
+                #if key == 'mgmt_port_id':
+                #    self._delete_service_targets(context, admin_context)
         super(OneConvergenceServiceNodeDriver, self).delete(context)
 
     def _delete_service_targets(self, context, admin_context):
