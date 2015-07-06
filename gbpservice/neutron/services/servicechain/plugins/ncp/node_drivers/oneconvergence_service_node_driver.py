@@ -942,13 +942,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
         for key in ports_to_cleanup or {}:
             if ports_to_cleanup.get(key):
-                # Workaround for Mgmt PT cleanup. In Juno, instance delete
-                # deletes the user created port also. So we cant retrieve the
-                # exact PT unless we extend DB
-                if key == 'mgmt_port_id':
-                    filters = {'name': ['mgmt-pt']}
-                else:
-                    filters = {'port_id': [ports_to_cleanup[key]]}
+                filters = {'port_id': [ports_to_cleanup[key]]}
                 admin_required = True
                 policy_targets = context.gbp_plugin.get_policy_targets(
                             context.admin_context, filters)
