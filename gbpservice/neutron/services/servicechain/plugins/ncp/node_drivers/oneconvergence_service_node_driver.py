@@ -754,7 +754,9 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
 
         node_params = (stack_template.get(parameters_key) or [])
         for parameter in node_params:
-            if parameter == "Subnet":
+            # For VPN, we are filling in Subnet as Stitching Subnet as
+            # stitching already
+            if parameter == "Subnet" and service_type != pconst.VPN:
                 stack_params[parameter] = provider_ptg_subnet_id
             elif parameter in config_param_values:
                 stack_params[parameter] = config_param_values[parameter]
