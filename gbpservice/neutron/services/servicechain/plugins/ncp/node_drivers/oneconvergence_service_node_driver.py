@@ -128,7 +128,6 @@ class TrafficStitchingDriver(object):
         return port['id'], port['mac_address']
 
     def setup_stitching(self, context, admin_context, service_type,
-                        is_consumer_external=False,
                         provider=None, stitching_port_id=None):
         stitching_subnet_id = self._get_stitching_subnet_id(
                                 context, create_if_not_present=True)
@@ -141,7 +140,7 @@ class TrafficStitchingDriver(object):
             stitching_port_ip = context.core_plugin.get_port(
                     admin_context,
                     stitching_port_id)['fixed_ips'][0]['ip_address']
-        if is_consumer_external:
+        if context.is_consumer_external:
             self._add_extra_route(
                 context, stitching_port_ip, stitching_subnet_id,
                 provider['subnets'][0])
@@ -473,19 +472,6 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         admin_context.tenant_id = admin_tenant.id
         return admin_context
 
-    def _is_consumer_external(self, consumer):
-        if 'subnets' in consumer:
-            return False
-        else:
-            return True
-
-    def _get_service_type(self, context):
-        if context.current_node['service_profile_id']:
-            service_type = context.current_profile['service_type']
-        else:
-            service_type = context.current_node['service_type']
-        return service_type
-
     # REVISIT(Magesh): This method shares a lot of common code with the next
     # one, club the common code together
     def _fetch_template_and_params_for_update(self, context):
@@ -497,8 +483,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         provider_ptg_subnet_id = provider_ptg['subnets'][0]
         provider_subnet = context.core_plugin.get_subnet(
                             context._plugin_context, provider_ptg_subnet_id)
-        is_consumer_external = self._is_consumer_external(context.consumer)
-        service_type = self._get_service_type(context)
+        service_type = context.current_profile['service_type']
 
         stack_template = sc_node.get('config')
         stack_template = (jsonutils.loads(stack_template) if
@@ -519,7 +504,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         properties_key = ('Properties' if is_template_aws_version
                           else 'properties')
 
-        insert_type = 'north_south' if is_consumer_external else 'east_west'
+        insert_type = ('north_south' if context.is_consumer_external else
+                       'east_west')
 
         if service_type == pconst.LOADBALANCER:
             self._generate_pool_members(context, stack_template,
@@ -547,7 +533,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
         if service_type != pconst.LOADBALANCER:
             if service_type == pconst.FIREWALL:
-                if not is_consumer_external:
+                if not context.is_consumer_external:
                     consumer_ptg_subnet_id = context.consumer['subnets'][0]
                     consumer_subnet = context.core_plugin.get_subnet(
                         context._plugin_context, consumer_ptg_subnet_id)
@@ -601,8 +587,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         provider_ptg_subnet_id = provider_ptg['subnets'][0]
         provider_subnet = context.core_plugin.get_subnet(
                             context._plugin_context, provider_ptg_subnet_id)
-        is_consumer_external = self._is_consumer_external(context.consumer)
-        service_type = self._get_service_type(context)
+        service_type = context.current_profile['service_type']
 
         stack_template = sc_node.get('config')
         stack_template = (jsonutils.loads(stack_template) if
@@ -623,7 +608,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         properties_key = ('Properties' if is_template_aws_version
                           else 'properties')
 
-        insert_type = 'north_south' if is_consumer_external else 'east_west'
+        insert_type = 'north_south' if context.is_consumer_external else 'east_west'
 
         if service_type == pconst.LOADBALANCER:
             self._generate_pool_members(context, stack_template,
@@ -664,7 +649,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 self.ts_driver.setup_stitching(
                     context, admin_context, service_type,
                     stitching_port_id=stitching_port_id,
-                    is_consumer_external=is_consumer_external,
+                    is_consumer_external=context.is_consumer_external,
                     provider=provider_ptg))
             # TODO(Magesh): Handle VPN-FW sharing here itself
             provider_port_id, provider_port_mac = (
@@ -672,7 +657,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     context, provider_ptg_subnet_id,
                     admin_context=admin_context))
             if service_type != pconst.VPN:
-                if not is_consumer_external:
+                if not context.is_consumer_external:
                     consumer_ptg_subnet_id = context.consumer['subnets'][0]
                     consumer_subnet = context.core_plugin.get_subnet(
                         context._plugin_context, consumer_ptg_subnet_id)
@@ -835,9 +820,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     @log.log
     def delete(self, context):
-        is_consumer_ptg_external = self._is_consumer_external(context.consumer)
-        service_type = self._get_service_type(context)
-        insert_type = ('north_south' if is_consumer_ptg_external else
+        service_type = context.current_profile['service_type']
+        insert_type = ('north_south' if context.is_consumer_external else
                        'east_west')
         admin_context = n_context.get_admin_context()
 
