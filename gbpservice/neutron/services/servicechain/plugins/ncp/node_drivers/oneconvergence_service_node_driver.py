@@ -46,7 +46,11 @@ oneconvergence_driver_opts = [
                       "service management network")),
     cfg.StrOpt('remote_vpn_client_pool_cidr',
                default='192.168.254.0/24',
-               help=_("CIDR pool for remote vpn clients"))
+               help=_("CIDR pool for remote vpn clients")),
+    cfg.StrOpt('heat_uri',
+               default='http://localhost:8004/v1',
+               help=_("Heat API server address to instantiate services "
+                      "specified in the service chain.")),
 ]
 
 cfg.CONF.register_opts(oneconvergence_driver_opts, "oneconvergence_node_driver")
@@ -649,7 +653,6 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 self.ts_driver.setup_stitching(
                     context, admin_context, service_type,
                     stitching_port_id=stitching_port_id,
-                    is_consumer_external=context.is_consumer_external,
                     provider=provider_ptg))
             # TODO(Magesh): Handle VPN-FW sharing here itself
             provider_port_id, provider_port_mac = (
