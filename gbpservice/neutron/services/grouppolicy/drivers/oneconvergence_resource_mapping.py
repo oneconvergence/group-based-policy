@@ -37,6 +37,15 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
     This driver inherits default group policy RMD.
     """
 
+    # This operation may fail since we delete it if we have FW in chain
+    def _remove_router_interface(self, plugin_context, router_id,
+                                 interface_info):
+        try:
+            self._l3_plugin.remove_router_interface(
+                    plugin_context, router_id, interface_info)
+        except Exception:
+            pass
+
     def create_external_policy_precommit(self, context):
         self._reject_shared(context.current, 'external_policy')
         # REVISIT(ivar): For security reasons, only one ES allowed per EP.
