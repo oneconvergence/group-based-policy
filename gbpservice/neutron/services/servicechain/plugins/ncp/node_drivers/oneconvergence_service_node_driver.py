@@ -34,9 +34,9 @@ from gbpservice.neutron.services.servicechain.plugins.ncp import (
                                                     exceptions as exc)
 from gbpservice.neutron.services.servicechain.plugins.ncp import model
 from gbpservice.neutron.services.servicechain.plugins.ncp.node_drivers import (
-                                openstack_heat_api_client as heat_api_client)
+                                heat_node_driver as heat_node_driver)
 from gbpservice.neutron.services.servicechain.plugins.ncp.node_drivers import (
-                                template_node_driver as template_node_driver)
+                                openstack_heat_api_client as heat_api_client)
 
 
 oneconvergence_driver_opts = [
@@ -383,8 +383,7 @@ class TrafficStitchingDriver(object):
                 'port.' + action + '.end')
 
 
-## BASED OFF COMMIT 054a4fe14c4919771de71f4f24406b6c781efaef #########
-class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
+class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     sc_supported_type = [pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN]
     vendor_name = 'oneconvergence'
@@ -411,9 +410,23 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
     @log.log
     def get_plumbing_info(self, context):
         return False
-    
-    # Validate methods are reused from base class(Reference driver)
-    # TODO(Magesh): Need to handle the following three methods
+
+    @log.log
+    def validate_create(self, context):
+        # Heat Node driver in Juno supports non service-profile based model
+        if not context.current_profile:
+            raise heat_node_driver.ServiceProfileRequired()
+        super(OneConvergenceServiceNodeDriver, self).validate_create(context)
+
+    @log.log
+    def validate_update(self, context):
+        # Heat Node driver in Juno supports non service-profile based model
+        if not context.original_node:  # PT create/delete notifications
+            return
+        if context.current_node and not context.current_profile:
+            raise heat_node_driver.ServiceProfileRequired()
+        super(OneConvergenceServiceNodeDriver, self).validate_update(context)
+
     @log.log
     def update_policy_target_added(self, context, policy_target):
         if context.current_node['service_profile_id']:
@@ -936,7 +949,7 @@ class OneConvergenceServiceNodeDriver(template_node_driver.TemplateNodeDriver):
         user = (keystone_conf.get('admin_user') or keystone_conf.username)
         pw = (keystone_conf.get('admin_password') or
               keystone_conf.password)
-        v3_auth_url = auth_url = ('%s://%s:%s/v3/' % (
+        v3_auth_url = ('%s://%s:%s/v3/' % (
             keystone_conf.auth_protocol, keystone_conf.auth_host,
             keystone_conf.auth_port))
         v3client = keyclientv3.Client(
