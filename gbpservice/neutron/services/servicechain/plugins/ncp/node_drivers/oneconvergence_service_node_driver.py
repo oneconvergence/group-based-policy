@@ -49,10 +49,10 @@ oneconvergence_driver_opts = [
                help=_("CIDR pool for remote vpn clients"))
 ]
 
-cfg.CONF.register_opts(oneconvergence_driver_opts, "servicechain")
+cfg.CONF.register_opts(oneconvergence_driver_opts, "oneconvergence_node_driver")
 
 SC_METADATA = '{"sc_instance":"%s", "insert_type":"%s", "floating_ip": "%s", "provider_interface_mac": "%s"}'
-SVC_MGMT_PTG_NAME = cfg.CONF.servicechain.svc_management_ptg_name
+SVC_MGMT_PTG_NAME = cfg.CONF.oneconvergence_node_driver.svc_management_ptg_name
 STITCHING_PTG_NAME = "traffic-stitching-gbp-internal"
 
 POOL_MEMBER_PARAMETER_AWS = {"Description": "Pool Member IP Address",
@@ -720,7 +720,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                         'name': "remote-vpn-client-pool-cidr-l3policy",
                         'description': "L3 Policy for \
                             remote vpn client pool cidr",
-                        'ip_pool': cfg.CONF.servicechain.\
+                        'ip_pool': cfg.CONF.oneconvergence_node_driver.\
                             remote_vpn_client_pool_cidr,
                         'ip_version': 4,
                         'subnet_prefix_length': 24,
@@ -897,7 +897,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                                                         plugin_context.tenant)
         return heat_api_client.HeatClient(
                                 plugin_context,
-                                cfg.CONF.servicechain.heat_uri,
+                                cfg.CONF.oneconvergence_node_driver.heat_uri,
                                 auth_token=admin_token)
 
     def keystone(self, tenant_id=None):
