@@ -1115,13 +1115,11 @@ class ResourceMappingDriver(api.PolicyDriver):
         if len(context.current['external_segments']) > 1:
             raise exc.MultipleESPerEPNotSupported()
         # REVISIT(ivar): bug #1398156 only one EP is allowed per tenant
-        '''
         ep_number = context._plugin.get_external_policies_count(
             context._plugin_context,
             filters={'tenant_id': [context.current['tenant_id']]})
         if ep_number > 1:
             raise exc.OnlyOneEPPerTenantAllowed()
-	    '''
 
     def create_external_policy_postcommit(self, context):
         # Only *North to South* rules are actually effective.
