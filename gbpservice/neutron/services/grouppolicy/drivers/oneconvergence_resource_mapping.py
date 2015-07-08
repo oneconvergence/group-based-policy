@@ -12,7 +12,6 @@
 # One Convergence, Inc., USA
 
 
-
 from neutron.common import log
 from neutron.openstack.common import log as logging
 from neutron.plugins.common import constants as pconst
@@ -52,7 +51,7 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
                     plugin_context, router_id, interface_info)
         except Exception:
             pass
-
+    
     def create_external_policy_precommit(self, context):
         self._reject_shared(context.current, 'external_policy')
         # REVISIT(ivar): For security reasons, only one ES allowed per EP.
