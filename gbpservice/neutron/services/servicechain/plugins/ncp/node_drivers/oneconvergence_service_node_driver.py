@@ -940,7 +940,9 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             keystone_conf.auth_protocol, keystone_conf.auth_host,
             keystone_conf.auth_port))
         v3client = keyclientv3.Client(
-            username=user, password=pw, auth_url=v3_auth_url)
+            username=user, password=pw, project_domain_name="default",
+            project_name="admin", user_domain_name="default",
+            auth_url=v3_auth_url)
         return v3client
 
     def get_role_by_name(self, v3client, name):
@@ -962,8 +964,10 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         v3client.roles.grant(heat_role.id, user=admin_id, project=project_id)
 
     def get_admin_tenant_object(self):
-        keystone_client = self.keystone()
-        tenants = keystone_client.tenants.list()
+        v3client = self.get_v3_keystone_admin_client()
+        keystone_conf = cfg.CONF.keystone_authtoken
+        tenants = v3client.projects.list(domain='default',
+            name=keystone_conf.get('admin_tenant_name'))
         admin_tenant = [tenant for tenant in tenants if
                         tenant.name == cfg.CONF.keystone_authtoken.get(
                                                   'admin_tenant_name')][0]
