@@ -405,14 +405,14 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
                        }
                        }
         if destination_port:
-            fw_rule_obj["properties_key"].update({"destination_port":
-                                                  destination_port})
+            fw_rule_obj[properties_key].update(
+                {"destination_port": destination_port})
         if destination_cidr:
-            fw_rule_obj["properties_key"].update({"destination_ip_address":
-                                                  destination_cidr})
+            fw_rule_obj[properties_key].update(
+                {"destination_ip_address": destination_cidr})
         if source_cidr:
-            fw_rule_obj["properties_key"].update({"source_ip_address":
-                                                  source_cidr})
+            fw_rule_obj[properties_key].update(
+                {"source_ip_address": source_cidr})
 
         return fw_rule_obj
 
