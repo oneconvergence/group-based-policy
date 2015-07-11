@@ -401,16 +401,24 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
         type_key = 'Type' if is_template_aws_version else 'type'
         properties_key = ('Properties' if is_template_aws_version
                           else 'properties')
-        return {type_key: "OS::Neutron::FirewallRule",
-                properties_key: {
-                    "protocol": protocol,
-                    "enabled": True,
-                    "destination_port": destination_port,
-                    "action": "allow",
-                    "destination_ip_address": destination_cidr,
-                    "source_ip_address": source_cidr
-                }
-                }
+        fw_rule_obj = {type_key: "OS::Neutron::FirewallRule",
+                       properties_key: {
+                           "protocol": protocol,
+                           "enabled": True,
+                           "action": "allow"
+                       }
+                       }
+        if destination_port:
+            fw_rule_obj["properties_key"].update({"destination_port":
+                                                  destination_port})
+        if destination_cidr:
+            fw_rule_obj["properties_key"].update({"destination_ip_address":
+                                                  destination_cidr})
+        if source_cidr:
+            fw_rule_obj["properties_key"].update({"source_ip_address":
+                                                  source_cidr})
+
+        return fw_rule_obj
 
     def _generate_pool_members(self, context, stack_template,
                                config_param_values, provider_ptg,
