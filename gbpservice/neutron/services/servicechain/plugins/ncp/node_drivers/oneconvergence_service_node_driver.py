@@ -820,6 +820,31 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 'firewall_rules'] = fw_rule_list
         return stack_template
 
+    def _generate_firewall_rule(self, is_template_aws_version, protocol,
+                                destination_port, destination_cidr,
+                                source_cidr):
+        type_key = 'Type' if is_template_aws_version else 'type'
+        properties_key = ('Properties' if is_template_aws_version
+                          else 'properties')
+        fw_rule_obj = {type_key: "OS::Neutron::FirewallRule",
+                       properties_key: {
+                           "protocol": protocol,
+                           "enabled": True,
+                           "action": "allow"
+                       }
+                       }
+        if destination_port:
+            fw_rule_obj[properties_key].update(
+                {"destination_port": destination_port})
+        if destination_cidr:
+            fw_rule_obj[properties_key].update(
+                {"destination_ip_address": destination_cidr})
+        if source_cidr:
+            fw_rule_obj[properties_key].update(
+                {"source_ip_address": source_cidr})
+
+        return fw_rule_obj
+
     @log.log
     def delete(self, context):
         service_type = context.current_profile['service_type']
