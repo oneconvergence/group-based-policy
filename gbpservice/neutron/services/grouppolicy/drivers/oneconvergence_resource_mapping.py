@@ -287,3 +287,77 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
             self._update_port(plugin_context, port_id, port)
         except n_exc.PortNotFound:
             LOG.warn(_("Port %s is missing") % port_id)
+
+    def _handle_redirect_action(self, context, policy_rule_set_ids):
+        policy_rule_sets = context._plugin.get_policy_rule_sets(
+                                    context._plugin_context,
+                                    filters={'id': policy_rule_set_ids})
+        for policy_rule_set in policy_rule_sets:
+            ptgs_consuming_prs = (
+                policy_rule_set['consuming_policy_target_groups'] +
+                policy_rule_set['consuming_external_policies'])
+            ptgs_providing_prs = policy_rule_set[
+                                            'providing_policy_target_groups']
+
+            # Create the ServiceChain Instance when we have both Provider and
+            # consumer PTGs. If Labels are available, they have to be applied
+            if not ptgs_consuming_prs or not ptgs_providing_prs:
+                continue
+
+            parent_classifier_id = None
+            parent_spec_id = None
+            if policy_rule_set['parent_id']:
+                parent = context._plugin.get_policy_rule_set(
+                    context._plugin_context, policy_rule_set['parent_id'])
+                policy_rules = context._plugin.get_policy_rules(
+                                    context._plugin_context,
+                                    filters={'id': parent['policy_rules']})
+                for policy_rule in policy_rules:
+                    policy_actions = context._plugin.get_policy_actions(
+                        context._plugin_context,
+                        filters={'id': policy_rule["policy_actions"],
+                                 'action_type': [gconst.GP_ACTION_REDIRECT]})
+                    if policy_actions:
+                        parent_spec_id = policy_actions[0].get("action_value")
+                        parent_classifier_id = policy_rule.get(
+                                                    "policy_classifier_id")
+                        break  # only one redirect action is supported
+            policy_rules = context._plugin.get_policy_rules(
+                    context._plugin_context,
+                    filters={'id': policy_rule_set['policy_rules']})
+
+            # Delete the existing mapped chains here.
+            for ptg_consuming_prs in ptgs_consuming_prs:
+                for ptg_providing_prs in ptgs_providing_prs:
+                    ptg_chain_map = (
+                                self._get_ptg_servicechain_mapping(
+                                    context._plugin_context.session,
+                                    ptg_providing_prs,
+                                    ptg_consuming_prs))
+                    # REVISIT(Magesh): There may be concurrency
+                    # issues here.
+                    for ptg_chain in ptg_chain_map:
+                        self._delete_servicechain_instance(
+                            context,
+                            ptg_chain.servicechain_instance_id)
+
+            for policy_rule in policy_rules:
+                classifier_id = policy_rule.get("policy_classifier_id")
+                if parent_classifier_id and not set(
+                                [parent_classifier_id]) & set([classifier_id]):
+                    continue
+                policy_actions = context._plugin.get_policy_actions(
+                        context._plugin_context,
+                        filters={'id': policy_rule.get("policy_actions"),
+                                 'action_type': [gconst.GP_ACTION_REDIRECT]})
+                for policy_action in policy_actions:
+                    for ptg_consuming_prs in ptgs_consuming_prs:
+                        for ptg_providing_prs in ptgs_providing_prs:
+                            sc_instance = self._create_servicechain_instance(
+                                context, policy_action.get("action_value"),
+                                parent_spec_id, ptg_providing_prs,
+                                ptg_consuming_prs, classifier_id)
+                            self._set_ptg_servicechain_instance_mapping(
+                                context._plugin_context.session,
+                                ptg_providing_prs, ptg_consuming_prs,
+                                sc_instance['id'])
