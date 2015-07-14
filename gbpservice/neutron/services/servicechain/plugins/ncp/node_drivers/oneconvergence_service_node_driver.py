@@ -991,9 +991,6 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def get_admin_tenant_object(self):
         v3client = self.get_v3_keystone_admin_client()
         keystone_conf = cfg.CONF.keystone_authtoken
-        tenants = v3client.projects.list(domain='default',
+        admin_tenant = v3client.projects.find(
             name=keystone_conf.get('admin_tenant_name'))
-        admin_tenant = [tenant for tenant in tenants if
-                        tenant.name == cfg.CONF.keystone_authtoken.get(
-                                                  'admin_tenant_name')][0]
         return admin_tenant
