@@ -28,6 +28,15 @@ from gbpservice.neutron.services.grouppolicy.drivers import resource_mapping
 LOG = logging.getLogger(__name__)
 
 
+class PTGInUseByPRS(n_exc.InUse, exc.GroupPolicyException):
+    message = _("Please unset the Policy Rule Sets before deleting the Group")
+
+
+class EPInUseByPRS(n_exc.InUse, exc.GroupPolicyException):
+    message = _("Please unset the Policy Rule Sets before deleting the "
+                "External Policy")
+
+
 class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver):
     """One Convergence Resource Mapping driver for Group Policy plugin.
 
@@ -80,10 +89,6 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
 
     @log.log
     def delete_policy_target_group_precommit(self, context):
-        context.nsp_cleanup_ipaddress = self._get_ptg_policy_ipaddress_mapping(
-            context._plugin_context.session, context.current['id'])
-        context.nsp_cleanup_fips = self._get_ptg_policy_fip_mapping(
-            context._plugin_context.session, context.current['id'])
         provider_ptg_chain_map = self._get_ptg_servicechain_mapping(
                                             context._plugin_context.session,
                                             context.current['id'],
@@ -93,6 +98,12 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
                                             None,
                                             context.current['id'],)
         context.ptg_chain_map = provider_ptg_chain_map + consumer_ptg_chain_map
+        if context.ptg_chain_map:
+            raise PTGInUseByPRS()
+        context.nsp_cleanup_ipaddress = self._get_ptg_policy_ipaddress_mapping(
+            context._plugin_context.session, context.current['id'])
+        context.nsp_cleanup_fips = self._get_ptg_policy_fip_mapping(
+            context._plugin_context.session, context.current['id'])
         if (self._is_firewall_in_sc_spec(context, ptg_id=context.current['id'])
                 and self._is_ptg_provider(context, context.current['id'])):
             context.delete_service_vm_sg = True
@@ -128,6 +139,19 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
         if context.delete_service_vm_sg:
             self._delete_service_vm_sg(context, context.current['tenant_id'],
                                        context.current['id'])
+
+    def delete_external_policy_precommit(self, context):
+        provider_ptg_chain_map = self._get_ptg_servicechain_mapping(
+                                            context._plugin_context.session,
+                                            context.current['id'],
+                                            None)
+        consumer_ptg_chain_map = self._get_ptg_servicechain_mapping(
+                                            context._plugin_context.session,
+                                            None,
+                                            context.current['id'],)
+        context.ptg_chain_map = provider_ptg_chain_map + consumer_ptg_chain_map
+        if context.ptg_chain_map:
+            raise EPInUseByPRS()
 
     def _create_service_vm_sg_rule(self, context, sg_id):
         attrs = {'tenant_id': context._plugin_context.tenant_id,
@@ -171,13 +195,12 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
             for node_id in sc_spec['nodes']:
                 sc_node = self._servicechain_plugin.get_servicechain_node(
                                             context._plugin_context, node_id)
-                profiles = self._servicechain_plugin.get_service_profiles(
-                                                    context._plugin_context)
-                for profile in profiles:
+                profile_id = sc_node.get('service_profile_id')
+                if profile_id:
+                    profile = self._servicechain_plugin.get_service_profile(
+                                            context._plugin_context, profile_id)
                     if profile['service_type'] == pconst.FIREWALL:
-                        firewall_profile_id = profile['id']
-                if sc_node['service_profile_id'] == firewall_profile_id:
-                    return True
+                        return True
         return False
 
     def _get_policy_rule_set_ids(self, context, pt_id, ptg_id):
