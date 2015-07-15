@@ -29,7 +29,8 @@ LOG = logging.getLogger(__name__)
 
 
 class PTGInUseByPRS(n_exc.InUse, exc.GroupPolicyException):
-    message = _("Please unset the Policy Rule Sets before deleting the Group")
+    message = _("Please unset the Policy Rule Sets before deleting the "
+                "Policy Target Group")
 
 
 class EPInUseByPRS(n_exc.InUse, exc.GroupPolicyException):
