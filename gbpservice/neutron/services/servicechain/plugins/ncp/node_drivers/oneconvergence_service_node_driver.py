@@ -745,7 +745,10 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 l3p = context.gbp_plugin.get_l3_policy(
                         context.plugin_context, l2p['l3_policy_id'])
                 config_param_values['RouterId'] = l3p['routers'][0]
-                desc = 'fip=' + floating_ip + ";" + "tunnel_local_cidr=" + provider_subnet['cidr']
+                access_ip = self.svc_mgr.get_vpn_access_ip(
+                    context._plugin_context, stitching_port_id)
+                desc = ('fip=' + floating_ip + ";tunnel_local_cidr=" +
+                        provider_subnet['cidr']+";user_access_ip=" + access_ip)
                 stack_params['ServiceDescription'] = desc
         else:
             # FIXME(Magesh): Raise error or autocorrect template if the key
@@ -965,8 +968,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             keystone_conf.auth_protocol, keystone_conf.auth_host,
             keystone_conf.auth_port))
         v3client = keyclientv3.Client(
-            username=user, password=pw, project_domain_name="default",
-            project_name="admin", user_domain_name="default",
+            username=user, password=pw, domain_name="default",
             auth_url=v3_auth_url)
         return v3client
 
@@ -980,8 +982,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def assign_admin_user_to_project(self, project_id):
         v3client = self.get_v3_keystone_admin_client()
         keystone_conf = cfg.CONF.keystone_authtoken
-        admin_id = v3client.users.list(domain='default',
-            name=keystone_conf.get('admin_user'))[0].id
+        admin_id = v3client.users.find(name=keystone_conf.get('admin_user')).id
         neutron_admin_role = self.get_role_by_name(v3client, "neutron_admin")
         v3client.roles.grant(neutron_admin_role.id, user=admin_id,
                              project=project_id)
