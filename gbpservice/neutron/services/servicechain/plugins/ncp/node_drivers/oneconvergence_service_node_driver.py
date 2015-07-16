@@ -819,7 +819,16 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     i += 1
 
         if consumer_cidr != '0.0.0.0/0' or not fw_rule_key:
-            stack_template[resources_key]['Firewall_Policy'][properties_key][
+            resource_name = 'OS::Neutron::FirewallPolicy'
+            fw_policy_key = self._get_heat_resource_key(
+                            stack_template[resources_key],
+                            is_template_aws_version,
+                            resource_name)
+            self._modify_fw_resources_name(context, stack_template,
+                                           provider_ptg,
+                                           is_template_aws_version)
+
+            stack_template[resources_key][fw_policy_key][properties_key][
                 'firewall_rules'] = fw_rule_list
         return stack_template
 
@@ -847,6 +856,73 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 {"source_ip_address": source_cidr})
 
         return fw_rule_obj
+
+    def _modify_fw_resources_name(self, context, stack_template,
+                                  provider_ptg, is_template_aws_version):
+        resources_key = 'Resources' if is_template_aws_version else 'resources'
+        properties_key = ('Properties' if is_template_aws_version
+                          else 'properties')
+
+        resource_name = 'OS::Neutron::FirewallPolicy'
+        fw_policy_key = self._get_heat_resource_key(
+                        stack_template[resources_key],
+                        is_template_aws_version,
+                        resource_name)
+        fw_resource_name = 'OS::Neutron::Firewall'
+        fw_key = self._get_heat_resource_key(
+                        stack_template[resources_key],
+                        is_template_aws_version,
+                        fw_resource_name)
+        # Include provider name in firewall, firewall policy.
+        ptg_name = '-' + provider_ptg['name']
+        stack_template[resources_key][fw_policy_key][
+                                    properties_key]['name'] += ptg_name
+        stack_template[resources_key][fw_key][
+                                    properties_key]['name'] += ptg_name
+
+
+    def _modify_lb_resources_name(self, context, stack_template,
+                                  provider_ptg, is_template_aws_version):
+        resources_key = 'Resources' if is_template_aws_version else 'resources'
+        type_key = 'Type' if is_template_aws_version else 'type'
+        properties_key = ('Properties' if is_template_aws_version
+                          else 'properties')
+
+        for resource in stack_template[resources_key]:
+            if stack_template[resources_key][resource][type_key] == (
+                                                    'OS::Neutron::Pool'):
+                # Include provider name in Pool, VIP name.
+                ptg_name = '-' + provider_ptg['name']
+                stack_template[resources_key][resource][
+                                    properties_key]['name'] += ptg_name
+                stack_template[resources_key][resource][
+                                    properties_key]['vip']['name'] += ptg_name
+
+    def _generate_pool_members(self, context, stack_template,
+                               config_param_values, provider_ptg,
+                               is_template_aws_version):
+        resources_key = 'Resources' if is_template_aws_version else 'resources'
+        type_key = 'Type' if is_template_aws_version else 'type'
+        self._modify_lb_resources_name(context, stack_template,
+                                       provider_ptg, is_template_aws_version)
+        member_ips = self._get_member_ips(context, provider_ptg)
+        if not member_ips:
+            return
+
+        pool_res_name = None
+        for resource in stack_template[resources_key]:
+            if stack_template[resources_key][resource][type_key] == (
+                                                    'OS::Neutron::Pool'):
+                pool_res_name = resource
+                break
+
+        for member_ip in member_ips:
+            member_name = 'mem-' + member_ip
+            stack_template[resources_key][member_name] = (
+                self._generate_pool_member_template(
+                    context, is_template_aws_version,
+                    pool_res_name, member_ip))
+
 
     @log.log
     def delete(self, context):
