@@ -1551,11 +1551,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
         self._assert_proper_chain_instance(sc_instance, provider_ptg_id,
                                            consumer_ptg_id, [scs_id])
 
-        # Verify that PTG delete cleans up the chain instances
-        req = self.new_delete_request(
-            'policy_target_groups', consumer_ptg_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    consumer_ptg_id,
+                    consumed_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
         sc_node_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_node_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -1670,10 +1670,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
         self.assertEqual(sc_instance['id'], new_sc_instance['id'])
         self.assertEqual([new_scs_id], new_sc_instance['servicechain_specs'])
 
-        req = self.new_delete_request(
-                'policy_target_groups', consumer_ptg_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    consumer_ptg_id,
+                    consumed_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
         sc_instance_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_instance_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -1719,10 +1720,12 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
                                            consumer_ptg_id, [scs_id])
         self.assertNotEqual(sc_instance, sc_instance_new)
 
-        req = self.new_delete_request(
-                'policy_target_groups', consumer_ptg_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    consumer_ptg_id,
+                    consumed_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
+
         sc_instance_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_instance_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -1772,10 +1775,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
                                            consumer_ptg_id, [scs_id])
         self.assertNotEqual(sc_instance, sc_instance_new)
 
-        req = self.new_delete_request(
-                'policy_target_groups', consumer_ptg_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    consumer_ptg_id,
+                    consumed_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
         sc_instance_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_instance_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -1829,12 +1833,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
         self.assertEqual(expected_consumer_ptg_ids,
                          sc_instances_consumer_ptg_ids)
 
-        # Deleting one group should end up deleting the two service chain
-        # Instances associated to it
-        req = self.new_delete_request(
-            'policy_target_groups', consumer_ptg1_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    consumer_ptg1_id,
+                    consumed_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
         sc_instance_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_instance_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -1844,10 +1847,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
             self.assertNotEqual(sc_instance['consumer_ptg_id'],
                                 consumer_ptg1_id)
 
-        req = self.new_delete_request(
-            'policy_target_groups', provider_ptg1_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    provider_ptg1_id,
+                    provided_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
         sc_instance_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_instance_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -1855,10 +1859,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
         sc_instance = sc_instances['servicechain_instances'][0]
         self.assertNotEqual(sc_instance['provider_ptg_id'], provider_ptg1_id)
 
-        req = self.new_delete_request(
-            'policy_target_groups', provider_ptg2_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    provider_ptg2_id,
+                    provided_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
         sc_instance_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_instance_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -1932,10 +1937,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
         self.assertEqual(sc_instance['servicechain_specs'],
                          [parent_scs_id, scs_id])
 
-        req = self.new_delete_request(
-            'policy_target_groups', consumer_ptg_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    consumer_ptg_id,
+                    consumed_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
         sc_node_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_node_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -2012,10 +2018,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
         self._assert_proper_chain_instance(sc_instance, provider_ptg_id,
                                            consumer_ptg_id, [scs_id])
 
-        req = self.new_delete_request(
-            'policy_target_groups', consumer_ptg_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    consumer_ptg_id,
+                    consumed_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
         sc_node_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_node_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -2079,10 +2086,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
                                            consumer_ptg_id,
                                            [parent_scs_id, scs_id])
 
-        req = self.new_delete_request(
-            'policy_target_groups', consumer_ptg_id)
-        res = req.get_response(self.ext_api)
-        self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+        # Update the PTG and unset the PRS. This should delete the chain
+        self.update_policy_target_group(
+                    consumer_ptg_id,
+                    consumed_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
         sc_node_list_req = self.new_list_request(SERVICECHAIN_INSTANCES)
         res = sc_node_list_req.get_response(self.ext_api)
         sc_instances = self.deserialize(self.fmt, res)
@@ -2360,11 +2368,11 @@ class TestPolicyRuleSet(ResourceMappingTestCase):
                     sc_instance, provider['policy_target_group']['id'],
                     ep['external_policy']['id'], [scs_id])
 
-                # Verify that PTG delete cleans up the chain instances
-                req = self.new_delete_request(
-                    'external_policies', ep['external_policy']['id'])
-                res = req.get_response(self.ext_api)
-                self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)
+                # Update the EP and unset the PRS. This should delete the chain
+                self.update_external_policy(
+                    ep['external_policy']['id'],
+                    consumed_policy_rule_sets={},
+                    expected_res_status=webob.exc.HTTPOk.code)
                 sc_node_list_req = self.new_list_request(
                     SERVICECHAIN_INSTANCES)
                 res = sc_node_list_req.get_response(self.ext_api)
