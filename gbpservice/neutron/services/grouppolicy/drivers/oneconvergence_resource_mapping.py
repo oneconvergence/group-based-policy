@@ -312,6 +312,7 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
         except n_exc.PortNotFound:
             LOG.warn(_("Port %s is missing") % port_id)
 
+"""
     def _handle_redirect_action(self, context, policy_rule_set_ids):
         policy_rule_sets = context._plugin.get_policy_rule_sets(
                                     context._plugin_context,
@@ -385,3 +386,4 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
                                 context._plugin_context.session,
                                 ptg_providing_prs, ptg_consuming_prs,
                                 sc_instance['id'])
+"""
