@@ -770,24 +770,53 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                                   'param': stack_params})
         return (stack_template, stack_params)
 
-    # FIXME(Magesh): Redirect is implicit Allow for GBP, but we are not adding
-    # allow rules in Firewall for redirect classifier
+    def _get_all_heat_resource_keys(self, template_resource_dict,
+                                    is_template_aws_version, resource_name):
+        type_key = 'Type' if is_template_aws_version else 'type'
+        resource_keys = []
+        for key in template_resource_dict:
+            if template_resource_dict[key].get(type_key) == resource_name:
+                resource_keys.append(key)
+        return resource_keys
+
+    def _update_cidr_for_ptg_placeholder(self, stack_template, provider_cidr,
+                                         consumer_cidr, is_template_aws_version):
+        resources_key = 'Resources' if is_template_aws_version else 'resources'
+	properties_key = ('Properties' if is_template_aws_version
+            else 'properties')
+        fw_rule_keys = self._get_all_heat_resource_keys(
+            stack_template[resources_key],
+            is_template_aws_version,
+            'OS::Neutron::FirewallRule')
+	import pdb;pdb.set_trace()
+        for fw_rule_key in fw_rule_keys:
+            fw_rule_resource = stack_template[resources_key][fw_rule_key]
+            if fw_rule_resource[properties_key].get('destination_ip_address') == 'PTG':
+                fw_rule_resource[properties_key]['destination_ip_address'] = provider_cidr
+            if fw_rule_resource[properties_key].get('source_ip_address') == 'PTG':
+                fw_rule_resource[properties_key]['source_ip_address'] = consumer_cidr
+
     def _update_template_with_firewall_rules(self, context, provider_ptg,
                                              provider_cidr, consumer_cidr,
                                              stack_template,
                                              is_template_aws_version):
         resources_key = 'Resources' if is_template_aws_version else 'resources'
         properties_key = ('Properties' if is_template_aws_version
-                          else 'properties')
-        fw_rule_key = self._get_heat_resource_key(
-                            stack_template[resources_key],
-                            is_template_aws_version,
-                            'OS::Neutron::FirewallRule')
+            else 'properties')
+        self._update_cidr_for_ptg_placeholder(stack_template, provider_cidr,
+                                              consumer_cidr, is_template_aws_version)
+        fw_policy_key = self._get_heat_resource_key(
+            stack_template[resources_key],
+            is_template_aws_version,
+            'OS::Neutron::FirewallPolicy')
+        fw_rule_list = stack_template[resources_key][fw_policy_key][
+            properties_key].get('firewall_rules', [])
+
         provider_policy_rule_sets_list = provider_ptg[
             "provided_policy_rule_sets"]
         provider_policy_rule_sets = context.gbp_plugin.get_policy_rule_sets(
-                    context._plugin_context,
-                    filters={'id': provider_policy_rule_sets_list})
+            context._plugin_context,
+            filters={'id': provider_policy_rule_sets_list})
         policy_rule_ids = list()
         for rule_set in provider_policy_rule_sets:
             policy_rule_ids.extend(rule_set.get("policy_rules"))
@@ -795,41 +824,33 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         policy_rules = context.gbp_plugin.get_policy_rules(
             context._plugin_context, filters={'id': policy_rule_ids})
 
-        i = 0
-        fw_rule_list = []
+        i = len(fw_rule_list)
         for policy_rule in policy_rules:
             policy_action_ids = policy_rule.get("policy_actions")
             policy_actions_detail = context.gbp_plugin.get_policy_actions(
-                    context._plugin_context, filters={'id': policy_action_ids})
+                context._plugin_context, filters={'id': policy_action_ids})
             for policy_action in policy_actions_detail:
                 if policy_action["action_type"] == constants.GP_ACTION_ALLOW:
                     classifier = context.gbp_plugin.get_policy_classifier(
-                            context._plugin_context,
-                            policy_rule.get("policy_classifier_id"))
+                        context._plugin_context,
+                        policy_rule.get("policy_classifier_id"))
 
                     rule_name = "Rule_%s" % i
                     stack_template[resources_key][rule_name] = (
-                                            self._generate_firewall_rule(
-                                                is_template_aws_version,
-                                                classifier.get("protocol"),
-                                                classifier.get("port_range"),
-                                                provider_cidr, consumer_cidr))
+                        self._generate_firewall_rule(
+                            is_template_aws_version,
+                            classifier.get("protocol"),
+                            classifier.get("port_range"),
+                            provider_cidr,
+                            consumer_cidr))
 
                     fw_rule_list.append({'get_resource': rule_name})
                     i += 1
 
-        if consumer_cidr != '0.0.0.0/0' or not fw_rule_key:
-            resource_name = 'OS::Neutron::FirewallPolicy'
-            fw_policy_key = self._get_heat_resource_key(
-                            stack_template[resources_key],
-                            is_template_aws_version,
-                            resource_name)
-            self._modify_fw_resources_name(context, stack_template,
-                                           provider_ptg,
-                                           is_template_aws_version)
-
-            stack_template[resources_key][fw_policy_key][properties_key][
-                'firewall_rules'] = fw_rule_list
+        self._modify_fw_resources_name(
+            context, stack_template, provider_ptg, is_template_aws_version)
+        stack_template[resources_key][fw_policy_key][properties_key][
+            'firewall_rules'] = fw_rule_list
         return stack_template
 
     def _generate_firewall_rule(self, is_template_aws_version, protocol,
@@ -880,7 +901,6 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         stack_template[resources_key][fw_key][
                                     properties_key]['name'] += ptg_name
 
-
     def _modify_lb_resources_name(self, context, stack_template,
                                   provider_ptg, is_template_aws_version):
         resources_key = 'Resources' if is_template_aws_version else 'resources'
@@ -922,7 +942,6 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 self._generate_pool_member_template(
                     context, is_template_aws_version,
                     pool_res_name, member_ip))
-
 
     @log.log
     def delete(self, context):
