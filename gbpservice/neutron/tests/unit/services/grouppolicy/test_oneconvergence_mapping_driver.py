@@ -13,6 +13,7 @@
 #    under the License.
 
 import contextlib
+import mock
 
 import webob.exc
 
@@ -149,6 +150,99 @@ class TestPolicyRuleSet(OneConvergenceGBPMappingDriverTestCase,
                 self.assertEqual(
                     0, len(sc_instances['servicechain_instances']))
 
+    def RaiseError(self, context):
+        raise
+
+    def test_cleanup_on_ep_create_failure(self):
+        scs_id = self._create_servicechain_spec()
+        _, _, policy_rule_id = self._create_tcp_redirect_rule(
+                                                "20:90", scs_id)
+
+        policy_rule_set = self.create_policy_rule_set(
+            name="c1", policy_rules=[policy_rule_id])
+        policy_rule_set_id = policy_rule_set['policy_rule_set']['id']
+        with self.network(router__external=True, shared=True) as net:
+            with self.subnet(cidr='192.168.0.0/24', network=net) as sub:
+                self.create_external_segment(
+                    shared=True,
+                    tenant_id='admin', name="default",
+                    subnet_id=sub['subnet']['id'])['external_segment']
+
+                self.create_policy_target_group(
+                    provided_policy_rule_sets={policy_rule_set_id: ''})
+                mock.patch("gbpservice.neutron.services.servicechain.plugins."
+                           "msc.driver_manager.DriverManager."
+                           "create_servicechain_instance_postcommit",
+                           new=self.RaiseError).start()
+                delete_sc_instance = mock.patch(
+                    "gbpservice.neutron.services.servicechain.plugins.msc."
+                    "driver_manager.DriverManager."
+                    "delete_servicechain_instance_postcommit").start()
+                ep = self.create_external_policy(
+                    name='ep1',
+                    consumed_policy_rule_sets={policy_rule_set_id: ''},
+                    expected_res_status=webob.exc.HTTPInternalServerError.code)
+                self.assertEqual('ExternalPolicyCreateFailed',
+                                 ep['NeutronError']['type'])
+                delete_sc_instance.assert_called_once_with(mock.ANY)
+                self.assertFalse(
+                    self._list(
+                        'policy_target_groups',
+                        query_params='name=ep1')['policy_target_groups'])
+                sc_node_list_req = self.new_list_request(
+                    SERVICECHAIN_INSTANCES)
+                res = sc_node_list_req.get_response(self.ext_api)
+                sc_instances = self.deserialize(self.fmt, res)
+                # All instances should be cleaned up
+                self.assertEqual(
+                    0, len(sc_instances['servicechain_instances']))
+
+    def test_cleanup_on_ptg_create_failure(self):
+        scs_id = self._create_servicechain_spec()
+        _, _, policy_rule_id = self._create_tcp_redirect_rule(
+                                                "20:90", scs_id)
+
+        policy_rule_set = self.create_policy_rule_set(
+            name="c1", policy_rules=[policy_rule_id])
+        policy_rule_set_id = policy_rule_set['policy_rule_set']['id']
+
+        with self.network(router__external=True, shared=True) as net:
+            with self.subnet(cidr='192.168.0.0/24', network=net) as sub:
+                self.create_external_segment(
+                    shared=True,
+                    tenant_id='admin', name="default",
+                    subnet_id=sub['subnet']['id'])['external_segment']
+
+                self.create_external_policy(
+                    consumed_policy_rule_sets={policy_rule_set_id: ''})
+                mock.patch("gbpservice.neutron.services.servicechain.plugins."
+                           "msc.driver_manager.DriverManager."
+                           "create_servicechain_instance_postcommit",
+                           new=self.RaiseError).start()
+                delete_sc_instance = mock.patch(
+                    "gbpservice.neutron.services.servicechain.plugins.msc."
+                    "driver_manager.DriverManager."
+                    "delete_servicechain_instance_postcommit").start()
+                provider = self.create_policy_target_group(
+                    name='ptg1',
+                    provided_policy_rule_sets={policy_rule_set_id: ''},
+                    expected_res_status=webob.exc.HTTPInternalServerError.code)
+                self.assertEqual('PTGCreateFailed',
+                                 provider['NeutronError']['type'])
+                delete_sc_instance.assert_called_once_with(mock.ANY)
+
+                self.assertFalse(
+                    self._list(
+                        'policy_target_groups',
+                        query_params='name=ptg1')['policy_target_groups'])
+                sc_node_list_req = self.new_list_request(
+                    SERVICECHAIN_INSTANCES)
+                res = sc_node_list_req.get_response(self.ext_api)
+                sc_instances = self.deserialize(self.fmt, res)
+                # All instances should be cleaned up
+                self.assertEqual(
+                    0, len(sc_instances['servicechain_instances']))
+
 
 class TestPolicyAction(OneConvergenceGBPMappingDriverTestCase,
                        test_resource_mapping.TestPolicyAction):
@@ -202,7 +296,7 @@ class TestNetworkServicePolicy(OneConvergenceGBPMappingDriverTestCase,
                                test_resource_mapping.TestNetworkServicePolicy):
     pass
 
-    
+
 class TestNatPool(OneConvergenceGBPMappingDriverTestCase,
                   test_resource_mapping.TestNatPool):
     pass
