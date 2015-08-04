@@ -456,7 +456,6 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     @log.log
     def update(self, context):
-        import pdb;pdb.set_trace()
         heatclient = self._get_heat_client(context.plugin_context)
         stack_template, stack_params = (
                         self._fetch_template_and_params_for_update(context))
