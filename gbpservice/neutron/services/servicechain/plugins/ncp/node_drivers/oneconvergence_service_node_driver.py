@@ -926,6 +926,13 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     @log.log
     def delete(self, context):
+        try:
+            super(OneConvergenceServiceNodeDriver, self).delete(context)
+        except Exception:
+            # Log the error and continue with VM delete in case if *aas
+            # cleanup failure
+            LOG.exception(_("Cleaning up the service chain stack failed"))
+
         service_type = context.current_profile['service_type']
         insert_type = ('north_south' if context.is_consumer_external else
                        'east_west')
@@ -980,7 +987,6 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
                 #if key == 'mgmt_port_id':
                 #    self._delete_service_targets(context, admin_context)
-        super(OneConvergenceServiceNodeDriver, self).delete(context)
 
     def _delete_service_targets(self, context, admin_context):
         policy_targets = model.get_service_targets(
