@@ -552,7 +552,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 firewall_desc = {'vm_management_ip': floating_ip,
                                  'provider_ptg_info': [provider_port_mac],
                                  'insert_type': insert_type}
-                stack_template[resources_key]['Firewall'][properties_key][
+                fw_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::FirewallPolicy')
+                stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
             elif service_type == pconst.VPN:
                 rvpn_l3policy_filter = {
@@ -728,7 +732,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 firewall_desc = {'vm_management_ip': floating_ip,
                                  'provider_ptg_info': [provider_port_mac],
                                  'insert_type': insert_type}
-                stack_template[resources_key]['Firewall'][properties_key][
+                fw_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::FirewallPolicy')
+                stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
             else:
                 #For remote vpn - we need to create a implicit l3 policy
@@ -807,7 +815,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 resource_keys.append(key)
         return resource_keys
 
-    def _update_cidr_for_ptg_placeholder(self, stack_template, provider_cidr,
+    def _update_cidr_in_fw_rules(self, stack_template, provider_cidr,
                                          consumer_cidr,
                                          is_template_aws_version):
         resources_key = 'Resources' if is_template_aws_version else 'resources'
@@ -820,9 +828,10 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         for fw_rule_key in fw_rule_keys:
             fw_rule_resource = stack_template[resources_key][fw_rule_key][
                 properties_key]
-            if fw_rule_resource.get('destination_ip_address') == 'PTG':
+            if fw_rule_resource.get('destination_ip_address') == '':
                 fw_rule_resource['destination_ip_address'] = provider_cidr
-            if fw_rule_resource.get('source_ip_address') == 'PTG':
+            if (fw_rule_resource.get('source_ip_address') == ''
+                and consumer_cidr != '0.0.0.0/0'):
                 fw_rule_resource['source_ip_address'] = consumer_cidr
 
     # Updates CIDR when "PTG" is specified as source or destination in Firewall
@@ -832,8 +841,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def _update_firewall_template(self, context, provider_ptg, provider_cidr,
                                   consumer_cidr, stack_template,
                                   is_template_aws_version):
-        self._update_cidr_for_ptg_placeholder(stack_template, provider_cidr,
-                                              consumer_cidr, is_template_aws_version)
+        self._update_cidr_in_fw_rules(stack_template, provider_cidr,
+                                      consumer_cidr, is_template_aws_version)
         self._modify_fw_resources_name(
             context, stack_template, provider_ptg, is_template_aws_version)
         return stack_template
