@@ -531,6 +531,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             provider_port_id = service_info['provider_port_id']
             provider_port_mac = context.core_plugin.get_port(
                     admin_context, provider_port_id)['mac_address']
+            stitching_port_id = service_info['stitching_port_id']
         else:
             raise ServiceInfoNotAvailableOnUpdate()
 
@@ -545,15 +546,33 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     consumer_cidr = '0.0.0.0/0'
 
                 provider_cidr = provider_subnet['cidr']
-                stack_template = self._update_template_with_firewall_rules(
+                stack_template = self._update_firewall_template(
                     context, provider_ptg, provider_cidr, consumer_cidr,
                     stack_template, is_template_aws_version)
                 firewall_desc = {'vm_management_ip': floating_ip,
                                  'provider_ptg_info': [provider_port_mac],
                                  'insert_type': insert_type}
-                stack_template[resources_key]['Firewall'][properties_key][
+                fw_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Firewall')
+                stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
             elif service_type == pconst.VPN:
+                rvpn_l3policy_filter = {
+                    'tenant_id': [context.plugin_context.tenant_id],
+                    'name': ["remote-vpn-client-pool-cidr-l3policy"]}
+                rvpn_l3_policy = context.gbp_plugin.get_l3_policies(
+                    context._plugin_context,
+                    rvpn_l3policy_filter)
+
+                if not rvpn_l3_policy:
+                    raise
+
+                rvpn_l3_policy = rvpn_l3_policy[0]
+                config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
+                    'ip_pool']
+
                 stitching_subnet_id = self.ts_driver._get_stitching_subnet_id(
                                 context, create_if_not_present=False)
                 config_param_values['Subnet'] = stitching_subnet_id
@@ -562,7 +581,20 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 l3p = context.gbp_plugin.get_l3_policy(
                         context.plugin_context, l2p['l3_policy_id'])
                 config_param_values['RouterId'] = l3p['routers'][0]
-                desc = 'fip=' + floating_ip + ";" + "tunnel_local_cidr=" + provider_subnet['cidr']
+
+                filters = {'port_id': [stitching_port_id]}
+                floatingips = context.l3_plugin.get_floatingips(admin_context,
+                                                                filters=filters)
+                if not floatingips:
+                    LOG.error(_("Floating IP is not allocated for Service "
+                                "Port"))
+                    raise
+                stitching_port_fip = context.l3_plugin.get_floatingip(
+                    admin_context,
+                    floatingips[0]['id'])['floating_ip_address']
+
+                desc = ('fip=' + floating_ip + ";tunnel_local_cidr=" +
+                        provider_subnet['cidr']+";user_access_ip=" + stitching_port_fip)
                 stack_params['ServiceDescription'] = desc
         else:
             config_param_values['service_chain_metadata'] = (
@@ -571,7 +603,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
         node_params = (stack_template.get(parameters_key) or [])
         for parameter in node_params:
-            if parameter == "Subnet":
+            if parameter == "Subnet" and service_type != pconst.VPN:
                 stack_params[parameter] = provider_ptg_subnet_id
             elif parameter in config_param_values:
                 stack_params[parameter] = config_param_values[parameter]
@@ -672,7 +704,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     consumer_cidr = '0.0.0.0/0'
 
                 provider_cidr = provider_subnet['cidr']
-                stack_template = self._update_template_with_firewall_rules(
+                stack_template = self._update_firewall_template(
                     context, provider_ptg, provider_cidr, consumer_cidr,
                     stack_template, is_template_aws_version)
         else:
@@ -700,7 +732,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 firewall_desc = {'vm_management_ip': floating_ip,
                                  'provider_ptg_info': [provider_port_mac],
                                  'insert_type': insert_type}
-                stack_template[resources_key]['Firewall'][properties_key][
+                fw_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Firewall')
+                stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
             else:
                 #For remote vpn - we need to create a implicit l3 policy
@@ -770,92 +806,46 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                                   'param': stack_params})
         return (stack_template, stack_params)
 
-    # FIXME(Magesh): Redirect is implicit Allow for GBP, but we are not adding
-    # allow rules in Firewall for redirect classifier
-    def _update_template_with_firewall_rules(self, context, provider_ptg,
-                                             provider_cidr, consumer_cidr,
-                                             stack_template,
-                                             is_template_aws_version):
+    def _get_all_heat_resource_keys(self, template_resource_dict,
+                                    is_template_aws_version, resource_name):
+        type_key = 'Type' if is_template_aws_version else 'type'
+        resource_keys = []
+        for key in template_resource_dict:
+            if template_resource_dict[key].get(type_key) == resource_name:
+                resource_keys.append(key)
+        return resource_keys
+
+    def _update_cidr_in_fw_rules(self, stack_template, provider_cidr,
+                                         consumer_cidr,
+                                         is_template_aws_version):
         resources_key = 'Resources' if is_template_aws_version else 'resources'
         properties_key = ('Properties' if is_template_aws_version
                           else 'properties')
-        fw_rule_key = self._get_heat_resource_key(
-                            stack_template[resources_key],
-                            is_template_aws_version,
-                            'OS::Neutron::FirewallRule')
-        provider_policy_rule_sets_list = provider_ptg[
-            "provided_policy_rule_sets"]
-        provider_policy_rule_sets = context.gbp_plugin.get_policy_rule_sets(
-                    context._plugin_context,
-                    filters={'id': provider_policy_rule_sets_list})
-        policy_rule_ids = list()
-        for rule_set in provider_policy_rule_sets:
-            policy_rule_ids.extend(rule_set.get("policy_rules"))
+        fw_rule_keys = self._get_all_heat_resource_keys(
+            stack_template[resources_key],
+            is_template_aws_version,
+            'OS::Neutron::FirewallRule')
+        for fw_rule_key in fw_rule_keys:
+            fw_rule_resource = stack_template[resources_key][fw_rule_key][
+                properties_key]
+            if fw_rule_resource.get('destination_ip_address') == '':
+                fw_rule_resource['destination_ip_address'] = provider_cidr
+            if (fw_rule_resource.get('source_ip_address') == ''
+                and consumer_cidr != '0.0.0.0/0'):
+                fw_rule_resource['source_ip_address'] = consumer_cidr
 
-        policy_rules = context.gbp_plugin.get_policy_rules(
-            context._plugin_context, filters={'id': policy_rule_ids})
-
-        i = 0
-        fw_rule_list = []
-        for policy_rule in policy_rules:
-            policy_action_ids = policy_rule.get("policy_actions")
-            policy_actions_detail = context.gbp_plugin.get_policy_actions(
-                    context._plugin_context, filters={'id': policy_action_ids})
-            for policy_action in policy_actions_detail:
-                if policy_action["action_type"] == constants.GP_ACTION_ALLOW:
-                    classifier = context.gbp_plugin.get_policy_classifier(
-                            context._plugin_context,
-                            policy_rule.get("policy_classifier_id"))
-
-                    rule_name = "Rule_%s" % i
-                    stack_template[resources_key][rule_name] = (
-                                            self._generate_firewall_rule(
-                                                is_template_aws_version,
-                                                classifier.get("protocol"),
-                                                classifier.get("port_range"),
-                                                provider_cidr, consumer_cidr))
-
-                    fw_rule_list.append({'get_resource': rule_name})
-                    i += 1
-
-        if consumer_cidr != '0.0.0.0/0' or not fw_rule_key:
-            resource_name = 'OS::Neutron::FirewallPolicy'
-            fw_policy_key = self._get_heat_resource_key(
-                            stack_template[resources_key],
-                            is_template_aws_version,
-                            resource_name)
-            self._modify_fw_resources_name(context, stack_template,
-                                           provider_ptg,
-                                           is_template_aws_version)
-
-            stack_template[resources_key][fw_policy_key][properties_key][
-                'firewall_rules'] = fw_rule_list
+    # Updates CIDR when "PTG" is specified as source or destination in Firewall
+    # rule. Firewall rules are not derived from PRS. This is different from
+    # what Cisco plans to have. For us, the Firewall rules only come from Node
+    # config
+    def _update_firewall_template(self, context, provider_ptg, provider_cidr,
+                                  consumer_cidr, stack_template,
+                                  is_template_aws_version):
+        self._update_cidr_in_fw_rules(stack_template, provider_cidr,
+                                      consumer_cidr, is_template_aws_version)
+        self._modify_fw_resources_name(
+            context, stack_template, provider_ptg, is_template_aws_version)
         return stack_template
-
-    def _generate_firewall_rule(self, is_template_aws_version, protocol,
-                                destination_port, destination_cidr,
-                                source_cidr):
-        type_key = 'Type' if is_template_aws_version else 'type'
-        properties_key = ('Properties' if is_template_aws_version
-                          else 'properties')
-        fw_rule_obj = {type_key: "OS::Neutron::FirewallRule",
-                       properties_key: {
-                           "protocol": protocol,
-                           "enabled": True,
-                           "action": "allow"
-                       }
-                       }
-        if destination_port:
-            fw_rule_obj[properties_key].update(
-                {"destination_port": destination_port})
-        if destination_cidr:
-            fw_rule_obj[properties_key].update(
-                {"destination_ip_address": destination_cidr})
-        if source_cidr:
-            fw_rule_obj[properties_key].update(
-                {"source_ip_address": source_cidr})
-
-        return fw_rule_obj
 
     def _modify_fw_resources_name(self, context, stack_template,
                                   provider_ptg, is_template_aws_version):
@@ -879,7 +869,6 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                                     properties_key]['name'] += ptg_name
         stack_template[resources_key][fw_key][
                                     properties_key]['name'] += ptg_name
-
 
     def _modify_lb_resources_name(self, context, stack_template,
                                   provider_ptg, is_template_aws_version):
@@ -921,8 +910,34 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             stack_template[resources_key][member_name] = (
                 self._generate_pool_member_template(
                     context, is_template_aws_version,
-                    pool_res_name, member_ip))
+                    pool_res_name, member_ip, stack_template))
 
+    # REVISIT(Magesh): The protocol port should ideally come from the user.
+    # For now, we are using the same port as VIP
+    def _generate_pool_member_template(self, context,
+                                       is_template_aws_version,
+                                       pool_res_name, member_ip,
+                                       stack_template):
+        type_key = 'Type' if is_template_aws_version else 'type'
+        properties_key = ('Properties' if is_template_aws_version
+                          else 'properties')
+        resources_key = 'Resources' if is_template_aws_version else 'resources'
+        res_key = 'Ref' if is_template_aws_version else 'get_resource'
+
+        lbaas_pool_key = self._get_heat_resource_key(
+            stack_template[resources_key],
+            is_template_aws_version,
+            "OS::Neutron::Pool")
+        protocol_port = stack_template[resources_key][lbaas_pool_key][
+            properties_key]['vip']['protocol_port']
+
+        return {type_key: "OS::Neutron::PoolMember",
+                properties_key: {
+                    "address": member_ip,
+                    "admin_state_up": True,
+                    "pool_id": {res_key: pool_res_name},
+                    "protocol_port": protocol_port,
+                    "weight": 1}}
 
     @log.log
     def delete(self, context):
