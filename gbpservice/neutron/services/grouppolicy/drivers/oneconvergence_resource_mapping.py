@@ -11,18 +11,15 @@
 # strictly forbidden unless prior written permission is obtained from
 # One Convergence, Inc., USA
 
-
-
+from neutron.common import exceptions as n_exc
 from neutron.common import log
+from neutron.extensions import securitygroup as ext_sg
 from neutron.openstack.common import log as logging
 from neutron.plugins.common import constants as pconst
-from neutron.common import exceptions as n_exc
-from neutron.extensions import securitygroup as ext_sg
 
+from gbpservice.neutron.extensions import group_policy as gp_ext
 from gbpservice.neutron.services.grouppolicy.common import constants as gconst
 from gbpservice.neutron.services.grouppolicy.common import exceptions as exc
-from gbpservice.neutron.extensions import group_policy as gp_ext
-
 from gbpservice.neutron.services.grouppolicy.drivers import resource_mapping
 
 LOG = logging.getLogger(__name__)
@@ -38,7 +35,26 @@ class EPInUseByPRS(n_exc.InUse, exc.GroupPolicyException):
                 "External Policy")
 
 
-class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver):
+class PTGCreateFailed(exc.GroupPolicyException):
+    message = _("Policy Target group creation failed")
+
+
+class PTGCreateAndCleanupFailed(exc.GroupPolicyException):
+    message = _("Policy Target group creation and cleanup failed. Please unset"
+                " the Policy Rulesets and delete the Policy Target Group")
+
+
+class ExternalPolicyCreateFailed(exc.GroupPolicyException):
+    message = _("External Policy creation failed")
+
+
+class ExternalPolicyCreateAndCleanupFailed(exc.GroupPolicyException):
+    message = _("External Policy creation and cleanup failed. Please unset"
+                " the Policy Rulesets and delete the External Policy")
+
+
+class OneConvergenceResourceMappingDriver(
+    resource_mapping.ResourceMappingDriver):
     """One Convergence Resource Mapping driver for Group Policy plugin.
 
     This driver inherits default group policy RMD.
@@ -60,6 +76,45 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
         if len(context.current['external_segments']) > 1:
             raise exc.MultipleESPerEPNotSupported()
 
+    def create_external_policy_postcommit(self, context):
+        # Only *North to South* rules are actually effective.
+        # The rules will be calculated as the symmetric difference between
+        # the union of all the Tenant's L3P supernets and the union of all the
+        # ES routes.
+        # REVISIT(ivar): Remove when ES update is supported for EP
+        if not context.current['external_segments']:
+            raise exc.ESIdRequiredWhenCreatingEP()
+        ep = context.current
+        if ep['external_segments']:
+            if (ep['provided_policy_rule_sets'] or
+                ep['consumed_policy_rule_sets']):
+                # Get the full processed list of external CIDRs
+                cidr_list = self._get_processed_ep_cidr_list(context, ep)
+                # set the rules on the proper SGs
+                self._set_sg_rules_for_cidrs(
+                    context, cidr_list, ep['provided_policy_rule_sets'],
+                    ep['consumed_policy_rule_sets'])
+            try:
+                if ep['consumed_policy_rule_sets']:
+                    self._handle_redirect_action(
+                        context, ep['consumed_policy_rule_sets'])
+            except Exception:
+                LOG.exception(_("Creating External Policy failed"))
+                external_policy = {'external_policy': {
+                                       'provided_policy_rule_sets': {},
+                                       'consumed_policy_rule_sets': {}}}
+                try:
+                    context._plugin.update_external_policy(
+                        context._plugin_context,
+                        context.current['id'],
+                        external_policy)
+                except Exception:
+                    LOG.exception(_("Unsetting Policy Ruleset failed as part "
+                                    "of cleanup"))
+                    raise ExternalPolicyCreateAndCleanupFailed()
+                else:
+                    raise ExternalPolicyCreateFailed()
+
     @log.log
     def create_policy_target_group_postcommit(self, context):
         subnets = context.current['subnets']
@@ -72,21 +127,39 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
                                                 l3p_id)
             router_id = l3p['routers'][0] if l3p['routers'] else None
             for subnet_id in subnets:
-                self._use_explicit_subnet(context._plugin_context, subnet_id,
-                                          router_id)
+                self._use_explicit_subnet(
+                    context._plugin_context, subnet_id, router_id)
         else:
             self._use_implicit_subnet(context)
         self._handle_network_service_policy(context)
-        self._handle_policy_rule_sets(context)
-        self._update_default_security_group(context._plugin_context,
-                                            context.current['id'],
-                                            context.current['tenant_id'],
-                                            context.current['subnets'])
-        if (self._is_firewall_in_sc_spec(context, ptg_id=context.current['id'])
-            and self._is_ptg_provider(context, context.current['id'])):
-            self._create_service_vm_sg(context,
-                                       context.current['tenant_id'],
-                                       context.current['id'])
+        try:
+            self._handle_policy_rule_sets(context)
+            self._update_default_security_group(context._plugin_context,
+                                                context.current['id'],
+                                                context.current['tenant_id'],
+                                                context.current['subnets'])
+            if (self._is_firewall_in_sc_spec(context,
+                                             ptg_id=context.current['id'])
+                and self._is_ptg_provider(context, context.current['id'])):
+                    self._create_service_vm_sg(context,
+                                               context.current['tenant_id'],
+                                               context.current['id'])
+        except Exception:
+            LOG.exception(_("Creating Policy Target Group failed"))
+            policy_target_group = {'policy_target_group': {
+                                        'provided_policy_rule_sets': {},
+                                        'consumed_policy_rule_sets': {}}}
+            try:
+                context._plugin.update_policy_target_group(
+                    context._plugin_context,
+                    context.current['id'],
+                    policy_target_group)
+            except Exception:
+                LOG.exception(_("Unsetting Policy Ruleset failed as part of "
+                                "cleanup"))
+                raise PTGCreateAndCleanupFailed()
+            else:
+                raise PTGCreateFailed()
 
     @log.log
     def delete_policy_target_group_precommit(self, context):
@@ -131,7 +204,8 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
         try:
             router_id = self._get_routerid_for_l2policy(context, l2p_id)
             for subnet_id in context.current['subnets']:
-                self._cleanup_subnet(context._plugin_context, subnet_id, router_id)
+                self._cleanup_subnet(
+                    context._plugin_context, subnet_id, router_id)
         except Exception as e:
             LOG.exception((e))
         self._delete_default_security_group(
@@ -169,8 +243,9 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
 
     def _create_service_vm_sg(self, context, tenant_id, ptg_id):
         port_name = 'svc_vm_%s' % ptg_id
-        attrs = {'name': port_name, 'tenant_id': tenant_id,
-                     'description': 'default'}
+        attrs = {'name': port_name,
+                 'tenant_id': tenant_id,
+                 'description': 'default'}
         sg_id = self._create_sg(context._plugin_context, attrs)['id']
         self._create_service_vm_sg_rule(context, sg_id)
         return sg_id
@@ -199,7 +274,7 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
                 profile_id = sc_node.get('service_profile_id')
                 if profile_id:
                     profile = self._servicechain_plugin.get_service_profile(
-                                            context._plugin_context, profile_id)
+                        context._plugin_context, profile_id)
                     if profile['service_type'] == pconst.FIREWALL:
                         return True
         return False
@@ -213,8 +288,8 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
             except gp_ext.PolicyTargetNotFound:
                 LOG.warn(_("PT %s doesn't exist anymore"), pt_id)
                 return
-            ptg = context._plugin.get_policy_target_group(context._plugin_context,
-                                                pt['policy_target_group_id'])
+            ptg = context._plugin.get_policy_target_group(
+                context._plugin_context, pt['policy_target_group_id'])
             if ptg['provided_policy_rule_sets']:
                 policy_rule_set_ids = ptg['provided_policy_rule_sets']
         if ptg_id:
@@ -222,7 +297,8 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
         return policy_rule_set_ids
 
     def _get_redirect_action_spec_id(self, context, pt_id, ptg_id):
-        policy_rule_set_ids = self._get_policy_rule_set_ids(context, pt_id, ptg_id)
+        policy_rule_set_ids = self._get_policy_rule_set_ids(
+            context, pt_id, ptg_id)
         if not policy_rule_set_ids:
             return None
 
@@ -231,20 +307,22 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
                                     filters={'id': policy_rule_set_ids})
         for policy_rule_set in policy_rule_sets:
             policy_rules = context._plugin.get_policy_rules(
-                                context._plugin_context,
-                                filters={'id': policy_rule_set['policy_rules']})
+                context._plugin_context,
+                filters={'id': policy_rule_set['policy_rules']})
             for policy_rule in policy_rules:
                 policy_actions = context._plugin.get_policy_actions(
                     context._plugin_context,
                     filters={'id': policy_rule["policy_actions"],
                              'action_type': [gconst.GP_ACTION_REDIRECT]})
                 for policy_action in policy_actions:
-                    if policy_action['action_type'] == gconst.GP_ACTION_REDIRECT:
+                    if (policy_action['action_type'] ==
+                        gconst.GP_ACTION_REDIRECT):
                         spec_id = policy_action.get("action_value")
                         return spec_id
 
     def _update_service_vm_rules(self, context, pt_id=None, ptg_id=None):
-        # Get all instances corresponding to a spec _id and update each instance.
+        # Get all instances corresponding to a spec _id and update
+        # each instance.
         spec_id = self._get_redirect_action_spec_id(context, pt_id, ptg_id)
         if spec_id:
             sc_instance_update_req = {
@@ -268,7 +346,6 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
         else:
             return False
 
-
     def _assoc_sgs_to_pt(self, context, pt_id, sg_list):
         try:
             pt = context._plugin.get_policy_target(context._plugin_context,
@@ -285,8 +362,9 @@ class OneConvergenceResourceMappingDriver(resource_mapping.ResourceMappingDriver
                                     context._plugin_context.tenant_id,
                                     pt['policy_target_group_id'])
             new_sg_list = [sg_id]
-            # Commenting update part, until update changes upstreamed for plugin.
-            #self._update_service_vm_rules(context, pt_id=pt_id)
+            # Commenting update part, until update changes are upstreamed
+            # for plugin.
+            # self._update_service_vm_rules(context, pt_id=pt_id)
         else:
             new_sg_list = cur_sg_list + sg_list
         port[ext_sg.SECURITYGROUPS] = new_sg_list
