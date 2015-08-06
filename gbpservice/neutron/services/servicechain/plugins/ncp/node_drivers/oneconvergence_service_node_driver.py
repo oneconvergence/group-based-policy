@@ -28,6 +28,7 @@ from neutron.plugins.common import constants as pconst
 from neutron.services.oc_service_manager.oc_service_manager_client import (
                                                         SvcManagerClientApi)
 from oslo.config import cfg
+import time
 
 from gbpservice.neutron.services.grouppolicy.common import constants
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
@@ -51,6 +52,10 @@ oneconvergence_driver_opts = [
                default='http://localhost:8004/v1',
                help=_("Heat API server address to instantiate services "
                       "specified in the service chain.")),
+    cfg.IntOpt('stack_action_wait_time',
+               default=60,
+               help=_("Seconds to wait for pending stack operation "
+                      "to complete")),
 ]
 
 cfg.CONF.register_opts(oneconvergence_driver_opts, "oneconvergence_node_driver")
@@ -64,6 +69,9 @@ POOL_MEMBER_PARAMETER_AWS = {"Description": "Pool Member IP Address",
 POOL_MEMBER_PARAMETER = {"description": "Pool Member IP Address",
                          "type": "string"}
 
+STACK_ACTION_WAIT_TIME = cfg.CONF.oneconvergence_node_driver.stack_action_wait_time
+STACK_ACTION_RETRY_WAIT = 5  # Retry after every 5 seconds
+
 LOG = logging.getLogger(__name__)
 
 
@@ -74,6 +82,12 @@ class InvalidServiceType(exc.NodeCompositionPluginBadRequest):
 class ServiceInfoNotAvailableOnUpdate(n_exc.NeutronException):
     message = _("Service information is not available with Service Manager "
                 "on node update")
+
+
+class StackCreateFailedException(n_exc.NeutronException):
+    message = _("Stack : %(stack_name)s creation failed for tenant : "
+                "%(stack_owner)s ")
+
 
 # REVISIT(Magesh): The Port and PT names have to be changed
 class TrafficStitchingDriver(object):
@@ -455,6 +469,25 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         self.update(context)
 
     @log.log
+    def create(self, context):
+        heatclient = self._get_heat_client(context.plugin_context)
+
+        stack_template, stack_params = self._fetch_template_and_params(context)
+
+        stack_name = ("stack_" + context.instance['name'] +
+                      context.current_node['name'] +
+                      context.instance['id'][:8] +
+                      context.current_node['id'][:8])
+        # Heat does not accept space in stack name
+        stack_name = stack_name.replace(" ", "")
+        stack = heatclient.create(stack_name, stack_template, stack_params)
+        self._insert_node_instance_stack_in_db(
+            context.plugin_session, context.current_node['id'],
+            context.instance['id'], stack['stack']['id'])
+        self._wait_for_stack_operation_complete(heatclient, stack["stack"][
+            "id"], "create")
+
+    @log.log
     def update(self, context):
         heatclient = self._get_heat_client(context.plugin_context)
         stack_template, stack_params = (
@@ -466,6 +499,45 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             self._wait_for_stack_operation_complete(
                                 heatclient, stack.stack_id, 'update')
             heatclient.update(stack.stack_id, stack_template, stack_params)
+
+    def _wait_for_stack_operation_complete(self, heatclient, stack_id, action):
+        time_waited = 0
+        create_failed = False
+        while True:
+            try:
+                stack = heatclient.get(stack_id)
+                if stack.stack_status == 'DELETE_FAILED':
+                    heatclient.delete(stack_id)
+                elif stack.stack_status == 'CREATE_COMPLETE':
+                    return
+                elif stack.stack_status == 'CREATE_FAILED':
+                    create_failed = True
+                    raise
+                elif stack.stack_status not in ['UPDATE_IN_PROGRESS',
+                    'CREATE_IN_PROGRESS', 'PENDING_DELETE']:
+                    return
+            except Exception:
+                if create_failed:
+                    LOG.exception(_("Stack %(stack_name)s creation failed "
+                                    "for tenant %(stack_owner)s"),
+                                  {'stack_name': stack.stack_name,
+                                   'stack_owner': stack.stack_owner})
+                    raise StackCreateFailedException(
+                        stack_name=stack.stack_name,
+                        stack_owner=stack.stack_owner)
+                LOG.exception(_("Retrieving the stack %(stack)s failed."),
+                              {'stack': stack_id})
+                return
+            else:
+                time.sleep(STACK_ACTION_RETRY_WAIT)
+                time_waited = time_waited + STACK_ACTION_RETRY_WAIT
+                if time_waited >= STACK_ACTION_WAIT_TIME:
+                    LOG.error(_("Stack %(action)s not completed within "
+                                "%(wait)s seconds"),
+                              {'action': action,
+                               'wait': STACK_ACTION_WAIT_TIME,
+                               'stack': stack_id})
+                    return
 
     def _get_admin_context(self):
         admin_context = n_context.get_admin_context()
