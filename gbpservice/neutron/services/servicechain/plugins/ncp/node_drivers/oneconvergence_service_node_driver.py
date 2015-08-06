@@ -52,6 +52,10 @@ oneconvergence_driver_opts = [
                default='http://localhost:8004/v1',
                help=_("Heat API server address to instantiate services "
                       "specified in the service chain.")),
+    cfg.IntOpt('stack_action_wait_time',
+               default=60,
+               help=_("Seconds to wait for pending stack operation "
+                      "to complete")),
 ]
 
 cfg.CONF.register_opts(oneconvergence_driver_opts, "oneconvergence_node_driver")
@@ -65,7 +69,7 @@ POOL_MEMBER_PARAMETER_AWS = {"Description": "Pool Member IP Address",
 POOL_MEMBER_PARAMETER = {"description": "Pool Member IP Address",
                          "type": "string"}
 
-STACK_ACTION_WAIT_TIME = cfg.CONF.heat_node_driver.stack_action_wait_time
+STACK_ACTION_WAIT_TIME = cfg.CONF.oneconvergence_node_driver.stack_action_wait_time
 STACK_ACTION_RETRY_WAIT = 5  # Retry after every 5 seconds
 
 LOG = logging.getLogger(__name__)
