@@ -555,7 +555,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 fw_key = self._get_heat_resource_key(
                     stack_template[resources_key],
                     is_template_aws_version,
-                    'OS::Neutron::FirewallPolicy')
+                    'OS::Neutron::Firewall')
                 stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
             elif service_type == pconst.VPN:
@@ -735,7 +735,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 fw_key = self._get_heat_resource_key(
                     stack_template[resources_key],
                     is_template_aws_version,
-                    'OS::Neutron::FirewallPolicy')
+                    'OS::Neutron::Firewall')
                 stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
             else:
