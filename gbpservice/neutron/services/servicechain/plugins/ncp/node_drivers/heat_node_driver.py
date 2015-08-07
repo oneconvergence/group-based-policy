@@ -314,7 +314,7 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
                 if stack.stack_status == 'DELETE_FAILED':
                     heatclient.delete(stack_id)
                 elif stack.stack_status not in ['UPDATE_IN_PROGRESS',
-                                                'PENDING_DELETE']:
+                                                'DELETE_IN_PROGRESS']:
                     return
             except Exception:
                 LOG.exception(_("Retrieving the stack %(stack)s failed."),
