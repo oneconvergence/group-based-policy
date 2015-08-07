@@ -491,14 +491,18 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def update(self, context):
         heatclient = self._get_heat_client(context.plugin_context)
         stack_template, stack_params = (
-                        self._fetch_template_and_params_for_update(context))
+            self._fetch_template_and_params_for_update(context))
         stack_ids = self._get_node_instance_stacks(context.plugin_session,
                                                    context.current_node['id'],
                                                    context.instance['id'])
         for stack in stack_ids:
+            # Wait for any previous update to complete
             self._wait_for_stack_operation_complete(
-                                heatclient, stack.stack_id, 'update')
+                heatclient, stack.stack_id, 'update')
             heatclient.update(stack.stack_id, stack_template, stack_params)
+            # Wait for the current update to complete
+            self._wait_for_stack_operation_complete(
+                heatclient, stack.stack_id, 'update')
 
     def _wait_for_stack_operation_complete(self, heatclient, stack_id, action):
         time_waited = 0
@@ -514,7 +518,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     create_failed = True
                     raise
                 elif stack.stack_status not in ['UPDATE_IN_PROGRESS',
-                    'CREATE_IN_PROGRESS', 'PENDING_DELETE']:
+                    'CREATE_IN_PROGRESS', 'DELETE_IN_PROGRESS']:
                     return
             except Exception:
                 if create_failed:
@@ -537,6 +541,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                               {'action': action,
                                'wait': STACK_ACTION_WAIT_TIME,
                                'stack': stack_id})
+                    # Some times, a second delete request succeeds in cleaning
+                    # up the stack when the first request is stuck forever in
+                    #  Pending state
+                    if action == 'delete':
+                        heatclient.delete(stack_id)
                     return
 
     def _get_admin_context(self):
