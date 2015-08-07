@@ -900,9 +900,9 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         for fw_rule_key in fw_rule_keys:
             fw_rule_resource = stack_template[resources_key][fw_rule_key][
                 properties_key]
-            if fw_rule_resource.get('destination_ip_address') == '':
+            if not fw_rule_resource.get('destination_ip_address'):
                 fw_rule_resource['destination_ip_address'] = provider_cidr
-            if (fw_rule_resource.get('source_ip_address') == ''
+            if (not fw_rule_resource.get('source_ip_address')
                 and consumer_cidr != '0.0.0.0/0'):
                 fw_rule_resource['source_ip_address'] = consumer_cidr
 
