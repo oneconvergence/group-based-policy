@@ -14,9 +14,10 @@
 
 from neutron.common import exceptions as n_exc
 from neutron.common import log
-from oslo_log import log as logging
-from oslo_utils import excutils
+from neutron.openstack.common import excutils
+from neutron.openstack.common import log as logging
 
+from gbpservice.neutron.services.grouppolicy.common import exceptions as exc
 from gbpservice.neutron.services.grouppolicy.drivers import (
     resource_mapping as res_map)
 from gbpservice.neutron.services.grouppolicy.drivers.oneconvergence import (
@@ -24,6 +25,21 @@ from gbpservice.neutron.services.grouppolicy.drivers.oneconvergence import (
 
 
 LOG = logging.getLogger(__name__)
+
+
+class ClassifierInOutDirectionNotSupported(exc.GroupPolicyBadRequest):
+    message = _("Only Bidirectional classifier is supported by One Convergence"
+                " GBP Driver")
+
+
+class PortRangeNotSupportedInClassifier(exc.GroupPolicyBadRequest):
+    message = _("Range of ports in classifier is not supported by One "
+                "Convergence GBP Driver.")
+
+
+class MultipleSubnetsNotSupportedInPTG(exc.GroupPolicyBadRequest):
+    message = _("Multiple Subnets in PTG is not supported by One "
+                "Convergence GBP Driver.")
 
 
 class NvsdGbpDriver(res_map.ResourceMappingDriver):
@@ -76,6 +92,22 @@ class NvsdGbpDriver(res_map.ResourceMappingDriver):
             if l2ps:
                 context.set_l2_policy_id(l2ps[0]['id'])
 
+        consumed_policy_rule_sets = context.current[
+            'consumed_policy_rule_sets']
+        provided_policy_rule_sets = context.current[
+            'provided_policy_rule_sets']
+        subnets = context.current['subnets']
+        if subnets and len(subnets) > 1:
+            raise MultipleSubnetsNotSupportedInPTG()
+        '''
+        ptg_id = context.current['id']
+        if provided_policy_rule_sets or consumed_policy_rule_sets:
+            policy_rule_sets = (
+                consumed_policy_rule_sets + provided_policy_rule_sets)
+            self._handle_redirect_action(context, policy_rule_sets)
+        '''
+        
+
     @log.log
     def create_policy_target_group_postcommit(self, context):
         subnets = context.current['subnets']
@@ -112,13 +144,14 @@ class NvsdGbpDriver(res_map.ResourceMappingDriver):
         super(NvsdGbpDriver,
               self).delete_policy_target_group_precommit(context)
         l2p_id = context.current['l2_policy_id']
-        ptgs = context._plugin.get_policy_target_groups(
-            context._plugin_context,
-            filters=({'l2_policy_id': [l2p_id]}))
-        for ptg in ptgs:
-            if ptg['id'] != context.current['id']:
-                context.current['l2_policy_id'] = None
-                return
+        if l2p_id:
+            ptgs = context._plugin.get_policy_target_groups(
+                context._plugin_context,
+                filters=({'l2_policy_id': [l2p_id]}))
+            for ptg in ptgs:
+                if ptg['id'] != context.current['id']:
+                    context.current['l2_policy_id'] = None
+                    return
 
     @log.log
     def delete_policy_target_group_postcommit(self, context):
@@ -137,9 +170,10 @@ class NvsdGbpDriver(res_map.ResourceMappingDriver):
                         "Error : %s"), err)
         try:
             l2p_id = context.current['l2_policy_id']
-            router_id = self._get_routerid_for_l2policy(context, l2p_id)
-            for subnet_id in context.current['subnets']:
-                self._cleanup_subnet(context, subnet_id, router_id)
+            if l2p_id:
+                router_id = self._get_routerid_for_l2policy(context, l2p_id)
+                for subnet_id in context.current['subnets']:
+                    self._cleanup_subnet(context, subnet_id, router_id)
             self._delete_default_security_group(
                 context._plugin_context, context.current['id'],
                 context.current['tenant_id'])
@@ -156,6 +190,14 @@ class NvsdGbpDriver(res_map.ResourceMappingDriver):
     @log.log
     def delete_l2_policy_postcommit(self, context):
         super(NvsdGbpDriver, self).delete_l2_policy_postcommit(context)
+
+    @log.log
+    def create_policy_classifier_precommit(self, context):
+        if context.current['direction'] != "bi":
+            raise ClassifierInOutDirectionNotSupported()
+        #Port Range Not supported in NVSD
+        if ":" in context.current['port_range']:
+            raise PortRangeNotSupportedInClassifier()
 
     @log.log
     def create_policy_classifier_postcommit(self, context):

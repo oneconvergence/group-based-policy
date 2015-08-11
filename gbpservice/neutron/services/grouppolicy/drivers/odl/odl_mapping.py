@@ -12,10 +12,10 @@
 
 import uuid
 
-from neutron.common import constants
 from neutron import manager
-from oslo_concurrency import lockutils  # noqa
-from oslo_log import log as logging
+from neutron.openstack.common import lockutils  # noqa
+from neutron.openstack.common import log as logging
+from neutron.plugins.common import constants
 
 from gbpservice.neutron.db.grouppolicy import group_policy_mapping_db as gpdb
 from gbpservice.neutron.services.grouppolicy.common import constants as g_const
@@ -200,7 +200,7 @@ class OdlMappingDriver(api.ResourceMappingDriver):
             "l2-context": pt['l2ctx_id'],
             "l3-address": pt['l3_list'],
             "mac-address": pt['mac_address'],
-            "port-name": pt['neutron_port_id'],
+            "neutron-port-id": pt['neutron_port_id'],
             "tenant": pt['tenant_id']
         }
         self.odl_manager.register_endpoints([ep])
@@ -494,7 +494,7 @@ class OdlMappingDriver(api.ResourceMappingDriver):
 
     def _make_odl_classifiers(self, stack_classifier):
         classifiers = []
-        if stack_classifier['protocol'] == constants.PROTO_NAME_ICMP:
+        if stack_classifier['protocol'] == constants.ICMP:
             direction = stack_classifier['direction']
             if direction == 'bi':
                 direction = "bidirectional"
@@ -555,7 +555,7 @@ class OdlMappingDriver(api.ResourceMappingDriver):
     def delete_policy_classifier_postcommit(self, context):
         tenant_id = uuid.UUID(context.current['tenant_id']).urn[9:]
 
-        if context.current['protocol'] == constants.PROTO_NAME_ICMP:
+        if context.current['protocol'] == constants.ICMP:
             # fill in classifier instance data
             classifier_instance = {
                 "name": context.current['name']

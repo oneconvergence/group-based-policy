@@ -14,15 +14,15 @@ import ast
 import time
 
 from heatclient import client as heat_client
-from heatclient import exc as heatException
 from neutron.common import log
 from neutron.db import model_base
 from neutron import manager
+from neutron.openstack.common import jsonutils
+from neutron.openstack.common import log as logging
 from neutron.plugins.common import constants as pconst
-from oslo_config import cfg
-from oslo_log import log as logging
-from oslo_serialization import jsonutils
+from oslo.config import cfg
 import sqlalchemy as sa
+
 
 from gbpservice.neutron.services.servicechain.common import exceptions as exc
 
@@ -258,10 +258,11 @@ class SimpleChainDriver(object):
             stack_template, stack_params = self._fetch_template_and_params(
                 context, sc_instance, sc_spec, sc_node)
 
-            stack_name = ("stack_" + sc_instance['name'] + sc_node['name'] +
-                          sc_node['id'][:5])
             stack = heatclient.create(
-                stack_name.replace(" ", ""), stack_template, stack_params)
+                "stack_" + sc_instance['name'] + sc_node['name']
+                + sc_node['id'][:5],
+                stack_template,
+                stack_params)
 
             self._insert_chain_stack_db(
                 context._plugin_context.session, sc_instance['id'],
@@ -393,11 +394,7 @@ class HeatClient:
         return self.stacks.create(**fields)
 
     def delete(self, stack_id):
-        try:
-            self.stacks.delete(stack_id)
-        except heatException.HTTPNotFound:
-            LOG.warn(_("Stack %(stack)s created by service chain driver is "
-                       "not found at cleanup"), {'stack': stack_id})
+        return self.stacks.delete(stack_id)
 
     def get(self, stack_id):
         return self.stacks.get(stack_id)

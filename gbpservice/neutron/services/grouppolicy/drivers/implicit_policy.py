@@ -10,11 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo.config import cfg
+import sqlalchemy as sa
+
 from neutron.common import log
 from neutron.db import model_base
-from oslo_config import cfg
-from oslo_log import log as logging
-import sqlalchemy as sa
+from neutron.openstack.common import log as logging
 
 from gbpservice.neutron.services.grouppolicy import (
     group_policy_driver_api as api)
@@ -150,7 +151,8 @@ class ImplicitPolicyDriver(api.PolicyDriver):
     def update_external_policy_postcommit(self, context):
         old_es_ids = set(context.original['external_segments'])
         new_es_ids = set(context.current['external_segments'])
-        if old_es_ids != new_es_ids and not new_es_ids:
+        added = new_es_ids - old_es_ids
+        if not added:
             self._use_implicit_external_segment(context)
 
     @log.log
@@ -162,7 +164,8 @@ class ImplicitPolicyDriver(api.PolicyDriver):
     def update_l3_policy_postcommit(self, context):
         old_es_ids = set(context.original['external_segments'].keys())
         new_es_ids = set(context.current['external_segments'].keys())
-        if old_es_ids != new_es_ids and not new_es_ids:
+        added = new_es_ids - old_es_ids
+        if not added:
             self._use_implicit_external_segment(context)
 
     def _use_implicit_l2_policy(self, context):

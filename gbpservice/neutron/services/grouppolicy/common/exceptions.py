@@ -63,10 +63,6 @@ class L2PolicyUpdateOfPolicyTargetGroupNotSupported(GroupPolicyBadRequest):
     message = _("Updating L2 policy of policy target group is not supported.")
 
 
-class L3PolicyUpdateOfL2PolicyNotSupported(GroupPolicyBadRequest):
-    message = _("Updating L3 policy of L2 policy is not supported.")
-
-
 class L3PolicyMultipleRoutersNotSupported(GroupPolicyBadRequest):
     message = _("L3 policy does not support multiple routers.")
 
@@ -214,8 +210,3 @@ class MultipleRedirectActionsNotSupportedForRule(GroupPolicyBadRequest):
 class MultipleRedirectActionsNotSupportedForPRS(GroupPolicyBadRequest):
     message = _("Resource Mapping Driver does not support multiple redirect "
                 "actions in a Policy Rule Set.")
-
-
-class InvalidNetworkServiceParameters(GroupPolicyBadRequest):
-    message = _("Resource Mapping Driver currently supports only one "
-                "parameter of type: ip_single and value: self_subnet")

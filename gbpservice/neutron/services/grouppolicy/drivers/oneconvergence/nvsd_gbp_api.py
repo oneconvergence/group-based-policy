@@ -17,11 +17,12 @@ import httplib
 import requests
 import urlparse
 
-from oslo_config import cfg
-from oslo_log import log as logging
-from oslo_serialization import jsonutils
+from oslo.config import cfg
 
 from gbpservice.neutron.services.grouppolicy.common import exceptions
+
+from neutron.openstack.common import jsonutils
+from neutron.openstack.common import log as logging
 
 
 SERVICE_CONTROLLER_OPTIONS = [

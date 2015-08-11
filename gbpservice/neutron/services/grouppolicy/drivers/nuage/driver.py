@@ -12,14 +12,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
-from oslo_log import log as logging
-from oslo_utils import importutils
+from neutron.openstack.common import importutils
+from neutron.openstack.common import log as logging
+from oslo.config import cfg
 
 from gbpservice.neutron.services.grouppolicy.drivers import (
     resource_mapping as api)
 from gbpservice.neutron.services.grouppolicy.drivers.nuage.common import config
-
 
 LOG = logging.getLogger(__name__)
 
