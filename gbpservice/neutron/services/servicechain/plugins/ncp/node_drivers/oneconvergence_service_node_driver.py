@@ -469,6 +469,10 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         self.update(context)
 
     @log.log
+    def notify_chain_parameters_updated(self, context):
+        pass # We are not using the classifier specified in redirect Rule
+
+    @log.log
     def create(self, context):
         heatclient = self._get_heat_client(context.plugin_context)
 
