@@ -227,6 +227,7 @@ class TrafficStitchingDriver(object):
                  'l2_policy_id': None,
                  'provided_policy_rule_sets': {},
                  'consumed_policy_rule_sets': {},
+                 'service_management': False,
                  'network_service_policy_id': None,
                  'shared': False}
         filters = {'name': [STITCHING_PTG_NAME],
