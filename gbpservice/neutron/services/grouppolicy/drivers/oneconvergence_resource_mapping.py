@@ -11,7 +11,7 @@
 # strictly forbidden unless prior written permission is obtained from
 # One Convergence, Inc., USA
 
-
+from neutron.common import exceptions as n_exc
 from neutron.common import log
 from neutron.extensions import securitygroup as ext_sg
 from neutron.openstack.common import log as logging
@@ -68,7 +68,7 @@ class OneConvergenceResourceMappingDriver(
                     plugin_context, router_id, interface_info)
         except Exception:
             pass
-    
+
     def create_external_policy_precommit(self, context):
         self._reject_shared(context.current, 'external_policy')
         # REVISIT(ivar): For security reasons, only one ES allowed per EP.
@@ -465,3 +465,4 @@ class OneConvergenceResourceMappingDriver(
                                 ptg_providing_prs, ptg_consuming_prs,
                                 sc_instance['id'])
 """
+

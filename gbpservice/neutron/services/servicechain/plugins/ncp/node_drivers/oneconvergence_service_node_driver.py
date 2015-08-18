@@ -1064,6 +1064,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                             # Mysql deadlock was detected once. Investigation
                             # is required
                             LOG.exception(_("Failed to delete Policy Target"))
+                else:
                     self.ts_driver.delete_port(
                         context, ports_to_cleanup[key], admin_required)
 
@@ -1176,3 +1177,4 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         admin_tenant = v3client.projects.find(
             name=keystone_conf.get('admin_tenant_name'))
         return admin_tenant
+
