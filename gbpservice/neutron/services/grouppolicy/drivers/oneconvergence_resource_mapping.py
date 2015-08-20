@@ -138,12 +138,6 @@ class OneConvergenceResourceMappingDriver(
                                                 context.current['id'],
                                                 context.current['tenant_id'],
                                                 context.current['subnets'])
-            if (self._is_firewall_in_sc_spec(context,
-                                             ptg_id=context.current['id'])
-                and self._is_ptg_provider(context, context.current['id'])):
-                    self._create_service_vm_sg(context,
-                                               context.current['tenant_id'],
-                                               context.current['id'])
         except Exception:
             LOG.exception(_("Creating Policy Target Group failed"))
             policy_target_group = {'policy_target_group': {
@@ -178,11 +172,6 @@ class OneConvergenceResourceMappingDriver(
             context._plugin_context.session, context.current['id'])
         context.nsp_cleanup_fips = self._get_ptg_policy_fip_mapping(
             context._plugin_context.session, context.current['id'])
-        if (self._is_firewall_in_sc_spec(context, ptg_id=context.current['id'])
-                and self._is_ptg_provider(context, context.current['id'])):
-            context.delete_service_vm_sg = True
-        else:
-            context.delete_service_vm_sg = False
 
     @log.log
     def delete_policy_target_group_postcommit(self, context):
@@ -211,9 +200,6 @@ class OneConvergenceResourceMappingDriver(
         self._delete_default_security_group(
             context._plugin_context, context.current['id'],
             context.current['tenant_id'])
-        if context.delete_service_vm_sg:
-            self._delete_service_vm_sg(context, context.current['tenant_id'],
-                                       context.current['id'])
 
     def delete_external_policy_precommit(self, context):
         provider_ptg_chain_map = self._get_ptg_servicechain_mapping(
@@ -228,6 +214,7 @@ class OneConvergenceResourceMappingDriver(
         if context.ptg_chain_map:
             raise EPInUseByPRS()
 
+"""
     def _create_service_vm_sg_rule(self, context, sg_id):
         attrs = {'tenant_id': context._plugin_context.tenant_id,
                  'security_group_id': sg_id,
@@ -390,7 +377,7 @@ class OneConvergenceResourceMappingDriver(
         except n_exc.PortNotFound:
             LOG.warn(_("Port %s is missing") % port_id)
 
-"""
+
     def _handle_redirect_action(self, context, policy_rule_set_ids):
         policy_rule_sets = context._plugin.get_policy_rule_sets(
                                     context._plugin_context,
