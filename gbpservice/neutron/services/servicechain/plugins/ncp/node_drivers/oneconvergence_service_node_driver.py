@@ -683,7 +683,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     stitching_port_id)['fixed_ips'][0]['ip_address']
                 desc = ('fip=' + floating_ip + ";tunnel_local_cidr=" +
                         provider_subnet['cidr'] + ";user_access_ip=" +
-                        stitching_port_fip + ";remote_id=" + remote_id)
+                        stitching_port_fip + ";fixed_ip=" + remote_id)
                 stack_params['ServiceDescription'] = desc
         else:
             config_param_values['service_chain_metadata'] = (
@@ -876,7 +876,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     stitching_port_id)['fixed_ips'][0]['ip_address']
                 desc = ('fip=' + floating_ip + ";tunnel_local_cidr=" +
                         provider_subnet['cidr'] + ";user_access_ip=" +
-                        access_ip + ";remote_id=" + remote_id)
+                        access_ip + ";fixed_ip=" + remote_id)
                 stack_params['ServiceDescription'] = desc
         else:
             # FIXME(Magesh): Raise error or autocorrect template if the key
