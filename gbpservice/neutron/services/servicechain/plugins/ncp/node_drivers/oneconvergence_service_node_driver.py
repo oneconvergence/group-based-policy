@@ -513,6 +513,20 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         return True, chain_info
 
     @log.log
+    def check_for_existing_firewall(self, context):
+        provided_policy_rule_set_id = context._provider_group[
+            'provided_policy_rule_sets'][0]
+        provided_policy_rule_set = context._gbp_plugin.get_policy_rule_set(
+            context.plugin_context, provided_policy_rule_set_id)
+        cons_policy_target_groups = provided_policy_rule_set[
+            'consuming_policy_target_groups']
+        cons_policy_target_groups.remove(context.consumer['id'])
+        if cons_policy_target_groups:
+            return True
+        else:
+            return False
+
+    @log.log
     def create(self, context):
         heatclient = self._get_heat_client(context.plugin_context)
 
@@ -537,7 +551,14 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
             return
         else:
-            stack_template, stack_params = self._fetch_template_and_params(context)
+            stack_template, stack_params = self._fetch_template_and_params(
+                context)
+
+            if context.current_profile["service_type"] == pconst.FIREWALL:
+                _exist = self.check_for_existing_firewall(context)
+                if _exist:
+                    return
+
             stack = heatclient.create(stack_name, stack_template, stack_params)
             stack_id = stack['stack']['id']
             self._insert_node_instance_stack_in_db(
