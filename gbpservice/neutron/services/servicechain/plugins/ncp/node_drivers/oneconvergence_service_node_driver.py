@@ -23,6 +23,7 @@ from neutron.common import exceptions as n_exc
 from neutron.common import log
 from neutron import context as n_context
 from neutron.openstack.common import jsonutils
+from neutron.openstack.common import uuidutils
 from neutron.openstack.common import log as logging
 from neutron.plugins.common import constants as pconst
 from neutron.services.oc_service_manager.oc_service_manager_client import (
@@ -473,11 +474,47 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def notify_chain_parameters_updated(self, context):
         pass # We are not using the classifier specified in redirect Rule
 
+    def _validate_lb_stack_creation(self, context):
+        chain_info = {}
+        profile = context.sc_plugin.get_service_profile(
+            context._plugin_context, context.current_node['service_profile_id'])
+        if profile['service_type'] != pconst.LOADBALANCER:
+            return True, chain_info
+        filters = {'provider_ptg_id': [context.provider['id']]}
+        sc_instances = context.sc_plugin.get_servicechain_instances(
+                                            context._plugin_context, filters)
+        sc_instances.remove(context.instance)
+
+        if not sc_instances:
+            return True, chain_info
+
+        spec_ids = []
+        for inst in sc_instances:
+            spec_ids.extend(inst['servicechain_specs'])
+        filters = {'id': spec_ids}
+        sc_specs = context.sc_plugin.get_servicechain_specs(
+                                            context._plugin_context, filters)
+        node_ids = set()
+        for sc_spec in sc_specs:
+            node_ids.update(sc_spec['nodes'])
+        filters = {'id': node_ids}
+        nodes = context.sc_plugin.get_servicechain_nodes(context._plugin_context,
+                                                        filters)
+
+        filters = {'service_type': [pconst.LOADBALANCER]}
+        lb_profiles = context.sc_plugin.get_service_profiles(
+                                            context._plugin_context, filters)
+        lb_profiles_id = [profile['id'] for profile in lb_profiles]
+        for node in nodes:
+            if node['service_profile_id'] in lb_profiles_id:
+                chain_info['node_id'] = node['id']
+                chain_info['sc_instance_id'] = sc_instances[0]['id']
+                return False, chain_info
+        return True, chain_info
+
     @log.log
     def create(self, context):
         heatclient = self._get_heat_client(context.plugin_context)
-
-        stack_template, stack_params = self._fetch_template_and_params(context)
 
         stack_name = ("stack_" + context.instance['name'] +
                       context.current_node['name'] +
@@ -485,12 +522,28 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                       context.current_node['id'][:8])
         # Heat does not accept space in stack name
         stack_name = stack_name.replace(" ", "")
-        stack = heatclient.create(stack_name, stack_template, stack_params)
-        self._insert_node_instance_stack_in_db(
-            context.plugin_session, context.current_node['id'],
-            context.instance['id'], stack['stack']['id'])
-        self._wait_for_stack_operation_complete(heatclient, stack["stack"][
-            "id"], "create")
+        validate, chain_info = self._validate_lb_stack_creation(context)
+        if not validate:
+            LOG.info(_("LoadBalancer Stack already exists for group: %(group)s"),
+                     {'group': context.provider['id']})
+            stack = self._get_node_instance_stacks(context.plugin_session,
+                                            chain_info['node_id'],
+                                            chain_info['sc_instance_id'])[0]
+            stack = heatclient.get(stack.stack_id)
+            stack_id = stack.to_dict()['id']
+            self._insert_node_instance_stack_in_db(
+                context.plugin_session, context.current_node['id'],
+                context.instance['id'], stack_id)
+
+            return
+        else:
+            stack_template, stack_params = self._fetch_template_and_params(context)
+            stack = heatclient.create(stack_name, stack_template, stack_params)
+            stack_id = stack['stack']['id']
+            self._insert_node_instance_stack_in_db(
+                context.plugin_session, context.current_node['id'],
+                context.instance['id'], stack_id)
+        self._wait_for_stack_operation_complete(heatclient, stack_id, "create")
 
     @log.log
     def update(self, context):
@@ -1025,10 +1078,51 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     "protocol_port": protocol_port,
                     "weight": 1}}
 
+    def _validate_lb_stack_deletion(self, context):
+        filters = {'provider_ptg_id': [context.provider['id']]}
+        sc_instances = context.sc_plugin.get_servicechain_instances(
+                                            context._plugin_context, filters)
+        sc_instances.remove(context.instance)
+        if not sc_instances:
+            return True
+        spec_ids = []
+        for inst in sc_instances:
+            spec_ids.extend(inst['servicechain_specs'])
+        filters = {'id': spec_ids}
+        sc_specs = context.sc_plugin.get_servicechain_specs(
+                                            context._plugin_context, filters)
+        provider_node_ids = set()
+        for sc_spec in sc_specs:
+            provider_node_ids.update(sc_spec['nodes'])
+
+        filters = {}
+        nodes = context.sc_plugin.get_servicechain_nodes(context._plugin_context,
+                                                        filters)
+
+        filters = {'service_type': [pconst.LOADBALANCER]}
+        lb_profiles = context.sc_plugin.get_service_profiles(
+                                            context._plugin_context, filters)
+        lb_profiles_id = [profile['id'] for profile in lb_profiles]
+        node_ids = []
+        for node in nodes:
+            if node['service_profile_id'] in lb_profiles_id:
+                node_ids.append(node['id'])
+
+        if set(node_ids).intersection(provider_node_ids):
+            return False
+        return True
+
     @log.log
     def delete(self, context):
         try:
-            super(OneConvergenceServiceNodeDriver, self).delete(context)
+            if self._validate_lb_stack_deletion(context):
+                super(OneConvergenceServiceNodeDriver, self).delete(context)
+            else:
+                self._delete_node_instance_stack_in_db(context.plugin_session,
+                                               context.current_node['id'],
+                                               context.instance['id'])
+                LOG.info(_("Not deleting LOADBALANCER stack, stack is in use by: %(group)s"),
+                         {'group': context.provider['id']})
         except Exception:
             # Log the error and continue with VM delete in case if *aas
             # cleanup failure
