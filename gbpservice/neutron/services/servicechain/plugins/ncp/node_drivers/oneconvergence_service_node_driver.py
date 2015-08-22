@@ -574,14 +574,36 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         stack_ids = self._get_node_instance_stacks(context.plugin_session,
                                                    context.current_node['id'],
                                                    context.instance['id'])
+        service_type = context.current_profile['service_type']
         for stack in stack_ids:
             # Wait for any previous update to complete
             self._wait_for_stack_operation_complete(
                 heatclient, stack.stack_id, 'update')
-            heatclient.update(stack.stack_id, stack_template, stack_params)
-            # Wait for the current update to complete
-            self._wait_for_stack_operation_complete(
-                heatclient, stack.stack_id, 'update')
+            if service_type == pconst.FIREWALL:
+                heatclient.delete(stack.stack_id)
+                self._wait_for_stack_operation_complete(heatclient,
+                                                        stack.stack_id,
+                                                        'delete')
+                self._delete_node_instance_stack_in_db(
+                    context.plugin_session, context.current_node['id'],
+                    context.instance['id'])
+                # REVISIT(VK) Can this be a issue?
+                stack_name = ("stack_" + context.instance['name'] +
+                              context.current_node['name'] +
+                              context.instance['id'][:8] +
+                              context.current_node['id'][:8])
+                stack = heatclient.create(stack_name, stack_template,
+                                          stack_params)
+                self._wait_for_stack_operation_complete(
+                    heatclient, stack["stack"]["id"], "create")
+                self._insert_node_instance_stack_in_db(
+                    context.plugin_session, context.current_node['id'],
+                    context.instance['id'], stack['stack']['id'])
+            else:
+                heatclient.update(stack.stack_id, stack_template, stack_params)
+                # Wait for the current update to complete
+                self._wait_for_stack_operation_complete(
+                    heatclient, stack.stack_id, 'update')
 
     def _wait_for_stack_operation_complete(self, heatclient, stack_id, action):
         time_waited = 0
