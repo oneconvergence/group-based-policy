@@ -378,8 +378,8 @@ class TrafficStitchingDriver(object):
             port = context.core_plugin.create_port(
                 admin_context, attrs)
             self._notify_port_action(context, port, 'create')
-        except Exception:
-            LOG.exception(_("create port failed."))
+        except Exception as ex:
+            LOG.error(_("create port failed. Reason %s"), ex)
             return
         return port
 
@@ -678,9 +678,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 stitching_port_fip = context.l3_plugin.get_floatingip(
                     admin_context,
                     floatingips[0]['id'])['floating_ip_address']
-
+                remote_id = context.core_plugin.get_port(
+                    admin_context,
+                    stitching_port_id)['fixed_ips'][0]['ip_address']
                 desc = ('fip=' + floating_ip + ";tunnel_local_cidr=" +
-                        provider_subnet['cidr']+";user_access_ip=" + stitching_port_fip)
+                        provider_subnet['cidr'] + ";user_access_ip=" +
+                        stitching_port_fip + ";fixed_ip=" + remote_id)
                 stack_params['ServiceDescription'] = desc
         else:
             config_param_values['service_chain_metadata'] = (
@@ -868,8 +871,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 config_param_values['RouterId'] = l3p['routers'][0]
                 access_ip = self.svc_mgr.get_vpn_access_ip(
                     context._plugin_context, stitching_port_id)
+                remote_id = context.core_plugin.get_port(
+                    admin_context,
+                    stitching_port_id)['fixed_ips'][0]['ip_address']
                 desc = ('fip=' + floating_ip + ";tunnel_local_cidr=" +
-                        provider_subnet['cidr']+";user_access_ip=" + access_ip)
+                        provider_subnet['cidr'] + ";user_access_ip=" +
+                        access_ip + ";fixed_ip=" + remote_id)
                 stack_params['ServiceDescription'] = desc
         else:
             # FIXME(Magesh): Raise error or autocorrect template if the key
