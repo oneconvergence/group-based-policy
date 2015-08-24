@@ -528,12 +528,13 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         stack, sc_instances = self.get_firewall_stack_id(context,
                                              cons_policy_target_groups)
 
+        if context.consumer['id'] in cons_policy_target_groups:
+            cons_policy_target_groups.remove(context.consumer['id'])
+
         if stack:
             return True, cons_policy_target_groups, False
         else:
              return False, cons_policy_target_groups, False
-        # if context.consumer['id'] in cons_policy_target_groups:
-        #     cons_policy_target_groups.remove(context.consumer['id'])
         #
         # if cons_policy_target_groups:
         #     return True, cons_policy_target_groups, False
@@ -1365,11 +1366,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     and not context.is_consumer_external):
                 _exist, cons_ptgs, provider_unset = \
                     self.check_for_existing_firewall(context)
-                if _exist and not provider_unset:
-                    self.update_firewall(context, cons_ptgs)
-                elif provider_unset:
+                if provider_unset:
                     super(OneConvergenceServiceNodeDriver, self).delete(
                         context)
+                elif _exist:
+                    self.update_firewall(context, cons_ptgs)
                 else:
                     super(OneConvergenceServiceNodeDriver, self).delete(
                         context)
