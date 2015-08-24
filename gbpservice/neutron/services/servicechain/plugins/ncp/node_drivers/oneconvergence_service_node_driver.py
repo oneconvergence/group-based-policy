@@ -515,20 +515,30 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     @log.log
     def check_for_existing_firewall(self, context):
-        provided_policy_rule_set_id = context._provider_group[
-            'provided_policy_rule_sets'][0]
+        if context._provider_group['provided_policy_rule_sets']:
+            provided_policy_rule_set_id = context._provider_group[
+                'provided_policy_rule_sets'][0]
+        else:
+            return True, None, True
         provided_policy_rule_set = context._gbp_plugin.get_policy_rule_set(
             context.plugin_context, provided_policy_rule_set_id)
         cons_policy_target_groups = provided_policy_rule_set[
             'consuming_policy_target_groups']
 
-        if context.consumer['id'] in cons_policy_target_groups:
-            cons_policy_target_groups.remove(context.consumer['id'])
+        stack, sc_instances = self.get_firewall_stack_id(context,
+                                             cons_policy_target_groups)
 
-        if cons_policy_target_groups:
-            return True, cons_policy_target_groups
+        if stack:
+            return True, cons_policy_target_groups, False
         else:
-            return False, cons_policy_target_groups
+             return False, cons_policy_target_groups, False
+        # if context.consumer['id'] in cons_policy_target_groups:
+        #     cons_policy_target_groups.remove(context.consumer['id'])
+        #
+        # if cons_policy_target_groups:
+        #     return True, cons_policy_target_groups, False
+        # else:
+        #     return False, cons_policy_target_groups, False
 
     @log.log
     def append_firewall_rule(self, context, stack_template, provider_cidr,
@@ -558,10 +568,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     @log.log
     def update_firewall_template(self, context, stack_template,
                                  ptg_to_not_configure=None):
-        _exist, consumer_ptgs = self.check_for_existing_firewall(context)
+        _exist, consumer_ptgs, prov_unset = self.check_for_existing_firewall(
+            context)
 
-        if not _exist:
-            return
+        # if not _exist:
+        #     return
         filters = {'id': consumer_ptgs}
         consumer_ptgs_details = context._gbp_plugin.get_policy_target_groups(
             context.plugin_context, filters)
@@ -624,8 +635,10 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             stack_template, stack_params = self._fetch_template_and_params(
                 context)
 
-            if context.current_profile["service_type"] == pconst.FIREWALL:
-                _exist, cons_ptgs = self.check_for_existing_firewall(context)
+            if context.current_profile["service_type"] == pconst.FIREWALL \
+                    and not context.is_consumer_external:
+                _exist, cons_ptgs, prov_unset = \
+                    self.check_for_existing_firewall(context)
                 if _exist:
                     return
 
@@ -649,7 +662,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             # Wait for any previous update to complete
             self._wait_for_stack_operation_complete(
                 heatclient, stack.stack_id, 'update')
-            if service_type == pconst.FIREWALL:
+            if service_type == pconst.FIREWALL and not \
+                    context.is_consumer_external:
                 heatclient.delete(stack.stack_id)
                 self._wait_for_stack_operation_complete(heatclient,
                                                         stack.stack_id,
@@ -1318,10 +1332,24 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             new_cons_sc_instance['id'], stack['stack']['id'])
 
     @log.log
-    def get_firewall_stack_id(self, context):
-        sc_instances = context._sc_plugin.get_servicechain_instances(
-            context._plugin_context, {'provider_ptg_id': [context.provider[
-                'id']]})
+    def get_firewall_stack_id(self, context, cons_ptgs=None):
+        if not cons_ptgs:
+            sc_instances = context._sc_plugin.get_servicechain_instances(
+                context._plugin_context, {'provider_ptg_id': [context.provider[
+                    'id']]})
+        else:
+            for cons_ptg in cons_ptgs:
+                sc_instances = \
+                    context._sc_plugin.get_servicechain_instances(
+                        context._plugin_context,
+                        {'consumer_ptg_id': [cons_ptg]})
+                for sc_instance in sc_instances:
+                    stacks = self._get_node_instance_stacks(
+                        context.plugin_session, context.current_node['id'],
+                        sc_instance['id'])
+                    if stacks:
+                        return stacks, sc_instance
+            return None, None
         for sc_instance in sc_instances:
             stacks = self._get_node_instance_stacks(
                 context.plugin_session, context.current_node['id'],
@@ -1335,9 +1363,16 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         try:
             if (context.current_profile["service_type"] == pconst.FIREWALL
                     and not context.is_consumer_external):
-                _exist, cons_ptgs = self.check_for_existing_firewall(context)
-                if _exist:
+                _exist, cons_ptgs, provider_unset = \
+                    self.check_for_existing_firewall(context)
+                if _exist and not provider_unset:
                     self.update_firewall(context, cons_ptgs)
+                elif provider_unset:
+                    super(OneConvergenceServiceNodeDriver, self).delete(
+                        context)
+                else:
+                    super(OneConvergenceServiceNodeDriver, self).delete(
+                        context)
             elif self._validate_lb_stack_deletion(context):
                 super(OneConvergenceServiceNodeDriver, self).delete(context)
             else:
@@ -1356,7 +1391,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                        'east_west')
         admin_context = n_context.get_admin_context()
         clean_provider_port = False
-        if not _exist:
+        if not _exist or provider_unset:
              self.ts_driver.revert_stitching(
                         context, context.provider['subnets'][0])
              clean_provider_port = True
