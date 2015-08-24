@@ -593,11 +593,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             if _exist:
                 return
 
-            stack = heatclient.create(stack_name, stack_template, stack_params)
-            stack_id = stack['stack']['id']
-            self._insert_node_instance_stack_in_db(
-                context.plugin_session, context.current_node['id'],
-                context.instance['id'], stack_id)
+        stack = heatclient.create(stack_name, stack_template, stack_params)
+        stack_id = stack['stack']['id']
+        self._insert_node_instance_stack_in_db(
+            context.plugin_session, context.current_node['id'],
+            context.instance['id'], stack_id)
         self._wait_for_stack_operation_complete(heatclient, stack_id, "create")
 
     @log.log
