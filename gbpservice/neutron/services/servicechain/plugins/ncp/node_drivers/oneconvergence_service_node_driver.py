@@ -592,7 +592,9 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 self.check_for_existing_service(context)
             if _exist:
                 return
-
+            else:
+                if service_type == pconst.FIREWALL:
+                    self.update_firewall_template(context, stack_template)
         stack = heatclient.create(stack_name, stack_template, stack_params)
         stack_id = stack['stack']['id']
         self._insert_node_instance_stack_in_db(
@@ -1289,15 +1291,25 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     self.check_for_existing_service(context)
             service_type = context.current_profile["service_type"]
             if service_type in [pconst.FIREWALL, pconst.LOADBALANCER]:
-                if provider_unset:
-                    super(OneConvergenceServiceNodeDriver, self).delete(
-                        context)
-                elif (_exist and service_type == pconst.FIREWALL and
-                      not context.is_consumer_external):
+                # if provider_unset:
+                #     super(OneConvergenceServiceNodeDriver, self).delete(
+                #         context)
+                if (_exist and service_type == pconst.FIREWALL and
+                      not context.is_consumer_external and not provider_unset):
                     self.update_firewall(context, cons_ptgs)
                 else:
                     super(OneConvergenceServiceNodeDriver, self).delete(
                         context)
+            # To handle VPN case, we need to delete stack and its DB entry.
+            else:
+                super(OneConvergenceServiceNodeDriver, self).delete(
+                        context)
+                self._delete_node_instance_stack_in_db(context.plugin_session,
+                                               context.current_node['id'],
+                                               context.instance['id'])
+                LOG.info(_("Not deleting LOADBALANCER stack, stack is "
+                           "in use by: %(group)s"),
+                         {'group': context.provider['id']})
         except Exception:
             # Log the error and continue with VM delete in case if *aas
             # cleanup failure
@@ -1308,7 +1320,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                        'east_west')
         admin_context = n_context.get_admin_context()
         clean_provider_port = False
-        if not _exist or provider_unset:
+        # Allow VPN to go through.
+        if not _exist or provider_unset or service_type == pconst.VPN:
             self.ts_driver.revert_stitching(
                         context, context.provider['subnets'][0])
             clean_provider_port = True
