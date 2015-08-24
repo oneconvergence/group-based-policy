@@ -457,7 +457,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         if service_type != pconst.LOADBALANCER:
             return
 
-        self.update(context)
+        self.update(context, pt_added_or_removed=True)
 
     @log.log
     def update_policy_target_removed(self, context, policy_target):
@@ -469,52 +469,14 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         if service_type != pconst.LOADBALANCER:
             return
 
-        self.update(context)
+        self.update(context, pt_added_or_removed=True)
 
     @log.log
     def notify_chain_parameters_updated(self, context):
         pass # We are not using the classifier specified in redirect Rule
 
-    def _validate_lb_stack_creation(self, context):
-        chain_info = {}
-        profile = context.sc_plugin.get_service_profile(
-            context._plugin_context, context.current_node['service_profile_id'])
-        if profile['service_type'] != pconst.LOADBALANCER:
-            return True, chain_info
-        filters = {'provider_ptg_id': [context.provider['id']]}
-        sc_instances = context.sc_plugin.get_servicechain_instances(
-                                            context._plugin_context, filters)
-        sc_instances.remove(context.instance)
-
-        if not sc_instances:
-            return True, chain_info
-
-        spec_ids = []
-        for inst in sc_instances:
-            spec_ids.extend(inst['servicechain_specs'])
-        filters = {'id': spec_ids}
-        sc_specs = context.sc_plugin.get_servicechain_specs(
-                                            context._plugin_context, filters)
-        node_ids = set()
-        for sc_spec in sc_specs:
-            node_ids.update(sc_spec['nodes'])
-        filters = {'id': node_ids}
-        nodes = context.sc_plugin.get_servicechain_nodes(context._plugin_context,
-                                                        filters)
-
-        filters = {'service_type': [pconst.LOADBALANCER]}
-        lb_profiles = context.sc_plugin.get_service_profiles(
-                                            context._plugin_context, filters)
-        lb_profiles_id = [profile['id'] for profile in lb_profiles]
-        for node in nodes:
-            if node['service_profile_id'] in lb_profiles_id:
-                chain_info['node_id'] = node['id']
-                chain_info['sc_instance_id'] = sc_instances[0]['id']
-                return False, chain_info
-        return True, chain_info
-
     @log.log
-    def check_for_existing_firewall(self, context):
+    def check_for_existing_service(self, context):
         if context._provider_group['provided_policy_rule_sets']:
             provided_policy_rule_set_id = context._provider_group[
                 'provided_policy_rule_sets'][0]
@@ -569,7 +531,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     @log.log
     def update_firewall_template(self, context, stack_template,
                                  ptg_to_not_configure=None):
-        _exist, consumer_ptgs, prov_unset = self.check_for_existing_firewall(
+        _exist, consumer_ptgs, prov_unset = self.check_for_existing_service(
             context)
 
         # if not _exist:
@@ -618,30 +580,18 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                       context.current_node['id'][:8])
         # Heat does not accept space in stack name
         stack_name = stack_name.replace(" ", "")
-        validate, chain_info = self._validate_lb_stack_creation(context)
-        if not validate:
-            LOG.info(_("LoadBalancer Stack already exists for group: %(group)s"),
-                     {'group': context.provider['id']})
-            stack = self._get_node_instance_stacks(context.plugin_session,
-                                            chain_info['node_id'],
-                                            chain_info['sc_instance_id'])[0]
-            stack = heatclient.get(stack.stack_id)
-            stack_id = stack.to_dict()['id']
-            self._insert_node_instance_stack_in_db(
-                context.plugin_session, context.current_node['id'],
-                context.instance['id'], stack_id)
+        stack_template, stack_params = self._fetch_template_and_params(
+            context)
 
-            return
-        else:
-            stack_template, stack_params = self._fetch_template_and_params(
-                context)
-
-            if context.current_profile["service_type"] == pconst.FIREWALL \
-                    and not context.is_consumer_external:
-                _exist, cons_ptgs, prov_unset = \
-                    self.check_for_existing_firewall(context)
-                if _exist:
-                    return
+        service_type = context.current_profile["service_type"]
+        if (service_type == pconst.LOADBALANCER or
+                (service_type == pconst.FIREWALL and
+                 not context.is_consumer_external)
+            ):
+            _exist, cons_ptgs, prov_unset = \
+                self.check_for_existing_service(context)
+            if _exist:
+                return
 
             stack = heatclient.create(stack_name, stack_template, stack_params)
             stack_id = stack['stack']['id']
@@ -651,7 +601,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         self._wait_for_stack_operation_complete(heatclient, stack_id, "create")
 
     @log.log
-    def update(self, context):
+    def update(self, context, pt_added_or_removed=False):
+        # If it is not a Node config update or PT change for LB, no op
+        if (not pt_added_or_removed and (not context.original_node or
+            context.original_node == context.current_node)):
+            return
         heatclient = self._get_heat_client(context.plugin_context)
         stack_template, stack_params = (
             self._fetch_template_and_params_for_update(context))
@@ -663,8 +617,10 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             # Wait for any previous update to complete
             self._wait_for_stack_operation_complete(
                 heatclient, stack.stack_id, 'update')
-            if service_type == pconst.FIREWALL and not \
-                    context.is_consumer_external:
+            if (service_type == pconst.LOADBALANCER or
+                    (service_type == pconst.FIREWALL and
+                     not context.is_consumer_external)
+                ):
                 heatclient.delete(stack.stack_id)
                 self._wait_for_stack_operation_complete(heatclient,
                                                         stack.stack_id,
@@ -678,7 +634,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                               context.instance['id'][:8] +
                               context.current_node['id'][:8])
                 # Update template
-                self.update_firewall_template(context, stack_template)
+                if service_type == pconst.FIREWALL:
+                    self.update_firewall_template(context, stack_template)
                 stack = heatclient.create(stack_name, stack_template,
                                           stack_params)
                 self._wait_for_stack_operation_complete(
@@ -1208,40 +1165,6 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     "protocol_port": protocol_port,
                     "weight": 1}}
 
-    def _validate_lb_stack_deletion(self, context):
-        filters = {'provider_ptg_id': [context.provider['id']]}
-        sc_instances = context.sc_plugin.get_servicechain_instances(
-                                            context._plugin_context, filters)
-        sc_instances.remove(context.instance)
-        if not sc_instances:
-            return True
-        spec_ids = []
-        for inst in sc_instances:
-            spec_ids.extend(inst['servicechain_specs'])
-        filters = {'id': spec_ids}
-        sc_specs = context.sc_plugin.get_servicechain_specs(
-                                            context._plugin_context, filters)
-        provider_node_ids = set()
-        for sc_spec in sc_specs:
-            provider_node_ids.update(sc_spec['nodes'])
-
-        filters = {}
-        nodes = context.sc_plugin.get_servicechain_nodes(context._plugin_context,
-                                                        filters)
-
-        filters = {'service_type': [pconst.LOADBALANCER]}
-        lb_profiles = context.sc_plugin.get_service_profiles(
-                                            context._plugin_context, filters)
-        lb_profiles_id = [profile['id'] for profile in lb_profiles]
-        node_ids = []
-        for node in nodes:
-            if node['service_profile_id'] in lb_profiles_id:
-                node_ids.append(node['id'])
-
-        if set(node_ids).intersection(provider_node_ids):
-            return False
-        return True
-
     @log.log
     def update_firewall(self, context, cons_ptgs):
         heatclient = self._get_heat_client(context.plugin_context)
@@ -1362,26 +1285,19 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def delete(self, context):
         _exist = None
         try:
-            if (context.current_profile["service_type"] == pconst.FIREWALL
-                    and not context.is_consumer_external):
-                _exist, cons_ptgs, provider_unset = \
-                    self.check_for_existing_firewall(context)
+            _exist, cons_ptgs, provider_unset = \
+                    self.check_for_existing_service(context)
+            service_type = context.current_profile["service_type"]
+            if service_type in [pconst.FIREWALL, pconst.LOADBALANCER]:
                 if provider_unset:
                     super(OneConvergenceServiceNodeDriver, self).delete(
                         context)
-                elif _exist:
+                elif (_exist and service_type == pconst.FIREWALL and
+                      not context.is_consumer_external):
                     self.update_firewall(context, cons_ptgs)
                 else:
                     super(OneConvergenceServiceNodeDriver, self).delete(
                         context)
-            elif self._validate_lb_stack_deletion(context):
-                super(OneConvergenceServiceNodeDriver, self).delete(context)
-            else:
-                self._delete_node_instance_stack_in_db(context.plugin_session,
-                                               context.current_node['id'],
-                                               context.instance['id'])
-                LOG.info(_("Not deleting LOADBALANCER stack, stack is in use by: %(group)s"),
-                         {'group': context.provider['id']})
         except Exception:
             # Log the error and continue with VM delete in case if *aas
             # cleanup failure
@@ -1393,9 +1309,9 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         admin_context = n_context.get_admin_context()
         clean_provider_port = False
         if not _exist or provider_unset:
-             self.ts_driver.revert_stitching(
+            self.ts_driver.revert_stitching(
                         context, context.provider['subnets'][0])
-             clean_provider_port = True
+            clean_provider_port = True
         ports_to_cleanup = self.svc_mgr.delete_service_instance(
                             context=context._plugin_context,
                             tenant_id=context._plugin_context.tenant_id,
