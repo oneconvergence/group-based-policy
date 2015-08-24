@@ -1294,6 +1294,9 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 # if provider_unset:
                 #     super(OneConvergenceServiceNodeDriver, self).delete(
                 #         context)
+                if _exist and service_type == pconst.LOADBALANCER:
+                    super(OneConvergenceServiceNodeDriver, self).delete(
+                        context)
                 if (_exist and service_type == pconst.FIREWALL and
                       not context.is_consumer_external and not provider_unset):
                     self.update_firewall(context, cons_ptgs)
