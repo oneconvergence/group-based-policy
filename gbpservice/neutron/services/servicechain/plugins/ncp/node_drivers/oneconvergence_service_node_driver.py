@@ -1021,8 +1021,16 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             stack_template[resources_key],
             is_template_aws_version,
             "OS::Neutron::Pool")
-        protocol_port = stack_template[resources_key][lbaas_pool_key][
-            properties_key]['vip']['protocol_port']
+        lbaas_vip_key = self._get_heat_resource_key(
+            stack_template[resources_key],
+            is_template_aws_version,
+            "OS::Neutron::LoadBalancer")
+        vip_port = stack_template[resources_key][lbaas_pool_key][
+                                        properties_key]['vip']['protocol_port']
+        member_port = stack_template[resources_key][lbaas_vip_key][
+                                        properties_key].get('protocol_port')
+        protocol_port = member_port if member_port else vip_port
+
 
         return {type_key: "OS::Neutron::PoolMember",
                 properties_key: {
