@@ -23,6 +23,7 @@ from neutron.common import exceptions as n_exc
 from neutron.common import log
 from neutron import context as n_context
 from neutron.openstack.common import jsonutils
+from neutron.openstack.common import uuidutils
 from neutron.openstack.common import log as logging
 from neutron.plugins.common import constants as pconst
 from neutron.services.oc_service_manager.oc_service_manager_client import (
@@ -38,6 +39,7 @@ from gbpservice.neutron.services.servicechain.plugins.ncp.node_drivers import (
                                 heat_node_driver as heat_node_driver)
 from gbpservice.neutron.services.servicechain.plugins.ncp.node_drivers import (
                                 openstack_heat_api_client as heat_api_client)
+from copy import deepcopy
 
 
 oneconvergence_driver_opts = [
@@ -455,7 +457,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         if service_type != pconst.LOADBALANCER:
             return
 
-        self.update(context)
+        self.update(context, pt_added_or_removed=True)
 
     @log.log
     def update_policy_target_removed(self, context, policy_target):
@@ -467,17 +469,121 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         if service_type != pconst.LOADBALANCER:
             return
 
-        self.update(context)
+        self.update(context, pt_added_or_removed=True)
 
     @log.log
     def notify_chain_parameters_updated(self, context):
         pass # We are not using the classifier specified in redirect Rule
 
     @log.log
+    def check_for_existing_service(self, context):
+        if context._provider_group['provided_policy_rule_sets']:
+            provided_policy_rule_set_id = context._provider_group[
+                'provided_policy_rule_sets'][0]
+        else:
+            return True, None, True
+        provided_policy_rule_set = context._gbp_plugin.get_policy_rule_set(
+            context.plugin_context, provided_policy_rule_set_id)
+        cons_policy_target_groups = provided_policy_rule_set[
+            'consuming_policy_target_groups']
+
+        stack, sc_instances = self.get_firewall_stack_id(context,
+                                             cons_policy_target_groups)
+
+        # if not stack and not cons_policy_target_groups:
+        #     return False, cons_policy_target_groups, False
+
+        if not stack and cons_policy_target_groups:
+            if context.consumer['id'] not in cons_policy_target_groups:
+                cons_policy_target_groups.extend([context.consumer['id']])
+                stack, sc_instances = self.get_firewall_stack_id(
+                    context, context.consumer['id'])
+                if stack:
+                    return True, cons_policy_target_groups, False
+
+        if context.consumer['id'] in cons_policy_target_groups:
+            cons_policy_target_groups.remove(context.consumer['id'])
+
+        if stack:
+            return True, cons_policy_target_groups, False
+        else:
+             return False, cons_policy_target_groups, False
+        #
+        # if cons_policy_target_groups:
+        #     return True, cons_policy_target_groups, False
+        # else:
+        #     return False, cons_policy_target_groups, False
+
+    @log.log
+    def append_firewall_rule(self, context, stack_template, provider_cidr,
+                             consumer_cidr, fw_template_properties):
+        resources_key = fw_template_properties['resources_key']
+        properties_key = fw_template_properties['properties_key']
+        fw_rule_keys = fw_template_properties['fw_rule_keys']
+        rule_name = fw_template_properties['name']
+        fw_policy_key = fw_template_properties['fw_policy_key']
+        i = 1
+        for fw_rule_key in fw_rule_keys:
+            fw_rule_name = (rule_name + '_' + str(i))
+            rule = deepcopy(stack_template[resources_key][fw_rule_key])
+            stack_template[resources_key][fw_rule_name] = rule
+            # Considering only for E-W case
+            fw_rule_resource = stack_template[resources_key][fw_rule_name][
+                properties_key]
+            fw_rule_resource['destination_ip_address'] = provider_cidr
+            fw_rule_resource['source_ip_address'] = consumer_cidr
+            if stack_template[resources_key][fw_policy_key][
+                properties_key].get('firewall_rules'):
+                stack_template[resources_key][fw_policy_key][
+                    properties_key]['firewall_rules'].append({
+                    'get_resource': fw_rule_name})
+            i += 1
+
+    @log.log
+    def update_firewall_template(self, context, stack_template,
+                                 ptg_to_not_configure=None):
+        _exist, consumer_ptgs, prov_unset = self.check_for_existing_service(
+            context)
+
+        # if not _exist:
+        #     return
+        filters = {'id': consumer_ptgs}
+        consumer_ptgs_details = context._gbp_plugin.get_policy_target_groups(
+            context.plugin_context, filters)
+
+        provider_cidr = context.core_plugin._get_subnet(
+            context._plugin_context, context.provider['subnets'][0])['cidr']
+
+        is_template_aws_version = stack_template.get(
+                                        'AWSTemplateFormatVersion', False)
+        resources_key = 'Resources' if is_template_aws_version else 'resources'
+        properties_key = ('Properties' if is_template_aws_version
+                          else 'properties')
+        fw_rule_keys = self._get_all_heat_resource_keys(
+            stack_template[resources_key], is_template_aws_version,
+            'OS::Neutron::FirewallRule')
+        fw_policy_key = self._get_all_heat_resource_keys(
+            stack_template['resources'], is_template_aws_version,
+            'OS::Neutron::FirewallPolicy')[0]
+        fw_template_properties = dict(
+            resources_key=resources_key, properties_key=properties_key,
+            is_template_aws_version=is_template_aws_version,
+            fw_rule_keys=fw_rule_keys,
+            fw_policy_key=fw_policy_key)
+
+        for consumer in consumer_ptgs_details:
+            if consumer['id'] == ptg_to_not_configure:
+                continue
+            fw_template_properties.update({'name': consumer['id'][:3]})
+            consumer_cidr = context.core_plugin._get_subnet(
+                context.plugin_context, consumer['subnets'][0])['cidr']
+            self.append_firewall_rule(context, stack_template, provider_cidr,
+                                      consumer_cidr, fw_template_properties)
+        return stack_template
+
+    @log.log
     def create(self, context):
         heatclient = self._get_heat_client(context.plugin_context)
-
-        stack_template, stack_params = self._fetch_template_and_params(context)
 
         stack_name = ("stack_" + context.instance['name'] +
                       context.current_node['name'] +
@@ -485,29 +591,78 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                       context.current_node['id'][:8])
         # Heat does not accept space in stack name
         stack_name = stack_name.replace(" ", "")
+        stack_template, stack_params = self._fetch_template_and_params(
+            context)
+
+        service_type = context.current_profile["service_type"]
+        if (service_type == pconst.LOADBALANCER or
+                (service_type == pconst.FIREWALL and
+                 not context.is_consumer_external)
+            ):
+            _exist, cons_ptgs, prov_unset = \
+                self.check_for_existing_service(context)
+            if _exist:
+                return
+            else:
+                if service_type == pconst.FIREWALL:
+                    self.update_firewall_template(context, stack_template)
         stack = heatclient.create(stack_name, stack_template, stack_params)
+        stack_id = stack['stack']['id']
         self._insert_node_instance_stack_in_db(
             context.plugin_session, context.current_node['id'],
-            context.instance['id'], stack['stack']['id'])
-        self._wait_for_stack_operation_complete(heatclient, stack["stack"][
-            "id"], "create")
+            context.instance['id'], stack_id)
+        self._wait_for_stack_operation_complete(heatclient, stack_id, "create")
 
     @log.log
-    def update(self, context):
+    def update(self, context, pt_added_or_removed=False):
+        # If it is not a Node config update or PT change for LB, no op
+        # REVISIT (VK): Check for update node.
+        if (not pt_added_or_removed and (
+            not context.original_node or context.original_node ==
+                    context.current_node)):
+            return
         heatclient = self._get_heat_client(context.plugin_context)
         stack_template, stack_params = (
             self._fetch_template_and_params_for_update(context))
         stack_ids = self._get_node_instance_stacks(context.plugin_session,
                                                    context.current_node['id'],
                                                    context.instance['id'])
+        service_type = context.current_profile['service_type']
         for stack in stack_ids:
             # Wait for any previous update to complete
             self._wait_for_stack_operation_complete(
                 heatclient, stack.stack_id, 'update')
-            heatclient.update(stack.stack_id, stack_template, stack_params)
-            # Wait for the current update to complete
-            self._wait_for_stack_operation_complete(
-                heatclient, stack.stack_id, 'update')
+            if (service_type == pconst.LOADBALANCER or
+                    (service_type == pconst.FIREWALL and
+                     not context.is_consumer_external)
+                ):
+                heatclient.delete(stack.stack_id)
+                self._wait_for_stack_operation_complete(heatclient,
+                                                        stack.stack_id,
+                                                        'delete')
+                self._delete_node_instance_stack_in_db(
+                    context.plugin_session, context.current_node['id'],
+                    context.instance['id'])
+                # REVISIT(VK) Can this be a issue?
+                stack_name = ("stack_" + context.instance['name'] +
+                              context.current_node['name'] +
+                              context.instance['id'][:8] +
+                              context.current_node['id'][:8])
+                # Update template
+                if service_type == pconst.FIREWALL:
+                    self.update_firewall_template(context, stack_template)
+                stack = heatclient.create(stack_name, stack_template,
+                                          stack_params)
+                self._wait_for_stack_operation_complete(
+                    heatclient, stack["stack"]["id"], "create")
+                self._insert_node_instance_stack_in_db(
+                    context.plugin_session, context.current_node['id'],
+                    context.instance['id'], stack['stack']['id'])
+            else:
+                heatclient.update(stack.stack_id, stack_template, stack_params)
+                # Wait for the current update to complete
+                self._wait_for_stack_operation_complete(
+                    heatclient, stack.stack_id, 'update')
 
     def _wait_for_stack_operation_complete(self, heatclient, stack_id, action):
         time_waited = 0
@@ -1040,10 +1195,170 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     "protocol_port": protocol_port,
                     "weight": 1}}
 
+    def update_lb_stack_mapping(self, context, cons_ptgs):
+        stacks, sc_instances = self.get_firewall_stack_id(context)
+        stack_id = stacks[0].stack_id
+        sc_instance_id = sc_instances['id']
+
+        if sc_instance_id == context.instance['id']:
+            self._delete_node_instance_stack_in_db(
+                context.plugin_session, context.current_node['id'],
+                sc_instance_id)
+            new_consumer = context._gbp_plugin.get_policy_target_group(
+                context.plugin_context, cons_ptgs[0])
+            new_cons_sc_instance = context._sc_plugin.get_servicechain_instances(
+                context._plugin_context, {'consumer_ptg_id': [new_consumer[
+                    'id']]})[0]
+
+            self._insert_node_instance_stack_in_db(
+                context.plugin_session, context.current_node['id'],
+                new_cons_sc_instance['id'], stack_id)
+
+    @log.log
+    def update_firewall(self, context, cons_ptgs):
+        heatclient = self._get_heat_client(context.plugin_context)
+        sc_instance_id = None
+        # sc_instances = context._sc_plugin.get_servicechain_instances(
+        #     context._plugin_context, {'consumer_ptg_id': context.consumer[
+        #         'id']})[0]
+        # stacks = self._get_node_instance_stacks(
+        #     context.plugin_session,context.current_node['id'], sc_instances[
+        #         'id'])
+        # if not stacks:
+        stacks, sc_instances = self.get_firewall_stack_id(context)
+        stack_id = stacks[0].stack_id
+        sc_instance_id = sc_instances['id']
+
+        self._wait_for_stack_operation_complete(heatclient, stack_id, 'update')
+        heatclient.delete(stacks[0].stack_id)
+        self._wait_for_stack_operation_complete(heatclient, stack_id,
+                                                'delete')
+        self._delete_node_instance_stack_in_db(
+            context.plugin_session, context.current_node['id'],
+            sc_instance_id)
+
+        sc_node = context.current_node
+        provider_ptg = context.provider
+        stack_template = sc_node.get('config')
+        stack_template = (jsonutils.loads(stack_template) if
+                          stack_template.startswith('{') else
+                          yaml.load(stack_template))
+        provider_cidr = context.core_plugin.get_subnet(
+            context._plugin_context, provider_ptg['subnets'][0])['cidr']
+
+        new_consumer = context._gbp_plugin.get_policy_target_group(
+            context.plugin_context, cons_ptgs[0])
+        consumer_cidr = context.core_plugin.get_subnet(
+            context._plugin_context, new_consumer['subnets'][0])['cidr']
+
+        is_template_aws_version = stack_template.get(
+                                        'AWSTemplateFormatVersion', False)
+
+        resources_key = ('Resources' if is_template_aws_version
+                         else 'resources')
+        properties_key = ('Properties' if is_template_aws_version
+                          else 'properties')
+        insert_type = ('north_south' if context.is_consumer_external else
+                       'east_west')
+
+        service_info = self.svc_mgr.get_service_info_with_srvc_type(
+            context=context.plugin_context,
+            service_type=context.current_profile["service_type"],
+            tenant_id=context.plugin_context.tenant_id,
+            insert_type=insert_type)
+        if service_info:
+            floating_ip = service_info['floating_ip']
+            provider_port_id = service_info['provider_port_id']
+            provider_port_mac = context.core_plugin.get_port(
+                n_context.get_admin_context(), provider_port_id)[
+                'mac_address']
+
+        stack_template = self._update_firewall_template(
+            context, provider_ptg, provider_cidr, consumer_cidr,
+            stack_template, is_template_aws_version)
+        firewall_desc = {'vm_management_ip': floating_ip,
+                         'provider_ptg_info': [provider_port_mac],
+                         'insert_type': insert_type}
+        fw_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Firewall')
+        stack_template[resources_key][fw_key][properties_key][
+                    'description'] = str(firewall_desc)
+
+        new_cons_sc_instance = context._sc_plugin.get_servicechain_instances(
+            context._plugin_context, {'consumer_ptg_id': [new_consumer[
+                'id']]})[0]
+        # REVISIT(VK) Can this be a issue?
+        stack_name = ("stack_" + context.instance['name'] +
+                      context.current_node['name'] +
+                      new_cons_sc_instance['id'][:8] +
+                      context.current_node['id'][:8])
+        # Update template
+        self.update_firewall_template(context, stack_template,
+                                      ptg_to_not_configure=new_consumer['id'])
+        stack = heatclient.create(stack_name, stack_template, {})
+        self._wait_for_stack_operation_complete(
+            heatclient, stack["stack"]["id"], "create")
+        self._insert_node_instance_stack_in_db(
+            context.plugin_session, context.current_node['id'],
+            new_cons_sc_instance['id'], stack['stack']['id'])
+
+    @log.log
+    def get_firewall_stack_id(self, context, cons_ptgs=None):
+        if not cons_ptgs:
+            sc_instances = context._sc_plugin.get_servicechain_instances(
+                context._plugin_context, {'provider_ptg_id': [context.provider[
+                    'id']]})
+        else:
+            for cons_ptg in cons_ptgs:
+                sc_instances = \
+                    context._sc_plugin.get_servicechain_instances(
+                        context._plugin_context,
+                        {'consumer_ptg_id': [cons_ptg]})
+                for sc_instance in sc_instances:
+                    stacks = self._get_node_instance_stacks(
+                        context.plugin_session, context.current_node['id'],
+                        sc_instance['id'])
+                    if stacks:
+                        return stacks, sc_instance
+            return None, None
+        for sc_instance in sc_instances:
+            stacks = self._get_node_instance_stacks(
+                context.plugin_session, context.current_node['id'],
+                sc_instance['id'])
+            if stacks:
+                return stacks, sc_instance
+
     @log.log
     def delete(self, context):
+        _exist = None
         try:
-            super(OneConvergenceServiceNodeDriver, self).delete(context)
+            _exist, cons_ptgs, provider_unset = \
+                    self.check_for_existing_service(context)
+            service_type = context.current_profile["service_type"]
+            if service_type in [pconst.FIREWALL, pconst.LOADBALANCER]:
+                # if provider_unset:
+                #     super(OneConvergenceServiceNodeDriver, self).delete(
+                #         context)
+                if _exist and service_type == pconst.LOADBALANCER:
+                    self.update_lb_stack_mapping(context, cons_ptgs)
+                if (_exist and service_type == pconst.FIREWALL and
+                      not context.is_consumer_external and not provider_unset):
+                    self.update_firewall(context, cons_ptgs)
+                else:
+                    super(OneConvergenceServiceNodeDriver, self).delete(
+                        context)
+            # To handle VPN case, we need to delete stack and its DB entry.
+            else:
+                super(OneConvergenceServiceNodeDriver, self).delete(
+                        context)
+                self._delete_node_instance_stack_in_db(context.plugin_session,
+                                               context.current_node['id'],
+                                               context.instance['id'])
+                LOG.info(_("Not deleting LOADBALANCER stack, stack is "
+                           "in use by: %(group)s"),
+                         {'group': context.provider['id']})
         except Exception:
             # Log the error and continue with VM delete in case if *aas
             # cleanup failure
@@ -1053,15 +1368,19 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         insert_type = ('north_south' if context.is_consumer_external else
                        'east_west')
         admin_context = n_context.get_admin_context()
-
-        self.ts_driver.revert_stitching(
+        clean_provider_port = False
+        # Allow VPN to go through.
+        if not _exist or provider_unset or service_type == pconst.VPN:
+            self.ts_driver.revert_stitching(
                         context, context.provider['subnets'][0])
+            clean_provider_port = True
         ports_to_cleanup = self.svc_mgr.delete_service_instance(
                             context=context._plugin_context,
                             tenant_id=context._plugin_context.tenant_id,
                             insert_type=insert_type,
                             service_chain_instance_id=context.instance['id'],
-                            service_type=service_type)
+                            service_type=service_type,
+                            clean_provider_port=clean_provider_port)
 
         for key in ports_to_cleanup or {}:
             if ports_to_cleanup.get(key):
