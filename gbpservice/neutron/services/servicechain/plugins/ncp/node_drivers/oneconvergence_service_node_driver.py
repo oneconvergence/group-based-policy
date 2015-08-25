@@ -1193,7 +1193,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         stack_id = stacks[0].stack_id
         sc_instance_id = sc_instances['id']
 
-        if sc_instance_id == context.instance['id']:
+        if not cons_ptgs:
+            super(OneConvergenceServiceNodeDriver, self).delete(
+                        context)
+
+        if cons_ptgs and sc_instance_id == context.instance['id']:
             self._delete_node_instance_stack_in_db(
                 context.plugin_session, context.current_node['id'],
                 sc_instance_id)
