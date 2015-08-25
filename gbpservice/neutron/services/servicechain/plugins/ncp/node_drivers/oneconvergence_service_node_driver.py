@@ -591,21 +591,29 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                       context.current_node['id'][:8])
         # Heat does not accept space in stack name
         stack_name = stack_name.replace(" ", "")
-        stack_template, stack_params = self._fetch_template_and_params(
-            context)
-
         service_type = context.current_profile["service_type"]
-        if (service_type == pconst.LOADBALANCER or
-                (service_type == pconst.FIREWALL and
-                 not context.is_consumer_external)
-            ):
-            _exist, cons_ptgs, prov_unset = \
+        _exist, cons_ptgs, prov_unset = \
                 self.check_for_existing_service(context)
+
+        if service_type == pconst.LOADBALANCER:
+            if not _exist:
+                stack_template, stack_params = self._fetch_template_and_params(
+                                            context)
+            else:
+                return
+        else:
+            stack_template, stack_params = self._fetch_template_and_params(
+                                            context)
+
+
+        if (service_type == pconst.FIREWALL and
+                 not context.is_consumer_external):
             if _exist:
                 return
             else:
                 if service_type == pconst.FIREWALL:
                     self.update_firewall_template(context, stack_template)
+
         stack = heatclient.create(stack_name, stack_template, stack_params)
         stack_id = stack['stack']['id']
         self._insert_node_instance_stack_in_db(
@@ -617,10 +625,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def update(self, context, pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
         # REVISIT (VK): Check for update node.
-        if (not pt_added_or_removed and (
-            not context.original_node or context.original_node ==
-                    context.current_node)):
-            return
+        if context.current_profile["service_type"] == pconst.LOADBALANCER:
+            if (not pt_added_or_removed and (
+                not context.original_node or context.original_node ==
+                        context.current_node)):
+                return
         heatclient = self._get_heat_client(context.plugin_context)
         stack_template, stack_params = (
             self._fetch_template_and_params_for_update(context))
@@ -1200,7 +1209,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         stack_id = stacks[0].stack_id
         sc_instance_id = sc_instances['id']
 
-        if sc_instance_id == context.instance['id']:
+        if not cons_ptgs:
+            super(OneConvergenceServiceNodeDriver, self).delete(
+                        context)
+
+        if cons_ptgs and sc_instance_id == context.instance['id']:
             self._delete_node_instance_stack_in_db(
                 context.plugin_session, context.current_node['id'],
                 sc_instance_id)
@@ -1342,10 +1355,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 # if provider_unset:
                 #     super(OneConvergenceServiceNodeDriver, self).delete(
                 #         context)
-                if _exist and service_type == pconst.LOADBALANCER:
+                if _exist and service_type == pconst.LOADBALANCER and  \
+                        cons_ptgs:
                     self.update_lb_stack_mapping(context, cons_ptgs)
-                if (_exist and service_type == pconst.FIREWALL and
-                      not context.is_consumer_external and not provider_unset):
+                if (_exist and service_type == pconst.FIREWALL and cons_ptgs
+                    and not context.is_consumer_external and not
+                provider_unset):
                     self.update_firewall(context, cons_ptgs)
                 else:
                     super(OneConvergenceServiceNodeDriver, self).delete(
