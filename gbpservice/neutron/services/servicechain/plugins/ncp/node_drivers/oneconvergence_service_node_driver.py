@@ -1311,17 +1311,18 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 context._plugin_context, {'provider_ptg_id': [context.provider[
                     'id']]})
         else:
-            for cons_ptg in cons_ptgs:
-                sc_instances = \
-                    context._sc_plugin.get_servicechain_instances(
-                        context._plugin_context,
-                        {'consumer_ptg_id': [cons_ptg]})
-                for sc_instance in sc_instances:
-                    stacks = self._get_node_instance_stacks(
-                        context.plugin_session, context.current_node['id'],
-                        sc_instance['id'])
-                    if stacks:
-                        return stacks, sc_instance
+            if cons_ptgs:
+                for cons_ptg in cons_ptgs:
+                    sc_instances = \
+                        context._sc_plugin.get_servicechain_instances(
+                            context._plugin_context,
+                            {'consumer_ptg_id': [cons_ptg]})
+                    for sc_instance in sc_instances:
+                        stacks = self._get_node_instance_stacks(
+                            context.plugin_session, context.current_node['id'],
+                            sc_instance['id'])
+                        if stacks:
+                            return stacks, sc_instance
             return None, None
         for sc_instance in sc_instances:
             stacks = self._get_node_instance_stacks(
