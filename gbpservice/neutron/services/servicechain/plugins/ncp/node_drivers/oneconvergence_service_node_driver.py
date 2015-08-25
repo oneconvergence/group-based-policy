@@ -1206,6 +1206,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     def update_lb_stack_mapping(self, context, cons_ptgs):
         stacks, sc_instances = self.get_firewall_stack_id(context)
+        if not stacks:
+            return
         stack_id = stacks[0].stack_id
         sc_instance_id = sc_instances['id']
 
@@ -1239,6 +1241,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         #         'id'])
         # if not stacks:
         stacks, sc_instances = self.get_firewall_stack_id(context)
+        if not stacks:
+            return
         stack_id = stacks[0].stack_id
         sc_instance_id = sc_instances['id']
 
@@ -1343,6 +1347,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 sc_instance['id'])
             if stacks:
                 return stacks, sc_instance
+        return [], []
 
     @log.log
     def delete(self, context):
