@@ -591,21 +591,29 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                       context.current_node['id'][:8])
         # Heat does not accept space in stack name
         stack_name = stack_name.replace(" ", "")
-        stack_template, stack_params = self._fetch_template_and_params(
-            context)
-
         service_type = context.current_profile["service_type"]
-        if (service_type == pconst.LOADBALANCER or
-                (service_type == pconst.FIREWALL and
-                 not context.is_consumer_external)
-            ):
-            _exist, cons_ptgs, prov_unset = \
+        _exist, cons_ptgs, prov_unset = \
                 self.check_for_existing_service(context)
+
+        if service_type == pconst.LOADBALANCER:
+            if not _exist:
+                stack_template, stack_params = self._fetch_template_and_params(
+                                            context)
+            else:
+                return
+        else:
+            stack_template, stack_params = self._fetch_template_and_params(
+                                            context)
+
+
+        if (service_type == pconst.FIREWALL and
+                 not context.is_consumer_external):
             if _exist:
                 return
             else:
                 if service_type == pconst.FIREWALL:
                     self.update_firewall_template(context, stack_template)
+
         stack = heatclient.create(stack_name, stack_template, stack_params)
         stack_id = stack['stack']['id']
         self._insert_node_instance_stack_in_db(
