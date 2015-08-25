@@ -490,6 +490,17 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         stack, sc_instances = self.get_firewall_stack_id(context,
                                              cons_policy_target_groups)
 
+        # if not stack and not cons_policy_target_groups:
+        #     return False, cons_policy_target_groups, False
+
+        if not stack and cons_policy_target_groups:
+            if context.consumer['id'] not in cons_policy_target_groups:
+                cons_policy_target_groups.extend([context.consumer['id']])
+                stack, sc_instances = self.get_firewall_stack_id(
+                    context, context.consumer['id'])
+                if stack:
+                    return True, cons_policy_target_groups, False
+
         if context.consumer['id'] in cons_policy_target_groups:
             cons_policy_target_groups.remove(context.consumer['id'])
 
@@ -605,8 +616,10 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     @log.log
     def update(self, context, pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
-        if (not pt_added_or_removed and (not context.original_node or
-            context.original_node == context.current_node)):
+        # REVISIT (VK): Check for update node.
+        if (not pt_added_or_removed and (
+            not context.original_node or context.original_node ==
+                    context.current_node)):
             return
         heatclient = self._get_heat_client(context.plugin_context)
         stack_template, stack_params = (
