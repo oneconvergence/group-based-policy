@@ -617,10 +617,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def update(self, context, pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
         # REVISIT (VK): Check for update node.
-        if (not pt_added_or_removed and (
-            not context.original_node or context.original_node ==
-                    context.current_node)):
-            return
+        if context.current_profile["service_type"] == pconst.LOADBALANCER:
+            if (not pt_added_or_removed and (
+                not context.original_node or context.original_node ==
+                        context.current_node)):
+                return
         heatclient = self._get_heat_client(context.plugin_context)
         stack_template, stack_params = (
             self._fetch_template_and_params_for_update(context))
