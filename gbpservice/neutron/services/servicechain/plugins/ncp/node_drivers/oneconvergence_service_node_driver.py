@@ -1167,6 +1167,25 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     "protocol_port": protocol_port,
                     "weight": 1}}
 
+    def update_lb_stack_mapping(self, context, cons_ptgs):
+        stacks, sc_instances = self.get_firewall_stack_id(context)
+        stack_id = stacks[0].stack_id
+        sc_instance_id = sc_instances['id']
+
+        if sc_instance_id == context.instance['id']:
+            self._delete_node_instance_stack_in_db(
+                context.plugin_session, context.current_node['id'],
+                sc_instance_id)
+            new_consumer = context._gbp_plugin.get_policy_target_group(
+                context.plugin_context, cons_ptgs[0])
+            new_cons_sc_instance = context._sc_plugin.get_servicechain_instances(
+                context._plugin_context, {'consumer_ptg_id': [new_consumer[
+                    'id']]})[0]
+
+            self._insert_node_instance_stack_in_db(
+                context.plugin_session, context.current_node['id'],
+                new_cons_sc_instance['id'], stack_id)
+
     @log.log
     def update_firewall(self, context, cons_ptgs):
         heatclient = self._get_heat_client(context.plugin_context)
@@ -1295,8 +1314,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 #     super(OneConvergenceServiceNodeDriver, self).delete(
                 #         context)
                 if _exist and service_type == pconst.LOADBALANCER:
-                    super(OneConvergenceServiceNodeDriver, self).delete(
-                        context)
+                    self.update_lb_stack_mapping(context, cons_ptgs)
                 if (_exist and service_type == pconst.FIREWALL and
                       not context.is_consumer_external and not provider_unset):
                     self.update_firewall(context, cons_ptgs)
