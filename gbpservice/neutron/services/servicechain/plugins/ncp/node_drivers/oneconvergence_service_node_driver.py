@@ -380,8 +380,8 @@ class TrafficStitchingDriver(object):
             port = context.core_plugin.create_port(
                 admin_context, attrs)
             self._notify_port_action(context, port, 'create')
-        except Exception:
-            LOG.exception(_("create port failed."))
+        except Exception as ex:
+            LOG.error(_("create port failed. Reason %s"), ex)
             return
         return port
 
@@ -842,9 +842,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 stitching_port_fip = context.l3_plugin.get_floatingip(
                     admin_context,
                     floatingips[0]['id'])['floating_ip_address']
-
+                remote_id = context.core_plugin.get_port(
+                    admin_context,
+                    stitching_port_id)['fixed_ips'][0]['ip_address']
                 desc = ('fip=' + floating_ip + ";tunnel_local_cidr=" +
-                        provider_subnet['cidr']+";user_access_ip=" + stitching_port_fip)
+                        provider_subnet['cidr'] + ";user_access_ip=" +
+                        stitching_port_fip + ";fixed_ip=" + remote_id)
                 stack_params['ServiceDescription'] = desc
         else:
             config_param_values['service_chain_metadata'] = (
@@ -1032,8 +1035,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 config_param_values['RouterId'] = l3p['routers'][0]
                 access_ip = self.svc_mgr.get_vpn_access_ip(
                     context._plugin_context, stitching_port_id)
+                remote_id = context.core_plugin.get_port(
+                    admin_context,
+                    stitching_port_id)['fixed_ips'][0]['ip_address']
                 desc = ('fip=' + floating_ip + ";tunnel_local_cidr=" +
-                        provider_subnet['cidr']+";user_access_ip=" + access_ip)
+                        provider_subnet['cidr'] + ";user_access_ip=" +
+                        access_ip + ";fixed_ip=" + remote_id)
                 stack_params['ServiceDescription'] = desc
         else:
             # FIXME(Magesh): Raise error or autocorrect template if the key
@@ -1178,8 +1185,16 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             stack_template[resources_key],
             is_template_aws_version,
             "OS::Neutron::Pool")
-        protocol_port = stack_template[resources_key][lbaas_pool_key][
-            properties_key]['vip']['protocol_port']
+        lbaas_vip_key = self._get_heat_resource_key(
+            stack_template[resources_key],
+            is_template_aws_version,
+            "OS::Neutron::LoadBalancer")
+        vip_port = stack_template[resources_key][lbaas_pool_key][
+                                        properties_key]['vip']['protocol_port']
+        member_port = stack_template[resources_key][lbaas_vip_key][
+                                        properties_key].get('protocol_port')
+        protocol_port = member_port if member_port else vip_port
+
 
         return {type_key: "OS::Neutron::PoolMember",
                 properties_key: {
@@ -1191,6 +1206,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     def update_lb_stack_mapping(self, context, cons_ptgs):
         stacks, sc_instances = self.get_firewall_stack_id(context)
+        if not stacks:
+            return
         stack_id = stacks[0].stack_id
         sc_instance_id = sc_instances['id']
 
@@ -1224,6 +1241,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         #         'id'])
         # if not stacks:
         stacks, sc_instances = self.get_firewall_stack_id(context)
+        if not stacks:
+            return
         stack_id = stacks[0].stack_id
         sc_instance_id = sc_instances['id']
 
@@ -1309,17 +1328,18 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 context._plugin_context, {'provider_ptg_id': [context.provider[
                     'id']]})
         else:
-            for cons_ptg in cons_ptgs:
-                sc_instances = \
-                    context._sc_plugin.get_servicechain_instances(
-                        context._plugin_context,
-                        {'consumer_ptg_id': [cons_ptg]})
-                for sc_instance in sc_instances:
-                    stacks = self._get_node_instance_stacks(
-                        context.plugin_session, context.current_node['id'],
-                        sc_instance['id'])
-                    if stacks:
-                        return stacks, sc_instance
+            if cons_ptgs:
+                for cons_ptg in cons_ptgs:
+                    sc_instances = \
+                        context._sc_plugin.get_servicechain_instances(
+                            context._plugin_context,
+                            {'consumer_ptg_id': [cons_ptg]})
+                    for sc_instance in sc_instances:
+                        stacks = self._get_node_instance_stacks(
+                            context.plugin_session, context.current_node['id'],
+                            sc_instance['id'])
+                        if stacks:
+                            return stacks, sc_instance
             return None, None
         for sc_instance in sc_instances:
             stacks = self._get_node_instance_stacks(
@@ -1327,6 +1347,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 sc_instance['id'])
             if stacks:
                 return stacks, sc_instance
+        return [], []
 
     @log.log
     def delete(self, context):
