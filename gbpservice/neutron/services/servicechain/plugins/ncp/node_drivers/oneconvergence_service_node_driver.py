@@ -495,7 +495,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
         if not stack and cons_policy_target_groups:
             if context.consumer['id'] not in cons_policy_target_groups:
-                cons_policy_target_groups.extend([context.consumer['id']])
+                # cons_policy_target_groups.extend([context.consumer['id']])
                 stack, sc_instances = self.get_firewall_stack_id(
                     context, [context.consumer['id']])
                 if stack:
@@ -605,9 +605,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             stack_template, stack_params = self._fetch_template_and_params(
                                             context)
 
-
         if (service_type == pconst.FIREWALL and
-                 not context.is_consumer_external):
+                not context.is_consumer_external):
             if _exist:
                 return
             else:
