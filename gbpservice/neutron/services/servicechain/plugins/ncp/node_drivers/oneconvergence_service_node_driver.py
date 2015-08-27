@@ -641,9 +641,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             self._wait_for_stack_operation_complete(
                 heatclient, stack.stack_id, 'update')
             if (service_type == pconst.LOADBALANCER or
-                    (service_type == pconst.FIREWALL and
-                     not context.is_consumer_external)
-                ):
+                    service_type == pconst.FIREWALL):
                 heatclient.delete(stack.stack_id)
                 self._wait_for_stack_operation_complete(heatclient,
                                                         stack.stack_id,
@@ -772,6 +770,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 context=context.plugin_context, service_type=service_type,
                 tenant_id=context.plugin_context.tenant_id,
                 insert_type=insert_type)
+        # Revisit(VK) For node sharing
+        # service_chain_instance_id=sc_instance['id'])
 
         # If we are going to share an already launched VM, we do not have
         # to create new ports/PTs for management and stitching
@@ -1390,10 +1390,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         admin_context = n_context.get_admin_context()
         clean_provider_port = False
         # Allow VPN to go through.
-        if not _exist or provider_unset or service_type == pconst.VPN:
+        if not _exist or provider_unset or service_type == pconst.VPN or not\
+                cons_ptgs:
             self.ts_driver.revert_stitching(
                         context, context.provider['subnets'][0])
             clean_provider_port = True
+
         ports_to_cleanup = self.svc_mgr.delete_service_instance(
                             context=context._plugin_context,
                             tenant_id=context._plugin_context.tenant_id,
