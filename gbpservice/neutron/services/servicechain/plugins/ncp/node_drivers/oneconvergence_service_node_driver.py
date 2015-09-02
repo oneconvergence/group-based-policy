@@ -160,7 +160,7 @@ class TrafficStitchingDriver(object):
             stitching_port_ip = context.core_plugin.get_port(
                     admin_context,
                     stitching_port_id)['fixed_ips'][0]['ip_address']
-        #if context.is_consumer_external:
+
         self._add_extra_route(
             context, stitching_port_ip, stitching_subnet_id,
             provider['subnets'][0])
