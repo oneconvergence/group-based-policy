@@ -15,7 +15,7 @@ import netaddr
 from neutron.common import config  # noqa
 from neutron import context
 from neutron import manager
-from oslo_config import cfg
+from oslo.config import cfg
 
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     plugin as ncp_plugin)
