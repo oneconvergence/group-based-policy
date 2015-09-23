@@ -47,7 +47,7 @@ def get_node_driver_context(sc_plugin, context, sc_instance,
             position=position, servicechain_node_id=current_node['id'])
 
     return NodeDriverContext(sc_plugin=sc_plugin,
-                             context=context,
+                             context=admin_context,
                              service_chain_instance=sc_instance,
                              service_chain_specs=specs,
                              current_service_chain_node=current_node,

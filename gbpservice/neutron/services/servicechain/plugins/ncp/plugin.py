@@ -310,7 +310,8 @@ class NodeCompositionPlugin(servicechain_db.ServiceChainDbPlugin,
             admin_context, policy_target)
 
         for sci in scis:
-            updaters = self._get_scheduled_drivers(context, sci, 'update')
+            updaters = self._get_scheduled_drivers(
+                admin_context, sci, 'update')
             for update in updaters.values():
                 try:
                     getattr(update['driver'],

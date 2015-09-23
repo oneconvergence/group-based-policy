@@ -139,10 +139,12 @@ class ServicePolicyPTGIpAddressMapping(model_base.BASEV2):
 
     __tablename__ = 'gpm_service_policy_ipaddress_mappings'
     service_policy_id = sa.Column(
-        sa.String(36), sa.ForeignKey('gp_network_service_policies.id'),
+        sa.String(36), sa.ForeignKey('gp_network_service_policies.id',
+                                     ondelete='CASCADE'),
         nullable=False, primary_key=True)
     policy_target_group = sa.Column(
-        sa.String(36), sa.ForeignKey('gp_policy_target_groups.id'),
+        sa.String(36), sa.ForeignKey('gp_policy_target_groups.id',
+                                     ondelete='CASCADE'),
         nullable=False, primary_key=True)
     ipaddress = sa.Column(sa.String(36))
 
@@ -224,7 +226,7 @@ class ResourceMappingDriver(api.PolicyDriver, local_api.LocalAPI):
 
         if tenant:
             return k_client.Client(username=user, password=pwd,
-                                   tenant_name=tenant, auth_url=auth_url)
+                                   auth_url=auth_url)
 
     def _reject_shared(self, object, type):
         if object.get('shared'):
