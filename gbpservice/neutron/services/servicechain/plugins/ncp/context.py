@@ -31,8 +31,9 @@ def get_node_driver_context(sc_plugin, context, sc_instance,
     position = _calculate_node_position(specs, current_node['id'])
     provider, _ = _get_ptg_or_ep(
         admin_context, sc_instance['provider_ptg_id'])
-    consumer, is_consumer_external = _get_ptg_or_ep(
-        admin_context, sc_instance['consumer_ptg_id'])
+    #consumer, is_consumer_external = _get_ptg_or_ep(
+    #    admin_context, sc_instance['consumer_ptg_id'])
+    consumer, is_consumer_external = None, None
     management, _ = _get_ptg_or_ep(context, sc_instance['management_ptg_id'])
     classifier = get_gbp_plugin().get_policy_classifier(
         admin_context, sc_instance['classifier_id'])
@@ -47,7 +48,7 @@ def get_node_driver_context(sc_plugin, context, sc_instance,
             position=position, servicechain_node_id=current_node['id'])
 
     return NodeDriverContext(sc_plugin=sc_plugin,
-                             context=admin_context,
+                             context=context,
                              service_chain_instance=sc_instance,
                              service_chain_specs=specs,
                              current_service_chain_node=current_node,

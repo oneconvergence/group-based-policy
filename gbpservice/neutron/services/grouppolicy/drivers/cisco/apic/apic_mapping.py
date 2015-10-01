@@ -1098,7 +1098,7 @@ class ApicMappingDriver(api.ResourceMappingDriver):
                             contract, contract, policy_rule, owner=tenant,
                             transaction=trs, unset=unset,
                             rule_owner=rule_owner)
-                        if (classifier['protocol'].lower() in
+                        if (classifier.get('protocol') and classifier['protocol'].lower() in
                                 REVERTIBLE_PROTOCOLS):
                             (self.apic_manager.
                              manage_contract_subject_out_filter(
@@ -1111,7 +1111,7 @@ class ApicMappingDriver(api.ResourceMappingDriver):
                             contract, contract, policy_rule, owner=tenant,
                             transaction=trs, unset=unset,
                             rule_owner=rule_owner)
-                        if (classifier['protocol'].lower() in
+                        if (classifier.get('protocol') and classifier['protocol'].lower() in
                                 REVERTIBLE_PROTOCOLS):
                             (self.apic_manager.
                              manage_contract_subject_in_filter(
