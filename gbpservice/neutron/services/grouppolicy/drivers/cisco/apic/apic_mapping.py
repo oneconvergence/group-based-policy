@@ -683,6 +683,10 @@ class ApicMappingDriver(api.ResourceMappingDriver):
             subnets = self._core_plugin.get_subnets(
                 context._plugin_context, {'name': [APIC_OWNED +
                                                    context.current['id']]})
+	    proxy_subnets = self._core_plugin.get_subnets(
+                context._plugin_context, {'name': [APIC_OWNED_RES +
+                                                   context.current['id']]})
+	    subnets.extend(proxy_subnets)
             self.gbp_plugin._remove_subnets_from_policy_target_groups(
                 nctx.get_admin_context(), [x['id'] for x in subnets])
             for subnet in subnets:
