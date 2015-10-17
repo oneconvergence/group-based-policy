@@ -72,9 +72,9 @@ class NodeCompositionPlugin(servicechain_db.ServiceChainDbPlugin,
         except Exception:
             # Some node could not be deployed
             with excutils.save_and_reraise_exception():
-                LOG.error(_("Node deployment failed, "
-                            "deleting servicechain_instance %s"),
-                          instance['id'])
+                LOG.exception(_("Node deployment failed, "
+                                "deleting servicechain_instance %s"),
+                                instance['id'])
                 self.delete_servicechain_instance(context, instance['id'])
 
         return instance

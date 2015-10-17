@@ -10,11 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from keystoneclient import exceptions as k_exceptions
+from keystoneclient.v2_0 import client as keyclient
 from neutron.api.v2 import attributes as attr
 from neutron import manager
 from neutron.openstack.common import log as logging
 from oslo.config import cfg
+from oslo.utils import excutils
 
+from gbpservice.common import utils
 from gbpservice.neutron.extensions import driver_proxy_group as pg_ext
 from gbpservice.neutron.extensions import group_policy
 from gbpservice.neutron.services.grouppolicy.common import exceptions as exc
@@ -24,6 +28,16 @@ from gbpservice.neutron.services.servicechain.plugins.ncp.node_plumbers import(
 
 LOG = logging.getLogger(__name__)
 TSCP_RESOURCE_PREFIX = 'tscp_'
+
+
+TSCP_OPTS = [
+    cfg.BoolOpt('is_service_targets_admin_owned',
+                help=_("Parameter to indicate whether the Service VM has to be "
+                       "owned by the Admin"),
+                default=False),
+]
+
+cfg.CONF.register_opts(TSCP_OPTS, "traffic_stitching_plumber")
 
 
 class TrafficStitchingPlumber(plumber_base.NodePlumberBase):
@@ -47,6 +61,10 @@ class TrafficStitchingPlumber(plumber_base.NodePlumberBase):
             LOG.error(_("proxy_group GBP driver extension is mandatory for "
                         "traffic stitching plumber."))
             raise exc.GroupPolicyDeploymentError()
+        if cfg.CONF.traffic_stitching_plumber.is_service_targets_admin_owned:
+            self.resource_owner_tenant_id = self._resource_owner_tenant_id()
+        else:
+            self.resource_owner_tenant_id = None
 
     @property
     def gbp_plugin(self):
@@ -63,6 +81,7 @@ class TrafficStitchingPlumber(plumber_base.NodePlumberBase):
         return self._sc_plugin
 
     def plug_services(self, context, deployment):
+        context = self._get_resource_owner_context(context)
         if deployment:
             provider = deployment[0]['context'].provider
             management = deployment[0]['context'].management
@@ -125,6 +144,7 @@ class TrafficStitchingPlumber(plumber_base.NodePlumberBase):
                 provider = jump_ptg or provider
 
     def unplug_services(self, context, deployment):
+        context = self._get_resource_owner_context(context)
         # Sorted from provider (0) to consumer (N)
         if not deployment:
             return
@@ -182,3 +202,30 @@ class TrafficStitchingPlumber(plumber_base.NodePlumberBase):
                                 'group_default_gateway': False}
         super(TrafficStitchingPlumber, self)._create_service_target(
             *args, **kwargs)
+
+    def _resource_owner_tenant_id(self):
+        user, pwd, tenant, auth_url = utils.get_keystone_creds()
+        keystoneclient = keyclient.Client(username=user, password=pwd,
+                                          auth_url=auth_url)
+        try:
+            tenant = keystoneclient.tenants.find(name=tenant)
+            return tenant.id
+        except k_exceptions.NotFound:
+            with excutils.save_and_reraise_exception(reraise=True):
+                LOG.error(_('No tenant with name %s exists.'), tenant)
+        except k_exceptions.NoUniqueMatch:
+            with excutils.save_and_reraise_exception(reraise=True):
+                LOG.error(_('Multiple tenants matches found for %s'), tenant)
+
+    def _get_resource_owner_context(self, context):
+        if cfg.CONF.traffic_stitching_plumber.is_service_targets_admin_owned:
+            resource_owner_context = context.elevated()
+            resource_owner_context.tenant_id = self.resource_owner_tenant_id
+            user, pwd, _, auth_url = utils.get_keystone_creds()
+            keystoneclient = keyclient.Client(username=user, password=pwd,
+                                              auth_url=auth_url)
+            resource_owner_context.auth_token = keystoneclient.get_token(
+                self.resource_owner_tenant_id)
+            return resource_owner_context
+        else:
+            return context
