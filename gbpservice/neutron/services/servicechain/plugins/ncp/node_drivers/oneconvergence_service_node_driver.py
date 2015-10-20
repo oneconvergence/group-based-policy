@@ -55,7 +55,7 @@ ONECONVERGENCE_DRIVER_OPTS = [
                help=_("Heat API server address to instantiate services "
                       "specified in the service chain.")),
     cfg.IntOpt('stack_action_wait_time',
-               default=60,
+               default=120,
                help=_("Seconds to wait for pending stack operation "
                       "to complete")),
     cfg.BoolOpt('is_service_admin_owned',
@@ -167,8 +167,9 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         service_vendor, ha_enabled = self._get_vendor_ha_enabled(
             context.current_profile)
         if ha_enabled:
-            plumber_pt_request = {'management': [], 'provider': [{}, {}, {}],
-                                  'consumer': [{}, {}, {}]}
+            plumber_pt_request = {'management': [],
+                                  'provider': [{}, {}, {}, {}],
+                                  'consumer': [{}, {}, {}, {}]}
         else:
             plumber_pt_request = {'management': [], 'provider': [{}],
                                   'consumer': [{}]}
@@ -429,8 +430,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             # FIXME(Magesh): Fix the update stack issue on Heat/*aas driver
             self._wait_for_stack_operation_complete(
                 heatclient, stack.stack_id, 'update')  # or create !!
-            if (service_type == pconst.VPN or service_type == pconst.FIREWALL
-                or service_type == pconst.LOADBALANCER):
+            if service_type == pconst.VPN or service_type == pconst.FIREWALL:
                 heatclient.delete(stack.stack_id)
                 self._wait_for_stack_operation_complete(heatclient,
                                                         stack.stack_id,
@@ -467,7 +467,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             return svc_mgmt_ptgs[0]['id']
 
     def _get_service_target_from_relations(self, context, relationship):
-        LOG.info("Relation: %s instance_id: %s node_id: %s tenant_id: %s"
+        LOG.debug("Relation: %s instance_id: %s node_id: %s tenant_id: %s"
                  %(relationship, context.instance['id'],
                    context.current_node['id'],
                    context._plugin_context.tenant_id))
@@ -484,11 +484,10 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 shared_service_type = shared_service_type[service_type]
                 service_targets = self._get_shared_service_targets(
                     context, shared_service_type, relationship)
-        LOG.info("service_type %s service_targets: %s" %(service_type, service_targets))
+        LOG.debug("service_type %s service_targets: %s" %(service_type, service_targets))
         return service_targets
 
     def _get_service_targets(self, context):
-        #import pdb;pdb.set_trace()
         service_type = context.current_profile['service_type']
         service_vendor, is_ha_enabled = self._get_vendor_ha_enabled(
             context.current_profile)
@@ -496,7 +495,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             context, 'provider')
         consumer_service_targets = self._get_service_target_from_relations(
             context, 'consumer')
-        LOG.info("provider targets: %s consumer targets %s" % (
+        LOG.debug("provider targets: %s consumer targets %s" % (
             provider_service_targets, consumer_service_targets))
         if (not provider_service_targets or (service_type in
             [pconst.FIREWALL, pconst.VPN] and not consumer_service_targets)):
@@ -506,11 +505,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 raise Exception("Service Targets are not created for the Node")
 
         if is_ha_enabled:
-            if len(provider_service_targets) != 3:
+            if len(provider_service_targets) != 4:
                 LOG.error(_("Service Targets are not created for the Node"))
                 raise Exception("Service Targets are not created for the Node")
             if (service_type in [pconst.FIREWALL, pconst.VPN] and
-                len(consumer_service_targets) != 3):
+                len(consumer_service_targets) != 4):
                 LOG.error(_("Service Targets are not created for the Node"))
                 raise Exception("Service Targets are not created for the Node")
 
@@ -565,21 +564,24 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         shared_svc_type = pconst.FIREWALL
         if service_type == pconst.FIREWALL:
             shared_svc_type = pconst.VPN
+        return self._is_service_type_in_chain(context, shared_svc_type)
 
-        current_specs = context.relevant_specs
-        service_profiles = []
-        for spec in current_specs:
-            filters = {'id': spec['nodes']}
-            nodes = context.sc_plugin.get_servicechain_nodes(
+    def _is_service_type_in_chain(self, context, service_type):
+        if service_type == context.current_profile['service_type']:
+            return True
+        else:
+            current_specs = context.relevant_specs
+            service_profiles = []
+            for spec in current_specs:
+                filters = {'id': spec['nodes']}
+                nodes = context.sc_plugin.get_servicechain_nodes(
+                    context.plugin_context, filters)
+                for node in nodes:
+                    service_profiles.append(node['service_profile_id'])
+            filters = {'id': service_profiles, 'service_type': [service_type]}
+            service_profiles = context.sc_plugin.get_service_profiles(
                 context.plugin_context, filters)
-            for node in nodes:
-                service_profiles.append(node['service_profile_id'])
-
-        filters = {'id': service_profiles, 'service_type': [shared_svc_type]}
-        vm_sharing_profiles = context.sc_plugin.get_service_profiles(
-            context.plugin_context, filters)
-
-        return True if vm_sharing_profiles else False
+            return True if service_profiles else False
 
     def _get_consumers_for_chain(self, context):
         filters = {'id': context.provider['provided_policy_rule_sets']}
@@ -805,8 +807,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             "ha_enabled": ha_enabled,
             "management_ptg_id": self._get_management_ptg_id(context),
             'provider_cidr': provider_cidr,
-            'stitching_port_ip': "192.168.0.0/24",
-            'stitching_gateway_ip': "192.168.0.0",
+            'is_vpn_in_chain': self._is_service_type_in_chain(context, pconst.VPN),
         }
 
         active_service_ports = standby_service_ports = {}
@@ -828,6 +829,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 'provider_vip_port']['id']
             standby_service_ports['provider_port_id'] = service_targets[
                 'provider_ports'][1]['id']
+            service_create_req['standby_provider_vip_port_id'] = service_targets[
+                'provider_ports'][2]['id']
             if service_targets.get('consumer_vip_port'):
                 service_create_req['stitching_vip_port_id'] = service_targets[
                     'consumer_vip_port']['id']
@@ -839,6 +842,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 service_create_req['stitching_gateway_ip'] = stitching_subnet['gateway_ip']
                 standby_service_ports['stitching_port_id'] = service_targets[
                     'consumer_ports'][1]['id']
+                service_create_req['standby_stitching_vip_port_id'] = service_targets[
+                    'consumer_ports'][2]['id']
             service_create_req['standby_service'] = standby_service_ports
         
         mgmt_fips = self.svc_mgr.create_service(
@@ -925,11 +930,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         service_targets = self._get_service_targets(context)
         provider_port = service_targets['provider_ports'][0]
         provider_port_mac = provider_port['mac_address']
-	provider_cidr = context.core_plugin.get_subnet(
-	    context.plugin_context, provider_port['fixed_ips'][0][
-	    'subnet_id'])['cidr']
-	service_vendor, ha_enabled = self._get_vendor_ha_enabled(
-	    context.current_profile)
+        provider_cidr = context.core_plugin.get_subnet(
+            context.plugin_context, provider_port['fixed_ips'][0][
+                'subnet_id'])['cidr']
+        service_vendor, ha_enabled = self._get_vendor_ha_enabled(
+            context.current_profile)
         if service_type == pconst.LOADBALANCER:
             self._generate_pool_members(
                 context, stack_template, config_param_values,
@@ -971,8 +976,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 context.plugin_context, l2p['l3_policy_id'])
             config_param_values['RouterId'] = l3p['routers'][0]
             stitching_subnet = context.core_plugin.get_subnet(
-                                  context._plugin_context, 
-                                  consumer_port['fixed_ips'][0]['subnet_id'])
+                context._plugin_context,
+                consumer_port['fixed_ips'][0]['subnet_id'])
             stitching_cidr = stitching_subnet['cidr']
             if not update:
                 services_nsp = context.gbp_plugin.get_network_service_policies(
@@ -982,9 +987,9 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     fip_nsp = {
                     'network_service_policy': {
                         'name': 'oneconvergence_services_nsp',
-			'description': 'oneconvergence_implicit_resource',
-			'shared': False,
-			'tenant_id': context._plugin_context.tenant_id,
+                        'description': 'oneconvergence_implicit_resource',
+                        'shared': False,
+                        'tenant_id': context._plugin_context.tenant_id,
                         'network_service_params': [
                             {"type": "ip_pool", "value": "nat_pool",
                              "name": "vpn_svc_external_access"}]
@@ -1003,8 +1008,9 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     raise Exception()
                 stitching_ptg_id = stitching_pts[0]['policy_target_group_id']
                 context.gbp_plugin.update_policy_target_group(
-                    context.plugin_context, stitching_ptg_id, 
-                    {'policy_target_group': {'network_service_policy_id': nsp['id']}})
+                    context.plugin_context, stitching_ptg_id,
+                    {'policy_target_group': {
+                        'network_service_policy_id': nsp['id']}})
             filters = {'port_id': [consumer_port['id']]}
             floatingips = context.l3_plugin.get_floatingips(
                 context.plugin_context, filters=filters)
@@ -1018,14 +1024,13 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     consumer_port['fixed_ips'][0]['ip_address'] +
                     ';standby_fip=' + mgmt_fips.get('standby_mgmt_fip', "") +
                     ';service_vendor=' + service_vendor +
-                    ';stitching_cidr=' + stitching_cidr)
+                    ';stitching_cidr=' + stitching_cidr +
+                    ';stitching_gateway=' + stitching_subnet['gateway_ip'])
             stack_params['ServiceDescription'] = desc
             siteconn_key = self._get_heat_resource_key(
                 stack_template[resources_key],
                 is_template_aws_version,
                 'OS::Neutron::IPsecSiteConnection')
-            LOG.error("res %s ,site  %s,prop  %s" %(resources_key, siteconn_key,properties_key))
-            LOG.error("stack_template %s" % stack_template)
             stack_template[resources_key][siteconn_key][properties_key][
                 'description'] = desc
 
@@ -1135,6 +1140,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         for policy_target in policy_targets:
             if (plumber_base.SERVICE_TARGET_NAME_PREFIX not in
                 policy_target['name'] and "tscp_endpoint_service_" not in
+                policy_target['name'] and "vip_pt" not in
                 policy_target['name']):
                 port_id = policy_target.get("port_id")
                 if port_id:
