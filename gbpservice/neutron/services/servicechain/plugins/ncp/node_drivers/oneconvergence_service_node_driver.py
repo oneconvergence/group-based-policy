@@ -97,6 +97,11 @@ class UnSupportedServiceProfile(exc.NodeCompositionPluginBadRequest):
                 "%(vendor)s")
 
 
+class UnSupportedInsertionMode(exc.NodeCompositionPluginBadRequest):
+    message = _("The OneConvergence Node driver supports only L3 Insertion "
+                "mode")
+
+
 class ServiceInfoNotAvailableOnUpdate(n_exc.NeutronException):
     message = _("Service information is not available with Service Manager "
                 "on node update")
@@ -131,18 +136,25 @@ class VipNspNotSetonProvider(n_exc.NeutronException):
 
 class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     SUPPORTED_SERVICE_TYPES = [pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN]
+    FIREWALL_HA = pconst.FIREWALL + "_HA"
+    VPN_HA = pconst.VPN + "_HA"
     SUPPORTED_SERVICE_VENDOR_MAPPING = {pconst.LOADBALANCER: ["haproxy"],
-                                        pconst.FIREWALL: ["vyos", "asav",
-                                                          "vyos_ha", "asav_ha"],
-                                        pconst.VPN: ["vyos", "asav",
-                                                     "vyos_ha", "asav_ha"]}
-    vendor_name_prefix = 'oneconvergence'
+                                        pconst.FIREWALL: ["vyos", "asav", "vyos"],
+                                        pconst.VPN: ["vyos", "asav"],
+                                        #FIREWALL_HA: ["asav"],
+                                        #VPN_HA: ["vyos", "asav"]
+                                        }
+    vendor_name = 'oneconvergence'
     required_heat_resources = {
         pconst.LOADBALANCER: ['OS::Neutron::LoadBalancer',
                               'OS::Neutron::Pool'],
         pconst.FIREWALL: ['OS::Neutron::Firewall',
                           'OS::Neutron::FirewallPolicy'],
-        pconst.VPN: ['OS::Neutron::VPNService']}
+        pconst.VPN: ['OS::Neutron::VPNService'],
+        #FIREWALL_HA: ['OS::Neutron::Firewall',
+        #                  'OS::Neutron::FirewallPolicy'],
+        #VPN_HA: ['OS::Neutron::VPNService']
+        }
     initialized = False
 
     def __init__(self):
@@ -197,7 +209,18 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         # Heat Node driver in Juno supports non service-profile based model
         if not context.current_profile:
             raise heat_node_driver.ServiceProfileRequired()
-        self._get_vendor_ha_enabled(context.current_profile)
+        if context.current_profile['vendor'] != self.vendor_name:
+            raise heat_node_driver.NodeVendorMismatch(vendor=self.vendor_name)
+        if context.current_profile['insertion_mode'].lower() != "l3":
+            raise UnSupportedInsertionMode()
+        if context.current_profile['service_type'] not in self.SUPPORTED_SERVICE_TYPES:
+            raise InvalidServiceType()
+        if (context.current_profile['service_flavor'].lower() not in
+            self.SUPPORTED_SERVICE_VENDOR_MAPPING[
+                context.current_profile['service_type']]):
+            raise UnSupportedServiceProfile(
+                service_type=context.current_profile['service_type'],
+                vendor=context.current_profile['vendor'])
 
     @log.log
     def validate_update(self, context):
@@ -206,7 +229,18 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             return
         if context.current_node and not context.current_profile:
             raise heat_node_driver.ServiceProfileRequired()
-        self._get_vendor_ha_enabled(context.current_profile)
+        if context.current_profile['vendor'] != self.vendor_name:
+            raise heat_node_driver.NodeVendorMismatch(vendor=self.vendor_name)
+        if context.current_profile['insertion_mode'].lower() != "l3":
+            raise UnSupportedInsertionMode()
+        if context.current_profile['service_type'] not in self.SUPPORTED_SERVICE_TYPES:
+            raise InvalidServiceType()
+        if (context.current_profile['service_flavor'].lower() not in
+            self.SUPPORTED_SERVICE_VENDOR_MAPPING[
+                context.current_profile['service_type']]):
+            raise UnSupportedServiceProfile(
+                service_type=context.current_profile['service_type'],
+                vendor=context.current_profile['vendor'])
 
     @log.log
     def update_policy_target_added(self, context, policy_target):
@@ -283,8 +317,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         _, ha_enabled = self._get_vendor_ha_enabled(
             context.current_profile)
         if ha_enabled:
-            service_targets = self._get_service_targets(context)
-            self._clear_service_target_cluster(context, service_targets)
+            try:
+                service_targets = self._get_service_targets(context)
+                self._clear_service_target_cluster(context, service_targets)
+            except Exception:
+                LOG.exception(_("Clearing Policy Target cluster information "
+                                "failed"))
         provider_tenant_id = context.provider['tenant_id']
         try:
             stack_ids = self._get_node_instance_stacks(
@@ -324,21 +362,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         return self._lbaas_plugin
 
     def _get_vendor_ha_enabled(self, service_profile):
-        if service_profile['service_type'] not in self.SUPPORTED_SERVICE_TYPES:
-            raise InvalidServiceType()
-        service_details = service_profile['vendor'].split("_")
-        if (len(service_details) < 2 or len(service_details) > 3 or
-            service_details[0] != self.vendor_name_prefix or
-            service_details[1].lower() not in
-            self.SUPPORTED_SERVICE_VENDOR_MAPPING[service_profile['service_type']]):
-            raise UnSupportedServiceProfile(
-                service_type=service_profile['service_type'],
-                vendor=service_profile['vendor'])
-        if len(service_details) == 3:
+        if "_HA" in service_profile['service_type']:
             ha_enabled = True
         else:
             ha_enabled = False
-        return service_details[1], ha_enabled
+        return service_profile['service_flavor'], ha_enabled
 
     def _resource_owner_tenant_id(self):
         user, pwd, tenant, auth_url = utils.get_keystone_creds()
