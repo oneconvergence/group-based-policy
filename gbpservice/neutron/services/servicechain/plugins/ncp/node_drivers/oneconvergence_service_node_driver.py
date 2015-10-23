@@ -91,6 +91,20 @@ class InvalidServiceType(exc.NodeCompositionPluginBadRequest):
                 "VPN, Firewall and LB in a Service Chain")
 
 
+class DuplicateServiceTypeInChain(exc.NodeCompositionPluginBadRequest):
+    message = _("The OneConvergence Node driver does not support duplicate "
+                "service types in same chain")
+
+
+class RequiredProfileAttributesNotSet(exc.NodeCompositionPluginBadRequest):
+    message = _("The required attributes in service profile are not present")
+
+
+class InvalidNodeOrderInChain(exc.NodeCompositionPluginBadRequest):
+    message = _("The OneConvergence Node driver does not support the order "
+                "of nodes defined in the current service chain spec")
+
+
 class UnSupportedServiceProfile(exc.NodeCompositionPluginBadRequest):
     message = _("The OneConvergence Node driver does not support this service "
                 "profile with service type %(service_type)s and vendor "
@@ -209,6 +223,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         # Heat Node driver in Juno supports non service-profile based model
         if not context.current_profile:
             raise heat_node_driver.ServiceProfileRequired()
+        if (not context.current_profile['vendor'] or not
+            context.current_profile['insertion_mode'] or not
+            context.current_profile['service_type'] or not
+            context.current_profile['service_flavor']):
+            raise RequiredProfileAttributesNotSet()
         if context.current_profile['vendor'] != self.vendor_name:
             raise heat_node_driver.NodeVendorMismatch(vendor=self.vendor_name)
         if context.current_profile['insertion_mode'].lower() != "l3":
@@ -221,6 +240,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             raise UnSupportedServiceProfile(
                 service_type=context.current_profile['service_type'],
                 vendor=context.current_profile['vendor'])
+        self._is_node_order_in_spec_supported(context)
 
     @log.log
     def validate_update(self, context):
@@ -593,6 +613,34 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         if service_type == pconst.FIREWALL:
             shared_svc_type = pconst.VPN
         return self._is_service_type_in_chain(context, shared_svc_type)
+
+    # Needs a better algorithm
+    def _is_node_order_in_spec_supported(self, context):
+        current_specs = context.relevant_specs
+        service_type_list_in_chain = []
+        node_list = []
+        for spec in current_specs:
+            node_list.extend(spec['nodes'])
+
+        for node_id in node_list:
+            node_info = context.sc_plugin.get_servicechain_node(
+                context.plugin_context, node_id)
+            profile = context.sc_plugin.get_service_profile(
+                context.plugin_context, node_info['service_profile_id'])
+            service_type_list_in_chain.append(profile['service_type'])
+
+        if len(service_type_list_in_chain) != len(
+            set(service_type_list_in_chain)):
+            raise DuplicateServiceTypeInChain()
+
+        allowed_chain_combinations = [[pconst.VPN],
+                                      [pconst.VPN, pconst.FIREWALL],
+                                      [pconst.VPN, pconst.FIREWALL, pconst.LOADBALANCER],
+                                      [pconst.FIREWALL],
+                                      [pconst.FIREWALL, pconst.LOADBALANCER],
+                                      [pconst.LOADBALANCER]]
+        if service_type_list_in_chain not in allowed_chain_combinations:
+            raise InvalidNodeOrderInChain()
 
     def _is_service_type_in_chain(self, context, service_type):
         if service_type == context.current_profile['service_type']:
