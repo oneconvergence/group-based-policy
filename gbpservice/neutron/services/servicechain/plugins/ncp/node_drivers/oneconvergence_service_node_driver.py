@@ -460,7 +460,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         provider_tenant_id = context.provider['tenant_id']
         heatclient = self._get_heat_client(context.plugin_context,
                                            tenant_id=provider_tenant_id)
-        
+
         mgmt_fips = self.svc_mgr.get_management_ips(
             context=context.plugin_context,
             tenant_id=provider_tenant_id,
@@ -872,7 +872,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 break
         if not provider_cidr:
             raise # Raise proper exception object
-    
+
         service_create_req = {
             "tenant_id": context.provider['tenant_id'],
             "service_chain_instance_id": sc_instance['id'],
@@ -921,7 +921,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 service_create_req['standby_stitching_vip_port_id'] = service_targets[
                     'consumer_ports'][2]['id']
             service_create_req['standby_service'] = standby_service_ports
-        
+
         mgmt_fips = self.svc_mgr.create_service(
             context=context.plugin_context, service_info=service_create_req)
         return mgmt_fips
@@ -967,6 +967,21 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         else:
             rvpn_l3_policy = rvpn_l3_policy[0]
         return rvpn_l3_policy
+
+    def _get_management_gw_ip(self, context):
+
+        filters = {'name':[SVC_MGMT_PTG_NAME]}
+        svc_mgmt_ptgs = context.gbp_plugin.get_policy_target_groups(
+                                        context.plugin_context, filters)
+        if not svc_mgmt_ptgs:
+            LOG.error(_("Service Management Group is not created by Admin"))
+            raise Exception()
+        else:
+            mgmt_subnet_id = svc_mgmt_ptgs[0]['subnets'][0]
+            mgmt_subnet = context.core_plugin.get_subnet(
+            context._plugin_context, mgmt_subnet_id)
+            mgmt_gw_ip = mgmt_subnet['gateway_ip']
+            return mgmt_gw_ip
 
     # TODO(Magesh): Validate that the Plumber returned what we asked for
     def _update_node_config(self, context, update=False, mgmt_fips={}):
@@ -1055,6 +1070,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 context._plugin_context,
                 consumer_port['fixed_ips'][0]['subnet_id'])
             stitching_cidr = stitching_subnet['cidr']
+            mgmt_gw_ip = self._get_management_gw_ip(context)
+
             if not update:
                 services_nsp = context.gbp_plugin.get_network_service_policies(
                     context.plugin_context,
@@ -1101,13 +1118,15 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     ';standby_fip=' + mgmt_fips.get('standby_mgmt_fip', "") +
                     ';service_vendor=' + service_vendor +
                     ';stitching_cidr=' + stitching_cidr +
-                    ';stitching_gateway=' + stitching_subnet['gateway_ip'])
+                    ';stitching_gateway=' + stitching_subnet['gateway_ip'] +
+                    ';mgmt_gw_ip=' + mgmt_gw_ip)
             stack_params['ServiceDescription'] = desc
             siteconn_key = self._get_heat_resource_key(
                 stack_template[resources_key],
                 is_template_aws_version,
                 'OS::Neutron::IPsecSiteConnection')
-            stack_template[resources_key][siteconn_key][properties_key][
+            if siteconn_key in stack_template[resource_key]:
+                stack_template[resources_key][siteconn_key][properties_key][
                 'description'] = desc
 
         for parameter in stack_template.get(parameters_key) or []:
@@ -1117,7 +1136,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         #LOG.info(_("Final stack_template : %(template)s, stack_params : "
         #           "%(param)s"), {'template': stack_template,
         #                          'param': stack_params})
-        LOG.info("Final stack_template : %s, stack_params : %s" % 
+        LOG.info("Final stack_template : %s, stack_params : %s" %
                      (stack_template, stack_params))
         return (stack_template, stack_params)
 
