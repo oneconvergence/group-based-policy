@@ -149,9 +149,11 @@ class VipNspNotSetonProvider(n_exc.NeutronException):
 
 
 class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
-    SUPPORTED_SERVICE_TYPES = [pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN]
     FIREWALL_HA = pconst.FIREWALL + "_HA"
     VPN_HA = pconst.VPN + "_HA"
+    SUPPORTED_SERVICE_TYPES = [pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN,
+                               #FIREWALL_HA, VPN_HA
+                               ]
     SUPPORTED_SERVICE_VENDOR_MAPPING = {pconst.LOADBALANCER: ["haproxy"],
                                         pconst.FIREWALL: ["vyos", "asav", "vyos"],
                                         pconst.VPN: ["vyos", "asav"],
@@ -165,9 +167,9 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         pconst.FIREWALL: ['OS::Neutron::Firewall',
                           'OS::Neutron::FirewallPolicy'],
         pconst.VPN: ['OS::Neutron::VPNService'],
-        #FIREWALL_HA: ['OS::Neutron::Firewall',
-        #                  'OS::Neutron::FirewallPolicy'],
-        #VPN_HA: ['OS::Neutron::VPNService']
+        FIREWALL_HA: ['OS::Neutron::Firewall',
+                      'OS::Neutron::FirewallPolicy'],
+        VPN_HA: ['OS::Neutron::VPNService']
         }
     initialized = False
 
@@ -189,7 +191,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def get_plumbing_info(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
-        service_type = context.current_profile['service_type']
+        service_type = self._get_service_type(context.current_profile)
         service_vendor, ha_enabled = self._get_vendor_ha_enabled(
             context.current_profile)
         if ha_enabled:
@@ -264,14 +266,14 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     @log.log
     def update_policy_target_added(self, context, policy_target):
-        if context.current_profile['service_type'] == pconst.LOADBALANCER:
+        if self._get_service_type(context.current_profile) == pconst.LOADBALANCER:
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
             self._update(context, pt_added_or_removed=True)
 
     @log.log
     def update_policy_target_removed(self, context, policy_target):
-        if context.current_profile['service_type'] == pconst.LOADBALANCER:
+        if self._get_service_type(context.current_profile) == pconst.LOADBALANCER:
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
             try:
@@ -285,14 +287,14 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
 
     @log.log
     def update_node_consumer_ptg_added(self, context, policy_target_group):
-        if context.current_profile['service_type'] == pconst.FIREWALL:
+        if self._get_service_type(context.current_profile) == pconst.FIREWALL:
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
             self._update(context)
 
     @log.log
     def update_node_consumer_ptg_removed(self, context, policy_target_group):
-        if context.current_profile['service_type'] == pconst.FIREWALL:
+        if self._get_service_type(context.current_profile) == pconst.FIREWALL:
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
             self._update(context)
@@ -321,7 +323,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             context.plugin_session, context.current_node['id'],
             context.instance['id'], stack_id)
         self._wait_for_stack_operation_complete(heatclient, stack_id, "create")
-        if context.current_profile['service_type'] == pconst.LOADBALANCER:
+        if self._get_service_type(context.current_profile) == pconst.LOADBALANCER:
             self._create_policy_target_for_vip(context)
 
     @log.log
@@ -380,6 +382,13 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         self._lbaas_plugin = manager.NeutronManager.get_service_plugins().get(
             pconst.LOADBALANCER)
         return self._lbaas_plugin
+
+    def _get_service_type(self, profile):
+        if profile['service_type'].endswith('_HA'):
+            service_type = profile['service_type'][:-3]
+        else:
+            service_type = profile['service_type']
+        return service_type
 
     def _get_vendor_ha_enabled(self, service_profile):
         if "_HA" in service_profile['service_type']:
@@ -450,7 +459,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         # If it is not a Node config update or PT change for LB, no op
         # FIXME(Magesh): Why are we invoking heat update for FW and VPN
         # in Phase 1 even when there was no config change ??
-        service_type = context.current_profile["service_type"]
+        service_type = self._get_service_type(context.current_profile)
         if service_type == pconst.LOADBALANCER:
             if (not pt_added_or_removed and (
                 not context.original_node or
@@ -524,7 +533,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             servicechain_instance_id=context.instance['id'],
             servicechain_node_id=context.current_node['id'],
             relationship=relationship)
-        service_type = context.current_profile['service_type']
+        service_type = self._get_service_type(context.current_profile)
         shared_service_type = {pconst.FIREWALL: pconst.VPN,
                                pconst.VPN: pconst.FIREWALL}
         if (not service_targets and service_type in
@@ -536,7 +545,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         return service_targets
 
     def _get_service_targets(self, context):
-        service_type = context.current_profile['service_type']
+        service_type = self._get_service_type(context.current_profile)
         service_vendor, is_ha_enabled = self._get_vendor_ha_enabled(
             context.current_profile)
         provider_service_targets = self._get_service_target_from_relations(
@@ -600,7 +609,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             for node in nodes:
                 profile = context.sc_plugin.get_service_profile(
                     context.plugin_context, node['service_profile_id'])
-                if profile['service_type'] == service_type:
+                if self._get_service_type(profile) == service_type:
                     service_targets = model.get_service_targets(
                         context.session,
                         servicechain_instance_id=context.instance['id'],
@@ -627,23 +636,25 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 context.plugin_context, node_id)
             profile = context.sc_plugin.get_service_profile(
                 context.plugin_context, node_info['service_profile_id'])
-            service_type_list_in_chain.append(profile['service_type'])
+            service_type = self._get_service_type(profile)
+            service_type_list_in_chain.append(service_type)
 
         if len(service_type_list_in_chain) != len(
             set(service_type_list_in_chain)):
             raise DuplicateServiceTypeInChain()
 
-        allowed_chain_combinations = [[pconst.VPN],
-                                      [pconst.VPN, pconst.FIREWALL],
-                                      [pconst.VPN, pconst.FIREWALL, pconst.LOADBALANCER],
-                                      [pconst.FIREWALL],
-                                      [pconst.FIREWALL, pconst.LOADBALANCER],
-                                      [pconst.LOADBALANCER]]
+        allowed_chain_combinations = [
+            [pconst.VPN],
+            [pconst.VPN, pconst.FIREWALL],
+            [pconst.VPN, pconst.FIREWALL, pconst.LOADBALANCER],
+            [pconst.FIREWALL],
+            [pconst.FIREWALL, pconst.LOADBALANCER],
+            [pconst.LOADBALANCER]]
         if service_type_list_in_chain not in allowed_chain_combinations:
             raise InvalidNodeOrderInChain()
 
     def _is_service_type_in_chain(self, context, service_type):
-        if service_type == context.current_profile['service_type']:
+        if service_type == self._get_service_type(context.current_profile):
             return True
         else:
             current_specs = context.relevant_specs
@@ -826,21 +837,55 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 {'policy_target': updated_pt})
 
     def _set_cluster_in_pts(self, context, service_targets):
+        # Setting Allowed address pairs should ideally happen in RMD
+        # This is really confusing, but Allowed address pairs has to allow
+        # traffic from the VIP port IP and Mac, in ASAv case both active and
+        # standby VMs will have IP and Mac assigned from VIP port which is not
+        # the one mapped to the dummy port for hotplug workaround. The mapped
+        # port should have allowed address pairs allowing traffic from the
+        # active and standby VIP ports.
+        # This code is not tested. May need changes
+        standby_provider_vip_pairs = []
+        standby_consumer_vip_pairs = []
+        standby_provider_vip_port = service_targets['provider_ports'][2]
+        standby_consumer_vip_port = service_targets['consumer_ports'][2]
+        standby_provider_vip_mac = standby_provider_vip_port['mac_address']
+        standby_provider_vip_ips = [x['ip_address'] for x in
+                                    standby_provider_vip_port['fixed_ips']]
+        standby_provider_vip_pairs += [
+            {'mac_address': standby_provider_vip_mac,
+             'ip_address': x} for x in standby_provider_vip_ips]
+
+        standby_consumer_vip_mac = standby_consumer_vip_port['mac_address']
+        standby_consumer_vip_ips = [x['ip_address'] for x in
+                                    standby_consumer_vip_port['fixed_ips']]
+        standby_consumer_vip_pairs += [
+            {'mac_address': standby_consumer_vip_mac,
+             'ip_address': x} for x in standby_consumer_vip_ips]
+        for port in [service_targets['consumer_ports'][0],
+                     service_targets['consumer_ports'][1]]:
+            port['allowed_address_pairs'] = standby_consumer_vip_pairs
+            context.core_plugin.update_port(
+                context.plugin_context, port['id'], {'port': port})
+        for port in [service_targets['provider_ports'][0],
+                     service_targets['provider_ports'][1]]:
+            port['allowed_address_pairs'] = standby_provider_vip_pairs
+            context.core_plugin.update_port(
+                context.plugin_context, port['id'], {'port': port})
+
         for pt_id in service_targets['provider_pts']:
-            updated_pt = {'cluster_id': service_targets[
-                'provider_vip_pt']}
+            updated_pt = {'cluster_id': service_targets['provider_vip_pt']}
             context.gbp_plugin.update_policy_target(
                 context.plugin_context, pt_id,
                 {'policy_target': updated_pt})
         for pt_id in service_targets['consumer_pts']:
-            updated_pt = {'cluster_id': service_targets[
-                'consumer_vip_pt']}
+            updated_pt = {'cluster_id': service_targets['consumer_vip_pt']}
             context.gbp_plugin.update_policy_target(
                 context.plugin_context, pt_id,
                 {'policy_target': updated_pt})
 
     def _instantiate_servicevm(self, context):
-        service_type = context.current_profile['service_type']
+        service_type = self._get_service_type(context.current_profile)
         sc_instance = context.instance
         service_targets = self._get_service_targets(context)
         if service_type == pconst.LOADBALANCER:
@@ -883,7 +928,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             "ha_enabled": ha_enabled,
             "management_ptg_id": self._get_management_ptg_id(context),
             'provider_cidr': provider_cidr,
-            'is_vpn_in_chain': self._is_service_type_in_chain(context, pconst.VPN),
+            'is_vpn_in_chain': self._is_service_type_in_chain(
+                context, pconst.VPN),
         }
 
         active_service_ports = standby_service_ports = {}
@@ -980,7 +1026,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 break
         if not provider_cidr:
             raise # Raise proper exception object
-        service_type = context.current_profile['service_type']
+        service_type = self._get_service_type(context.current_profile)
         service_vendor, _ = self._get_vendor_ha_enabled(
             context.current_profile)
 
