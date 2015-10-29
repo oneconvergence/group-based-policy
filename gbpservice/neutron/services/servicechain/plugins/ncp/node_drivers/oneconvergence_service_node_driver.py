@@ -1125,7 +1125,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 stack_template[resources_key],
                 is_template_aws_version,
                 'OS::Neutron::IPsecSiteConnection')
-            if siteconn_key in stack_template[resource_key]:
+            if siteconn_key:
                 stack_template[resources_key][siteconn_key][properties_key][
                 'description'] = desc
 
