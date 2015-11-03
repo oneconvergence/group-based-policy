@@ -932,7 +932,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 context, pconst.VPN),
         }
 
-        active_service_ports = standby_service_ports = {}
+        active_service_ports = {}
+        standby_service_ports = {}
         active_service_ports['provider_port_id'] = service_targets[
             'provider_ports'][0]['id']
         if service_targets.get('consumer_ports'):
