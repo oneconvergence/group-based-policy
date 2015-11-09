@@ -324,6 +324,8 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             context.instance['id'], stack_id)
         self._wait_for_stack_operation_complete(heatclient, stack_id, "create")
         if self._get_service_type(context.current_profile) == pconst.LOADBALANCER:
+	    context._plugin_context = self._get_tenant_context(
+                context._plugin_context, provider_tenant_id)
             self._create_policy_target_for_vip(context)
 
     @log.log
@@ -423,6 +425,14 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             return resource_owner_context
         else:
             return plugin_context
+
+    def _get_tenant_context(self, plugin_context, tenant_id):
+        tenant_context = plugin_context
+        tenant_context.tenant_id = tenant_id
+        tenant_token = self.keystone(tenant_id=tenant_id).get_token(
+            tenant_id)
+        tenant_context.auth_token = tenant_token
+        return tenant_context
 
     def _create_pt(self, context, ptg_id, name, port_id=None):
         policy_target = {'name': name,
