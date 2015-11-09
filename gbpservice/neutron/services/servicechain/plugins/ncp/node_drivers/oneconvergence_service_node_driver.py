@@ -1180,11 +1180,11 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                     ';stitching_gateway=' + stitching_subnet['gateway_ip'] +
                     ';mgmt_gw_ip=' + mgmt_gw_ip)
             stack_params['ServiceDescription'] = desc
-            siteconn_key = self._get_heat_resource_key(
+            siteconn_keys = self._get_site_conn_keys(
                 stack_template[resources_key],
                 is_template_aws_version,
                 'OS::Neutron::IPsecSiteConnection')
-            if siteconn_key:
+            for siteconn_key in siteconn_keys:
                 stack_template[resources_key][siteconn_key][properties_key][
                 'description'] = desc
 
@@ -1198,6 +1198,15 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         LOG.info("Final stack_template : %s, stack_params : %s" %
                      (stack_template, stack_params))
         return (stack_template, stack_params)
+
+    def _get_site_conn_keys(self, template_resource_dict,
+                               is_template_aws_version, resource_name):
+        keys = []
+        type_key = 'Type' if is_template_aws_version else 'type'
+        for key in template_resource_dict:
+            if template_resource_dict[key].get(type_key) == resource_name:
+                keys.append(key)
+        return keys
 
     def _get_all_heat_resource_keys(self, template_resource_dict,
                                     is_template_aws_version, resource_name):
