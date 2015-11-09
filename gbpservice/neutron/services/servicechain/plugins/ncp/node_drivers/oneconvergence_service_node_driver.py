@@ -338,7 +338,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
     def delete(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
-        _, ha_enabled = self._get_vendor_ha_enabled(
+        service_flavor, ha_enabled = self._get_vendor_ha_enabled(
             context.current_profile)
         if ha_enabled:
             try:
@@ -417,7 +417,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         if cfg.CONF.oneconvergence_node_driver.is_service_admin_owned:
             resource_owner_context = plugin_context.elevated()
             resource_owner_context.tenant_id = self.resource_owner_tenant_id
-            user, pwd, _, auth_url = utils.get_keystone_creds()
+            user, pwd, ignore_tenant, auth_url = utils.get_keystone_creds()
             keystoneclient = keyclient.Client(username=user, password=pwd,
                                               auth_url=auth_url)
             resource_owner_context.auth_token = keystoneclient.get_token(
@@ -1055,7 +1055,7 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
         if not provider_cidr:
             raise # Raise proper exception object
         service_type = self._get_service_type(context.current_profile)
-        service_vendor, _ = self._get_vendor_ha_enabled(
+        service_vendor, ha_enabled = self._get_vendor_ha_enabled(
             context.current_profile)
 
         stack_template = context.current_node.get('config')
