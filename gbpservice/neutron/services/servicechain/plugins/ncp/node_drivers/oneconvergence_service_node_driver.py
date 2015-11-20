@@ -944,15 +944,16 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 stitching_subnet = context.core_plugin.get_subnet(
                     context.plugin_context, service_targets[
                     'consumer_ports'][0]['fixed_ips'][0]['subnet_id'])
-                service_create_req['stitching_gateway_ip'] = stitching_subnet['gateway_ip']
+                service_create_req['stitching_gateway_ip'] = stitching_subnet[
+                    'gateway_ip']
         service_create_req['active_service'] = active_service_ports
         if ha_enabled:
             service_create_req['provider_vip_port_id'] = service_targets[
                 'provider_vip_port']['id']
             standby_service_ports['provider_port_id'] = service_targets[
                 'provider_ports'][1]['id']
-            service_create_req['standby_provider_vip_port_id'] = service_targets[
-                'provider_ports'][2]['id']
+            service_create_req['standby_provider_vip_port_id'] =  \
+                service_targets['provider_ports'][2]['id']
             if service_targets.get('consumer_vip_port'):
                 service_create_req['stitching_vip_port_id'] = service_targets[
                     'consumer_vip_port']['id']
@@ -961,11 +962,12 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
                 stitching_subnet = context.core_plugin.get_subnet(
                     context.plugin_context, service_targets[
                     'consumer_vip_port']['fixed_ips'][0]['subnet_id'])
-                service_create_req['stitching_gateway_ip'] = stitching_subnet['gateway_ip']
+                service_create_req['stitching_gateway_ip'] = stitching_subnet[
+                    'gateway_ip']
                 standby_service_ports['stitching_port_id'] = service_targets[
                     'consumer_ports'][1]['id']
-                service_create_req['standby_stitching_vip_port_id'] = service_targets[
-                    'consumer_ports'][2]['id']
+                service_create_req['standby_stitching_vip_port_id'] =  \
+                    service_targets['consumer_ports'][2]['id']
             service_create_req['standby_service'] = standby_service_ports
 
         mgmt_fips = self.svc_mgr.create_service(
@@ -1103,7 +1105,10 @@ class OneConvergenceServiceNodeDriver(heat_node_driver.HeatNodeDriver):
             rvpn_l3_policy = self._get_rvpn_l3_policy(context, update)
             config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
                 'ip_pool']
-            consumer_port = service_targets['consumer_ports'][0]
+            if ha_enabled:
+                consumer_port = service_targets["consumer_vip_port"]
+            else:
+                consumer_port = service_targets['consumer_ports'][0]
             config_param_values['Subnet'] = (
                 consumer_port['fixed_ips'][0]['subnet_id']
                 if consumer_port else None)
