@@ -406,8 +406,8 @@ class VpnAgentManager(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'tenant_data': data_context}
         rest_client.send_request(REQUEST_METHOD,
                                  SERVER_IP_ADDR,
-                                 'vpn/create_sslvpn_conn',
-                                 'POST',
+                                 'vpn/delete_sslvpn_conn',
+                                 'DELETE',
                                  headers = 'application/json',
                                  body = body)
 
@@ -457,7 +457,7 @@ class VpnAgentManager(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         if tenant_id == None :
             raise TenantNotFound() 
         filters = {'tenant_id':tenant_id}
-        data_context = self. _get_vpn_context(context, filters)
+        data_context = self._get_vpn_context(context, filters)
         data_context.update(self._get_core_context(context, filters))
         return data_context
 
