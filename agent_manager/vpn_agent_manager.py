@@ -74,8 +74,9 @@ class VpnAgentManager(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         LOG.debug(_("vpnservice_updated from server side"))
         resource = kwargs.get('resource')
         data_context = self._get_all_context_for_given_tenant(context, resource['tenant_id'])
+        context['blob'] = data_context
         body = {'kwargs': kwargs,
-                'context': data_context}
+                'context': context}
         rest_client.send_request(REQUEST_METHOD,
                                  SERVER_IP_ADDR,
                                  'vpn/vpnservices_updated',

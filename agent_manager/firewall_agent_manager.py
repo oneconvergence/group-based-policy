@@ -150,9 +150,10 @@ class OCFWAgent(manager.Manager, firewall_db.Firewall_db_mixin,
         """
         tenant_id = fw['tenant_id']
         data_context = self._get_all_context_for_given_tenant(context, tenant_id)
+        context['blob'] = data_context 
         kwargs = {'fw':fw, 'host':host}
         body = {'kwargs': **kwargs,
-                'context': data_context}
+                'context': context}
 
         if func_name.lower() == 'create_firewall':
             rest_client.send_request(REQUEST_METHOD,
