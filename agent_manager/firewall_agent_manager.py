@@ -150,7 +150,7 @@ class OCFWAgent(manager.Manager, firewall_db.Firewall_db_mixin,
         """
         tenant_id = fw['tenant_id']
         data_context = self._get_all_context_for_given_tenant(context, tenant_id)
-        context['blob'] = data_context 
+        context['service_info'] = data_context 
         kwargs = {'fw':fw, 'host':host}
         body = {'kwargs': **kwargs,
                 'context': context}
