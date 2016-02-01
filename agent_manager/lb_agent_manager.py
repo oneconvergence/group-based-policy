@@ -124,6 +124,31 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         except Exception:
             LOG.exception(_("Failed reporting state!"))
 
+    def _handle_request(path, body=None, method):
+        try:
+            if method == 'POST':
+                resp, content = rest_client.post_request(REQUEST_METHOD,
+                                                         SERVER_IP_ADDR,
+                                                         path,
+                                                         body = body)
+            elif method == 'PUT':
+                resp, content = rest_client.put_request(REQUEST_METHOD,
+                                                         SERVER_IP_ADDR,
+                                                         path,
+                                                         body = body)
+            elif method == 'DELETE':
+                resp, content = rest_client.delete_request(REQUEST_METHOD,
+                                                         SERVER_IP_ADDR,
+                                                         path,
+                                                         body = body)
+            else :
+                resp, content = rest_client.get_request(REQUEST_METHOD,
+                                                         SERVER_IP_ADDR,
+                                                         path)
+
+        except rest_client.RestClientException:
+            LOG.error("Request Failed : RestClient Exception Occur")
+
     def create_vip(self, context, vip):
         tenant_id = vip['tenant_id']
         data_context = self._get_all_context_for_given_tenant(context, tenant_id)
@@ -131,13 +156,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'vip':vip}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/create_vip',
-                                 'POST',
-                                 headers = 'application/json',
-                                 body = body)
-
+        resp, content = self._handle_request('lb/create_vip', body = body, 'POST')
 
     def update_vip(self, context, old_vip, vip):
         tenant_id = old_vip['tenant_id']
@@ -146,12 +165,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'old_vip':old_vip, 'vip':vip}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/update_vip',
-                                 'PUT',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/update_vip', body = body, 'PUT')
 
     def delete_vip(self, context, vip):
         tenant_id = vip['tenant_id']
@@ -160,12 +174,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'vip':vip}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/delete_vip',
-                                 'DELETE',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/delete_vip', body = body, 'DELETE')
 
     def create_pool(self, context, pool, driver_name):
         tenant_id = pool['tenant_id']
@@ -174,12 +183,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'pool':pool, 'driver_name'}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/create_pool',
-                                 'POST',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/create_pool', body = body, 'POST')
 
     def update_pool(self, context, old_pool, pool):
         tenant_id = old_pool['tenant_id']
@@ -188,12 +192,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'old_pool':old_pool, 'pool':pool}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/update_pool',
-                                 'PUT',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/update_vip', body = body, 'PUT')
 
     def delete_pool(self, context, pool):
         tenant_id = pool['tenant_id']
@@ -202,12 +201,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'pool':pool}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/delete_pool',
-                                 'DELETE',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/delete_pool', body = body, 'DELETE')
 
     def create_member(self, context, member):
         tenant_id = member['tenant_id']
@@ -216,12 +210,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'member':member}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/create_member',
-                                 'POST',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/create_member', body = body, 'POST')
 
     def update_member(self, context, old_member, member):
         tenant_id = member['tenant_id']
@@ -230,12 +219,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'old_member':old_member,'member':member}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/update_member',
-                                 'PUT',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/update_member', body = body, 'PUT')
 
     def delete_member(self, context, member):
         tenant_id = member['tenant_id']
@@ -244,12 +228,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'member':member}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/delete_member',
-                                 'DELETE',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/delete_member', body = body, 'DELETE')
 
     def create_pool_health_monitor(self, context, health_monitor, pool_id):
         tenant_id = health_monitor['tenant_id']
@@ -258,12 +237,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'health_monitor':health_monitor, 'pool_id':pool_id}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/create_pool_health_monitor',
-                                 'POST',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/create_pool_health_monitor', body = body, 'POST')
 
     def update_pool_health_monitor(self, context, old_health_monitor,
                                    health_monitor, pool_id):
@@ -273,12 +247,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'old_health_monitor':old_health_monitor,'health_monitor':health_monitor, 'pool_id':pool_id}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/update_pool_health_monitor',
-                                 'PUT',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/update_pool_health_monitor', body = body, 'PUT')
 
     def delete_pool_health_monitor(self, context, health_monitor, pool_id):
         tenant_id = health_monitor['tenant_id']
@@ -287,12 +256,7 @@ class LbaasAgentManager(n_rpc.RpcCallback, periodic_task.PeriodicTasks,
         kwargs = {'health_monitor':health_monitor, 'pool_id':pool_id}
         body = {'kwargs': **kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'lb/delete_pool_health_monitor',
-                                 'DELETE',
-                                 headers = 'application/json',
-                                 body = body)
+        resp, content = self._handle_request('lb/delete_pool_health_monitor', body = body, 'DELETE')
 
     def _get_core_context(self, context, filters):
         core_plugin = self.core_plugin

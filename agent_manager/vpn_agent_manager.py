@@ -77,12 +77,13 @@ class VpnAgentManager(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         context['service_info'] = data_context
         body = {'kwargs': kwargs,
                 'context': context}
-        rest_client.send_request(REQUEST_METHOD,
-                                 SERVER_IP_ADDR,
-                                 'vpn/vpnservices_updated',
-                                 'POST',
-                                 headers = 'application/json',
-                                 body = body)
+        try :
+            resp, content = rest_client.post_request(REQUEST_METHOD,
+                                                     SERVER_IP_ADDR,
+                                                     'vpn/vpnservices_updated',
+                                                     body = body)
+        except rest_client.RestClientException:
+            LOG.error("Request Failed : RestClient Exception Occur")
 
     def _get_vpn_context(self, context, filters):
         vpnservices = super(VpnAgentManager, self).get_vpnservices(

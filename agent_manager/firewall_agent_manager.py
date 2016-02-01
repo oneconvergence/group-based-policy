@@ -123,22 +123,41 @@ class OCFWAgent(manager.Manager, firewall_db.Firewall_db_mixin,
             LOG.exception(_("OC Firewall agent failed reporting state!"))
 
     def create_firewall(self, context, firewall, host):
-        LOG.debug(_("create firewall called"))
-        LOG.debug(_("Firewall - %r" % firewall))
         return self.invoke_driver_for_plugin_api(context, firewall, host,
                                                  'create_firewall')
 
     def update_firewall(self, context, firewall, host):
-        LOG.debug(_("update firewall called"))
-        LOG.debug(_("Firewall - %r" % firewall))
         return self.invoke_driver_for_plugin_api(context, firewall, host,
                                                  'update_firewall')
 
     def delete_firewall(self, context, firewall, host):
-        LOG.debug(_("delete firewall called"))
-        LOG.debug(_("Firewall - %r" % firewall))
         return self.invoke_driver_for_plugin_api(context, firewall, host,
                                                  'delete_firewall')
+
+    def _handle_request(path, body=None, method):
+        try:
+            if method == 'POST':
+                resp, content = rest_client.post_request(REQUEST_METHOD,
+                                                         SERVER_IP_ADDR,
+                                                         path,
+                                                         body = body)
+            elif method == 'PUT':
+                resp, content = rest_client.put_request(REQUEST_METHOD,
+                                                         SERVER_IP_ADDR,
+                                                         path,
+                                                         body = body)
+            elif method == 'DELETE':
+                resp, content = rest_client.delete_request(REQUEST_METHOD,
+                                                         SERVER_IP_ADDR,
+                                                         path,
+                                                         body = body)
+            else :
+                resp, content = rest_client.get_request(REQUEST_METHOD,
+                                                         SERVER_IP_ADDR,
+                                                         path)
+
+        except rest_client.RestClientException:
+            LOG.error("Request Failed : RestClient Exception Occur")
 
     def invoke_driver_for_plugin_api(self, context, fw, host, func_name):
         """
@@ -156,29 +175,16 @@ class OCFWAgent(manager.Manager, firewall_db.Firewall_db_mixin,
                 'context': context}
 
         if func_name.lower() == 'create_firewall':
-            rest_client.send_request(REQUEST_METHOD,
-                                     SERVER_IP_ADDR,
-                                     'fw/create_firewall',
-                                     'POST',
-                                     headers = 'application/json',
-                                     body = body)
+            resp, content = self._handle_request('fw/create_firewall',
+                                                 body = body, 'POST')
 
         elif func_name.lower() == 'delete_firewall':
-            rest_client.send_request(REQUEST_METHOD,
-                                     SERVER_IP_ADDR,
-                                     'fw/delete_firewall',
-                                     'DELETE',
-                                     headers = 'application/json',
-                                     body = body)
+            resp, content = self._handle_request('fw/delete_firewall',
+                                                 body = body, 'DELETE')
 
         elif func_name.lower() == 'update_firewall':
-            rest_client.send_request(REQUEST_METHOD,
-                                     SERVER_IP_ADDR,
-                                     'fw/update_firewall',
-                                     'PUT',
-                                     headers = 'application/json',
-                                     body = body)
-
+            resp, content = self._handle_request('fw/update_firewall',
+                                                 body = body, 'PUT')
 
     def _get_firewall_context(self, context, filters):
 
