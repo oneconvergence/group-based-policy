@@ -1,8 +1,8 @@
 import sys
 import ast
 
-from oslo.config import cfg
-from oslo import messaging
+from oslo_config import cfg
+from oslo_messaging import target
 from neutron import manager
 
 from neutron.db.firewall import firewall_db
@@ -15,19 +15,12 @@ LOG = logging.getLogger(__name__)
 class FirewallAgent(firewall_db.Firewall_db_mixin):
 
     RPC_API_VERSION = '1.0'
-    target = messaging.Target(version=RPC_API_VERSION)
+    target = target.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
-        self._core_plugin = None
         super(FirewallAgent, self).__init__()
-
-    @property
-    def core_plugin(self):
-        if not self._core_plugin:
-            self._core_plugin = manager.NeutronManager.get_plugin()
-        return self._core_plugin
 
     def create_firewall(self, context, fw, host):
         db = self._context(context, fw['tenant_id'])
@@ -88,7 +81,7 @@ class FirewallAgent(firewall_db.Firewall_db_mixin):
                 'firewall_rules': firewall_rules}
 
     def _get_core_context(self, context, filters):
-        core_plugin = self.core_plugin
+        core_plugin = self._core_plugin
         subnets = core_plugin.get_subnets(
             context,
             filters)
