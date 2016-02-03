@@ -14,6 +14,8 @@ from oslo_config import cfg
 
 from neutron.agent.common import config
 from neutron.common import config as common_config
+from neutron import context
+from neutron.agent import rpc as agent_rpc
 
 from oslo_log import log as logging
 
@@ -21,6 +23,7 @@ from gbpservice.neutron.nsf.core import cfg as core_cfg
 from gbpservice.neutron.nsf.core import lb as core_lb
 from gbpservice.neutron.nsf.core import threadpool as core_tp
 from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
+from gbpservice.neutron.nsf.core import queue as core_queue
 
 if core_cfg.SERVER == 'rpc':
     from neutron.common import rpc as n_rpc
@@ -28,6 +31,7 @@ if core_cfg.SERVER == 'unix':
     from gbpservice.neutron.nsf.core import unix as n_rpc
 
 from oslo_service import periodic_task as oslo_periodic_task
+from oslo_service import loopingcall
 
 from multiprocessing import Process, Queue, Lock
 import multiprocessing as multiprocessing
@@ -37,11 +41,45 @@ from oslo_service import service as os_service
 LOG = logging.getLogger(__name__)
 
 
+class AgentReportState(object):
+
+    def __init__(self, sc, agent_state):
+        self._sc = sc
+        self._context = context.get_admin_context_without_session()
+        self._agent_state = agent_state
+        self._report_topic = agent_state['plugin_topic']
+        self._report_interval = agent_state['report_interval']
+        self._state_rpc = agent_rpc.PluginReportStateAPI(
+            self._report_topic)
+        self._heartbeat = loopingcall.FixedIntervalLoopingCall(
+            self.report_state)
+
+    def start(self):
+        self._heartbeat.start(interval=self._report_interval)
+
+    def report_state(self):
+        try:
+            self._state_rpc.report_state(self._context, self._agent_state)
+            self._agent_state.pop('start_flag', None)
+        except AttributeError:
+            # This means the server does not support report_state
+            LOG.warn(_("Neutron server does not support state report."
+                       " Agent State reporting will be "
+                       "disabled."))
+            self._heartbeat.stop()
+            return
+        except Exception:
+            LOG.exception(_("Stopped reporting agent state!"))
+
+
 class RpcAgent(n_rpc.Service):
 
-    def __init__(self, sc, host=None, topic=None, manager=None):
+    def __init__(self, sc, host=None, topic=None, manager=None, report_state=None):
         super(RpcAgent, self).__init__(host=host, topic=topic, manager=manager)
         self.periodic_task = PeriodicTask(sc)
+        self._report_state = None
+        if report_state:
+            self._report_state = AgentReportState(sc, report_state)
 
     def start(self):
         super(RpcAgent, self).start()
@@ -54,6 +92,9 @@ class RpcAgent(n_rpc.Service):
             None,
             None
         )
+
+        if self._report_state:
+            self._report_state.start()
 
 
 class RpcAgents(object):
@@ -100,37 +141,27 @@ class Event(object):
         self.handler = kwargs.get('handler') if 'handler' in kwargs else None
         self.poll_event = None  # Not to be used by user
         self.worker_attached = None  # Not to be used by user
-        self.last_run = None #Not to be used by user
-        self.max_times = -1 #Not to be used by user
+        self.last_run = None  # Not to be used by user
+        self.max_times = -1  # Not to be used by user
 
 
 class EventCache(object):
 
     def __init__(self, sc):
         self._sc = sc
-        self._cache = []
+        self._cache = core_queue.Queue(sc)
 
     def rem(self, ev):
-        self._sc.lock()
-        self._cache.remove(ev)
-        self._sc.unlock()
+        self._cache.remove([ev])
 
     def rem_multi(self, evs):
-        self._sc.lock()
-        for ev in evs:
-            self._cache.remove(ev)
-        self._sc.unlock()
+        self._cache.remove(evs)
 
     def add(self, ev):
-        self._sc.lock()
-        self._cache.append(ev)
-        self._sc.unlock()
+        self._cache.put(ev)
 
     def copy(self):
-        self._sc.lock()
-        evs = self._cache[:]
-        self._sc.unlock()
-        return evs
+        return self._cache.copy()
 
 
 class Serializer(object):
@@ -250,14 +281,15 @@ class PollHandler(object):
     def event(self, ev):
         ev1 = copy.deepcopy(ev)
         ev1.serialize = False
-        ev1.poll_event = 'POLL_EVENT_CANCELLED' if ev1.max_times == 0 else 'POLL_EVENT'
+        ev1.poll_event = \
+            'POLL_EVENT_CANCELLED' if ev1.max_times == 0 else 'POLL_EVENT'
         if ev1.poll_event == 'POLL_EVENT_CANCELLED':
             self._cancelled(ev1)
         else:
             if self._sched(ev1):
                 ev.max_times -= 1
                 ev.last_run = ev1.last_run
-    
+
     def process(self, ev):
         self.event_done(ev) if ev.id == 'POLL_EVENT_DONE' else self.event(ev)
 
@@ -435,14 +467,14 @@ class ServiceController(object):
             except AttributeError as s:
                 print(module.__dict__)
                 raise AttributeError(module.__file__ + ': ' + str(s))
-            return modules
+        return modules
 
     def _init(self):
         self.ehs = EventHandlers()
         self.rpc_agents = RpcAgents()
         self.modules = self.modules_init(self.modules)
         self.workers = self.workers_init()
-        #self.poll_worker = PollWorker(self)
+        # self.poll_worker = PollWorker(self)
         self.pollhandler = self.poll_init()
         self.loadbalancer = getattr(
             globals()['core_lb'], cfg.CONF.RpcLoadBalancer)(self.workers)
@@ -462,7 +494,7 @@ class ServiceController(object):
         for w in self.workers:
             w[0].start()
         self.rpc_agents.launch()
-        #self.poll_worker.start()
+        # self.poll_worker.start()
 
     def rpc_event(self, event):
         worker = self.loadbalancer.get(event.binding_key)
@@ -495,6 +527,15 @@ class ServiceController(object):
 
     def event(self, **kwargs):
         return Event(**kwargs)
+
+    def init_complete(self):
+        for module in self.modules:
+            try:
+                import pdb
+                pdb.set_trace()
+                module.init_complete(self, self._conf)
+            except AttributeError:
+                print "Module does not implement init_complete method"
 
     def unit_test(self):
         for module in self.modules:
@@ -538,5 +579,6 @@ def main():
 
     sc = ServiceController(cfg.CONF, modules)
     sc.start()
-    sc.unit_test()
+    sc.init_complete()
+    # sc.unit_test()
     sc.wait()
