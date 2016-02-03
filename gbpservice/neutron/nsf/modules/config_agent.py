@@ -21,6 +21,7 @@ from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
+
 def rpc_init(sc, conf):
     fwrpcmgr = FirewallAgent(conf, sc)
     fwagent = RpcAgent(
@@ -56,15 +57,19 @@ def rpc_init(sc, conf):
 
     sc.register_rpc_agents([fwagent, lbagent, vpnagent, smagent])
 
+
 def events_init(sc):
     evs = [
         Event(id='RPCS_PULL_CALLBACKS_EVENT', handler=RpcCallback(sc))]
     sc.register_events(evs)
 
+
 def module_init(sc, conf):
     rpc_init(sc, conf)
     events_init(sc)
 
+
 def init_complete(sc, conf):
-    ev = sc.event(id='RPCS_PULL_CALLBACKS_EVENT', key='RPCS_PULL_CALLBACKS_EVENT')
+    ev = sc.event(id='RPCS_PULL_CALLBACKS_EVENT',
+                  key='RPCS_PULL_CALLBACKS_EVENT')
     sc.rpc_event(ev)
