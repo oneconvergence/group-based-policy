@@ -1,9 +1,9 @@
-from oslo.config import cfg
+from oslo_config import cfg
 from neutron import manager
-from oslo import messaging
+from oslo_messaging import target
 
 from gbpservice.neutron.nsf.config_agent import RestClientOverUnix as rc
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 
 LOG = logging.getLogger(__name__)
@@ -11,19 +11,12 @@ LOG = logging.getLogger(__name__)
 
 class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
     RPC_API_VERSION = '1.0'
-    target = messaging.Target(version=RPC_API_VERSION)
+    target = target.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
-        self._core_plugin = None
         super(LbaasAgentManager, self).__init__()
-
-    @property
-    def core_plugin(self):
-        if not self._core_plugin:
-            self._core_plugin = manager.NeutronManager.get_plugin()
-        return self._core_plugin
 
     def _post(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
@@ -43,7 +36,7 @@ class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
         try:
             resp, content = rc.put('lb/%s/%s' % (name, id), body=body)
         except:
-            LOG.error("create_vip -> request failed.")
+            LOG.error("delete_%s -> request failed." % (name))
 
     def _delete(self, context, tenant_id, name, id, **kwargs):
         db = self._context(context, tenant_id)
@@ -114,7 +107,7 @@ class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
         return db
 
     def _get_core_context(self, context, filters):
-        core_plugin = self.core_plugin
+        core_plugin = self._core_plugin
         subnets = core_plugin.get_subnets(
             context, filters)
         ports = core_plugin.get_ports(

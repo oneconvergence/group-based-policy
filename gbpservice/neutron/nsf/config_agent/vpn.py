@@ -1,8 +1,8 @@
 from neutron.db.vpn import vpn_db
 from neutron import manager
-from oslo.config import cfg
-from oslo import messaging
-from neutron.openstack.common import log as logging
+from oslo_config import cfg
+from oslo_messaging import target
+from oslo_log import log as logging
 
 from gbpservice.neutron.nsf.config_agent import RestClientOverUnix as rc
 
@@ -11,19 +11,12 @@ LOG = logging.getLogger(__name__)
 
 class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     RPC_API_VERSION = '1.0'
-    target = messaging.Target(version=RPC_API_VERSION)
+    target = target.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
-        self._core_plugin = None
         super(VpnAgentManager, self).__init__()
-
-    @property
-    def core_plugin(self):
-        if not self._core_plugin:
-            self._core_plugin = manager.NeutronManager.get_plugin()
-        return self._core_plugin
 
     def vpnservice_updated(self, context, **kwargs):
         LOG.debug(_("vpnservice_updated from server side"))
@@ -74,7 +67,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'ssl_vpn_conns': ssl_vpn_conns}
 
     def _get_core_context(self, context, filters):
-        core_plugin = self.core_plugin
+        core_plugin = self._core_plugin
         subnets = core_plugin.get_subnets(
             context,
             filters)
