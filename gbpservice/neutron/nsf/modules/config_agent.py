@@ -31,7 +31,7 @@ def rpc_init(sc, conf):
     )
 
     lbrpcmgr = LbAgent(conf, sc)
-    agent = RpcAgent(
+    lbagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=topics.LB_NSF_CONFIGAGENT_TOPIC,
@@ -39,18 +39,27 @@ def rpc_init(sc, conf):
     )
 
     vpnrpcmgr = VpnAgent(conf, sc)
-    agent = RpcAgent(
+    vpnagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=topics.VPN_NSF_CONFIGAGENT_TOPIC,
         manager=vpnrpcmgr
     )
 
-    sc.register_rpc_agents([fwrpcmgr, lbrpcmgr, vpnrpcmgr])
+    smrpcmgr = SmAgent(conf, sc)
+    smagent = RpcAgent(
+        sc,
+        host=cfg.CONF.host,
+        topic=topics.SM_NSF_CONFIGAGENT_TOPIC,
+        manager=smrpcmgr
+    )
+
+    sc.register_rpc_agents([fwagent, lbagent, vpnagent, smagent])
 
 def events_init(sc):
     evs = [
         Event(id='RPCS_PULL_CALLBACKS_EVENT', handler=RpcCallback(sc))]
+    sc.register_events(evs)
 
 def module_init(sc, conf):
     rpc_init(sc, conf)
