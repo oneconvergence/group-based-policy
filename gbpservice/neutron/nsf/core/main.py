@@ -531,8 +531,6 @@ class ServiceController(object):
     def init_complete(self):
         for module in self.modules:
             try:
-                import pdb
-                pdb.set_trace()
                 module.init_complete(self, self._conf)
             except AttributeError:
                 print "Module does not implement init_complete method"
@@ -568,6 +566,7 @@ def modules_import():
 
 
 def main():
+    config.setup_logging()
     cfg.CONF.register_opts(core_cfg.OPTS)
     modules = modules_import()
     config.register_interface_driver_opts_helper(cfg.CONF)
@@ -575,7 +574,6 @@ def main():
     config.register_root_helper(cfg.CONF)
 
     common_config.init(sys.argv[1:])
-    config.setup_logging()
 
     sc = ServiceController(cfg.CONF, modules)
     sc.start()
