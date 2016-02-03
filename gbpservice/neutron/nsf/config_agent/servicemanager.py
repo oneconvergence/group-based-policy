@@ -8,6 +8,7 @@ from gbpservice.neutron.nsf.config_agent import RestClientOverUnix as rc
 
 LOG = logging.getLogger(__name__)
 
+
 class SmAgent(object):
     RPC_API_VERSION = '1.0'
     target = target.Target(version=RPC_API_VERSION)
@@ -31,7 +32,7 @@ class SmAgent(object):
         try:
             resp, content = rc.delete('gc/%s' % (name), body=body)
         except:
-            LOG.error("delete_%s -> request failed." %(name))
+            LOG.error("delete_%s -> request failed." % (name))
 
     def configure_interfaces(self, context, **kwargs):
         self._post(context, 'configure_interfaces', **kwargs)
@@ -44,7 +45,6 @@ class SmAgent(object):
                      service_vendor=service_vendor,
                      provider_interface_position=provider_interface_position,
                      stitching_interface_position=stitching_interface_position)
-
 
     def configure_license(self, context, floating_ip,
                           service_vendor, license_key):
@@ -77,11 +77,11 @@ class SmAgent(object):
                              source_cidrs, provider_interface_position,
                              standby_floating_ip=None):
         self._delete(context, 'delete_source_routes',
-                   floating_ip=floating_ip,
-                   service_vendor=service_vendor,
-                   source_cidrs=source_cidrs,
-                   provider_interface_position=provider_interface_position,
-                   standby_floating_ip=standby_floating_ip)
+                     floating_ip=floating_ip,
+                     service_vendor=service_vendor,
+                     source_cidrs=source_cidrs,
+                     provider_interface_position=provider_interface_position,
+                     standby_floating_ip=standby_floating_ip)
 
     def add_persistent_rule(self, context, **kwargs):
         self._post(context, 'add_persistent_rule', **kwargs)
