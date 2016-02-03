@@ -10,3 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
+NSF_DEVICE_LCM_TOPIC = "NSF_DEVICE_LIFECYCLE_MANAGER"
+NSF_DLCM_CONFIGURATOR_TOPIC = "NSF_DLCM_CONFIGURATOR"
+NSF_CONFIGURATOR_DLCM_TOPIC = "NSF_CONFIGURATOR_DLCM"

@@ -17,6 +17,7 @@ import oslo_messaging as messaging
 from gbpservice.neutron.nsf.core.main import ServiceController
 from gbpservice.neutron.nsf.core.main import Event
 from gbpservice.neutron.nsf.core.main import RpcAgent
+from gbpservice.neutron.nsf.common import topic as nsf_topics
 from gbpservice.neutron.nsf.db import nsf_db as nsf_db
 from gbpservice.neutron.nsf.db import api as nsf_db_api
 from gbpservice.neutron.nsf.lifecycle_manager.compute.drivers import (
@@ -37,7 +38,7 @@ def rpc_init(controller, config):
     agent = RpcAgent(
         controller,
         host=config.host,
-        topic="NSF_DEVICE_LIFECYCLE_MANAGER",
+        topic=nsf_topics.NSF_CONFIGURATOR_DLCM_TOPIC,
         manager=rpcmgr)
     controller.register_rpc_agents([agent])
 
@@ -246,6 +247,7 @@ class DeviceLifeCycleHandler(object):
         self.compute_driver = self._get_compute_driver(
             'compute')
 
+
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = DLCMConfiguratorRpcApi(neutron_context)
 
@@ -294,7 +296,8 @@ class DeviceLifeCycleHandler(object):
         device_id = device_info.pop('device_id')
         device_info['id'] = device_id
         device_info['reference_count'] = 0
-        device_info['interfaces_in_use'] = 0
+        #(ashu) driver is sending that info
+        #device_info['interfaces_in_use'] = 0
         #device_info['mgmt_data_ports']['id'] = device_id
         device = self.nsf_db.create_network_service_device(self.db_session,
                                                            device_info)
@@ -357,59 +360,83 @@ class DeviceLifeCycleHandler(object):
         else:
             raise Exception() # Raise a proper exception class
 
-    def _get_device_to_reuse(self, data):
-        device_filters = self.lifecycle_driver.get_device_filters(data)
+    def _get_device_to_reuse(self, device_data):
+        device_filters = self.lifecycle_driver.get_device_filters(device_data)
         devices = self._get_network_service_devices(device_filters)
 
         device = self.lifecycle_driver.get_device_to_reuse(devices)
         return device
 
+    def _get_device_data(self, nsd_request):
+        device_data = {}
+        network_service = nsd_request['network_service']
+        network_service_instance = nsd_request['network_service_instance']
+        service_type = nsd_request['service_type']
+        service_vendor = nsd_request['service_vendor']
+
+        device_data['network_service_id'] = network_service['id']
+        device_data['tenant_id'] = network_service['tenant_id']
+        device_data['service_chain_id'] = network_service['service_chain_id']
+
+        device_data['network_service_instance_id'] = network_service_instance['id']
+        device_data['ports'] = network_service_instance['port_info']
+
+        device_data['service_vendor'] = service_vendor
+        device_data['service_type'] = service_type
+        # TODO: Get these values from SLCM, it should be available in service
+        # profile.
+        device_data['compute_policy'] = 'nova'
+        device_data['network_policy'] = 'gbp'
+
+        return device_data
+
+    def _update_device_data(self, device, device_data):
+        for key in device_data:
+            if key not in device:
+                device[key] = device_data[key]
+        return device
+
+
     # Create path
-    def create_network_service_device(self, data):
+    def create_network_service_device(self, nsd_request):
         """ Returns device instance for a new service
 
         This method either returns existing device which could be reused for a
         new service or it creates new device instance
         """
-        profile = data['profile']
-        # device_classification = data['device_classification']
-        device = None
-        device_id = data['network_service_id']
-        service_type = data['service_type']
-        service_vendor = data['service_vendor']
         LOG.info(_("Received create network service device request with data"
-                   "%(data)s"), {'data': data})
+                   "%(data)s"), {'data': nsd_request})
 
+        device_data = self._get_device_data(nsd_request)
         is_device_sharing_supported = (
             self.lifecycle_driver.is_device_sharing_supported(
-                device))
+                device_data))
         if is_device_sharing_supported:
-            device = self._get_device_to_reuse(device)
+            device = self._get_device_to_reuse(device_data)
+            # Update newly created device with required params
 
+        # To handle case, when device sharing is supported but device not
+        # exists to share, so create a new device.
         if is_device_sharing_supported and device:
             # Device is already active, no need to change status
             self._create_event(event_id='DEVICE_READY',
                                event_data=device)
             LOG.info(_("Sharing existing device: %s(device)s for reuse"),
                       {'device': device})
-            # What event to create here ?? Or proceed with next step ??
-            # should we return something here so that the state machine
-            # loop itself with create next event ?
         else:
-            LOG.info(_("No Device exists for sharing, Creating new "
-                       "device: %(device)s"), {'device': data})
-            # Return mgmt_data_ports as list of dict
-            # [{'id': port_id, 'port_policy': port_policy,
-            #   'port_classification': port_classification, 'port_type': port_type}]
-            device_info = self.lifecycle_driver.create_device(data)
-            if not device_info:
+            LOG.info(_("No Device exists for sharing, Creating new device,"
+                       "device request: %(device)s"), {'device': nsd_request})
+            driver_device_info = self.lifecycle_driver.create_device(device_data)
+            if not driver_device_info:
                 LOG.info(_("Device creation failed"))
                 self._create_event(event_id='DEVICE_ERROR',
-                                   event_data=data)
+                                   event_data=nsd_request)
                 return
-            device = self._create_network_service_device_db(device_info, 'INIT')
+            device = self._create_network_service_device_db(driver_device_info,
+                                                            'INIT')
+            # Update newly created device with required params
+            device = self._update_device_data(device, device_data)
 
-            # Post a new timer event
             self._create_event(event_id='DEVICE_SPAWNING',
                                event_data=device, is_poll_event=True)
 
@@ -578,8 +605,6 @@ class DeviceLifeCycleHandler(object):
         #self._create_event(event_id='DEVICE_DELETE_FAILED',
         #                   event_data=device)
 
-
-
     def handle_device_not_up(self, device):
         #self._controller.event_done('DELETE_NOT_UP')
         status = 'ERROR'
@@ -641,8 +666,7 @@ class DeviceLifeCycleHandler(object):
 class DLCMConfiguratorRpcApi(object):
     """Service Manager side of the Service Manager to Service agent RPC API"""
     API_VERSION = '1.0'
-    topic = 'dlcm-configurator-rpc-api'
-    target = messaging.Target(topic=topic, version=API_VERSION)
+    target = messaging.Target(version=API_VERSION)
 
     def __init__(self, context):
         #super(DLCMConfiguratorRpcApi, self).__init__(self.API_VERSION)
@@ -651,7 +675,7 @@ class DLCMConfiguratorRpcApi(object):
         self.context = context
         self.client = n_rpc.get_client(self.target)
         self.rpc_api = self.client.prepare(version=self.API_VERSION,
-                                           topic=self.topic)
+                                topic=nsf_topics.NSF_DLCM_CONFIGURATOR_TOPIC)
 
     def monitor_device_health(self, hm_req_params):
         return self.rpc_api.cast(
