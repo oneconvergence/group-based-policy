@@ -7,6 +7,9 @@ from eventlet import greenthread
 import os
 import sys
 import threading
+from oslo_log import log as logging
+
+LOG = logging.getLogger(__name__)
 
 
 def _thread_done(gt, *args, **kwargs):
@@ -27,6 +30,9 @@ class Thread(object):
 
     def link(self, func, *args, **kwargs):
         self.thread.link(func, *args, **kwargs)
+
+    def identify(self):
+        return self.thread.get_ident()
 
 
 class ThreadPool(object):
@@ -56,7 +62,7 @@ class ThreadPool(object):
             try:
                 x.stop()
             except Exception as ex:
-                print ex
+                LOG.error(_("Exception", ex))
 
     def wait(self):
         current = greenthread.getcurrent()
@@ -71,22 +77,4 @@ class ThreadPool(object):
             except eventlet.greenlet.GreenletExit:
                 pass
             except Exception as ex:
-                print ex
-
-"""
-def PrintMe(arg1, arg2):
-    time.sleep(10)
-    print "Hi, its me - (%d)" %(threading.current_thread().ident)
-    #done = event.Event()
-    #done.wait()
-
-
-if __name__=='__main__':
-    tp = ThreadPool()
-    while True:
-        tp.dispatch(PrintMe, None, None)
-        time.sleep(1)
-        print "Hi, its not me"
-
-    #tp.wait()
-"""
+                LOG.error(_("Exception", ex))

@@ -5,9 +5,6 @@ import time
 from oslo_config import cfg
 import six
 
-# from neutron.openstack.common.gettextutils import _, _LE, _LI
-# from neutron.openstack.common import log as logging
-
 from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
@@ -90,12 +87,10 @@ class PeriodicTasks(object):
             delta = last_run + spacing - time.time()
             if delta > 0:
                 return None
-            #LOG.debug("Periodic task %(task_name)s timedout",
+            # LOG.debug("Periodic task %(task_name)s timedout",
             #          {"full_task_name": task.__name__})
 
         event.last_run = self._nearest_boundary(last_run, spacing)
-        # task._periodic_last_run = self._nearest_boundary(
-        #                    last_run, spacing)
         return event
 
     def check_timedout(self, event):
