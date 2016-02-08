@@ -33,11 +33,31 @@ from oslo_service import service as os_service
 
 LOG = logging.getLogger(__name__)
 
+process = os.getpid()
+
+
+def is_class(obj):
+    return 'class' in str(type(obj))
+
+
+def name(obj):
+    if callable(obj):
+        return "{0}.{1}.{2}".format(
+            type(obj.im_self).__module__,
+            type(obj.im_self).__name__,
+            obj.__name__)
+    elif is_class(obj):
+        return "{0}.{1}".format(
+            type(obj).__module__,
+            type(obj).__name__)
+    else:
+        return obj.__name__
+
 
 def identify(obj):
     try:
-        return obj.__name__
-    except AttributeError:
+        return "(%s)" % (name(obj))
+    except:
         return ""
 
 
@@ -81,7 +101,7 @@ class RpcAgent(n_rpc.Service):
         super(RpcAgent, self).start()
 
     def report_state(self):
-        if self._report_state:
+        if hasattr(self, '_report_state'):
             LOG.debug(_("Agent (%s) reporting state" % (self.identify())))
             self._report_state.report_state()
 
@@ -217,15 +237,15 @@ class Serializer(object):
 
     def deserialize(self, ev):
         LOG.debug(_(
-            "Deserialize event %(id) %(key)"
+            "Deserialize event %s"
             % (ev.identify())))
         self._sc.lock()
         mapp = self._serializer_map[ev.worker_attached][ev.binding_key]
         if mapp['queue'] == []:
             LOG.debug(_(
                 "No more events in the serial Q -"
-                "Deleting the entry %(worker) %(binding_key)",
-                {'worker': ev.worker_attached, 'binding_key': ev.binding_key}))
+                "Deleting the entry (%d) (%s)"
+                % (ev.worker_attached, ev.binding_key)))
             del self._serializer_map[ev.worker_attached][ev.binding_key]
         self._sc.unlock()
 
@@ -298,11 +318,11 @@ class PollHandler(object):
         return cache[idx:(idx + pull)], pull
 
     def event_done(self, ev):
-        LOG.debug(_("Poll event %s to be marked done !" % (ev.identify())))
+        LOG.info(_("Poll event %s to be marked done !" % (ev.identify())))
         self.rem(ev)
 
     def _cancelled(self, ev):
-        LOG.debug(_("Poll event %s cancelled" % (ev.identify())))
+        LOG.info(_("Poll event %s cancelled" % (ev.identify())))
         ev.poll_event = 'POLL_EVENT_CANCELLED'
         self.event_done(ev)
         self._sc.rpc_event(ev)
@@ -312,13 +332,13 @@ class PollHandler(object):
         eh = self._eh.get(ev)
         if isinstance(eh, core_periodic_task.PeriodicTasks):
             if eh.check_timedout(ev):
-                LOG.debug(_(
+                LOG.info(_(
                     "Event %s timed out -"
                     "scheduling it to a worker" % (ev.identify())))
                 self._sc.rpc_event(ev)
                 return ev
         else:
-            LOG.debug(_(
+            LOG.info(_(
                 "Event %s timed out -"
                 "scheduling it to a worker" % (ev.identify())))
             self._sc.rpc_event(ev)
@@ -380,7 +400,7 @@ class EventHandler(object):
         return ev
 
     def _cancelled(self, eh, ev):
-        LOG.debug(_(
+        LOG.info(_(
             "Event %s cancelled -"
             "invoking %s handler's poll_event_cancel method"
             % (ev.identify(), identify(eh))))
@@ -388,7 +408,7 @@ class EventHandler(object):
             self._sc.poll_event_done(ev)
             eh.poll_event_cancel(ev)
         except AttributeError:
-            LOG.debug(_(
+            LOG.info(_(
                 "Handler %s does not implement"
                 "poll_event_cancel method" % (identify(eh))))
 
@@ -400,7 +420,7 @@ class EventHandler(object):
             peh = eh.get_periodic_event_handler(ev)
             if peh:
                 t = self._tpool.dispatch(peh, eh, ev)
-                LOG.debug(_(
+                LOG.info(_(
                     "Dispatched method %s of handler %s"
                     "for event %s to thread %s"
                     % (identify(peh), identify(eh),
@@ -408,21 +428,21 @@ class EventHandler(object):
 
             else:
                 t = self._tpool.dispatch(eh.handle_poll_event, ev)
-                LOG.debug(_(
+                LOG.info(_(
                     "Dispatched handle_poll_event() of handler %s"
                     "for event %s to thread %s"
                     % (identify(eh),
                         ev.identify(), t.identify())))
         else:
             self._tpool.dispatch(eh.handle_poll_event, ev)
-            LOG.debug(_(
+            LOG.info(_(
                 "Dispatched handle_poll_event() of handler %s"
                 "for event %s to thread %s"
                 % (identify(eh),
                     ev.identify(), t.identify())))
 
     def run(self, qu):
-        LOG.debug(_("Started worker process - %s" % (process)))
+        LOG.info(_("Started worker process - %s" % (process)))
         while True:
             ev = self._get()
             if ev:
@@ -434,14 +454,14 @@ class EventHandler(object):
                         "Event %s is not poll event - "
                         "disptaching handle_event() of handler %s"
                         "to thread %s"
-                        % (event.identify(), identify(eh), t.identify())))
+                        % (ev.identify(), identify(eh), t.identify())))
                 else:
                     if ev.poll_event == 'POLL_EVENT_CANCELLED':
                         LOG.debug(
                             _("Got cancelled event %s" % (ev.identify())))
                         self._cancelled(eh, ev)
                     else:
-                        LOG.debug(
+                        LOG.info(
                             _("Got POLL Event %s scheduling"
                                 % (ev.identify())))
                         self._sched(eh, ev)
@@ -485,10 +505,10 @@ class ServiceController(object):
 
     def unlock(self):
         self._lock.release()
-        LOG.debug(_("Released locak.."))
+        LOG.debug(_("Released lock.."))
 
     def event_done(self, ev):
-        LOG.debug(_("Event %s done" % (ev.identify())))
+        LOG.info(_("Event %s done" % (ev.identify())))
         mapp = self._serializer.copy()
         mapp = mapp[ev.worker_attached]
         if ev.binding_key not in mapp:
@@ -532,7 +552,7 @@ class ServiceController(object):
         wc = 2 * (multiprocessing.cpu_count())
         if cfg.CONF.workers != wc:
             wc = cfg.CONF.workers
-            LOG.debug(_("Creating %d number of workers" % (wc)))
+            LOG.info(_("Creating %d number of workers" % (wc)))
 
         workers = [tuple() for w in range(0, wc)]
 
@@ -551,7 +571,7 @@ class ServiceController(object):
 
     def modules_init(self, modules):
         for module in modules:
-            LOG.debug(_("Initializing module %s" % (identify(module))))
+            LOG.info(_("Initializing module %s" % (identify(module))))
             try:
                 module.module_init(self, self._conf)
             except AttributeError as s:
@@ -590,21 +610,21 @@ class ServiceController(object):
     def rpc_event(self, event):
         worker = self.loadbalancer.get(event.binding_key)
         event.worker_attached = worker[0].pid
-        LOG.debug(_("Scheduling internal event %s"
-                    "to worker %d"
-                    % (event.identify(), event.worker_attached)))
+        LOG.info(_("Scheduling internal event %s"
+                   "to worker %d"
+                   % (event.identify(), event.worker_attached)))
         qu = worker[1]
         qu.put(event)
 
     def poll_event(self, event, max_times=sys.maxint):
-        LOG.debug(_("Adding to pollq - event %s for maxtimes: %d"
-                    % (event.identify(), max_times)))
+        LOG.info(_("Adding to pollq - event %s for maxtimes: %d"
+                   % (event.identify(), max_times)))
         event.max_times = max_times
         self.pollhandler.add(event)
 
     def poll_event_done(self, event):
-        LOG.debug(_("Poll event %s done.. Adding to pollq"
-                    % (event.identify())))
+        LOG.info(_("Poll event %s done.. Adding to pollq"
+                   % (event.identify())))
         event.id = 'POLL_EVENT_DONE'
         self.pollhandler.add(event)
 
@@ -616,8 +636,8 @@ class ServiceController(object):
 
     def register_events(self, evs):
         for ev in evs:
-            LOG.debug(_("Registering event %s & handler %s"
-                        % (ev.identify(), identify(ev.handler))))
+            LOG.info(_("Registering event %s & handler %s"
+                       % (ev.identify(), identify(ev.handler))))
             self.ehs.register(ev)
 
     def register_rpc_agents(self, agents):
@@ -628,14 +648,14 @@ class ServiceController(object):
 
     def init_complete(self):
         for module in self.modules:
-            LOG.debug(_("Invoking init_complete() of module"
-                        % (identify(module))))
+            LOG.info(_("Invoking init_complete() of module %s"
+                       % (identify(module))))
             try:
                 module.init_complete(self, self._conf)
             except AttributeError:
-                LOG.debug(_("Module %s does not implement"
-                            "init_complete() method - skipping"
-                            % (identify(module))))
+                LOG.info(_("Module %s does not implement"
+                           "init_complete() method - skipping"
+                           % (identify(module))))
 
     def unit_test(self):
         for module in self.modules:
@@ -669,14 +689,14 @@ def modules_import():
 
 
 def main():
-    config.setup_logging()
     cfg.CONF.register_opts(core_cfg.OPTS)
-    modules = modules_import()
     config.register_interface_driver_opts_helper(cfg.CONF)
     config.register_agent_state_opts_helper(cfg.CONF)
     config.register_root_helper(cfg.CONF)
 
     common_config.init(sys.argv[1:])
+    config.setup_logging()
+    modules = modules_import()
 
     sc = ServiceController(cfg.CONF, modules)
     sc.start()
