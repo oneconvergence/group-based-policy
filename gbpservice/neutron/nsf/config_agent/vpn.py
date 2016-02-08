@@ -19,14 +19,14 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         super(VpnAgentManager, self).__init__()
 
     def vpnservice_updated(self, context, **kwargs):
-        LOG.debug(_("vpnservice_updated from server side"))
+
         resource = kwargs.get('resource')
         db = self._context(context, resource['tenant_id'])
         context['service_info'] = db
-        body = {'kwargs': **kwargs,
-                'context': context}
+        kwargs.update({'context':context})
+        body = {'kwargs': kwargs}
         try:
-            resp, content = rc.post('vpn/vpnservice_updated', body=body)
+            resp, content = rc.put('vpn', body=body)
         except:
             LOG.error("vpnservice_updated -> request failed.")
 

@@ -23,37 +23,35 @@ class FirewallAgent(firewall_db.Firewall_db_mixin):
         super(FirewallAgent, self).__init__()
 
     def create_firewall(self, context, fw, host):
+
         db = self._context(context, fw['tenant_id'])
         context['service_info'] = db
-        kwargs = {'fw': fw, 'host': host}
-        body = {'kwargs': kwargs,
-                'context': context}
+        kwargs = {'fw': fw, 'host': host, 'context':context}
+        body = {'kwargs': kwargs}
         try:
-            resp, content = rc.post('fw/create_firewall', body=body)
+            resp, content = rc.post('fw', body=body)
         except:
             LOG.error("create_firewall -> POST request failed.")
 
     def update_firewall(self, context, fw, host):
+
         db = self._context(context, fw['tenant_id'])
         context['service_info'] = db
-        kwargs = {'fw': fw, 'host': host}
-        body = {'kwargs': kwargs,
-                'context': context}
+        kwargs = {'fw': fw, 'host': host, 'context': context}
+        body = {'kwargs': kwargs}
         try:
-            resp, content = rc.post('fw/update_firewall', body=body)
+            resp, content = rc.put('fw', body=body)
         except:
             LOG.error("update_firewall -> UPDATE request failed.")
 
     def delete_firewall(self, context, firewall, host):
+
         db = self._context(context, fw['tenant_id'])
         context['service_info'] = db
-        kwargs = {'fw': fw, 'host': host}
-        body = {'kwargs': kwargs,
-                'context': context}
-        # Can delete be send with body ? Or can it be POST with reason=delete
-        # in header ?
+        kwargs = {'fw': fw, 'host': host, 'context': context}
+        body = {'kwargs': kwargs}
         try:
-            resp, content = rc.post('fw/delete_firewall', body=body)
+            resp, content = rc.put('fw', body=body, delete=True)
         except:
             LOG.error("delete_firewall -> DELETE request failed.")
 

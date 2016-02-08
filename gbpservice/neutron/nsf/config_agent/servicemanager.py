@@ -19,18 +19,18 @@ class SmAgent(object):
         super(ServiceManager, self).__init__()
 
     def _post(self, context, name, **kwargs):
-        body = {'kwargs': kwargs,
-                'context': context}
+        kwargs.update({'context': context})
+        body = {'kwargs': kwargs}
         try:
             resp, content = rc.post('gc/%s' % (name), body=body)
         except:
             LOG.error("create_%s -> request failed." % (name))
 
     def _delete(self, context, name, **kwargs):
-        body = {'kwargs': kwargs,
-                'context': context}
+        kwargs.update({'context': context})
+        body = {'kwargs': kwargs}
         try:
-            resp, content = rc.delete('gc/%s' % (name), body=body)
+            resp, content = rc.put('gc/%s' % (name), body=body, delete=True)
         except:
             LOG.error("delete_%s -> request failed." % (name))
 
@@ -88,3 +88,10 @@ class SmAgent(object):
 
     def del_persistent_rule(self, context, **kwargs):
         self._delete(context, 'del_persistent_rule', **kwargs)
+
+    def create_healthmonitor(self, context, **kwargs):
+        self._post(context, 'hm',  **kwargs)
+
+    def delete_healthmonitor(self, context, **kwargs):
+        self._delete(context, 'hm',  **kwargs)
+
