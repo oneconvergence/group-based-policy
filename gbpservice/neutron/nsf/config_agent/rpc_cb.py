@@ -18,9 +18,9 @@ class RpcCallback(core_pt.PeriodicTasks):
     def handle_event(self, ev):
         self._sc.poll_event(ev)
 
-    @core_pt.periodic_task(event='RPCS_PULL_CALLBACKS_EVENT', spacing=1)
+    @core_pt.periodic_task(event='PULL_RPC_NOTIFICATIONS', spacing=1)
     def rpc_pull_event(self, ev):
-        rpc_cbs = rc.get('nsf/rpc_cbs')
+        rpc_cbs = rc.get('nsf/get_notifications')
         '''
         Message should be of format -->
         {'resource': 'loadbalancer/firewall/vpn',
