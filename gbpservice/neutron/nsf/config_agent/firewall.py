@@ -26,7 +26,7 @@ class FirewallAgent(firewall_db.Firewall_db_mixin):
 
         db = self._context(context, fw['tenant_id'])
         context['service_info'] = db
-        kwargs = {'fw': fw, 'host': host, 'context':context}
+        kwargs = {'fw': fw, 'host': host, 'context': context}
         body = {'kwargs': kwargs}
         try:
             resp, content = rc.post('fw', body=body)
