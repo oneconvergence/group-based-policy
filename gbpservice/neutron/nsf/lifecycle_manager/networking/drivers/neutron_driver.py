@@ -1,4 +1,4 @@
- #    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
 #
@@ -21,5 +21,3 @@ LOG = logging.getLogger(__name__)
 
 class NeutronDriver(networking_driver_base.NetworkDriverBase):
     pass
-
-

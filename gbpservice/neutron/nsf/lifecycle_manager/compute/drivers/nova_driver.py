@@ -21,5 +21,3 @@ LOG = logging.getLogger(__name__)
 
 class NovaAPIDriver(compute_driver_base.ComputeAPIDriverBase):
     pass
-
-

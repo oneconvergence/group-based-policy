@@ -49,10 +49,11 @@ class GenericLifeCycleDriver(object):
         return False
 
     def create_device(self):
-        pass # Use Network and Compute drivers to do things
+        pass  # Use Network and Compute drivers to do things
 
     def setup_traffic_steering(self):
-        self.network_handler.setup_traffic_steering() # One driver should not call another driver
+        # One driver should not call another driver
+        self.network_handler.setup_traffic_steering()
 
     def plug_interface(self):
         pass

@@ -21,5 +21,3 @@ LOG = logging.getLogger(__name__)
 
 class GBPDriver(networking_driver_base.NetworkDriverBase):
     pass
-
-

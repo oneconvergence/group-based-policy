@@ -15,10 +15,10 @@ class NetworkDriverBase(object):
 
     def setup_traffic_steering(self):
         pass
-    
+
     def create_port(self):
         pass
-    
+
     def create_network(self):
         pass
 

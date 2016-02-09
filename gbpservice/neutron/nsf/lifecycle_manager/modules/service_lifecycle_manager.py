@@ -18,6 +18,7 @@ from gbpservice.neutron.nsf.core.main import Event
 from gbpservice.neutron.nsf.core.main import RpcAgent
 from gbpservice.neutron.nsf.db import api as nsf_db_api
 from gbpservice.neutron.nsf.db import nsf_db as nsf_db
+from gbpservice.neutron.nsf.lifecycle_manager.openstack import heat_driver
 from gbpservice.neutron.nsf.lifecycle_manager.openstack import openstack_driver
 
 
@@ -67,10 +68,10 @@ class RpcHandler(object):
         self.conf = conf
         self._controller = controller
 
-    def create_network_service(self, context, network_service_info):
+    def create_network_service(self, context, network_service):
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
         return service_lifecycle_handler.create_network_service(
-            context, network_service_info)
+            context, network_service)
 
     def get_network_service(self, context, network_service_id):
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
@@ -97,6 +98,8 @@ class ServiceLifeCycleManager(object):
         state_machine = {
             "DELETE_NETWORK_SERVICE": (
                 service_lifecycle_handler.delete_network_service),
+            "DELETE_NETWORK_SERVICE_INSTANCE": (
+                service_lifecycle_handler._delete_network_service_instance),
             "CREATE_NETWORK_SERVICE_INSTANCE": (
                 service_lifecycle_handler.create_network_service_instance),
             "DEVICE_ACTIVE": service_lifecycle_handler.handle_device_created,
@@ -121,6 +124,10 @@ class ServiceLifeCycleManager(object):
         self.event_method_mapping(event.id, service_lifecycle_handler)(
             event.data)
 
+    def handle_poll_event(self, ev):
+        service_lifecycle_handler = ServiceLifeCycleHandler(self.controller)
+        self.event_method_mapping(ev.id, service_lifecycle_handler)(
+            ev.data)
 
 class ServiceLifeCycleHandler(object):
     def __init__(self, controller):
@@ -129,6 +136,22 @@ class ServiceLifeCycleHandler(object):
         self.db_session = nsf_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient()
         self.keystoneclient = openstack_driver.KeystoneClient()
+        self.neutronclient = openstack_driver.NeutronClient()
+        self.config_driver = heat_driver.HeatDriver()
+
+    def _log_event_created(self, event_id, event_data):
+        LOG.debug(_("Created event %s(event_name)s with event "
+                    "data: %(event_data)s"),
+                   {'event_name': event_id, 'event_data': event_data})
+
+    def _create_event(self, event_id, event_data=None, key=None,
+                    binding_key=None, serialize=False, is_poll_event=False):
+        event = self._controller.event(id=event_id, data=event_data)
+        if is_poll_event:
+            self._controller.poll_event(event)
+        else:
+            self._controller.rpc_event(event)
+        self._log_event_created(event_id, event_data)
 
     def create_network_service(self, context, network_service_info):
         # We have to differentiate GBP vs Neutron *aas and perform
@@ -142,15 +165,15 @@ class ServiceLifeCycleHandler(object):
         service_profile = self.gbpclient.get_service_profile(
             admin_token, service_profile_id)
         service_chain_id = network_service_info.get('service_chain_id')
-        name = "%s.%s.%s" %(service_profile['service_type'],
-                            service_profile['vendor'],
-                            service_chain_id or service_id)
+        name = "%s.%s.%s" % (service_profile['service_type'],
+                             service_profile['vendor'],
+                             service_chain_id or service_id)
         network_service = {
             'name': name,
             'description': '',
             'tenant_id': network_service_info['tenant_id'],
-            'service_id': service_id, # GBP Service Node or Neutron Service ID
-            'service_chain_id': service_chain_id, # GBP SC instance ID
+            'service_id': service_id,  # GBP Service Node or Neutron Service ID
+            'service_chain_id': service_chain_id,  # GBP SC instance ID
             'service_profile_id': service_profile_id,
             'service_config': network_service_info.get('service_config'),
             'status': 'PENDING_CREATE'
@@ -173,9 +196,15 @@ class ServiceLifeCycleHandler(object):
 
         network_service = self.db_handler.create_network_service(
             self.db_session, network_service)
+        if mode == 'GBP':
+            management_network_info = {
+                'id': network_service_info['management_ptg_id'],
+                'port_policy': mode
+            }
         create_network_service_instance_request = {
             'network_service': network_service,
             'network_service_port_info': network_service_port_info,
+            'management_network_info': management_network_info,
             'service_type': service_profile['service_type'],
             'service_vendor': service_profile['vendor'],
             'share_existing_device': service_profile.get('unique_device', True)
@@ -192,20 +221,21 @@ class ServiceLifeCycleHandler(object):
         pass
 
     def delete_network_service(self, context, network_service_id):
-        network_service = self.db_handler.get_network_service(
-            self.session, network_service_id)
+        network_service_info = self.db_handler.get_network_service(
+            self.db_session, network_service_id)
+        network_service = {}
         network_service['status'] = "PENDING_DELETE"
-        self.db_handler.update_network_service(
-            self.session, network_service['id'], network_service)
-        for nsi in network_service['network_service_instances']:
+        network_service = self.db_handler.update_network_service(
+            self.db_session, network_service_id, network_service)
+        for nsi in network_service_info['network_service_instances']:
             delete_nsi_event = self._controller.event(
                 id='DELETE_NETWORK_SERVICE_INSTANCE',
                 data=nsi['id'])
         self._controller.rpc_event(delete_nsi_event)
 
     def create_network_service_instance(self, request_data):
-        name = '%s.%s' %(request_data['network_service']['name'],
-                         request_data['network_service']['id'])
+        name = '%s.%s' % (request_data['network_service']['name'],
+                          request_data['network_service']['id'])
         create_nsi_request = {
             'name': name,
             'tenant_id': request_data['network_service']['tenant_id'],
@@ -214,8 +244,7 @@ class ServiceLifeCycleHandler(object):
             'service_type': request_data['service_type'],
             'service_vendor': request_data['service_vendor'],
             'share_existing_device': request_data['share_existing_device'],
-            'network_service_port_info': request_data[
-                'network_service_port_info'],
+            'port_info': request_data['network_service_port_info'],
         }
         nsi_db = self.db_handler.create_network_service_instance(
             self.db_session, create_nsi_request)
@@ -223,48 +252,50 @@ class ServiceLifeCycleHandler(object):
         create_nsd_request = {
             'network_service': request_data['network_service'],
             'network_service_instance': nsi_db,
+            'management_network_info': request_data['management_network_info'],
             'service_type': request_data['service_type'],
             'service_vendor': request_data['service_vendor'],
-            'share_existing_device': request_data['network_service_port_info'],
+            'share_existing_device': request_data['share_existing_device'],
         }
-        create_nsi_event = self._controller.event(
+        create_nsd_event = self._controller.event(
             id='CREATE_NETWORK_SERVICE_DEVICE',
             data=create_nsd_request)
-        self._controller.rpc_event(create_nsi_event)
+        self._controller.rpc_event(create_nsd_event)
 
     def handle_device_created(self, request_data):
-        nsi = self.db_handler.get_network_service_instance(
-            self.db_session, request_data['network_service_instance_id'])
-        nsi['status'] = "DEVICE_CREATED"
-        nsi['network_service_device_id'] = request_data[
-            'network_service_device_id']
-        self.db_handler.update_network_service_instance(
-            self.db_session, nsi['id'], nsi)
-        self.config_driver.apply_user_config() # Heat driver to launch stack
+        nsi = {
+            'status': 'DEVICE_CREATED',
+            'network_service_device_id': request_data[
+                'network_service_device_id']
+        }
+        nsi = self.db_handler.update_network_service_instance(
+            self.db_session, request_data['network_service_instance_id'], nsi)
+        service_details = self.get_service_details(nsi)
+        request_data['heat_stack_id'] = self.config_driver.apply_user_config(
+                service_details) # Heat driver to launch stack
+        request_data['network_service_id'] = nsi['network_service_id']
+        self._create_event(event_id='USER_CONFIG_IN_PROGRESS',
+                event_data=request_data, is_poll_event=True)
 
-    def handle_devices_create_failed(self, request_data):
-        nsi = self.db_handler.get_network_service_instance(
-            self.db_session, request_data['network_service_instance_id'])
-        nsi['status'] = "DEVICE_CREATE_FAILED"
-        nsi['network_service_device_id'] = request_data.get(
-            'network_service_device_id')
+    def handle_device_create_failed(self, request_data):
+        nsi = {
+            'status': 'DEVICE_CREATE_FAILED',
+            'network_service_device_id': request_data[
+                'network_service_device_id']
+        }
         self.db_handler.update_network_service_instance(
-            self.db_session, nsi['id'], nsi)
-        network_service = self.db_handler.get_network_service(
-            self.session, nsi['network_service_id'])
-        network_service['status'] = "ERROR"
+            self.db_session, request_data['network_service_instance_id'], nsi)
+        network_service = {'status': 'ERROR'}
         self.db_handler.update_network_service(
-            self.db_session, network_service['id'], network_service)
+            self.db_session, nsi['network_service_id'], network_service)
         # Trigger RPC to notify the Create_Service caller with status
 
     def _update_network_service_instance(self):
         pass
 
     def _delete_network_service_instance(self, nsi_id):
-        nsi = self.db_handler.get_network_service_instance(
-            self.db_session, nsi_id)
-        nsi['status'] = "PENDING_DELETE"
-        self.db_handler.update_network_service_instance(
+        nsi = {'status': 'PENDING_DELETE'}
+        nsi = self.db_handler.update_network_service_instance(
             self.db_session, nsi_id, nsi)
         delete_nsd_event = self._controller.event(
             id='DELETE_NETWORK_SERVICE_DEVICE',
@@ -281,30 +312,30 @@ class ServiceLifeCycleHandler(object):
 
     def check_for_user_config_complete(self, request_data):
         config_status = self.config_driver.is_config_complete(
-            request_data['config_id'])
-        if config_status == "COMPLETED":
-            network_service = self.db_handler.get_network_service(
-            self.session, request_data['network_service_id'])
-            network_service['status'] = "ERROR"
+            request_data['heat_stack_id'])
+        if config_status == "ERROR":
+            updated_network_service = {'status': 'ERROR'}
             self.db_handler.update_network_service(
-                self.session, network_service['id'], network_service)
+                self.session,
+                request_data['network_service_id'],
+                updated_network_service)
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == "ERROR":
-            network_service = self.db_handler.get_network_service(
-            self.session, request_data['network_service_id'])
-            network_service['status'] = "ACTIVE"
+        elif config_status == "COMPLETED":
+            updated_network_service = {'status': 'ACTIVE'}
             self.db_handler.update_network_service(
-                self.session, network_service['id'], network_service)
+                self.session,
+                request_data['network_service_id'],
+                updated_network_service)
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "IN_PROGRESS":
             return
 
     def handle_user_config_failed(self, request_data):
-        network_service = self.db_handler.get_network_service(
-            self.session, request_data['network_service_id'])
-        network_service['status'] = "ERROR"
+        updated_network_service = {'status': 'ERROR'}
         self.db_handler.update_network_service(
-            self.session, network_service['id'], network_service)
+            self.session,
+            request_data['network_service_id'],
+            updated_network_service)
         # Trigger RPC to notify the Create_Service caller with status
 
     # When Device LCM deletes Device DB, the Foreign key NSI will be nulled
@@ -328,7 +359,20 @@ class ServiceLifeCycleHandler(object):
         self._controller.event_done(event)
 
     def handle_user_config_applied(self, request_data):
-        pass
+        network_service = {
+            'status': "ACTIVE",
+            'heat_stack_id': request_data['heat_stack_id']
+        }
+        self.db_handler.update_network_service(
+            self.db_session,
+            request_data['network_service_id'],
+            network_service)
+        # Trigger RPC to notify the Create_Service caller with status
 
-    def handle_device_create_failed(self, request_data):
-        pass
+    def get_network_service(self, context, network_service_id):
+        return self.db_handler.get_network_service(
+            self.db_session, network_service_id)
+
+    def get_network_services(self, context, filters):
+        return self.db_handler.get_network_services(
+            self.db_session, filters)

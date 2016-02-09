@@ -10,11 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
 class ComputeAPIDriverBase(object):
 
     def create_instance(self):
         pass
-    
+
     def delete_instance(self):
         pass
 

@@ -1203,3 +1203,8 @@ class GBPClient(OpenstackApi):
         gbp = gbp_client.Client(token=token,
                                 endpoint_url=self.network_service)
         return gbp.show_servicechain_node(node_id)['servicechain_node']
+
+    def get_servicechain_instance(self, token, instance_id):
+        gbp = gbp_client.Client(token=token,
+                                endpoint_url=self.network_service)
+        return gbp.show_servicechain_instance(instance_id)['servicechain_instance']

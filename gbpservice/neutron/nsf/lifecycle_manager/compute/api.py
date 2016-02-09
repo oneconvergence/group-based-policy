@@ -13,6 +13,7 @@
 from gbpservice.neutron.nsf.lifecycle_manager.compute.drivers import (
     nova_driver)
 
+
 class ComputeAPI(object):
     # TODO: Get the compute platform either from config, or from the
     # service profile
@@ -20,7 +21,7 @@ class ComputeAPI(object):
         if compute_platform == "NOVA":
             self.driver = nova_driver.NovaAPIDriver()
         else:
-            raise # or assume default ??
+            raise  # or assume default ??
 
     def create_instance(self):
         self.driver.create_instance()

@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import fixtures
 
 
@@ -165,6 +166,29 @@ class NSFDBTestCase(SqlTestCase):
         network_services = self.nsf_db.get_network_services(
             session, filters=filters)
         self.assertEqual([], network_services)
+
+    def test_update_network_service(self):
+        attrs_all = {
+            'name': 'name',
+            'description': 'description',
+            'tenant_id': 'tenant_id',
+            'service_id': 'service_id',
+            'service_chain_id': 'service_chain_id',
+            'service_profile_id': 'service_profile_id',
+            'service_config': 'service_config',
+            'heat_stack_id': 'heat_stack_id',
+            'status': 'status'
+        }
+
+        network_service = self._create_network_service(attrs_all)
+        for key in attrs_all:
+            self.assertEqual(attrs_all[key], network_service[key])
+        self.assertIsNotNone(network_service['id'])
+        network_service['status'] = 'ERROR'
+        session = db_api.get_session()
+        network_service = self.nsf_db.update_network_service(
+            session, network_service['id'], network_service)
+        self.assertEqual('ERROR', network_service['status'])
 
     def _create_network_service_instance(self, attributes=None):
         if attributes is None:
@@ -445,3 +469,81 @@ class NSFDBTestCase(SqlTestCase):
         network_service_devices = self.nsf_db.get_network_service_devices(
             session, filters=filters)
         self.assertEqual([], network_service_devices)
+
+    def test_update_network_service_device(self):
+        attrs_all = {
+            'name': 'name',
+            'description': 'description',
+            'tenant_id': 'tenant_id',
+            'mgmt_ip_address': 'mgmt_ip_address',
+            'ha_monitoring_data_port': {
+                'id': 'myid1_ha_port',
+                'port_policy': 'neutron',
+                'port_classification': 'monitoring',
+                'port_type': 'active'
+            },
+            'ha_monitoring_data_network': {
+                'id': 'mynetwork_id',
+                'network_policy': 'neutron'
+            },
+            'service_vendor': 'service_vendor',
+            'max_interfaces': 3,
+            'reference_count': 2,
+            'interfaces_in_use': 1,
+            'mgmt_data_ports': [
+                {'id': 'myid1',
+                 'port_policy': 'neutron',
+                 'port_classification': 'management',
+                 'port_type': 'active'},
+                {'id': 'myid2',
+                 'port_policy': 'gbp',
+                 'port_classification': 'management',
+                 'port_type': 'master'}
+            ],
+            'status': 'status'
+        }
+        session = db_api.get_session()
+        network_service_device = self.nsf_db.create_network_service_device(
+            session, attrs_all)
+        for key in attrs_all:
+            self.assertEqual(attrs_all[key], network_service_device[key])
+        self.assertIsNotNone(network_service_device['id'])
+
+        # update name
+        updated_network_service_device = {
+            'name': 'new_name'
+        }
+        updated_nsd = self.nsf_db.update_network_service_device(
+            session,
+            network_service_device['id'],
+            updated_network_service_device)
+        self.assertEqual('new_name', updated_nsd['name'])
+        del updated_nsd['name']
+        for key in attrs_all:
+            if key != 'name': 
+                self.assertEqual(attrs_all[key], updated_nsd[key])
+
+        # Update mgmt ports
+        updated_network_service_device = {
+            'mgmt_data_ports': [
+                {'id': 'myid3',
+                 'port_policy': 'neutron',
+                 'port_classification': 'management',
+                 'port_type': 'active'},
+                {'id': 'myid4',
+                 'port_policy': 'gbp',
+                 'port_classification': 'management',
+                 'port_type': 'master'}
+            ],
+            'name': 'name'
+        }
+        updated_nsd = self.nsf_db.update_network_service_device(
+            session,
+            network_service_device['id'],
+            copy.deepcopy(updated_network_service_device))
+        self.assertEqual(updated_nsd['mgmt_data_ports'],
+                         ['myid3', 'myid4'])
+        del updated_nsd['mgmt_data_ports']
+        for key in attrs_all:
+            if key != 'mgmt_data_ports':
+                self.assertEqual(attrs_all[key], updated_nsd[key])

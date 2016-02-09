@@ -10,4 +10,5 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-NSF_SERVICE_LCM_TOPIC = "NSF_SERVICE_LIFECYCLE_MANAGER"
+NSF_SERVICE_LCM_TOPIC = "nsf-service-lifecycle"
+NSF_NODE_DRIVER_CALLBACK_TOPIC = "nsf-node-driver-callbacks"

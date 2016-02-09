@@ -23,6 +23,7 @@ def rpc_init(controller):
                      topic="NSF_LICENSE_MANAGER", manager=rpcmgr)
     controller.register_rpc_agents([agent])
 
+
 def events_init(controller):
     evs = [
         Event(id='APPLY_LICENSE', data=None, handler=LicenseManager),

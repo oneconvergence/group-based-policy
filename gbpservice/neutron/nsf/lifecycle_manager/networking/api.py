@@ -10,14 +10,20 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from gbpservice.neutron.nsf.lifecycle_manager.networking.drivers import (
+    gbp_driver)
+from gbpservice.neutron.nsf.lifecycle_manager.networking.drivers import (
+    neutron_driver)
+
+
 class NetworkingAPI(object):
     def __init__(self, network_platform):
         if network_platform == "GBP":
-            self.driver = GBPDriver()
+            self.driver = gbp_driver.GBPDriver()
         elif network_platform == "NEUTRON":
-            self.driver = NeutronDriver()
+            self.driver = neutron_driver.NeutronDriver()
         else:
-            raise # or assume default ??
+            raise  # or assume default ??
 
     def create_port(self):
         pass
