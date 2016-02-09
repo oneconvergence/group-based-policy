@@ -50,12 +50,12 @@ def rpc_init(sc, conf):
 
 def events_init(sc):
     evs = [
-        Event(id='RPCS_PULL_CALLBACKS_EVENT', handler=RpcCallback(sc))]
+        Event(id='PULL_RPC_NOTIFICATIONS', handler=RpcCallback(sc))]
 
 def module_init(sc, conf):
     rpc_init(sc, conf)
     events_init(sc)
 
 def init_complete(sc, conf):
-    ev = sc.event(id='RPCS_PULL_CALLBACKS_EVENT', key='RPCS_PULL_CALLBACKS_EVENT')
+    ev = sc.event(id='PULL_RPC_NOTIFICATIONS', key='PULL_RPC_NOTIFICATIONS')
     sc.rpc_event(ev)
