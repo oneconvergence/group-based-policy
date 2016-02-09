@@ -21,6 +21,7 @@ from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
+
 def rpc_init(sc, conf):
     fwrpcmgr = FirewallAgent(conf, sc)
     fwagent = RpcAgent(
@@ -31,7 +32,7 @@ def rpc_init(sc, conf):
     )
 
     lbrpcmgr = LbAgent(conf, sc)
-    agent = RpcAgent(
+    lbagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=topics.LB_NSF_CONFIGAGENT_TOPIC,
@@ -39,22 +40,34 @@ def rpc_init(sc, conf):
     )
 
     vpnrpcmgr = VpnAgent(conf, sc)
-    agent = RpcAgent(
+    vpnagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=topics.VPN_NSF_CONFIGAGENT_TOPIC,
         manager=vpnrpcmgr
     )
 
-    sc.register_rpc_agents([fwrpcmgr, lbrpcmgr, vpnrpcmgr])
+    smrpcmgr = SmAgent(conf, sc)
+    smagent = RpcAgent(
+        sc,
+        host=cfg.CONF.host,
+        topic=topics.SM_NSF_CONFIGAGENT_TOPIC,
+        manager=smrpcmgr
+    )
+
+    sc.register_rpc_agents([fwagent, lbagent, vpnagent, smagent])
+
 
 def events_init(sc):
     evs = [
         Event(id='PULL_RPC_NOTIFICATIONS', handler=RpcCallback(sc))]
+    sc.register_events(evs)
+
 
 def module_init(sc, conf):
     rpc_init(sc, conf)
     events_init(sc)
+
 
 def init_complete(sc, conf):
     ev = sc.event(id='PULL_RPC_NOTIFICATIONS', key='PULL_RPC_NOTIFICATIONS')

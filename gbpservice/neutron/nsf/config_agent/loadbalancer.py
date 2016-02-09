@@ -1,9 +1,9 @@
-from oslo.config import cfg
+from oslo_config import cfg
 from neutron import manager
-from oslo import messaging
+from oslo_messaging import target
 
 from gbpservice.neutron.nsf.config_agent import RestClientOverUnix as rc
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 
 LOG = logging.getLogger(__name__)
@@ -11,25 +11,18 @@ LOG = logging.getLogger(__name__)
 
 class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
     RPC_API_VERSION = '1.0'
-    target = messaging.Target(version=RPC_API_VERSION)
+    target = target.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
-        self._core_plugin = None
         super(LbaasAgentManager, self).__init__()
-
-    @property
-    def core_plugin(self):
-        if not self._core_plugin:
-            self._core_plugin = manager.NeutronManager.get_plugin()
-        return self._core_plugin
 
     def _post(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
         context['service_info'] = db
-        body = {'kwargs': kwargs,
-                'context': context}
+        kwargs.update({'context': context})
+        body = {'kwargs': kwargs}
         try:
             resp, content = rc.post('lb/%s' % (name), body=body)
         except:
@@ -38,29 +31,29 @@ class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
     def _put(self, context, tenant_id, name, id, **kwargs):
         db = self._context(context, tenant_id)
         context['service_info'] = db
-        body = {'kwargs': kwargs,
-                'context': context}
+        kwargs.update({'context': context})
+        body = {'kwargs': kwargs}
         try:
             resp, content = rc.put('lb/%s/%s' % (name, id), body=body)
         except:
-            LOG.error("create_vip -> request failed.")
+            LOG.error("update_%s -> request failed." % (name))
 
     def _delete(self, context, tenant_id, name, id, **kwargs):
         db = self._context(context, tenant_id)
         context['service_info'] = db
-        body = {'kwargs': kwargs,
-                'context': context}
+        kwargs.update({'context': context})
+        body = {'kwargs': kwargs}
         try:
-            resp, content = rc.delete('lb/%s/%s' % (name, id), body=body)
+            resp, content = rc.put('lb/%s/%s' % (name, id), body=body, delete=True)
         except:
-            LOG.error("create_vip -> request failed.")
+            LOG.error("delete_%s -> request failed."%(name))
 
     def create_vip(self, context, vip):
         self._post(context, vip['tenant_id'], 'vip', vip=vip)
 
     def update_vip(self, context, old_vip, vip):
         self._put(context, old_vip['tenant_id'], 'vip', old_vip[
-                  'id'], old_vip=old_vip, vip=vip)
+                  'id'], oldvip=old_vip, vip=vip)
 
     def delete_vip(self, context, vip):
         self._delete(context, vip['tenant_id'], 'vip', vip['id'], vip=vip)
@@ -72,7 +65,7 @@ class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
 
     def update_pool(self, context, old_pool, pool):
         self._put(context, old_pool['tenant_id'], 'pool', old_pool[
-                  'id'], old_pool=old_pool, pool=pool)
+                  'id'], oldpool=old_pool, pool=pool)
 
     def delete_pool(self, context, pool):
         self._delete(context, pool['tenant_id'], 'pool', pool['id'], pool=pool)
@@ -82,7 +75,7 @@ class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
 
     def update_member(self, context, old_member, member):
         self._put(context, old_member['tenant_id'], 'member', old_member[
-                  'id'], old_member=old_member, member=member)
+                  'id'], oldmember=old_member, member=member)
 
     def delete_member(self, context, member):
         self._delete(
@@ -91,19 +84,19 @@ class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
 
     def create_pool_health_monitor(self, context, hm, pool_id):
         self._post(context, health_monitor[
-                   'tenant_id'], 'pool_health_monitor',
-                   health_monitor=hm, pool_id=pool_id)
+                   'tenant_id'], 'hm',
+                   hm=hm, pool_id=pool_id)
 
     def update_pool_health_monitor(self, context, old_hm,
                                    hm, pool_id):
-        self._put(context, old_hm['tenant_id'], 'pool_health_monitor',
-                  old_hm['id'], old_health_monitor=old_hm,
-                  health_monitor=hm, pool_id=pool_id)
+        self._put(context, old_hm['tenant_id'], 'hm',
+                  old_hm['id'], oldhm=old_hm,
+                  hm=hm, pool_id=pool_id)
 
     def delete_pool_health_monitor(self, context, hm, pool_id):
         self._delete(
-            context, health_monitor['tenant_id'], 'pool_health_monitor',
-            hm['id'], health_monitor=hm, pool_id=pool_id)
+            context, health_monitor['tenant_id'], 'hm',
+            hm['id'], hm=hm, pool_id=pool_id)
 
     def _context(self, context, tenant_id):
         if context.is_admin:
@@ -114,7 +107,7 @@ class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
         return db
 
     def _get_core_context(self, context, filters):
-        core_plugin = self.core_plugin
+        core_plugin = self._core_plugin
         subnets = core_plugin.get_subnets(
             context, filters)
         ports = core_plugin.get_ports(

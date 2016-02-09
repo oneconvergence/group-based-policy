@@ -46,7 +46,7 @@ class SendRequest():
     def send_request(path, method_type, request_method='http',
                      server_addr='127.0.0.1',
                      headers=None, body=None):
-
+        path = '/v1/'+ path
         url = urlparse.urlunsplit((
             request_method,
             server_addr,  # a dummy value to make the request proper
@@ -95,17 +95,19 @@ class SendRequest():
 def get(path):
     return SendRequest.send_request(path, 'GET')
 
+#PUT & DELETE Both are handled by put method#
+def put(path, body, delete=False):
+    headers={'content-type':'application/json'}
+    if delete:
+        headers.update({'method-type':'DELETE'})
+    else:
+        headers.update({'method-type':'UPDATE'})
 
-def put(path, body):
     return SendRequest.send_request(path, 'PUT',
-                                    header='application/json', body=body)
+                                    headers=headers, body=body)
 
 
 def post(path, body):
+    headers={'content-type':'application/json'}
     return SendRequest.send_request(path, 'POST',
-                                    header='application/json', body=body)
-
-
-def delete(path, body):
-    return SendRequest.send_request(path, 'DELETE',
-                                    header='application/json', body=body)
+                                    headers=headers, body=body)
