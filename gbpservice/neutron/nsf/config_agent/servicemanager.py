@@ -94,4 +94,3 @@ class SmAgent(object):
 
     def delete_healthmonitor(self, context, **kwargs):
         self._delete(context, 'hm',  **kwargs)
-

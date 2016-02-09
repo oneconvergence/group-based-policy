@@ -44,9 +44,10 @@ class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
         kwargs.update({'context': context})
         body = {'kwargs': kwargs}
         try:
-            resp, content = rc.put('lb/%s/%s' % (name, id), body=body, delete=True)
+            resp, content = rc.put('lb/%s/%s' %
+                                   (name, id), body=body, delete=True)
         except:
-            LOG.error("delete_%s -> request failed."%(name))
+            LOG.error("delete_%s -> request failed." % (name))
 
     def create_vip(self, context, vip):
         self._post(context, vip['tenant_id'], 'vip', vip=vip)

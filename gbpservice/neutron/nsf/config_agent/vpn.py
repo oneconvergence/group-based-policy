@@ -23,7 +23,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         resource = kwargs.get('resource')
         db = self._context(context, resource['tenant_id'])
         context['service_info'] = db
-        kwargs.update({'context':context})
+        kwargs.update({'context': context})
         body = {'kwargs': kwargs}
         try:
             resp, content = rc.put('vpn', body=body)
