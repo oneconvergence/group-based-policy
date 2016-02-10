@@ -19,7 +19,6 @@ class Filter():
             return method(context, filters)
         except Exception as e:
             raise e
-        
 
     def make_msg(self, method, **kwargs):
         return {'method': method,
@@ -272,12 +271,11 @@ class Filter():
                                    'id', vip['port_id'])
             retval['vip']['port'] = port  # self._make_port_dict(port)
 
+            subnets = service_info['subnets']
             for fixed_ip in retval['vip']['port']['fixed_ips']:
-                subnets = service_info['subnets']
-                for fixed_ip in retval['vip']['port']['fixed_ips']:
-                    fixed_ip['subnet'] = self.get_record(
-                        subnets, 'id',
-                        fixed_ip['subnet_id'])
+                fixed_ip['subnet'] = self.get_record(
+                    subnets, 'id',
+                    fixed_ip['subnet_id'])
 
         pool_members = pool['members']
         retval['members'] = []
@@ -299,3 +297,4 @@ class Filter():
                 retval['healthmonitors'].append(health_monitor)
 
         retval['driver'] = pool['provider']
+        return retval
