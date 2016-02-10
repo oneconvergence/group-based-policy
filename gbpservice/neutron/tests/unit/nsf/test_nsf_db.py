@@ -14,7 +14,6 @@
 import copy
 import fixtures
 
-
 from neutron import context
 from neutron.tests import base
 

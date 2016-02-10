@@ -27,7 +27,8 @@ LOG = logging.getLogger(__name__)
 
 def rpc_init(controller, config):
     rpcmgr = RpcHandler(config, controller)
-    agent = RpcAgent(controller, host=config.host,
+    agent = RpcAgent(controller,
+                     host=config.host,
                      topic=nsf_rpc_topics.NSF_SERVICE_LCM_TOPIC,
                      manager=rpcmgr)
     controller.register_rpc_agents([agent])
@@ -87,6 +88,12 @@ class RpcHandler(object):
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
         return service_lifecycle_handler.delete_network_service(
             context, network_service_id)
+
+    def notify_consumer_ptg_added(self, context, network_service_id, ptg):
+        pass
+
+    def notify_consumer_ptg_removed(self, context, network_service_id, ptg):
+        pass
 
 
 class ServiceLifeCycleManager(object):
@@ -289,6 +296,59 @@ class ServiceLifeCycleHandler(object):
         self.db_handler.update_network_service(
             self.db_session, nsi['network_service_id'], network_service)
         # Trigger RPC to notify the Create_Service caller with status
+
+    def get_service_details(self, nsi):
+        network_service = self.db_handler.get_network_service(
+            self.db_session, nsi['network_service_id'])
+        network_service_device = self.db_handler.get_network_service_device(
+            self.db_session, nsi['network_service_device_id'])
+
+        service_profile_id = network_service['service_profile_id']
+        admin_token = self.keystoneclient.get_admin_token()
+        service_profile = self.gbpclient.get_service_profile(admin_token,
+                service_profile_id)
+        service_id = network_service['service_id']
+        servicechain_node = self.gbpclient.get_servicechain_node(admin_token,
+                service_id)
+        service_chain_id = network_service['service_chain_id']
+        servicechain_instance = self.gbpclient.get_servicechain_instance(
+                admin_token,
+                service_chain_id)
+        mgmt_ip = network_service_device['mgmt_ip_address']
+        consumer_port = None
+        provider_port = None
+        for port in nsi['port_info']:
+            port_info = self.db_handler.get_port_info(self.db_session, port)
+            LOG.info(_("port_info info: %s") %(port_info))
+            port_classification = port_info['port_classification']
+            if port_info['port_policy'] == "GBP":
+                policy_target_id = port_info['id']
+                port_id = self.gbpclient.get_policy_targets(admin_token,
+                     filters={'id': policy_target_id })[0]['port_id']
+            else:
+                port_id = port_info['id']
+
+            if port_classification == "consumer":
+                consumer_port = self.neutronclient.get_port(admin_token,
+                        port_id)['port']
+            else:
+                LOG.info(_("provider info: %s") %(port_id))
+                provider_port = self.neutronclient.get_port(admin_token,
+                        port_id)['port']
+
+        policy_target_group = self.get_provider_policy_target_group(provider_port)
+
+        service_details = {
+            'service_profile': service_profile,
+            'servicechain_node': servicechain_node,
+            'servicechain_instance': servicechain_instance,
+            'consumer_port': consumer_port,
+            'provider_port': provider_port,
+            'mgmt_ip': mgmt_ip,
+            'policy_target_group': policy_target_group,
+        }
+
+        return service_details
 
     def _update_network_service_instance(self):
         pass

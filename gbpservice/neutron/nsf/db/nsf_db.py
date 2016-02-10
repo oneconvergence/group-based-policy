@@ -327,9 +327,7 @@ class NSFDbBase(common_db_mixin.CommonDbMixin):
 
     def _get_port_info(self, session, port_id):
         return self._get_by_id(
-            session, 
-            nsf_db_model.PortInfo, 
-            port_id)
+            session, nsf_db_model.PortInfo, port_id)
 
     def get_network_info(self, session, network_id, fields=None):
         network_info = self._get_network_info(session, network_id)
@@ -337,9 +335,7 @@ class NSFDbBase(common_db_mixin.CommonDbMixin):
 
     def _get_network_info(self, session, network_id):
         return self._get_by_id(
-            session, 
-            nsf_db_model.NetworkInfo, 
-            network_id)
+            session,  nsf_db_model.NetworkInfo, network_id)
 
     def _make_port_info_dict(self, port_info, fields):
         res = {
@@ -385,7 +381,6 @@ class NSFDbBase(common_db_mixin.CommonDbMixin):
                }
         res['port_info'] = [
             port['data_port_id'] for port in nsi['port_info']]
-        #res['port_info'] = nsi['port_info']
         return res
 
     def _make_network_service_device_dict(self, nsd, fields=None):
