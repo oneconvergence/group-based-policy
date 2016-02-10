@@ -69,7 +69,7 @@ def events_init(controller, config):
         Event(id='DELETE_CONFIGURATION', handler=device_lifecycle_mgr_obj),
         Event(id='DELETE_CONFIGURATION_COMPLETED', handler=device_lifecycle_mgr_obj),
 
-        Event(id='DEVICE_CREATE_FAILED', handler=device_lifecycle_mgr_obj),
+        #Event(id='DEVICE_CREATE_FAILED', handler=device_lifecycle_mgr_obj),
         Event(id='DEVICE_NOT_UP', handler=device_lifecycle_mgr_obj),
         Event(id='DEVICE_NOT_REACHABLE', handler=device_lifecycle_mgr_obj),
         Event(id='DEVICE_CONFIGURATION_FAILED', handler=device_lifecycle_mgr_obj),
@@ -429,23 +429,29 @@ class DeviceLifeCycleHandler(object):
         network_service_instance = nsd_request['network_service_instance']
         service_type = nsd_request['service_type']
         service_vendor = nsd_request['service_vendor']
+        device_data['share_existing_device'] = nsd_request['share_existing_device']
+        device_data['management_network_info'] = nsd_request['management_network_info']
 
         device_data['network_service_id'] = network_service['id']
         device_data['tenant_id'] = network_service['tenant_id']
         device_data['service_chain_id'] = network_service['service_chain_id']
 
-	#TODO(ashu): get proper value from SLCM
-        device_data['mgmt_ptg_id'] = '433aac4a-32ef-4779-a489-fcd3b7ede410'
         device_data['network_service_instance_id'] = network_service_instance['id']
-        #device_data['ports'] = network_service_instance['port_info']
-        device_data['ports'] = nsd_request['ports']
+
+        nsi_port_info = []
+        for port_id in network_service_instance.pop('port_info'):
+            port_info = self.nsf_db.get_port_info(self.db_session, port_id)
+            nsi_port_info.append(port_info)
+
+        device_data['ports'] = nsi_port_info
 
         device_data['service_vendor'] = service_vendor
         device_data['service_type'] = service_type
         # TODO: Get these values from SLCM, it should be available in service
         # profile.
         device_data['compute_policy'] = 'nova'
-        device_data['network_policy'] = 'gbp'
+        # To get the network mode, fetch it from port_info
+        device_data['network_policy'] = nsi_port_info[0]['port_policy'].lower()
 
         return device_data
 
@@ -600,11 +606,17 @@ class DeviceLifeCycleHandler(object):
         LOG.info(_("Device Configuration completed for device: %(device_id)s"
                     "Updated DB status to ACTIVE, Incremented device "
                     "reference count for %(device)s"),
-                  {'device_id': device['id'], 'device': {}})
+                  {'device_id': device['id'], 'device': device})
 
+
+        device_created_data = {
+            'network_service_id' : device['network_service_id'],
+            'network_service_instance_id' : device['network_service_instance_id'],
+            'network_service_device_id' : device['id'],
+                }
         # DEVICE_ACTIVE event for Service LCM.
         self._create_event(event_id='DEVICE_ACTIVE',
-                           event_data=device)
+                           event_data=device_created_data)
 
 
     # Delete path
@@ -616,11 +628,12 @@ class DeviceLifeCycleHandler(object):
         # the status
         LOG.info(_("Received delete network service device request for device"
                    "%(device)s"), {'device': device})
-        # Fill device, with proper values
-        device = self.nsf_db.get_network_service_device(self.db_session, device['id'])
-        #device['compute_policy'] = 'nova'
-        #device['network_policy'] = 'gbp'
-        #self.delete_device_routes(device)
+        device = self.nsf_db.get_network_service_device(self.db_session, device['network_service_device_id'])
+        mgmt_data_ports = self._get_mgmt_data_ports(device)
+        device['mgmt_data_ports'] = mgmt_data_ports
+        device['compute_policy'] = 'nova'
+        device['network_policy'] = mgmt_data_ports[0]['port_policy']
+        self._update_device_data(device, event.data)
         self._create_event(event_id='DELETE_ROUTES',
                            event_data=device)
 
@@ -632,7 +645,7 @@ class DeviceLifeCycleHandler(object):
     def clear_interfaces(self, event):
         device = event.data
 
-        is_interface_unplugged = self.lifecycle_driver.unplug_interfaces()
+        is_interface_unplugged = self.lifecycle_driver.unplug_interfaces(device)
         if is_interface_unplugged:
             self._decrement_device_interface_count(device)
         else:
@@ -676,6 +689,7 @@ class DeviceLifeCycleHandler(object):
         status = 'ERROR'
         desc = 'Internal Server Error'
         self._update_network_service_device_db(device, status, desc)
+        device['network_service_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
 
@@ -684,6 +698,7 @@ class DeviceLifeCycleHandler(object):
         status = device['status']
         desc = device['status_description']
         self._update_network_service_device_db(device, status, desc)
+        device['network_service_device_id'] = device['id']
         # is event is DEVICE_CREATE_FAILED or device_error
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
@@ -705,6 +720,7 @@ class DeviceLifeCycleHandler(object):
         status = 'ERROR'
         desc = 'Device not became ACTIVE'
         self._update_network_service_device_db(device, status, desc)
+        device['network_service_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
 
@@ -714,6 +730,7 @@ class DeviceLifeCycleHandler(object):
         status = 'ERROR'
         desc = 'Device not reachable, Health Check Failed'
         self._update_network_service_device_db(device, status, desc)
+        device['network_service_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
 
@@ -725,6 +742,7 @@ class DeviceLifeCycleHandler(object):
         status = device['status']
         desc = 'Configuring Device Failed.'
         self._update_network_service_device_db(device, status, desc)
+        device['network_service_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
         LOG.debug(_("Device create failed for device: %(device_id)s, "
@@ -737,6 +755,7 @@ class DeviceLifeCycleHandler(object):
         status = device['status']
         desc = 'Interfaces configuration failed'
         self._update_network_service_device_db(device, status, desc)
+        device['network_service_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
         LOG.debug(_("Interfaces configuration failed for device: %(device_id)s,"
@@ -749,6 +768,7 @@ class DeviceLifeCycleHandler(object):
         status = device['status']
         desc = 'Routes configuration Failed'
         self._update_network_service_device_db(device, status, desc)
+        device['network_service_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
         LOG.debug(_("Routes configuration failed for device: %(device_id)s,"
@@ -760,6 +780,7 @@ class DeviceLifeCycleHandler(object):
         status = 'ERROR'
         desc = 'Licensing failed for device'
         self._update_network_service_device_db(device, status, desc)
+        device['network_service_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
 
