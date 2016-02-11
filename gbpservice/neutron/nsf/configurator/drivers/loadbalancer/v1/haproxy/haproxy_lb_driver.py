@@ -39,7 +39,7 @@ REQUEST_TIMEOUT = 10
 LOG = logging.getLogger(__name__)
 
 
-class LBGenericConfigDriver(object):
+class HAProxyOnVMGenConfigDriver(object):
 
     RPC_API_VERSION = '1.0'
 
@@ -65,7 +65,7 @@ class LBGenericConfigDriver(object):
         return None
 
 
-class LBaasDriver(object):
+class HaproxyOnVmDriver(object):
     def __init__(self, conf, plugin_rpc):
         self.conf = conf
         self.context = context.get_admin_context_without_session()

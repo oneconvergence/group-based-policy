@@ -10,8 +10,9 @@ from gbpservice.neutron.nsf.configurator.lib import lb_constants as const
 from gbpservice.neutron.nsf.core.main import Event
 from gbpservice.neutron.nsf.core.main import RpcAgent
 #from gbpservice.neutron.nsf.configurator.lib.filter import Filter
+from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
 from gbpservice.neutron.nsf.configurator.drivers.loadbalancer.v1.\
-    haproxy.haproxy_lb_driver import LBaasDriver, LBGenericConfigDriver
+ haproxy.haproxy_lb_driver import HaproxyOnVmDriver, HAProxyOnVMGenConfigDriver
 
 LOG = logging.getLogger(__name__)
 
@@ -37,28 +38,6 @@ class LBaasRpcSender(object):
         self.context = context
         self.host = host
 
-    def get_ready_devices(self):
-        return self.call(
-            self.context,
-            self.make_msg('get_ready_devices', host=self.host)
-        )
-
-    def pool_destroyed(self, pool_id):
-        '''TODO:(pritam) Enqueue event in ResponseQ
-        '''
-        return self.call(
-            self.context,
-            self.make_msg('pool_destroyed', pool_id=pool_id)
-        )
-
-    def pool_deployed(self, pool_id):
-        '''TODO:(pritam) Enqueue event in ResponseQ
-        '''
-        return self.call(
-            self.context,
-            self.make_msg('pool_deployed', pool_id=pool_id)
-        )
-
     def get_logical_device(self, pool_id):
         # Call goes to filter library
         return self.call(
@@ -78,22 +57,6 @@ class LBaasRpcSender(object):
                           status=status)
         )
 
-    def plug_vip_port(self, port_id):
-        '''TODO:(pritam) Enqueue event in ResponseQ
-        '''
-        return self.call(
-            self.context,
-            self.make_msg('plug_vip_port', port_id=port_id, host=self.host)
-        )
-
-    def unplug_vip_port(self, port_id):
-        '''TODO:(pritam) Enqueue event in ResponseQ
-        '''
-        return self.call(
-            self.context,
-            self.make_msg('unplug_vip_port', port_id=port_id, host=self.host)
-        )
-
     def update_pool_stats(self, pool_id, stats):
         '''TODO:(pritam) Enqueue event in ResponseQ
         '''
@@ -105,23 +68,6 @@ class LBaasRpcSender(object):
                 stats=stats,
                 host=self.host
             )
-        )
-
-    def get_device_driver_for_pool(self, pool_id):
-        '''TODO:(pritam) Enqueue event in ResponseQ
-        '''
-        return self.call(
-            self.context,
-            self.make_msg('get_device_driver_for_pool', pool_id=pool_id)
-        )
-
-    def get_pending_delete_resources(self):
-        '''TODO:(pritam) Enqueue event in ResponseQ or
-           handle it in different way as this is agent restart case
-        '''
-        return self.call(
-            self.context,
-            self.make_msg('get_pending_delete_resources', host=self.host)
         )
 
     def resource_deleted(self, obj_type, obj_id):
@@ -234,8 +180,15 @@ class LBaasRpcReceiver(object):
         ev = self._sc.event(id='DELETE_POOL_HEALTH_MONITOR', data=arg_dict)
         self._sc.rpc_event(ev)
 
+    def agent_updated(self, context, payload):
+        """Handle the agent_updated notification event."""
+        arg_dict = {'context': context,
+                    'payload': payload}
+        ev = self._sc.event(id='AGENT_UPDATED', data=arg_dict)
+        self._sc.rpc_event(ev)
 
-class LBaasHandler(object):
+
+class LBaasHandler(core_periodic_task.PeriodicTasks):
     """Handler class for demultiplexing LBaaS rpc requests
     from LBaaS plugin and sending to appropriate driver.
     """
@@ -244,38 +197,43 @@ class LBaasHandler(object):
         self._sc = sc
         self.drivers = drivers
         self.context = context.get_admin_context_without_session()
-        self.plugin_rpc = LBaasRpcSender(const.LB_RPC_TOPIC,
+        self.plugin_rpc = LBaasRpcSender(const.LBAAS_AGENT_RPC_TOPIC,
                                          self.context,
                                          cfg.CONF.host)
+        self.instance_mapping = {}
 
-    def _get_driver(self, data):
-        """TODO(pritam): Do demultiplexing logic based on vendor
-           when a new vendor comes.
-        """
-        return self.drivers['lb_haproxy']
+    def _get_driver(self, pool_id):
+        if pool_id not in self.instance_mapping:
+            raise DeviceNotFoundOnAgent(pool_id=pool_id)
+
+        driver_name = self.instance_mapping[pool_id]
+        return self.device_drivers[driver_name]
 
     def handle_event(self, ev):
         try:
             msg = ("Worker process with ID: %s starting "
                    "to handle task: %s of topic: %s. "
-                   % (os.getpid(), ev.id, const.LB_RPC_TOPIC))
+                   % (os.getpid(), ev.id, const.LBAAS_AGENT_RPC_TOPIC))
             LOG.debug(msg)
 
-            data = ev.data
             method = getattr(self, "_%s" % (ev.id.lower()))
-            method(data)
+            method(ev)
         except Exception as err:
             LOG.error("Failed to perform the operation: %s. %s"
                       % (ev.id, str(err).capitalize()))
         finally:
-            self._sc.event_done(ev)
+            if ev.id == 'COLLECT_STATS':
+                '''Do not say event done for collect stats as it is
+                   to be executed forever
+                '''
+                pass
+            else:
+                self._sc.event_done(ev)
 
-    def _create_vip(self, data):
+    def _create_vip(self, ev):
+        data = ev.data
         vip = data['vip']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(vip['pool_id'])
-        '''
-        driver = self._get_driver(data)
         try:
             driver.create_vip(vip)
         except Exception:
@@ -285,13 +243,11 @@ class LBaasHandler(object):
             self.plugin_rpc.update_status('vip', vip['id'],
                                           const.ACTIVE)
 
-    def _update_vip(self, data):
+    def _update_vip(self, ev):
+        data = ev.data
         old_vip = data['old_vip']
         vip = data['vip']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(vip['pool_id'])
-        '''
-        driver = self._get_driver(data)
         try:
             driver.update_vip(old_vip, vip)
         except Exception:
@@ -301,14 +257,12 @@ class LBaasHandler(object):
             self.plugin_rpc.update_status('vip', vip['id'],
                                           const.ACTIVE)
 
-    def _delete_vip(self, data):
+    def _delete_vip(self, ev):
+        data = ev.data
         vip = data['vip']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(vip['pool_id'])
-        '''
-        driver = self._get_driver(data)
         try:
-            driver.create_vip(vip)
+            driver.delete_vip(vip)
         except Exception:
             LOG.warn(_("Failed to delete vip %s"), vip['id'])
         try:
@@ -318,17 +272,16 @@ class LBaasHandler(object):
                         '  at plugin.Failed in plugin RPC. Error: %s'
                         % ('vip', vip['id'], err)))
 
-    def _create_pool(self, data):
+    def _create_pool(self, ev):
+        data = ev.data
         pool = data['pool']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver_name = data['driver_name']
         if driver_name not in self.drivers:
             LOG.error(_('No device driver on agent: %s.'), driver_name)
             self.plugin_rpc.update_status('pool', pool['id'],
                                           const.ERROR)
             return
-        '''
-        driver = self._get_driver(data)
+        driver = self.drivers[driver_name]
         try:
             driver.create_pool(pool)
         except Exception:
@@ -336,19 +289,15 @@ class LBaasHandler(object):
                                             pool['id'],
                                             driver.get_name())
         else:
-            '''TODO:(pritam)
             self.instance_mapping[pool['id']] = driver_name
-            '''
             self.plugin_rpc.update_status('pool', pool['id'],
                                           const.ACTIVE)
 
-    def _update_pool(self, data):
+    def _update_pool(self, ev):
+        data = ev.data
         old_pool = data['old_pool']
         pool = data['pool']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(pool['id'])
-        '''
-        driver = self._get_driver(data)
         try:
             driver.update_pool(old_pool, pool)
         except Exception:
@@ -360,12 +309,10 @@ class LBaasHandler(object):
             self.plugin_rpc.update_status('pool', pool['id'],
                                           const.ACTIVE)
 
-    def _delete_pool(self, data):
+    def _delete_pool(self, ev):
+        data = ev.data
         pool = data['pool']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(pool['id'])
-        '''
-        driver = self._get_driver(data)
         try:
             driver.delete_pool(pool)
         except Exception:
@@ -378,12 +325,10 @@ class LBaasHandler(object):
                         '  at plugin.Failed in plugin RPC. Error: %s'
                         % ('pool', pool['id'], err)))
 
-    def _create_member(self, data):
+    def _create_member(self, ev):
+        data = ev.data
         member = data['member']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(member['pool_id'])
-        '''
-        driver = self._get_driver(data)
         try:
             driver.create_member(member)
         except Exception:
@@ -394,13 +339,11 @@ class LBaasHandler(object):
             self.plugin_rpc.update_status('member', member['id'],
                                           const.ACTIVE)
 
-    def _update_member(self, data):
+    def _update_member(self, ev):
+        data = ev.data
         old_member = data['old_member']
         member = data['member']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(member['pool_id'])
-        '''
-        driver = self._get_driver(data)
         try:
             driver.update_member(old_member, member)
         except Exception:
@@ -411,12 +354,10 @@ class LBaasHandler(object):
             self.plugin_rpc.update_status('member', member['id'],
                                           const.ACTIVE)
 
-    def _delete_member(self, data):
+    def _delete_member(self, ev):
+        data = ev.data
         member = data['member']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(member['pool_id'])
-        '''
-        driver = self._get_driver(data)
         try:
             driver.delete_member(member)
         except Exception:
@@ -428,15 +369,13 @@ class LBaasHandler(object):
                         '  at plugin.Failed in plugin RPC. Error: %s'
                         % ('member', member['id'], err)))
 
-    def _create_pool_health_monitor(self, data):
+    def _create_pool_health_monitor(self, ev):
+        data = ev.data
         health_monitor = data['health_monitor']
         pool_id = data['pool_id']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(pool_id)
-        '''
         assoc_id = {'pool_id': pool_id,
                     'monitor_id': health_monitor['id']}
-        driver = self._get_driver(data)
         try:
             driver.create_pool_health_monitor(health_monitor, pool_id)
         except Exception:
@@ -446,16 +385,14 @@ class LBaasHandler(object):
             self.plugin_rpc.update_status(
                 'health_monitor', assoc_id, const.ACTIVE)
 
-    def _update_pool_health_monitor(self, data):
+    def _update_pool_health_monitor(self, ev):
+        data = ev.data
         old_health_monitor = data['old_health_monitor']
         health_monitor = data['health_monitor']
         pool_id = data['pool_id']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(pool_id)
-        '''
         assoc_id = {'pool_id': pool_id,
                     'monitor_id': health_monitor['id']}
-        driver = self._get_driver(data)
         try:
             driver.update_pool_health_monitor(old_health_monitor,
                                               health_monitor,
@@ -467,15 +404,13 @@ class LBaasHandler(object):
             self.plugin_rpc.update_status(
                 'health_monitor', assoc_id, const.ACTIVE)
 
-    def _delete_pool_health_monitor(self, data):
+    def _delete_pool_health_monitor(self, ev):
+        data = ev.data
         health_monitor = data['health_monitor']
         pool_id = data['pool_id']
-        ''' TODO:(pritam) select vendor specific driver for multiple vendors
         driver = self._get_driver(pool_id)
-        '''
         assoc_id = {'pool_id': pool_id,
                     'monitor_id': health_monitor['id']}
-        driver = self._get_driver(data)
         try:
             driver.delete_pool_health_monitor(health_monitor, pool_id)
         except Exception:
@@ -490,6 +425,10 @@ class LBaasHandler(object):
                         '  at plugin.Failed in plugin RPC. Error: %s'
                         % ('health_monitor', assoc_id, err)))
 
+    def _agent_updated(self, ev):
+        """ TODO:(pritam): Support """
+        return None
+
     def _handle_failed_driver_call(self, operation, obj_type, obj_id, driver):
         LOG.exception(_('%(operation)s %(obj)s %(id)s failed on device driver '
                         '%(driver)s'),
@@ -497,36 +436,11 @@ class LBaasHandler(object):
                        'id': obj_id, 'driver': driver})
         self.plugin_rpc.update_status(obj_type, obj_id, const.ERROR)
 
-    """
-    # Framework will support this
-    def _setup_state_rpc(self):
-        self.state_rpc = agent_rpc.PluginReportStateAPI(
-            topics.LOADBALANCER_PLUGIN)
-        report_interval = self.conf.AGENT.report_interval
-        if report_interval:
-            heartbeat = loopingcall.FixedIntervalLoopingCall(
-                self._report_state)
-            heartbeat.start(interval=report_interval)
+    def _collect_stats(self, ev):
+        self._sc.poll_event(ev)
 
-    def _report_state(self):
-        try:
-            instance_count = len(self.instance_mapping)
-            self.agent_state['configurations']['instances'] = instance_count
-            self.state_rpc.report_state(self.context,
-                                        self.agent_state)
-            self.agent_state.pop('start_flag', None)
-        except Exception:
-            LOG.exception(_("Failed reporting state!"))
-
-    def initialize_service_hook(self, started_by):
-        LOG.debug(_("[LB Agent] Initialize service hook."))
-        # self.sync_state()
-
-    # init_complete() periodic event
-    @periodic_task.periodic_task(spacing=60)
-    def collect_stats(self, context):
-        if not self.pending_resources_sync_done:
-            return
+    @core_periodic_task.periodic_task(event='COLLECT_STATS', spacing=60)
+    def collect_stats(self, ev):
         for pool_id, driver_name in self.instance_mapping.items():
             driver = self.device_drivers[driver_name]
             try:
@@ -536,23 +450,6 @@ class LBaasHandler(object):
             except Exception:
                 LOG.exception(_('Error updating statistics on pool %s'),
                               pool_id)
-                self.needs_resync = True
-
-    def _get_driver(self, pool_id):
-        if pool_id not in self.instance_mapping:
-            try:
-                self.instance_mapping[pool_id] = (
-                        self.plugin_rpc.get_device_driver_for_pool(pool_id))
-            except Exception as err:
-                LOG.exception(_('Unable to update cache with device driver'
-                                ' for pool %s. Failed in RPC to plugin.'
-                                ' Error: %s'
-                                % (pool_id, err)))
-                raise DeviceNotFoundOnAgent(pool_id=pool_id)
-
-        driver_name = self.instance_mapping[pool_id]
-        return self.device_drivers[driver_name]
-    """
 
 
 class LBGenericConfigRpcReceiver(object):
@@ -577,6 +474,7 @@ class LBGenericConfigRpcReceiver(object):
     def clear_interfaces(self, context, vm_mgmt_ip, service_vendor,
                          provider_interface_position,
                          stitching_interface_position):
+        '''TODO:(pritam) receive all arguments in kwargs '''
         arg_dict = {'context': context,
                     'vm_mgmt_ip': vm_mgmt_ip,
                     'service_vendor': service_vendor,
@@ -589,6 +487,7 @@ class LBGenericConfigRpcReceiver(object):
     def configure_source_routes(self, context, vm_mgmt_ip, service_vendor,
                                 source_cidrs, destination_cidr, gateway_ip,
                                 provider_interface_position):
+        '''TODO:(pritam) receive all arguments in kwargs '''
         arg_dict = {'context': context,
                     'vm_mgmt_ip': vm_mgmt_ip,
                     'service_vendor': service_vendor,
@@ -602,6 +501,7 @@ class LBGenericConfigRpcReceiver(object):
 
     def clear_source_routes(self, context, vm_mgmt_ip, service_vendor,
                             source_cidrs, provider_interface_position):
+        '''TODO:(pritam) receive all arguments in kwargs '''
         arg_dict = {'context': context,
                     'vm_mgmt_ip': vm_mgmt_ip,
                     'service_vendor': service_vendor,
@@ -625,14 +525,14 @@ class LBaasGenericConfigHandler():
         """TODO:(pritam) Do demultiplexing logic based on vendor
            when a different vendor comes.
         """
-        return self.drivers["lb_gen_config"]
+        return self.drivers["haproxy_on_vm_gen_config"]
 
     def handle_event(self, ev):
         try:
             msg = ("Worker process with ID: %s starting "
                    "to handle task: %s of topic: %s. "
                    % (os.getpid(), ev.id,
-                      const.LB_GENERIC_CONFIG_RPC_TOPIC))
+                      const.LBAAS_GENERIC_CONFIG_RPC_TOPIC))
             LOG.debug(msg)
 
             driver = self._get_driver(ev.data)
@@ -645,21 +545,31 @@ class LBaasGenericConfigHandler():
             self._sc.event_done(ev)
 
 
-def _create_rpc_agent(sc, topic, manager):
-    return RpcAgent(sc,
-                    host=cfg.CONF.host,
-                    topic=topic,
-                    manager=manager)
+def _create_rpc_agent(sc, topic, manager, agent_state=None):
+    return RpcAgent(sc, cfg.CONF.host, topic, manager, agent_state)
 
 
 def rpc_init(sc, conf):
+
+    agent_state = {
+        'binary': 'nsf-lb-module',
+        'host': conf.host,
+        'topic': const.LBAAS_AGENT_RPC_TOPIC,
+        'report_interval': 10,
+        'plugin_topic': const.LBAAS_PLUGIN_RPC_TOPIC,
+        'configurations': {'device_drivers': 'haproxy_on_vm'},
+        'agent_type': const.AGENT_TYPE_LOADBALANCER,
+        'start_flag': True,
+    }
+
     lb_rpc_mgr = LBaasRpcReceiver(conf, sc)
     lb_generic_rpc_mgr = LBGenericConfigRpcReceiver(conf, sc)
 
-    lb_agent = _create_rpc_agent(sc, const.LB_RPC_TOPIC, lb_rpc_mgr)
+    lb_agent = _create_rpc_agent(sc, const.LBAAS_AGENT_RPC_TOPIC, lb_rpc_mgr,
+                                 agent_state)
     lb_generic_agent = _create_rpc_agent(
                                     sc,
-                                    const.LB_GENERIC_CONFIG_RPC_TOPIC,
+                                    const.LBAAS_GENERIC_CONFIG_RPC_TOPIC,
                                     lb_generic_rpc_mgr)
 
     sc.register_rpc_agents([lb_agent, lb_generic_agent])
@@ -686,6 +596,8 @@ def events_init(sc, drivers):
                                                                 sc, drivers)),
         Event(id='DELETE_POOL_HEALTH_MONITOR', handler=LBaasHandler(
                                                                 sc, drivers)),
+        Event(id='AGENT_UPDATED', handler=LBaasHandler(sc, drivers)),
+        Event(id='COLLECT_STATS', handler=LBaasHandler(sc, drivers)),
 
         # Events for Generic configuration RPCs coming from Orchestrator
         Event(id='CONFIGURE_INTERFACES', handler=LBaasGenericConfigHandler(
@@ -706,13 +618,23 @@ def load_drivers():
          detection from the driver directory and instantiate objects out of it.
     '''
     ctxt = context.get_admin_context_without_session()
-    plugin_rpc = LBaasRpcSender(const.LB_RPC_TOPIC,
+    plugin_rpc = LBaasRpcSender(const.LBAAS_AGENT_RPC_TOPIC,
                                 ctxt,
                                 cfg.CONF.host)
 
-    drivers = {'lb_haproxy': LBaasDriver(None, plugin_rpc),
-               'lb_gen_config': LBGenericConfigDriver()}
+    drivers = {'haproxy_on_vm': HaproxyOnVmDriver(None, plugin_rpc),
+               'haproxy_on_vm_gen_config': HAProxyOnVMGenConfigDriver()}
     return drivers
+
+
+def _start_collect_stats(sc):
+    arg_dict = {}
+    ev = sc.event(id='COLLECT_STATS', data=arg_dict)
+    sc.rpc_event(ev)
+
+
+def init_complete(sc, conf):
+    _start_collect_stats(sc)
 
 
 def module_init(sc, conf):
@@ -734,8 +656,8 @@ def module_init(sc, conf):
         LOG.debug("Events initialization successful.")
 
     msg = ("RPC topics are: %s and %s."
-           % (const.LB_RPC_TOPIC,
-              const.LB_GENERIC_CONFIG_RPC_TOPIC))
+           % (const.LBAAS_AGENT_RPC_TOPIC,
+              const.LBAAS_GENERIC_CONFIG_RPC_TOPIC))
     try:
         rpc_init(sc, conf)
     except Exception as err:

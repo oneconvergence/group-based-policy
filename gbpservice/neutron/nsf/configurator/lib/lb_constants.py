@@ -1,6 +1,7 @@
-LB_RPC_TOPIC = 'lbaas'
-LB_GENERIC_CONFIG_RPC_TOPIC = 'lbaas_generic_config'
-
+LBAAS_AGENT_RPC_TOPIC = 'lbaas_agent'
+LBAAS_GENERIC_CONFIG_RPC_TOPIC = 'lbaas_generic_config'
+LBAAS_PLUGIN_RPC_TOPIC = 'n-lbaas-plugin'
+AGENT_TYPE_LOADBALANCER = 'OC Loadbalancer agent'
 
 # Service operation status constants
 ACTIVE = "ACTIVE"
