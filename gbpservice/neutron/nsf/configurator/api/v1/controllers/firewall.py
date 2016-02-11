@@ -8,12 +8,12 @@ from v1.handlers.rpc import FwaasRpc
 import constants
 
 
-class FWaasController(rest.RestController):
+class FwaasController(rest.RestController):
     """REST call handler for Firewall"""
 
     def __init__(self):
         self.fwaas_handler = FwaasRpc(topic=constants.FWAAS_RPC_TOPIC)
-        super(FWaasController, self).__init__()
+        super(FwaasController, self).__init__()
 
     @expose(method='POST', content_type='application/json')
     def post(self, **body):

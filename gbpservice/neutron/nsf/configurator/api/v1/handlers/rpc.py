@@ -29,7 +29,7 @@ class FwaasRpc(object):
         self.client = n_rpc.get_client(target)
 
     def create_firewall(self, context, firewall, host):
-        cctxt = self.client.prepare(server=host)
+        cctxt = self.client.prepare(host)
         return cctxt.cast(
             self,
             'create_firewall',
@@ -40,20 +40,19 @@ class FwaasRpc(object):
     def update_firewall(self, context, firewall, host):
         cctxt = self.client.prepare(server=host)
         return cctxt.cast(
-            self,
+            context,
             'update_firewall',
-            firewall=firewall,
-            host=host)
+            firewall,
+            host)
         
 
     def delete_firewall(self, context, firewall, host):
-        cctxt = self.client.prepare(server=host)
+        cctxt = self.client.prepare(host)
         return cctxt.cast(
-            self,
+            context,
             'delete_firewall',
-            firewall=firewall,
-            host=host)
+            firewall,
+            host)
     
-    def to_dict(self):
-        return {}      
+     
 
