@@ -111,7 +111,7 @@ class Test_Process_Model(unittest.TestCase):
 		serialized_event1 = self.sc.serialize(event1)
 		self.assertEqual(serialized_event1, event1) 
 
-	@patch('gbpservice.neutron.nsf.core.main.Serializer')    
+	@patch('gbpservice.neutron.nsf.core.main.Serializer')
 	def test_serializer_serialize(self, mocked_serializer):
 		event1 = self.mock_event(
 			id='SERVICE_CREATE', data=self.service1,
