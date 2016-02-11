@@ -36,7 +36,7 @@ class RpcCallback(core_pt.PeriodicTasks):
                 method = getattr(clazz, rpc_cb['method'])
                 method(**rpc_cb['data'])
             except AttributeError:
-                print "AttributeError while handling message" %(rpc_cb)
+                print "AttributeError while handling message" % (rpc_cb)
             except Exception as e:
                 print "Generic exception (%s) \
                     while handling message (%s)" % (e, rpc_cb)
