@@ -336,7 +336,10 @@ class ServiceLifeCycleHandler(object):
                 provider_port = self.neutronclient.get_port(admin_token,
                         port_id)['port']
 
-        policy_target_group = self.get_provider_policy_target_group(provider_port)
+        policy_target = self.gbpclient.get_policy_target(
+            admin_token, policy_target_id)
+        policy_target_group = self.gbpclient.get_policy_target_group(
+            admin_token, policy_target['policy_target_group_id'])
 
         service_details = {
             'service_profile': service_profile,
