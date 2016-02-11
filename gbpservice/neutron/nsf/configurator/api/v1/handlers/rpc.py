@@ -31,7 +31,7 @@ class FwaasRpc(object):
     def create_firewall(self, context, firewall, host):
         cctxt = self.client.prepare(host)
         return cctxt.cast(
-            self,
+            context,
             'create_firewall',
             firewall=firewall,
             host=host)
