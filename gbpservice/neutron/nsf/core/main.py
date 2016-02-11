@@ -142,7 +142,7 @@ class ReportStateTask(oslo_periodic_task.PeriodicTasks):
         self._sc = sc
         pulse = loopingcall.FixedIntervalLoopingCall(
             self.run_periodic_tasks, None, None)
-        pulse.start(interval=1, initial_delay=None)
+        pulse.start(interval=cfg.CONF.reportstate_interval, initial_delay=None)
 
     @oslo_periodic_task.periodic_task(spacing=5)
     def report_state(self, context):
@@ -157,7 +157,7 @@ class PeriodicTask(oslo_periodic_task.PeriodicTasks):
         self._sc = sc
         pulse = loopingcall.FixedIntervalLoopingCall(
             self.run_periodic_tasks, None, None)
-        pulse.start(interval=1, initial_delay=None)
+        pulse.start(interval=cfg.CONF.periodic_interval, initial_delay=None)
 
     @oslo_periodic_task.periodic_task(spacing=1)
     def periodic_sync_task(self, context):
