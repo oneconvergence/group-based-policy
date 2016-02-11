@@ -21,7 +21,10 @@ from webob import exc
 
 from gbpservice.neutron.extensions import servicechain
 from gbpservice.neutron.tests.unit import common as cm
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin
 
 _uuid = uuidutils.generate_uuid
 _get_path = test_base._get_path

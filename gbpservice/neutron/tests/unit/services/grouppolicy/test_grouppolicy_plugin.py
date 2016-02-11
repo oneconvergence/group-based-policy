@@ -12,9 +12,17 @@
 # limitations under the License.
 
 import mock
+<<<<<<< HEAD
 from neutron import context
 from neutron.tests.unit.plugins.ml2 import test_plugin
 from oslo_config import cfg
+=======
+
+from neutron import context
+from neutron import manager
+from neutron.tests.unit.ml2 import test_ml2_plugin as test_plugin
+from oslo.config import cfg
+>>>>>>> origin
 import webob.exc
 
 from gbpservice.neutron.extensions import group_policy as gpolicy
@@ -32,6 +40,12 @@ GP_PLUGIN_KLASS = (
 )
 SERVICECHAIN_SPECS = 'servicechain/servicechain_specs'
 SERVICECHAIN_NODES = 'servicechain/servicechain_nodes'
+<<<<<<< HEAD
+=======
+AGENT_TYPE = 'Open vSwitch agent'
+AGENT_CONF = {'alive': True, 'binary': 'somebinary',
+              'topic': 'sometopic', 'agent_type': AGENT_TYPE}
+>>>>>>> origin
 
 
 class FakeDriver(object):
@@ -45,8 +59,12 @@ class FakeDriver(object):
 
 class GroupPolicyPluginTestCase(tgpmdb.GroupPolicyMappingDbTestCase):
 
+<<<<<<< HEAD
     def setUp(self, core_plugin=None, gp_plugin=None, ml2_options=None,
               sc_plugin=None):
+=======
+    def setUp(self, core_plugin=None, gp_plugin=None, ml2_options=None):
+>>>>>>> origin
         if not gp_plugin:
             gp_plugin = GP_PLUGIN_KLASS
         ml2_opts = ml2_options or {'mechanism_drivers': ['openvswitch']}
@@ -54,8 +72,14 @@ class GroupPolicyPluginTestCase(tgpmdb.GroupPolicyMappingDbTestCase):
             cfg.CONF.set_override(opt, val, 'ml2')
         core_plugin = core_plugin or test_plugin.PLUGIN_NAME
         super(GroupPolicyPluginTestCase, self).setUp(core_plugin=core_plugin,
+<<<<<<< HEAD
                                                      gp_plugin=gp_plugin,
                                                      sc_plugin=sc_plugin)
+=======
+                                                     gp_plugin=gp_plugin)
+        cfg.CONF.set_override('servicechain_drivers', ['dummy'],
+                              group='servicechain')
+>>>>>>> origin
 
     def test_reverse_on_delete(self):
         manager = self.plugin.policy_driver_manager
@@ -146,6 +170,7 @@ class GroupPolicyPluginTestCase(tgpmdb.GroupPolicyMappingDbTestCase):
         scn_id = node['servicechain_node']['id']
         return scn_id
 
+<<<<<<< HEAD
     def _get_object(self, type, id, api, expected_res_status=None):
         req = self.new_show_request(type, id, self.fmt)
         res = req.get_response(api)
@@ -156,6 +181,30 @@ class GroupPolicyPluginTestCase(tgpmdb.GroupPolicyMappingDbTestCase):
             raise webob.exc.HTTPClientError(code=res.status_int)
 
         return self.deserialize(self.fmt, res)
+=======
+    def _bind_port_to_host(self, port_id, host):
+        plugin = manager.NeutronManager.get_plugin()
+        ctx = context.get_admin_context()
+        agent = {'host': host}
+        agent.update(AGENT_CONF)
+        plugin.create_or_update_agent(ctx, agent)
+        data = {'port': {'binding:host_id': host, 'device_owner': 'a',
+                         'device_id': 'b'}}
+        # Create EP with bound port
+        req = self.new_update_request('ports', data, port_id,
+                                      self.fmt)
+        return self.deserialize(self.fmt, req.get_response(self.api))
+
+    def _unbind_port(self, port_id):
+        data = {'port': {'binding:host_id': ''}}
+        req = self.new_update_request('ports', data, port_id,
+                                      self.fmt)
+        return self.deserialize(self.fmt, req.get_response(self.api))
+
+    def _get_object(self, type, id, api):
+        req = self.new_show_request(type, id, self.fmt)
+        return self.deserialize(self.fmt, req.get_response(api))
+>>>>>>> origin
 
 
 class TestL3Policy(GroupPolicyPluginTestCase):
@@ -654,6 +703,7 @@ class TestPolicyTargetGroup(GroupPolicyPluginTestCase):
         self.assertEqual('ManagementPolicyTargetGroupExists',
                          res['NeutronError']['type'])
 
+<<<<<<< HEAD
     def test_update_l2p_rejectet(self):
         l2p_1 = self.create_l2_policy()['l2_policy']
         l2p_2 = self.create_l2_policy()['l2_policy']
@@ -665,6 +715,8 @@ class TestPolicyTargetGroup(GroupPolicyPluginTestCase):
         self.assertEqual('L2PolicyUpdateOfPolicyTargetGroupNotSupported',
                          res['NeutronError']['type'])
 
+=======
+>>>>>>> origin
 
 class TestExternalSegment(GroupPolicyPluginTestCase):
 
@@ -910,6 +962,57 @@ class TestPolicyAction(GroupPolicyPluginTestCase):
         self.create_policy_action(
             action_type='redirect', action_value=scs_id, shared=True,
             expected_res_status=201)
+        data = {'servicechain_spec': {'shared': False}}
+        scs_req = self.new_update_request(
+            SERVICECHAIN_SPECS, data, scs_id, self.fmt)
+        res = self.deserialize(
+            self.fmt, scs_req.get_response(self.ext_api))
+        self.assertEqual(
+            'InvalidSharedAttributeUpdate', res['NeutronError']['type'])
+
+    def test_redirect_shared_create(self):
+        scs_id = self._create_servicechain_spec(
+            node_types=['FIREWALL_TRANSPARENT'], shared=True)
+        self.create_policy_action(action_type='redirect', action_value=scs_id,
+                                  shared=True, expected_res_status=201)
+
+
+class TestPolicyAction(GroupPolicyPluginTestCase):
+
+    def test_redirect_value_fails(self):
+        scs_id = self._create_servicechain_spec(
+            node_types=['FIREWALL_TRANSPARENT'])
+        res = self.create_policy_action(action_type='redirect',
+                                        action_value=scs_id, shared=True,
+                                        expected_res_status=400)
+        self.assertEqual(
+            'SharedResourceReferenceError', res['NeutronError']['type'])
+
+        res = self.create_policy_action(
+            action_type='redirect', action_value=scs_id, tenant_id='different',
+            expected_res_status=404)
+        self.assertEqual(
+            'ServiceChainSpecNotFound', res['NeutronError']['type'])
+
+        res = self.create_policy_action(
+            action_type='redirect', action_value=scs_id, tenant_id='different',
+            expected_res_status=400, is_admin_context=True)
+        self.assertEqual(
+            'InvalidCrossTenantReference', res['NeutronError']['type'])
+
+        res = self.create_policy_action(
+            action_type='redirect', action_value=scs_id,
+            expected_res_status=201)['policy_action']
+        res = self.update_policy_action(
+            res['id'], shared=True, expected_res_status=400)
+        self.assertEqual(
+            'SharedResourceReferenceError', res['NeutronError']['type'])
+
+        scs_id = self._create_servicechain_spec(
+            node_types=['FIREWALL_TRANSPARENT'], shared=True)
+        self.create_policy_action(
+            action_type='redirect', action_value=scs_id, shared=True,
+            expected_res_status=201)['policy_action']
         data = {'servicechain_spec': {'shared': False}}
         scs_req = self.new_update_request(
             SERVICECHAIN_SPECS, data, scs_id, self.fmt)

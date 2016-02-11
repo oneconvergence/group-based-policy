@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import mock
+import uuid
 
 from gbpservice.neutron.services.grouppolicy.common import constants
 from gbpservice.neutron.services.grouppolicy import config
@@ -20,9 +21,15 @@ from gbpservice.neutron.services.grouppolicy.drivers.odl import odl_mapping
 from gbpservice.neutron.services.grouppolicy.drivers import resource_mapping
 from gbpservice.neutron.services.grouppolicy import plugin as g_plugin
 from gbpservice.neutron.tests.unit.services.grouppolicy import (
+<<<<<<< HEAD
     test_grouppolicy_plugin as test_gp_plugin)
 from neutron.plugins.ml2 import plugin as ml2_plugin
 from neutron.tests.unit.plugins.ml2 import test_plugin
+=======
+    test_grouppolicy_plugin as test_plugin)
+from neutron.plugins.ml2 import plugin as ml2_plugin
+from neutron.tests.unit.ml2 import test_ml2_plugin
+>>>>>>> origin
 
 TENANT_ID = 'aaaabbbbccccaaaabbbbccccaaaabbbb'
 TENANT_UUID = 'aaaabbbb-cccc-aaaa-bbbb-ccccaaaabbbb'
@@ -217,7 +224,11 @@ class FakeGBPPlugin(object):
 
 
 class OdlMappingTestCase(
+<<<<<<< HEAD
         test_gp_plugin.GroupPolicyPluginTestCase):
+=======
+        test_plugin.GroupPolicyPluginTestCase):
+>>>>>>> origin
     """ Base test case for ODL mapping driver testing
 
     Set up the common testing environment
@@ -245,6 +256,24 @@ class OdlMappingTestCase(
             }
         )
 
+<<<<<<< HEAD
+=======
+        self.fake_core_plugin = FakeCorePlugin()
+        self.fake_gbp_plugin = FakeGBPPlugin()
+        self.driver = odl_mapping.OdlMappingDriver.get_initialized_instance()
+
+        self.fake_gbp_plugin.add_policy_action(
+            ACTION_1_ID,
+            {
+                'id': ACTION_1_ID,
+                'tenant_id': TENANT_ID,
+                'name': ACTION_1_NAME,
+                'description': ACTION_1_DESC,
+                'action_type': ACTION_1_TYPE,
+            }
+        )
+
+>>>>>>> origin
         self.fake_gbp_plugin.add_policy_action(
             ACTION_2_ID,
             {
@@ -255,6 +284,7 @@ class OdlMappingTestCase(
                 'action_type': ACTION_2_TYPE,
             }
         )
+<<<<<<< HEAD
 
         self.fake_gbp_plugin.add_policy_action(
             ACTION_3_ID,
@@ -267,6 +297,20 @@ class OdlMappingTestCase(
             }
         )
 
+=======
+
+        self.fake_gbp_plugin.add_policy_action(
+            ACTION_3_ID,
+            {
+                'id': ACTION_3_ID,
+                'tenant_id': TENANT_ID,
+                'name': ACTION_3_NAME,
+                'description': ACTION_3_DESC,
+                'action_type': ACTION_3_TYPE,
+            }
+        )
+
+>>>>>>> origin
         self.fake_gbp_plugin.add_policy_classifier(
             CLASSIFIER_1_ID,
             {
@@ -515,7 +559,11 @@ class PolicyTargetTestCase(OdlMappingTestCase):
                   'create_policy_target_postcommit')
     def test_create_policy_target_postcommit(
             self,
+<<<<<<< HEAD
             mock_create_policy_target_postcommit,
+=======
+            mock_create_policy_target_commit,
+>>>>>>> origin
             mock_register_endpoints,
             mock_get_port,
             mock_get_policy_target_group,
@@ -542,6 +590,7 @@ class PolicyTargetTestCase(OdlMappingTestCase):
         }
 
         self.driver.create_policy_target_postcommit(self.context)
+<<<<<<< HEAD
         mock_create_policy_target_postcommit.assert_called_once_with(
             self.context
         )
@@ -594,8 +643,61 @@ class PolicyTargetTestCase(OdlMappingTestCase):
             self.context
         )
         mock_unregister_endpoints.assert_called_once_with([ep])
+=======
+        mock_create_policy_target_commit.assert_called_once_with(self.context)
+        mock_register_endpoints.assert_called_once_with([ep])
+
+    def test_update_policy_target_precommit(self):
+        self.assertRaises(
+            odl_mapping.UpdatePTNotSupportedOnOdlDriver,
+            getattr(self.driver, 'update_policy_target_precommit'),
+            self.context
+        )
+>>>>>>> origin
+
+    @mock.patch.object(g_plugin.GroupPolicyPlugin, 'get_l2_policy')
+    @mock.patch.object(g_plugin.GroupPolicyPlugin, 'get_policy_target_group')
+    @mock.patch.object(ml2_plugin.Ml2Plugin, 'get_port')
+    @mock.patch.object(odl_manager.OdlManager, 'unregister_endpoints')
+    @mock.patch.object(resource_mapping.ResourceMappingDriver,
+                       'delete_policy_target_postcommit')
+    def test_delete_policy_target_postcommit(
+            self,
+            mock_delete_policy_target_commit,
+            mock_unregister_endpoints,
+            mock_get_port,
+            mock_get_policy_target_group,
+            mock_get_l2_policy):
+
+        # core_plugin and gbp_plugin are mocked and simulated by
+        # the fake core plugin and fake gbp plugin
+        mock_get_port.side_effect = self.fake_core_plugin.get_port
+        mock_get_policy_target_group.side_effect = (
+            self.fake_gbp_plugin.get_policy_target_group)
+        mock_get_l2_policy.side_effect = self.fake_gbp_plugin.get_l2_policy
+        ep = {
+            "l2": [
+                {
+                    "l2-context": L2P_ID,
+                    "mac-address": PORT_MAC
+                }
+            ],
+            "l3": [
+                {
+                    "ip-address": PORT_IP,
+                    "l3-context": L3P_ID
+                }
+            ],
+        }
+
+<<<<<<< HEAD
+=======
+        self.driver.delete_policy_target_postcommit(self.context)
+        mock_delete_policy_target_commit.assert_called_once_with(self.context)
+        mock_unregister_endpoints.assert_called_once_with([ep])
 
 
+>>>>>>> origin
 class L3PolicyTestCase(OdlMappingTestCase):
     """ Test case for L3 policy operations
     """
@@ -741,10 +843,17 @@ class PolicyTargetGroupTestCase(OdlMappingTestCase):
             _plugin=self.fake_gbp_plugin
         )
 
+<<<<<<< HEAD
+=======
+    @mock.patch.object(g_plugin.GroupPolicyPlugin, 'get_policy_action')
+    @mock.patch.object(g_plugin.GroupPolicyPlugin, 'get_policy_classifier')
+    @mock.patch.object(g_plugin.GroupPolicyPlugin, 'get_policy_rule')
+>>>>>>> origin
     @mock.patch.object(g_plugin.GroupPolicyPlugin, 'get_policy_rule_set')
     @mock.patch.object(ml2_plugin.Ml2Plugin, 'get_subnet')
     @mock.patch.object(odl_manager.OdlManager, 'create_update_subnet')
     @mock.patch.object(odl_manager.OdlManager, 'create_update_endpoint_group')
+<<<<<<< HEAD
     @mock.patch.object(resource_mapping.ResourceMappingDriver,
                        'create_policy_target_group_postcommit')
     def test_create_policy_target_group_postcommit(
@@ -754,12 +863,29 @@ class PolicyTargetGroupTestCase(OdlMappingTestCase):
             mock_create_update_subnet,
             mock_get_subnet,
             mock_get_policy_rule_set):
+=======
+    @mock.patch.object(odl_manager.OdlManager, 'create_update_contract')
+    @mock.patch.object(resource_mapping.ResourceMappingDriver,
+                       'create_policy_target_group_postcommit')
+    def test_create_policy_target_postcommit(
+            self,
+            mock_create_policy_target_group_postcommit,
+            mock_create_update_contract,
+            mock_create_update_endpoint_group,
+            mock_create_update_subnet,
+            mock_get_subnet,
+            mock_get_policy_rule_set,
+            mock_get_policy_rule,
+            mock_get_policy_classifier,
+            mock_get_policy_action):
+>>>>>>> origin
 
         # core_plugin and gbp_plugin are mocked and simulated by
         # the fake core plugin and fake gbp plugin
         mock_get_subnet.side_effect = self.fake_core_plugin.get_subnet
         mock_get_policy_rule_set.side_effect = (self.fake_gbp_plugin.
                                                 get_policy_rule_set)
+<<<<<<< HEAD
 
         epg = {
             "id": GROUP_ID,
@@ -937,17 +1063,254 @@ class PolicyClassifierTestCase(OdlMappingTestCase):
         classifier_instance_1_source = {
             "classifier-definition-id": CLASSIFIER_1_DEFINITION_ID,
             "name": CLASSIFIER_1_NAME + "-sourceport",
+=======
+        mock_get_policy_rule.side_effect = (self.fake_gbp_plugin.
+                                            get_policy_rule)
+        mock_get_policy_classifier.side_effect = (self.fake_gbp_plugin.
+                                                  get_policy_classifier)
+        mock_get_policy_action.side_effect = (self.fake_gbp_plugin.
+                                              get_policy_action)
+
+        provided_contract_id = (
+            uuid.uuid3(uuid.NAMESPACE_DNS, RULE_SET_1_NAME).urn[9:])
+        provided_contract = {
+            "id": provided_contract_id,
+            "clause": [
+                {
+                    "name": RULE_SET_1_NAME,
+                    "subject-refs": [RULE_SET_1_NAME]
+                }
+            ],
+            "subject": [
+                {
+                    "name": RULE_SET_1_NAME,
+                    "rule": [
+                        {
+                            "name": RULE_1_NAME,
+                            "classifier-ref": [
+                                {
+                                    "name": CLASSIFIER_1_NAME + '-sourceport'
+                                },
+                                {
+                                    "name": CLASSIFIER_1_NAME + '-destport'
+                                }
+                            ]
+                        }
+
+                    ]
+                }
+            ]
+        }
+        consumed_contract_id = (
+            uuid.uuid3(uuid.NAMESPACE_DNS, RULE_SET_2_NAME).urn[9:])
+        consumed_contract = {
+            "id": consumed_contract_id,
+            "clause": [
+                {
+                    "name": RULE_SET_2_NAME,
+                    "subject-refs": [RULE_SET_2_NAME]
+                }
+            ],
+            "subject": [
+                {
+                    "name": RULE_SET_2_NAME,
+                    "rule": [
+                        {
+                            "name": RULE_2_NAME,
+                            "classifier-ref": [
+                                {
+                                    "name": CLASSIFIER_2_NAME + '-sourceport',
+                                    "direction": 'out'
+                                },
+                                {
+                                    "name": CLASSIFIER_2_NAME + '-destport',
+                                    "direction": 'in'
+                                },
+                            ]
+                        }
+
+                    ]
+                }
+            ]
+        }
+        epg = {
+            "id": GROUP_ID,
+            "name": GROUP_NAME,
+            "network-domain": SUBNET_ID,
+            "provider-named-selector": {
+                "name": 'Contract-' + provided_contract_id,
+                "contract": provided_contract_id
+            },
+            "consumer-named-selector": {
+                "name": 'Contract-' + consumed_contract_id,
+                "contract": consumed_contract_id
+            }
+        }
+        odl_subnet = {
+            "id": SUBNET_ID,
+            "ip-prefix": SUBNET_CIDR,
+            "parent": NETWORK_ID,
+            "virtual-router-ip": SUBNET_GATEWAY_IP
+        }
+
+        self.driver.create_policy_target_group_postcommit(self.context)
+        mock_create_policy_target_group_postcommit.assert_called_once_with(
+            self.context)
+        mock_create_update_contract.assert_any_call(TENANT_UUID,
+                                                    provided_contract)
+        mock_create_update_contract.assert_any_call(TENANT_UUID,
+                                                    consumed_contract)
+        mock_create_update_endpoint_group.assert_called_once_with(TENANT_UUID,
+                                                                  epg)
+        mock_create_update_subnet.assert_called_once_with(TENANT_UUID,
+                                                          odl_subnet)
+
+    def test_update_policy_target_group_precommit(self):
+        self.assertRaises(
+            odl_mapping.UpdatePTGNotSupportedOnOdlDriver,
+            getattr(self.driver, 'update_policy_target_group_precommit'),
+            self.context
+        )
+
+    @mock.patch.object(odl_mapping.OdlMappingDriver, '_cleanup_subnet')
+    @mock.patch.object(odl_manager.OdlManager, 'delete_endpoint_group')
+    @mock.patch.object(odl_manager.OdlManager, 'delete_subnet')
+    def test_delete_policy_target_group_postcommit(
+            self,
+            mock_delete_subnet,
+            mock_delete_endpoint_group,
+            mock__cleanup_subnet):
+
+        odl_subnet = {
+            "id": SUBNET_ID
+        }
+        epg = {
+            "id": GROUP_ID
+        }
+
+        self.driver.delete_policy_target_group_postcommit(self.context)
+        mock_delete_subnet.assert_called_once_with(TENANT_UUID, odl_subnet)
+        mock_delete_endpoint_group.assert_called_once_with(TENANT_UUID, epg)
+        mock__cleanup_subnet.assert_called_once_with(
+            self.context._plugin_context, SUBNET_ID, None)
+
+
+class PolicyActionTestCase(OdlMappingTestCase):
+    """ Test case for policy action operations
+    """
+
+    def setUp(self):
+        super(PolicyActionTestCase, self).setUp()
+        self.context_1 = mock.Mock(
+            current=self.fake_gbp_plugin.get_policy_action(
+                FAKE_CONTEXT,
+                ACTION_1_ID
+            ),
+            _plugin_context=FAKE_PLUGIN_CONTEXT,
+            _plugin=self.fake_gbp_plugin
+        )
+        self.context_3 = mock.Mock(
+            current=self.fake_gbp_plugin.get_policy_action(
+                FAKE_CONTEXT,
+                ACTION_3_ID
+            ),
+            _plugin_context=FAKE_PLUGIN_CONTEXT,
+            _plugin=self.fake_gbp_plugin
+        )
+
+    def test_create_policy_action_precommit(self):
+        # No exception should be raised
+        self.driver.create_policy_action_precommit(self.context_1)
+
+        # Exception should be raised only when ACTION is redirect
+        self.assertRaises(
+            odl_mapping.RedirectActionNotSupportedOnOdlDriver,
+            getattr(self.driver, 'create_policy_action_precommit'),
+            self.context_3
+        )
+
+    @mock.patch.object(resource_mapping.ResourceMappingDriver,
+                       'create_policy_action_postcommit')
+    def test_create_policy_action_postcommit(
+            self,
+            mock_create_policy_action_postcommit):
+
+        # Exception should be raised only when ACTION is redirect
+        self.driver.create_policy_action_postcommit(self.context_1)
+        mock_create_policy_action_postcommit.assert_called_once_with(
+            self.context_1)
+        self.assertRaises(
+            odl_mapping.OnlyAllowActionSupportedOnOdlDriver,
+            getattr(self.driver, 'create_policy_action_postcommit'),
+            self.context_3
+        )
+
+    def test_update_policy_action_precommit(self):
+        self.assertRaises(
+            odl_mapping.UpdatePolicyActionNotSupportedOnOdlDriver,
+            getattr(self.driver, 'update_policy_action_precommit'),
+            self.context_1
+        )
+
+    @mock.patch.object(resource_mapping.ResourceMappingDriver,
+                       'delete_policy_action_postcommit')
+    def test_delete_policy_action_postcommit(
+            self,
+            mock_delete_policy_action_postcommit):
+        self.driver.delete_policy_action_postcommit(self.context_1)
+        mock_delete_policy_action_postcommit.assert_called_once_with(
+            self.context_1)
+
+
+class PolicyClassifierTestCase(OdlMappingTestCase):
+    """ Test case for policy classifier operations
+    """
+
+    def setUp(self):
+        super(PolicyClassifierTestCase, self).setUp()
+        self.context_1 = mock.Mock(
+            current=self.fake_gbp_plugin.get_policy_classifier(
+                FAKE_CONTEXT,
+                CLASSIFIER_1_ID
+            ),
+            _plugin_context=FAKE_PLUGIN_CONTEXT,
+            _plugin=self.fake_gbp_plugin
+        )
+        self.context_3 = mock.Mock(
+            current=self.fake_gbp_plugin.get_policy_classifier(
+                FAKE_CONTEXT,
+                CLASSIFIER_3_ID
+            ),
+            _plugin_context=FAKE_PLUGIN_CONTEXT,
+            _plugin=self.fake_gbp_plugin
+        )
+
+    @mock.patch.object(odl_manager.OdlManager, 'create_classifier')
+    def test_create_policy_classifier_postcommit(
+            self,
+            mock_create_classifier):
+
+        # Ensure two classifiers are created in ODL for TCP
+        classifier_instance_1_dest = {
+            "classifier-definition-id": CLASSIFIER_1_DEFINITION_ID,
+            "name": CLASSIFIER_1_NAME + "-destport",
+>>>>>>> origin
             "parameter-value": [
                 {
                     "name": "type",
                     "string-value": CLASSIFIER_1_PROTOCOL
                 },
                 {
+<<<<<<< HEAD
                     "name": "sourceport",
+=======
+                    "name": "destport",
+>>>>>>> origin
                     "int-value": CLASSIFIER_1_PORT
                 }
             ]
         }
+<<<<<<< HEAD
         self.driver.create_policy_classifier_postcommit(self.context_1)
         mock_create_classifier.assert_any_call(TENANT_UUID,
                                                classifier_instance_1_source)
@@ -1115,6 +1478,116 @@ class PolicyRuleSetTestCase(OdlMappingTestCase):
         self.assertRaises(
             odl_mapping.PolicyRuleSetUpdateNotSupportedOnOdlDriver,
             getattr(self.driver, 'update_policy_rule_set_precommit'),
+=======
+        classifier_instance_1_source = {
+            "classifier-definition-id": CLASSIFIER_1_DEFINITION_ID,
+            "name": CLASSIFIER_1_NAME + "-sourceport",
+            "parameter-value": [
+                {
+                    "name": "type",
+                    "string-value": CLASSIFIER_1_PROTOCOL
+                },
+                {
+                    "name": "sourceport",
+                    "int-value": CLASSIFIER_1_PORT
+                }
+            ]
+        }
+        self.driver.create_policy_classifier_postcommit(self.context_1)
+        mock_create_classifier.assert_any_call(TENANT_UUID,
+                                               classifier_instance_1_source)
+        mock_create_classifier.assert_any_call(TENANT_UUID,
+                                               classifier_instance_1_dest)
+        mock_create_classifier.reset_mock()
+
+        # only one classifier for ICMP
+        classifier_instance_3 = {
+            "classifier-definition-id": CLASSIFIER_3_DEFINITION_ID,
+            "name": CLASSIFIER_3_NAME,
+            "parameter-value": [
+                {
+                    "name": "proto",
+                    "int-value": 1
+                }
+            ]
+        }
+        self.driver.create_policy_classifier_postcommit(self.context_3)
+        mock_create_classifier.assert_called_once_with(TENANT_UUID,
+                                                       classifier_instance_3)
+
+    def test_update_policy_classifier_precommit(self):
+        self.assertRaises(
+            odl_mapping.UpdateClassifierNotSupportedOnOdlDriver,
+            getattr(self.driver, 'update_policy_classifier_precommit'),
+            self.context_1
+        )
+
+    @mock.patch.object(odl_manager.OdlManager, 'delete_classifier')
+    def test_delete_policy_classifier_postcommit(
+            self,
+            mock_delete_classifier):
+
+        # Ensure both classifiers are deleted for TCP/UDP
+        classifier_instance_1_dest = {
+            "name": CLASSIFIER_1_NAME + "-destport"
+        }
+        classifier_instance_1_source = {
+            "name": CLASSIFIER_1_NAME + "-sourceport"
+        }
+        self.driver.delete_policy_classifier_postcommit(self.context_1)
+        mock_delete_classifier.assert_any_call(TENANT_UUID,
+                                               classifier_instance_1_source)
+        mock_delete_classifier.assert_any_call(TENANT_UUID,
+                                               classifier_instance_1_dest)
+        mock_delete_classifier.reset_mock()
+
+        # Ensure only one classifier is deleted for ICMP
+        classifier_instance_3 = {
+            "name": CLASSIFIER_3_NAME,
+        }
+        self.driver.delete_policy_classifier_postcommit(self.context_3)
+        mock_delete_classifier.assert_called_once_with(TENANT_UUID,
+                                                       classifier_instance_3)
+
+
+class PolicyRuleTestCase(OdlMappingTestCase):
+    """ Test case for policy rule operations
+    """
+    def setUp(self):
+        super(PolicyRuleTestCase, self).setUp()
+        self.context_1 = mock.Mock(
+            current=self.fake_gbp_plugin.get_policy_rule(
+                FAKE_CONTEXT,
+                RULE_1_ID
+            ),
+            _plugin_context=FAKE_PLUGIN_CONTEXT,
+            _plugin=self.fake_gbp_plugin
+        )
+        self.context_3 = mock.Mock(
+            current=self.fake_gbp_plugin.get_policy_rule(
+                FAKE_CONTEXT,
+                RULE_3_ID
+            ),
+            _plugin_context=FAKE_PLUGIN_CONTEXT,
+            _plugin=self.fake_gbp_plugin
+        )
+
+    def test_create_policy_rule_precommit(self):
+        # No exception should be raised
+        self.driver.create_policy_rule_precommit(self.context_1)
+
+        # Ensure exception be raised only when multiple actions appear
+        self.assertRaises(
+            odl_mapping.ExactlyOneActionPerRuleIsSupportedOnOdlDriver,
+            getattr(self.driver, 'create_policy_rule_precommit'),
+            self.context_3
+        )
+
+    def test_update_policy_rule_precommit(self):
+        self.assertRaises(
+            odl_mapping.PolicyRuleUpdateNotSupportedOnOdlDriver,
+            getattr(self.driver, 'update_policy_rule_precommit'),
+>>>>>>> origin
             self.context_1
         )
 

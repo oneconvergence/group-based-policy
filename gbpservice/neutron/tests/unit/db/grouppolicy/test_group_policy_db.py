@@ -17,9 +17,15 @@ import webob.exc
 
 from neutron.api import extensions
 from neutron import context
+<<<<<<< HEAD
 from neutron.db import api as db_api
 from neutron.db import model_base
 from neutron import manager
+=======
+from neutron import manager
+from neutron.openstack.common import importutils
+from neutron.openstack.common import uuidutils
+>>>>>>> origin
 from neutron.plugins.common import constants
 from neutron import policy
 from neutron.tests.unit.api import test_extensions
@@ -42,6 +48,7 @@ JSON_FORMAT = 'json'
 _uuid = uuidutils.generate_uuid
 TESTDIR = os.path.dirname(os.path.abspath(gbpservice.neutron.tests.__file__))
 ETCDIR = os.path.join(TESTDIR, 'etc')
+<<<<<<< HEAD
 CHAIN_TENANT_ID = 'chain_owner'
 AGENT_TYPE = 'Open vSwitch agent'
 AGENT_CONF = {'alive': True, 'binary': 'somebinary',
@@ -52,6 +59,11 @@ AGENT_CONF = {'alive': True, 'binary': 'somebinary',
 class ApiManagerMixin(object):
 
     agent_conf = AGENT_CONF
+=======
+
+
+class ApiManagerMixin(object):
+>>>>>>> origin
 
     def _test_list_resources(self, resource, items,
                              neutron_context=None,
@@ -113,6 +125,7 @@ class ApiManagerMixin(object):
         req.environ['neutron.context'] = context.Context(
             '', tenant_id or self._tenant_id, is_admin_context)
         res = req.get_response(self.ext_api)
+<<<<<<< HEAD
 
         if expected_res_status:
             self.assertEqual(res.status_int, expected_res_status)
@@ -120,6 +133,15 @@ class ApiManagerMixin(object):
             raise webob.exc.HTTPClientError(code=res.status_int)
         return self.deserialize(self.fmt, res)
 
+=======
+
+        if expected_res_status:
+            self.assertEqual(res.status_int, expected_res_status)
+        elif res.status_int >= webob.exc.HTTPClientError.code:
+            raise webob.exc.HTTPClientError(code=res.status_int)
+        return self.deserialize(self.fmt, res)
+
+>>>>>>> origin
     def _delete_resource(self, id, plural, is_admin_context=False,
                          expected_res_status=None, tenant_id=None):
         req = self.new_delete_request(plural, id)
@@ -133,6 +155,7 @@ class ApiManagerMixin(object):
         if res.status_int != 204:
             return self.deserialize(self.fmt, res)
 
+<<<<<<< HEAD
     def _get_object(self, type, id, api, expected_res_status=None):
         req = self.new_show_request(type, id, self.fmt)
         res = req.get_response(api)
@@ -171,11 +194,20 @@ class GroupPolicyDBTestBase(ApiManagerMixin):
         (k, gp_constants.GBP_PREFIXES[constants.GROUP_POLICY])
         for k in gpolicy.RESOURCE_ATTRIBUTE_MAP.keys()
     ))
+=======
+
+class GroupPolicyDBTestBase(ApiManagerMixin):
+    resource_prefix_map = dict(
+        (k, constants.COMMON_PREFIXES[constants.GROUP_POLICY])
+        for k in gpolicy.RESOURCE_ATTRIBUTE_MAP.keys()
+    )
+>>>>>>> origin
 
     fmt = JSON_FORMAT
 
     def __getattr__(self, item):
         # Verify is an update of a proper GBP object
+<<<<<<< HEAD
 
         def _is_sc_resource(plural):
             return plural in service_chain.RESOURCE_ATTRIBUTE_MAP
@@ -185,11 +217,19 @@ class GroupPolicyDBTestBase(ApiManagerMixin):
 
         def _is_valid_resource(plural):
             return _is_gbp_resource(plural) or _is_sc_resource(plural)
+=======
+        def _is_gbp_resource(plural):
+            return plural in gpolicy.RESOURCE_ATTRIBUTE_MAP
+>>>>>>> origin
         # Update Method
         if item.startswith('update_'):
             resource = item[len('update_'):]
             plural = cm.get_resource_plural(resource)
+<<<<<<< HEAD
             if _is_valid_resource(plural):
+=======
+            if _is_gbp_resource(plural):
+>>>>>>> origin
                 def update_wrapper(id, **kwargs):
                     return self._update_resource(id, resource, **kwargs)
                 return update_wrapper
@@ -197,7 +237,11 @@ class GroupPolicyDBTestBase(ApiManagerMixin):
         if item.startswith('show_'):
             resource = item[len('show_'):]
             plural = cm.get_resource_plural(resource)
+<<<<<<< HEAD
             if _is_valid_resource(plural):
+=======
+            if _is_gbp_resource(plural):
+>>>>>>> origin
                 def show_wrapper(id, **kwargs):
                     return self._show_resource(id, plural, **kwargs)
                 return show_wrapper
@@ -205,7 +249,11 @@ class GroupPolicyDBTestBase(ApiManagerMixin):
         if item.startswith('create_'):
             resource = item[len('create_'):]
             plural = cm.get_resource_plural(resource)
+<<<<<<< HEAD
             if _is_valid_resource(plural):
+=======
+            if _is_gbp_resource(plural):
+>>>>>>> origin
                 def create_wrapper(**kwargs):
                     return self._create_resource(resource, **kwargs)
                 return create_wrapper
@@ -213,12 +261,17 @@ class GroupPolicyDBTestBase(ApiManagerMixin):
         if item.startswith('delete_'):
             resource = item[len('delete_'):]
             plural = cm.get_resource_plural(resource)
+<<<<<<< HEAD
             if _is_valid_resource(plural):
+=======
+            if _is_gbp_resource(plural):
+>>>>>>> origin
                 def delete_wrapper(id, **kwargs):
                     return self._delete_resource(id, plural, **kwargs)
                 return delete_wrapper
 
         raise AttributeError
+<<<<<<< HEAD
 
     def _get_resource_plural(self, resource):
         if resource.endswith('y'):
@@ -257,6 +310,8 @@ class GroupPolicyDBTestBase(ApiManagerMixin):
             tenant_id=profile_tenant_id or self._tenant_id)['service_profile']
         return self.create_servicechain_node(
             service_profile_id=prof['id'], **kwargs)
+=======
+>>>>>>> origin
 
 
 class GroupPolicyDBTestPlugin(gpdb.GroupPolicyDbPlugin):
@@ -306,8 +361,13 @@ class GroupPolicyDbTestCase(GroupPolicyDBTestBase,
         if not ext_mgr:
             ext_mgr = extensions.PluginAwareExtensionManager.get_instance()
             self.ext_api = test_extensions.setup_extensions_middleware(ext_mgr)
+<<<<<<< HEAD
         engine = db_api.get_engine()
         model_base.BASEV2.metadata.create_all(engine)
+=======
+        test_policy_file = ETCDIR + "/test-policy.json"
+        cfg.CONF.set_override('policy_file', test_policy_file)
+>>>>>>> origin
 
         plugins = manager.NeutronManager.get_service_plugins()
         self._gbp_plugin = plugins.get(constants.GROUP_POLICY)
@@ -613,7 +673,11 @@ class TestGroupResources(GroupPolicyDbTestCase):
         ctx = context.get_admin_context()
         data = {'l3_policy': {'name': 'l3p1', 'ip_version': 4,
                               'description': '', 'ip_pool': '0.0.0.0/0',
+<<<<<<< HEAD
                               'subnet_prefix_length': 24}}
+=======
+                              'subnet_prefix_length': 26}}
+>>>>>>> origin
 
         self.assertRaises(gpolicy.InvalidIpPoolPrefixLength,
                           self.plugin.create_l3_policy, ctx, data)
@@ -1494,6 +1558,7 @@ class TestGroupResources(GroupPolicyDbTestCase):
         expected = set([ptg1_1['id'], ptg1_2['id'], ptg1_3['id']])
         self.assertEqual(expected, found)
 
+<<<<<<< HEAD
     def test_multiple_l3p_in_es_default_address(self):
         es = self.create_external_segment()['external_segment']
         es_dict = {es['id']: []}
@@ -1511,6 +1576,8 @@ class TestGroupResources(GroupPolicyDbTestCase):
         self.assertEqual('IpAddressOverlappingInExternalSegment',
                          res['NeutronError']['type'])
 
+=======
+>>>>>>> origin
 
 class TestQuotasForGBP(GroupPolicyDbTestCase):
 

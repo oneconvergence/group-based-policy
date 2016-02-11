@@ -18,9 +18,15 @@ import heatclient
 import mock
 from neutron import context as neutron_context
 from neutron.extensions import external_net as external_net
+<<<<<<< HEAD
 from neutron.plugins.common import constants
 from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
+=======
+from neutron.openstack.common import uuidutils
+from neutron.plugins.common import constants
+from oslo.serialization import jsonutils
+>>>>>>> origin
 import webob
 
 from gbpservice.neutron.services.servicechain.plugins.ncp import config
@@ -63,9 +69,12 @@ class MockHeatClientFunctions(object):
     def get(self, stack_id):
         return MockStackObject('DELETE_COMPLETE')
 
+<<<<<<< HEAD
     def update(self, *args, **fields):
         return {'stack': {'id': uuidutils.generate_uuid()}}
 
+=======
+>>>>>>> origin
 
 class MockHeatClientDeleteNotFound(object):
     def __init__(self, api_version, endpoint, **kwargs):
@@ -151,7 +160,11 @@ class HeatNodeDriverTestCase(
                    new=MockHeatClient).start()
         super(HeatNodeDriverTestCase, self).setUp(
             node_drivers=['heat_node_driver'],
+<<<<<<< HEAD
             node_plumber='stitching_plumber',
+=======
+            node_plumber='agnostic_plumber',
+>>>>>>> origin
             core_plugin=test_gp_driver.CORE_PLUGIN)
 
     def _create_network(self, fmt, name, admin_state_up, **kwargs):
@@ -220,6 +233,19 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
         self.assertEqual('NoDriverAvailableForAction',
                          res['NeutronError']['type'])
 
+<<<<<<< HEAD
+=======
+    def _create_simple_service_chain(self, number_of_nodes=1):
+        node_ids = []
+        for x in xrange(number_of_nodes):
+            node_ids.append(self.create_servicechain_node(
+                service_type='LOADBALANCER',
+                config=self.DEFAULT_LB_CONFIG,
+                expected_res_status=201)['servicechain_node']['id'])
+
+        return self._create_chain_with_nodes(node_ids)
+
+>>>>>>> origin
     def test_node_create(self):
         with mock.patch.object(heatClient.HeatClient,
                                'create') as stack_create:
@@ -266,7 +292,11 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
                     shared=True,
                     name="default",
                     external_routes=routes,
+<<<<<<< HEAD
                     subnet_id=sub['subnet']['id'])
+=======
+                    subnet_id=sub['subnet']['id'])['external_segment']
+>>>>>>> origin
                 return self.create_external_policy(
                     consumed_policy_rule_sets={consumed_prs: ''})
 
@@ -283,7 +313,13 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
                 expected_res_status=201)['servicechain_spec']
 
             prs = self._create_redirect_prs(spec['id'])['policy_rule_set']
+<<<<<<< HEAD
             provider = self.create_policy_target_group()['policy_target_group']
+=======
+            provider = self.create_policy_target_group(
+                provided_policy_rule_sets={prs['id']: ''})[
+                                                'policy_target_group']
+>>>>>>> origin
 
             _, port1 = self._create_policy_target_port(provider['id'])
             _, port2 = self._create_policy_target_port(provider['id'])
@@ -294,8 +330,11 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
                 self.create_policy_target_group(
                     consumed_policy_rule_sets={prs['id']: ''})
 
+<<<<<<< HEAD
             self.update_policy_target_group(
                 provider['id'], provided_policy_rule_sets={prs['id']: ''})
+=======
+>>>>>>> origin
             created_stacks_map = self._get_node_instance_stacks(node_id)
             self.assertEqual(1, len(created_stacks_map))
 
@@ -411,6 +450,7 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
 
     def _get_firewall_rule_dict(self, rule_name, protocol, port, provider_cidr,
                                 consumer_cidr):
+<<<<<<< HEAD
         if provider_cidr and consumer_cidr:
             fw_rule = {rule_name: {'type': "OS::Neutron::FirewallRule",
                                    'properties': {
@@ -425,6 +465,20 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
                        }
             return fw_rule
         return {}
+=======
+        fw_rule = {rule_name: {'type': "OS::Neutron::FirewallRule",
+                               'properties': {
+                                    "protocol": protocol,
+                                    "enabled": True,
+                                    "destination_port": port,
+                                    "action": "allow",
+                                    "destination_ip_address": provider_cidr,
+                                    "source_ip_address": consumer_cidr
+                               }
+                               }
+                   }
+        return fw_rule
+>>>>>>> origin
 
     def test_fw_node_east_west(self):
         classifier_port = '66'
@@ -438,26 +492,39 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
             provider = self.create_policy_target_group(
                 provided_policy_rule_sets={prs['id']: ''})[
                                                 'policy_target_group']
+<<<<<<< HEAD
             self.create_policy_target_group(
                 consumed_policy_rule_sets={prs['id']: ''})
+=======
+            consumer = self.create_policy_target_group(
+                consumed_policy_rule_sets={prs['id']: ''})[
+                                                'policy_target_group']
+>>>>>>> origin
 
             created_stacks_map = self._get_node_instance_stacks(node_id)
             self.assertEqual(1, len(created_stacks_map))
             stack_id = created_stacks_map[0].stack_id
 
             provider_cidr = self._get_ptg_cidr(provider)
+<<<<<<< HEAD
             # TODO(ivar): This has to be removed once support to consumer list
             # is implemented
             #consumer_cidr = self._get_ptg_cidr(consumer)
             consumer_cidr = []
+=======
+            consumer_cidr = self._get_ptg_cidr(consumer)
+>>>>>>> origin
             fw_rule = self._get_firewall_rule_dict(
                 'Rule_1', classifier_protocol, classifier_port,
                 provider_cidr, consumer_cidr)
 
             expected_stack_template = copy.deepcopy(
                                         self.DEFAULT_FW_CONFIG_DICT)
+<<<<<<< HEAD
             expected_stack_template['resources'][
                 'test_fw_policy']['properties']['firewall_rules'] = []
+=======
+>>>>>>> origin
             expected_stack_template['resources'].update(fw_rule)
             expected_stack_name = mock.ANY
             expected_stack_params = {}
@@ -466,7 +533,11 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
                     expected_stack_template,
                     expected_stack_params)
 
+<<<<<<< HEAD
             self._test_node_cleanup(provider, stack_id)
+=======
+            self._test_node_cleanup(consumer, stack_id)
+>>>>>>> origin
 
     def _test_fw_node_north_south(self, consumer_cidrs):
         classifier_port = '66'
@@ -484,11 +555,16 @@ class TestServiceChainInstance(HeatNodeDriverTestCase):
             routes = []
             for consumer_cidr in consumer_cidrs:
                 routes.append({'destination': consumer_cidr, 'nexthop': None})
+<<<<<<< HEAD
             self._create_external_policy(prs['id'], routes=routes)
 
             # TODO(ivar): This has to be removed once support to consumer list
             # is implemented
             consumer_cidrs = []
+=======
+            self._create_external_policy(
+                        prs['id'], routes=routes)['external_policy']
+>>>>>>> origin
 
             created_stacks_map = self._get_node_instance_stacks(node_id)
             self.assertEqual(1, len(created_stacks_map))

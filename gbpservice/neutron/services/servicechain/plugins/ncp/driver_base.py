@@ -172,6 +172,7 @@ class NodeDriverBase(object):
         pass
 
     @abc.abstractmethod
+<<<<<<< HEAD
     def update_node_consumer_ptg_added(self, context, policy_target_group):
         """Update a deployed Service Chain Node on addition of a consumer PTG.
 
@@ -198,6 +199,8 @@ class NodeDriverBase(object):
         pass
 
     @abc.abstractmethod
+=======
+>>>>>>> origin
     def notify_chain_parameters_updated(self, context):
         """Update a deployed Service Chain Node on GBP PRS updates
 

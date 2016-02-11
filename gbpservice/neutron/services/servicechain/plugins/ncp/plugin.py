@@ -11,6 +11,7 @@
 #    under the License.
 
 from neutron.common import log
+<<<<<<< HEAD
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -19,6 +20,14 @@ from oslo_utils import excutils
 from gbpservice.common import utils
 from gbpservice.neutron.db import servicechain_db
 from gbpservice.neutron.services.grouppolicy.common import constants as gp_cts
+=======
+from neutron.openstack.common import excutils
+from neutron.openstack.common import log as logging
+from oslo.config import cfg
+
+from gbpservice.common import utils
+from gbpservice.neutron.db import servicechain_db
+>>>>>>> origin
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     context as ctx)
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
@@ -39,17 +48,26 @@ class NodeCompositionPlugin(servicechain_db.ServiceChainDbPlugin,
 
     """
     supported_extension_aliases = ["servicechain"]
+<<<<<<< HEAD
     path_prefix = gp_cts.GBP_PREFIXES[pconst.SERVICECHAIN]
+=======
+>>>>>>> origin
 
     def __init__(self):
         self.driver_manager = manager.NodeDriverManager()
         super(NodeCompositionPlugin, self).__init__()
         self.driver_manager.initialize()
+<<<<<<< HEAD
         plumber_klass = cfg.CONF.node_composition_plugin.node_plumber
         self.plumber = utils.load_plugin(
             PLUMBER_NAMESPACE, plumber_klass)
         self.plumber.initialize()
         LOG.info(_("Initialized node plumber '%s'"), plumber_klass)
+=======
+        self.plumber = utils.load_plugin(
+            PLUMBER_NAMESPACE, cfg.CONF.node_composition_plugin.node_plumber)
+        self.plumber.initialize()
+>>>>>>> origin
 
     @log.log
     def create_servicechain_instance(self, context, servicechain_instance):
@@ -219,11 +237,38 @@ class NodeCompositionPlugin(servicechain_db.ServiceChainDbPlugin,
                                         servicechain_spec, set_params=False)
             self._validate_shared_update(context, original_sc_spec,
                                          updated_sc_spec, 'servicechain_spec')
+<<<<<<< HEAD
             # The reference plumber does not support modifying or reordering of
             # nodes in a service chain spec. Disallow update for now
             if (original_sc_spec['nodes'] != updated_sc_spec['nodes'] and
                 original_sc_spec['instances']):
                 raise exc.InuseSpecNodeUpdateNotAllowed()
+=======
+
+        # Remove the deleted node instances and add any new ones added
+        # REVISIT(Magesh): Invoke a validate update in Node plumber
+        # and reject the update in case the plumber does not support node
+        # reordering in the spec. For now reordering is a NOOP
+        if original_sc_spec['nodes'] != updated_sc_spec['nodes']:
+            instances = original_sc_spec['instances']
+            instances = self.get_servicechain_instances(
+                context, filters={'id': instances})
+            for instance in instances:
+                removed_nodes = (set(original_sc_spec['nodes']) -
+                                 set(updated_sc_spec['nodes']))
+                added_nodes = (set(updated_sc_spec['nodes']) -
+                               set(original_sc_spec['nodes']))
+                removed_nodes = self.get_servicechain_nodes(
+                        context, filters={'id': removed_nodes})
+                added_nodes = self.get_servicechain_nodes(
+                        context, filters={'id': added_nodes})
+                destroyers = self._get_scheduled_drivers(
+                        context, instance, 'destroy', nodes=removed_nodes)
+                deployers = self._get_scheduled_drivers(
+                        context, instance, 'deploy', nodes=added_nodes)
+                self._destroy_servicechain_nodes(context, destroyers)
+                self._deploy_servicechain_nodes(context, deployers)
+>>>>>>> origin
 
         return updated_sc_spec
 
@@ -252,21 +297,32 @@ class NodeCompositionPlugin(servicechain_db.ServiceChainDbPlugin,
                                           updated_profile)
         return updated_profile
 
+<<<<<<< HEAD
     def update_chains_pt_added(self, context, policy_target, instance_id):
+=======
+    def update_chains_pt_added(self, context, policy_target):
+>>>>>>> origin
         """ Auto scaling function.
 
         Notify the correct set of node drivers that a new policy target has
         been added to a relevant PTG.
         """
+<<<<<<< HEAD
         self._update_chains_pt_modified(context, policy_target, instance_id,
                                         'added')
 
     def update_chains_pt_removed(self, context, policy_target, instance_id):
+=======
+        self._update_chains_pt_modified(context, policy_target, 'added')
+
+    def update_chains_pt_removed(self, context, policy_target):
+>>>>>>> origin
         """ Auto scaling function.
 
         Notify the correct set of node drivers that a new policy target has
         been removed from a relevant PTG.
         """
+<<<<<<< HEAD
         self._update_chains_pt_modified(context, policy_target, instance_id,
                                         'removed')
 
@@ -317,6 +373,23 @@ class NodeCompositionPlugin(servicechain_db.ServiceChainDbPlugin,
             except exc.NodeDriverError as ex:
                 LOG.error(_("Node Update on policy target group modification "
                             "failed, %s"), ex.message)
+=======
+        self._update_chains_pt_modified(context, policy_target, 'removed')
+
+    def _update_chains_pt_modified(self, context, policy_target, action):
+        scis = self._get_instances_from_policy_target(context, policy_target)
+
+        for sci in scis:
+            updaters = self._get_scheduled_drivers(context, sci, 'pt_modified')
+            for update in updaters.values():
+                try:
+                    getattr(update['driver'],
+                            'update_policy_target_' + action)(
+                                update['context'], policy_target)
+                except exc.NodeDriverError as ex:
+                    LOG.error(_("Node Update on policy target modification "
+                                "failed, %s"), ex.message)
+>>>>>>> origin
 
     def notify_chain_parameters_updated(self, context,
                                         servicechain_instance_id):
@@ -339,7 +412,10 @@ class NodeCompositionPlugin(servicechain_db.ServiceChainDbPlugin,
                             "failed, %s"), ex.message)
 
     def _get_instance_nodes(self, context, instance):
+<<<<<<< HEAD
         context = utils.admin_context(context)
+=======
+>>>>>>> origin
         if not instance['servicechain_specs']:
             return []
         specs = self.get_servicechain_spec(
@@ -347,7 +423,10 @@ class NodeCompositionPlugin(servicechain_db.ServiceChainDbPlugin,
         return self.get_servicechain_nodes(context, {'id': specs['nodes']})
 
     def _get_node_instances(self, context, node):
+<<<<<<< HEAD
         context = utils.admin_context(context)
+=======
+>>>>>>> origin
         specs = self.get_servicechain_specs(
             context, {'id': node['servicechain_specs']})
         result = []

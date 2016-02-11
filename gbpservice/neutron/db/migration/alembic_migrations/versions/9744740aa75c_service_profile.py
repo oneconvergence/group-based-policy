@@ -53,4 +53,8 @@ def upgrade():
 
 
 def downgrade():
+<<<<<<< HEAD
     pass
+=======
+    pass
+>>>>>>> origin

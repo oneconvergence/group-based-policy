@@ -1,4 +1,9 @@
 [gerrit]
 host=review.openstack.org
 port=29418
+<<<<<<< HEAD
 project=openstack/group-based-policy.git
+=======
+project=stackforge/group-based-policy.git
+defaultbranch=stable/juno
+>>>>>>> origin

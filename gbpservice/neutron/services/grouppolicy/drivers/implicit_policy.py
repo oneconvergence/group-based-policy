@@ -170,6 +170,7 @@ class ImplicitPolicyDriver(api.PolicyDriver, local_api.LocalAPI):
     @log.log
     def update_external_policy_postcommit(self, context):
         pass
+<<<<<<< HEAD
 
     @log.log
     def create_l3_policy_precommit(self, context):
@@ -184,6 +185,8 @@ class ImplicitPolicyDriver(api.PolicyDriver, local_api.LocalAPI):
                 LOG.debug("Rejecting default L3 policy: %s", context.current)
                 raise exc.DefaultL3PolicyAlreadyExists(
                     l3p_name=self._default_l3p_name)
+=======
+>>>>>>> origin
 
     @log.log
     def create_l3_policy_postcommit(self, context):

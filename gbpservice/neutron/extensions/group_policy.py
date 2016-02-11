@@ -18,11 +18,17 @@ from neutron.api.v2 import resource_helper
 from neutron.common import constants as n_constants
 from neutron.common import exceptions as nexc
 from neutron.plugins.common import constants
+<<<<<<< HEAD
 from neutron.quota import resource_registry
 from neutron.services import service_base
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import uuidutils
+=======
+from neutron import quota
+from neutron.services import service_base
+from oslo.config import cfg
+>>>>>>> origin
 import six
 
 import gbpservice.neutron.extensions
@@ -108,10 +114,13 @@ class InvalidIpPoolPrefixLength(nexc.InvalidInput):
                 "Prefix Length=%(prefixlen)s")
 
 
+<<<<<<< HEAD
 class InvalidIpPoolVersion(nexc.InvalidInput):
     message = _("%(ip_pool)s is not a ipv%(version)s address.")
 
 
+=======
+>>>>>>> origin
 class PolicyClassifierNotFound(nexc.NotFound):
     message = _("PolicyClassifier %(policy_classifier_id)s could not be found")
 
@@ -876,7 +885,11 @@ class Group_policy(extensions.ExtensionDescriptor):
                               'policy_rule_set', 'external_policy',
                               'external_segment', 'nat_pool',
                               'network_service_policy']:
+<<<<<<< HEAD
             resource_registry.register_resource_by_name(resource_name)
+=======
+            quota.QUOTAS.register_resource_by_name(resource_name)
+>>>>>>> origin
         return resource_helper.build_resource_info(plural_mappings,
                                                    RESOURCE_ATTRIBUTE_MAP,
                                                    constants.GROUP_POLICY)

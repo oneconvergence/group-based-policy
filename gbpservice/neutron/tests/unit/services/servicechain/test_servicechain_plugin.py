@@ -13,11 +13,19 @@
 
 import ast
 import collections
+<<<<<<< HEAD
 
 from neutron import context as n_ctx
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 
+=======
+
+from neutron import context as n_ctx
+from oslo.config import cfg
+from oslo.serialization import jsonutils
+
+>>>>>>> origin
 from gbpservice.neutron.services.servicechain.plugins.msc import context
 from gbpservice.neutron.tests.unit.db.grouppolicy import (
     test_servicechain_db as test_servicechain_db)

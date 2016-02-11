@@ -8,8 +8,13 @@
             "Type": "String"
         },
         "vip_ip": {
+<<<<<<< HEAD
         	"Description": "VIP IP Address",
         	"Type": "String"
+=======
+            "Description": "VIP IP Address",
+            "Type": "String"
+>>>>>>> origin
         }
     },
 
@@ -38,6 +43,7 @@
                 "protocol": "HTTP",
                 "subnet_id": {"Ref":"Subnet"},
                 "vip": {
+<<<<<<< HEAD
                 	"subnet": {"Ref":"Subnet"},
                 	"address": {"Ref":"vip_ip"},
                 	"name": "Haproxy vip",
@@ -45,6 +51,15 @@
                 	"connection_limit": -1,
                 	"admin_state_up": true,
                 	"description": "Haproxy vip from template"
+=======
+                    "subnet": {"Ref":"Subnet"},
+                    "address": {"Ref":"vip_ip"},
+                    "name": "Haproxy vip",
+                    "protocol_port": 80,
+                    "connection_limit": -1,
+                    "admin_state_up": true,
+                    "description": "Haproxy vip from template"
+>>>>>>> origin
                 }
             }
         },

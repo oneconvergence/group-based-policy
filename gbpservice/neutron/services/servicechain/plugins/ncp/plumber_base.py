@@ -13,14 +13,21 @@
 import abc
 import six
 
+<<<<<<< HEAD
 from oslo_log import log as logging
+=======
+from neutron.openstack.common import log as logging
+>>>>>>> origin
 
 from gbpservice.neutron.extensions import group_policy
 from gbpservice.neutron.services.servicechain.plugins.ncp import exceptions
 from gbpservice.neutron.services.servicechain.plugins.ncp import model
 
 TARGET_DESCRIPTION = "%s facing Service Target for node %s in instance %s"
+<<<<<<< HEAD
 SERVICE_TARGET_NAME_PREFIX = 'service_target_'
+=======
+>>>>>>> origin
 LOG = logging.getLogger(__name__)
 
 
@@ -114,26 +121,40 @@ class NodePlumberBase(object):
 
         for pt in pts:
             try:
+<<<<<<< HEAD
                 gbp_plugin.delete_policy_target(
                     context.elevated(), pt.policy_target_id)
+=======
+                gbp_plugin.delete_policy_target(context, pt.policy_target_id,
+                                                notify_sc=False)
+>>>>>>> origin
             except group_policy.PolicyTargetNotFound as ex:
                 LOG.debug(ex.message)
 
     def _create_service_target(self, context, part_context, targets, group,
+<<<<<<< HEAD
                                relationship, extra_data=None):
         extra_data = extra_data or {}
+=======
+                               relationship):
+>>>>>>> origin
         instance = part_context.instance
         node = part_context.current_node
         gbp_plugin = part_context.gbp_plugin
         for target in targets:
             if not group:
+<<<<<<< HEAD
                 raise exceptions.NotAvailablePTGForTargetRequest(
+=======
+                exceptions.NotAvailablePTGForTargetRequest(
+>>>>>>> origin
                     ptg_type=relationship, instance=instance['id'],
                     node=node['id'])
             data = {'policy_target_group_id': group['id'],
                     'description': TARGET_DESCRIPTION % (relationship,
                                                          node['id'],
                                                          instance['id']),
+<<<<<<< HEAD
                     'name': SERVICE_TARGET_NAME_PREFIX + '%s_%s_%s' % (
                         relationship, node['id'][:5], instance['id'][:5]),
                     'port_id': None,
@@ -147,3 +168,14 @@ class NodePlumberBase(object):
     def _sort_deployment(self, deployment):
         deployment.sort(key=lambda x: x['context'].current_position,
                         reverse=True)
+=======
+                    'name': '', 'port_id': None}
+            data.update(target)
+            pt = gbp_plugin.create_policy_target(context,
+                                                 {'policy_target': data},
+                                                 notify_sc=False)
+            model.set_service_target(part_context, pt['id'], relationship)
+
+    def _sort_deployment(self, deployment):
+        deployment.sort(key=lambda x: x['context'].current_position)
+>>>>>>> origin

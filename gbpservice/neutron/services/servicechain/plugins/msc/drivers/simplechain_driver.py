@@ -15,7 +15,10 @@ import time
 
 from heatclient import client as heat_client
 from heatclient import exc as heat_exc
+<<<<<<< HEAD:gbpservice/neutron/services/servicechain/plugins/msc/drivers/simplechain_driver.py
 from keystoneclient.v2_0 import client as keyclient
+=======
+>>>>>>> origin:gbpservice/neutron/services/servicechain/plugins/msc/drivers/simplechain_driver.py
 from neutron.common import log
 from neutron.db import model_base
 from neutron import manager
@@ -417,10 +420,14 @@ class HeatClient:
 
     def __init__(self, context, password=None):
         api_version = "1"
+<<<<<<< HEAD:gbpservice/neutron/services/servicechain/plugins/msc/drivers/simplechain_driver.py
         self.tenant = context.tenant
 
         self._keystone = None
         endpoint = "%s/%s" % (cfg.CONF.simplechain.heat_uri, self.tenant)
+=======
+        endpoint = "%s/%s" % (cfg.CONF.simplechain.heat_uri, context.tenant)
+>>>>>>> origin:gbpservice/neutron/services/servicechain/plugins/msc/drivers/simplechain_driver.py
         kwargs = {
             'token': self._get_auth_token(self.tenant),
             'username': context.user_name,

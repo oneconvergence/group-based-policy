@@ -57,6 +57,7 @@ class NoopNodeDriver(driver_base.NodeDriverBase):
         pass
 
     @log.log
+<<<<<<< HEAD
     def update_node_consumer_ptg_added(self, context, policy_target_group):
         pass
 
@@ -65,6 +66,8 @@ class NoopNodeDriver(driver_base.NodeDriverBase):
         pass
 
     @log.log
+=======
+>>>>>>> origin
     def notify_chain_parameters_updated(self, context):
         pass
 

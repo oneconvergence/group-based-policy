@@ -18,12 +18,20 @@ from neutron.extensions import l3
 from neutron.extensions import securitygroup as ext_sg
 from neutron import manager
 from neutron.notifiers import nova
+<<<<<<< HEAD
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
 from oslo_log import log as logging
 
 from gbpservice.common import utils
 from gbpservice.neutron.extensions import group_policy as gp_ext
+=======
+from neutron.openstack.common import log as logging
+from neutron.plugins.common import constants as pconst
+from oslo.config import cfg
+
+from gbpservice.common import utils
+>>>>>>> origin
 from gbpservice.neutron.extensions import servicechain as sc_ext
 from gbpservice.neutron.services.grouppolicy.common import exceptions as exc
 
@@ -55,6 +63,7 @@ class LocalAPI(object):
         return l3_plugin
 
     @property
+<<<<<<< HEAD
     def _group_policy_plugin(self):
         # REVISIT(rkukura): Need initialization method after all
         # plugins are loaded to grab and store plugin.
@@ -66,6 +75,8 @@ class LocalAPI(object):
         return group_policy_plugin
 
     @property
+=======
+>>>>>>> origin
     def _servicechain_plugin(self):
         # REVISIT(rkukura): Need initialization method after all
         # plugins are loaded to grab and store plugin.
@@ -87,8 +98,12 @@ class LocalAPI(object):
                 dhcp_rpc_agent_api.DhcpAgentNotifyAPI())
         return self._cached_agent_notifier
 
+<<<<<<< HEAD
     def _create_resource(self, plugin, context, resource, attrs,
                          do_notify=True):
+=======
+    def _create_resource(self, plugin, context, resource, attrs):
+>>>>>>> origin
         # REVISIT(rkukura): Do create.start notification?
         # REVISIT(rkukura): Check authorization?
         # REVISIT(rkukura): Do quota?
@@ -96,6 +111,7 @@ class LocalAPI(object):
             action = 'create_' + resource
             obj_creator = getattr(plugin, action)
             obj = obj_creator(context, {resource: attrs})
+<<<<<<< HEAD
             if do_notify:
                 self._nova_notifier.send_network_change(action, {},
                                                         {resource: obj})
@@ -108,6 +124,18 @@ class LocalAPI(object):
 
     def _update_resource(self, plugin, context, resource, resource_id, attrs,
                          do_notify=True):
+=======
+            self._nova_notifier.send_network_change(action, {},
+                                                    {resource: obj})
+            # REVISIT(rkukura): Do create.end notification?
+            if cfg.CONF.dhcp_agent_notification:
+                self._dhcp_agent_notifier.notify(context,
+                                                 {resource: obj},
+                                                 resource + '.create.end')
+        return obj
+
+    def _update_resource(self, plugin, context, resource, resource_id, attrs):
+>>>>>>> origin
         # REVISIT(rkukura): Do update.start notification?
         # REVISIT(rkukura): Check authorization?
         with utils.clean_session(context.session):
@@ -116,6 +144,7 @@ class LocalAPI(object):
             action = 'update_' + resource
             obj_updater = getattr(plugin, action)
             obj = obj_updater(context, resource_id, {resource: attrs})
+<<<<<<< HEAD
             if do_notify:
                 self._nova_notifier.send_network_change(action, orig_obj,
                                                         {resource: obj})
@@ -128,6 +157,18 @@ class LocalAPI(object):
 
     def _delete_resource(self, plugin, context, resource, resource_id,
                          do_notify=True):
+=======
+            self._nova_notifier.send_network_change(action, orig_obj,
+                                                    {resource: obj})
+            # REVISIT(rkukura): Do update.end notification?
+            if cfg.CONF.dhcp_agent_notification:
+                self._dhcp_agent_notifier.notify(context,
+                                                 {resource: obj},
+                                                 resource + '.update.end')
+        return obj
+
+    def _delete_resource(self, plugin, context, resource, resource_id):
+>>>>>>> origin
         # REVISIT(rkukura): Do delete.start notification?
         # REVISIT(rkukura): Check authorization?
         with utils.clean_session(context.session):
@@ -136,6 +177,7 @@ class LocalAPI(object):
             action = 'delete_' + resource
             obj_deleter = getattr(plugin, action)
             obj_deleter(context, resource_id)
+<<<<<<< HEAD
             if do_notify:
                 self._nova_notifier.send_network_change(action, {},
                                                         {resource: obj})
@@ -144,6 +186,15 @@ class LocalAPI(object):
                     self._dhcp_agent_notifier.notify(context,
                                                      {resource: obj},
                                                      resource + '.delete.end')
+=======
+            self._nova_notifier.send_network_change(action, {},
+                                                    {resource: obj})
+            # REVISIT(rkukura): Do delete.end notification?
+            if cfg.CONF.dhcp_agent_notification:
+                self._dhcp_agent_notifier.notify(context,
+                                                 {resource: obj},
+                                                 resource + '.delete.end')
+>>>>>>> origin
 
     def _get_resource(self, plugin, context, resource, resource_id):
         with utils.clean_session(context.session):
@@ -151,9 +202,15 @@ class LocalAPI(object):
             obj = obj_getter(context, resource_id)
         return obj
 
+<<<<<<< HEAD
     def _get_resources(self, plugin, context, resource_plural, filters=None):
         with utils.clean_session(context.session):
             obj_getter = getattr(plugin, 'get_' + resource_plural)
+=======
+    def _get_resources(self, plugin, context, resource, filters=None):
+        with utils.clean_session(context.session):
+            obj_getter = getattr(plugin, 'get_' + resource + 's')
+>>>>>>> origin
             obj = obj_getter(context, filters)
         return obj
 
@@ -170,7 +227,11 @@ class LocalAPI(object):
 
     def _get_ports(self, plugin_context, filters=None):
         filters = filters or {}
+<<<<<<< HEAD
         return self._get_resources(self._core_plugin, plugin_context, 'ports',
+=======
+        return self._get_resources(self._core_plugin, plugin_context, 'port',
+>>>>>>> origin
                                    filters)
 
     def _create_port(self, plugin_context, attrs):
@@ -194,8 +255,13 @@ class LocalAPI(object):
 
     def _get_subnets(self, plugin_context, filters=None):
         filters = filters or {}
+<<<<<<< HEAD
         return self._get_resources(self._core_plugin, plugin_context,
                                    'subnets', filters)
+=======
+        return self._get_resources(self._core_plugin, plugin_context, 'subnet',
+                                   filters)
+>>>>>>> origin
 
     def _create_subnet(self, plugin_context, attrs):
         return self._create_resource(self._core_plugin, plugin_context,
@@ -219,7 +285,11 @@ class LocalAPI(object):
     def _get_networks(self, plugin_context, filters=None):
         filters = filters or {}
         return self._get_resources(
+<<<<<<< HEAD
             self._core_plugin, plugin_context, 'networks', filters)
+=======
+            self._core_plugin, plugin_context, 'network', filters)
+>>>>>>> origin
 
     def _create_network(self, plugin_context, attrs):
         return self._create_resource(self._core_plugin, plugin_context,
@@ -238,7 +308,11 @@ class LocalAPI(object):
 
     def _get_routers(self, plugin_context, filters=None):
         filters = filters or {}
+<<<<<<< HEAD
         return self._get_resources(self._l3_plugin, plugin_context, 'routers',
+=======
+        return self._get_resources(self._l3_plugin, plugin_context, 'router',
+>>>>>>> origin
                                    filters)
 
     def _create_router(self, plugin_context, attrs):
@@ -255,12 +329,17 @@ class LocalAPI(object):
 
     def _remove_router_interface(self, plugin_context, router_id,
                                  interface_info):
+<<<<<<< HEAD
         try:
             self._l3_plugin.remove_router_interface(plugin_context, router_id,
                                                     interface_info)
         except l3.RouterInterfaceNotFoundForSubnet:
             LOG.warn(_('Router interface already deleted for subnet %s'),
                      interface_info)
+=======
+        self._l3_plugin.remove_router_interface(plugin_context, router_id,
+                                                interface_info)
+>>>>>>> origin
 
     def _add_router_gw_interface(self, plugin_context, router_id, gw_info):
         return self._l3_plugin.update_router(
@@ -287,7 +366,11 @@ class LocalAPI(object):
     def _get_sgs(self, plugin_context, filters=None):
         filters = filters or {}
         return self._get_resources(
+<<<<<<< HEAD
             self._core_plugin, plugin_context, 'security_groups', filters)
+=======
+            self._core_plugin, plugin_context, 'security_group', filters)
+>>>>>>> origin
 
     def _create_sg(self, plugin_context, attrs):
         return self._create_resource(self._core_plugin, plugin_context,
@@ -312,7 +395,11 @@ class LocalAPI(object):
     def _get_sg_rules(self, plugin_context, filters=None):
         filters = filters or {}
         return self._get_resources(
+<<<<<<< HEAD
             self._core_plugin, plugin_context, 'security_group_rules', filters)
+=======
+            self._core_plugin, plugin_context, 'security_group_rule', filters)
+>>>>>>> origin
 
     def _create_sg_rule(self, plugin_context, attrs):
         try:
@@ -341,7 +428,11 @@ class LocalAPI(object):
     def _get_fips(self, plugin_context, filters=None):
         filters = filters or {}
         return self._get_resources(
+<<<<<<< HEAD
             self._l3_plugin, plugin_context, 'floatingips', filters)
+=======
+            self._l3_plugin, plugin_context, 'floatingip', filters)
+>>>>>>> origin
 
     def _create_fip(self, plugin_context, attrs):
         return self._create_resource(self._l3_plugin, plugin_context,
@@ -358,6 +449,7 @@ class LocalAPI(object):
         except l3.FloatingIPNotFound:
             LOG.warn(_('Floating IP %s Already deleted'), fip_id)
 
+<<<<<<< HEAD
     def _get_l2_policy(self, plugin_context, l2p_id):
         return self._get_resource(self._group_policy_plugin, plugin_context,
                                   'l2_policy', l2p_id)
@@ -575,3 +667,62 @@ class LocalAPI(object):
                                   'policy_target_group', ptg_id)
         except sc_ext.ServiceChainSpecNotFound:
             LOG.warn(_("Policy Target Group %s already deleted"), ptg_id)
+=======
+    def _get_servicechain_instance(self, plugin_context, sci_id):
+        return self._get_resource(
+            self._servicechain_plugin, plugin_context, 'servicechain_instance',
+            sci_id)
+
+    def _get_servicechain_instances(self, plugin_context, filters=None):
+        filters = filters or {}
+        return self._get_resources(
+            self._servicechain_plugin, plugin_context, 'servicechain_instance',
+            filters)
+
+    def _create_servicechain_instance(self, plugin_context, attrs):
+        return self._create_resource(
+            self._servicechain_plugin, plugin_context,
+            'servicechain_instance', attrs)
+
+    def _update_servicechain_instance(self, plugin_context, sci_id, attrs):
+        return self._update_resource(self._servicechain_plugin, plugin_context,
+                                     'servicechain_instance', sci_id, attrs)
+
+    def _delete_servicechain_instance(self, context, sci_id):
+        try:
+            self._delete_resource(self._servicechain_plugin,
+                                  context._plugin_context,
+                                  'servicechain_instance', sci_id)
+        except sc_ext.ServiceChainInstanceNotFound:
+            # SC could have been already deleted
+            LOG.warn(_("servicechain %s already deleted"), sci_id)
+
+    def _get_servicechain_spec(self, plugin_context, scs_id):
+        return self._get_resource(
+            self._servicechain_plugin, plugin_context, 'servicechain_spec',
+            scs_id)
+
+    def _get_servicechain_specs(self, plugin_context, filters=None):
+        filters = filters or {}
+        return self._get_resources(
+            self._servicechain_plugin, plugin_context, 'servicechain_spec',
+            filters)
+
+    def _create_servicechain_spec(self, plugin_context, attrs):
+        return self._create_resource(
+            self._servicechain_plugin, plugin_context,
+            'servicechain_spec', attrs)
+
+    def _update_servicechain_spec(self, plugin_context, scs_id, attrs):
+        return self._update_resource(self._servicechain_plugin, plugin_context,
+                                     'servicechain_spec', scs_id, attrs)
+
+    def _delete_servicechain_spec(self, context, scs_id):
+        try:
+            self._delete_resource(self._servicechain_plugin,
+                                  context._plugin_context,
+                                  'servicechain_spec', scs_id)
+        except sc_ext.ServiceChainSpecNotFound:
+            # SC could have been already deleted
+            LOG.warn(_("servicechain spec %s already deleted"), scs_id)
+>>>>>>> origin

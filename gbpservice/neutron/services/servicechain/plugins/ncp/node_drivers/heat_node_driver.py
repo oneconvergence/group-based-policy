@@ -14,10 +14,17 @@ import time
 
 from neutron.common import log
 from neutron.db import model_base
+<<<<<<< HEAD
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
+=======
+from neutron.openstack.common import log as logging
+from neutron.plugins.common import constants as pconst
+from oslo.config import cfg
+from oslo.serialization import jsonutils
+>>>>>>> origin
 import sqlalchemy as sa
 
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
@@ -127,6 +134,7 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
 
     @log.log
     def validate_create(self, context):
+<<<<<<< HEAD
         if context.current_profile is None:
             raise ServiceProfileRequired()
         if context.current_profile['vendor'] != self.vendor_name:
@@ -138,10 +146,24 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
         self._validate_service_config(context.current_node['config'],
                                       service_type)
 
+=======
+        # In Juno, GBP cli does not support service profile. So we have to
+        # support service_type to be set using the old model as well
+        if (context.current_profile and
+            context.current_profile['vendor'] != self.vendor_name):
+            raise NodeVendorMismatch(vendor=self.vendor_name)
+        service_type = (context.current_profile and
+                        context.current_profile['service_type'] or
+                        context.current_node['service_type'])
+        if service_type not in self.sc_supported_type:
+            raise InvalidServiceType()
+
+>>>>>>> origin
     @log.log
     def validate_update(self, context):
         if not context.original_node:  # PT create/delete notifications
             return
+<<<<<<< HEAD
         if context.current_profile != context.original_profile:
             raise ProfileUpdateNotSupported()
         if (context.current_node['service_type'] !=
@@ -151,6 +173,16 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
             service_type = context.current_profile['service_type']
             self._validate_service_config(context.current_node['config'],
                                           service_type)
+=======
+        if (context.current_profile and
+            context.current_profile['vendor'] != self.vendor_name):
+            raise NodeVendorMismatch(vendor=self.vendor_name)
+        service_type = (context.current_profile and
+                        context.current_profile['service_type'] or
+                        context.current_node['service_type'])
+        if service_type not in self.sc_supported_type:
+            raise InvalidServiceType()
+>>>>>>> origin
 
     def _validate_service_config(self, service_template, service_type):
         if not service_template:
@@ -229,11 +261,19 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
 
     @log.log
     def update_policy_target_added(self, context, policy_target):
+<<<<<<< HEAD
         if context.current_profile['service_type'] == pconst.LOADBALANCER:
+=======
+        service_type = (context.current_profile and
+                        context.current_profile['service_type'] or
+                        context.current_node['service_type'])
+        if service_type == pconst.LOADBALANCER:
+>>>>>>> origin
             self.update(context)
 
     @log.log
     def update_policy_target_removed(self, context, policy_target):
+<<<<<<< HEAD
         if context.current_profile['service_type'] == pconst.LOADBALANCER:
             self.update(context)
 
@@ -246,6 +286,15 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
         pass
 
     @log.log
+=======
+        service_type = (context.current_profile and
+                        context.current_profile['service_type'] or
+                        context.current_node['service_type'])
+        if service_type == pconst.LOADBALANCER:
+            self.update(context)
+
+    @log.log
+>>>>>>> origin
     def notify_chain_parameters_updated(self, context):
         self.update(context)
 
@@ -264,7 +313,13 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
         # TODO(Magesh): Handle multiple subnets
         provider_ptg_subnet_id = provider_ptg['subnets'][0]
         consumer = context.consumer
+<<<<<<< HEAD
         service_type = context.current_profile['service_type']
+=======
+        service_type = (context.current_profile and
+                        context.current_profile['service_type'] or
+                        context.current_node['service_type'])
+>>>>>>> origin
 
         stack_template = context.current_node.get('config')
         stack_template = jsonutils.loads(stack_template)
@@ -285,6 +340,7 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
         else:
             provider_subnet = context.core_plugin.get_subnet(
                                 context.plugin_context, provider_ptg_subnet_id)
+<<<<<<< HEAD
             consumer_cidrs = []
             if consumer:
                 if context.is_consumer_external:
@@ -300,6 +356,19 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
                     consumer_subnet = context.core_plugin.get_subnet(
                         context._plugin_context, consumer['subnets'][0])
                     consumer_cidrs = [consumer_subnet['cidr']]
+=======
+            if context.is_consumer_external:
+                # REVISIT(Magesh): Allowing the first destination which is 0/0
+                # Validate and skip adding FW rule in case routes is not set
+                es = context.gbp_plugin.get_external_segment(
+                    context.plugin_context, consumer['external_segments'][0])
+                consumer_cidrs = [x['destination']
+                                  for x in es['external_routes']]
+            else:
+                consumer_subnet = context.core_plugin.get_subnet(
+                    context._plugin_context, consumer['subnets'][0])
+                consumer_cidrs = [consumer_subnet['cidr']]
+>>>>>>> origin
             provider_cidr = provider_subnet['cidr']
             self._update_template_with_firewall_rules(
                     context, provider_ptg, provider_cidr, consumer_cidrs,
@@ -406,6 +475,7 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
         type_key = 'Type' if is_template_aws_version else 'type'
         properties_key = ('Properties' if is_template_aws_version
                           else 'properties')
+<<<<<<< HEAD
         return {type_key: "OS::Neutron::FirewallRule",
                 properties_key: {
                     "protocol": protocol,
@@ -416,6 +486,26 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
                     "source_ip_address": source_cidr
                 }
                 }
+=======
+        fw_rule_obj = {type_key: "OS::Neutron::FirewallRule",
+                       properties_key: {
+                           "protocol": protocol,
+                           "enabled": True,
+                           "action": "allow"
+                       }
+                       }
+        if destination_port:
+            fw_rule_obj[properties_key].update(
+                {"destination_port": destination_port})
+        if destination_cidr:
+            fw_rule_obj[properties_key].update(
+                {"destination_ip_address": destination_cidr})
+        if source_cidr:
+            fw_rule_obj[properties_key].update(
+                {"source_ip_address": source_cidr})
+
+        return fw_rule_obj
+>>>>>>> origin
 
     def _generate_pool_members(self, context, stack_template,
                                config_param_values, provider_ptg,

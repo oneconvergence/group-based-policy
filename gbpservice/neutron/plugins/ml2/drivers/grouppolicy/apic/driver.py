@@ -15,10 +15,17 @@
 
 from neutron.extensions import portbindings
 from neutron import manager
+<<<<<<< HEAD
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
 from opflexagent import constants as ofcst
 from oslo_log import log
+=======
+from neutron.openstack.common import log
+from neutron.plugins.ml2 import driver_api as api
+from neutron.plugins.ml2.drivers import mech_agent
+from opflexagent import constants as ofcst
+>>>>>>> origin
 
 from gbpservice.neutron.services.grouppolicy.drivers.cisco.apic import (
     apic_mapping as amap)

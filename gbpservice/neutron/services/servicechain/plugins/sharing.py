@@ -12,8 +12,13 @@
 
 from neutron.api.v2 import attributes as nattr
 from neutron import manager as n_manager
+<<<<<<< HEAD
 from neutron.plugins.common import constants as pconst
 from oslo_log import log as logging
+=======
+from neutron.openstack.common import log as logging
+from neutron.plugins.common import constants as pconst
+>>>>>>> origin
 
 from gbpservice.neutron.services.grouppolicy.common import exceptions as gp_exc
 from gbpservice.neutron.services.grouppolicy import plugin as gbp_plugin

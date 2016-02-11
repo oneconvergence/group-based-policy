@@ -88,6 +88,7 @@ class ExternalSegmentMapping(gpdb.ExternalSegment):
                           nullable=True, unique=True)
 
 
+<<<<<<< HEAD
 class NATPoolMapping(gpdb.NATPool):
     """Mapping of NAT Pool to Neutron Subnet."""
     __table_args__ = {'extend_existing': True}
@@ -96,6 +97,8 @@ class NATPoolMapping(gpdb.NATPool):
                           nullable=True, unique=True)
 
 
+=======
+>>>>>>> origin
 gquota.DB_CLASS_TO_RESOURCE_NAMES[L3PolicyMapping.__name__] = 'l3_policy'
 gquota.DB_CLASS_TO_RESOURCE_NAMES[L2PolicyMapping.__name__] = 'l2_policy'
 gquota.DB_CLASS_TO_RESOURCE_NAMES[PolicyTargetGroupMapping.__name__] = (
@@ -104,7 +107,10 @@ gquota.DB_CLASS_TO_RESOURCE_NAMES[PolicyTargetMapping.__name__] = (
     'policy_target')
 gquota.DB_CLASS_TO_RESOURCE_NAMES[ExternalSegmentMapping.__name__] = (
     'external_segment')
+<<<<<<< HEAD
 gquota.DB_CLASS_TO_RESOURCE_NAMES[NATPoolMapping.__name__] = 'nat_pool'
+=======
+>>>>>>> origin
 
 
 class GroupPolicyMappingDbPlugin(gpdb.GroupPolicyDbPlugin):
@@ -206,16 +212,20 @@ class GroupPolicyMappingDbPlugin(gpdb.GroupPolicyDbPlugin):
             l3p_db = self._get_l3_policy(context, l3p_id)
             self._set_ess_for_l3p(context, l3p_db, ess)
 
+<<<<<<< HEAD
     def _get_nat_pool(self, context, nat_pool_id):
         return self._find_gbp_resource(
             context, NATPoolMapping, nat_pool_id,
             gpolicy.NATPoolNotFound)
 
+=======
+>>>>>>> origin
     def _get_l3p_ptgs(self, context, l3p_id):
         return super(GroupPolicyMappingDbPlugin, self)._get_l3p_ptgs(
             context, l3p_id, l3p_klass=L3PolicyMapping,
             ptg_klass=PolicyTargetGroupMapping, l2p_klass=L2PolicyMapping)
 
+<<<<<<< HEAD
     def _set_db_np_subnet(self, context, nat_pool, subnet_id):
         with context.session.begin(subtransactions=True):
             nat_pool['subnet_id'] = subnet_id
@@ -251,6 +261,8 @@ class GroupPolicyMappingDbPlugin(gpdb.GroupPolicyDbPlugin):
                     attribute='allowed_address_pairs',
                     reason='read only attribute')
 
+=======
+>>>>>>> origin
     @log.log
     def create_policy_target(self, context, policy_target):
         pt = policy_target['policy_target']
@@ -273,6 +285,19 @@ class GroupPolicyMappingDbPlugin(gpdb.GroupPolicyDbPlugin):
     def get_policy_targets_count(self, context, filters=None):
         return self._get_collection_count(context, PolicyTargetMapping,
                                           filters=filters)
+
+    @log.log
+    def get_policy_targets(self, context, filters=None, fields=None,
+                           sorts=None, limit=None, marker=None,
+                           page_reverse=False):
+        marker_obj = self._get_marker_obj(context, 'policy_target', limit,
+                                          marker)
+        return self._get_collection(context, PolicyTargetMapping,
+                                    self._make_policy_target_dict,
+                                    filters=filters, fields=fields,
+                                    sorts=sorts, limit=limit,
+                                    marker_obj=marker_obj,
+                                    page_reverse=page_reverse)
 
     @log.log
     def get_policy_targets(self, context, filters=None, fields=None,
@@ -374,11 +399,14 @@ class GroupPolicyMappingDbPlugin(gpdb.GroupPolicyDbPlugin):
                                     page_reverse=page_reverse)
 
     @log.log
+<<<<<<< HEAD
     def get_l2_policies_count(self, context, filters=None):
         return self._get_collection_count(context, L2PolicyMapping,
                                           filters=filters)
 
     @log.log
+=======
+>>>>>>> origin
     def create_l3_policy(self, context, l3_policy):
         l3p = l3_policy['l3_policy']
         self.validate_ip_pool(l3p.get('ip_pool', None), l3p['ip_version'])
@@ -472,6 +500,7 @@ class GroupPolicyMappingDbPlugin(gpdb.GroupPolicyDbPlugin):
                                     sorts=sorts, limit=limit,
                                     marker_obj=marker_obj,
                                     page_reverse=page_reverse)
+<<<<<<< HEAD
 
     def get_external_segments_count(self, context, filters=None):
         return self._get_collection_count(context, ExternalSegmentMapping,
@@ -504,3 +533,5 @@ class GroupPolicyMappingDbPlugin(gpdb.GroupPolicyDbPlugin):
                                     sorts=sorts, limit=limit,
                                     marker_obj=marker_obj,
                                     page_reverse=page_reverse)
+=======
+>>>>>>> origin

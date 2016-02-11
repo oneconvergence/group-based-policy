@@ -16,13 +16,19 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 
 import gbpservice.neutron.db.servicechain_db as servicechain_db
+<<<<<<< HEAD:gbpservice/neutron/services/servicechain/plugins/msc/plugin.py
 from gbpservice.neutron.services.grouppolicy.common import constants as gp_cts
+=======
+>>>>>>> origin:gbpservice/neutron/services/servicechain/plugins/msc/plugin.py
 from gbpservice.neutron.services.servicechain.plugins.msc import (
     context as servicechain_context)
 from gbpservice.neutron.services.servicechain.plugins.msc import (
     driver_manager as manager)
 from gbpservice.neutron.services.servicechain.plugins import sharing
+<<<<<<< HEAD:gbpservice/neutron/services/servicechain/plugins/msc/plugin.py
 
+=======
+>>>>>>> origin:gbpservice/neutron/services/servicechain/plugins/msc/plugin.py
 
 LOG = logging.getLogger(__name__)
 

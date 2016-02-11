@@ -11,7 +11,11 @@
 #    under the License.
 
 from neutron.db import model_base
+<<<<<<< HEAD
 from oslo_log import log as logging
+=======
+from neutron.openstack.common import log as logging
+>>>>>>> origin
 import sqlalchemy as sa
 
 from gbpservice.neutron.db.grouppolicy import group_policy_db as gp_db

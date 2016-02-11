@@ -17,6 +17,7 @@ from neutron.api.v2 import attributes as attr
 from neutron.api.v2 import resource_helper
 from neutron.common import exceptions as nexc
 from neutron.plugins.common import constants
+<<<<<<< HEAD
 from neutron.quota import resource_registry
 from neutron.services import service_base
 from oslo_config import cfg
@@ -27,6 +28,15 @@ import gbpservice.neutron.extensions
 import gbpservice.neutron.extensions.group_policy  # noqa
 from gbpservice.neutron.services.servicechain.common import constants as scc
 
+=======
+from neutron import quota
+from neutron.services import service_base
+from oslo.config import cfg
+import six
+
+import gbpservice.neutron.extensions
+from gbpservice.neutron.services.servicechain.common import constants as scc
+>>>>>>> origin
 
 # The code below is a monkey patch of key Neutron's modules. This is needed for
 # the GBP service to be loaded correctly. GBP extensions' path is added
@@ -181,9 +191,15 @@ RESOURCE_ATTRIBUTE_MAP = {
                             'is_visible': True, 'default': None,
                             'required': True},
         'consumer_ptg_id': {'allow_post': True, 'allow_put': False,
+<<<<<<< HEAD
                             'validate': {'type:string_or_none': None},
                             'is_visible': True, 'default': None,
                             'required': True},
+=======
+                         'validate': {'type:uuid_or_none': None},
+                         'is_visible': True, 'default': None,
+                         'required': True},
+>>>>>>> origin
         'management_ptg_id': {'allow_post': True, 'allow_put': False,
                               'validate': {'type:uuid_or_none': None},
                               'is_visible': True, 'default': None,
@@ -201,7 +217,11 @@ RESOURCE_ATTRIBUTE_MAP = {
                'validate': {'type:uuid': None}, 'is_visible': True,
                'primary_key': True},
         'name': {'allow_post': True, 'allow_put': True,
+<<<<<<< HEAD
                  'validate': {'type:gbp_resource_name': None},
+=======
+                 'validate': {'type:string': None},
+>>>>>>> origin
                  'default': '', 'is_visible': True},
         'description': {'allow_post': True, 'allow_put': True,
                         'validate': {'type:string': None},
@@ -280,7 +300,11 @@ class Servicechain(extensions.ExtensionDescriptor):
         attr.PLURALS.update(plural_mappings)
         for resource_name in ['servicechain_node', 'servicechain_spec',
                               'servicechain_instance', 'service_profile']:
+<<<<<<< HEAD
             resource_registry.register_resource_by_name(resource_name)
+=======
+            quota.QUOTAS.register_resource_by_name(resource_name)
+>>>>>>> origin
         return resource_helper.build_resource_info(plural_mappings,
                                                    RESOURCE_ATTRIBUTE_MAP,
                                                    constants.SERVICECHAIN)
@@ -312,20 +336,29 @@ class ServiceChainPluginBase(service_base.ServicePluginBase):
     def get_plugin_description(self):
         return 'Service Chain plugin'
 
+<<<<<<< HEAD
     def update_chains_pt_added(self, context, policy_target, instance_id):
+=======
+    def update_chains_pt_added(self, context, policy_target):
+>>>>>>> origin
         """ Auto scaling function.
 
         Override this method to react to policy target creation.
         """
         pass
 
+<<<<<<< HEAD
     def update_chains_pt_removed(self, context, policy_target, instance_id):
+=======
+    def update_chains_pt_removed(self, context, policy_target):
+>>>>>>> origin
         """ Auto scaling function.
 
         Override this method to react to policy target deletion.
         """
         pass
 
+<<<<<<< HEAD
     def update_chains_consumer_added(self, context, policy_target_group,
                                      instance_id):
         """ Auto scaling function.
@@ -344,6 +377,8 @@ class ServiceChainPluginBase(service_base.ServicePluginBase):
         """
         pass
 
+=======
+>>>>>>> origin
     @abc.abstractmethod
     def get_servicechain_nodes(self, context, filters=None, fields=None):
         pass
@@ -411,22 +446,42 @@ class ServiceChainPluginBase(service_base.ServicePluginBase):
         pass
 
     @abc.abstractmethod
+<<<<<<< HEAD
+=======
+    @log.log
+>>>>>>> origin
     def create_service_profile(self, context, service_profile):
         pass
 
     @abc.abstractmethod
+<<<<<<< HEAD
+=======
+    @log.log
+>>>>>>> origin
     def update_service_profile(self, context, service_profile_id,
                                service_profile):
         pass
 
     @abc.abstractmethod
+<<<<<<< HEAD
+=======
+    @log.log
+>>>>>>> origin
     def delete_service_profile(self, context, service_profile_id):
         pass
 
     @abc.abstractmethod
+<<<<<<< HEAD
+=======
+    @log.log
+>>>>>>> origin
     def get_service_profile(self, context, service_profile_id, fields=None):
         pass
 
     @abc.abstractmethod
+<<<<<<< HEAD
+=======
+    @log.log
+>>>>>>> origin
     def get_service_profiles(self, context, filters=None, fields=None):
         pass

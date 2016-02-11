@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+<<<<<<< HEAD
 import requests
 import unittest
 
@@ -19,6 +20,15 @@ from oslo_serialization import jsonutils
 
 from gbpservice.neutron.services.grouppolicy import config
 from gbpservice.neutron.services.grouppolicy.drivers.odl import odl_manager
+=======
+import mock
+import requests
+import unittest
+
+from gbpservice.neutron.services.grouppolicy import config
+from gbpservice.neutron.services.grouppolicy.drivers.odl import odl_manager
+from oslo.serialization import jsonutils
+>>>>>>> origin
 
 
 HOST = 'fake_host'

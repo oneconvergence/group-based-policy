@@ -18,18 +18,31 @@ import mock
 import netaddr
 import webob.exc
 
+<<<<<<< HEAD
 from apic_ml2.neutron.db import port_ha_ipaddress_binding as ha_ip_db
 from apic_ml2.neutron.tests.unit.ml2.drivers.cisco.apic import (
     test_cisco_apic_common as mocked)
+=======
+>>>>>>> origin
 from neutron.agent import securitygroups_rpc as sg_cfg
 from neutron.common import rpc as n_rpc
 from neutron import context
 from neutron.db import api as db_api
+<<<<<<< HEAD
 from neutron.db import db_base_plugin_v2 as n_db
 from neutron.db import model_base
 from neutron import manager
 from opflexagent import constants as ocst
 from oslo_config import cfg
+=======
+from neutron.db import model_base
+from neutron import manager
+from neutron.tests.unit.ml2.drivers.cisco.apic import (
+    test_cisco_apic_common as mocked)
+from neutron.tests.unit.ml2 import test_ml2_plugin as test_plugin
+from opflexagent import constants as ocst
+from oslo.config import cfg
+>>>>>>> origin
 
 sys.modules["apicapi"] = mock.Mock()
 
@@ -82,9 +95,13 @@ class ApicMappingTestCase(
         test_rmd.ResourceMappingTestCase,
         mocked.ControllerMixin, mocked.ConfigMixin):
 
+<<<<<<< HEAD
     def setUp(self, sc_plugin=None, nat_enabled=True,
               pre_existing_l3out=False):
         self.agent_conf = AGENT_CONF
+=======
+    def setUp(self):
+>>>>>>> origin
         cfg.CONF.register_opts(sg_cfg.security_group_opts, 'SECURITYGROUP')
         config.cfg.CONF.set_override('enable_security_group', False,
                                      group='SECURITYGROUP')
@@ -100,7 +117,11 @@ class ApicMappingTestCase(
                    'apic.apic_mapping.ApicMappingDriver._setup_rpc').start()
         host_agents = mock.patch('neutron.plugins.ml2.driver_context.'
                                  'PortContext.host_agents').start()
+<<<<<<< HEAD
         host_agents.return_value = [self.agent_conf]
+=======
+        host_agents.return_value = [AGENT_CONF]
+>>>>>>> origin
         nova_client = mock.patch(
             'gbpservice.neutron.services.grouppolicy.drivers.cisco.'
             'apic.nova_client.NovaClient.get_server').start()
@@ -108,8 +129,13 @@ class ApicMappingTestCase(
         vm.name = 'someid'
         nova_client.return_value = vm
         super(ApicMappingTestCase, self).setUp(
+<<<<<<< HEAD
             policy_drivers=['implicit_policy', 'apic', 'chain_mapping'],
             ml2_options=ml2_opts, sc_plugin=sc_plugin)
+=======
+            policy_drivers=['implicit_policy', 'apic'],
+            core_plugin=test_plugin.PLUGIN_NAME, ml2_options=ml2_opts)
+>>>>>>> origin
         engine = db_api.get_engine()
         model_base.BASEV2.metadata.create_all(engine)
         plugin = manager.NeutronManager.get_plugin()
@@ -138,6 +164,7 @@ class ApicMappingTestCase(
         amap.apic_manager.TENANT_COMMON = 'common'
         amap.apic_manager.CP_ENTRY = 'os-entry'
         self.common_tenant = amap.apic_manager.TENANT_COMMON
+<<<<<<< HEAD
         self.nat_enabled = nat_enabled
         self.pre_l3out = pre_existing_l3out
         if self.pre_l3out:
@@ -153,6 +180,8 @@ class ApicMappingTestCase(
         self.driver.apic_manager.apic.fvTenant.name = echo2
         self.driver.apic_manager.apic.fvCtx.name = echo2
         self._db_plugin = n_db.NeutronDbPluginV2()
+=======
+>>>>>>> origin
 
     def _build_external_dict(self, name, cidr_exposed):
         ext_info = {
@@ -177,6 +206,7 @@ class ApicMappingTestCase(
             self.driver.apic_manager.ext_net_dict.update(
                 self._build_external_dict(x[0], x[1]))
 
+<<<<<<< HEAD
     def _create_simple_policy_rule(self, direction='bi', protocol='tcp',
                                    port_range=80, shared=False,
                                    action_type='allow', action_value=None):
@@ -202,6 +232,44 @@ class ApicMappingTestCase(
         rv['vrf_name'] = l3p['id']
         rv['vrf_tenant'] = (self.common_tenant if l3p['shared']
                             else l3p['tenant_id'])
+=======
+    def _check_call_list(self, expected, observed):
+        for call in expected:
+            self.assertTrue(call in observed,
+                            msg='Call not found, expected:\n%s\nobserved:'
+                                '\n%s' % (str(call), str(observed)))
+            observed.remove(call)
+        self.assertFalse(
+            len(observed),
+            msg='There are more calls than expected: %s' % str(observed))
+
+    def _create_simple_policy_rule(self, direction='bi', protocol='tcp',
+                                   port_range=80, shared=False,
+                                   action_type='allow', action_value=None):
+        cls = self.create_policy_classifier(
+            direction=direction, protocol=protocol,
+            port_range=port_range, shared=shared)['policy_classifier']
+
+        action = self.create_policy_action(
+            action_type=action_type, shared=shared,
+            action_value=action_value)['policy_action']
+        return self.create_policy_rule(
+            policy_classifier_id=cls['id'], policy_actions=[action['id']],
+            shared=shared)['policy_rule']
+
+    def _bind_port_to_host(self, port_id, host):
+        plugin = manager.NeutronManager.get_plugin()
+        ctx = context.get_admin_context()
+        agent = {'host': host}
+        agent.update(AGENT_CONF)
+        plugin.create_or_update_agent(ctx, agent)
+        data = {'port': {'binding:host_id': host, 'device_owner': 'compute:',
+                         'device_id': 'someid'}}
+        # Create EP with bound port
+        req = self.new_update_request('ports', data, port_id,
+                                      self.fmt)
+        return self.deserialize(self.fmt, req.get_response(self.api))
+>>>>>>> origin
 
 
 class TestPolicyTarget(ApicMappingTestCase):
@@ -253,6 +321,7 @@ class TestPolicyTarget(ApicMappingTestCase):
                                       expected_res_status=204)
             # Issue notification for the agent
             self.assertTrue(self.driver.notifier.port_update.called)
+<<<<<<< HEAD
 
     def test_get_vrf_details(self):
         l3p = self.create_l3_policy(name='myl3')['l3_policy']
@@ -354,11 +423,16 @@ class TestPolicyTarget(ApicMappingTestCase):
             external_segments={es['id']: ['']})['l3_policy']
         l2p = self.create_l2_policy(name='myl2',
                                     l3_policy_id=l3p['id'])['l2_policy']
+=======
+
+    def test_get_gbp_details(self):
+>>>>>>> origin
         ptg = self.create_policy_target_group(
             name="ptg1", l2_policy_id=l2p['id'])['policy_target_group']
         pt1 = self.create_policy_target(
             policy_target_group_id=ptg['id'])['policy_target']
         self._bind_port_to_host(pt1['port_id'], 'h1')
+<<<<<<< HEAD
 
         mapping = self.driver.get_gbp_details(context.get_admin_context(),
             device='tap%s' % pt1['port_id'], host='h1')
@@ -699,6 +773,47 @@ class TestPolicyTarget(ApicMappingTestCase):
             l2_policy_id=ptg['l2_policy_id'])['policy_target_group']
         pt = self.create_policy_target(
             policy_target_group_id=ptg['id'])['policy_target']
+=======
+        mapping = self.driver.get_gbp_details(context.get_admin_context(),
+            device='tap%s' % pt1['port_id'], host='h1')
+        self.assertEqual(pt1['port_id'], mapping['port_id'])
+        self.assertEqual(ptg['id'], mapping['endpoint_group_name'])
+        self.assertEqual('someid', mapping['vm-name'])
+
+    def test_get_gbp_details_shadow(self):
+        l2p = self.create_l2_policy()['l2_policy']
+        network = self._get_object('networks', l2p['network_id'], self.api)
+        with self.subnet(network=network) as sub:
+            with self.port(subnet=sub) as port:
+                self._bind_port_to_host(port['port']['id'], 'h1')
+                mapping = self.driver.get_gbp_details(
+                    context.get_admin_context(),
+                    device='tap%s' % port['port']['id'], host='h1')
+                self.assertEqual(port['port']['id'], mapping['port_id'])
+                self.assertEqual(amap.SHADOW_PREFIX + l2p['id'],
+                                 mapping['endpoint_group_name'])
+
+    def test_explicit_port(self):
+        with self.network() as net:
+            with self.subnet(network=net) as sub:
+                with self.port(subnet=sub) as port:
+                    self._bind_port_to_host(port['port']['id'], 'h1')
+                    l2p = self.create_l2_policy(
+                        network_id=net['network']['id'])['l2_policy']
+                    ptg = self.create_policy_target_group(
+                        l2_policy_id=l2p['id'])['policy_target_group']
+                    self.create_policy_target(
+                        port_id=port['port']['id'],
+                        policy_target_group_id=ptg['id'])
+                    self.assertTrue(self.driver.notifier.port_update.called)
+
+    def test_port_notified_on_changed_ptg(self):
+        ptg = self.create_policy_target_group()['policy_target_group']
+        ptg2 = self.create_policy_target_group(
+            l2_policy_id=ptg['l2_policy_id'])['policy_target_group']
+        pt = self.create_policy_target(
+            policy_target_group_id=ptg['id'])['policy_target']
+>>>>>>> origin
         self._bind_port_to_host(pt['port_id'], 'h1')
 
         self.driver.notifier.port_update.reset_mock()
@@ -715,6 +830,7 @@ class TestPolicyTarget(ApicMappingTestCase):
             pt['id'], policy_target_group_id=ptg2['id'],
             expected_res_status=400)
         self.assertEqual('InvalidPortForPTG', res['NeutronError']['type'])
+<<<<<<< HEAD
 
     def test_port_notified_on_subnet_change(self):
         ptg = self.create_policy_target_group()['policy_target_group']
@@ -802,6 +918,8 @@ class TestPolicyTarget(ApicMappingTestCase):
         self.assertEqual(2, len(entries))
         self.assertEqual('1.1.1.1', entries[0].ha_ip_address)
         self.assertEqual('1.1.1.1', entries[1].ha_ip_address)
+=======
+>>>>>>> origin
 
 
 class TestPolicyTargetGroup(ApicMappingTestCase):
@@ -1295,6 +1413,7 @@ class TestL3Policy(ApicMappingTestCase):
         owner = self.common_tenant if shared_es else es['tenant_id']
         l3p_owner = self.common_tenant if shared_l3p else l3p['tenant_id']
         mgr = self.driver.apic_manager
+<<<<<<< HEAD
         if self.nat_enabled:
             expected_l3out_calls = [
                 mock.call("Shd-%s-%s" % (l3p['id'], es['id']),
@@ -1311,6 +1430,17 @@ class TestL3Policy(ApicMappingTestCase):
                           transaction=mock.ANY)]
         self._check_call_list(expected_l3out_calls,
                 mgr.ensure_external_routed_network_created.call_args_list)
+=======
+        mgr.ensure_external_routed_network_created.assert_called_once_with(
+            es['id'], owner=owner, context=l3p['id'],
+            transaction=mock.ANY)
+        mgr.ensure_logical_node_profile_created.assert_called_once_with(
+            es['id'], mocked.APIC_EXT_SWITCH, mocked.APIC_EXT_MODULE,
+            mocked.APIC_EXT_PORT, mocked.APIC_EXT_ENCAP, '192.168.0.3/24',
+            owner=owner, router_id=APIC_EXTERNAL_RID,
+            transaction=mock.ANY)
+
+>>>>>>> origin
         expected_route_calls = [
             mock.call(es['id'], mocked.APIC_EXT_SWITCH, '192.168.0.254',
                       owner=owner, subnet='0.0.0.0/0',
@@ -1378,6 +1508,7 @@ class TestL3Policy(ApicMappingTestCase):
 
         mgr = self.driver.apic_manager
         owner = self.common_tenant if shared_es else es['tenant_id']
+<<<<<<< HEAD
         l3p_owner = self.common_tenant if shared_l3p else l3p['tenant_id']
         expected_l3out_calls = []
         if self.nat_enabled:
@@ -1420,6 +1551,26 @@ class TestL3Policy(ApicMappingTestCase):
             mgr.set_l3out_for_bd.assert_called_once_with(owner,
                 "NAT-bd-%s" % es['id'],
                 es['name' if self.pre_l3out else 'id'], transaction=mock.ANY)
+=======
+        mgr.ensure_external_routed_network_created.assert_called_once_with(
+            es['id'], owner=owner, context=l3p['id'],
+            transaction=mock.ANY)
+        mgr.ensure_logical_node_profile_created.assert_called_once_with(
+            es['id'], mocked.APIC_EXT_SWITCH, mocked.APIC_EXT_MODULE,
+            mocked.APIC_EXT_PORT, mocked.APIC_EXT_ENCAP, '192.168.0.3/24',
+            owner=owner, router_id=APIC_EXTERNAL_RID,
+            transaction=mock.ANY)
+
+        expected_route_calls = [
+            mock.call(es['id'], mocked.APIC_EXT_SWITCH, '192.168.0.254',
+                      owner=owner, subnet='0.0.0.0/0',
+                      transaction=mock.ANY),
+            mock.call(es['id'], mocked.APIC_EXT_SWITCH, '192.168.0.1',
+                      owner=owner, subnet='128.0.0.0/16',
+                      transaction=mock.ANY)]
+        self._check_call_list(expected_route_calls,
+                              mgr.ensure_static_route_created.call_args_list)
+>>>>>>> origin
 
     # Although the naming convention used here has been chosen poorly,
     # I'm separating the tests in order to get the mock re-set.
@@ -1573,6 +1724,7 @@ class TestL3Policy(ApicMappingTestCase):
             l3p['id'], tenant_id=l3p['tenant_id'], expected_res_status=200,
             external_segments={es2['id']: ['169.254.0.4']})['l3_policy']
 
+<<<<<<< HEAD
         expected_delete_calls = []
         if not self.pre_l3out:
             expected_delete_calls.append(
@@ -1612,6 +1764,18 @@ class TestL3Policy(ApicMappingTestCase):
         else:
             self.assertFalse(mgr.set_domain_for_external_routed_network.called)
             self.assertFalse(mgr.ensure_logical_node_profile_created.called)
+=======
+        mgr.delete_external_routed_network.assert_called_once_with(
+            es1['id'], owner=owner)
+        mgr.ensure_external_routed_network_created.assert_called_once_with(
+            es2['id'], owner=owner, context=l3p['id'],
+            transaction=mock.ANY)
+        mgr.ensure_logical_node_profile_created.assert_called_once_with(
+            es2['id'], mocked.APIC_EXT_SWITCH, mocked.APIC_EXT_MODULE,
+            mocked.APIC_EXT_PORT, mocked.APIC_EXT_ENCAP, '192.168.1.3/24',
+            owner=owner, router_id=APIC_EXTERNAL_RID,
+            transaction=mock.ANY)
+>>>>>>> origin
         self.assertFalse(mgr.ensure_static_route_created.called)
         if self.nat_enabled:
             mgr.unset_l3out_for_bd.assert_called_once_with(owner,
@@ -1939,12 +2103,16 @@ class TestPolicyRule(ApicMappingTestCase):
 
     def _test_policy_rule_created_on_apic(self, shared=False):
         pr = self._create_simple_policy_rule('in', 'tcp', 88, shared=shared)
+<<<<<<< HEAD
         pr1 = self._create_simple_policy_rule('in', 'udp', 53, shared=shared)
         pr2 = self._create_simple_policy_rule('in', None, 88, shared=shared)
+=======
+>>>>>>> origin
 
         tenant = self.common_tenant if shared else pr['tenant_id']
         mgr = self.driver.apic_manager
         expected_calls = [
+<<<<<<< HEAD
             mock.call(pr['id'], owner=tenant, entry='os-entry-0', etherT='ip',
                       prot='tcp', dToPort=88, dFromPort=88,
                       transaction=mock.ANY),
@@ -1960,13 +2128,25 @@ class TestPolicyRule(ApicMappingTestCase):
             mock.call(pr2['id'], owner=tenant, entry='os-entry-0',
                       etherT='unspecified', dToPort=88, dFromPort=88,
                       transaction=mock.ANY)]
+=======
+            mock.call(pr['id'], owner=tenant, etherT='ip', prot='tcp',
+                      dToPort=88, dFromPort=88, transaction=mock.ANY),
+            mock.call(amap.REVERSE_PREFIX + pr['id'], owner=tenant,
+                      etherT='ip', prot='tcp', sToPort=88, sFromPort=88,
+                      tcpRules='est', transaction=mock.ANY)]
+>>>>>>> origin
         self._check_call_list(
             expected_calls, mgr.create_tenant_filter.call_args_list)
         mgr.reset_mock()
         pr = self._create_simple_policy_rule('bi', None, None, shared=shared)
         expected_calls = [
+<<<<<<< HEAD
             mock.call(pr['id'], owner=tenant, entry='os-entry-0',
                       etherT='unspecified', transaction=mock.ANY)]
+=======
+            mock.call(pr['id'], owner=tenant, etherT='unspecified',
+                      transaction=mock.ANY)]
+>>>>>>> origin
         self._check_call_list(
             expected_calls, mgr.create_tenant_filter.call_args_list)
 
@@ -1989,6 +2169,7 @@ class TestPolicyRule(ApicMappingTestCase):
                       transaction=mock.ANY)]
         self._check_call_list(
             expected_calls, mgr.delete_tenant_filter.call_args_list)
+<<<<<<< HEAD
 
         mgr.delete_tenant_filter.reset_mock()
         self.delete_policy_rule(pr1['id'], expected_res_status=204)
@@ -1998,6 +2179,8 @@ class TestPolicyRule(ApicMappingTestCase):
                       transaction=mock.ANY)]
         self._check_call_list(
             expected_calls, mgr.delete_tenant_filter.call_args_list)
+=======
+>>>>>>> origin
 
     def test_policy_rule_deleted_on_apic(self):
         self._test_policy_rule_deleted_on_apic()
@@ -2032,6 +2215,7 @@ class TestPolicyRule(ApicMappingTestCase):
                                       is_admin_context=True)
         expected_calls = [
             mock.call(pr1['id'], owner='common', etherT='ip', prot='udp',
+<<<<<<< HEAD
                       entry='os-entry-0', transaction=mock.ANY),
             mock.call(pr2['id'], owner='test-tenant', etherT='ip', prot='udp',
                       entry='os-entry-0', transaction=mock.ANY),
@@ -2040,6 +2224,10 @@ class TestPolicyRule(ApicMappingTestCase):
                       transaction=mock.ANY),
             mock.call(amap.REVERSE_PREFIX + pr2['id'], owner='test-tenant',
                       etherT='ip', prot='udp', entry='os-entry-0',
+=======
+                      transaction=mock.ANY),
+            mock.call(pr2['id'], owner='test-tenant', etherT='ip', prot='udp',
+>>>>>>> origin
                       transaction=mock.ANY)]
         self._check_call_list(
             expected_calls, mgr.create_tenant_filter.call_args_list)
@@ -2057,6 +2245,7 @@ class TestPolicyRule(ApicMappingTestCase):
         mgr.reset_mock()
 
         # Change Classifier protocol, to not revertible
+<<<<<<< HEAD
         self.update_policy_classifier(pc['id'], protocol=None,
                                       is_admin_context=True)
         expected_calls = [
@@ -2064,6 +2253,15 @@ class TestPolicyRule(ApicMappingTestCase):
                       entry='os-entry-0', transaction=mock.ANY),
             mock.call(pr2['id'], owner='test-tenant', etherT='unspecified',
                       entry='os-entry-0', transaction=mock.ANY)]
+=======
+        self.update_policy_classifier(pc['id'], protocol='icmp',
+                                      is_admin_context=True)
+        expected_calls = [
+            mock.call(pr1['id'], owner='common', etherT='ip', prot='icmp',
+                      transaction=mock.ANY),
+            mock.call(pr2['id'], owner='test-tenant', etherT='ip', prot='icmp',
+                      transaction=mock.ANY)]
+>>>>>>> origin
         self._check_call_list(
             expected_calls, mgr.create_tenant_filter.call_args_list)
         expected_calls = [
@@ -2076,9 +2274,14 @@ class TestPolicyRule(ApicMappingTestCase):
         self._check_call_list(
             expected_calls, mgr.delete_tenant_filter.call_args_list)
 
+<<<<<<< HEAD
         # Protocol went from revertible to non-revertible
         self.assertTrue(mgr.manage_contract_subject_in_filter.called)
         self.assertTrue(mgr.manage_contract_subject_out_filter.called)
+=======
+        self.assertFalse(mgr.manage_contract_subject_in_filter.called)
+        self.assertFalse(mgr.manage_contract_subject_out_filter.called)
+>>>>>>> origin
         mgr.reset_mock()
 
         # Change Classifier protocol to revertible
@@ -2095,6 +2298,7 @@ class TestPolicyRule(ApicMappingTestCase):
             expected_calls, mgr.delete_tenant_filter.call_args_list)
         expected_calls = [
             mock.call(pr1['id'], owner='common', etherT='ip', prot='tcp',
+<<<<<<< HEAD
                       entry='os-entry-0', transaction=mock.ANY),
             mock.call(pr2['id'], owner='test-tenant', etherT='ip', prot='tcp',
                       entry='os-entry-0', transaction=mock.ANY),
@@ -2104,6 +2308,17 @@ class TestPolicyRule(ApicMappingTestCase):
             mock.call(amap.REVERSE_PREFIX + pr2['id'], owner='test-tenant',
                       etherT='ip', prot='tcp', tcpRules='est',
                       entry='os-entry-0', transaction=mock.ANY)]
+=======
+                      transaction=mock.ANY),
+            mock.call(pr2['id'], owner='test-tenant', etherT='ip', prot='tcp',
+                      transaction=mock.ANY),
+            mock.call(amap.REVERSE_PREFIX + pr1['id'], owner='common',
+                      etherT='ip', prot='tcp', tcpRules='est',
+                      transaction=mock.ANY),
+            mock.call(amap.REVERSE_PREFIX + pr2['id'], owner='test-tenant',
+                      etherT='ip', prot='tcp', tcpRules='est',
+                      transaction=mock.ANY)]
+>>>>>>> origin
         self._check_call_list(
             expected_calls, mgr.create_tenant_filter.call_args_list)
 
@@ -2143,6 +2358,7 @@ class TestPolicyRule(ApicMappingTestCase):
         self._check_call_list(
             expected_calls,
             mgr.manage_contract_subject_out_filter.call_args_list)
+<<<<<<< HEAD
 
     def test_icmp_rule_created_on_apic(self):
         pr = self._create_simple_policy_rule('in', 'icmp', None)
@@ -2174,6 +2390,8 @@ class TestPolicyRule(ApicMappingTestCase):
 
         self._check_call_list(
             expected_calls, mgr.create_tenant_filter.call_args_list)
+=======
+>>>>>>> origin
 
 
 class TestExternalSegment(ApicMappingTestCase):
@@ -3271,6 +3489,7 @@ class TestExternalPolicyPreL3Out(TestExternalPolicy):
             name='supported', cidr='192.168.0.0/24', shared=True,
             expected_res_status=201)['external_segment']
 
+<<<<<<< HEAD
         ep_list = [
             self.create_external_policy(
                 name=APIC_EXTERNAL_EPG,
@@ -3476,3 +3695,26 @@ class TestNatPool(ApicMappingTestCase):
 class TestNatPoolNoNat(TestNatPool):
     def setUp(self):
         super(TestNatPoolNoNat, self).setUp(nat_enabled=False)
+=======
+    def test_update_add_prs_5(self):
+        self._test_update_add_prs(shared_es=False, shared_ep=False,
+                                  shared_prs=True)
+
+    def test_update_add_prs_unsupported(self):
+        self._mock_external_dict([('supported', '192.168.0.2/24')])
+        es = self.create_external_segment(
+            name='unsupported', cidr='192.168.0.0/24', expected_res_status=201,
+            external_routes=[{'destination': '128.0.0.0/16',
+                              'nexthop': '192.168.0.254'}])['external_segment']
+        prov = self._create_policy_rule_set_on_shared()
+        cons = self._create_policy_rule_set_on_shared()
+        ep = self.create_external_policy(
+            external_segments=[es['id']],
+            expected_res_status=201)['external_policy']
+        self.update_external_policy(
+            ep['id'], expected_res_status=200, tenant_id=ep['tenant_id'],
+            provided_policy_rule_sets={prov['id']: ''},
+            consumed_policy_rule_sets={cons['id']: ''})['external_policy']
+        mgr = self.driver.apic_manager
+        self.assertFalse(mgr.set_contract_for_external_epg.called)
+>>>>>>> origin

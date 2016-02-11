@@ -12,10 +12,15 @@
 
 import contextlib
 
+<<<<<<< HEAD
 from neutron import context as n_ctx
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import importutils
+=======
+from neutron.openstack.common import log as logging
+from oslo.utils import importutils
+>>>>>>> origin
 from stevedore import driver
 
 LOG = logging.getLogger(__name__)
@@ -30,6 +35,7 @@ def clean_session(session):
     session.expunge_all()
 
 
+<<<<<<< HEAD
 def get_resource_plural(resource):
     if resource.endswith('y'):
         resource_plural = resource.replace('y', 'ies')
@@ -39,6 +45,8 @@ def get_resource_plural(resource):
     return resource_plural
 
 
+=======
+>>>>>>> origin
 def load_plugin(namespace, plugin):
     try:
         # Try to resolve plugin by name
@@ -53,6 +61,7 @@ def load_plugin(namespace, plugin):
             LOG.exception(_("Error loading plugin by class, %s"), e2)
             raise ImportError(_("Plugin not found."))
     return plugin_class()
+<<<<<<< HEAD
 
 
 def admin_context(context):
@@ -91,3 +100,5 @@ def set_difference(iterable_1, iterable_2):
     set1 = set(iterable_1)
     set2 = set(iterable_2)
     return (set1 - set2), (set2 - set1)
+=======
+>>>>>>> origin

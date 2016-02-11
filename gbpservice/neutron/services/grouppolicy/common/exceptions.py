@@ -67,11 +67,14 @@ class L3PolicyUpdateOfL2PolicyNotSupported(GroupPolicyBadRequest):
     message = _("Updating L3 policy of L2 policy is not supported.")
 
 
+<<<<<<< HEAD
 class UnsettingInjectDefaultRouteOfL2PolicyNotSupported(GroupPolicyBadRequest):
     message = _("Unsetting inject_default_route attribute of L2 policy is not "
                 "supported.")
 
 
+=======
+>>>>>>> origin
 class L3PolicyMultipleRoutersNotSupported(GroupPolicyBadRequest):
     message = _("L3 policy does not support multiple routers.")
 
@@ -92,11 +95,14 @@ class InvalidPortForPTG(GroupPolicyBadRequest):
     message = _("Subnet %(port_subnet_id)s of port %(port_id)s does not "
                 "match subnet %(ptg_subnet_id)s of Policy Target Group "
                 "%(policy_target_group_id)s.")
+<<<<<<< HEAD
 
 
 class InvalidPortExtraAttributes(GroupPolicyBadRequest):
     message = _("Port extra attribute %(attribute)s is invalid for the "
                 "following reason: %(reason)s")
+=======
+>>>>>>> origin
 
 
 class InvalidSubnetForPTG(GroupPolicyBadRequest):
@@ -266,6 +272,7 @@ class L3PEsinUseByNSP(exceptions.InUse, GroupPolicyException):
 
 class NatPoolinUseByNSP(exceptions.InUse, GroupPolicyException):
     message = _("The Nat Pool is in use by Network Service Policy")
+<<<<<<< HEAD
 
 
 class OverlappingNATPoolInES(GroupPolicyBadRequest):
@@ -313,3 +320,5 @@ class PolicyTargetInUse(GroupPolicyBadRequest):
 
 class InvalidClusterPtg(GroupPolicyBadRequest):
     message = _("Inter PTG clustering disallowed.")
+=======
+>>>>>>> origin

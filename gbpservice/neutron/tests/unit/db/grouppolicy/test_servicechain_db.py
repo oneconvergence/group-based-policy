@@ -11,24 +11,103 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import webob.exc
 
 from neutron import context
+<<<<<<< HEAD
 from neutron.plugins.common import constants
 from oslo_config import cfg
 from oslo_utils import uuidutils
 
 from gbpservice.neutron.db import servicechain_db as svcchain_db
+=======
+from neutron.db import api as db_api
+from neutron.db import model_base
+from neutron.openstack.common import importutils
+from neutron.openstack.common import uuidutils
+from neutron.plugins.common import constants
+from neutron.tests.unit import test_db_plugin
+from neutron.tests.unit import test_extensions
+from oslo.config import cfg
+
+from gbpservice.neutron.db import servicechain_db as svcchain_db
+import gbpservice.neutron.extensions
+from gbpservice.neutron.extensions import group_policy as gpolicy
+>>>>>>> origin
 from gbpservice.neutron.extensions import servicechain as service_chain
 from gbpservice.neutron.tests.unit import common as cm
 from gbpservice.neutron.tests.unit.db.grouppolicy import test_group_policy_db
 
 JSON_FORMAT = 'json'
+<<<<<<< HEAD
 GP_PLUGIN_KLASS = (
     "gbpservice.neutron.services.grouppolicy.plugin.GroupPolicyPlugin")
 
 
 class ServiceChainDBTestBase(test_group_policy_db.GroupPolicyDBTestBase):
+=======
+TESTDIR = os.path.dirname(os.path.abspath(gbpservice.neutron.tests.__file__))
+ETCDIR = os.path.join(TESTDIR, 'etc')
+
+
+class ServiceChainDBTestBase(test_group_policy_db.ApiManagerMixin):
+    resource_prefix_map = dict(
+        (k, constants.COMMON_PREFIXES[constants.SERVICECHAIN])
+        for k in service_chain.RESOURCE_ATTRIBUTE_MAP.keys())
+    resource_prefix_map.update(dict(
+        (k, constants.COMMON_PREFIXES[constants.GROUP_POLICY])
+        for k in gpolicy.RESOURCE_ATTRIBUTE_MAP.keys()
+    ))
+
+    fmt = JSON_FORMAT
+>>>>>>> origin
+
+    def __getattr__(self, item):
+        # Verify is an update of a proper GBP object
+
+        def _is_sc_resource(plural):
+            return plural in service_chain.RESOURCE_ATTRIBUTE_MAP
+
+        def _is_gbp_resource(plural):
+            return plural in gpolicy.RESOURCE_ATTRIBUTE_MAP
+
+        def _is_valid_resource(plural):
+            return _is_gbp_resource(plural) or _is_sc_resource(plural)
+        # Update Method
+        if item.startswith('update_'):
+            resource = item[len('update_'):]
+            plural = cm.get_resource_plural(resource)
+            if _is_valid_resource(plural):
+                def update_wrapper(id, **kwargs):
+                    return self._update_resource(id, resource, **kwargs)
+                return update_wrapper
+        # Show Method
+        if item.startswith('show_'):
+            resource = item[len('show_'):]
+            plural = cm.get_resource_plural(resource)
+            if _is_valid_resource(plural):
+                def show_wrapper(id, **kwargs):
+                    return self._show_resource(id, plural, **kwargs)
+                return show_wrapper
+        # Create Method
+        if item.startswith('create_'):
+            resource = item[len('create_'):]
+            plural = cm.get_resource_plural(resource)
+            if _is_valid_resource(plural):
+                def create_wrapper(**kwargs):
+                    return self._create_resource(resource, **kwargs)
+                return create_wrapper
+        # Delete Method
+        if item.startswith('delete_'):
+            resource = item[len('delete_'):]
+            plural = cm.get_resource_plural(resource)
+            if _is_valid_resource(plural):
+                def delete_wrapper(id, **kwargs):
+                    return self._delete_resource(id, plural, **kwargs)
+                return delete_wrapper
+
+        raise AttributeError
 
     def _get_resource_plural(self, resource):
         if resource.endswith('y'):
@@ -69,12 +148,18 @@ class ServiceChainDBTestBase(test_group_policy_db.GroupPolicyDBTestBase):
 
 class ServiceChainDBTestPlugin(svcchain_db.ServiceChainDbPlugin):
 
+<<<<<<< HEAD
     supported_extension_aliases = ['servicechain']
     path_prefix = "/servicechain"
+=======
+        supported_extension_aliases = ['servicechain']
+
+>>>>>>> origin
 
 DB_GP_PLUGIN_KLASS = (ServiceChainDBTestPlugin.__module__ + '.' +
                       ServiceChainDBTestPlugin.__name__)
 
+<<<<<<< HEAD
 
 class ServiceChainDbTestCase(test_group_policy_db.GroupPolicyDbTestCase):
 
@@ -86,6 +171,40 @@ class ServiceChainDbTestCase(test_group_policy_db.GroupPolicyDbTestCase):
             sc_plugin=sc_plugin, service_plugins=service_plugins,
             ext_mgr=ext_mgr)
         self.plugin = self._sc_plugin
+=======
+GP_PLUGIN_KLASS = (
+    "gbpservice.neutron.services.grouppolicy.plugin.GroupPolicyPlugin")
+
+
+class ServiceChainDbTestCase(ServiceChainDBTestBase,
+                             test_db_plugin.NeutronDbPluginV2TestCase):
+
+    def setUp(self, core_plugin=None, sc_plugin=None, service_plugins=None,
+              ext_mgr=None, gp_plugin=None):
+        extensions.append_api_extensions_path(
+            gbpservice.neutron.extensions.__path__)
+        if not sc_plugin:
+            sc_plugin = DB_GP_PLUGIN_KLASS
+        self.plugin = importutils.import_object(sc_plugin)
+        if not service_plugins:
+            service_plugins = {
+                'l3_plugin_name': 'router',
+                'gp_plugin_name': gp_plugin or GP_PLUGIN_KLASS,
+                'sc_plugin_name': sc_plugin}
+
+        super(ServiceChainDbTestCase, self).setUp(
+            plugin=core_plugin, ext_mgr=ext_mgr,
+            service_plugins=service_plugins
+        )
+
+        if not ext_mgr:
+            ext_mgr = extensions.PluginAwareExtensionManager.get_instance()
+            self.ext_api = test_extensions.setup_extensions_middleware(ext_mgr)
+        engine = db_api.get_engine()
+        model_base.BASEV2.metadata.create_all(engine)
+        test_policy_file = ETCDIR + "/test-policy.json"
+        cfg.CONF.set_override('policy_file', test_policy_file)
+>>>>>>> origin
 
 
 class TestServiceChainResources(ServiceChainDbTestCase):
@@ -193,11 +312,19 @@ class TestServiceChainResources(ServiceChainDbTestCase):
 
         scs = self.create_servicechain_spec(nodes=[scn_id])
         scs_id = scs['servicechain_spec']['id']
+<<<<<<< HEAD
 
         # Deleting Service Chain Node in use by a Spec should fail
         self.assertRaises(service_chain.ServiceChainNodeInUse,
                           self.plugin.delete_servicechain_node, ctx, scn_id)
 
+=======
+
+        # Deleting Service Chain Node in use by a Spec should fail
+        self.assertRaises(service_chain.ServiceChainNodeInUse,
+                          self.plugin.delete_servicechain_node, ctx, scn_id)
+
+>>>>>>> origin
         req = self.new_delete_request('servicechain_specs', scs_id)
         res = req.get_response(self.ext_api)
         self.assertEqual(res.status_int, webob.exc.HTTPNoContent.code)

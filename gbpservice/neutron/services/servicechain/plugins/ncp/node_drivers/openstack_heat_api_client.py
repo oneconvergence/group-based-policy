@@ -12,8 +12,12 @@
 
 from heatclient import client as heat_client
 from heatclient import exc as heat_exc
+<<<<<<< HEAD
 from oslo_log import log as logging
 
+=======
+from neutron.openstack.common import log as logging
+>>>>>>> origin
 
 LOG = logging.getLogger(__name__)
 

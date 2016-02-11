@@ -11,6 +11,14 @@
 #    under the License.
 
 import netaddr
+<<<<<<< HEAD
+=======
+
+import sqlalchemy as sa
+from sqlalchemy import orm
+from sqlalchemy.orm import exc
+
+>>>>>>> origin
 from neutron.api.v2 import attributes as attr
 from neutron.common import log
 from neutron import context
@@ -1097,6 +1105,7 @@ class GroupPolicyDbPlugin(gpolicy.GroupPolicyPluginBase,
                           'service_management': [True]}):
             raise gpolicy.ManagementPolicyTargetGroupExists()
 
+<<<<<<< HEAD
     @staticmethod
     def validate_ip_pool(ip_pool, ip_version):
         attr._validate_subnet(ip_pool)
@@ -1116,6 +1125,24 @@ class GroupPolicyDbPlugin(gpolicy.GroupPolicyPluginBase,
                                         prefixlen=ip_net.prefixlen)
 
     @staticmethod
+=======
+    @staticmethod
+    def validate_ip_pool(ip_pool, ip_version):
+        attr._validate_subnet(ip_pool)
+        ip_net = netaddr.IPNetwork(ip_pool, version=ip_version)
+        if (ip_net.size <= 3):
+            err_msg = "Too few available IPs in the pool."
+            raise gpolicy.InvalidIpPoolSize(ip_pool=ip_pool, err_msg=err_msg,
+                                        size=ip_net.size)
+
+        if (ip_net.prefixlen == 0):
+            err_msg = "Prefix length of 0 is invalid."
+            raise gpolicy.InvalidIpPoolPrefixLength(ip_pool=ip_pool,
+                                        err_msg=err_msg,
+                                        prefixlen=ip_net.prefixlen)
+
+    @staticmethod
+>>>>>>> origin
     def validate_subnet_prefix_length(ip_version, new_prefix_length,
                                       ip_pool=None):
         if (new_prefix_length < 2) or (

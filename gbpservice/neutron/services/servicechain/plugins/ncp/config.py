@@ -10,7 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+<<<<<<< HEAD
 from oslo_config import cfg
+=======
+from oslo.config import cfg
+>>>>>>> origin
 
 
 service_chain_opts = [
@@ -21,7 +25,11 @@ service_chain_opts = [
                        "gbpservice.neutron.servicechain.ncp_drivers "
                        "namespace.")),
     cfg.StrOpt('node_plumber',
+<<<<<<< HEAD
                default='dummy_plumber',
+=======
+               default='agnostic_plumber',
+>>>>>>> origin
                help=_("The plumber used by the Node Composition Plugin "
                       "for service plumbing. Entrypoint loaded from the "
                       "gbpservice.neutron.servicechain.ncp_plumbers "

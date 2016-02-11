@@ -11,8 +11,14 @@
 #    under the License.
 
 from neutron.common import exceptions as n_exc
+<<<<<<< HEAD
 from oslo_config import cfg
 from oslo_log import log as logging
+=======
+from neutron.openstack.common import log as logging
+from oslo.config import cfg
+
+>>>>>>> origin
 import stevedore
 
 from gbpservice.neutron.services.servicechain.plugins.ncp import config  # noqa

@@ -18,6 +18,7 @@ from neutron.db import api as db_api
 from neutron.db import model_base
 from neutron.tests.unit.extensions import test_l3
 from neutron.tests.unit import testlib_api
+from oslo.config import cfg
 
 from gbpservice.neutron.db.grouppolicy import group_policy_mapping_db as gpmdb
 from gbpservice.neutron.services.grouppolicy.common import exceptions as gpexc
@@ -48,9 +49,16 @@ class GroupPolicyMappingDbTestCase(tgpdb.GroupPolicyDbTestCase,
         if not gp_plugin:
             gp_plugin = DB_GP_PLUGIN_KLASS
         if not service_plugins:
+<<<<<<< HEAD
             service_plugins = {
                 'l3_plugin_name': "router", 'gp_plugin_name': gp_plugin,
                 'servicechain_plugin': sc_plugin or SC_PLUGIN_KLASS}
+=======
+            service_plugins = {'l3_plugin_name': "router",
+                               'gp_plugin_name': gp_plugin,
+                               'servicechain_plugin': SC_PLUGIN_KLASS}
+        cfg.CONF.set_override('allow_overlapping_ips', True)
+>>>>>>> origin
         super(GroupPolicyMappingDbTestCase, self).setUp(
             core_plugin=core_plugin, gp_plugin=gp_plugin,
             service_plugins=service_plugins
@@ -218,7 +226,10 @@ class TestMappedGroupResourceAttrs(GroupPolicyMappingDbTestCase):
                 ports = [port1['port']['id'], port2['port']['id']]
                 pts = [self.create_policy_target(port_id=ports[0]),
                        self.create_policy_target(port_id=ports[1])]
+<<<<<<< HEAD
                 self._test_list_resources('policy_target', pts)
+=======
+>>>>>>> origin
                 self._test_list_resources('policy_target', [pts[0]],
                                           query_params='port_id=' + ports[0])
 
@@ -230,10 +241,15 @@ class TestMappedGroupResourceAttrs(GroupPolicyMappingDbTestCase):
                 l2_policies = [self.create_l2_policy(network_id=networks[0]),
                                self.create_l2_policy(network_id=networks[1])]
                 self._test_list_resources(
+<<<<<<< HEAD
                     'l2_policy', l2_policies)
                 self._test_list_resources(
                     'l2_policy', [l2_policies[0]],
                     query_params='network_id=' + networks[0])
+=======
+                                'l2_policy', [l2_policies[0]],
+                                query_params='network_id=' + networks[0])
+>>>>>>> origin
 
     def test_list_es(self):
         with self.subnet(cidr='10.10.1.0/24') as subnet1:
@@ -243,6 +259,7 @@ class TestMappedGroupResourceAttrs(GroupPolicyMappingDbTestCase):
                             self.create_external_segment(subnet_id=subnets[0]),
                             self.create_external_segment(subnet_id=subnets[1])]
                 self._test_list_resources(
+<<<<<<< HEAD
                     'external_segment', external_segments)
                 self._test_list_resources(
                     'external_segment', [external_segments[0]],
@@ -269,3 +286,7 @@ class TestMappedGroupResourceAttrs(GroupPolicyMappingDbTestCase):
                                     'port_attributes': {
                                         'allowed_address_pairs': ''},
                                     'tenant_id': self._tenant_id}})
+=======
+                            'external_segment', [external_segments[0]],
+                            query_params='subnet_id=' + subnets[0])
+>>>>>>> origin

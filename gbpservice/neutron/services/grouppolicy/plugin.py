@@ -17,9 +17,15 @@ from neutron.common import log
 from neutron import context as n_ctx
 from neutron.extensions import portbindings
 from neutron import manager as n_manager
+<<<<<<< HEAD
 from neutron.plugins.common import constants as pconst
 from oslo_log import log as logging
 from oslo_utils import excutils
+=======
+from neutron.openstack.common import excutils
+from neutron.openstack.common import log as logging
+from neutron.plugins.common import constants as pconst
+>>>>>>> origin
 
 from gbpservice.neutron.db.grouppolicy import group_policy_db as gpdb
 from gbpservice.neutron.db.grouppolicy import group_policy_mapping_db
@@ -132,7 +138,11 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                 for linked in linked_objects:
                     link_ids.add(linked['id'])
                     GroupPolicyPlugin._verify_sharing_consistency(
+<<<<<<< HEAD
                         obj, linked, identity, ref_type, context.is_admin)
+=======
+                        obj, linked, identity, ref_type)
+>>>>>>> origin
                 # Check for missing references
                 missing = set(ids) - link_ids
                 if missing:
@@ -282,7 +292,11 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                 # Verify allocated address correctly in subnet
                 for addr in current['external_segments'][es['id']]:
                     if addr != gpdb.ADDRESS_NOT_SPECIFIED:
+<<<<<<< HEAD
                         if addr not in netaddr.IPNetwork(cidr):
+=======
+                        if addr not in netaddr.IPNetwork(es['cidr']):
+>>>>>>> origin
                             raise gp_exc.InvalidL3PExternalIPAddress(
                                 ip=addr, es_id=es['id'], l3p_id=current['id'],
                                 es_cidr=cidr)
@@ -311,6 +325,28 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                         res_type=primary_type, res_id=primary['id'],
                         ref_type=reference_type, ref_id=reference['id'])
 
+    def _validate_action_value(self, context, action):
+        if action.get('action_type') == gp_cts.GP_ACTION_REDIRECT:
+            if action.get('action_value'):
+                # Verify sc spec existence and visibility
+                spec = self.servicechain_plugin.get_servicechain_spec(
+                    context, action['action_value'])
+                GroupPolicyPlugin._verify_sharing_consistency(
+                    action, spec, 'polocy_action', 'servicechain_spec')
+
+    @staticmethod
+    def _verify_sharing_consistency(primary, reference, primary_type,
+                                    reference_type):
+        if not reference.get('shared'):
+            if primary.get('shared'):
+                raise gp_exc.SharedResourceReferenceError(
+                    res_type=primary_type, res_id=primary['id'],
+                    ref_type=reference_type, ref_id=reference['id'])
+            if primary.get('tenant_id') != reference.get('tenant_id'):
+                raise gp_exc.InvalidCrossTenantReference(
+                    res_type=primary_type, res_id=primary['id'],
+                    ref_type=reference_type, ref_id=reference['id'])
+
     def __init__(self):
         self.extension_manager = ext_manager.ExtensionManager()
         self.policy_driver_manager = manager.PolicyDriverManager()
@@ -318,6 +354,7 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
         self.extension_manager.initialize()
         self.policy_driver_manager.initialize()
 
+<<<<<<< HEAD
     def _filter_extended_result(self, result, filters):
         filters = filters or {}
         for field in filters:
@@ -327,9 +364,20 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                     break
         else:
             return result
+=======
+    def _notify_sc_plugin_pt_added(self, context, policy_target):
+        if self.servicechain_plugin:
+            self.servicechain_plugin.update_chains_pt_added(context,
+                                                            policy_target)
+
+    def _notify_sc_plugin_pt_removed(self, context, policy_target):
+        if self.servicechain_plugin:
+            self.servicechain_plugin.update_chains_pt_removed(context,
+                                                              policy_target)
+>>>>>>> origin
 
     @log.log
-    def create_policy_target(self, context, policy_target):
+    def create_policy_target(self, context, policy_target, notify_sc=True):
         session = context.session
         with session.begin(subtransactions=True):
             result = super(GroupPolicyPlugin,
@@ -348,6 +396,7 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                 policy_context)
         except Exception:
             with excutils.save_and_reraise_exception():
+<<<<<<< HEAD
                 LOG.exception(_("create_policy_target_postcommit "
                                 "failed, deleting policy_target %s"),
                               result['id'])
@@ -355,6 +404,18 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
 
         # Strip the extra port attributes
         result.pop('port_attributes', None)
+=======
+                LOG.error(_("create_policy_target_postcommit "
+                            "failed, deleting policy_target %s"),
+                          result['id'])
+                self.delete_policy_target(context, result['id'])
+
+        # REVISIT(ivar): For now just raise the exception if something goes
+        # wrong. This will eventually be managed in an asynchronous way.
+        if notify_sc:
+            self._notify_sc_plugin_pt_added(context, result)
+
+>>>>>>> origin
         return result
 
     @log.log
@@ -382,7 +443,8 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
         return updated_policy_target
 
     @log.log
-    def delete_policy_target(self, context, policy_target_id):
+    def delete_policy_target(self, context, policy_target_id,
+                             notify_sc=True):
         session = context.session
         with session.begin(subtransactions=True):
             policy_target = self.get_policy_target(context, policy_target_id)
@@ -392,6 +454,12 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                 policy_context)
             super(GroupPolicyPlugin, self).delete_policy_target(
                 context, policy_target_id)
+
+        if notify_sc:
+            # REVISIT(ivar): For now just raise the exception if something goes
+            # wrong. This will eventually be managed in an asynchronous way.
+            self._notify_sc_plugin_pt_removed(
+                context, policy_target)
 
         try:
             self.policy_driver_manager.delete_policy_target_postcommit(
@@ -446,9 +514,15 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                 policy_context)
         except Exception:
             with excutils.save_and_reraise_exception():
+<<<<<<< HEAD
                 LOG.exception(_("create_policy_target_group_postcommit "
                                 "failed, deleting policy_target_group %s"),
                               result['id'])
+=======
+                LOG.error(_("create_policy_target_group_postcommit "
+                            "failed, deleting policy_target_group %s"),
+                          result['id'])
+>>>>>>> origin
                 self.delete_policy_target_group(context, result['id'])
 
         return result
@@ -499,10 +573,16 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
             policy_target_group = self.get_policy_target_group(
                 context, policy_target_group_id)
             pt_ids = policy_target_group['policy_targets']
+<<<<<<< HEAD
             for pt in self.get_policy_targets(context.elevated(),
                                               {'id': pt_ids}):
                 if (pt['port_id'] and self._is_port_bound(pt['port_id'])
                         and not (self._is_service_target(context, pt['id']))):
+=======
+            for pt in self.get_policy_targets(context, {'id': pt_ids}):
+                if pt['port_id'] and self._is_port_bound(pt['port_id']) or (
+                        self._is_service_target(context, pt['id'])):
+>>>>>>> origin
                     raise gp_exc.PolicyTargetGroupInUse(
                         policy_target_group=policy_target_group_id)
             policy_context = p_context.PolicyTargetGroupContext(
@@ -517,6 +597,7 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
             {'policy_target_group': {'provided_policy_rule_sets': {},
                                      'consumed_policy_rule_sets': {}}})
 
+<<<<<<< HEAD
         # Proxy PTGs must be deleted before the group itself
         if policy_target_group.get('proxy_group_id'):
             try:
@@ -528,12 +609,20 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
 
         with session.begin(subtransactions=True):
             for pt in self.get_policy_targets(context, {'id': pt_ids}):
+=======
+        with session.begin(subtransactions=True):
+            for pt_id in pt_ids:
+>>>>>>> origin
                 # We will allow PTG deletion if all PTs are unused.
                 # We could have cleaned these opportunistically in
                 # the previous loop, but we will keep it simple,
                 # such that either all unused PTs are deleted
                 # or nothing is.
+<<<<<<< HEAD
                 self.delete_policy_target(context, pt['id'])
+=======
+                self.delete_policy_target(context, pt_id)
+>>>>>>> origin
             super(GroupPolicyPlugin, self).delete_policy_target_group(
                 context, policy_target_group_id)
 
@@ -589,8 +678,13 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                 policy_context)
         except Exception:
             with excutils.save_and_reraise_exception():
+<<<<<<< HEAD
                 LOG.exception(_("create_l2_policy_postcommit "
                                 "failed, deleting l2_policy %s"), result['id'])
+=======
+                LOG.error(_("create_l2_policy_postcommit "
+                            "failed, deleting l2_policy %s"), result['id'])
+>>>>>>> origin
                 self.delete_l2_policy(context, result['id'])
 
         return result
@@ -683,9 +777,15 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                 policy_context)
         except Exception:
             with excutils.save_and_reraise_exception():
+<<<<<<< HEAD
                 LOG.exception(_("create_network_service_policy_postcommit "
                                 "failed, deleting network_service_policy %s"),
                               result['id'])
+=======
+                LOG.error(_("create_network_service_policy_postcommit "
+                            "failed, deleting network_service_policy %s"),
+                          result['id'])
+>>>>>>> origin
                 self.delete_network_service_policy(context, result['id'])
 
         return result
@@ -787,8 +887,13 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
                 policy_context)
         except Exception:
             with excutils.save_and_reraise_exception():
+<<<<<<< HEAD
                 LOG.exception(_("create_l3_policy_postcommit "
                                 "failed, deleting l3_policy %s"), result['id'])
+=======
+                LOG.error(_("create_l3_policy_postcommit "
+                            "failed, deleting l3_policy %s"), result['id'])
+>>>>>>> origin
                 self.delete_l3_policy(context, result['id'])
 
         return result
@@ -1273,9 +1378,15 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
              create_external_segment_postcommit(policy_context))
         except Exception:
             with excutils.save_and_reraise_exception():
+<<<<<<< HEAD
                 LOG.exception(_("create_external_segment_postcommit "
                                 "failed, deleting external_segment "
                                 "%s"), result['id'])
+=======
+                LOG.error(_("create_external_segment_postcommit "
+                            "failed, deleting external_segment "
+                            "%s"), result['id'])
+>>>>>>> origin
                 self.delete_external_segment(context, result['id'])
 
         return result
@@ -1379,9 +1490,15 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
              create_external_policy_postcommit(policy_context))
         except Exception:
             with excutils.save_and_reraise_exception():
+<<<<<<< HEAD
                 LOG.exception(_("create_external_policy_postcommit "
                                 "failed, deleting external_policy "
                                 "%s"), result['id'])
+=======
+                LOG.error(_("create_external_policy_postcommit "
+                            "failed, deleting external_policy "
+                            "%s"), result['id'])
+>>>>>>> origin
                 self.delete_external_policy(context, result['id'])
 
         return result
@@ -1477,8 +1594,13 @@ class GroupPolicyPlugin(group_policy_mapping_db.GroupPolicyMappingDbPlugin):
              create_nat_pool_postcommit(policy_context))
         except Exception:
             with excutils.save_and_reraise_exception():
+<<<<<<< HEAD
                 LOG.exception(_("create_nat_pool_postcommit failed, deleting "
                                 "nat_pool %s"), result['id'])
+=======
+                LOG.error(_("create_nat_pool_postcommit failed, deleting "
+                            "nat_pool %s"), result['id'])
+>>>>>>> origin
                 self.delete_nat_pool(context, result['id'])
 
         return result

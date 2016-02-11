@@ -12,6 +12,14 @@ echo "*********************************************************************"
 # only the first error that occurred.
 set -o errexit
 
+<<<<<<< HEAD
+=======
+# Print the commands being run so that we can see the command that triggers
+# an error.  It is also useful for following redirecting as the install occurs.
+set -o xtrace
+
+
+>>>>>>> origin
 # Settings
 # ========
 
@@ -30,10 +38,13 @@ source $TOP_DIR/exerciserc
 
 source $TOP_DIR/openrc demo demo
 
+<<<<<<< HEAD
 # Print the commands being run so that we can see the command that triggers
 # an error.  It is also useful for following redirecting as the install occurs.
 set -o xtrace
 
+=======
+>>>>>>> origin
 function confirm_server_active {
     local VM_UUID=$1
     if ! timeout $ACTIVE_TIMEOUT sh -c "while ! nova show $VM_UUID | grep status | grep -q ACTIVE; do sleep 1; done"; then
@@ -42,11 +53,17 @@ function confirm_server_active {
     fi
 }
 
+<<<<<<< HEAD
 gbp service-profile-create --vendor heat_based_node_driver --insertion-mode l3 --servicetype FIREWALL fw-profile
 gbp service-profile-create --vendor heat_based_node_driver --insertion-mode l3 --servicetype LOADBALANCER lb-profile
 
 gbp  servicechain-node-create loadbalancer-node --template-file $TOP_DIR/gbp-templates/firewall-lb-servicechain/lb.template --service-profile lb-profile
 gbp  servicechain-node-create firewall-node --template-file $TOP_DIR/gbp-templates/firewall-lb-servicechain/fw.template  --service-profile fw-profile
+=======
+gbp  servicechain-node-create loadbalancer-node --template-file $TOP_DIR/gbp-templates/firewall-lb-servicechain/lb.template --servicetype LOADBALANCER
+
+gbp  servicechain-node-create firewall-node --template-file $TOP_DIR/gbp-templates/firewall-lb-servicechain/fw.template  --servicetype FIREWALL
+>>>>>>> origin
 
 gbp servicechain-spec-create firewall-loadbalancer-spec --description spec --nodes "firewall-node loadbalancer-node"
 
@@ -90,11 +107,19 @@ WEB_PORT=$(gbp policy-target-create web-pt-1 --policy-target-group web | awk "/p
 CLIENT1_PORT=$(gbp policy-target-create client-pt-1 --policy-target-group client-1 | awk "/port_id/ {print \$4}")
 
 ##TODO(Magesh): Add traffic testing and use namespace ports instead of launching VMs
+<<<<<<< HEAD
 WEB_VM_1_UUID=`nova boot --flavor m1.tiny --image $DEFAULT_IMAGE_NAME --nic port-id=$WEB_PORT web-vm-1 | grep ' id ' | cut -d"|" -f3 | sed 's/ //g'`
 die_if_not_set $LINENO WEB_VM_1_UUID "Failure launching web-vm-1"
 confirm_server_active $WEB_VM_1_UUID
 
 CLIENT_VM_1_UUID=`nova boot --flavor m1.tiny --image $DEFAULT_IMAGE_NAME --nic port-id=$CLIENT1_PORT client-vm-1 | grep ' id ' | cut -d"|" -f3 | sed 's/ //g'`
+=======
+WEB_VM_1_UUID=`nova boot --flavor m1.tiny --image cirros-0.3.2-x86_64-uec --nic port-id=$WEB_PORT web-vm-1 | grep ' id ' | cut -d"|" -f3 | sed 's/ //g'`
+die_if_not_set $LINENO WEB_VM_1_UUID "Failure launching web-vm-1"
+confirm_server_active $WEB_VM_1_UUID
+
+CLIENT_VM_1_UUID=`nova boot --flavor m1.tiny --image cirros-0.3.2-x86_64-uec --nic port-id=$CLIENT1_PORT client-vm-1 | grep ' id ' | cut -d"|" -f3 | sed 's/ //g'`
+>>>>>>> origin
 die_if_not_set $LINENO CLIENT_VM_1_UUID "Failure launching client-vm-1"
 confirm_server_active $CLIENT_VM_1_UUID
 
@@ -102,8 +127,13 @@ confirm_server_active $CLIENT_VM_1_UUID
 ####CHECKPOINT: No traffic flows and no Service Chain Instances or Services are created
 
 # policy-rule-set Association
+<<<<<<< HEAD
 gbp group-update client-1 --consumed-policy-rule-sets "icmp-policy-rule-set,web-policy-rule-set"
 gbp group-update web --provided-policy-rule-sets "icmp-policy-rule-set,web-policy-rule-set" --network-service-policy vip_ip_policy
+=======
+gbp group-update client-1 --consumed-policy-rule-sets "icmp-policy-rule-set=scope,web-policy-rule-set=scope"
+gbp group-update web --provided-policy-rule-sets "icmp-policy-rule-set=scope,web-policy-rule-set=scope" --network-service-policy vip_ip_policy
+>>>>>>> origin
 
 # Wait for the heat stacks to be setup completely
 sleep 15
@@ -145,8 +175,11 @@ gbp servicechain-spec-delete firewall-loadbalancer-spec
 gbp  servicechain-node-delete loadbalancer-node
 gbp  servicechain-node-delete firewall-node
 
+<<<<<<< HEAD
 gbp service-profile-delete lb-profile
 gbp service-profile-delete fw-profile
+=======
+>>>>>>> origin
 
 set +o xtrace
 echo "*********************************************************************"

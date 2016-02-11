@@ -113,4 +113,8 @@ class NoopDriver(object):
 
     @log.log
     def delete_service_profile_postcommit(self, context):
+<<<<<<< HEAD:gbpservice/neutron/services/servicechain/plugins/msc/drivers/dummy_driver.py
         pass
+=======
+        pass
+>>>>>>> origin:gbpservice/neutron/services/servicechain/plugins/msc/drivers/dummy_driver.py
