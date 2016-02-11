@@ -190,14 +190,14 @@ class Test_Process_Model(unittest.TestCase):
 		self.serializer = Serializer(self.sc)
 		self.sc.start()	
 
-if __name__ == '__main__':
-	suite = unittest.TestSuite()
-	suite.addTest(Test_Process_Model('test_service_create'))
-	suite.addTest(Test_Process_Model('test_events_with_binding_keys'))
-	suite.addTest(Test_Process_Model('test_loadbalancing_events'))
-	suite.addTest(Test_Process_Model('test_serialize_events_serialize_false'))
-	suite.addTest(Test_Process_Model('test_serialize_events_serialze_true'))
-	suite.addTest(Test_Process_Model('test_serializer_serialize'))
-	suite.addTest(Test_Process_Model('test_worker_process_initilized'))
+#if __name__ == '__main__':
+	#suite = unittest.TestSuite()
+	#suite.addTest(Test_Process_Model('test_service_create'))
+	#suite.addTest(Test_Process_Model('test_events_with_binding_keys'))
+	#suite.addTest(Test_Process_Model('test_loadbalancing_events'))
+	#suite.addTest(Test_Process_Model('test_serialize_events_serialize_false'))
+	#suite.addTest(Test_Process_Model('test_serialize_events_serialze_true'))
+	#suite.addTest(Test_Process_Model('test_serializer_serialize'))
+	#suite.addTest(Test_Process_Model('test_worker_process_initilized'))
 	#suite.addTest(Test_Process_Model('test_loadbalancing_events_without_bindingkeys'))
 	unittest.TextTestRunner(verbosity=2).run(suite)					
