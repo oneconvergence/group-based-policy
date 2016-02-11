@@ -55,20 +55,19 @@ class Filter():
                               'filters': filters
                             }
         """
-        if 'ids' in filters:
+        vpn_ids = None
+        if 'ids' in filters and filters['ids']:
             vpn_ids = filters['ids']
-
         service_info = context['service_info']
         vpnservices = service_info['vpnservices']
         filtered_vpns = []
-
         if vpn_ids:
             for vpn_id in vpn_ids:
                 filtered_vpns.append(
                     self.get_record(vpnservices, 'id', vpn_id))
             return filtered_vpns
         else:
-            return self.apply_filter(vpnservices, filters)
+            return self.apply_filter(vpnservices, filters['filters'])
 
     def get_ipsec_conns(self, context, filters):
         """
@@ -165,7 +164,7 @@ class Filter():
 
             vpnservices[vpnserviceid]['siteconns'].append(siteconn)
 
-        site2site_context = self.driver._make_vpnservice_context(vpnservices)
+        site2site_context = self._make_vpnservice_context(vpnservices)
         return site2site_context
 
     def _get_ssl_vpn_contexts(self, context, filters=None):
@@ -220,7 +219,7 @@ class Filter():
 
             vpnservices[vpnserviceid]['sslvpnconns'].append(sslconn)
 
-        sslvpn_context = self.driver._make_vpnservice_context(vpnservices)
+        sslvpn_context = self._make_vpnservice_context(vpnservices)
         return sslvpn_context
 
     def _make_vpnservice_context(self, vpnservices):
@@ -267,6 +266,7 @@ class Filter():
                 service_info['vips'], 'id', pool['vip_id'])
             retval['vip'] = vip  # self._make_vip_dict(vip)
 
+
             port = self.get_record(service_info['ports'],
                                    'id', vip['port_id'])
             retval['vip']['port'] = port  # self._make_port_dict(port)
@@ -298,3 +298,4 @@ class Filter():
 
         retval['driver'] = pool['provider']
         return retval
+
