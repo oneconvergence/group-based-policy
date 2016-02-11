@@ -236,7 +236,7 @@ class Filter():
         """
         service_info = context['service_info']
         pool_id = filters.get('pool_id')
-        pool = self.get_record(service_info['pools'], 'id', pool_id)
+        pool = self.get_record(service_info['pools'], 'id', pool_id[0])
 
         '''
         pool will be in the following format
