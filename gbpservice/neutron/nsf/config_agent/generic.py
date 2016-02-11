@@ -10,15 +10,17 @@ from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
+
 class Gc(object):
     API_VERSION = '1.0'
+
     def __init__(self, host):
         self.topic = topics.GC_NSF_PLUGIN_TOPIC
         target = target.Target(topic=self.topic,
-                     version=self.API_VERSION)
+                               version=self.API_VERSION)
         self.client = n_rpc.get_client(target)
         self.cctxt = self.client.prepare(version=self.API_VERSION,
-                                    topic=self.topic)
+                                         topic=self.topic)
 
     def configure_interface_complete(self, **kwargs):
         context = kwargs.get('context')
@@ -55,6 +57,7 @@ class Gc(object):
         del kwargs['context']
         cctxt.cast(context, 'clear_healthmonitor_complete',
                    **kwargs)
+
 
 class GcAgent(object):
     RPC_API_VERSION = '1.0'
@@ -107,8 +110,8 @@ class GcAgent(object):
                    standby_floating_ip=standby_floating_ip)
 
     def clear_source_routes(self, context, floating_ip, service_vendor,
-                             source_cidrs, provider_interface_position,
-                             standby_floating_ip=None):
+                            source_cidrs, provider_interface_position,
+                            standby_floating_ip=None):
         self._delete(context, 'source_routes',
                      floating_ip=floating_ip,
                      service_vendor=service_vendor,
@@ -121,4 +124,3 @@ class GcAgent(object):
 
     def clear_healthmonitor(self, context, **kwargs):
         self._delete(context, 'hm',  **kwargs)
-
