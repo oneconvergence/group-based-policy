@@ -33,7 +33,7 @@ class RestClientException(exceptions.Exception):
 
 class SendRequest():
 
-    def _http_request(url, method_type, headers=None, body=None):
+    def _http_request(self, url, method_type, headers=None, body=None):
         h = httplib2.Http()
         resp, content = h.request(
             url,
@@ -43,7 +43,7 @@ class SendRequest():
             connection_type=UnixDomainHTTPConnection)
         return resp, content
 
-    def send_request(path, method_type, request_method='http',
+    def send_request(self, path, method_type, request_method='http',
                      server_addr='127.0.0.1',
                      headers=None, body=None):
         path = '/v1/' + path
@@ -54,7 +54,7 @@ class SendRequest():
             None,
             ''))
         try:
-            resp, content = _http_request(url, method_type,
+            resp, content = self._http_request(url, method_type,
                                           headers=headers, body=body)
         except httplib2.ServerNotFoundError:
             raise RestClientException("Server Not Found")
@@ -93,7 +93,7 @@ class SendRequest():
 
 
 def get(path):
-    return SendRequest.send_request(path, 'GET')
+    return SendRequest().send_request(path, 'GET')
 
 
 def put(path, body, delete=False):
@@ -103,11 +103,11 @@ def put(path, body, delete=False):
     else:
         headers.update({'method-type': 'UPDATE'})
 
-    return SendRequest.send_request(path, 'PUT',
+    return SendRequest().send_request(path, 'PUT',
                                     headers=headers, body=body)
 
 
 def post(path, body):
     headers = {'content-type': 'application/json'}
-    return SendRequest.send_request(path, 'POST',
+    return SendRequest().send_request(path, 'POST',
                                     headers=headers, body=body)

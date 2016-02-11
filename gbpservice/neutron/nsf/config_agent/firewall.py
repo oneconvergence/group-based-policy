@@ -3,6 +3,7 @@ import ast
 
 from oslo_config import cfg
 from oslo_messaging import target
+from oslo_log import log as logging
 from neutron import manager
 
 from neutron.db.firewall import firewall_db
