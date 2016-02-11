@@ -32,7 +32,7 @@ class Thread(object):
         self.thread.link(func, *args, **kwargs)
 
     def identify(self):
-        return self.thread.get_ident()
+        return "(%d -> %s)" %(os.getpid(), 'Thread')
 
 
 class ThreadPool(object):
