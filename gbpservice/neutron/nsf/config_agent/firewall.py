@@ -8,11 +8,40 @@ from neutron import manager
 from neutron.db.firewall import firewall_db
 
 from gbpservice.neutron.nsf.config_agent import RestClientOverUnix as rc
+from gbpservice.neutron.nsf.config_agent import topics
+from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
+class Fw(object):
+    API_VERSION = '1.0'
+    def __init__(self, host):
+        self.topic = topics.FW_NSF_PLUGIN_TOPIC
+        target = target.Target(topic=self.topic,
+                     version=self.API_VERSION)
+        self.client = n_rpc.get_client(target)
+        self.cctxt = self.client.prepare(version=self.API_VERSION,
+                                    topic=self.topic)
 
-class FirewallAgent(firewall_db.Firewall_db_mixin):
+    def report_state(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'report_state',
+                   **kwargs)
+
+    def set_firewall_status(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'set_firewall_status',
+                   **kwargs)
+
+    def firewall_deleted(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'firewall_deleted',
+                   **kwargs)
+
+class FwAgent(firewall_db.Firewall_db_mixin):
 
     RPC_API_VERSION = '1.0'
     target = target.Target(version=RPC_API_VERSION)
@@ -20,7 +49,7 @@ class FirewallAgent(firewall_db.Firewall_db_mixin):
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
-        super(FirewallAgent, self).__init__()
+        super(FwAgent, self).__init__()
 
     def create_firewall(self, context, fw, host):
 
@@ -65,13 +94,13 @@ class FirewallAgent(firewall_db.Firewall_db_mixin):
 
     def _get_firewall_context(self, context, filters):
 
-        firewalls = super(OCFWAgent, self).\
+        firewalls = super(FWAgent, self).\
             get_firewalls(context, filters)
 
-        firewall_policies = super(OCFWAgent, self).\
+        firewall_policies = super(FWAgent, self).\
             get_firewall_policies(context, filters)
 
-        firewall_rules = super(OCFWAgent, self).\
+        firewall_rules = super(FWAgent, self).\
             get_firewall_rules(context, filters)
 
         return {'firewalls': firewalls,

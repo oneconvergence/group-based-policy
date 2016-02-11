@@ -5,18 +5,53 @@ from oslo_messaging import target
 from gbpservice.neutron.nsf.config_agent import RestClientOverUnix as rc
 from oslo_log import log as logging
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
+from neutron_lbaas.db.loadbalancer import loadbalancer_db
+from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
+class Lb(object):
+    API_VERSION = '1.0'
+    def __init__(self, host):
+        self.topic = topics.LB_NSF_PLUGIN_TOPIC
+        target = target.Target(topic=self.topic,
+                     version=self.API_VERSION)
+        self.client = n_rpc.get_client(target)
+        self.cctxt = self.client.prepare(version=self.API_VERSION,
+                                    topic=self.topic)
 
-class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
+    def report_state(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'report_state',
+                   **kwargs)
+
+    def update_status(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'update_status',
+                   **kwargs)
+
+    def update_pool_stats(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'update_pool_stats',
+                   **kwargs)
+
+    def resource_deleted(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'resource_deleted',
+                   **kwargs)
+
+class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
     RPC_API_VERSION = '1.0'
     target = target.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
-        super(LbaasAgentManager, self).__init__()
+        super(LbAgent, self).__init__()
 
     def _post(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
@@ -121,13 +156,13 @@ class LbaasAgentManager(loadbalancer_db.LoadBalancerPluginDb):
         return {'subnets': subnets, 'ports': ports}
 
     def _get_lb_context(self, context, filters):
-        pools = super(LbaasAgentManager, self).\
+        pools = super(LbAgent, self).\
             get_pools(context, filters)
-        vips = super(LbaasAgentManager, self).\
+        vips = super(LbAgent, self).\
             get_vips(context, filters)
-        members = super(LbaasAgentManager, self).\
+        members = super(LbAgent, self).\
             get_members(context, filters)
-        health_monitors = super(LbaasAgentManager, self).\
+        health_monitors = super(LbAgent, self).\
             get_health_monitors(context, filters)
         return {'pools': pools,
                 'vips': vips,

@@ -5,9 +5,38 @@ from oslo_messaging import target
 from oslo_log import log as logging
 
 from gbpservice.neutron.nsf.config_agent import RestClientOverUnix as rc
+from gbpservice.neutron.nsf.config_agent import topics
+from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
+class Vpn(object):
+    API_VERSION = '1.0'
+    def __init__(self, host):
+        self.topic = topics.VPN_NSF_PLUGIN_TOPIC
+        target = target.Target(topic=self.topic,
+                     version=self.API_VERSION)
+        self.client = n_rpc.get_client(target)
+        self.cctxt = self.client.prepare(version=self.API_VERSION,
+                                    topic=self.topic)
+
+    def report_state(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'report_state',
+                   **kwargs)
+
+    def update_status(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'update_status',
+                   **kwargs)
+
+    def ipsec_site_conn_deleted(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        cctxt.cast(context, 'ipsec_site_conn_deleted',
+                   **kwargs)
 
 class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     RPC_API_VERSION = '1.0'
@@ -16,7 +45,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
-        super(VpnAgentManager, self).__init__()
+        super(VpnAgent, self).__init__()
 
     def vpnservice_updated(self, context, **kwargs):
 
@@ -39,24 +68,24 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         return db
 
     def _get_vpn_context(self, context, filters):
-        vpnservices = super(VpnAgentManager, self).get_vpnservices(
+        vpnservices = super(VpnAgent, self).get_vpnservices(
             context,
             filters)
 
-        ikepolicies = super(VpnAgentManager, self).get_ikepolicies(
+        ikepolicies = super(VpnAgent, self).get_ikepolicies(
             context,
             filters)
 
-        ipsecpolicies = super(VpnAgentManager, self).get_ipsecpolicies(
+        ipsecpolicies = super(VpnAgent, self).get_ipsecpolicies(
             context,
             filters)
 
-        ipsec_site_conns = super(VpnAgentManager, self).\
+        ipsec_site_conns = super(VpnAgent, self).\
             get_ipsec_site_connections(
                 context,
                 filters=s_filters)
 
-        ssl_vpn_conns = super(VpnAgentManager, self).get_ssl_vpn_connections(
+        ssl_vpn_conns = super(VpnAgent, self).get_ssl_vpn_connections(
             context,
             filters=s_filters)
 

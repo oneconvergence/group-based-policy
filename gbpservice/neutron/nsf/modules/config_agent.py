@@ -13,6 +13,7 @@ from gbpservice.neutron.nsf.config_agent import topics
 from gbpservice.neutron.nsf.config_agent.firewall import *
 from gbpservice.neutron.nsf.config_agent.loadbalancer import *
 from gbpservice.neutron.nsf.config_agent.vpn import *
+from gbpservice.neutron.nsf.config_agent.generic import *
 from gbpservice.neutron.nsf.config_agent.rpc_cb import *
 
 from oslo_config import cfg
@@ -23,7 +24,7 @@ LOG = logging.getLogger(__name__)
 
 
 def rpc_init(sc, conf):
-    fwrpcmgr = FirewallAgent(conf, sc)
+    fwrpcmgr = FwAgent(conf, sc)
     fwagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
@@ -47,15 +48,15 @@ def rpc_init(sc, conf):
         manager=vpnrpcmgr
     )
 
-    smrpcmgr = SmAgent(conf, sc)
-    smagent = RpcAgent(
+    gcrpcmgr = GcAgent(conf, sc)
+    gcagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
-        topic=topics.SM_NSF_CONFIGAGENT_TOPIC,
-        manager=smrpcmgr
+        topic=topics.GC_NSF_CONFIGAGENT_TOPIC,
+        manager=gcrpcmgr
     )
 
-    sc.register_rpc_agents([fwagent, lbagent, vpnagent, smagent])
+    sc.register_rpc_agents([fwagent, lbagent, vpnagent, gcagent])
 
 
 def events_init(sc):
