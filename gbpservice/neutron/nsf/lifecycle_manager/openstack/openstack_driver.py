@@ -360,11 +360,10 @@ class NovaClient(OpenstackApi):
             raise Exception(err)
 
     def create_instance(self, token, tenant_id, image_id, flavor,
-                        nw_port_id_list, name, secgroup_name, metadata={},
-                        files=[], config_drive=False, userdata=None,
-                        key_name='', different_hosts=None,
-                        volume_support=False,
-                        volume_size="2"):
+                        nw_port_id_list, name, secgroup_name=None,
+                        metadata={}, files=[], config_drive=False,
+                        userdata=None, key_name='', different_hosts=None,
+                        volume_support=False, volume_size="2"):
         """ Launch a VM with given details
 
         :param token: A scoped token
@@ -400,7 +399,6 @@ class NovaClient(OpenstackApi):
             ]
             kwargs.update(block_device_mapping_v2=block_device_mapping_v2)
 
-
         if different_hosts:
             kwargs.update(scheduler_hints={"different_host": different_hosts})
         if key_name != '':
@@ -418,7 +416,8 @@ class NovaClient(OpenstackApi):
                         "v4-fixed-ip": entry.get("fixed_ip")}
                      for entry in nw_port_id_list]
             kwargs.update(nics=nics)
-        kwargs.update(security_groups=[secgroup_name])
+        if secgroup_name:
+            kwargs.update(security_groups=[secgroup_name])
 
         try:
             nova = nova_client.Client(self.nova_version, auth_token=token,

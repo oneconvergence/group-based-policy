@@ -10,9 +10,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.neutron.nsf.lifecycle_manager.drivers.lifecycle_driver_base\
-    import GenericLifeCycleDriver
+from gbpservice.neutron.nsf.lifecycle_manager.drivers.lifecycle_driver_base \
+    import LifeCycleDriverBase
 
 
-class VyosLifeCycleDriver(GenericLifeCycleDriver):
-    pass
+class VyosLifeCycleDriver(LifeCycleDriverBase):
+
+    def __init__(self, supports_device_sharing=True, supports_hotplug=True,
+                 max_interfaces=10):
+        super(VyosLifeCycleDriver, self).__init__(
+            supports_device_sharing=supports_device_sharing,
+            supports_hotplug=supports_hotplug,
+            max_interfaces=max_interfaces)
+        self.service_vendor = 'Vyos'

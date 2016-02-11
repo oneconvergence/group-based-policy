@@ -10,11 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.neutron.nsf.lifecycle_manager.drivers.lifecycle_driver_base\
-    import GenericLifeCycleDriver
+from gbpservice.neutron.nsf.lifecycle_manager.drivers.lifecycle_driver_base \
+    import LifeCycleDriverBase
 
 
-class HaproxyLifeCycleDriver(GenericLifeCycleDriver):
+class HaproxyLifeCycleDriver(LifeCycleDriverBase):
     """Haproxy Service VM Driver for Lifecycle handling of virtual appliances
 
     Overrides methods from HotplugSupportedLifeCycleDriver class for performing
@@ -26,38 +26,4 @@ class HaproxyLifeCycleDriver(GenericLifeCycleDriver):
             supports_device_sharing=supports_device_sharing,
             supports_hotplug=supports_hotplug,
             max_interfaces=max_interfaces)
-
-    def get_devices_to_reuse(self, tenant_id, service_type, service_vendor,
-                             ha_type, num_devices):
-        filters = {'tenant_id': [tenant_id],
-                   'service_vendor': [service_vendor],
-                   'interfaces_in_use': ' < max_interfaces'}
-        devices = self.get_device_instances_db(filters=filters)
-        if devices:
-            return devices[0]
-        else:
-            return None
-
-    def _get_ports_for_device_create(self):
-        pass
-
-    def _get_management_port(self):
-        pass
-
-    def _is_ha_monitoring_port_required(self):
-        return False
-
-    def create_device(self):
-        pass
-
-    def setup_traffic_steering(self):
-        self.network_handler.setup_traffic_steering()
-
-    def plug_interface(self):
-        pass
-
-    def unplug_interface(self):
-        pass
-
-    def delete_device(self):
-        pass
+        self.service_vendor = 'Haproxy'
