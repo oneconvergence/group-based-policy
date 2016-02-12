@@ -54,7 +54,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
 
         resource = kwargs.get('resource')
         db = self._context(context, resource['tenant_id'])
-        context['service_info'] = db
+        context.__setattr__('service_info', db)
         kwargs.update({'context': context})
         body = {'kwargs': kwargs}
         try:

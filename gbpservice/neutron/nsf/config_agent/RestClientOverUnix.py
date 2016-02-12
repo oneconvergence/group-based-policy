@@ -55,7 +55,7 @@ class SendRequest():
             ''))
         try:
             resp, content = self._http_request(url, method_type,
-                                          headers=headers, body=body)
+                                               headers=headers, body=body)
         except httplib2.ServerNotFoundError:
             raise RestClientException("Server Not Found")
 
@@ -104,10 +104,10 @@ def put(path, body, delete=False):
         headers.update({'method-type': 'UPDATE'})
 
     return SendRequest().send_request(path, 'PUT',
-                                    headers=headers, body=body)
+                                      headers=headers, body=body)
 
 
 def post(path, body):
     headers = {'content-type': 'application/json'}
     return SendRequest().send_request(path, 'POST',
-                                    headers=headers, body=body)
+                                      headers=headers, body=body)

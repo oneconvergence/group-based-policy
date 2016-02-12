@@ -58,7 +58,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     def _post(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
-        context['service_info'] = db
+        context.__setattr__('service_info', db)
         kwargs.update({'context': context})
         body = {'kwargs': kwargs}
         try:
@@ -68,7 +68,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     def _put(self, context, tenant_id, name, id, **kwargs):
         db = self._context(context, tenant_id)
-        context['service_info'] = db
+        context.__setattr__('service_info', db)
         kwargs.update({'context': context})
         body = {'kwargs': kwargs}
         try:
@@ -78,7 +78,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     def _delete(self, context, tenant_id, name, id, **kwargs):
         db = self._context(context, tenant_id)
-        context['service_info'] = db
+        context.__setattr__('service_info', db)
         kwargs.update({'context': context})
         body = {'kwargs': kwargs}
         try:

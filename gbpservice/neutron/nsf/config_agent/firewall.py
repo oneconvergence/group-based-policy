@@ -58,7 +58,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
     def create_firewall(self, context, fw, host):
 
         db = self._context(context, fw['tenant_id'])
-        context['service_info'] = db
+        context.__setattr__('service_info', db)
         kwargs = {'fw': fw, 'host': host, 'context': context}
         body = {'kwargs': kwargs}
         try:
@@ -69,7 +69,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
     def update_firewall(self, context, fw, host):
 
         db = self._context(context, fw['tenant_id'])
-        context['service_info'] = db
+        context.__setattr__('service_info', db)
         kwargs = {'fw': fw, 'host': host, 'context': context}
         body = {'kwargs': kwargs}
         try:
@@ -80,7 +80,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
     def delete_firewall(self, context, firewall, host):
 
         db = self._context(context, fw['tenant_id'])
-        context['service_info'] = db
+        context.__setattr__('service_info', db)
         kwargs = {'fw': fw, 'host': host, 'context': context}
         body = {'kwargs': kwargs}
         try:
