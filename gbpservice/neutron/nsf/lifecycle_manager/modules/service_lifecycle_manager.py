@@ -34,29 +34,20 @@ def rpc_init(controller, config):
     controller.register_rpc_agents([agent])
 
 
-def events_init(controller, config):
-    events = [
-        Event(id='DELETE_NETWORK_SERVICE',
-              handler=ServiceLifeCycleManager(controller)),
-        Event(id='CREATE_NETWORK_SERVICE_INSTANCE',
-              handler=ServiceLifeCycleManager(controller)),
-        Event(id='DELETE_NETWORK_SERVICE_INSTANCE',
-              handler=ServiceLifeCycleManager(controller)),
-        Event(id='DEVICE_ACTIVE',
-              handler=ServiceLifeCycleManager(controller)),
-        Event(id='USER_CONFIG_IN_PROGRESS',
-              handler=ServiceLifeCycleManager(controller)),
-        Event(id='USER_CONFIG_APPLIED',
-              handler=ServiceLifeCycleManager(controller)),
-        Event(id='DEVICE_CREATE_FAILED',
-              handler=ServiceLifeCycleManager(controller)),
-        Event(id='USER_CONFIG_FAILED',
-              handler=ServiceLifeCycleManager(controller))]
-    controller.register_events(events)
+def events_init(controller, config, service_lifecycle_handler):
+    events = ['DELETE_NETWORK_SERVICE', 'CREATE_NETWORK_SERVICE_INSTANCE',
+              'DELETE_NETWORK_SERVICE_INSTANCE', 'DEVICE_ACTIVE',
+              'USER_CONFIG_IN_PROGRESS', 'USER_CONFIG_APPLIED',
+              'DEVICE_CREATE_FAILED', 'USER_CONFIG_FAILED']
+    events_to_register = []
+    for event in events:
+        events_to_register.append(
+            Event(id=event, handler=service_lifecycle_handler))
+    controller.register_events(events_to_register)
 
 
 def module_init(controller, config):
-    events_init(controller, config)
+    events_init(controller, config, ServiceLifeCycleHandler(controller))
     rpc_init(controller, config)
 
 
@@ -81,60 +72,44 @@ class RpcHandler(object):
 
     def get_network_services(self, context, filters={}):
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.get_network_service(
+        return service_lifecycle_handler.get_network_services(
             context, filters)
+
+    def update_network_service(self, context, network_service_id,
+                               updated_network_service):
+        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
+        return service_lifecycle_handler.update_network_service(
+            context, network_service_id, updated_network_service)
 
     def delete_network_service(self, context, network_service_id):
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
         return service_lifecycle_handler.delete_network_service(
             context, network_service_id)
 
-    def notify_consumer_ptg_added(self, context, network_service_id, ptg):
-        pass
+    def notify_policy_target_added(self, context, network_service_id,
+                                   policy_target):
+        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
+        return service_lifecycle_handler.handle_policy_target_added(
+            context, network_service_id, policy_target)
 
-    def notify_consumer_ptg_removed(self, context, network_service_id, ptg):
-        pass
+    def notify_policy_target_removed(self, context, network_service_id,
+                                     policy_target):
+        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
+        return service_lifecycle_handler.handle_policy_target_removed(
+            context, network_service_id, policy_target)
 
+    def notify_consumer_ptg_added(self, context, network_service_id,
+                                  policy_target_group):
+        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
+        return service_lifecycle_handler.handle_consumer_ptg_added(
+            context, network_service_id, policy_target_group)
 
-class ServiceLifeCycleManager(object):
+    def notify_consumer_ptg_removed(self, context, network_service_id,
+                                    policy_target_group):
+        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
+        return service_lifecycle_handler.handle_consumer_ptg_removed(
+            context, network_service_id, policy_target_group)
 
-    def __init__(self, controller):
-        self.controller = controller
-
-    def event_method_mapping(self, state, service_lifecycle_handler):
-        state_machine = {
-            "DELETE_NETWORK_SERVICE": (
-                service_lifecycle_handler.delete_network_service),
-            "DELETE_NETWORK_SERVICE_INSTANCE": (
-                service_lifecycle_handler._delete_network_service_instance),
-            "CREATE_NETWORK_SERVICE_INSTANCE": (
-                service_lifecycle_handler.create_network_service_instance),
-            "DEVICE_ACTIVE": service_lifecycle_handler.handle_device_created,
-            "USER_CONFIG_IN_PROGRESS": (
-                service_lifecycle_handler.check_for_user_config_complete),
-            "USER_CONFIG_APPLIED": (
-                service_lifecycle_handler.handle_user_config_applied),
-            "DEVICE_DELETED": (
-                service_lifecycle_handler.handle_device_deleted),
-            "DEVICE_CREATE_FAILED": (
-                service_lifecycle_handler.handle_device_create_failed),
-            "USER_CONFIG_FAILED": (
-                service_lifecycle_handler.handle_user_config_failed)
-        }
-        if state not in state_machine:
-            raise Exception("Invalid state")
-        else:
-            return state_machine[state]
-
-    def handle_event(self, event):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self.controller)
-        self.event_method_mapping(event.id, service_lifecycle_handler)(
-            event.data)
-
-    def handle_poll_event(self, ev):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self.controller)
-        self.event_method_mapping(ev.id, service_lifecycle_handler)(
-            ev.data)
 
 class ServiceLifeCycleHandler(object):
     def __init__(self, controller):
@@ -145,6 +120,33 @@ class ServiceLifeCycleHandler(object):
         self.keystoneclient = openstack_driver.KeystoneClient()
         self.neutronclient = openstack_driver.NeutronClient()
         self.config_driver = heat_driver.HeatDriver()
+
+    def event_method_mapping(self, state):
+        state_machine = {
+            "DELETE_NETWORK_SERVICE": self.delete_network_service,
+            "DELETE_NETWORK_SERVICE_INSTANCE": (
+                self._delete_network_service_instance),
+            "CREATE_NETWORK_SERVICE_INSTANCE": (
+                self.create_network_service_instance),
+            "DEVICE_ACTIVE": self.handle_device_created,
+            "USER_CONFIG_IN_PROGRESS": self.check_for_user_config_complete,
+            "USER_CONFIG_APPLIED": self.handle_user_config_applied,
+            "DEVICE_DELETED": self.handle_device_deleted,
+            "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
+            "USER_CONFIG_FAILED": self.handle_user_config_failed
+        }
+        if state not in state_machine:
+            raise Exception("Invalid state")
+        else:
+            return state_machine[state]
+
+    def handle_event(self, event):
+        event_handler = self.event_method_mapping(event.id)
+        event_handler(event.data)
+
+    def handle_poll_event(self, event):
+        event_handler = self.event_method_mapping(event)
+        event_handler(event.data)
 
     def _log_event_created(self, event_id, event_data):
         LOG.debug(_("Created event %s(event_name)s with event "
@@ -439,3 +441,19 @@ class ServiceLifeCycleHandler(object):
     def get_network_services(self, context, filters):
         return self.db_handler.get_network_services(
             self.db_session, filters)
+
+    def handle_policy_target_added(self, context, network_service_id,
+                                   policy_target):
+        pass
+
+    def handle_policy_target_removed(self, context, network_service_id,
+                                     policy_target):
+        pass
+
+    def handle_consumer_ptg_added(self, context, network_service_id,
+                                  consumer_ptg):
+        pass
+
+    def handle_consumer_ptg_removed(self, context, network_service_id,
+                                  consumer_ptg):
+        pass

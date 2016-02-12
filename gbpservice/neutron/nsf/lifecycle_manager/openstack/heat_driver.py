@@ -133,10 +133,13 @@ class HeatDriver():
         #    def initialize(self, name):
         self.initialized = True
         #self._name = name
-        if cfg.CONF.heat_driver.is_service_admin_owned:
+        self.resource_owner_tenant_id = None
+
+    @property
+    def resource_owner_tenant_id(self):
+        if not self.resource_owner_tenant_id:
             self.resource_owner_tenant_id = self._resource_owner_tenant_id()
-        else:
-            self.resource_owner_tenant_id = None
+            return self.resource_owner_tenant_id
 
     def lbaas_plugin(self):
         if self._lbaas_plugin:
