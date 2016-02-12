@@ -18,11 +18,6 @@ OPTS = [
         help=_('Modules path to import ')
     ),
     cfg.IntOpt(
-        'evs_polling_interval',
-        default=1,
-        help=_('Polling interval for events in seconds ')
-    ),
-    cfg.IntOpt(
         'periodic_interval',
         default=10,
         help=_('Seconds between periodic task runs')
