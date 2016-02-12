@@ -12,7 +12,7 @@ from gbpservice.neutron.nsf.core.main import RpcAgent
 #from gbpservice.neutron.nsf.configurator.lib.filter import Filter
 from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
 from gbpservice.neutron.nsf.configurator.drivers.loadbalancer.v1.\
- haproxy.haproxy_lb_driver import HaproxyOnVmDriver, HAProxyOnVMGenConfigDriver
+ haproxy.haproxy_lb_driver import HaproxyOnVmDriver
 
 LOG = logging.getLogger(__name__)
 
@@ -49,6 +49,8 @@ class LBaasRpcSender(object):
         )
 
     def update_status(self, obj_type, obj_id, status):
+        LOG.info("[LbaaSRpcSender]: Update status called")
+        """
         '''TODO:(pritam) Enqueue event in ResponseQ
         '''
         return self.call(
@@ -56,8 +58,11 @@ class LBaasRpcSender(object):
             self.make_msg('update_status', obj_type=obj_type, obj_id=obj_id,
                           status=status)
         )
+        """
 
     def update_pool_stats(self, pool_id, stats):
+        LOG.info("[LbaaSRpcSender]: Update pool stats called")
+        """
         '''TODO:(pritam) Enqueue event in ResponseQ
         '''
         return self.call(
@@ -69,14 +74,18 @@ class LBaasRpcSender(object):
                 host=self.host
             )
         )
+        """
 
     def resource_deleted(self, obj_type, obj_id):
+        LOG.info("[LbaaSRpcSender]: resource deleted called called")
+        """
         '''TODO:(pritam) Enqueue event in ResponseQ
         '''
         return self.call(
             self.context,
             self.make_msg('resource_deleted', obj_type=obj_type, obj_id=obj_id)
         )
+        """
 
 
 class LBaasRpcReceiver(object):
@@ -94,7 +103,11 @@ class LBaasRpcReceiver(object):
     def create_vip(self, context, vip):
 
         arg_dict = {'context': context,
-                    'vip': vip}
+                    'vip': vip
+                    # TODO:(pritam)
+                    # 'serialize': True,
+                    # 'binding_key': vip['id']
+                    }
         ev = self._sc.event(id='CREATE_VIP', data=arg_dict)
         self._sc.rpc_event(ev)
 
@@ -207,7 +220,7 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
             raise DeviceNotFoundOnAgent(pool_id=pool_id)
 
         driver_name = self.instance_mapping[pool_id]
-        return self.device_drivers[driver_name]
+        return self.drivers[driver_name]
 
     def handle_event(self, ev):
         try:
@@ -221,6 +234,7 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
         except Exception as err:
             LOG.error("Failed to perform the operation: %s. %s"
                       % (ev.id, str(err).capitalize()))
+        """
         finally:
             if ev.id == 'COLLECT_STATS':
                 '''Do not say event done for collect stats as it is
@@ -229,6 +243,7 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
                 pass
             else:
                 self._sc.event_done(ev)
+        """
 
     def _create_vip(self, ev):
         data = ev.data
@@ -265,12 +280,6 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
             driver.delete_vip(vip)
         except Exception:
             LOG.warn(_("Failed to delete vip %s"), vip['id'])
-        try:
-            self.plugin_rpc.resource_deleted('vip', vip['id'])
-        except Exception as err:
-            LOG.error(_('Failed to delete the resource %s (ID: %s)'
-                        '  at plugin.Failed in plugin RPC. Error: %s'
-                        % ('vip', vip['id'], err)))
 
     def _create_pool(self, ev):
         data = ev.data
@@ -318,12 +327,6 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
         except Exception:
             LOG.warn(_("Failed to delete pool %s"), pool['id'])
         del self.instance_mapping[pool['id']]
-        try:
-            self.plugin_rpc.resource_deleted('pool', pool['id'])
-        except Exception as err:
-            LOG.error(_('Failed to delete the resource %s (ID: %s)'
-                        '  at plugin.Failed in plugin RPC. Error: %s'
-                        % ('pool', pool['id'], err)))
 
     def _create_member(self, ev):
         data = ev.data
@@ -362,12 +365,6 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
             driver.delete_member(member)
         except Exception:
             LOG.warn(_("Failed to delete member %s"), member['id'])
-        try:
-            self.plugin_rpc.resource_deleted('member', member['id'])
-        except Exception as err:
-            LOG.error(_('Failed to delete the resource %s (ID: %s)'
-                        '  at plugin.Failed in plugin RPC. Error: %s'
-                        % ('member', member['id'], err)))
 
     def _create_pool_health_monitor(self, ev):
         data = ev.data
@@ -417,13 +414,6 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
             LOG.warn(_("Failed to delete pool health monitor."
                        " Health monitor: %s, Pool: %s"),
                      health_monitor['id'], pool_id)
-        try:
-            self.plugin_rpc.resource_deleted('health_monitor',
-                                             assoc_id)
-        except Exception as err:
-            LOG.error(_('Failed to delete the resource %s (ID: %s)'
-                        '  at plugin.Failed in plugin RPC. Error: %s'
-                        % ('health_monitor', assoc_id, err)))
 
     def _agent_updated(self, ev):
         """ TODO:(pritam): Support """
@@ -525,7 +515,7 @@ class LBaasGenericConfigHandler():
         """TODO:(pritam) Do demultiplexing logic based on vendor
            when a different vendor comes.
         """
-        return self.drivers["haproxy_on_vm_gen_config"]
+        return self.drivers["haproxy_on_vm"]
 
     def handle_event(self, ev):
         try:
@@ -541,8 +531,8 @@ class LBaasGenericConfigHandler():
         except Exception as err:
             LOG.error("Failed to perform the operation: %s. %s"
                       % (ev.id, str(err).capitalize()))
-        finally:
-            self._sc.event_done(ev)
+        #finally:
+        #    self._sc.event_done(ev)
 
 
 def _create_rpc_agent(sc, topic, manager, agent_state=None):
@@ -622,8 +612,7 @@ def load_drivers():
                                 ctxt,
                                 cfg.CONF.host)
 
-    drivers = {'haproxy_on_vm': HaproxyOnVmDriver(None, plugin_rpc),
-               'haproxy_on_vm_gen_config': HAProxyOnVMGenConfigDriver()}
+    drivers = {'haproxy_on_vm': HaproxyOnVmDriver(None, plugin_rpc)}
     return drivers
 
 

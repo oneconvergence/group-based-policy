@@ -18,6 +18,8 @@ from oslo_log import log as logging
 from gbpservice.neutron.nsf.configurator.drivers.loadbalancer.v1.haproxy \
                                                     import(haproxy_rest_client)
 from gbpservice.neutron.nsf.configurator.lib import lb_constants as const
+from gbpservice.neutron.nsf.configurator.drivers.base.base_driver\
+    import BaseDriver
 # from gbpservice.neutron.nsf.configurator.modules.loadbalancer import (
 #                                                            LBaasRpcSender)
 
@@ -39,33 +41,7 @@ REQUEST_TIMEOUT = 10
 LOG = logging.getLogger(__name__)
 
 
-class HAProxyOnVMGenConfigDriver(object):
-
-    RPC_API_VERSION = '1.0'
-
-    def __init__(self):
-        pass
-
-    def configure_interfaces(self, context, **kwargs):
-        return None
-
-    def clear_interfaces(self, context, floating_ip, service_vendor,
-                         provider_interface_position,
-                         stitching_interface_position):
-        return None
-
-    def configure_source_routes(self, context, floating_ip, service_vendor,
-                                source_cidrs, destination_cidr, gateway_ip,
-                                provider_interface_position):
-        return None
-
-    def delete_source_routes(self, context, floating_ip, service_vendor,
-                             source_cidrs,
-                             provider_interface_position):
-        return None
-
-
-class HaproxyOnVmDriver(object):
+class HaproxyOnVmDriver(BaseDriver):
     def __init__(self, conf, plugin_rpc):
         self.conf = conf
         self.context = context.get_admin_context_without_session()
@@ -637,6 +613,7 @@ class HaproxyOnVmDriver(object):
 
     def create_pool(self, pool):
         # nothing to do here because a pool needs a vip to be useful
+        LOG.info("[haproxy_lb_driver]: Pool create called")
         pass
 
     def update_pool(self, old_pool, pool):
