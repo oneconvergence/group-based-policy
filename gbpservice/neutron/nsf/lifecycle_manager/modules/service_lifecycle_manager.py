@@ -152,7 +152,7 @@ class ServiceLifeCycleHandler(object):
                    {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None, key=None,
-                    binding_key=None, serialize=False, is_poll_event=False):
+                      binding_key=None, serialize=False, is_poll_event=False):
         event = self._controller.event(id=event_id, data=event_data)
         if is_poll_event:
             self._controller.poll_event(event)

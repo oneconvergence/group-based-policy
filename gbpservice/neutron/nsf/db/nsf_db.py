@@ -17,6 +17,7 @@ from oslo_log import log as logging
 from oslo_utils import uuidutils
 from sqlalchemy.orm import exc
 
+from gbpservice.neutron.nsf.common import exceptions as nsf_exc
 from gbpservice.neutron.nsf.db import common_db_mixin
 from gbpservice.neutron.nsf.db import nsf_db_model
 
@@ -49,7 +50,7 @@ class NSFDbBase(common_db_mixin.CommonDbMixin):
             return self._get_by_id(
                 session, nsf_db_model.NetworkService, network_service_id)
         except exc.NoResultFound:
-            raise Exception()  # Raise appropriate error class here
+            raise nsf_exc.NetworkServiceNotFound()
 
     def update_network_service(self, session, network_service_id,
                                updated_network_service):
@@ -133,7 +134,7 @@ class NSFDbBase(common_db_mixin.CommonDbMixin):
                 nsf_db_model.NetworkServiceInstance,
                 network_service_instance_id)
         except exc.NoResultFound:
-            raise Exception()  # Raise appropriate error class here
+            raise nsf_exc.NetworkServiceInstanceNotFound()
 
     def update_network_service_instance(self, session,
                                         network_service_instance_id,
@@ -266,10 +267,13 @@ class NSFDbBase(common_db_mixin.CommonDbMixin):
                 network_service_device_db)
 
     def _get_network_service_device(self, session, network_service_device_id):
-        return self._get_by_id(
-            session,
-            nsf_db_model.NetworkServiceDevice,
-            network_service_device_id)
+        try:
+            return self._get_by_id(
+                session,
+                nsf_db_model.NetworkServiceDevice,
+                network_service_device_id)
+        except exc.NoResultFound:
+            raise nsf_exc.NetworkServiceDeviceNotFound()
 
     def update_network_service_device(self, session, network_service_device_id,
                                       updated_network_service_device):
