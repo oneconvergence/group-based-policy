@@ -1,5 +1,6 @@
 from oslo_log import log as logging
 LOG = logging.getLogger(__name__)
+SUCCESS = 'SUCCESS'
 
 
 class BaseDriver(object):
@@ -10,20 +11,14 @@ class BaseDriver(object):
     def __init__(self):
         pass
 
-    def configure_interfaces(self, context, **kwargs):
-        return None
+    def configure_interfaces(self, **kwargs):
+        return SUCCESS
 
-    def clear_interfaces(self, context, floating_ip, service_vendor,
-                         provider_interface_position,
-                         stitching_interface_position):
-        return None
+    def clear_interfaces(self, **kwargs):
+        return SUCCESS
 
-    def configure_source_routes(self, context, floating_ip, service_vendor,
-                                source_cidrs, destination_cidr, gateway_ip,
-                                provider_interface_position):
-        return None
+    def configure_source_routes(self, **kwargs):
+        return SUCCESS
 
-    def delete_source_routes(self, context, floating_ip, service_vendor,
-                             source_cidrs,
-                             provider_interface_position):
-        return None
+    def delete_source_routes(self, **kwargs):
+        return SUCCESS
