@@ -20,7 +20,9 @@ import proxy
 count = 0
 rxcount = 0
 txcount = 0
-connection_count = 0
+connection_count =0
+threadLock = threading.Lock()
+threads = []
 
 
 class TcpServer():
@@ -30,6 +32,7 @@ class TcpServer():
         self.server_address = server_address
         print >>sys.stderr, 'starting up the TCP server on %s port %s' % self.server_address
         self.sock.bind(self.server_address)
+        self.count = 0
 
     # ideal_max_timeout Test
     def test_one_start(self):
@@ -86,11 +89,10 @@ class TcpServer():
     def test_three_start(self):
         self.sock.listen(1)
         print >>sys.stderr, '[TCP]waiting for a connection'
-        count = 0
 
         while True:
             connection, client_address = self.sock.accept()
-            count += 1
+            self.count += 1
             try:
                 data = connection.recv(16)
                 print>> sys.stderr, '[TCP]Received "%s "' % data
@@ -98,7 +100,7 @@ class TcpServer():
                     print >> sys.stderr, '[TCP]sending back to the Unix client'
                     connection.sendall(data)
                 # Shutting Down the TCP server after 100 connection accepted
-                if count == 10:
+                if self.count == 10:
                     break
             except socket.error, msg:
                 print>>sys.stderr, msg
@@ -168,130 +170,74 @@ class UnixClient():
             print "closing %s socket" % sock
             sock.close()
 
-    def multiple_unix_connections(self, arg, **kwargs):
-        # Create a UDS socket
+    def multiple_unix_connections(self):
+        threadLock.acquire()
+        global connection_count
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         # Connect the socket to the port where the server is listening
         server_address = '/tmp/uds_socket'
-        global connection_count
+        # print >>sys.stderr, 'connecting to %s' % server_address
         try:
             sock.connect(server_address)
-            print '[Unix]Connected socket (%s) to (%s)' % (sock, server_address)
-            connection_count += 1
-            print '[Unix] Incremeted connection cout %s' % (connection_count)
+            print 'Connected socket (%s) to (%s)' % (sock, server_address)
+            connection_count +=1
         except socket.error, msg:
             print >>sys.stderr, msg
-            sys.exit(1)
-        try:
-            # Send data
+            print'[Unix] closing Connection'
+            connection_count -=1
+            sock.close()
+            threadLock.release()
+            return
+        
+        count =0
+        while count<10 :
             global txcount
             txcount += 1
             message = 'Hi'
-            # print >>sys.stderr, 'sending "%s"' % message
-            print '[Unix]Sending message (%s) to (%s) count (%d)' % (
-                message, sock, txcount)
-            sock.sendall(message)
-
-            amount_received = 0
-            amount_expected = len(message)
-
-            recvd = ""
-            while amount_received < amount_expected:
-                data = sock.recv(50)
-                amount_received += len(data)
-                recvd += data
-            global rxcount
-            rxcount += 1
-            print '[Unix]Recieved message (%s) from (%s) count (%d)' % (
-                message, sock, rxcount)
-        except socket.error, msg:
-            print>>sys.stderr, msg
-            connection_count -= 1
-            print'[Unix] Decremented Connection Count %s' % (connection_count)
+            print 'Sending message (%s) to (%s) count (%d)' % (
+            message, sock, txcount)
+            try:
+                count =+1
+                sock.sendall(message)
+            except socket.error, msg:
+                print >>sys.stderr, msg
+            print'[Unix] closing Connection'
+            connection_count -=1
             sock.close()
-
-            # print >>sys.stderr, 'closing socket'
-        print '[Unix]Closing socket (%s)' % (sock)
-        print'[Unix] Decremented Connection Count %s' % (connection_count)
-        connection_count -= 1
-        sock.close()
-
-
-# to start mutiple clients with mmutiple treading
-def _thread_done(gt, *args, **kwargs):
-    kwargs['pool'].thread_done(kwargs['thread'])
-
-
-class Thread(object):
-
-    def __init__(self, thread, pool):
-        self.thread = thread
-        self.thread.link(_thread_done, pool=pool, thread=self)
-
-    def stop(self):
-        self.thread.kill()
-
-    def wait(self):
-        return self.thread.wait()
-
-    def link(self, func, *args, **kwargs):
-        self.thread.link(func, *args, **kwargs)
-
-
-class ThreadPool(object):
-
-    def __init__(self, thread_pool_size=10):
-        self.pool = greenpool.GreenPool(thread_pool_size)
-        self.threads = []
-
-    def dispatch(self, callback, *args, **kwargs):
-        gt = self.pool.spawn(callback, *args, **kwargs)
-        th = Thread(gt, self)
-        self.threads.append(th)
-        return th
-
-    def thread_done(self, thread):
-        self.threads.remove(thread)
-
-    def stop(self):
-        current = greenthread.getcurrent()
-        # Iterate over a copy of self.threads so thread_done doesn't
-        # modify the list while we're iterating
-        for x in self.threads[:]:
-            if x is current:
-                # don't kill the current thread.
-                continue
+            threadLock.release()
+            return
+                
             try:
-                x.stop()
-            except Exception as ex:
-                print ex
+                data = sock.recv(50)
+                # print >>sys.stderr, 'received "%s"' % data
+                global rxcount
+                rxcount += 1
+                print 'Recieved message (%s) from (%s) count (%d)' % (
+                    data, sock, rxcount)
+            except socket.error, msg :
+                print >>sys.stderr, msg
+            print'[Unix] closing Connection'
+            connection_count -=1
+            sock.close()
+            threadLock.release()
+            return
+            threadLock.release()
+            time.sleep(.2)
+        
+        print"[self.t_id] Closing "
+        print'[Unix] closing Connection'
+        connection_count -=1
+        threadLock.release()
+        return
 
-    def wait(self):
-        current = greenthread.getcurrent()
+class TreadStart(threading.Thread):
+    def __init__(self, t_id):
+        self.t_id =t_id
+        threading.Thread.__init__(self)
 
-        # Iterate over a copy of self.threads so thread_done doesn't
-        # modify the list while we're iterating
-        for x in self.threads[:]:
-            if x is current:
-                continue
-            try:
-                x.wait()
-            except eventlet.greenlet.GreenletExit:
-                pass
-            except Exception as ex:
-                print ex
-
-# method to start mutiple connections
-
-
-def mutilpe_unix_client_start():
-    tpool = ThreadPool(10)
-    for i in range(200):
-        tpool.dispatch(UnixClient().multiple_unix_connections, None)
-        time.sleep(0.2)
-
-# class to start conf proxy
+    def run(self):
+        UnixClient(). multiple_unix_connections()
 
 
 class ProxyStart():
@@ -305,7 +251,7 @@ class ProxyStart():
 
 
 class TestConfProxy(unittest.TestCase):
-
+    
     def test_ideal_max_timeout(self):
         return_val = 0
         server_address = ('0.0.0.0', 5674)
@@ -325,6 +271,7 @@ class TestConfProxy(unittest.TestCase):
 
         self.assertEqual(return_val, 1)
 
+    
     def test_connection_broken(self):
         return_val = 0
         server_address = ('0.0.0.0', 5675)
@@ -343,8 +290,8 @@ class TestConfProxy(unittest.TestCase):
         os.kill(proxy_obj.pid, signal.SIGKILL)
 
         self.assertEqual(return_val, 1)
-
-    """
+    
+    
     def test_mutliple_connections(self):
         server_address = ('0.0.0.0', 5676)
         tcp_process = Process(target=TcpServer(
@@ -357,12 +304,21 @@ class TestConfProxy(unittest.TestCase):
         proxy_obj.start()
         time.sleep(5)
 
-        return_val = mutilpe_unix_client_start()
-        tcp_process.join()
-        os.kill(proxy_obj.pid, signal.SIGKILL)
+        for i in range(5) :
+            t = TreadStart(i)
+            threads.append(t)
+        for t in threads :
+            t.start()
+        for t in threads :
+            t.join()
+        print"Exiting from main thread"
 
+        time.sleep(5)
+        os.kill(tcp_process.pid, signal.SIGKILL)
+        os.kill(proxy_obj.pid, signal.SIGKILL)
+        
         self.assertEqual(connection_count, 0)
-    """
+    
 
 
 if __name__ == '__main__':
