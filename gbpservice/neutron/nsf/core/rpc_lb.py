@@ -17,9 +17,6 @@ class RoundRobin(object):
     def get(self, rsrcid):
         return self._rr()
 
-    def rem(self, rsrcid):
-        pass
-
 
 class StickyRoundRobin(object):
 
@@ -41,6 +38,3 @@ class StickyRoundRobin(object):
             worker = self._rr()
             self._assoc[rsrcid] = worker
         return worker
-
-    def rem(self, rsrcid):
-        del self._assoc[rsrcid]

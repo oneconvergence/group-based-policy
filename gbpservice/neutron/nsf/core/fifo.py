@@ -2,7 +2,7 @@ import sys
 from collections import deque
 
 
-class Queue(object):
+class Fifo(object):
 
     class Empty(Exception):
 
