@@ -61,9 +61,9 @@ class LifeCycleDriverBase(object):
             # TODO[RPM]: raise proper exception
             raise Exception("Driver doesn't support device sharing")
 
-        hotplug_ports_count = 1
+        hotplug_ports_count = 1  # provider interface (default)
         for port in device_data['ports']:
-            if port['port_classification'].lower() == 'provider':
+            if port['port_classification'].lower() == 'consumer':
                 hotplug_ports_count = 2
 
         for device in devices:
@@ -134,10 +134,10 @@ class LifeCycleDriverBase(object):
         except Exception:
             return None
 
-        try:
-            if device_data['compute_policy'] != 'nova':
-                raise Exception()  # TODO[RPM]: raise proper exception
+        if device_data['compute_policy'] != 'nova':
+            raise Exception()  # TODO[RPM]: raise proper exception
 
+        try:
             token = (device_data['token']
                      if device_data.get('token')
                      else self.identity_handler.get_admin_token())
@@ -190,11 +190,11 @@ class LifeCycleDriverBase(object):
                  if device_data.get('token')
                  else self.identity_handler.get_admin_token())
 
-        try:
-            if device_data['compute_policy'] != 'nova':
-                # TODO[RPM]: raise proper exception
-                raise Exception()
+        if device_data['compute_policy'] != 'nova':
+            # TODO[RPM]: raise proper exception
+            raise Exception()
 
+        try:
             self.compute_handler_nova.delete_instance(token,
                                                       device_data['tenant_id'],
                                                       device_data['id'])
