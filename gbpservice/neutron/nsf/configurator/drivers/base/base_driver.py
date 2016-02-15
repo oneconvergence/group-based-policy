@@ -20,5 +20,5 @@ class BaseDriver(object):
     def configure_source_routes(self, **kwargs):
         return SUCCESS
 
-    def delete_source_routes(self, **kwargs):
+    def clear_source_routes(self, **kwargs):
         return SUCCESS
