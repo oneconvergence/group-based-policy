@@ -122,7 +122,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
             member['id'], member=member)
 
     def create_pool_health_monitor(self, context, hm, pool_id):
-        self._post(context, health_monitor[
+        self._post(context, hm[
                    'tenant_id'], 'hm',
                    hm=hm, pool_id=pool_id)
 
@@ -134,14 +134,14 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     def delete_pool_health_monitor(self, context, hm, pool_id):
         self._delete(
-            context, health_monitor['tenant_id'], 'hm',
+            context, hm['tenant_id'], 'hm',
             hm['id'], hm=hm, pool_id=pool_id)
 
     def _context(self, context, tenant_id):
         if context.is_admin:
             tenant_id = context.tenant_id
         filters = {'tenant_id': tenant_id}
-        db = self._get_vpn_context(context, filters)
+        db = self._get_lb_context(context, filters)
         db.update(self._get_core_context(context, filters))
         return db
 
