@@ -1,4 +1,4 @@
-from neutron.db.vpn import vpn_db
+from neutron_vpnaas.db.vpn import vpn_db
 from neutron import manager
 from oslo_config import cfg
 from oslo_messaging import target
@@ -50,6 +50,14 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         self._sc = sc
         super(VpnAgent, self).__init__()
 
+    @property
+    def core_plugin(self):
+        try:
+            return self._core_plugin
+        except AttributeError:
+            self._core_plugin = manager.NeutronManager.get_plugin()
+            return self._core_plugin
+
     def vpnservice_updated(self, context, **kwargs):
 
         resource = kwargs.get('resource')
@@ -86,20 +94,15 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         ipsec_site_conns = super(VpnAgent, self).\
             get_ipsec_site_connections(
                 context,
-                filters=s_filters)
-
-        ssl_vpn_conns = super(VpnAgent, self).get_ssl_vpn_connections(
-            context,
-            filters=s_filters)
+                filters=filters)
 
         return {'vpnservices': vpnservices,
                 'ikepolicies': ikepolicies,
                 'ipsecpolicies': ipsecpolicies,
-                'ipsec_site_conns': ipsec_site_conns,
-                'ssl_vpn_conns': ssl_vpn_conns}
+                'ipsec_site_conns': ipsec_site_conns}
 
     def _get_core_context(self, context, filters):
-        core_plugin = self._core_plugin
+        core_plugin = self.core_plugin
         subnets = core_plugin.get_subnets(
             context,
             filters)

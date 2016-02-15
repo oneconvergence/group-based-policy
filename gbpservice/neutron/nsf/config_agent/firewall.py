@@ -6,7 +6,7 @@ from oslo_messaging import target
 from oslo_log import log as logging
 from neutron import manager
 
-from neutron.db.firewall import firewall_db
+from neutron_fwaas.db.firewall import firewall_db
 
 from gbpservice.neutron.nsf.config_agent import RestClientOverUnix as rc
 from gbpservice.neutron.nsf.config_agent import topics
@@ -77,7 +77,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         except:
             LOG.error("update_firewall -> UPDATE request failed.")
 
-    def delete_firewall(self, context, firewall, host):
+    def delete_firewall(self, context, fw, host):
 
         db = self._context(context, fw['tenant_id'])
         context.__setattr__('service_info', db)
@@ -98,13 +98,13 @@ class FwAgent(firewall_db.Firewall_db_mixin):
 
     def _get_firewall_context(self, context, filters):
 
-        firewalls = super(FWAgent, self).\
+        firewalls = super(FwAgent, self).\
             get_firewalls(context, filters)
 
-        firewall_policies = super(FWAgent, self).\
+        firewall_policies = super(FwAgent, self).\
             get_firewall_policies(context, filters)
 
-        firewall_rules = super(FWAgent, self).\
+        firewall_rules = super(FwAgent, self).\
             get_firewall_rules(context, filters)
 
         return {'firewalls': firewalls,
