@@ -176,7 +176,6 @@ class NetworkServiceDevice(BASE, HasId, HasTenant, HasStatusDescription):
 
     name = sa.Column(sa.String(255))
     description = sa.Column(sa.String(255))
-    cluster_id = sa.Column(sa.String(36), nullable=True)
     mgmt_ip_address = sa.Column(sa.String(36), nullable=True)
     mgmt_data_ports = orm.relationship(
         NSDPortAssociation,

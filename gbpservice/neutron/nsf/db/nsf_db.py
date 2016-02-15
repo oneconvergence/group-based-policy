@@ -248,7 +248,6 @@ class NSFDbBase(common_db_mixin.CommonDbMixin):
                 name=network_service_device['name'],
                 description=network_service_device.get('description'),
                 tenant_id=network_service_device['tenant_id'],
-                cluster_id=network_service_device.get('cluster_id'),
                 mgmt_ip_address=network_service_device[
                     'mgmt_ip_address'],
                 service_vendor=network_service_device.get('service_vendor'),
@@ -392,7 +391,6 @@ class NSFDbBase(common_db_mixin.CommonDbMixin):
                'tenant_id': nsd['tenant_id'],
                'name': nsd['name'],
                'description': nsd['description'],
-               'cluster_id': nsd['cluster_id'],
                'mgmt_ip_address': nsd['mgmt_ip_address'],
                'ha_monitoring_data_port': nsd['ha_monitoring_data_port'],
                'ha_monitoring_data_network': nsd['ha_monitoring_data_network'],
