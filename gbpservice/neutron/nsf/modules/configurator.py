@@ -95,6 +95,8 @@ def events_init(sc):
         Event(id='UPDATE_POOL_HEALTH_MONITOR', handler=LBaasEventHandler(sc)),
         Event(id='DELETE_POOL_HEALTH_MONITOR', handler=LBaasEventHandler(sc)),
         Event(id='AGENT_UPDATED', handler=LBaasEventHandler(sc)),
+    	
+	# Poll Events triggered internally
         Event(id='COLLECT_STATS', handler=LBaasEventHandler(sc))
         ]
 
