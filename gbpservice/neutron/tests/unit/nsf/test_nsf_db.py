@@ -71,7 +71,7 @@ class NSFDBTestCase(SqlTestCase):
         self.nsf_db = NSFDB()
         self.session = db_api.get_session()
 
-    def _create_network_service(self, attributes=None):
+    def create_network_service(self, attributes=None):
         if attributes is None:
             attributes = {
                 'name': 'name',
@@ -99,7 +99,7 @@ class NSFDBTestCase(SqlTestCase):
             'status': 'status'
         }
 
-        network_service = self._create_network_service(attrs)
+        network_service = self.create_network_service(attrs)
         for key in attrs:
             self.assertEqual(attrs[key], network_service[key])
         self.assertIsNotNone(network_service['id'])
@@ -112,7 +112,7 @@ class NSFDBTestCase(SqlTestCase):
             'service_profile_id': 'service_profile_id',
             'status': 'status'
         }
-        network_service = self._create_network_service(attrs_mandatory)
+        network_service = self.create_network_service(attrs_mandatory)
         for key in attrs_mandatory:
             self.assertEqual(attrs_mandatory[key], network_service[key])
         self.assertIsNotNone(network_service['id'])
@@ -133,14 +133,14 @@ class NSFDBTestCase(SqlTestCase):
             'heat_stack_id': 'heat_stack_id',
             'status': 'status'
         }
-        network_service = self._create_network_service(attrs_all)
+        network_service = self.create_network_service(attrs_all)
         db_network_service = self.nsf_db.get_network_service(
             self.session, network_service['id'])
         for key in attrs_all:
             self.assertEqual(attrs_all[key], db_network_service[key])
 
     def test_list_network_service(self):
-        network_service = self._create_network_service()
+        network_service = self.create_network_service()
         network_services = self.nsf_db.get_network_services(self.session)
         self.assertEqual(1, len(network_services))
         self.assertEqual(network_service['id'], network_services[0]['id'])
@@ -153,7 +153,7 @@ class NSFDBTestCase(SqlTestCase):
             'service_profile_id': 'service_profile_id',
             'status': 'status'
         }
-        network_service = self._create_network_service(attrs)
+        network_service = self.create_network_service(attrs)
         filters = {'service_id': ['service_id']}
         network_services = self.nsf_db.get_network_services(
             self.session, filters=filters)
@@ -165,7 +165,7 @@ class NSFDBTestCase(SqlTestCase):
         self.assertEqual([], network_services)
 
     def test_update_network_service(self):
-        network_service = self._create_network_service()
+        network_service = self.create_network_service()
         self.assertIsNotNone(network_service['id'])
         updated_network_service = {'status': 'ERROR'}
         network_service = self.nsf_db.update_network_service(
@@ -173,7 +173,7 @@ class NSFDBTestCase(SqlTestCase):
         self.assertEqual('ERROR', network_service['status'])
 
     def test_delete_network_service(self):
-        network_service = self._create_network_service()
+        network_service = self.create_network_service()
         self.assertIsNotNone(network_service['id'])
         self.nsf_db.delete_network_service(
             self.session, network_service['id'])
@@ -181,15 +181,16 @@ class NSFDBTestCase(SqlTestCase):
                           self.nsf_db.get_network_service,
                           self.session, network_service['id'])
 
-    def _create_network_service_instance(self, attributes=None):
+    def create_network_service_instance(self, attributes=None, create_nsd=True):
         if attributes is None:
+            nsd = (self.create_network_service_device()['id']
+                   if create_nsd else None)
             attributes = {
                 'name': 'name',
                 'description': 'description',
                 'tenant_id': 'tenant_id',
-                'network_service_id': self._create_network_service()['id'],
-                'network_service_device_id': (
-                    self._create_network_service_device()['id']),
+                'network_service_id': self.create_network_service()['id'],
+                'network_service_device_id': nsd,
                 'ha_state': "Active",
                 'data_ports': [
                     {'id': 'myid1',
@@ -207,14 +208,14 @@ class NSFDBTestCase(SqlTestCase):
             self.session, attributes)
 
     def test_create_network_service_instance(self):
-        network_service = self._create_network_service()
+        network_service = self.create_network_service()
         attrs = {
             'name': 'name',
             'description': 'description',
             'tenant_id': 'tenant_id',
             'network_service_id': network_service['id'],
             'network_service_device_id': (
-                self._create_network_service_device()['id']),
+                self.create_network_service_device()['id']),
             'ha_state': 'Active',
             'port_info': [
                 {'id': 'my_nsi_port_id1',
@@ -235,7 +236,7 @@ class NSFDBTestCase(SqlTestCase):
         self.assertIsNotNone(network_service_instance['id'])
 
     def test_create_network_service_instance_mandatory_values(self):
-        network_service = self._create_network_service()
+        network_service = self.create_network_service()
         attrs_mandatory = {
             'name': 'name',
             'tenant_id': 'tenant_id',
@@ -254,14 +255,14 @@ class NSFDBTestCase(SqlTestCase):
         self.assertEqual([], network_service_instance['port_info'])
 
     def test_get_network_service_instance(self):
-        network_service = self._create_network_service()
+        network_service = self.create_network_service()
         attrs_all = {
             'name': 'name',
             'description': 'description',
             'tenant_id': 'tenant_id',
             'network_service_id': network_service['id'],
             'network_service_device_id': (
-                self._create_network_service_device()['id']),
+                self.create_network_service_device()['id']),
             'ha_state': 'Active',
             'port_info': [
                 {'id': 'my_nsi_port_id1',
@@ -300,7 +301,7 @@ class NSFDBTestCase(SqlTestCase):
         self.assertEqual([], network_service_instances)
 
     def test_update_network_service_instance(self):
-        network_service_instance = self._create_network_service_instance()
+        network_service_instance = self.create_network_service_instance()
         self.assertIsNotNone(network_service_instance['id'])
         updated_nsi = {'status': 'ERROR'}
         network_service_instance = self.nsf_db.update_network_service_instance(
@@ -308,7 +309,7 @@ class NSFDBTestCase(SqlTestCase):
         self.assertEqual('ERROR', network_service_instance['status'])
 
     def test_delete_network_service_instance(self):
-        network_service_instance = self._create_network_service_instance()
+        network_service_instance = self.create_network_service_instance()
         self.assertIsNotNone(network_service_instance['id'])
         self.nsf_db.delete_network_service_instance(
             self.session, network_service_instance['id'])
@@ -316,7 +317,7 @@ class NSFDBTestCase(SqlTestCase):
                           self.nsf_db.get_network_service_instance,
                           self.session, network_service_instance['id'])
 
-    def _create_network_service_device(self, attributes=None):
+    def create_network_service_device(self, attributes=None):
         if attributes is None:
             attributes = {
                 'name': 'name',
@@ -546,7 +547,7 @@ class NSFDBTestCase(SqlTestCase):
                 self.assertEqual(attrs[key], updated_nsd[key])
 
     def test_delete_network_service_device(self):
-        network_service_device = self._create_network_service_device()
+        network_service_device = self.create_network_service_device()
         self.assertIsNotNone(network_service_device['id'])
         self.nsf_db.delete_network_service_device(
             self.session, network_service_device['id'])

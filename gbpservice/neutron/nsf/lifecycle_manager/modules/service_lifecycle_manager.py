@@ -112,6 +112,7 @@ class RpcHandler(object):
 
 
 class ServiceLifeCycleHandler(object):
+
     def __init__(self, controller):
         self._controller = controller
         self.db_handler = nsf_db.NSFDbBase()
@@ -125,7 +126,7 @@ class ServiceLifeCycleHandler(object):
         state_machine = {
             "DELETE_NETWORK_SERVICE": self.delete_network_service,
             "DELETE_NETWORK_SERVICE_INSTANCE": (
-                self._delete_network_service_instance),
+                self.delete_network_service_instance),
             "CREATE_NETWORK_SERVICE_INSTANCE": (
                 self.create_network_service_instance),
             "DEVICE_ACTIVE": self.handle_device_created,
@@ -219,11 +220,9 @@ class ServiceLifeCycleHandler(object):
             'share_existing_device': service_profile.get('unique_device', True)
         }
         # Create and event to perform Network service instance
-        create_nsi_event = self._controller.event(
-            id='CREATE_NETWORK_SERVICE_INSTANCE',
-            data=create_network_service_instance_request)
-        self._controller.rpc_event(create_nsi_event)
-        return network_service['id']
+        self._create_event('CREATE_NETWORK_SERVICE_INSTANCE',
+                           event_data=create_network_service_instance_request)
+        return network_service
 
     def update_network_service(self):
         # Handle config update
@@ -232,15 +231,18 @@ class ServiceLifeCycleHandler(object):
     def delete_network_service(self, context, network_service_id):
         network_service_info = self.db_handler.get_network_service(
             self.db_session, network_service_id)
-        network_service = {}
-        network_service['status'] = "PENDING_DELETE"
+        if not network_service_info['network_service_instances']:
+            self.db_handler.delete_network_service(
+            self.db_session, network_service_id)
+            return
+        network_service = {
+            'status': 'PENDING_DELETE'
+        }
         network_service = self.db_handler.update_network_service(
-            self.db_session, network_service_id, network_service)
-        for nsi in network_service_info['network_service_instances']:
-            delete_nsi_event = self._controller.event(
-                id='DELETE_NETWORK_SERVICE_INSTANCE',
-                data=nsi['id'])
-        self._controller.rpc_event(delete_nsi_event)
+            self.db_session, network_service_id, network_service)            
+        for nsi_id in network_service_info['network_service_instances']:
+            self._create_event('DELETE_NETWORK_SERVICE_INSTANCE',
+                               event_data=nsi_id)
 
     def create_network_service_instance(self, request_data):
         name = '%s.%s' % (request_data['network_service']['name'],
@@ -266,14 +268,12 @@ class ServiceLifeCycleHandler(object):
             'service_vendor': request_data['service_vendor'],
             'share_existing_device': request_data['share_existing_device'],
         }
-        create_nsd_event = self._controller.event(
-            id='CREATE_NETWORK_SERVICE_DEVICE',
-            data=create_nsd_request)
-        self._controller.rpc_event(create_nsd_event)
+        self._create_event('CREATE_NETWORK_SERVICE_DEVICE',
+                           event_data=create_nsd_request)
 
     def handle_device_created(self, request_data):
         nsi = {
-            'status': 'DEVICE_CREATED',
+            'status': 'ACTIVE',
             'network_service_device_id': request_data[
                 'network_service_device_id']
         }
@@ -282,17 +282,21 @@ class ServiceLifeCycleHandler(object):
         service_details = self.get_service_details(nsi)
         request_data['heat_stack_id'] = self.config_driver.apply_user_config(
                 service_details) # Heat driver to launch stack
+        self.db_handler.update_network_service(
+            self.db_session, nsi['network_service_id'],
+            {'heat_stack_id': request_data['heat_stack_id']})
         request_data['network_service_id'] = nsi['network_service_id']
-        self._create_event(event_id='USER_CONFIG_IN_PROGRESS',
-                event_data=request_data, is_poll_event=True)
+        self._create_event('USER_CONFIG_IN_PROGRESS',
+                           event_data=request_data,
+                           is_poll_event=True)
 
     def handle_device_create_failed(self, request_data):
         nsi = {
-            'status': 'DEVICE_CREATE_FAILED',
-            'network_service_device_id': request_data[
-                'network_service_device_id']
+            'status': 'ERROR',
+            'network_service_device_id': request_data.get(
+                'network_service_device_id')
         }
-        self.db_handler.update_network_service_instance(
+        nsi = self.db_handler.update_network_service_instance(
             self.db_session, request_data['network_service_instance_id'], nsi)
         network_service = {'status': 'ERROR'}
         self.db_handler.update_network_service(
@@ -358,14 +362,12 @@ class ServiceLifeCycleHandler(object):
     def _update_network_service_instance(self):
         pass
 
-    def _delete_network_service_instance(self, nsi_id):
+    def delete_network_service_instance(self, nsi_id):
         nsi = {'status': 'PENDING_DELETE'}
         nsi = self.db_handler.update_network_service_instance(
             self.db_session, nsi_id, nsi)
-        delete_nsd_event = self._controller.event(
-            id='DELETE_NETWORK_SERVICE_DEVICE',
-            data=nsi['network_service_device_id'])
-        self._controller.rpc_event(delete_nsd_event)
+        self._create_event('DELETE_NETWORK_SERVICE_DEVICE',
+                           event_data=nsi['network_service_device_id'])
 
     def _validate_create_service_input(self, context, create_service_request):
         required_attributes = ["tenant_id", "service_id",
@@ -381,24 +383,38 @@ class ServiceLifeCycleHandler(object):
         if config_status == "ERROR":
             updated_network_service = {'status': 'ERROR'}
             self.db_handler.update_network_service(
-                self.session,
+                self.db_session,
                 request_data['network_service_id'],
                 updated_network_service)
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "COMPLETED":
             updated_network_service = {'status': 'ACTIVE'}
             self.db_handler.update_network_service(
-                self.session,
+                self.db_session,
                 request_data['network_service_id'],
                 updated_network_service)
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "IN_PROGRESS":
             return
 
-    def handle_user_config_failed(self, request_data):
-        updated_network_service = {'status': 'ERROR'}
+    def handle_user_config_applied(self, request_data):
+        network_service = {
+            'status': "ACTIVE",
+            'heat_stack_id': request_data['heat_stack_id']
+        }
         self.db_handler.update_network_service(
-            self.session,
+            self.db_session,
+            request_data['network_service_id'],
+            network_service)
+        # Trigger RPC to notify the Create_Service caller with status
+
+    def handle_user_config_failed(self, request_data):
+        updated_network_service = {
+            'status': 'ERROR',
+            'heat_stack_id': request_data.get('heat_stack_id')
+        }
+        self.db_handler.update_network_service(
+            self.db_session,
             request_data['network_service_id'],
             updated_network_service)
         # Trigger RPC to notify the Create_Service caller with status
@@ -423,17 +439,6 @@ class ServiceLifeCycleHandler(object):
     def _request_completed(self, event):
         self._controller.event_done(event)
 
-    def handle_user_config_applied(self, request_data):
-        network_service = {
-            'status': "ACTIVE",
-            'heat_stack_id': request_data['heat_stack_id']
-        }
-        self.db_handler.update_network_service(
-            self.db_session,
-            request_data['network_service_id'],
-            network_service)
-        # Trigger RPC to notify the Create_Service caller with status
-
     def get_network_service(self, context, network_service_id):
         return self.db_handler.get_network_service(
             self.db_session, network_service_id)
@@ -444,16 +449,85 @@ class ServiceLifeCycleHandler(object):
 
     def handle_policy_target_added(self, context, network_service_id,
                                    policy_target):
-        pass
+        network_service = self.db_handler.get_network_service(
+            self.db_session, network_service_id)
+        nsi_id = network_service['network_service_instances'][0]
+        nsi = self.db_handler.get_network_service_instance(
+            self.db_session, nsi_id)
+        service_details = self.get_service_details(nsi)
+        config_id = self.config_driver.handle_policy_target_added(
+            service_details, policy_target)
+        self.db_handler.update_network_service(
+            self.db_session,
+            network_service['id'],
+            {'heat_stack_id': config_id})
+        request_data = {
+            'heat_stack_id': config_id,
+            'network_service_id': nsi['network_service_id']
+        }
+        self._create_event('USER_CONFIG_IN_PROGRESS',
+                           event_data=request_data, is_poll_event=True)
 
     def handle_policy_target_removed(self, context, network_service_id,
                                      policy_target):
-        pass
+        network_service = self.db_handler.get_network_service(
+            self.db_session, network_service_id)
+        nsi_id = network_service['network_service_instances'][0]
+        nsi = self.db_handler.get_network_service_instance(
+            self.db_session, nsi_id)
+        service_details = self.get_service_details(nsi)
+        config_id = self.config_driver.handle_policy_target_removed(
+            service_details, policy_target)
+        self.db_handler.update_network_service(
+            self.db_session,
+            network_service['id'],
+            {'heat_stack_id': config_id})
+        request_data = {
+            'heat_stack_id': config_id,
+            'network_service_id': nsi['network_service_id']
+        }
+        self._create_event('USER_CONFIG_IN_PROGRESS',
+                           event_data=request_data, is_poll_event=True)
 
     def handle_consumer_ptg_added(self, context, network_service_id,
                                   consumer_ptg):
-        pass
+        network_service = self.db_handler.get_network_service(
+            self.db_session, network_service_id)
+        nsi_id = network_service['network_service_instances'][0]
+        nsi = self.db_handler.get_network_service_instance(
+            self.db_session, nsi_id)
+        service_details = self.get_service_details(nsi)
+        config_id = self.config_driver.handle_consumer_ptg_added(
+            service_details, consumer_ptg)
+        self.db_handler.update_network_service(
+            self.db_session,
+            network_service['id'],
+            {'heat_stack_id': config_id})
+        request_data = {
+            'heat_stack_id': config_id,
+            'network_service_id': nsi['network_service_id']
+        }
+        self._create_event('USER_CONFIG_IN_PROGRESS',
+                           event_data=request_data,
+                           is_poll_event=True)
 
     def handle_consumer_ptg_removed(self, context, network_service_id,
-                                  consumer_ptg):
-        pass
+                                    consumer_ptg):
+        network_service = self.db_handler.get_network_service(
+            self.db_session, network_service_id)
+        nsi_id = network_service['network_service_instances'][0]
+        nsi = self.db_handler.get_network_service_instance(
+            self.db_session, nsi_id)
+        service_details = self.get_service_details(nsi)
+        config_id = self.config_driver.handle_consumer_ptg_removed(
+            service_details, consumer_ptg)
+        self.db_handler.update_network_service(
+            self.db_session,
+            network_service['id'],
+            {'heat_stack_id': config_id})
+        request_data = {
+            'heat_stack_id': config_id,
+            'network_service_id': nsi['network_service_id']
+        }
+        self._create_event('USER_CONFIG_IN_PROGRESS',
+                           event_data=request_data, is_poll_event=True)

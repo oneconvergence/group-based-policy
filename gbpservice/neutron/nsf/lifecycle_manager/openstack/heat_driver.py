@@ -1077,7 +1077,7 @@ class HeatDriver():
 
         return stack_id
 
-    def update_policy_target_added(self, service_details, policy_target):
+    def handle_policy_target_added(self, service_details, policy_target):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1096,7 +1096,7 @@ class HeatDriver():
 
         return stack_id
 
-    def update_policy_target_removed(self, service_details, policy_target):
+    def handle_policy_target_removed(self, service_details, policy_target):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1120,7 +1120,7 @@ class HeatDriver():
     def notify_chain_parameters_updated(self, service_details):
         pass  # We are not using the classifier specified in redirect Rule
 
-    def update_node_consumer_ptg_added(self, service_details, policy_target_group):
+    def handle_consumer_ptg_added(self, service_details, policy_target_group):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1138,7 +1138,7 @@ class HeatDriver():
             return stack_id
 
 
-    def update_node_consumer_ptg_removed(self, service_details, policy_target_group):
+    def handle_consumer_ptg_removed(self, service_details, policy_target_group):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1154,5 +1154,3 @@ class HeatDriver():
                    consumer_port, provider_port, stack_id, mgmt_ip)
 
             return stack_id
-
-
