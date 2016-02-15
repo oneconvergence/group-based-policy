@@ -3,9 +3,7 @@ from oslo_log import log
 from oslo_config import cfg
 from gbpservice.neutron.nsf.core.main import Event
 from gbpservice.neutron.nsf.core.main import RpcAgent
-from gbpservice.neutron.nsf.configurator.lib import fw_constants
-from gbpservice.neutron.nsf.configurator.lib import vpn_constants
-from gbpservice.neutron.nsf.configurator.lib import lb_constants
+from gbpservice.neutron.nsf.configurator.lib import topics
 
 from gbpservice.neutron.nsf.configurator.agents.firewall import \
                             FWaasRpcManager, FWaasEventHandler
@@ -13,6 +11,8 @@ from gbpservice.neutron.nsf.configurator.agents.vpn import \
                             VPNaasRpcManager, VPNaasEventHandler
 from gbpservice.neutron.nsf.configurator.agents.loadbalancer import \
                             LBaasRpcManager, LBaasEventHandler
+from gbpservice.neutron.nsf.configurator.agents.generic_config import \
+                            GenericConfigRpcManager, GenericConfigEventHandler
 
 LOG = log.getLogger(__name__)
 
@@ -21,21 +21,21 @@ def rpc_init(sc, conf):
     # FWaaS agent
     fw_agent_state = {
             'start_flag': True,
-            'binary': fw_constants.OC_FW_AGENT_BINARY,
-            'host': cfg.CONF.host,
-            'topic': fw_constants.FIREWALL_RPC_TOPIC,
-            'plugin_topic': fw_constants.OC_FW_PLUGIN_TOPIC,
-            'agent_type': fw_constants.OC_AGENT_TYPE,
+            'binary': 'nsf-fw-module',
+            'host': conf.host,
+            'topic': topics.FWAAS_AGENT_RPC_TOPIC,
+            'plugin_topic': topics.FWAAS_PLUGIN_RPC_TOPIC,
+            'agent_type': 'OC Firewall Agent',
             'configurations': {
-                'driver': fw_constants.OC_FIREWALL_DRIVER
+                'driver': 'OC Firewall Driver'
             },
-            'report_interval': cfg.CONF.ocfwaas.oc_report_interval,
-            'description': 'oc firewall agent '
+            'report_interval': 10,
+            'description': 'OC Firewall Agent'
         }
 
     fw_rpc_receiver = FWaasRpcManager(conf, sc)
     fw_agent = RpcAgent(sc,
-                        fw_constants.FIREWALL_RPC_TOPIC,
+                        topics.FWAAS_AGENT_RPC_TOPIC,
                         fw_rpc_receiver,
                         fw_agent_state)
 
@@ -43,28 +43,35 @@ def rpc_init(sc, conf):
     vpn_rpc_receiver = VPNaasRpcManager(conf, sc)
 
     vpn_agent = RpcAgent(sc,
-                         vpn_constants.VPN_RPC_TOPIC,
+                         topics.VPNAAS_AGENT_RPC_TOPIC,
                          vpn_rpc_receiver)
 
     # LBaaS agent
     lb_agent_state = {
         'binary': 'nsf-lb-module',
         'host': conf.host,
-        'topic': lb_constants.LBAAS_AGENT_RPC_TOPIC,
+        'topic': topics.LBAAS_AGENT_RPC_TOPIC,
         'report_interval': 10,
-        'plugin_topic': lb_constants.LBAAS_PLUGIN_RPC_TOPIC,
+        'plugin_topic': topics.LBAAS_PLUGIN_RPC_TOPIC,
         'configurations': {'device_drivers': 'haproxy_on_vm'},
-        'agent_type': lb_constants.AGENT_TYPE_LOADBALANCER,
+        'agent_type': 'OC Loadbalancer Agent',
         'start_flag': True,
     }
 
     lb_rpc_receiver = LBaasRpcManager(conf, sc)
     lb_agent = RpcAgent(sc,
-                        lb_constants.LBAAS_AGENT_RPC_TOPIC,
+                        topics.LBAAS_AGENT_RPC_TOPIC,
                         lb_rpc_receiver,
                         lb_agent_state)
 
-    sc.register_rpc_agents([fw_agent, vpn_agent, lb_agent])
+    # Generic Config Agent
+    generic_config_rpc_receiver = GenericConfigRpcManager(conf, sc)
+    generic_config_agent = RpcAgent(sc,
+                                    topics.GENERIC_CONFIG_RPC_TOPIC,
+                                    generic_config_rpc_receiver)
+
+    sc.register_rpc_agents([fw_agent, vpn_agent, lb_agent,
+                            generic_config_agent])
 
 
 def events_init(sc):
@@ -95,8 +102,16 @@ def events_init(sc):
         Event(id='UPDATE_POOL_HEALTH_MONITOR', handler=LBaasEventHandler(sc)),
         Event(id='DELETE_POOL_HEALTH_MONITOR', handler=LBaasEventHandler(sc)),
         Event(id='AGENT_UPDATED', handler=LBaasEventHandler(sc)),
-    	
-	# Poll Events triggered internally
+
+        # Events for RPCs coming from orchestrator
+        Event(id='CONFIGURE_INTERFACES', handler=GenericConfigEventHandler(
+                                                                       sc)),
+        Event(id='CLEAR_INTERFACES', handler=GenericConfigEventHandler(sc)),
+        Event(id='CONFIGURE_SOURCE_ROUTES', handler=GenericConfigEventHandler(
+                                                                       sc)),
+        Event(id='DELETE_SOURCE_ROUTES', handler=GenericConfigEventHandler(
+                                                                       sc)),
+        # Poll Events triggered internally
         Event(id='COLLECT_STATS', handler=LBaasEventHandler(sc))
         ]
 
