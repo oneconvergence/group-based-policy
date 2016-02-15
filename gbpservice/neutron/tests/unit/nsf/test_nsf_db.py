@@ -181,7 +181,8 @@ class NSFDBTestCase(SqlTestCase):
                           self.nsf_db.get_network_service,
                           self.session, network_service['id'])
 
-    def create_network_service_instance(self, attributes=None, create_nsd=True):
+    def create_network_service_instance(self, attributes=None,
+                                        create_nsd=True):
         if attributes is None:
             nsd = (self.create_network_service_device()['id']
                    if create_nsd else None)

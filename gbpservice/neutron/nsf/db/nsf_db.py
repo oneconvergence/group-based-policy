@@ -339,7 +339,7 @@ class NSFDbBase(common_db_mixin.CommonDbMixin):
 
     def _get_network_info(self, session, network_id):
         return self._get_by_id(
-            session,  nsf_db_model.NetworkInfo, network_id)
+            session, nsf_db_model.NetworkInfo, network_id)
 
     def _make_port_info_dict(self, port_info, fields):
         res = {

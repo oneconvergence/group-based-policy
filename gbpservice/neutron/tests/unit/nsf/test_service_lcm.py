@@ -16,7 +16,6 @@
 import mock
 
 from gbpservice.neutron.nsf.common import exceptions as nsf_exc
-from gbpservice.neutron.nsf.common import topics as nsf_rpc_topics
 from gbpservice.neutron.nsf.lifecycle_manager.modules import (
     service_lifecycle_manager as service_lcm)
 from gbpservice.neutron.nsf.lifecycle_manager.openstack import openstack_driver
@@ -180,7 +179,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         self.controller.rpc_event.assert_called_once_with(mock.ANY)
 
     def test_validate_create_service_input(self):
-        pass
+        pass  # TODO
 
     def test_delete_network_service_without_nsi(self):
         network_service = self.create_network_service()
@@ -408,7 +407,6 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
 
     def test_event_handle_device_deleted(self):
         nsi = self.create_network_service_instance()
-        nsd_id = nsi['network_service_device_id']
         ns_id = nsi['network_service_id']
         request_data = {'network_service_instance_id': nsi['id']}
         self.service_lc_handler.handle_device_deleted(
@@ -450,20 +448,20 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
     def test_handle_policy_target_removed(self, mock_create_event,
-                                        mock_get_service_details):
+                                          mock_get_service_details):
         nsi = self.create_network_service_instance()
         network_service_id = nsi['network_service_id']
         policy_target = mock.Mock()
         with mock.patch.object(
             self.service_lc_handler.config_driver,
-            "handle_policy_target_removed") as mock_handle_policy_target_removed:
-            mock_handle_policy_target_removed.return_value = 'stack_id'
+            "handle_policy_target_removed") as mock_handle_pt_removed:
+            mock_handle_pt_removed.return_value = 'stack_id'
             self.service_lc_handler.handle_policy_target_removed(
                 self.context, network_service_id, policy_target)
         db_ns = self.nsf_db.get_network_service(
             self.session, nsi['network_service_id'])
         self.assertIsNotNone(db_ns['heat_stack_id'])
-        mock_handle_policy_target_removed.assert_called_once_with(
+        mock_handle_pt_removed.assert_called_once_with(
             mock.ANY, policy_target)
         mock_create_event.assert_called_once_with(
             'USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)

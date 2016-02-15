@@ -152,7 +152,7 @@ class ServiceLifeCycleHandler(object):
     def _log_event_created(self, event_id, event_data):
         LOG.debug(_("Created event %s(event_name)s with event "
                     "data: %(event_data)s"),
-                   {'event_name': event_id, 'event_data': event_data})
+                  {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None, key=None,
                       binding_key=None, serialize=False, is_poll_event=False):
@@ -233,7 +233,7 @@ class ServiceLifeCycleHandler(object):
             self.db_session, network_service_id)
         if not network_service_info['network_service_instances']:
             self.db_handler.delete_network_service(
-            self.db_session, network_service_id)
+                self.db_session, network_service_id)
             return
         network_service = {
             'status': 'PENDING_DELETE'
@@ -281,7 +281,7 @@ class ServiceLifeCycleHandler(object):
             self.db_session, request_data['network_service_instance_id'], nsi)
         service_details = self.get_service_details(nsi)
         request_data['heat_stack_id'] = self.config_driver.apply_user_config(
-                service_details) # Heat driver to launch stack
+                service_details)  # Heat driver to launch stack
         self.db_handler.update_network_service(
             self.db_session, nsi['network_service_id'],
             {'heat_stack_id': request_data['heat_stack_id']})
@@ -325,12 +325,12 @@ class ServiceLifeCycleHandler(object):
         provider_port = None
         for port in nsi['port_info']:
             port_info = self.db_handler.get_port_info(self.db_session, port)
-            LOG.info(_("port_info info: %s") %(port_info))
             port_classification = port_info['port_classification']
             if port_info['port_policy'] == "GBP":
                 policy_target_id = port_info['id']
-                port_id = self.gbpclient.get_policy_targets(admin_token,
-                     filters={'id': policy_target_id })[0]['port_id']
+                port_id = self.gbpclient.get_policy_targets(
+                    admin_token,
+                    filters={'id': policy_target_id })[0]['port_id']
             else:
                 port_id = port_info['id']
 
