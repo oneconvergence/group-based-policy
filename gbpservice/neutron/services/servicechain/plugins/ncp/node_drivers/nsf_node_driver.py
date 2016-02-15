@@ -30,9 +30,9 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from gbpservice.common import utils
 from gbpservice.neutron.nsf.common import topics as nsf_rpc_topics
-from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     exceptions as exc)
+from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base
 from gbpservice.neutron.services.servicechain.plugins.ncp import model
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 
@@ -257,8 +257,9 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
             plumbing_request['consumer'] = []
             plumbing_request['plumbing_type'] = 'endpoint'
 
-        LOG.info(_("Requesting plumber for %s PTs for service type "
-                   "%s") % (plumbing_request, service_type))
+        LOG.info(_("Requesting plumber for %(plumbing_request)s PTs for "
+                   "service type %(service_type)s")
+                 % (plumbing_request, service_type))
         return plumbing_request
 
     def validate_create(self, context):
@@ -328,7 +329,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
 
         if not network_service_map:
             return
-        
+
         network_service_id = network_service_map.network_service_id
         try:
             self.nsf_notifier.delete_network_service(

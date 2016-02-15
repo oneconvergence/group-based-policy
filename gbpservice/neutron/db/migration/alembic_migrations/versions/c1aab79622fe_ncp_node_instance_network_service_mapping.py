@@ -35,7 +35,9 @@ def upgrade(active_plugins=None, options=None):
         sa.Column('sc_instance_id', sa.String(length=36), nullable=False),
         sa.Column('sc_node_id', sa.String(length=36), nullable=False),
         sa.Column('network_service_id', sa.String(length=36), nullable=False),
-        sa.PrimaryKeyConstraint('sc_instance_id', 'sc_node_id', 'network_service_id'),
+        sa.PrimaryKeyConstraint('sc_instance_id',
+                                'sc_node_id',
+                                'network_service_id'),
     )
 
 

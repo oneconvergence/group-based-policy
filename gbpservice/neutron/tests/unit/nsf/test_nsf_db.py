@@ -517,7 +517,7 @@ class NSFDBTestCase(SqlTestCase):
         self.assertEqual('new_name', updated_nsd['name'])
         del updated_nsd['name']
         for key in attrs:
-            if key != 'name': 
+            if key != 'name':
                 self.assertEqual(attrs[key], updated_nsd[key])
 
         # Update mgmt ports

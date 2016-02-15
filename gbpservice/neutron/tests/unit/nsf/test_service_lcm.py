@@ -139,7 +139,7 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
             "context", "network_service_id", "policy_target_group")
 
 
-class ServiceLCMEventsTestCase(ServiceLCModuleTestCase):
+class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
 
     def test_event_delete_network_service(self):
         pass
