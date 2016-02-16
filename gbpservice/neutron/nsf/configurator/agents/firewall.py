@@ -2,24 +2,22 @@ from gbpservice.neutron.nsf.core.main import Event
 from oslo_log import log
 
 LOG = log.getLogger(__name__)
-SERVICE = 'firewall'
 
+class FwaasRpcHandler(object):
+    def __init__(self, sc, conf, rpc_mgr):
+        self._sc = sc
+        self._conf = conf
+        self._rpc_mgr = rpc_mgr
+
+    def rpc_handler(self, context, config):
+        method = context['operation'] + config['resource']
+        self._rpc_mgr.method(**config['kwargs'])
 
 class FWaasRpcManager(object):
     def __init__(self, sc, conf):
-        pass
-
-    def receive_rpc(self, context):
-        '''
-        Look at the context and invoke appropriate method
-        if create
-            self.create_firewall(context, firewall, host)
-        elif update
-            self.update_firewall(context, firewall, host)
-        elif delete
-            self.delete_firewall(context, firewall, host)
-        '''
-
+        self._sc = sc
+        self._conf = conf
+    
     def create_firewall(self, context, firewall, host):
         LOG.debug("FwaasRpcReceiver received Create Firewall request.")
         arg_dict = {'context': context,
@@ -68,15 +66,16 @@ def events_init(sc):
 
 
 def register_service_agent(sa, sc, conf):
-    service_type = SERVICE
-    service_agent = FWaasRpcManager(sc, conf)
-    sa.register_service_agent(service_type, service_agent)
+    service_type = 'firewall'
+    rpc_mgr = FWaasRpcManager(sc, conf)
+    rpc_handler = FwaasRpcHandler(sc, conf, rpc_mgr)
+    sa.register_service_agent(service_type, rpc_handler)
 
 
-def agent_init(sa, sc, conf):
+def init_agent(sa, sc, conf):
     events_init(sc)
     register_service_agent(sa, sc, conf)
 
 
-def agent_init_complete(sc):
+def init_agent_complete(sa, sc, conf):
     LOG.info(" firewall agent init complete")
