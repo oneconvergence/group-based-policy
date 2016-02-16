@@ -1,134 +1,120 @@
+import sys
+import os
 import oslo_messaging as messaging
 from oslo_log import log
-from oslo_config import cfg
-from gbpservice.neutron.nsf.core.main import Event
 from gbpservice.neutron.nsf.core.main import RpcAgent
 from gbpservice.neutron.nsf.configurator.lib import topics
-
-from gbpservice.neutron.nsf.configurator.agents.firewall import \
-                            FWaasRpcManager, FWaasEventHandler
-from gbpservice.neutron.nsf.configurator.agents.vpn import \
-                            VPNaasRpcManager, VPNaasEventHandler
-from gbpservice.neutron.nsf.configurator.agents.loadbalancer import \
-                            LBaasRpcManager, LBaasEventHandler
-from gbpservice.neutron.nsf.configurator.agents.generic_config import \
-                            GenericConfigRpcManager, GenericConfigEventHandler
 
 LOG = log.getLogger(__name__)
 
 
-def rpc_init(sc, conf):
-    # FWaaS agent
-    fw_agent_state = {
-            'start_flag': True,
-            'binary': 'nsf-fw-module',
-            'host': conf.host,
-            'topic': topics.FWAAS_AGENT_RPC_TOPIC,
-            'plugin_topic': topics.FWAAS_PLUGIN_RPC_TOPIC,
-            'agent_type': 'OC Firewall Agent',
-            'configurations': {
-                'driver': 'OC Firewall Driver'
-            },
-            'report_interval': 10,
-            'description': 'OC Firewall Agent'
-        }
+def rpc_init(sc, conf, service_agents):
+    configurator_rpc_mgr = ConfiguratorRpcManager(conf, sc, service_agents)
+    configurator_agent = RpcAgent(sc,
+                                  topics.GENERIC_CONFIG_RPC_TOPIC,
+                                  configurator_rpc_mgr)
 
-    fw_rpc_receiver = FWaasRpcManager(conf, sc)
-    fw_agent = RpcAgent(sc,
-                        topics.FWAAS_AGENT_RPC_TOPIC,
-                        fw_rpc_receiver,
-                        fw_agent_state)
-
-    # VPNaaS agent
-    vpn_rpc_receiver = VPNaasRpcManager(conf, sc)
-
-    vpn_agent = RpcAgent(sc,
-                         topics.VPNAAS_AGENT_RPC_TOPIC,
-                         vpn_rpc_receiver)
-
-    # LBaaS agent
-    lb_agent_state = {
-        'binary': 'nsf-lb-module',
-        'host': conf.host,
-        'topic': topics.LBAAS_AGENT_RPC_TOPIC,
-        'report_interval': 10,
-        'plugin_topic': topics.LBAAS_PLUGIN_RPC_TOPIC,
-        'configurations': {'device_drivers': 'haproxy_on_vm'},
-        'agent_type': 'OC Loadbalancer Agent',
-        'start_flag': True,
-    }
-
-    lb_rpc_receiver = LBaasRpcManager(conf, sc)
-    lb_agent = RpcAgent(sc,
-                        topics.LBAAS_AGENT_RPC_TOPIC,
-                        lb_rpc_receiver,
-                        lb_agent_state)
-
-    # Generic Config Agent
-    generic_config_rpc_receiver = GenericConfigRpcManager(conf, sc)
-    generic_config_agent = RpcAgent(sc,
-                                    topics.GENERIC_CONFIG_RPC_TOPIC,
-                                    generic_config_rpc_receiver)
-
-    sc.register_rpc_agents([fw_agent, vpn_agent, lb_agent,
-                            generic_config_agent])
+    sc.register_rpc_agents([configurator_agent])
 
 
-def events_init(sc):
-    evs = [
+class ConfiguratorRpcManager(object):
+    def __init__(self, sc, conf, service_agents):
+        self.sc = sc
+        self.conf = conf
+        self.service_agents = service_agents
 
-        # Events for FWaaS standard RPCs coming from FWaaS Plugin
-        Event(id='CREATE_FIREWALL', handler=FWaasEventHandler(sc)),
-        Event(id='UPDATE_FIREWALL', handler=FWaasEventHandler(sc)),
-        Event(id='DELETE_FIREWALL', handler=FWaasEventHandler(sc)),
+    def _get_service_agent(self, service_type):
+        return self.service_agents[service_type]
 
-        # Events for VPNaaS standard RPCs coming from VPNaaS Plugin
-        Event(id='VPNSERVICE_UPDATED', handler=VPNaasEventHandler(sc)),
+    ''' dummy representation '''
+    def some_rpc(self, context):
+        service_type = context['service']['type']
+        agent = self._get_service_agent(service_type)
+        agent.receive_rpc(context)
 
-        # Events for LBaaS standard RPCs coming from LBaaS Plugin
-        Event(id='CREATE_VIP', handler=LBaasEventHandler(sc)),
-        Event(id='UPDATE_VIP', handler=LBaasEventHandler(sc)),
-        Event(id='DELETE_VIP', handler=LBaasEventHandler(sc)),
+    def len(self):
+        pass
 
-        Event(id='CREATE_POOL', handler=LBaasEventHandler(sc)),
-        Event(id='UPDATE_POOL', handler=LBaasEventHandler(sc)),
-        Event(id='DELETE_POOL', handler=LBaasEventHandler(sc)),
 
-        Event(id='CREATE_MEMBER', handler=LBaasEventHandler(sc)),
-        Event(id='UPDATE_MEMBER', handler=LBaasEventHandler(sc)),
-        Event(id='DELETE_MEMBER', handler=LBaasEventHandler(sc)),
+class ServiceAgent(object):
+    def __init__(self):
+        self.service_agents = {}
 
-        Event(id='CREATE_POOL_HEALTH_MONITOR', handler=LBaasEventHandler(sc)),
-        Event(id='UPDATE_POOL_HEALTH_MONITOR', handler=LBaasEventHandler(sc)),
-        Event(id='DELETE_POOL_HEALTH_MONITOR', handler=LBaasEventHandler(sc)),
-        Event(id='AGENT_UPDATED', handler=LBaasEventHandler(sc)),
+    def register_service_agent(self, service_type, service_agent):
+        if service_type not in self.service_agents:
+            self.service_agents[service_type] = service_agent
+            LOG.info(" Registered service_agent [%s] to handle"
+                     " service [%s]" % (service_agent, service_type))
+        else:
+            LOG.warn(" Same service type [%s] being registered again with"
+                     " service agent [%s] " % (service_type, service_agent))
+            self.service_agents[service_type] = service_agent
 
-        # Events for RPCs coming from orchestrator
-        Event(id='CONFIGURE_INTERFACES', handler=GenericConfigEventHandler(
-                                                                       sc)),
-        Event(id='CLEAR_INTERFACES', handler=GenericConfigEventHandler(sc)),
-        Event(id='CONFIGURE_SOURCE_ROUTES', handler=GenericConfigEventHandler(
-                                                                       sc)),
-        Event(id='DELETE_SOURCE_ROUTES', handler=GenericConfigEventHandler(
-                                                                       sc)),
-        # Poll Events triggered internally
-        Event(id='COLLECT_STATS', handler=LBaasEventHandler(sc))
-        ]
+    def service_agents_init(self, agents, sc, conf):
+        for agent in agents:
+            try:
+                agent.agent_init(self, sc, conf)
+            except AttributeError as s:
+                LOG.error(agent.__dict__)
+                raise AttributeError(agent.__file__ + ': ' + str(s))
+            except Exception as e:
+                LOG.error(e)
+                raise e
 
-    sc.register_events(evs)
+    def service_agents_init_complete(self, sc, agents):
+        for agent in agents:
+            try:
+                agent.agent_init_complete(sc)
+            except AttributeError as s:
+                LOG.error(agent.__dict__)
+                raise AttributeError(agent.__file__ + ': ' + str(s))
+            except Exception as e:
+                LOG.error(e)
+                raise e
+
+
+def agents_import():
+        pkg = 'gbpservice.neutron.nsf.configurator.agents'
+        agents = []
+        base_agent = __import__(pkg,
+                                globals(), locals(), ['agents'], -1)
+        agents_dir = base_agent.__path__[0]
+        syspath = sys.path
+        sys.path = [agents_dir] + syspath
+        try:
+            files = os.listdir(agents_dir)
+        except OSError:
+            print "Failed to read files"
+            files = []
+
+        for fname in files:
+            if fname.endswith(".py") and fname != '__init__.py':
+                agent = __import__(pkg,
+                                   globals(), locals(), [fname[:-3]], -1)
+                agents += [eval('agent.%s' % (fname[:-3]))]
+                # modules += [__import__(fname[:-3])]
+        sys.path = syspath
+        return agents
+
+
+def service_agents_init(sc, conf):
+    agents = agents_import()
+    sa = ServiceAgent()
+    sa.service_agents_init(agents, sc, conf)
+    return sa
 
 
 def module_init(sc, conf):
-    rpc_init(sc, conf)
-    events_init(sc)
+    sa = service_agents_init(sc, conf)
+    rpc_init(sc, conf, sa.service_agents)
 
 
-def _start_collect_stats(sc):
-    arg_dict = {}
-    ev = sc.event(id='COLLECT_STATS', data=arg_dict)
-    sc.rpc_event(ev)
+def service_agents_init_complete(sc):
+    agents = agents_import()
+    sa = ServiceAgent()
+    sa.service_agents_init_complete(sc, agents)
+    return sa
 
 
 def init_complete(sc, conf):
-    # where to trigger looping events like collect stats ?
-    _start_collect_stats(sc)
+    service_agents_init_complete(sc)
