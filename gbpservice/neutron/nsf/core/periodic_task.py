@@ -1,20 +1,17 @@
 import random
 import time
 import time
-
-from oslo_config import cfg
 import six
 
+from oslo_config import cfg
 from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 
-
+""" Decorator definition """
 def periodic_task(*args, **kwargs):
     def decorator(f):
-        # Control if run at all
         f._periodic_task = True
-        # Control frequency
         f._periodic_spacing = kwargs.pop('spacing', 0)
         f._periodic_event = kwargs.pop('event', None)
         f._periodic_last_run = None
@@ -22,7 +19,7 @@ def periodic_task(*args, **kwargs):
 
     return decorator
 
-
+""" Meta class. """
 class _PeriodicTasksMeta(type):
 
     def __init__(cls, names, bases, dict_):
@@ -46,7 +43,10 @@ class _PeriodicTasksMeta(type):
                 cls._periodic_tasks.append((name, task))
                 cls._ev_to_periodic_task_map[task._periodic_event] = task
 
-
+""" Implements the logic to manage periodicity of events.
+    Reference to corresponding decorated methods are returned
+    if event has timedout.
+"""
 @six.add_metaclass(_PeriodicTasksMeta)
 class PeriodicTasks(object):
 
@@ -79,21 +79,26 @@ class PeriodicTasks(object):
         return current_time - offset + jitter
 
     def _timedout(self, task, event):
+        """ Check if event timedout w.r.t its spacing. """
         spacing = task._periodic_spacing
-        # last_run = task._periodic_last_run
         last_run = event.last_run
+        delta = 0
 
-        if last_run is not None:
+        if last_run:
             delta = last_run + spacing - time.time()
-            if delta > 0:
-                return None
-            # LOG.debug("Periodic task %(task_name)s timedout",
-            #          {"full_task_name": task.__name__})
-
+        if delta > 0:
+            return None
         event.last_run = self._nearest_boundary(last_run, spacing)
         return event
 
     def check_timedout(self, event):
+        """ Check if event timedout w.r.t its spacing.
+
+            First check if the spacing is set for this event, if
+            not then return the event - in this case events timeout
+            at the periodicity of polling task.
+            If yes, then check if event timedout.
+        """
         if event.id not in self._ev_to_periodic_task_map.keys():
             return event
         else:
@@ -101,6 +106,11 @@ class PeriodicTasks(object):
             return self._timedout(task, event)
 
     def get_periodic_event_handler(self, event):
+        """ Get the registered event handler for the event.
+
+            Check if the event has a specific periodic handler
+            defined, if then return it.
+        """
         if event.id not in self._ev_to_periodic_task_map.keys():
             return None
         return self._ev_to_periodic_task_map[event.id]

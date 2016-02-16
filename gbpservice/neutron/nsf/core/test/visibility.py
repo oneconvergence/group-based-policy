@@ -63,7 +63,7 @@ def test_service_create(conf, sc):
     ev = sc.new_event(id='SERVICE_CREATE', data=service1,
                       binding_key=service1['id'],
                       key=service1['id'], serialize=True)
-    sc.create_event(ev)
+    sc.post_event(ev)
     service2 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216272a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216562c',
@@ -76,7 +76,7 @@ def test_service_create(conf, sc):
     ev = sc.new_event(id='SERVICE_CREATE', data=service2,
                       binding_key=service2['id'],
                       key=service2['id'], serialize=True)
-    sc.create_event(ev)
+    sc.post_event(ev)
     service3 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216273a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216563c',
@@ -90,16 +90,16 @@ def test_service_create(conf, sc):
     ev = sc.new_event(id='SERVICE_CREATE', data=service3,
                       binding_key=service3['id'],
                       key=service3['id'], serialize=True)
-    sc.create_event(ev)
+    sc.post_event(ev)
 
     time.sleep(5)
     ev = sc.new_event(id='SERVICE_DELETE', data=service1,
                       binding_key=service1['id'],
                       key=service1['id'], serialize=True)
-    sc.create_event(ev)
+    sc.post_event(ev)
 
     ev = sc.new_event(id='SERVICE_DUMMY_EVENT', key='dummy_event')
-    sc.create_event(ev)
+    sc.post_event(ev)
 
 
 class Collector(object):

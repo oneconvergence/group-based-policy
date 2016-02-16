@@ -334,7 +334,7 @@ class PollQueueHandler(object):
         LOG.info(_("Poll event %s cancelled" % (ev.identify())))
         ev.poll_event = 'POLL_EVENT_CANCELLED'
         self._event_done(ev)
-        self._sc.create_event(ev)
+        self._sc.post_event(ev)
 
     def _schedule(self, ev):
         """ Schedule the event to approp worker.
@@ -357,13 +357,13 @@ class PollQueueHandler(object):
                 LOG.info(_(
                     "Event %s timed out -"
                     "scheduling it to a worker" % (ev.identify())))
-                self._sc.create_event(ev)
+                self._sc.post_event(ev)
                 return ev
         else:
             LOG.info(_(
                 "Event %s timed out -"
                 "scheduling it to a worker" % (ev.identify())))
-            self._sc.create_event(ev)
+            self._sc.post_event(ev)
             return ev
         return None
 
@@ -375,6 +375,7 @@ class PollQueueHandler(object):
             return self._event_done(ev)
         copyev = copy.deepcopy(ev)
         copyev.serialize = False
+        copyev.poll_event = 'POLL_EVENT'
         if copyev.max_times == 0:
             return self._cancelled(copyev)
         if self._schedule(copyev):
@@ -620,22 +621,22 @@ class EventHandlers(object):
     def __init__(self):
         self._ehs = {}
 
-    def register(self, ev):
-        LOG.debug(_("Registering handler %s" % (self.identify(ev))))
-        if ev.id in self._ehs.keys():
-            self._ehs[ev.id].extend([ev])
+    def register(self, event_desc):
+        LOG.debug(_("Registering handler %s" % (self.identify(event_desc))))
+        if event_desc.id in self._ehs.keys():
+            self._ehs[event_desc.id].extend([event_desc])
         else:
-            self._ehs[ev.id] = [ev]
+            self._ehs[event_desc.id] = [event_desc]
 
-    def get(self, ev):
+    def get(self, event):
         for id, eh in self._ehs.iteritems():
-            if id == ev.id:
+            if id == event.id:
                 LOG.debug(_("Returning handler %s" % (self.identify(eh[0]))))
                 return eh[0].handler
         return None
 
-    def identify(self, ev):
-        return "%s - %s" % (ev.identify(), identify(ev.handler))
+    def identify(self, event):
+        return "%s - %s" % (event.identify(), identify(event.handler))
 
 
 """ Common class implements all the APIs & cache.
@@ -804,7 +805,7 @@ class Controller(object):
             launcher = oslo_service.launch(oslo_config.CONF, agent[0])
             self._rpc_agents[idx] = agent + (launcher,)
 
-    def create_event(self, event):
+    def post_event(self, event):
         """ API for NFP module to generate a new internal event.
 
             Schedules this event to one of the worker. 'binding_key' is
