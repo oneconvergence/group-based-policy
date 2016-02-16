@@ -16,13 +16,12 @@ connection_count = 0
 threadLock = threading.Lock()
 threads = []
 
-
-class TcpServer():
-
+#class to start TCP server based on testcase needs
+class TcpServer(object):
     def __init__(self, server_address):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_address = server_address
-        print >> sys.stderr, 'starting up the TCP server on %s port %s' % (
+        print >> sys.stderr, '[TCP]starting up the TCP server on %s port %s' % (
                 self.server_address)
         self.sock.bind(self.server_address)
         self.count = 0
@@ -32,7 +31,7 @@ class TcpServer():
         TCP server for ideal_max_timeout check
         """
         self.sock.listen(1)
-        print >> sys.stderr, '[TCP_Server] Waiting for a connection'
+        print >> sys.stderr, '[TCP] Waiting for a connection'
         self.count = 0
         timer = 0
         connection, client_address = self.sock.accept()
@@ -59,9 +58,10 @@ class TcpServer():
     def test_two_start(self):
         """
         TCP server for single connection with multiple messages
+        Server is down after receiving 20 messages
         """
         self.sock.listen(1)
-        print >> sys.stderr, '[TCP_Server] Waiting for a connection'
+        print >> sys.stderr, '[TCP] Waiting for a connection'
         self.count = 0
         connection, client_address = self.sock.accept()
 
@@ -78,7 +78,6 @@ class TcpServer():
                 print>> sys.stderr, msg
                 connection.close()
                 sys.exit(0)
-
         connection.close()
 
     def test_three_start(self):
@@ -104,9 +103,8 @@ class TcpServer():
         connection.close()
 
 
-# Class to create Unix client
-class UnixClient():
-
+# Class to create Unix client based on test case
+class UnixClient(object):
     def __init__(self):
         pass
 
@@ -149,12 +147,14 @@ class UnixClient():
         server_address = '/tmp/uds_socket'
         try:
             sock.connect(server_address)
-            print'Connected socket %s to server %s' % (sock, server_address)
+            print'[Unix]Connected socket %s to server %s' % (sock, server_address)
         except socket.error, msg:
             print >> sys.stderr, msg
             return 0
         try:
+            count =0;
             while True:
+                count +=1
                 time.sleep(.1)
                 message = "Hi count " + str(count)
                 print "[Unix]Sending Message %s to %s" % (message, sock)
@@ -165,12 +165,13 @@ class UnixClient():
             print>> sys.stderr, msg
             return 1
         finally:
-            print "closing %s socket" % sock
+            print "[Unix]closing %s socket" % sock
             sock.close()
 
     def multiple_unix_connections(self):
         """
         method to start the multiple unix clients 
+        Each connection is started as seperate thread
         """
         threadLock.acquire()
         global connection_count
@@ -180,7 +181,7 @@ class UnixClient():
         server_address = '/tmp/uds_socket'
         try:
             sock.connect(server_address)
-            print 'Connected socket (%s) to (%s)' % (sock, server_address)
+            print '[Unix]Connected socket (%s) to (%s)' % (sock, server_address)
             connection_count += 1
         except socket.error, msg:
             print >> sys.stderr, msg
@@ -195,14 +196,14 @@ class UnixClient():
             global txcount
             txcount += 1
             message = 'Hi'
-            print 'Sending message (%s) to (%s) count (%d)' % (
-                message, sock, txcount)
+            print '[Unix]Sending message (%s) to (%s)' % (
+                message, sock)
             try:
                 count = +1
                 sock.sendall(message)
             except socket.error, msg:
                 print >> sys.stderr, msg
-                print'[Unix 1] closing Connection %s' % sock
+                print'[Unix] closing Connection %s' % sock
                 connection_count -= 1
                 sock.close()
                 threadLock.release()
@@ -212,11 +213,11 @@ class UnixClient():
                 data = sock.recv(50)
                 global rxcount
                 rxcount += 1
-                print 'Received message (%s) from (%s) count (%d)' % (
-                    data, sock, rxcount)
+                print '[Unix] Received message (%s) from (%s)' % (
+                    data, sock)
             except socket.error, msg:
                 print >> sys.stderr, msg
-                print'[Unix 2] closing Connection %s' % sock
+                print'[Unix] closing Connection %s' % sock
                 connection_count -= 1
                 sock.close()
                 threadLock.release()
@@ -224,8 +225,8 @@ class UnixClient():
                 threadLock.release()
                 time.sleep(.2)
 
-        print"[self.t_id] Closing "
-        print'[Unix 3] closing Connection %s' % sock
+        print"[Thted %d] Closing " % self.t_id
+        print'[Unix] closing Connection %s' % sock
         connection_count -= 1
         threadLock.release()
         return
@@ -264,7 +265,6 @@ class TestConfProxy(unittest.TestCase):
         """    
         method to test the ideal_max_timeout is expired of connection
         """
-
         return_val = 0
         server_address = ('0.0.0.0', 5674)
         tcp_process = Process(target=TcpServer(server_address).test_one_start)
