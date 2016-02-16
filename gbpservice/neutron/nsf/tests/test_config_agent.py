@@ -37,14 +37,17 @@ class FirewallTestCase(unittest.TestCase):
             kwargs = body['kwargs']
             if all(k in kwargs for k in ("context", "host", "fw")):
                 context = kwargs['context']
-                if context.service_info:
-                    data = context.service_info
-                    if all(k in data for k in ("firewalls",
-                                               "firewall_policies",
-                                               "firewall_rules",
-                                               "subnets", "routers",
-                                               "ports")):
-                        return True
+                try:
+                    if context.service_info:
+                        data = context.service_info
+                        if all(k in data for k in ("firewalls",
+                                                   "firewall_policies",
+                                                   "firewall_rules",
+                                                   "subnets", "routers",
+                                                   "ports")):
+                            return True
+                except AttributeError:
+                    return False
         return False
 
     def _verify_firewall_data_for_post(self, path, body):
@@ -151,12 +154,15 @@ class LoadBalanceTestCase(unittest.TestCase):
             kwargs = body['kwargs']
             if all(k in kwargs for k in ("context", resource)):
                 context = kwargs['context']
-                if context.service_info:
-                    data = context.service_info
-                    if all(k in data for k in ("pools", "vips", "members",
-                                               "health_monitors",
-                                               "subnets", "ports")):
-                        return True
+                try:
+                    if context.service_info:
+                        data = context.service_info
+                        if all(k in data for k in ("pools", "vips", "members",
+                                                   "health_monitors",
+                                                   "subnets", "ports")):
+                            return True
+                except AttributeError:
+                    return False
         return False
 
     def _verify_update_data(self, body, resource):
@@ -439,15 +445,18 @@ class VPNTestCase(unittest.TestCase):
             kwargs = body['kwargs']
             if all(k in kwargs for k in ("context", "resource")):
                 context = kwargs['context']
-                if context.service_info:
-                    data = context.service_info
-                    if all(k in data for k in ("vpnservices",
-                                               "ikepolicies",
-                                               "ipsecpolicies",
-                                               "ipsec_site_conns",
-                                               "subnets",
-                                               "routers")):
-                        return True
+                try:
+                    if context.service_info:
+                        data = context.service_info
+                        if all(k in data for k in ("vpnservices",
+                                                   "ikepolicies",
+                                                   "ipsecpolicies",
+                                                   "ipsec_site_conns",
+                                                   "subnets",
+                                                   "routers")):
+                            return True
+                except AttributeError:
+                    return False
         return False
 
     def _verify_vpn_data(self, path, body):
