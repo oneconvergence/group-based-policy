@@ -7,6 +7,8 @@ from mock import patch
 from gbpservice.neutron.nsf.config_agent import firewall
 from gbpservice.neutron.nsf.config_agent import loadbalancer as lb
 from gbpservice.neutron.nsf.config_agent import vpn
+from gbpservice.neutron.nsf.config_agent import generic as gc
+from gbpservice.neutron.nsf.config_agent import rpc_cb
 from gbpservice.neutron.nsf.config_agent import topics
 from gbpservice.neutron.nsf.core import main as controller
 from gbpservice.neutron.nsf.core import cfg as core_cfg
@@ -22,6 +24,8 @@ import time
 from multiprocessing import Process
 import httplib
 
+n_count = 0
+
 
 class Context(object):
 
@@ -31,53 +35,67 @@ class Context(object):
 
 class FirewallTestCase(unittest.TestCase):
 
-    def _verify_firewall_data(self, path, body):
-
-        if path == 'fw' and ('kwargs' in body):
-            kwargs = body['kwargs']
-            if all(k in kwargs for k in ("context", "host", "fw")):
-                context = kwargs['context']
-                try:
-                    if context.service_info:
-                        data = context.service_info
-                        if all(k in data for k in ("firewalls",
-                                                   "firewall_policies",
-                                                   "firewall_rules",
-                                                   "subnets", "routers",
-                                                   "ports")):
-                            return True
-                except AttributeError:
-                    return False
+    def _verify_body_structure(self, path, body):
+        flag = 0
+        default_path_prefix = 'network_function_config'
+        default_paths_suffix = ['create', 'delete']
+        path = path.split('_',  1)
+        if default_paths_suffix.__contains__(path[0]) and\
+                default_path_prefix == path[1]:
+            if 'request_data' in body:
+                rdata = body['request_data']
+                if all(k in rdata for k in ["info", "config"]):
+                    hd = rdata['info']
+                    if all(k in hd for k in ["version", "service_type"]):
+                        d = rdata['config']
+                        for ele in d:
+                            if all(k in ele for k in ["resource", "kwargs"]):
+                                if self._verify_firewall_data(ele['kwargs']):
+                                    flag = 1
+                                else:
+                                    flag = 0
+                            else:
+                                flag = 0
+        if flag == 1:
+            return True
         return False
 
-    def _verify_firewall_data_for_post(self, path, body):
-        if self._verify_firewall_data(path, body):
-            print "[%s: %s]\n" % (httplib.OK,
-                                  "create_firewall_verified:Success")
-            return (httplib.OK, "create_firewall_verified:Success")
+    def _verify_firewall_data(self, blob_data):
 
-        print "[%s: %s]\n" % (httplib.NOT_FOUND,
-                              "create_firewall_verified:Failed")
+        if all(k in blob_data for k in ["context", "host", "fw"]):
+            context = blob_data['context']
+            try:
+                if context.service_info:
+                    data = context.service_info
+                    if all(k in data for k in ["firewalls",
+                                               "firewall_policies",
+                                               "firewall_rules",
+                                               "subnets", "routers",
+                                               "ports"]):
+                        return True
+            except AttributeError:
+                return False
+        return False
+
+    def _verify_firewall_data_for_post(self, path, body, delete=False):
+        if self._verify_body_structure(path, body):
+            if delete:
+                print("delete_firewall_verified:Success")
+                return (httplib.OK, "delete_firewall_verified:Success")
+            print("create_firewall_verified:Success")
+            return (httplib.OK, "create_firewall_verified:Success")
+        if delete:
+            print("delete_firewall_verified:Failed")
+            return (httplib.OK, "delete_firewall_verified:Failed")
+        print("create_firewall_verified:Failed")
         return (httplib.NOT_FOUND, "create_firewall_verified:Failed")
 
-    def _verify_firewall_data_for_put(self, path, body, delete=False):
-        if self._verify_firewall_data(path, body):
-            if delete:
-                print "[%s: %s]\n" % (httplib.OK,
-                                      "delete_firewall_verified:Success")
-                return (httplib.OK, "delete_firewall_verified:Success")
-
-            print "[%s: %s]\n" % (httplib.OK,
-                                  "update_firewall_verified:Success")
+    '''
+    def _verify_firewall_data_for_put(self, path, body):
+        if self._verify_body_structure(path, body):
             return (httplib.OK, "update_firewall_verified:Success")
-
-        if delete:
-            print "[%s: %s]\n" % (httplib.NOT_FOUND,
-                                  "delete_firewall_verified:Failed")
-            return (httplib.NOT_FOUND, "delete_firewall_verified:Failed")
-
-        print "[%s: %s]\n" % (httplib.OK, "update_firewall_verified:Success")
         return (httplib.OK, "update_firewall_verified:Success")
+    '''
 
     def _prepare_firewall_request_data(self):
         context.__setattr__('service_info', {})
@@ -105,6 +123,7 @@ Firewall_db_mixin.'
             fw_handler = firewall.FwAgent(conf, sc)
             fw_handler.create_firewall(context, fw, host)
 
+    '''
     def test_update_firewall(self):
         import_db = 'neutron_fwaas.db.firewall.firewall_db.\
 Firewall_db_mixin.'
@@ -120,6 +139,7 @@ Firewall_db_mixin.'
                 _prepare_firewall_request_data()
             fw_handler = firewall.FwAgent(conf, sc)
             fw_handler.update_firewall(context, fw, host)
+    '''
 
     def test_delete_firewall(self):
         import_db = 'neutron_fwaas.db.firewall.firewall_db.\
@@ -130,9 +150,9 @@ Firewall_db_mixin.'
                 patch(import_db + 'get_firewall_policies') as gfwp,\
                 patch(import_db + 'get_firewall_rules') as gfwr,\
                 patch(import_db + '_core_plugin') as _cp,\
-                patch(import_cfg_agent + 'RestClientOverUnix.put') as put:
+                patch(import_cfg_agent + 'RestClientOverUnix.post') as post:
 
-            put.side_effect = self._verify_firewall_data_for_put
+            post.side_effect = self._verify_firewall_data_for_post
             context, fw, sc, conf, host = self.\
                 _prepare_firewall_request_data()
             fw_handler = firewall.FwAgent(conf, sc)
@@ -141,74 +161,78 @@ Firewall_db_mixin.'
 
 class LoadBalanceTestCase(unittest.TestCase):
 
-    def _verify_path(self, path):
-        resources = ["vip", "pool", "member", "hm"]
-        rsrc_input = path.split("/")[1]
-        if resources.__contains__(rsrc_input):
-            return True, rsrc_input
-        return False, rsrc_input
-
-    def _verify_post_or_delete_data(self, body, resource):
-
-        if 'kwargs' in body:
-            kwargs = body['kwargs']
-            if all(k in kwargs for k in ("context", resource)):
-                context = kwargs['context']
-                try:
-                    if context.service_info:
-                        data = context.service_info
-                        if all(k in data for k in ("pools", "vips", "members",
-                                                   "health_monitors",
-                                                   "subnets", "ports")):
-                            return True
-                except AttributeError:
-                    return False
+    def _verify_body_structure(self, path, body):
+        flag = 0
+        default_path_prefix = 'network_function_config'
+        default_paths_suffix = ['create', 'delete']
+        path = path.split('_', 1)
+        if default_paths_suffix.__contains__(path[0]) and\
+                default_path_prefix == path[1]:
+            if 'request_data' in body:
+                rdata = body['request_data']
+                if all(k in rdata for k in ["info", "config"]):
+                    hd = rdata['info']
+                    if all(k in hd for k in ["version", "service_type"]):
+                        d = rdata['config']
+                        for ele in d:
+                            if all(k in ele for k in ["resource", "kwargs"]):
+                                if self._verify_loadbalancer_data(
+                                        ele['kwargs'], ele['resource']):
+                                    flag = 1
+                                else:
+                                    flag = 0
+                            else:
+                                flag = 0
+        if flag == 1:
+            return True
         return False
 
-    def _verify_update_data(self, body, resource):
-
-        if 'kwargs' in body:
-            kwargs = body['kwargs']
-            if all(k in kwargs for k in ("context", resource,
-                                         "old" + resource)):
-                context = kwargs['context']
+    def _verify_loadbalancer_data(self, blob_data, resource):
+        if all(k in blob_data for k in ["context", resource]):
+            context = blob_data['context']
+            try:
                 if context.service_info:
                     data = context.service_info
-                    if all(k in data for k in ("pools", "vips", "members",
+                    if all(k in data for k in ["pools", "vips", "members",
                                                "health_monitors",
-                                               "subnets", "ports")):
+                                               "subnets", "ports"]):
                         return True
+            except AttributeError:
+                return False
         return False
+    '''
+    def _verify_update_data(self, data):
+        resource = data['resource']
+        if "old" + resource in data['kwargs']:
+            return True
+        return False
+    '''
 
-    def _verify_post(self, path, body):
-        result, resource = self._verify_path(path)
-        if result and self._verify_post_or_delete_data(body, resource):
-            print "[%s: create_%s_verified:Success]\n" % (
-                httplib.OK, resource)
+    def _verify_delete_post(self, path, body, delete=False):
+        if self._verify_body_structure(path, body):
+            '''
+            This case resource type will be same for whole list##
+            '''
+            resource = body['request_data']['config'][0]['resource']
+            if delete:
+                print("delete_%s_verified:Success" % (resource))
+                return (httplib.OK, "delete_%s_verified:Success" % (resource))
+            print("create_%s_verified:Success" % (resource))
             return (httplib.OK, "create_%s_verified:Success" % (resource))
-
-        print "[%s: create_%s_verified:Failed]\n" % (httplib.NOT_FOUND,
-                                                     resource)
+        if delete:
+            print("delete_%s_verified:Failed" % (resource))
+            return (httplib.NOT_FOUND, "delete_%s_verified:Failed" % (
+                resource))
+        print("create_%s_verified:Failed" % (resource))
         return (httplib.NOT_FOUND, "create_%s_verified:Failed" % (resource))
 
-    def _verify_delete_update(self, path, body, delete=False):
-        result, resource = self._verify_path(path)
-        if delete:
-            if result and self._verify_post_or_delete_data(body, resource):
-                print "[%s: delete_%s_verified:Success]\n" % (httplib.OK,
-                                                              resource)
-                return (httplib.OK, "delete_%s_verified:Success" % (resource))
-
-            print "[%s: delete_%s_verified:Failed]\n" % (httplib.OK, resource)
-            return (httplib.OK, "delete_%s_verified:Failed" % (resource))
-
-        if result and self._verify_update_data(body, resource):
-            print "[%s: update_%s_verified:Success]\n" % (httplib.OK,
-                                                          resource)
-            return (httplib.OK, "update_%s_verified:Success" % (resource))
-
-        print "[%s: update_%s_verified:Failed]\n" % (httplib.OK, resource)
+    '''
+    def _verify_update(self, path, body:
+        if self._verify_body_structure(path, body);
+            if self._verify_update_data(body['request_data']['config'][0]):
+                return (httplib.OK, "update_%s_verified:Success" % (resource))
         return (httplib.OK, "update_%s_verified:Failed" % (resource))
+    '''
 
     def _prepare_request_data(self):
         context.__setattr__('service_info', {})
@@ -228,7 +252,7 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + '_core_plugin') as _core_plugin,\
                 patch(import_config_agent + 'RestClientOverUnix.post') as post:
 
-            post.side_effect = self._verify_post
+            post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
             vip = {'tenant_id': 123}
             lb_handler = lb.LbAgent(conf, sc)
@@ -245,7 +269,7 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + '_core_plugin') as _core_plugin,\
                 patch(import_config_agent + 'RestClientOverUnix.post') as post:
 
-            post.side_effect = self._verify_post
+            post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
             pool = {'tenant_id': 123}
             driver_name = "dummy"
@@ -263,7 +287,7 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + '_core_plugin') as _core_plugin,\
                 patch(import_config_agent + 'RestClientOverUnix.post') as post:
 
-            post.side_effect = self._verify_post
+            post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
             member = {'tenant_id': 123}
             lb_handler = lb.LbAgent(conf, sc)
@@ -280,13 +304,14 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + '_core_plugin') as _core_plugin,\
                 patch(import_config_agent + 'RestClientOverUnix.post') as post:
 
-            post.side_effect = self._verify_post
+            post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
             hm = {'tenant_id': 123}
             pool_id = "123"
             lb_handler = lb.LbAgent(conf, sc)
             lb_handler.create_pool_health_monitor(context, hm, pool_id)
 
+    '''
     def test_update_vip(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
 .LoadBalancerPluginDb.'
@@ -298,7 +323,7 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + '_core_plugin') as _core_plugin,\
                 patch(import_config_agent + 'RestClientOverUnix.put') as put:
 
-            put.side_effect = self._verify_delete_update
+            put.side_effect = self._verify_update
             context, sc, conf = self._prepare_request_data()
             old_vip = {'id': 123, 'tenant_id': 123}
             vip = {}
@@ -316,7 +341,7 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + '_core_plugin') as _core_plugin,\
                 patch(import_config_agent + 'RestClientOverUnix.put') as put:
 
-            put.side_effect = self._verify_delete_update
+            put.side_effect = self._verify_update
             context, sc, conf = self._prepare_request_data()
             old_pool = {'id': 123, 'tenant_id': 123}
             pool = {}
@@ -334,7 +359,7 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + '_core_plugin') as _core_plugin,\
                 patch(import_config_agent + 'RestClientOverUnix.put') as put:
 
-            put.side_effect = self._verify_delete_update
+            put.side_effect = self._verify_update
             context, sc, conf = self._prepare_request_data()
             old_member = {'id': 123, 'tenant_id': 123}
             member = {}
@@ -352,13 +377,14 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + '_core_plugin') as _core_plugin,\
                 patch(import_config_agent + 'RestClientOverUnix.put') as put:
 
-            put.side_effect = self._verify_delete_update
+            put.side_effect = self._verify_update
             context, sc, conf = self._prepare_request_data()
             old_hm = {'id': 123, 'tenant_id': 123}
             hm = {}
             pool_id = 123
             lb_handler = lb.LbAgent(conf, sc)
             lb_handler.update_pool_health_monitor(context, old_hm, hm, pool_id)
+    '''
 
     def test_delete_vip(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
@@ -369,9 +395,9 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + 'get_members') as get_members,\
                 patch(import_db + 'get_health_monitors') as get_hm,\
                 patch(import_db + '_core_plugin') as _core_plugin,\
-                patch(import_config_agent + 'RestClientOverUnix.put') as put:
+                patch(import_config_agent + 'RestClientOverUnix.post') as post:
 
-            put.side_effect = self._verify_delete_update
+            post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
             vip = {'id': 123, 'tenant_id': 123}
             lb_handler = lb.LbAgent(conf, sc)
@@ -386,9 +412,9 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + 'get_members') as get_members,\
                 patch(import_db + 'get_health_monitors') as get_hm,\
                 patch(import_db + '_core_plugin') as _core_plugin,\
-                patch(import_config_agent + 'RestClientOverUnix.put') as put:
+                patch(import_config_agent + 'RestClientOverUnix.post') as post:
 
-            put.side_effect = self._verify_delete_update
+            post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
             pool = {'id': 123, 'tenant_id': 123}
             lb_handler = lb.LbAgent(conf, sc)
@@ -403,9 +429,9 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + 'get_members') as get_members,\
                 patch(import_db + 'get_health_monitors') as get_hm,\
                 patch(import_db + '_core_plugin') as _core_plugin,\
-                patch(import_config_agent + 'RestClientOverUnix.put') as put:
+                patch(import_config_agent + 'RestClientOverUnix.post') as post:
 
-            put.side_effect = self._verify_delete_update
+            post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
             member = {'id': 123, 'tenant_id': 123}
             lb_handler = lb.LbAgent(conf, sc)
@@ -420,9 +446,9 @@ class LoadBalanceTestCase(unittest.TestCase):
                 patch(import_db + 'get_members') as get_members,\
                 patch(import_db + 'get_health_monitors') as get_hm,\
                 patch(import_db + '_core_plugin') as _core_plugin,\
-                patch(import_config_agent + 'RestClientOverUnix.put') as put:
+                patch(import_config_agent + 'RestClientOverUnix.post') as post:
 
-            put.side_effect = self._verify_delete_update
+            post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
             hm = {'id': 123, 'tenant_id': 123}
             pool_id = 123
@@ -432,6 +458,83 @@ class LoadBalanceTestCase(unittest.TestCase):
 
 class VPNTestCase(unittest.TestCase):
 
+    def _verify_body_structure(self, path, body):
+        flag = 0
+        default_path_prefix = 'network_function_config'
+        default_paths_suffix = ['create', 'delete']
+        path = path.split('_', 1)
+        if default_paths_suffix.__contains__(path[0]) and\
+                default_path_prefix == path[1]:
+            if 'request_data' in body:
+                rdata = body['request_data']
+                if all(k in rdata for k in ["info", "config"]):
+                    hd = rdata['info']
+                    if all(k in hd for k in ["version", "service_type"]):
+                        d = rdata['config']
+                        for ele in d:
+                            if all(k in ele for k in ["resource", "kwargs"]):
+                                if self._verify_vpn_data(
+                                        ele['kwargs'], ele['resource']):
+                                    flag = 1
+                                else:
+                                    flag = 0
+                            else:
+                                flag = 0
+        if flag == 1:
+            return True
+        return False
+
+    def _verify_vpn_data(self, blob_data, resource):
+        if all(k in blob_data for k in ["context", "resource"]):
+            context = blob_data['context']
+            try:
+                if context.service_info:
+                    data = context.service_info
+                    if all(k in data for k in ["vpnservices",
+                                               "ikepolicies",
+                                               "ipsecpolicies",
+                                               "ipsec_site_conns",
+                                               "subnets",
+                                               "routers"]):
+                        return True
+            except AttributeError:
+                return False
+        return False
+
+    '''
+    def _verify_update_data(self, data):
+        resource = data['resource']
+        if "old" + resource in data['kwargs']:
+            return True
+        return False
+    '''
+
+    def _verify_delete_post(self, path, body, delete=False):
+        if self._verify_body_structure(path, body):
+            '''
+            This case resource type will be same for whole list##
+            '''
+            resource = body['request_data']['config'][0]['resource']
+            if delete:
+                print("delete_%s_verified:Success" % (resource))
+                return (httplib.OK, "delete_%s_verified:Success" % (resource))
+            print("create_%s_verified:Success" % (resource))
+            return (httplib.OK, "create_%s_verified:Success" % (resource))
+        if delete:
+            print("delete_%s_verified:Failed" % (resource))
+            return (httplib.NOT_FOUND, "delete_%s_verified:Failed" % (
+                resource))
+        print("create_%s_verified:Failed" % (resource))
+        return (httplib.NOT_FOUND, "create_%s_verified:Failed" % (resource))
+
+    '''
+    def _verify_update(self, path, body:
+        if self._verify_body_structure(path, body);
+            if self._verify_update_data(body['request_data']['config'][0]):
+                return (httplib.OK, "update_%s_verified:Success" % (resource))
+        return (httplib.OK, "update_%s_verified:Failed" % (resource))
+    '''
+
     def _prepare_request_data(self):
         context.__setattr__('service_info', {})
         context.__setattr__('is_admin', False)
@@ -439,34 +542,11 @@ class VPNTestCase(unittest.TestCase):
         sc = {}
         return context, sc, conf
 
-    def _verify_update_data(self, path, body, delete=False):
-
-        if path == 'vpn' and ('kwargs' in body):
-            kwargs = body['kwargs']
-            if all(k in kwargs for k in ("context", "resource")):
-                context = kwargs['context']
-                try:
-                    if context.service_info:
-                        data = context.service_info
-                        if all(k in data for k in ("vpnservices",
-                                                   "ikepolicies",
-                                                   "ipsecpolicies",
-                                                   "ipsec_site_conns",
-                                                   "subnets",
-                                                   "routers")):
-                            return True
-                except AttributeError:
-                    return False
-        return False
-
-    def _verify_vpn_data(self, path, body):
-        if self._verify_update_data(path, body):
-            print "[%s: %s]\n" % (httplib.OK,
-                                  "update_vpnservice_verified:Success")
-            return (httplib.OK, "update_vpnservice_verified:Success")
-
-        print "[%s: %s]\n" % (httplib.NOT_FOUND, "update_vpn_verified:Failed")
-        return (httplib.NOT_FOUND, "update_vpn_verified:Failed")
+    def _prepare_request_data1(self, reason, rsrc_type):
+        resource = {'tenant_id': 123,
+                    'rsrc_type': rsrc_type,
+                    'reason': reason}
+        return resource
 
     def test_update_vpnservice(self):
         import_db = 'neutron_vpnaas.db.vpn.vpn_db.VPNPluginDb.'
@@ -476,12 +556,163 @@ class VPNTestCase(unittest.TestCase):
                 patch(import_db + 'get_ipsecpolicies') as gipp,\
                 patch(import_db + 'get_ipsec_site_connections') as gisc,\
                 patch(import_ca + 'vpn.VpnAgent.core_plugin') as _cp,\
+                patch(import_ca + 'RestClientOverUnix.post') as post,\
                 patch(import_ca + 'RestClientOverUnix.put') as put:
-            put.side_effect = self._verify_vpn_data
+            post.side_effect = self._verify_delete_post
+            '''
+            put.side_effect = self._verify_update
+            '''
             context, sc, conf = self._prepare_request_data()
-            resource = {'tenant_id': 123}
-            vpn_handler = vpn.VpnAgent(conf, sc)
-            vpn_handler.vpnservice_updated(context, resource=resource)
+            rsrc_types = ['ipsec', 'vpnservice']
+            reasons = ['create', 'delete']
+            for rsrc_type in rsrc_types:
+                for reason in reasons:
+                    if rsrc_type == 'vpnservice' and reason == 'delete':
+                        continue
+                    else:
+                        resource = self._prepare_request_data1(reason,
+                                                               rsrc_type)
+                        vpn_handler = vpn.VpnAgent(conf, sc)
+                        vpn_handler.vpnservice_updated(context,
+                                                       resource=resource)
+
+
+class GenericConfigTestCase(unittest.TestCase):
+
+    def _verify_body_structure(self, path, body):
+        flag = 0
+        default_path_prefix = 'network_function_device_config'
+        default_paths_suffix = ['create', 'delete']
+        path = path.split('_', 1)
+        if default_paths_suffix.__contains__(path[0]) and\
+                default_path_prefix == path[1]:
+            if 'request_data' in body:
+                rdata = body['request_data']
+                if all(k in rdata for k in ["info", "config"]):
+                    hd = rdata['info']
+                    if all(k in hd for k in ["version"]):
+                        d = rdata['config']
+                        for ele in d:
+                            if all(k in ele for k in ["resource", "kwargs"]):
+                                flag = 1
+                            else:
+                                flag = 0
+        if flag == 1:
+            return True
+        return False
+
+    def _prepare_request_data(self):
+        context.__setattr__('service_info', {})
+        context.__setattr__('is_admin', False)
+        conf = {}
+        sc = {}
+        return context, sc, conf
+
+    def _prepare_request_data1(self):
+        request_data = {'info': {
+            'version': 'v1'},
+            'config': [{
+                'kwargs': {},
+                'resource': ''}]
+        }
+        return {'request_data': request_data}
+
+    def _verify_delete_post(self, path, body, delete=False):
+        if self._verify_body_structure(path, body):
+            '''
+            This case resource type will be same for whole list##
+            '''
+            if delete:
+                print("delete_network_function_device_config_verified:Success")
+                return (
+                    httplib.OK,
+                    "delete_network_function_device_config_verified:Success")
+            print("create_network_function_device_config_verified:Success")
+            return (httplib.OK,
+                    "create_network_function_device_config_verified:Success")
+        if delete:
+            print("delete_network_function_device_config_verified:Failed")
+            return (httplib.NOT_FOUND,
+                    "delete_network_function_device_config_verified:Failed")
+        print("create_network_function_device_config_verified:Failed")
+        return (httplib.NOT_FOUND,
+                "create_network_function_device_config_verified:Failed")
+
+    def test_create_network_function_device_config(self):
+        import_ca = 'gbpservice.neutron.nsf.config_agent.'
+        with patch(import_ca + 'RestClientOverUnix.post') as post:
+            post.side_effect = self._verify_delete_post
+            context, sc, conf = self._prepare_request_data()
+            request_data = self._prepare_request_data1()
+            gc_handler = gc.GcAgent(conf, sc)
+            gc_handler.create_network_function_device_config(context,
+                                                             request_data)
+
+    def test_delete_network_function_device_config(self):
+        import_ca = 'gbpservice.neutron.nsf.config_agent.'
+        with patch(import_ca + 'RestClientOverUnix.post') as post:
+            post.side_effect = self._verify_delete_post
+            context, sc, conf = self._prepare_request_data()
+            request_data = self._prepare_request_data1()
+            gc_handler = gc.GcAgent(conf, sc)
+            gc_handler.delete_network_function_device_config(context,
+                                                             request_data)
+
+
+class NotificationTestCase(unittest.TestCase):
+
+    def _get_context(self):
+        context.__setattr__('service_info', {})
+        context.__setattr__('is_admin', False)
+        return context
+
+    def _prepare_request_data(self, receiver, resource,
+                              method, kwargs):
+        response_data = {'response_data': [
+            {'receiver': receiver,  # <neutron/orchestrator>,
+             'resource': resource,  # <firewall/vpn/loadbalancer/generic>,
+             'method': method,  # <notification method name>,
+             'kwargs': kwargs
+             }
+        ]}
+        for ele in response_data['response_data']:
+            ele['kwargs'].update({'context': self._get_context()})
+        return response_data
+
+    def _get(self, path):
+        if path == 'nsf/get_notifications':
+            if n_count == 1:
+                print("cast method: orchestrator")
+                return self.\
+                    _prepare_request_data(
+                        'orchestrator',
+                        'interface',
+                        'network_function_device_notification',
+                        {})
+            print("cast method:neutron")
+            kwargs = {'host': '', 'firewall_id': 123, 'status': 'Active'}
+            return self._prepare_request_data('neutron', 'firewall',
+                                              'set_firewall_status',
+                                              kwargs)
+
+    def _cast(self, context, method, **kwargs):
+        print("cast method:Success")
+        return
+
+    def test_rpc_pull_event(self):
+        import_ca = 'gbpservice.neutron.nsf.config_agent.'
+        with patch(import_ca + 'RestClientOverUnix.get') as get,\
+                patch('neutron.common.rpc.get_client') as client:
+            cctxt = client.prepare.return_value
+            cctxt.cast.return_value = self._cast
+            get.side_effect = self._get
+            ev = ''
+            sc = {}
+            rpc_cb_handler = rpc_cb.RpcCallback(sc)
+            for i in range(0, 2):
+                global n_count
+                n_count = (n_count + 1) % 2
+                rpc_cb_handler.rpc_pull_event(ev)
 
 if __name__ == '__main__':
     unittest.main()

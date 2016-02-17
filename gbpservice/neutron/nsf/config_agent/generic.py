@@ -10,53 +10,29 @@ from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
+Version = "v1"  # v1/v2/v3#
 
-class Gc(object):
+
+class Generic(object):
     API_VERSION = '1.0'
 
-    def __init__(self, host):
+    def __init__(self):
         self.topic = topics.GC_NSF_PLUGIN_TOPIC
-        target = target.Target(topic=self.topic,
-                               version=self.API_VERSION)
-        self.client = n_rpc.get_client(target)
+        _target = target.Target(topic=self.topic,
+                                version=self.API_VERSION)
+        self.client = n_rpc.get_client(_target)
         self.cctxt = self.client.prepare(version=self.API_VERSION,
                                          topic=self.topic)
 
-    def configure_interface_complete(self, **kwargs):
+    def network_function_device_notification(self, resource, **kwargs):
         context = kwargs.get('context')
         del kwargs['context']
-        cctxt.cast(context, 'configure_interface_complete',
-                   **kwargs)
-
-    def clear_interface_complete(self, **kwargs):
-        context = kwargs.get('context')
-        del kwargs['context']
-        cctxt.cast(context, 'clear_interface_complete',
-                   **kwargs)
-
-    def configure_source_routes_complete(self, **kwargs):
-        context = kwargs.get('context')
-        del kwargs['context']
-        cctxt.cast(context, 'configure_source_routes_complete',
-                   **kwargs)
-
-    def clear_source_routes_complete(self, **kwargs):
-        context = kwargs.get('context')
-        del kwargs['context']
-        cctxt.cast(context, 'clear_source_routes_complete',
-                   **kwargs)
-
-    def configure_healthmonitor_complete(self, **kwargs):
-        context = kwargs.get('context')
-        del kwargs['context']
-        cctxt.cast(context, 'configure_healthmonitor_complete',
-                   **kwargs)
-
-    def clear_healthmonitor_complete(self, **kwargs):
-        context = kwargs.get('context')
-        del kwargs['context']
-        cctxt.cast(context, 'clear_healthmonitor_complete',
-                   **kwargs)
+        notification_data = {'notification_data': {}}
+        notification_data['notification_data'].\
+            update({'resource': resource,
+                    'kwargs': kwargs})
+        self.cctxt.cast(context, 'network_function_device_notification',
+                        notification_data=notification_data)
 
 
 class GcAgent(object):
@@ -68,59 +44,28 @@ class GcAgent(object):
         self._sc = sc
         super(GcAgent, self).__init__()
 
-    def _post(self, context, name, **kwargs):
-        kwargs.update({'context': context})
-        body = {'kwargs': kwargs}
+    def _post(self, context, request_data):
+        for ele in request_data['request_data']['config']:
+            ele['kwargs'].update({'context': context})
         try:
-            resp, content = rc.post('gc/%s' % (name), body=body)
+            resp, content = rc.post('create_network_function_device_config',
+                                    body=request_data)
         except:
-            LOG.error("create_%s -> request failed." % (name))
+            LOG.error(
+                "create_network_function_device_config -> request failed.")
 
-    def _delete(self, context, name, **kwargs):
-        kwargs.update({'context': context})
-        body = {'kwargs': kwargs}
+    def _delete(self, context, request_data):
+        for ele in request_data['request_data']['config']:
+            ele['kwargs'].update({'context': context})
         try:
-            resp, content = rc.put('gc/%s' % (name), body=body, delete=True)
+            resp, content = rc.post('delete_network_function_device_config',
+                                    body=request_data, delete=True)
         except:
-            LOG.error("delete_%s -> request failed." % (name))
+            LOG.error(
+                "delete_network_function_device_config -> request failed.")
 
-    def configure_interfaces(self, context, **kwargs):
-        self._post(context, 'interfaces', **kwargs)
+    def create_network_function_device_config(self, context, request_data):
+        self._post(context, request_data)
 
-    def clear_interfaces(self, context, floating_ip, service_vendor,
-                         provider_interface_position,
-                         stitching_interface_position):
-        self._delete(context, 'interfaces',
-                     floating_ip=floating_ip,
-                     service_vendor=service_vendor,
-                     provider_interface_position=provider_interface_position,
-                     stitching_interface_position=stitching_interface_position)
-
-    def configure_source_routes(self, context, floating_ip, service_vendor,
-                                source_cidrs, destination_cidr, gateway_ip,
-                                provider_interface_position,
-                                standby_floating_ip=None):
-        self._post(context, 'source_routes',
-                   floating_ip=floating_ip,
-                   service_vendor=service_vendor,
-                   source_cidrs=source_cidrs,
-                   destination_cidr=destination_cidr,
-                   gateway_ip=gateway_ip,
-                   provider_interface_position=provider_interface_position,
-                   standby_floating_ip=standby_floating_ip)
-
-    def clear_source_routes(self, context, floating_ip, service_vendor,
-                            source_cidrs, provider_interface_position,
-                            standby_floating_ip=None):
-        self._delete(context, 'source_routes',
-                     floating_ip=floating_ip,
-                     service_vendor=service_vendor,
-                     source_cidrs=source_cidrs,
-                     provider_interface_position=provider_interface_position,
-                     standby_floating_ip=standby_floating_ip)
-
-    def configure_healthmonitor(self, context, **kwargs):
-        self._post(context, 'hm',  **kwargs)
-
-    def clear_healthmonitor(self, context, **kwargs):
-        self._delete(context, 'hm',  **kwargs)
+    def delete_network_function_device_config(self, context, request_data):
+        self._delete(context, request_data)
