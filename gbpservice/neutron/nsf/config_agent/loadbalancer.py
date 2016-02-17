@@ -10,41 +10,47 @@ from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
+Version = 'v1'
 
-class Lb(object):
+
+class Loadbalancer(object):
     API_VERSION = '1.0'
 
-    def __init__(self, host):
+    def __init__(self):
         self.topic = topics.LB_NSF_PLUGIN_TOPIC
-        target = target.Target(topic=self.topic,
-                               version=self.API_VERSION)
-        self.client = n_rpc.get_client(target)
+        _target = target.Target(topic=self.topic,
+                                version=self.API_VERSION)
+        self.client = n_rpc.get_client(_target)
         self.cctxt = self.client.prepare(version=self.API_VERSION,
                                          topic=self.topic)
-
-    def report_state(self, **kwargs):
-        context = kwargs.get('context')
-        del kwargs['context']
-        cctxt.cast(context, 'report_state',
-                   **kwargs)
 
     def update_status(self, **kwargs):
         context = kwargs.get('context')
         del kwargs['context']
-        cctxt.cast(context, 'update_status',
-                   **kwargs)
+        self.cctxt.cast(context, 'update_status',
+                        obj_type=kwargs['obj_type'],
+                        obj_id=kwargs['obj_id'],
+                        status=kwargs['status'])
 
     def update_pool_stats(self, **kwargs):
         context = kwargs.get('context')
         del kwargs['context']
-        cctxt.cast(context, 'update_pool_stats',
-                   **kwargs)
+        self.cctxt.cast(context, 'update_pool_stats',
+                        pool_id=kwargs['pool_id'],
+                        stats=kwargs['stats'],
+                        host=kwargs['host'])
 
-    def resource_deleted(self, **kwargs):
+    def pool_destroyed(self, pool_id):
         context = kwargs.get('context')
         del kwargs['context']
-        cctxt.cast(context, 'resource_deleted',
-                   **kwargs)
+        self.cctxt.cast(self.context, 'pool_destroyed',
+                        pool_id=kwargs['pool_id'])
+
+    def pool_deployed(self, **kwargs):
+        context = kwargs.get('context')
+        del kwargs['context']
+        self.cctxt.cast(self.context, 'pool_deployed',
+                        pool_id=kwargs['pool_id'])
 
 
 class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
@@ -56,86 +62,115 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         self._sc = sc
         super(LbAgent, self).__init__()
 
+    def _prepare_request_data(self, resource, kwargs):
+
+        request_data = {'info': {
+            'version': Version,
+            'service_type': 'loadbalancer'
+        },
+
+            'config': [{
+                'resource': resource,
+                'kwargs': kwargs
+            }]
+        }
+
+        return {'request_data': request_data}
+
     def _post(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
         context.__setattr__('service_info', db)
         kwargs.update({'context': context})
-        body = {'kwargs': kwargs}
+        resource = name
+        body = self._prepare_request_data(resource, kwargs)
         try:
-            resp, content = rc.post('lb/%s' % (name), body=body)
+            resp, content = rc.post(
+                'create_network_function_config', body=body)
         except:
             LOG.error("create_%s -> request failed." % (name))
 
-    def _put(self, context, tenant_id, name, id, **kwargs):
+    '''
+    def _put(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
         context.__setattr__('service_info', db)
         kwargs.update({'context': context})
-        body = {'kwargs': kwargs}
+        resource = name
+        body = self._prepare_request_data(resource, kwargs)
         try:
-            resp, content = rc.put('lb/%s/%s' % (name, id), body=body)
+            resp, content = rc.put('update_network_function_config', body=body)
         except:
             LOG.error("update_%s -> request failed." % (name))
+    '''
 
-    def _delete(self, context, tenant_id, name, id, **kwargs):
+    def _delete(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
         context.__setattr__('service_info', db)
         kwargs.update({'context': context})
-        body = {'kwargs': kwargs}
+        resource = name
+        body = self._prepare_request_data(resource, kwargs)
         try:
-            resp, content = rc.put('lb/%s/%s' %
-                                   (name, id), body=body, delete=True)
+            resp, content = rc.post('delete_network_function_config',
+                                    body=body, delete=True)
         except:
             LOG.error("delete_%s -> request failed." % (name))
 
     def create_vip(self, context, vip):
         self._post(context, vip['tenant_id'], 'vip', vip=vip)
 
+    '''
     def update_vip(self, context, old_vip, vip):
-        self._put(context, old_vip['tenant_id'], 'vip', old_vip[
-                  'id'], oldvip=old_vip, vip=vip)
+        self._put(context, old_vip['tenant_id'], 'vip',
+            oldvip=old_vip, vip=vip)
+    '''
 
     def delete_vip(self, context, vip):
-        self._delete(context, vip['tenant_id'], 'vip', vip['id'], vip=vip)
+        self._delete(context, vip['tenant_id'], 'vip', vip=vip)
 
     def create_pool(self, context, pool, driver_name):
         self._post(
             context, pool['tenant_id'],
             'pool', pool=pool, driver_name=driver_name)
 
+    '''
     def update_pool(self, context, old_pool, pool):
-        self._put(context, old_pool['tenant_id'], 'pool', old_pool[
-                  'id'], oldpool=old_pool, pool=pool)
+        self._put(context, old_pool['tenant_id'], 'pool',
+            oldpool=old_pool, pool=pool)
+    '''
 
     def delete_pool(self, context, pool):
-        self._delete(context, pool['tenant_id'], 'pool', pool['id'], pool=pool)
+        self._delete(context, pool['tenant_id'], 'pool', pool=pool)
 
     def create_member(self, context, member):
         self._post(context, member['tenant_id'], 'member', member=member)
 
+    '''
     def update_member(self, context, old_member, member):
-        self._put(context, old_member['tenant_id'], 'member', old_member[
-                  'id'], oldmember=old_member, member=member)
+        self._put(context, old_member['tenant_id'], 'member',
+            oldmember=old_member, member=member)
+    '''
 
     def delete_member(self, context, member):
         self._delete(
             context, member['tenant_id'], 'member',
-            member['id'], member=member)
+            member=member)
 
     def create_pool_health_monitor(self, context, hm, pool_id):
         self._post(context, hm[
-                   'tenant_id'], 'hm',
-                   hm=hm, pool_id=pool_id)
+            'tenant_id'], 'hm',
+            hm=hm, pool_id=pool_id)
 
+    '''
     def update_pool_health_monitor(self, context, old_hm,
                                    hm, pool_id):
         self._put(context, old_hm['tenant_id'], 'hm',
-                  old_hm['id'], oldhm=old_hm,
-                  hm=hm, pool_id=pool_id)
+            oldhm=old_hm,
+            hm=hm, pool_id=pool_id)
+    '''
 
     def delete_pool_health_monitor(self, context, hm, pool_id):
         self._delete(
             context, hm['tenant_id'], 'hm',
-            hm['id'], hm=hm, pool_id=pool_id)
+            hm=hm, pool_id=pool_id)
 
     def _context(self, context, tenant_id):
         if context.is_admin:

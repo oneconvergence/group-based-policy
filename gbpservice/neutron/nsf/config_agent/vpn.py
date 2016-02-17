@@ -10,35 +10,25 @@ from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
+Version = 'v1'
+
 
 class Vpn(object):
     API_VERSION = '1.0'
 
-    def __init__(self, host):
+    def __init__(self):
         self.topic = topics.VPN_NSF_PLUGIN_TOPIC
-        target = target.Target(topic=self.topic,
-                               version=self.API_VERSION)
-        self.client = n_rpc.get_client(target)
+        _target = target.Target(topic=self.topic,
+                                version=self.API_VERSION)
+        self.client = n_rpc.get_client(_target)
         self.cctxt = self.client.prepare(version=self.API_VERSION,
                                          topic=self.topic)
-
-    def report_state(self, **kwargs):
-        context = kwargs.get('context')
-        del kwargs['context']
-        cctxt.cast(context, 'report_state',
-                   **kwargs)
 
     def update_status(self, **kwargs):
         context = kwargs.get('context')
         del kwargs['context']
-        cctxt.cast(context, 'update_status',
-                   **kwargs)
-
-    def ipsec_site_conn_deleted(self, **kwargs):
-        context = kwargs.get('context')
-        del kwargs['context']
-        cctxt.cast(context, 'ipsec_site_conn_deleted',
-                   **kwargs)
+        self.cctxt.cast(context, 'update_status',
+                        status=kwargs['status'])
 
 
 class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
@@ -58,15 +48,40 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             self._core_plugin = manager.NeutronManager.get_plugin()
             return self._core_plugin
 
-    def vpnservice_updated(self, context, **kwargs):
+    def _prepare_request_data(self, resource, kwargs):
 
-        resource = kwargs.get('resource')
-        db = self._context(context, resource['tenant_id'])
+        request_data = {'info': {
+            'version': Version,
+            'service_type': 'vpn'
+        },
+
+            'config': [{
+                'resource': resource,
+                'kwargs': kwargs
+            }]
+        }
+
+        return {'request_data': request_data}
+
+    def _eval_rest_calls(self, reason, body):
+        if reason == 'update':
+            return rc.put('update_network_function_config', body=body)
+        elif reason == 'create':
+            return rc.post('create_network_function_config', body=body)
+        else:
+            return rc.post('delete_network_function_config', body=body,
+                           delete=True)
+
+    def vpnservice_updated(self, context, **kwargs):
+        resource_data = kwargs.get('resource')
+        db = self._context(context, resource_data['tenant_id'])
         context.__setattr__('service_info', db)
         kwargs.update({'context': context})
-        body = {'kwargs': kwargs}
+        resource = resource_data['rsrc_type']
+        reason = resource_data['reason']
+        body = self._prepare_request_data(resource, kwargs)
         try:
-            resp, content = rc.put('vpn', body=body)
+            resp, content = self._eval_rest_calls(reason, body)
         except:
             LOG.error("vpnservice_updated -> request failed.")
 
