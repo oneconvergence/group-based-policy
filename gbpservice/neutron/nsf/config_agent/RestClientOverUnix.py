@@ -96,18 +96,17 @@ def get(path):
     return SendRequest().send_request(path, 'GET')
 
 
-def put(path, body, delete=False):
+def put(path, body):
     headers = {'content-type': 'application/json'}
-    if delete:
-        headers.update({'method-type': 'DELETE'})
-    else:
-        headers.update({'method-type': 'UPDATE'})
-
     return SendRequest().send_request(path, 'PUT',
                                       headers=headers, body=body)
 
 
-def post(path, body):
+def post(path, body, delete=False):
     headers = {'content-type': 'application/json'}
+    if delete:
+        headers.update({'method-type': 'DELETE'})
+    else:
+        headers.update({'method-type': 'CREATE'})
     return SendRequest().send_request(path, 'POST',
                                       headers=headers, body=body)
