@@ -179,7 +179,22 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         self.controller.rpc_event.assert_called_once_with(mock.ANY)
 
     def test_validate_create_service_input(self):
-        pass  # TODO
+        network_service = {}
+        self.assertRaises(
+            Exception,
+            self.service_lc_handler._validate_create_service_input,
+            self.context, network_service)
+
+        network_service = {
+            "tenant_id": "test",
+            "service_id": "test",
+            "service_chain_id": "test",
+            "service_profile_id": "test",
+            "network_service_mode": "test"
+        }
+        return_value = self.service_lc_handler._validate_create_service_input(
+            self.context, network_service)
+        self.assertIsNone(return_value)
 
     def test_delete_network_service_without_nsi(self):
         network_service = self.create_network_service()

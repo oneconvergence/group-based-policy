@@ -42,7 +42,7 @@ OPTS = [
     ),
     cfg.StrOpt(
         'modules_dir',
-        default='gbpservice.neutron.nsf.core.test',
+        default='gbpservice.neutron.nsf.lifecycle_manager.modules',
         help=_('Modules path to import ')
     ),
     cfg.IntOpt(

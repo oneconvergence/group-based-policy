@@ -180,19 +180,41 @@ class NSFClientApi(object):
             'get_network_service',
             network_service_id=network_service_id)
 
-    def notify_consumer_ptg_added(self, context, network_service_id, ptg):
-        pass
+    def notify_consumer_ptg_added(self, context, network_service_id,
+                                  policy_target_group):
+        cctxt = self.client.prepare(version=self.RPC_API_VERSION)
+        return cctxt.call(
+            context,
+            'notify_consumer_ptg_added',
+            network_service_id=network_service_id,
+            policy_target_group=policy_target_group)
 
-    def notify_consumer_ptg_removed(self, context, network_service_id, ptg):
-        pass
+    def notify_consumer_ptg_removed(self, context, network_service_id,
+                                    policy_target_group):
+        cctxt = self.client.prepare(version=self.RPC_API_VERSION)
+        return cctxt.call(
+            context,
+            'notify_consumer_ptg_removed',
+            network_service_id=network_service_id,
+            policy_target_group=policy_target_group)
 
     def notify_policy_target_added(self, context, network_service_id,
                                    policy_target):
-        pass
+        cctxt = self.client.prepare(version=self.RPC_API_VERSION)
+        return cctxt.call(
+            context,
+            'notify_policy_target_added',
+            network_service_id=network_service_id,
+            policy_target=policy_target)
 
     def notify_policy_target_removed(self, context, network_service_id,
                                      policy_target):
-        pass
+        cctxt = self.client.prepare(version=self.RPC_API_VERSION)
+        return cctxt.call(
+            context,
+            'notify_policy_target_removed',
+            network_service_id=network_service_id,
+            policy_target=policy_target)
 
 
 class NSFNodeDriver(driver_base.NodeDriverBase):
@@ -346,8 +368,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
             context.instance['id'])
 
     def update_policy_target_added(self, context, policy_target):
-        if self._get_service_type(
-            context.current_profile) == pconst.LOADBALANCER:
+        if context.current_profile['service_type'] == pconst.LOADBALANCER:
             if self._is_service_target(policy_target):
                 return
             context._plugin_context = self._get_resource_owner_context(
@@ -361,8 +382,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
                     context.plugin_context, network_service_id, policy_target)
 
     def update_policy_target_removed(self, context, policy_target):
-        if self._get_service_type(
-            context.current_profile) == pconst.LOADBALANCER:
+        if context.current_profile['service_type'] == pconst.LOADBALANCER:
             if self._is_service_target(policy_target):
                 return
             context._plugin_context = self._get_resource_owner_context(
@@ -381,7 +401,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
         pass  # We are not using the classifier specified in redirect Rule
 
     def update_node_consumer_ptg_added(self, context, policy_target_group):
-        if self._get_service_type(context.current_profile) == pconst.FIREWALL:
+        if context.current_profile['service_type'] == pconst.FIREWALL:
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
             network_service_map = self._get_node_instance_network_service_map(
@@ -397,7 +417,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
                     policy_target_group)
 
     def update_node_consumer_ptg_removed(self, context, policy_target_group):
-        if self._get_service_type(context.current_profile) == pconst.FIREWALL:
+        if context.current_profile['service_type'] == pconst.FIREWALL:
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
             network_service_map = self._get_node_instance_network_service_map(
@@ -617,7 +637,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
                 'consumer_pts'][0]
 
         return self.nsf_notifier.create_network_service(
-            context.plugin_context, network_service=network_service)
+            context.plugin_context, network_service=network_service)['id']
 
     def _set_node_instance_network_service_map(
         self, session, sc_node_id, sc_instance_id, network_service_id):

@@ -239,7 +239,7 @@ class ServiceLifeCycleHandler(object):
             'status': 'PENDING_DELETE'
         }
         network_service = self.db_handler.update_network_service(
-            self.db_session, network_service_id, network_service)            
+            self.db_session, network_service_id, network_service)     
         for nsi_id in network_service_info['network_service_instances']:
             self._create_event('DELETE_NETWORK_SERVICE_INSTANCE',
                                event_data=nsi_id)
@@ -330,7 +330,7 @@ class ServiceLifeCycleHandler(object):
                 policy_target_id = port_info['id']
                 port_id = self.gbpclient.get_policy_targets(
                     admin_token,
-                    filters={'id': policy_target_id })[0]['port_id']
+                    filters={'id': policy_target_id})[0]['port_id']
             else:
                 port_id = port_info['id']
 
@@ -338,7 +338,7 @@ class ServiceLifeCycleHandler(object):
                 consumer_port = self.neutronclient.get_port(admin_token,
                         port_id)['port']
             else:
-                LOG.info(_("provider info: %s") %(port_id))
+                LOG.info(_("provider info: %s") % (port_id))
                 provider_port = self.neutronclient.get_port(admin_token,
                         port_id)['port']
 
@@ -370,12 +370,20 @@ class ServiceLifeCycleHandler(object):
                            event_data=nsi['network_service_device_id'])
 
     def _validate_create_service_input(self, context, create_service_request):
-        required_attributes = ["tenant_id", "service_id",
-                               "service_chain_id", "service_profile_id"]
+        required_attributes = ["tenant_id", "service_id", "service_chain_id",
+                               "service_profile_id", "network_service_mode"]
         if (set(required_attributes) & set(create_service_request.keys()) !=
             set(required_attributes)):
             raise Exception("Some mandatory arguments are missing in "
                             "create service request")
+        if create_service_request['network_service_mode'].lower() == "gbp":
+            gbp_required_attributes = ["provider_port_id", "service_chain_id",
+                                       "management_ptg_id"]
+            if (set(gbp_required_attributes) &
+                set(create_service_request.keys()) !=
+                set(gbp_required_attributes)):
+                raise Exception("Some mandatory arguments for GBP mode are "
+                                "missing in create service request")
 
     def check_for_user_config_complete(self, request_data):
         config_status = self.config_driver.is_config_complete(

@@ -441,20 +441,6 @@ class HeatDriver():
 
     def _update_firewall_template(self, auth_token, provider, stack_template):
         consumer_ptgs, consumer_eps = self._get_consumers_for_chain(auth_token, provider)
-        provider_cidr = None
-        filters = {'id': consumer_ptgs}        
-        consumer_ptgs_details = self.gbp_client.get_policy_target_groups(
-            auth_token, filters)
-        provider_l2p_subnets = self.neutron_client.list_subnets(
-            auth_token,
-            filters={'id': provider['subnets']})
-        for subnet in provider_l2p_subnets:
-            if not subnet['name'].startswith(APIC_OWNED_RES):
-                provider_cidr = subnet['cidr']
-                break
-        if not provider_cidr:
-            raise #TODO(Magesh): Raise proper exception class
-
         is_template_aws_version = stack_template.get(
             'AWSTemplateFormatVersion', False)
         resources_key = 'Resources' if is_template_aws_version else 'resources'
@@ -466,37 +452,68 @@ class HeatDriver():
         fw_policy_key = self._get_all_heat_resource_keys(
             stack_template['resources'], is_template_aws_version,
             'OS::Neutron::FirewallPolicy')[0]
-        fw_template_properties = dict(
-            resources_key=resources_key, properties_key=properties_key,
-            is_template_aws_version=is_template_aws_version,
-            fw_rule_keys=fw_rule_keys,
-            fw_policy_key=fw_policy_key)
 
-        # Revisit(Magesh): What is the name updated below ?? FW or Rule?
-        # This seems to have no effect in UTs
-        for consumer in consumer_ptgs_details:
-            if consumer['proxied_group_id']:
-                continue
-            fw_template_properties.update({'name': consumer['id'][:3]})
-            for subnet_id in consumer['subnets']:
-                subnet = self.neutron_client.get_subnet(
-                    auth_token, subnet_id)['subnet']
-                if subnet['name'].startswith(APIC_OWNED_RES):
+        if consumer_ptgs:
+            provider_cidr = None
+            filters = {'id': consumer_ptgs}        
+            consumer_ptgs_details = self.gbp_client.get_policy_target_groups(
+                auth_token, filters)
+            LOG.info(_("_update_firewall_template CONSUMER_PTG_DETAILS: %s") %(consumer_ptgs_details))
+            provider_l2p_subnets = self.neutron_client.list_subnets(
+                auth_token,
+                filters={'id': provider['subnets']})
+            for subnet in provider_l2p_subnets:
+                if not subnet['name'].startswith(APIC_OWNED_RES):
+                    provider_cidr = subnet['cidr']
+                    break
+            if not provider_cidr:
+                raise #TODO(Magesh): Raise proper exception class
+
+            #MOved before if statement
+            #is_template_aws_version = stack_template.get(
+            #    'AWSTemplateFormatVersion', False)
+            #resources_key = 'Resources' if is_template_aws_version else 'resources'
+            #properties_key = ('Properties' if is_template_aws_version
+            #                  else 'properties')
+            #fw_rule_keys = self._get_all_heat_resource_keys(
+            #    stack_template[resources_key], is_template_aws_version,
+            #    'OS::Neutron::FirewallRule')
+            #fw_policy_key = self._get_all_heat_resource_keys(
+            #    stack_template['resources'], is_template_aws_version,
+            #    'OS::Neutron::FirewallPolicy')[0]
+            fw_template_properties = dict(
+                resources_key=resources_key, properties_key=properties_key,
+                is_template_aws_version=is_template_aws_version,
+                fw_rule_keys=fw_rule_keys,
+                fw_policy_key=fw_policy_key)
+
+            # Revisit(Magesh): What is the name updated below ?? FW or Rule?
+            # This seems to have no effect in UTs
+            for consumer in consumer_ptgs_details:
+                if consumer['proxied_group_id']:
                     continue
+                fw_template_properties.update({'name': consumer['id'][:3]})
+                for subnet_id in consumer['subnets']:
+                    subnet = self.neutron_client.get_subnet(
+                        auth_token, subnet_id)['subnet']
+                    if subnet['name'].startswith(APIC_OWNED_RES):
+                        continue
 
-                consumer_cidr = subnet['cidr']
-                self._append_firewall_rule(
-                    stack_template, provider_cidr, consumer_cidr,
-                    fw_template_properties, consumer['id'])
+                    consumer_cidr = subnet['cidr']
+                    LOG.info(_("_update_firewall_template: %s and ID %s") %(stack_template, consumer['id']))
+                    self._append_firewall_rule(
+                        stack_template, provider_cidr, consumer_cidr,
+                        fw_template_properties, consumer['id'])
 
-        filters = {'id': consumer_eps}
-        consumer_eps_details = self.gbp_client.get_external_policies(
-            auth_token, filters)
-        for consumer_ep in consumer_eps_details:
-            fw_template_properties.update({'name': consumer_ep['id'][:3]})
-            self._append_firewall_rule(stack_template, provider_cidr,
-                                       "0.0.0.0/0", fw_template_properties,
-                                       consumer_ep['id'])
+            filters = {'id': consumer_eps}
+            consumer_eps_details = self.gbp_client.get_external_policies(
+                auth_token, filters)
+            LOG.info(_("_update_firewall_template CONSUMER_EP_DETAILS: %s") %(consumer_eps_details))
+            for consumer_ep in consumer_eps_details:
+                fw_template_properties.update({'name': consumer_ep['id'][:3]})
+                self._append_firewall_rule(stack_template, provider_cidr,
+                                           "0.0.0.0/0", fw_template_properties,
+                                           consumer_ep['id'])
 
         for rule_key in fw_rule_keys:
             del stack_template[resources_key][rule_key]
@@ -861,35 +878,35 @@ class HeatDriver():
                             {'stack': stack_id})
             return failure_status
 
-        def is_config_delete_complete(self, stack_id):
-            success_status = "COMPLETED"
-            failure_status = "ERROR"
-            intermediate_status = "IN_PROGRESS"
-            auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
-            heatclient = self._get_heat_client(resource_owner_tenant_id)
+    def is_config_delete_complete(self, stack_id):
+        success_status = "COMPLETED"
+        failure_status = "ERROR"
+        intermediate_status = "IN_PROGRESS"
+        auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+        heatclient = self._get_heat_client(resource_owner_tenant_id)
 
-            try:
-                stack = heatclient.get(stack_id)
-                if stack.stack_status == 'DELETE_FAILED':
-                    return failure_status
-                elif stack.stack_status == 'CREATE_COMPLETE':
-                    return failure_status
-                elif stack.stack_status == 'DELETE_COMPLETE':
-                    LOG.info(_("Stack %(stack)s is deleted"),
-                            {'stack': stack_id})
-                    return success_status
-                elif stack.stack_status == 'CREATE_FAILED':
-                    return failure_status
-                elif stack.stack_status == 'UPDATE_FAILED':
-                    return failure_status
-                elif stack.stack_status not in [
-                        'UPDATE_IN_PROGRESS', 'CREATE_IN_PROGRESS',
-                        'DELETE_IN_PROGRESS']:
-                    return intermediate_status
-            except Exception:
-                LOG.exception(_("Retrieving the stack %(stack)s failed."),
-                        {'stack': stack_id})
+        try:
+            stack = heatclient.get(stack_id)
+            if stack.stack_status == 'DELETE_FAILED':
                 return failure_status
+            elif stack.stack_status == 'CREATE_COMPLETE':
+                return failure_status
+            elif stack.stack_status == 'DELETE_COMPLETE':
+                LOG.info(_("Stack %(stack)s is deleted"),
+                        {'stack': stack_id})
+                return success_status
+            elif stack.stack_status == 'CREATE_FAILED':
+                return failure_status
+            elif stack.stack_status == 'UPDATE_FAILED':
+                return failure_status
+            elif stack.stack_status not in [
+                    'UPDATE_IN_PROGRESS', 'CREATE_IN_PROGRESS',
+                    'DELETE_IN_PROGRESS']:
+                return intermediate_status
+        except Exception:
+            LOG.exception(_("Retrieving the stack %(stack)s failed."),
+                    {'stack': stack_id})
+            return failure_status
 
     def apply_user_config(self, service_details): 
         service_profile = service_details['service_profile']
@@ -949,18 +966,18 @@ class HeatDriver():
             LOG.exception(_("Cleaning up the service chain stack failed"))
 
     def _update(self, auth_token, resource_owner_tenant_id, service_profile, 
-            original_node, service_chain_node, service_chain_instance, provider, 
+            service_chain_node, service_chain_instance, provider, 
             consumer_port, provider_port, stack_id, mgmt_ip=None, 
             pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
         # FIXME(Magesh): Why are we invoking heat update for FW and VPN
         # in Phase 1 even when there was no config change ??
         service_type = service_profile['service_type']
-        if service_type == pconst.LOADBALANCER:
-            if (not pt_added_or_removed and (not original_node or
-                    original_node == service_chain_node)):
-                LOG.info(_("No action to take on update"))
-                return
+        #if service_type == pconst.LOADBALANCER:
+        #    if (not pt_added_or_removed and (not original_node or
+        #            original_node == service_chain_node)):
+        #        LOG.info(_("No action to take on update"))
+        #        return
         provider_tenant_id = provider['tenant_id']
         heatclient = self._get_heat_client(resource_owner_tenant_id,
                                            tenant_id=provider_tenant_id)
@@ -975,7 +992,8 @@ class HeatDriver():
         if stack_id:
             # FIXME(Magesh): Fix the update stack issue on Heat/*aas driver
             if service_type == pconst.VPN or service_type == pconst.FIREWALL:
-                heatclient.delete(stack_id)
+                #heatclient.delete(stack_id)
+               
                 try:
                     self._wait_for_stack_operation_complete(heatclient,
                                                             stack_id,
@@ -1072,8 +1090,8 @@ class HeatDriver():
 
         auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
         stack_id = self._update(auth_token, resource_owner_tenant_id, service_profile, 
-                original_node, service_chain_node, service_chain_instance, provider, 
-                consumer_port, provider_port, stack_id, mgmt_ip)
+                                original_node, service_chain_node, service_chain_instance, provider, 
+                                consumer_port, provider_port, stack_id, mgmt_ip)
 
         return stack_id
 
@@ -1091,8 +1109,8 @@ class HeatDriver():
                 return
             auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
             stack_id = self._update(auth_token, resource_owner_tenant_id, service_profile,
-                   original_node, service_chain_node, service_chain_instance, provider,
-                   consumer_port, provider_port, stack_id, mgmt_ip)
+                   service_chain_node, service_chain_instance, provider,
+                   consumer_port, provider_port, stack_id, mgmt_ip, pt_added_or_removed=True)
 
         return stack_id
 
@@ -1104,15 +1122,16 @@ class HeatDriver():
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
+        stack_id = service_details['heat_stack_id']
 
-        if self._get_service_type(context.current_profile) == pconst.LOADBALANCER:
+        if service_profile['service_type'] == pconst.LOADBALANCER:
             if self._is_service_target(policy_target):
                 return
             auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
             try:
-                stack_id = self._update(auth_token, resource_owner_tenant_id, service_profile,
-                original_node, service_chain_node, service_chain_instance, provider,
-                consumer_port, provider_port, stack_id, mgmt_ip)
+                stack_id = self._update(auth_token, resource_owner_tenant_id, 
+                service_profile, service_chain_node, service_chain_instance, provider,
+                consumer_port, provider_port, stack_id, mgmt_ip, pt_added_or_removed=True)
                 return stack_id
             except Exception:
                 LOG.exception(_("Processing policy target delete failed"))
@@ -1128,11 +1147,12 @@ class HeatDriver():
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
+        stack_id = service_details['heat_stack_id']
 
         if service_profile['service_type'] == pconst.FIREWALL:
             auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
             stack_id = self._update(auth_token, resource_owner_tenant_id, service_profile,
-                   original_node, service_chain_node, service_chain_instance, provider,
+                   service_chain_node, service_chain_instance, provider,
                    consumer_port, provider_port, stack_id, mgmt_ip)
 
             return stack_id
@@ -1146,11 +1166,12 @@ class HeatDriver():
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
+        stack_id = service_details['heat_stack_id']
 
         if service_profile['service_type'] == pconst.FIREWALL:
             auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
             stack_id = self._update(auth_token, resource_owner_tenant_id, service_profile,
-                   original_node, service_chain_node, service_chain_instance, provider,
+                   service_chain_node, service_chain_instance, provider,
                    consumer_port, provider_port, stack_id, mgmt_ip)
 
             return stack_id
