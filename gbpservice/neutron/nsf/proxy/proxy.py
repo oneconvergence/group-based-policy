@@ -1,6 +1,4 @@
-import select
 import socket
-import threading
 import os
 import sys
 import time
@@ -25,6 +23,11 @@ class ConnectionIdleTimeOut(Exception):
     pass
 
 
+"""
+parsing the proxy configuration file
+"""
+
+
 class Configuration(object):
 
     def __init__(self, filee):
@@ -43,6 +46,10 @@ class Configuration(object):
             'OPTIONS', 'idle_max_wait_timeout')
         self.idle_min_wait_timeout = config.getfloat(
             'OPTIONS', 'idle_min_wait_timeout')
+
+"""
+Class to create Unix Listener
+"""
 
 
 class UnixServer(object):
@@ -71,6 +78,12 @@ class UnixServer(object):
         self.proxy.new_client(client, address)
 
 
+"""
+Class to create TCP client Connection if
+TCP server is alive
+"""
+
+
 class TcpClient(object):
 
     def __init__(self, conf, proxy):
@@ -91,6 +104,11 @@ class TcpClient(object):
             print "Caught exception socket.error : %s" % exc
             return sock, False
         return sock, True
+
+
+"""
+ADT for proxy connection
+"""
 
 
 class Connection(object):
@@ -138,6 +156,13 @@ class Connection(object):
         return self._socket.fileno()
 
 
+"""
+ADT for Proxy Connection Object
+Each Connection Object is pair of Unix Socket and 
+TCP Client Socket
+"""
+
+
 class ProxyConnection(object):
 
     def __init__(self, conf, unix_socket, tcp_socket):
@@ -169,9 +194,22 @@ class ProxyConnection(object):
             self._tcp_conn.identify())
 
 
+"""
+ADT for proxy Worker 
+"""
+
+
 class Worker(object):
 
     def run(self):
+        """
+        Worker thread will pop the Proxy Connection Object
+        from Connection Queue and Perform send and receive
+        operations. If the connection is ideal upto ideal_max_timeout
+        it will not push the Object into connection queue so Proxy Connection
+        Object is automatically destroy, otherwise it will again
+        push the Object in connection Queue
+        """
         while True:
             try:
                 pc = ConnQ.get()
@@ -180,6 +218,15 @@ class Worker(object):
             except Empty:
                 pass
             time.sleep(0)
+
+
+"""
+ADT to  Run the configurator proxy,
+        accept the Unix Client request,
+        Check REST Server is reachable or not,
+        Try to establish TCP Client Connection to REST 
+
+"""
 
 
 class Proxy(object):
@@ -191,6 +238,8 @@ class Proxy(object):
         self.client = TcpClient(conf, self)
 
     def start(self):
+        """Run each worker in new thread"""
+        
         for i in range(self.conf.worker_threads):
             t = threading.Thread(target=Worker().run)
             t.daemon = True
@@ -200,7 +249,8 @@ class Proxy(object):
             self.server.listen()
 
     def new_client(self, unixsocket, address):
-        # Establish connection with the tcp server
+        """Establish connection with the tcp server"""
+
         tcpsocket, connected = self.client.connect()
         if not connected:
             print "Proxy -> Could not connect with tcp server"
