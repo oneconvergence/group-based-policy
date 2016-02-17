@@ -78,17 +78,6 @@ class FwaasRpcSender(object):
                }
         self.qu.put(msg)
 
-""" This will be in demux lib
-class FwaasRpcHandler(object):
-    def __init__(self, sc, conf, rpc_mgr):
-        self._sc = sc
-        self._conf = conf
-        self._rpc_mgr = rpc_mgr
-
-    def rpc_handler(self, context, config):
-        method = context['operation'] + config['resource']
-        self._rpc_mgr.method(**config['kwargs'])
-"""
 
 class FWaasRpcManager(object):
     """

@@ -19,22 +19,34 @@ class ConfiguratorRpcManager(object):
     def _get_service_agent_obj(self, service_type):
         return self.service_agents[service_type]
 
+    def _invoke_service_agent_method(self, method, request_data):
+        
+        try:
+            sa_info = demuxer.get_service_agent_info(method, request_data)
+        except Exception as err:
+            return None
+        
+        try:
+            sa_obj = self._get_service_agent_obj(sa_info['service_type'])
+        except Exception as err:
+            return None
+
+        try:
+            sa_obj.sa_info['method'](context, request_data['config'])
+        except Exception as err:
+            return None
+              
     def create_network_device_config(self, context, request_data):
-        service_type = "generic_config"
-        context['operation'] = 'create'
-        sa_obj = _get_service_agent_obj(service_type)
-        if (not sa_obj) or (not sa_obj.rpc_handler):
-            return
-        sa_obj.rpc_handler(context, request_data['config'])
+        self._invoke_service_agent_method('create', request_data)        
+
+    def delete_network_device_config(self, context, request_data):
+        self._invoke_service_agent_method('delete', request_data)    
     
     def create_network_service_config(self, context, request_data):
-        context['operation'] = 'create'
-        st, method = demuxer.get_sa_info(context, request_data)
-        sa_obj = self._get_service_agent_obj(st)
-        if (not sa_obj) or (not sa_obj.rpc_handler):
-            return
-        sa_obj.method(context, request_data['config'])
-        
+        self._invoke_service_agent_method('create', request_data)        
+
+    def delete_network_service_config(self, context, request_data):
+        self._invoke_service_agent_method('delete', request_data)        
 
 class ConfiguratorModule(object):
     def __init__(self):
