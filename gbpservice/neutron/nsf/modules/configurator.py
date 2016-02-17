@@ -28,12 +28,12 @@ class ConfiguratorRpcManager(object):
         sa_obj.rpc_handler(context, request_data['config'])
     
     def create_network_service_config(self, context, request_data):
-        st = demuxer.get_service_type(request_data)
         context['operation'] = 'create'
-        sa_obj = _get_service_agent_obj(st)
+        st, method = demuxer.get_sa_info(context, request_data)
+        sa_obj = self._get_service_agent_obj(st)
         if (not sa_obj) or (not sa_obj.rpc_handler):
             return
-        sa_obj.rpc_handler(context, request_data['config'])
+        sa_obj.method(context, request_data['config'])
         
 
 class ConfiguratorModule(object):
@@ -56,9 +56,10 @@ class ConfiguratorModule(object):
 
         for fname in files:
             if fname.endswith(".py") and fname != '__init__.py':
-                agent = __import__(pkg,
-                                   globals(), locals(), [fname[:-3]], -1)
-                self.imported_agents += [eval('agent.%s' % (fname[:-3]))]
+                agent = __import__(pkg, globals(),
+                                   locals(), [fname[:-3]], -1)
+                self.imported_service_agents += [
+                                eval('agent.%s' % (fname[:-3]))]
                 # modules += [__import__(fname[:-3])]
         sys.path = syspath
 
