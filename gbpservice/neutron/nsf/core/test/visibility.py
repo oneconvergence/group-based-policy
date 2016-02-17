@@ -6,8 +6,9 @@ import time
 
 from oslo_log import log as logging
 from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core.main import RpcAgent
-from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
+from gbpservice.neutron.nsf.core.rpc import RpcAgent
+from gbpservice.neutron.nsf.core import poll
+from gbpservice.neutron.nsf.core.poll import PollEventDesc
 from oslo_config import cfg
 import oslo_messaging as messaging
 from neutron.common import rpc as n_rpc
@@ -109,12 +110,9 @@ class Collector(object):
 
     def create(self):
         pass
-        # RSyslogConfigure().configure_rsyslog_as_client(**self._service)
-        # Filebeat(**self._service).configure()
 
     def delete(self):
         pass
-        # Filebeat(**self._service).delete_configure()
 
 
 class RpcManager(object):
@@ -128,22 +126,12 @@ class RpcManager(object):
 
     def service_created(self, context, **kwargs):
         pass
-        # service = kwargs.get('service')
-        # service = ast.literal_eval(json.dumps(kwargs.get('arg')))
-        # Collector(service).create()
-        # ev = self._sc.event(id='SERVICE_CREATE', data=service)
-        # self._sc.rpc_event(ev, service['id'])
 
     def service_deleted(self, context, **kwargs):
         pass
-        # service = kwargs.get('service')
-        # service = ast.literal_eval(json.dumps(kwargs.get('arg')))
-        # Collector(service).delete()
-        # ev = self._sc.event(id='SERVICE_DELETE', data=service, handler=None)
-        # self._sc.rpc_event(ev, service['id'])
 
 
-class Agent(core_periodic_task.PeriodicTasks):
+class Agent(PollEventDesc):
 
     def __init__(self, sc):
         self._sc = sc
@@ -177,15 +165,15 @@ class Agent(core_periodic_task.PeriodicTasks):
         self._sc.event_done(ev)
         self._sc.poll_event_done(ev)
 
-    @core_periodic_task.periodic_task(event='SERVICE_CREATE', spacing=1)
+    @poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
         LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Decorator Poll event %s" % (ev.key)
+        print "Decorator Poll event (%s:%s)" % (ev.id, ev.key)
 
-    @core_periodic_task.periodic_task(event='SERVICE_DUMMY_EVENT', spacing=10)
+    @poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=10)
     def service_dummy_poll_event(self, ev):
         LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Decorator Poll event %s" % (ev.key)
+        print "Decorator Poll event (%s:%s)" % (ev.id, ev.key)
 
     def _handle_poll_event(self, ev):
         '''
@@ -193,5 +181,3 @@ class Agent(core_periodic_task.PeriodicTasks):
         '''
         LOG.debug("Poll event (%s)" % (str(ev)))
         print "Poll event %s" % (ev.key)
-        # stats_driver = OCStatsDriver()
-        # stats_driver.get_and_store_stats(**ev.data)

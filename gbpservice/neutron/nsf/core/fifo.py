@@ -6,6 +6,8 @@ from collections import deque
     New methods to support 'get' more than one element,
     'copy' the queue, 'remove' multiple messages are added.
 """
+
+
 class Fifo(object):
 
     class Empty(Exception):

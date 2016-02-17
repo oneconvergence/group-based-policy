@@ -6,6 +6,8 @@ import sys
     When invoked by caller, returns the next worker in
     the queue.
 """
+
+
 class RoundRobin(object):
 
     def __init__(self, workers):
@@ -26,6 +28,8 @@ class RoundRobin(object):
     All the events with same rsrcid, are scheduled to same
     worker. Maintains the map in dict.
 """
+
+
 class StickyRoundRobin(object):
 
     def __init__(self, workers):
