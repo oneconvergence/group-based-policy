@@ -11,7 +11,7 @@ class FilterTest(base.BaseTestCase):
 
     def setUp(self):
         self.context = {}
-        self.filter_obj = filter.Filter('*aaS_Topology', '1.2')
+        self.filter_obj = filter.Filter(None, None)
 
     def tearDown(self):
         self.context = {}

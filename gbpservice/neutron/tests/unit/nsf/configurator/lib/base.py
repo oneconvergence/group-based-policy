@@ -383,5 +383,5 @@ class BaseTestCase(unittest.TestCase):
         self.service_info['firewall_rules'] = self.firewall_rules
         return self.service_info
 
-unit = unittest.TestLoader()
-runner = unittest.TextTestRunner(verbosity=2)
+# unit = unittest.TestLoader()
+# runner = unittest.TextTestRunner(verbosity=2)
