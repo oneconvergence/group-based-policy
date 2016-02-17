@@ -257,7 +257,8 @@ def register_service_agent(cm, sc, conf):
 
 
 def init_agent(cm, sc, conf):
-    events_init(sc)
+    drivers = load_drivers()
+    events_init(sc, drivers)
     register_service_agent(cm, sc, conf)
 
 

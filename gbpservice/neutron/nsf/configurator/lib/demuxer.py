@@ -2,15 +2,15 @@
 class ConfiguratorDemuxer(object):
     def __init__(self):
         pass
-    
+
     def get_service_agent_info(self, method, data):
         sa_info = {}
-        
-        if (data['info'].has_key('service_type')):
+
+        if 'service_type' in data['info']:
             sa_info['service_type'] = data['info']['service_type']
         else:
             sa_info['service_type'] = None
-        
+
         if data['info']['service_type'] == 'firewall':
             sa_info['method'] = method + data['config']['resource']
         elif data['info']['service_type'] == 'vpn':
@@ -24,5 +24,3 @@ class ConfiguratorDemuxer(object):
                 sa_info['method'] = 'clear' + data['config']['resource']
             elif method == 'update':
                 sa_info['method'] = 'update' + data['config']['resource']
-
-        
