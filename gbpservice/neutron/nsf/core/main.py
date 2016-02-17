@@ -661,6 +661,7 @@ class Controller(object):
         self._lock = mp_lock()
         # Sequencer to sequence the related events.
         self._sequencer = EventSequencer(self)
+	self._event = multiprocessing.Event()
 
     def lock(self):
         self._lock.acquire()
