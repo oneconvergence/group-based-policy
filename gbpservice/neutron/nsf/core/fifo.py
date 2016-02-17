@@ -1,8 +1,12 @@
 import sys
 from collections import deque
 
+""" Implements FIFO using python deque.
 
-class Queue(object):
+    New methods to support 'get' more than one element,
+    'copy' the queue, 'remove' multiple messages are added.
+"""
+class Fifo(object):
 
     class Empty(Exception):
 
@@ -26,11 +30,11 @@ class Queue(object):
     def _qsize(self):
         return len(self._q)
 
-    def _empty(self):
+    def _is_empty(self):
         if not self._qsize():
             raise Queue.Empty()
 
-    def _full(self):
+    def _is_full(self):
         if self._size == self._qsize():
             raise Queue.Full()
 
@@ -39,36 +43,44 @@ class Queue(object):
         return out
 
     def put(self, msg):
+        """ Puts a message in queue. """
         try:
             self._sc.lock()
-            self._full()
+            self._is_full()
             self._q.append(msg)
         finally:
             self._sc.unlock()
 
     def get(self, limit=sys.maxint):
-        items = []
+        """ Get passed number of messages.
+
+            If there are less messages in the queue than requested,
+            then available number of messages are returned.
+        """
+        msgs = []
         try:
             self._sc.lock()
-            self._empty()
+            self._is_empty()
             for i in range(0, limit):
-                items = self._pop(items)
+                msgs = self._pop(msgs)
         except Queue.Empty:
             pass
         finally:
             self._sc.unlock()
-            return items
+            return msgs
 
     def copy(self):
+        """ Copies the queue and returns the copy. """
         self._sc.lock()
         qu = list(self._q)
         self._sc.unlock()
         return qu
 
-    def remove(self, items):
+    def remove(self, msgs):
+        """ Remove list of messages from the fifo """
         try:
             self._sc.lock()
-            for item in items:
-                self._q.remove(item)
+            for msg in msgs:
+                self._q.remove(msg)
         finally:
             self._sc.unlock()

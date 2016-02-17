@@ -1,7 +1,11 @@
 import os
 import sys
 
+""" Implements simple roundrobin loadbalancing algo.
 
+    When invoked by caller, returns the next worker in
+    the queue.
+"""
 class RoundRobin(object):
 
     def __init__(self, workers):
@@ -17,10 +21,11 @@ class RoundRobin(object):
     def get(self, rsrcid):
         return self._rr()
 
-    def rem(self, rsrcid):
-        pass
+""" Implements round robin algo with stickiness to a worker.
 
-
+    All the events with same rsrcid, are scheduled to same
+    worker. Maintains the map in dict.
+"""
 class StickyRoundRobin(object):
 
     def __init__(self, workers):
@@ -41,6 +46,3 @@ class StickyRoundRobin(object):
             worker = self._rr()
             self._assoc[rsrcid] = worker
         return worker
-
-    def rem(self, rsrcid):
-        del self._assoc[rsrcid]
