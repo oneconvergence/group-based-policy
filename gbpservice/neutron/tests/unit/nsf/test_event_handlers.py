@@ -1,5 +1,6 @@
 import os
-from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
+from gbpservice.neutron.nsf.core import poll
+from gbpservice.neutron.nsf.core.poll import PollEventDesc
 from gbpservice.neutron.nsf.core.main import Event
 from oslo_log import log as logging
 from oslo_config import cfg
@@ -7,7 +8,7 @@ import time
 LOG = logging.getLogger(__name__)
 
 
-class Handler_Class(core_periodic_task.PeriodicTasks):
+class Handler_Class(PollEventDesc):
 	def __init__(self, sc):
 		self._sc = sc
 		self.counter = 0
@@ -68,20 +69,22 @@ class Handler_Class(core_periodic_task.PeriodicTasks):
 			self._sc._event.set()
 		LOG.debug("Poll event Canceled counter(%s)" % (str(ev)))
 	
-	@core_periodic_task.periodic_task(event='DUMMY_SERVICE_EVENT5', spacing=10)
+	@poll.poll_event_desc(event='DUMMY_SERVICE_EVENT5', spacing=10)
 	def dummy_event5_poll_event(self, ev):
 		if self.counter == 0:
 			self.timer = time.time()
 			self.counter = self.counter + 1
+			print "timer = %d" %(self.timer)
 		else:
 			time_now = time.time()
 			time_elapsed = int(round(time_now - self.timer)) 
+			print "time elapsed = %d" %(time_elapsed)
 			if ev.id == 'DUMMY_SERVICE_EVENT5' and time_elapsed == 10:
 				self._sc._event.set()
 		LOG.debug("Poll event (%s)" % (str(ev)))
 		print "Decorator Poll event %s" % (ev.key)
 
-	@core_periodic_task.periodic_task(event='DUMMY_SERVICE_EVENT6', spacing=20)
+	@poll.poll_event_desc(event='DUMMY_SERVICE_EVENT6', spacing=20)
 	def dummy_event6_poll_event(self, ev):
 		if self.counter == 0:
 			self.timer = time.time()

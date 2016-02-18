@@ -17,48 +17,70 @@ from neutron.common import rpc as n_rpc
 import oslo_messaging as messaging
 import unittest
 from mock import patch, Mock
+from multiprocessing import Process
 import multiprocessing as multiprocessing
-#LOG = logging.getLogger(__name__)
 
 
 class Test_Process_Model(unittest.TestCase):
 
 	@patch('gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put')
-	def test_service_create(self, mock_put):
-		ev = self.sc.new_event(
-			id='SERVICE_CREATE', data=self.service1,
+	def test_event_create(self, mock_put):
+		event = self.sc.new_event(
+			id='DUMMY_SERVICE_EVENT1', data=self.service1,
 			binding_key=self.service1['id'],
 			key=self.service1['id'], serialize=True
 		)
-		self.sc.post_event(ev)
-		self.assertIsNotNone(ev.worker_attached)
-		mock_put.assert_called_once_with(ev)
+		self.sc.post_event(event)
+		self.assertIsNotNone(event.worker_attached)
+		mock_put.assert_called_once_with(event)
 
 	@patch('gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put')
-	def test_events_with_binding_keys(self, mock_put):
-		ev_create = self.sc.new_event(
-			id='SERVICE_CREATE', data=self.service1,
+	def test_events_with_same_binding_keys(self, mock_put):
+		event1 = self.sc.new_event(
+			id='DUMMY_SERVICE_EVENT1', data=self.service1,
 			binding_key=self.service1['tenant'],
 			key=self.service1['id'], serialize=True
 		)
-		ev_delete = self.sc.new_event(
-			id='SERVICE_DELETE', data=self.service1,
+		event2 = self.sc.new_event(
+			id='DUMMY_SERVICE_EVENT2', data=self.service1,
 			binding_key=self.service1['tenant'],
 			key=self.service1['id'], serialize=True
 		)
-		self.sc.post_event(ev_create)
-		self.sc.post_event(ev_delete)
-		self.assertIsNotNone(ev_create.worker_attached)
-		self.assertIsNotNone(ev_delete.worker_attached)
-		self.assertEqual(ev_create.worker_attached, ev_delete.worker_attached)
+		self.sc.post_event(event1)
+		self.sc.post_event(event2)
+		self.assertIsNotNone(event1.worker_attached)
+		self.assertIsNotNone(event2.worker_attached)
+		self.assertEqual(event1.worker_attached, event2.worker_attached)
 		self.assertEqual(mock_put.call_count, 2)
+
+	'''@patch('gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put')
+	def test_events_with_no_binding_key(self, mock_put):
+		event1 = self.sc.new_event(
+			id='DUMMY_SERVICE_EVENT1', data=self.service1,
+			key=self.service1['id'], serialize=False
+		)
+		event2 = self.sc.new_event(
+			id='DUMMY_SERVICE_EVENT2', data=self.service1,
+			key=self.service1['id'], serialize=False
+		)
+		print "worker 1: %d" %(self.sc._workers[0][0].pid)
+		print "worker 2: %d" %(self.sc._workers[1][0].pid)
+		print "worker 2: %d" %(self.sc._workers[2][0].pid)
+		print "worker 2: %d" %(self.sc._workers[3][0].pid)
+		self.sc.post_event(event1)
+                self.sc.post_event(event2)
+                self.assertIsNotNone(event1.worker_attached)
+                self.assertIsNotNone(event2.worker_attached)
+                self.assertNotEqual(event1.worker_attached, event2.worker_attached)
+                self.assertEqual(mock_put.call_count, 2)'''
+			
 	
 	@patch('gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put')
 	def test_loadbalancing_events(self, mock_put):
 		event1 = self.sc.new_event(
 			id='SERVICE_CREATE', data=self.service1,
 			binding_key=self.service1['id'],
-			key=self.service1['id'], serialize=True
+			key=self.service1['id'], serialize=False
 		)
 		self.sc.post_event(event1) 
 		count = 0
@@ -71,7 +93,7 @@ class Test_Process_Model(unittest.TestCase):
 		event2 = self.sc.new_event(
 			id='SERVICE_CREATE', data=self.service2,
 			binding_key=self.service2['id'],
-			key=self.service2['id'], serialize=True
+			key=self.service2['id'], serialize=False
 		)
 		self.sc.post_event(event2)
 		if rrid_event1 + 1 == len(self.sc._workers):
@@ -112,7 +134,7 @@ class Test_Process_Model(unittest.TestCase):
 		self.assertEqual(sequenced_event1, event1) 
 
 	@patch('gbpservice.neutron.nsf.core.main.EventSequencer')
-	def test_serializer_serialize(self, mocked_sequencer):
+	def test_EventSequencer_add(self, mocked_sequencer):
 		event1 = self.mock_event(
 			id='SERVICE_CREATE', data=self.service1,
 			binding_key=self.service1['id'],
@@ -159,8 +181,8 @@ class Test_Process_Model(unittest.TestCase):
 		)
 		self.sc.post_event(ev)
 		time.sleep(3)
-		test = self.sc._event.wait(50)
-		self.assertTrue(test)
+		event_polled_maxtimes = self.sc._event.wait(50)
+		self.assertTrue(event_polled_maxtimes)
 
 	def test_poll_event_done(self):
 		ev = self.sc.new_event(
@@ -170,8 +192,8 @@ class Test_Process_Model(unittest.TestCase):
 		)
 		self.sc.post_event(ev)
 		time.sleep(3)
-		test = self.sc._event.wait(30)
-		self.assertFalse(test)
+		sc_event_set = self.sc._event.wait(30)
+		self.assertFalse(sc_event_set)
 
 	def test_periodic_method_withspacing_10(self):
 		ev = self.sc.new_event(
@@ -180,8 +202,8 @@ class Test_Process_Model(unittest.TestCase):
 			key=self.service1['id'], serialize=True)
 		self.sc.post_event(ev)
 		time.sleep(3)
-		test = self.sc._event.wait(30)
-		self.assertTrue(test)
+		called_with_correct_spacing = self.sc._event.wait(30)
+		self.assertTrue(called_with_correct_spacing)
 
 	def test_periodic_method_withspacing_20(self):
 		ev = self.sc.new_event(
@@ -190,8 +212,16 @@ class Test_Process_Model(unittest.TestCase):
 			key=self.service1['id'], serialize=True)
 		self.sc.post_event(ev)
 		time.sleep(3)
-		test = self.sc._event.wait(30)
-		self.assertTrue(test)
+		called_with_correct_spacing = self.sc._event.wait(30)
+		self.assertTrue(called_with_correct_spacing)
+
+	def test_worker_process_initilized(self):
+		workers = self.sc._workers
+		test_process = Process()
+		self.assertEqual(len(workers), 4)
+		for worker in workers:
+			self.assertTrue(type(worker[0]), type(test_process))
+		
 	
 	def create_sequencer_map(self, worker_attached, binding_key):
 		sequencer_map = {}
@@ -271,20 +301,4 @@ class Test_Process_Model(unittest.TestCase):
 		self.EventSequencer = EventSequencer(self.sc)
 		self.sc.start()
 
-'''if __name__ == '__main__':
-        suite = unittest.TestSuite()
-        #suite.addTest(Test_Process_Model('test_service_create'))
-        #suite.addTest(Test_Process_Model('test_events_with_binding_keys'))
-        #suite.addTest(Test_Process_Model('test_loadbalancing_events'))
-        #suite.addTest(Test_Process_Model('test_serialize_events_serialize_false'))
-        #suite.addTest(Test_Process_Model('test_serialize_events_serialze_true'))
-        #suite.addTest(Test_Process_Model('test_serializer_serialize'))
-        #suite.addTest(Test_Process_Model('test_worker_process_initilized'))
-        #suite.addTest(Test_Process_Model('test_handle_event_on_queue'))
-        #suite.addTest(Test_Process_Model('test_poll_handle_event'))
-        #suite.addTest(Test_Process_Model('test_poll_event_maxtimes'))
-        #suite.addTest(Test_Process_Model('test_poll_event_done'))
-        #suite.addTest(Test_Process_Model('test_periodic_method_withspacing_10'))
-        suite.addTest(Test_Process_Model('test_periodic_method_withspacing_20'))
-        unittest.TextTestRunner(verbosity=2).run(suite) '''
 
