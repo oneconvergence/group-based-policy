@@ -6,11 +6,9 @@ server = {
 
 # Pecan Application Configurations
 app = {
-    'root': 'root_controllers.RootController',
-    'modules': ['pecanserver'],
-    'static_root': '%(confdir)s/public',
-    'template_path': '%(confdir)s/pecanserver/templates',
-    'debug': True,
+    'root': 'root_controller.RootController',
+    'modules': ['v1'],
+    'debug': False,
     'errors': {
         404: '/error/404',
         '__force_dict__': True

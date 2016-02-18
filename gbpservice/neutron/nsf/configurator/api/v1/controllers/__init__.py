@@ -1,15 +1,21 @@
 from wsme import types as wtypes
 from wsmeext import pecan as wsme_pecan
 from pecan import rest
-
 from pecan import expose
+import controller
 
-import firewall
+
+class ControllerResolver(object):
+    """this class send parameter to controller class according to query string"""
+    device_config = controller.Controller("device_config")
+    service_config = controller.Controller("service_config")
+    notifications = controller.Controller("notifications")
 
 
-class V1Controller(rest.RestController):
+class V1Controller(object):
 
-    fw = firewall.FwaasController()
+    """ all request with nsf in curl land here"""
+    nsf = ControllerResolver()
 
     @wsme_pecan.wsexpose(wtypes.text)
     def get(self):
