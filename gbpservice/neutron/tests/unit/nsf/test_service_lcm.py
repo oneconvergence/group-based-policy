@@ -105,39 +105,39 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
 
     @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
                        "handle_policy_target_added")
-    def test_rpc_notify_policy_target_added(self,
-                                            mock_handle_policy_target_added):
-            self.rpc_handler.notify_policy_target_added(
+    def test_rpc_policy_target_added_notification(
+        self, mock_handle_policy_target_added):
+            self.rpc_handler.policy_target_added_notification(
                 "context", "network_function_id", "policy_target")
             mock_handle_policy_target_added.assert_called_once_with(
                 "context", "network_function_id", "policy_target")
 
     @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
                        "handle_policy_target_removed")
-    def test_rpc_notify_policy_target_removed(
+    def test_rpc_policy_target_removed_notification(
         self, mock_handle_policy_target_removed):
-            self.rpc_handler.notify_policy_target_removed(
+            self.rpc_handler.policy_target_removed_notification(
                 "context", "network_function_id", "policy_target")
             mock_handle_policy_target_removed.assert_called_once_with(
                 "context", "network_function_id", "policy_target")
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "handle_consumer_ptg_added")
-    def test_rpc_notify_consumer_ptg_added(self,
-                                           mock_handle_consumer_ptg_added):
-        self.rpc_handler.notify_consumer_ptg_added(
-            "context", "network_function_id", "policy_target_group")
-        mock_handle_consumer_ptg_added.assert_called_once_with(
-            "context", "network_function_id", "policy_target_group")
+    def test_rpc_consumer_ptg_added_notification(
+        self, mock_handle_consumer_ptg_added):
+            self.rpc_handler.consumer_ptg_added_notification(
+                "context", "network_function_id", "policy_target_group")
+            mock_handle_consumer_ptg_added.assert_called_once_with(
+                "context", "network_function_id", "policy_target_group")
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "handle_consumer_ptg_removed")
-    def test_rpc_notify_consumer_ptg_removed(self,
-                                             mock_handle_consumer_ptg_removed):
-        self.rpc_handler.notify_consumer_ptg_removed(
-            "context", "network_function_id", "policy_target_group")
-        mock_handle_consumer_ptg_removed.assert_called_once_with(
-            "context", "network_function_id", "policy_target_group")
+    def test_rpc_consumer_ptg_removed_notification(
+        self, mock_handle_consumer_ptg_removed):
+            self.rpc_handler.consumer_ptg_removed_notification(
+                "context", "network_function_id", "policy_target_group")
+            mock_handle_consumer_ptg_removed.assert_called_once_with(
+                "context", "network_function_id", "policy_target_group")
 
 
 class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):

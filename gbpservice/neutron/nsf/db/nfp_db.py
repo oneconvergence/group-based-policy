@@ -71,8 +71,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         return self._make_network_function_dict(service, fields)
 
     def get_network_functions(self, session, filters=None, fields=None,
-                             sorts=None, limit=None, marker=None,
-                             page_reverse=False):
+                              sorts=None, limit=None, marker=None,
+                              page_reverse=False):
         marker_obj = self._get_marker_obj(
             'network_functions', limit, marker)
         return self._get_collection(session, nfp_db_model.NetworkFunction,
@@ -107,19 +107,20 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             del network_function_instance['port_info']
 
     def create_network_function_instance(self, session,
-                                        network_function_instance):
+                                         network_function_instance):
         with session.begin(subtransactions=True):
-            network_function_instance_db = nfp_db_model.NetworkFunctionInstance(
-                id=uuidutils.generate_uuid(),
-                name=network_function_instance['name'],
-                tenant_id=network_function_instance['tenant_id'],
-                description=network_function_instance.get('description'),
-                network_function_id=network_function_instance[
-                    'network_function_id'],
-                network_function_device_id=network_function_instance.get(
-                    'network_function_device_id'),
-                ha_state=network_function_instance.get('ha_state'),
-                status=network_function_instance['status'])
+            network_function_instance_db = (
+                nfp_db_model.NetworkFunctionInstance(
+                    id=uuidutils.generate_uuid(),
+                    name=network_function_instance['name'],
+                    tenant_id=network_function_instance['tenant_id'],
+                    description=network_function_instance.get('description'),
+                    network_function_id=network_function_instance[
+                        'network_function_id'],
+                    network_function_device_id=network_function_instance.get(
+                        'network_function_device_id'),
+                    ha_state=network_function_instance.get('ha_state'),
+                    status=network_function_instance['status']))
             session.add(network_function_instance_db)
             self._set_port_info_for_nfi(session, network_function_instance_db,
                                         network_function_instance)
@@ -127,7 +128,7 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             network_function_instance_db)
 
     def _get_network_function_instance(self, session,
-                                      network_function_instance_id):
+                                       network_function_instance_id):
         try:
             return self._get_by_id(
                 session,
@@ -137,8 +138,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             raise nfp_exc.NetworkFunctionInstanceNotFound()
 
     def update_network_function_instance(self, session,
-                                        network_function_instance_id,
-                                        updated_network_function_instance):
+                                         network_function_instance_id,
+                                         updated_network_function_instance):
         with session.begin(subtransactions=True):
             network_function_instance_db = self._get_network_function_instance(
                 session, network_function_instance_id)
@@ -153,23 +154,23 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             network_function_instance_db)
 
     def delete_network_function_instance(self, session,
-                                        network_function_instance_id):
+                                         network_function_instance_id):
         with session.begin(subtransactions=True):
             network_function_instance_db = self._get_network_function_instance(
                 session, network_function_instance_id)
             session.delete(network_function_instance_db)
 
     def get_network_function_instance(self, session,
-                                     network_function_instance_id,
-                                     fields=None):
+                                      network_function_instance_id,
+                                      fields=None):
         network_function_instance = self._get_network_function_instance(
             session, network_function_instance_id)
         return self._make_network_function_instance_dict(
             network_function_instance, fields)
 
-    def get_network_function_instances(self, session, filters=None, fields=None,
-                                      sorts=None, limit=None, marker=None,
-                                      page_reverse=False):
+    def get_network_function_instances(self, session, filters=None,
+                                       fields=None, sorts=None, limit=None,
+                                       marker=None, page_reverse=False):
         marker_obj = self._get_marker_obj(
             'network_function_instances', limit, marker)
         return self._get_collection(
@@ -195,7 +196,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                     port_type=port['port_type'])
                 session.add(port_info_db)
                 assoc = nfp_db_model.NSDPortAssociation(
-                    network_function_device_id=network_function_device_db['id'],
+                    network_function_device_id=network_function_device_db[
+                        'id'],
                     data_port_id=port['id'])
                 nfd_db.mgmt_data_ports.append(assoc)
             del network_function_device['mgmt_data_ports']
@@ -266,7 +268,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             return self._make_network_function_device_dict(
                 network_function_device_db)
 
-    def _get_network_function_device(self, session, network_function_device_id):
+    def _get_network_function_device(self, session,
+                                     network_function_device_id):
         try:
             return self._get_by_id(
                 session,
@@ -275,7 +278,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         except exc.NoResultFound:
             raise nfp_exc.NetworkFunctionDeviceNotFound()
 
-    def update_network_function_device(self, session, network_function_device_id,
+    def update_network_function_device(self, session,
+                                       network_function_device_id,
                                       updated_network_function_device):
         with session.begin(subtransactions=True):
             network_function_device_db = self._get_network_function_device(
@@ -300,25 +304,26 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                 network_function_device_db)
 
     def delete_network_function_device(self, session,
-                                      network_function_device_id):
+                                       network_function_device_id):
         with session.begin(subtransactions=True):
             network_function_device_db = self._get_network_function_device(
                 session, network_function_device_id)
             session.delete(network_function_device_db)
 
     def get_network_function_device(self, session, network_function_device_id,
-                                   fields=None):
+                                    fields=None):
         network_function_device = self._get_network_function_device(
             session, network_function_device_id)
         return self._make_network_function_device_dict(
             network_function_device, fields)
 
     def get_network_function_devices(self, session, filters=None, fields=None,
-                                    sorts=None, limit=None, marker=None,
-                                    page_reverse=False):
+                                     sorts=None, limit=None, marker=None,
+                                     page_reverse=False):
         marker_obj = self._get_marker_obj(
             'network_function_devices', limit, marker)
-        return self._get_collection(session, nfp_db_model.NetworkFunctionDevice,
+        return self._get_collection(session,
+                                    nfp_db_model.NetworkFunctionDevice,
                                     self._make_network_function_device_dict,
                                     filters=filters, fields=fields,
                                     sorts=sorts, limit=limit,
@@ -370,7 +375,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                'status': network_function['status']
                }
         res['network_function_instances'] = [
-            nfi['id'] for nfi in network_function['network_function_instances']]
+            nfi['id'] for nfi in network_function[
+                'network_function_instances']]
         return res
 
     def _make_network_function_instance_dict(self, nfi, fields=None):

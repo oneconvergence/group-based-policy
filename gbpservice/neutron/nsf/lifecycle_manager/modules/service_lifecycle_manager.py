@@ -86,26 +86,26 @@ class RpcHandler(object):
         return service_lifecycle_handler.delete_network_function(
             context, network_function_id)
 
-    def notify_policy_target_added(self, context, network_function_id,
-                                   policy_target):
+    def policy_target_added_notification(self, context, network_function_id,
+                                         policy_target):
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
         return service_lifecycle_handler.handle_policy_target_added(
             context, network_function_id, policy_target)
 
-    def notify_policy_target_removed(self, context, network_function_id,
-                                     policy_target):
+    def policy_target_removed_notification(self, context, network_function_id,
+                                           policy_target):
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
         return service_lifecycle_handler.handle_policy_target_removed(
             context, network_function_id, policy_target)
 
-    def notify_consumer_ptg_added(self, context, network_function_id,
-                                  policy_target_group):
+    def consumer_ptg_added_notification(self, context, network_function_id,
+                                        policy_target_group):
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
         return service_lifecycle_handler.handle_consumer_ptg_added(
             context, network_function_id, policy_target_group)
 
-    def notify_consumer_ptg_removed(self, context, network_function_id,
-                                    policy_target_group):
+    def consumer_ptg_removed_notification(self, context, network_function_id,
+                                          policy_target_group):
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
         return service_lifecycle_handler.handle_consumer_ptg_removed(
             context, network_function_id, policy_target_group)
@@ -122,8 +122,8 @@ class ServiceLifeCycleHandler(object):
         self.neutronclient = openstack_driver.NeutronClient()
         self.config_driver = heat_driver.HeatDriver()
 
-    def event_method_mapping(self, state):
-        state_machine = {
+    def event_method_mapping(self, event_id):
+        event_handler_mapping = {
             "DELETE_NETWORK_FUNCTION": self.delete_network_function,
             "DELETE_NETWORK_FUNCTION_INSTANCE": (
                 self.delete_network_function_instance),
@@ -136,10 +136,10 @@ class ServiceLifeCycleHandler(object):
             "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
             "USER_CONFIG_FAILED": self.handle_user_config_failed
         }
-        if state not in state_machine:
-            raise Exception("Invalid state")
+        if event_id not in event_handler_mapping:
+            raise Exception("Invalid Event ID")
         else:
-            return state_machine[state]
+            return event_handler_mapping[event_id]
 
     def handle_event(self, event):
         event_handler = self.event_method_mapping(event.id)
@@ -239,7 +239,7 @@ class ServiceLifeCycleHandler(object):
             'status': 'PENDING_DELETE'
         }
         network_function = self.db_handler.update_network_function(
-            self.db_session, network_function_id, network_function)     
+            self.db_session, network_function_id, network_function)
         for nfi_id in network_function_info['network_function_instances']:
             self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
                                event_data=nfi_id)
