@@ -44,6 +44,9 @@ class StickyRoundRobin(object):
         return item
 
     def get(self, rsrcid):
+        if not rsrcid:
+            return self._rr()
+
         if rsrcid in self._assoc.keys():
             worker = self._assoc[rsrcid]
         else:
