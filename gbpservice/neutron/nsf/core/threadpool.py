@@ -17,6 +17,8 @@ def _thread_done(gt, *args, **kwargs):
 
 
 """ Descriptor class for green thread """
+
+
 class Thread(object):
 
     def __init__(self, thread, pool):
@@ -36,6 +38,8 @@ class Thread(object):
         return "(%d -> %s)" % (os.getpid(), 'Thread')
 
 """ Abstract class to manage green threads """
+
+
 class ThreadPool(object):
 
     def __init__(self, thread_pool_size=10):
