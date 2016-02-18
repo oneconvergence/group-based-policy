@@ -15,14 +15,14 @@
 
 import mock
 
-from gbpservice.neutron.nsf.common import exceptions as nsf_exc
+from gbpservice.neutron.nsf.common import exceptions as nfp_exc
 from gbpservice.neutron.nsf.lifecycle_manager.modules import (
     service_lifecycle_manager as service_lcm)
 from gbpservice.neutron.nsf.lifecycle_manager.openstack import openstack_driver
-from gbpservice.neutron.tests.unit.nsf import test_nsf_db
+from gbpservice.neutron.tests.unit.nsf import test_nfp_db
 
 
-class ServiceLCModuleTestCase(test_nsf_db.NSFDBTestCase):
+class ServiceLCModuleTestCase(test_nfp_db.NFPDBTestCase):
 
     def setUp(self):
         super(ServiceLCModuleTestCase, self).setUp()
@@ -66,78 +66,78 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
         self.rpc_handler = service_lcm.RpcHandler(self.config, self.controller)
 
     @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
-                       "create_network_service")
-    def test_rpc_create_network_service(self, mock_create_network_service):
-        self.rpc_handler.create_network_service("context", "network_service")
-        mock_create_network_service.assert_called_once_with(
-            "context", "network_service")
+                       "create_network_function")
+    def test_rpc_create_network_function(self, mock_create_network_function):
+        self.rpc_handler.create_network_function("context", "network_function")
+        mock_create_network_function.assert_called_once_with(
+            "context", "network_function")
 
     @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
-                       "get_network_service")
-    def test_rpc_get_network_service(self, mock_get_network_service):
-        self.rpc_handler.get_network_service("context", "network_service_id")
-        mock_get_network_service.assert_called_once_with(
-            "context", "network_service_id")
+                       "get_network_function")
+    def test_rpc_get_network_function(self, mock_get_network_function):
+        self.rpc_handler.get_network_function("context", "network_function_id")
+        mock_get_network_function.assert_called_once_with(
+            "context", "network_function_id")
 
     @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
-                       "get_network_services")
-    def test_rpc_get_network_services(self, mock_get_network_services):
+                       "get_network_functions")
+    def test_rpc_get_network_functions(self, mock_get_network_functions):
         filters = {'id': ['myuuid']}
-        self.rpc_handler.get_network_services("context", filters=filters)
-        mock_get_network_services.assert_called_once_with(
+        self.rpc_handler.get_network_functions("context", filters=filters)
+        mock_get_network_functions.assert_called_once_with(
             "context", filters)
 
     @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
-                       "delete_network_service")
-    def test_rpc_delete_network_service(self, mock_delete_network_service):
-        self.rpc_handler.delete_network_service(
-            "context", "network_service_id")
-        mock_delete_network_service.assert_called_once_with(
-            "context", "network_service_id")
+                       "delete_network_function")
+    def test_rpc_delete_network_function(self, mock_delete_network_function):
+        self.rpc_handler.delete_network_function(
+            "context", "network_function_id")
+        mock_delete_network_function.assert_called_once_with(
+            "context", "network_function_id")
 
     @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
-                       "update_network_service")
-    def test_rpc_update_network_service(self, mock_update_network_service):
-        self.rpc_handler.update_network_service(
-            "context", "network_service_id", "updated_network_service")
-        mock_update_network_service.assert_called_once_with(
-            "context", "network_service_id", "updated_network_service")
+                       "update_network_function")
+    def test_rpc_update_network_function(self, mock_update_network_function):
+        self.rpc_handler.update_network_function(
+            "context", "network_function_id", "updated_network_function")
+        mock_update_network_function.assert_called_once_with(
+            "context", "network_function_id", "updated_network_function")
 
     @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
                        "handle_policy_target_added")
     def test_rpc_notify_policy_target_added(self,
                                             mock_handle_policy_target_added):
             self.rpc_handler.notify_policy_target_added(
-                "context", "network_service_id", "policy_target")
+                "context", "network_function_id", "policy_target")
             mock_handle_policy_target_added.assert_called_once_with(
-                "context", "network_service_id", "policy_target")
+                "context", "network_function_id", "policy_target")
 
     @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
                        "handle_policy_target_removed")
     def test_rpc_notify_policy_target_removed(
         self, mock_handle_policy_target_removed):
             self.rpc_handler.notify_policy_target_removed(
-                "context", "network_service_id", "policy_target")
+                "context", "network_function_id", "policy_target")
             mock_handle_policy_target_removed.assert_called_once_with(
-                "context", "network_service_id", "policy_target")
+                "context", "network_function_id", "policy_target")
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "handle_consumer_ptg_added")
     def test_rpc_notify_consumer_ptg_added(self,
                                            mock_handle_consumer_ptg_added):
         self.rpc_handler.notify_consumer_ptg_added(
-            "context", "network_service_id", "policy_target_group")
+            "context", "network_function_id", "policy_target_group")
         mock_handle_consumer_ptg_added.assert_called_once_with(
-            "context", "network_service_id", "policy_target_group")
+            "context", "network_function_id", "policy_target_group")
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "handle_consumer_ptg_removed")
     def test_rpc_notify_consumer_ptg_removed(self,
                                              mock_handle_consumer_ptg_removed):
         self.rpc_handler.notify_consumer_ptg_removed(
-            "context", "network_service_id", "policy_target_group")
+            "context", "network_function_id", "policy_target_group")
         mock_handle_consumer_ptg_removed.assert_called_once_with(
-            "context", "network_service_id", "policy_target_group")
+            "context", "network_function_id", "policy_target_group")
 
 
 class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
@@ -156,9 +156,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         openstack_driver.KeystoneClient, "get_admin_token")
     @mock.patch.object(
         openstack_driver.GBPClient, "get_service_profile")
-    def test_create_network_service(self, mock_get_service_profile,
+    def test_create_network_function(self, mock_get_service_profile,
                                     mock_get_admin_token, mock_validate):
-        network_service_info = {
+        network_function_info = {
             'tenant_id': 'tenant_id',
             'service_chain_id': 'sc_instance_id',
             'service_id': 'sc_node_id',
@@ -166,65 +166,65 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             'management_ptg_id': 'mgmt_ptg_id',
             'service_config': '',
             'provider_port_id': 'provider_pt_id',
-            'network_service_mode': 'GBP',
+            'network_function_mode': 'GBP',
         }
-        network_service = self.service_lc_handler.create_network_service(
-            self.context, network_service_info)
-        self.assertIsNotNone(network_service)
-        db_network_service = self.nsf_db.get_network_service(
-            self.session, network_service['id'])
-        self.assertEqual(network_service, db_network_service)
+        network_function = self.service_lc_handler.create_network_function(
+            self.context, network_function_info)
+        self.assertIsNotNone(network_function)
+        db_network_function = self.nfp_db.get_network_function(
+            self.session, network_function['id'])
+        self.assertEqual(network_function, db_network_function)
         self.controller.event.assert_called_once_with(
-            id='CREATE_NETWORK_SERVICE_INSTANCE', data=mock.ANY)
+            id='CREATE_NETWORK_FUNCTION_INSTANCE', data=mock.ANY)
         self.controller.rpc_event.assert_called_once_with(mock.ANY)
 
     def test_validate_create_service_input(self):
-        network_service = {}
+        network_function = {}
         self.assertRaises(
             Exception,
             self.service_lc_handler._validate_create_service_input,
-            self.context, network_service)
+            self.context, network_function)
 
-        network_service = {
+        network_function = {
             "tenant_id": "test",
             "service_id": "test",
             "service_chain_id": "test",
             "service_profile_id": "test",
-            "network_service_mode": "test"
+            "network_function_mode": "test"
         }
         return_value = self.service_lc_handler._validate_create_service_input(
-            self.context, network_service)
+            self.context, network_function)
         self.assertIsNone(return_value)
 
-    def test_delete_network_service_without_nsi(self):
-        network_service = self.create_network_service()
-        self.service_lc_handler.delete_network_service(
-            self.context, network_service['id'])
-        self.assertRaises(nsf_exc.NetworkServiceNotFound,
-                          self.nsf_db.get_network_service,
-                          self.session, network_service['id'])
+    def test_delete_network_function_without_nfi(self):
+        network_function = self.create_network_function()
+        self.service_lc_handler.delete_network_function(
+            self.context, network_function['id'])
+        self.assertRaises(nfp_exc.NetworkFunctionNotFound,
+                          self.nfp_db.get_network_function,
+                          self.session, network_function['id'])
         self.assertFalse(self.controller.event.called)
         self.assertFalse(self.controller.rpc_event.called)
 
-    def test_delete_network_service_with_nsi(self):
-        network_service_instance = self.create_network_service_instance()
-        network_service_id = network_service_instance['network_service_id']
-        self.service_lc_handler.delete_network_service(
-            self.context, network_service_id)
-        network_service = self.nsf_db.get_network_service(
-            self.session, network_service_id)
-        self.assertEqual('PENDING_DELETE', network_service['status'])
+    def test_delete_network_function_with_nfi(self):
+        network_function_instance = self.create_network_function_instance()
+        network_function_id = network_function_instance['network_function_id']
+        self.service_lc_handler.delete_network_function(
+            self.context, network_function_id)
+        network_function = self.nfp_db.get_network_function(
+            self.session, network_function_id)
+        self.assertEqual('PENDING_DELETE', network_function['status'])
         self.controller.event.assert_called_once_with(
-            id='DELETE_NETWORK_SERVICE_INSTANCE',
-            data=network_service_instance['id'])
+            id='DELETE_NETWORK_FUNCTION_INSTANCE',
+            data=network_function_instance['id'])
         self.controller.rpc_event.assert_called_once_with(mock.ANY)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
-    def test_event_create_network_service_instance(self, mock_create_event):
-        network_service = self.create_network_service()
+    def test_event_create_network_function_instance(self, mock_create_event):
+        network_function = self.create_network_function()
         mode = 'GBP'
-        network_service_port_info = [
+        network_function_port_info = [
             {
                 'id': 'provider_port_id',
                 'port_policy': mode,
@@ -241,30 +241,30 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             'port_policy': mode
         }
 
-        create_nsi_request = {
-            'network_service': network_service,
-            'network_service_port_info': network_service_port_info,
+        create_nfi_request = {
+            'network_function': network_function,
+            'network_function_port_info': network_function_port_info,
             'management_network_info': management_network_info,
             'service_type': 'service_type',
             'service_vendor': 'vendor',
             'share_existing_device': True
         }
-        self.assertEqual([], network_service['network_service_instances'])
-        self.service_lc_handler.create_network_service_instance(
-            create_nsi_request)
-        db_network_service = self.nsf_db.get_network_service(
-            self.session, network_service['id'])
+        self.assertEqual([], network_function['network_function_instances'])
+        self.service_lc_handler.create_network_function_instance(
+            create_nfi_request)
+        db_network_function = self.nfp_db.get_network_function(
+            self.session, network_function['id'])
         self.assertEqual(
-            1, len(db_network_service['network_service_instances']))
-        # The value of port_info in network_service_instance is a list
+            1, len(db_network_function['network_function_instances']))
+        # The value of port_info in network_function_instance is a list
         # when we do a DB get, the order changes resulting in test failing
         # if we validate the event data
         '''
-        nsi_db = self.nsf_db.get_network_service_instance(
-            self.session, db_network_service['network_service_instances'][0])
-        create_nsd_request = {
-            'network_service': network_service,
-            'network_service_instance': nsi_db,
+        nfi_db = self.nfp_db.get_network_function_instance(
+            self.session, db_network_function['network_function_instances'][0])
+        create_nfd_request = {
+            'network_function': network_function,
+            'network_function_instance': nfi_db,
             'management_network_info': management_network_info,
             'service_type': 'service_type',
             'service_vendor': 'vendor',
@@ -272,7 +272,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         }
         '''
         mock_create_event.assert_called_once_with(
-            'CREATE_NETWORK_SERVICE_DEVICE', event_data=mock.ANY)
+            'CREATE_NETWORK_FUNCTION_DEVICE', event_data=mock.ANY)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "get_service_details")
@@ -280,47 +280,47 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         service_lcm.ServiceLifeCycleHandler, "_create_event")
     def test_event_handle_device_created(self, mock_create_event,
                                          mock_get_service_details):
-        nsd = self.create_network_service_device()
-        nsi = self.create_network_service_instance(create_nsd=False)
+        nfd = self.create_network_function_device()
+        nfi = self.create_network_function_instance(create_nfd=False)
         request_data = {
-            'network_service_instance_id': nsi['id'],
-            'network_service_device_id': nsd['id']
+            'network_function_instance_id': nfi['id'],
+            'network_function_device_id': nfd['id']
         }
-        self.assertIsNone(nsi['network_service_device_id'])
+        self.assertIsNone(nfi['network_function_device_id'])
         with mock.patch.object(
             self.service_lc_handler.config_driver,
             "apply_user_config") as mock_apply_user_config:
             mock_apply_user_config.return_value = "stack_id"
             self.service_lc_handler.handle_device_created(
                 request_data)
-        db_nsi = self.nsf_db.get_network_service_instance(
-            self.session, nsi['id'])
-        db_ns = self.nsf_db.get_network_service(
-            self.session, nsi['network_service_id'])
-        self.assertEqual(nsd['id'], db_nsi['network_service_device_id'])
-        self.assertIsNotNone(db_ns['heat_stack_id'])
+        db_nfi = self.nfp_db.get_network_function_instance(
+            self.session, nfi['id'])
+        db_nf = self.nfp_db.get_network_function(
+            self.session, nfi['network_function_id'])
+        self.assertEqual(nfd['id'], db_nfi['network_function_device_id'])
+        self.assertIsNotNone(db_nf['heat_stack_id'])
         mock_create_event.assert_called_once_with(
             'USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
 
     def test_event_handle_device_create_failed(self):
-        nsd = self.create_network_service_device()
-        nsi = self.create_network_service_instance(create_nsd=False)
+        nfd = self.create_network_function_device()
+        nfi = self.create_network_function_instance(create_nfd=False)
         request_data = {
-            'network_service_instance_id': nsi['id'],
-            'network_service_device_id': nsd['id']
+            'network_function_instance_id': nfi['id'],
+            'network_function_device_id': nfd['id']
         }
-        self.assertIsNone(nsi['network_service_device_id'])
+        self.assertIsNone(nfi['network_function_device_id'])
         self.service_lc_handler.handle_device_create_failed(
             request_data)
-        db_nsi = self.nsf_db.get_network_service_instance(
-            self.session, nsi['id'])
-        db_ns = self.nsf_db.get_network_service(
-            self.session, nsi['network_service_id'])
-        self.assertEqual('ERROR', db_nsi['status'])
-        self.assertEqual('ERROR', db_ns['status'])
+        db_nfi = self.nfp_db.get_network_function_instance(
+            self.session, nfi['id'])
+        db_nf = self.nfp_db.get_network_function(
+            self.session, nfi['network_function_id'])
+        self.assertEqual('ERROR', db_nfi['status'])
+        self.assertEqual('ERROR', db_nf['status'])
 
     def test_event_check_for_user_config_complete(self):
-        network_service = self.create_network_service()
+        network_function = self.create_network_function()
         with mock.patch.object(
             self.service_lc_handler.config_driver,
             "is_config_complete") as mock_is_config_complete:
@@ -328,110 +328,110 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             mock_is_config_complete.return_value = "IN_PROGRESS"
             request_data = {
                 'heat_stack_id': 'heat_stack_id',
-                'network_service_id': network_service['id']}
+                'network_function_id': network_function['id']}
             self.service_lc_handler.check_for_user_config_complete(
                 request_data)
             mock_is_config_complete.assert_called_once_with(
                 request_data['heat_stack_id'])
-            db_ns = self.nsf_db.get_network_service(
-                self.session, network_service['id'])
-            self.assertEqual(network_service['status'], db_ns['status'])
+            db_nf = self.nfp_db.get_network_function(
+                self.session, network_function['id'])
+            self.assertEqual(network_function['status'], db_nf['status'])
 
             # Verify return status ERROR from config driver
             mock_is_config_complete.reset_mock()
             mock_is_config_complete.return_value = "ERROR"
             request_data = {
                 'heat_stack_id': 'heat_stack_id',
-                'network_service_id': network_service['id']}
+                'network_function_id': network_function['id']}
             self.service_lc_handler.check_for_user_config_complete(
                 request_data)
             mock_is_config_complete.assert_called_once_with(
                 request_data['heat_stack_id'])
-            db_ns = self.nsf_db.get_network_service(
-                self.session, network_service['id'])
-            self.assertEqual('ERROR', db_ns['status'])
+            db_nf = self.nfp_db.get_network_function(
+                self.session, network_function['id'])
+            self.assertEqual('ERROR', db_nf['status'])
 
             # Verify return status COMPLETED from config driver
             mock_is_config_complete.reset_mock()
             mock_is_config_complete.return_value = "COMPLETED"
             request_data = {
                 'heat_stack_id': 'heat_stack_id',
-                'network_service_id': network_service['id']}
+                'network_function_id': network_function['id']}
             self.service_lc_handler.check_for_user_config_complete(
                 request_data)
             mock_is_config_complete.assert_called_once_with(
                 request_data['heat_stack_id'])
-            db_ns = self.nsf_db.get_network_service(
-                self.session, network_service['id'])
-            self.assertEqual('ACTIVE', db_ns['status'])
+            db_nf = self.nfp_db.get_network_function(
+                self.session, network_function['id'])
+            self.assertEqual('ACTIVE', db_nf['status'])
 
     def test_event_handle_user_config_applied(self):
-        network_service = self.create_network_service()
+        network_function = self.create_network_function()
         request_data = {
             'heat_stack_id': 'heat_stack_id',
-            'network_service_id': network_service['id']
+            'network_function_id': network_function['id']
         }
         self.service_lc_handler.handle_user_config_applied(request_data)
-        db_ns = self.nsf_db.get_network_service(
-            self.session, network_service['id'])
-        self.assertEqual('ACTIVE', db_ns['status'])
+        db_nf = self.nfp_db.get_network_function(
+            self.session, network_function['id'])
+        self.assertEqual('ACTIVE', db_nf['status'])
 
     def test_event_handle_user_config_failed(self):
-        network_service = self.create_network_service()
+        network_function = self.create_network_function()
         request_data = {
             'heat_stack_id': 'heat_stack_id',
-            'network_service_id': network_service['id']
+            'network_function_id': network_function['id']
         }
         self.service_lc_handler.handle_user_config_failed(request_data)
-        db_ns = self.nsf_db.get_network_service(
-            self.session, network_service['id'])
-        self.assertEqual('ERROR', db_ns['status'])
+        db_nf = self.nfp_db.get_network_function(
+            self.session, network_function['id'])
+        self.assertEqual('ERROR', db_nf['status'])
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
-    def test_delete_network_service(self, mock_create_event):
-        nsi = self.create_network_service_instance()
-        network_service = self.nsf_db.get_network_service(
-            self.session, nsi['network_service_id'])
-        self.assertEqual([nsi['id']],
-                         network_service['network_service_instances'])
-        self.service_lc_handler.delete_network_service(
-            self.context, network_service['id'])
-        db_ns = self.nsf_db.get_network_service(
-            self.session, network_service['id'])
-        self.assertEqual('PENDING_DELETE', db_ns['status'])
+    def test_delete_network_function(self, mock_create_event):
+        nfi = self.create_network_function_instance()
+        network_function = self.nfp_db.get_network_function(
+            self.session, nfi['network_function_id'])
+        self.assertEqual([nfi['id']],
+                         network_function['network_function_instances'])
+        self.service_lc_handler.delete_network_function(
+            self.context, network_function['id'])
+        db_nf = self.nfp_db.get_network_function(
+            self.session, network_function['id'])
+        self.assertEqual('PENDING_DELETE', db_nf['status'])
         mock_create_event.assert_called_once_with(
-            'DELETE_NETWORK_SERVICE_INSTANCE', event_data=nsi['id'])
+            'DELETE_NETWORK_FUNCTION_INSTANCE', event_data=nfi['id'])
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
-    def test_event_delete_network_service_instance(self, mock_create_event):
-        nsi = self.create_network_service_instance()
-        network_service = self.nsf_db.get_network_service(
-            self.session, nsi['network_service_id'])
-        self.assertEqual([nsi['id']],
-                         network_service['network_service_instances'])
-        self.service_lc_handler.delete_network_service_instance(
-            nsi['id'])
-        db_nsi = self.nsf_db.get_network_service_instance(
-            self.session, nsi['id'])
-        self.assertEqual('PENDING_DELETE', db_nsi['status'])
+    def test_event_delete_network_function_instance(self, mock_create_event):
+        nfi = self.create_network_function_instance()
+        network_function = self.nfp_db.get_network_function(
+            self.session, nfi['network_function_id'])
+        self.assertEqual([nfi['id']],
+                         network_function['network_function_instances'])
+        self.service_lc_handler.delete_network_function_instance(
+            nfi['id'])
+        db_nfi = self.nfp_db.get_network_function_instance(
+            self.session, nfi['id'])
+        self.assertEqual('PENDING_DELETE', db_nfi['status'])
         mock_create_event.assert_called_once_with(
-            'DELETE_NETWORK_SERVICE_DEVICE',
-            event_data=nsi['network_service_device_id'])
+            'DELETE_NETWORK_FUNCTION_DEVICE',
+            event_data=nfi['network_function_device_id'])
 
     def test_event_handle_device_deleted(self):
-        nsi = self.create_network_service_instance()
-        ns_id = nsi['network_service_id']
-        request_data = {'network_service_instance_id': nsi['id']}
+        nfi = self.create_network_function_instance()
+        ns_id = nfi['network_function_id']
+        request_data = {'network_function_instance_id': nfi['id']}
         self.service_lc_handler.handle_device_deleted(
             request_data)
-        self.assertRaises(nsf_exc.NetworkServiceInstanceNotFound,
-                          self.nsf_db.get_network_service_instance,
+        self.assertRaises(nfp_exc.NetworkFunctionInstanceNotFound,
+                          self.nfp_db.get_network_function_instance,
                           self.session,
-                          nsi['id'])
-        self.assertRaises(nsf_exc.NetworkServiceNotFound,
-                          self.nsf_db.get_network_service,
+                          nfi['id'])
+        self.assertRaises(nfp_exc.NetworkFunctionNotFound,
+                          self.nfp_db.get_network_function,
                           self.session,
                           ns_id)
 
@@ -441,18 +441,18 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         service_lcm.ServiceLifeCycleHandler, "_create_event")
     def test_handle_policy_target_added(self, mock_create_event,
                                         mock_get_service_details):
-        nsi = self.create_network_service_instance()
-        network_service_id = nsi['network_service_id']
+        nfi = self.create_network_function_instance()
+        network_function_id = nfi['network_function_id']
         policy_target = mock.Mock()
         with mock.patch.object(
             self.service_lc_handler.config_driver,
             "handle_policy_target_added") as mock_handle_policy_target_added:
             mock_handle_policy_target_added.return_value = 'stack_id'
             self.service_lc_handler.handle_policy_target_added(
-                self.context, network_service_id, policy_target)
-        db_ns = self.nsf_db.get_network_service(
-            self.session, nsi['network_service_id'])
-        self.assertIsNotNone(db_ns['heat_stack_id'])
+                self.context, network_function_id, policy_target)
+        db_nf = self.nfp_db.get_network_function(
+            self.session, nfi['network_function_id'])
+        self.assertIsNotNone(db_nf['heat_stack_id'])
         mock_handle_policy_target_added.assert_called_once_with(
             mock.ANY, policy_target)
         mock_create_event.assert_called_once_with(
@@ -464,18 +464,18 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         service_lcm.ServiceLifeCycleHandler, "_create_event")
     def test_handle_policy_target_removed(self, mock_create_event,
                                           mock_get_service_details):
-        nsi = self.create_network_service_instance()
-        network_service_id = nsi['network_service_id']
+        nfi = self.create_network_function_instance()
+        network_function_id = nfi['network_function_id']
         policy_target = mock.Mock()
         with mock.patch.object(
             self.service_lc_handler.config_driver,
             "handle_policy_target_removed") as mock_handle_pt_removed:
             mock_handle_pt_removed.return_value = 'stack_id'
             self.service_lc_handler.handle_policy_target_removed(
-                self.context, network_service_id, policy_target)
-        db_ns = self.nsf_db.get_network_service(
-            self.session, nsi['network_service_id'])
-        self.assertIsNotNone(db_ns['heat_stack_id'])
+                self.context, network_function_id, policy_target)
+        db_nf = self.nfp_db.get_network_function(
+            self.session, nfi['network_function_id'])
+        self.assertIsNotNone(db_nf['heat_stack_id'])
         mock_handle_pt_removed.assert_called_once_with(
             mock.ANY, policy_target)
         mock_create_event.assert_called_once_with(
@@ -487,18 +487,18 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         service_lcm.ServiceLifeCycleHandler, "_create_event")
     def test_handle_consumer_ptg_added(self, mock_create_event,
                                        mock_get_service_details):
-        nsi = self.create_network_service_instance()
-        network_service_id = nsi['network_service_id']
+        nfi = self.create_network_function_instance()
+        network_function_id = nfi['network_function_id']
         policy_target_group = mock.Mock()
         with mock.patch.object(
             self.service_lc_handler.config_driver,
             "handle_consumer_ptg_added") as mock_handle_consumer_ptg_added:
             mock_handle_consumer_ptg_added.return_value = 'stack_id'
             self.service_lc_handler.handle_consumer_ptg_added(
-                self.context, network_service_id, policy_target_group)
-        db_ns = self.nsf_db.get_network_service(
-            self.session, nsi['network_service_id'])
-        self.assertIsNotNone(db_ns['heat_stack_id'])
+                self.context, network_function_id, policy_target_group)
+        db_nf = self.nfp_db.get_network_function(
+            self.session, nfi['network_function_id'])
+        self.assertIsNotNone(db_nf['heat_stack_id'])
         mock_handle_consumer_ptg_added.assert_called_once_with(
             mock.ANY, policy_target_group)
         mock_create_event.assert_called_once_with(
@@ -510,18 +510,18 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         service_lcm.ServiceLifeCycleHandler, "_create_event")
     def test_handle_consumer_ptg_removed(self, mock_create_event,
                                          mock_get_service_details):
-        nsi = self.create_network_service_instance()
-        network_service_id = nsi['network_service_id']
+        nfi = self.create_network_function_instance()
+        network_function_id = nfi['network_function_id']
         policy_target_group = mock.Mock()
         with mock.patch.object(
             self.service_lc_handler.config_driver,
             "handle_consumer_ptg_removed") as mock_handle_consumer_ptg_removed:
             mock_handle_consumer_ptg_removed.return_value = 'stack_id'
             self.service_lc_handler.handle_consumer_ptg_removed(
-                self.context, network_service_id, policy_target_group)
-        db_ns = self.nsf_db.get_network_service(
-            self.session, nsi['network_service_id'])
-        self.assertIsNotNone(db_ns['heat_stack_id'])
+                self.context, network_function_id, policy_target_group)
+        db_nf = self.nfp_db.get_network_function(
+            self.session, nfi['network_function_id'])
+        self.assertIsNotNone(db_nf['heat_stack_id'])
         mock_handle_consumer_ptg_removed.assert_called_once_with(
             mock.ANY, policy_target_group)
         mock_create_event.assert_called_once_with(

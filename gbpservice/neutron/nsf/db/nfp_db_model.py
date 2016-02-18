@@ -53,7 +53,7 @@ class HasStatusDescription(HasStatus):
 
 # Do we need anything to be overridden from modelBase ??
 class ServiceManagerBase(models.ModelBase):
-    """Base class for NSF Models."""
+    """Base class for NFP Models."""
 
     __table_args__ = {'mysql_engine': 'InnoDB'}
 
@@ -101,22 +101,22 @@ class NetworkInfo(BASE, HasId, HasTenant):
 
 class NSIPortAssociation(BASE):
     """One to many relation between NSIs and DataPorts."""
-    __tablename__ = 'nsi_dataport_associations'
+    __tablename__ = 'nfi_dataport_associations'
 
-    network_service_instance_id = sa.Column(
+    network_function_instance_id = sa.Column(
         sa.String(36),
-        sa.ForeignKey('network_service_instances.id'), primary_key=True)
+        sa.ForeignKey('network_function_instances.id'), primary_key=True)
     data_port_id = sa.Column(sa.String(36),
                              sa.ForeignKey('port_infos.id'), primary_key=True)
 
 
 class NSDPortAssociation(BASE):
     """One to many relation between NSDs and DataPorts."""
-    __tablename__ = 'nsd_dataport_associations'
+    __tablename__ = 'nfd_dataport_associations'
 
-    network_service_device_id = sa.Column(
+    network_function_device_id = sa.Column(
         sa.String(36),
-        sa.ForeignKey('network_service_devices.id'), primary_key=True)
+        sa.ForeignKey('network_function_devices.id'), primary_key=True)
     data_port_id = sa.Column(sa.String(36),
                              sa.ForeignKey('port_infos.id'),
                              primary_key=True)
@@ -124,39 +124,39 @@ class NSDPortAssociation(BASE):
 
 class NSDNetworkAssociation(BASE):
     """One to many relation between NSDs and DataNetworks."""
-    __tablename__ = 'nsd_datanetwork_associations'
+    __tablename__ = 'nfd_datanetwork_associations'
 
-    network_service_device_id = sa.Column(
+    network_function_device_id = sa.Column(
         sa.String(36),
-        sa.ForeignKey('network_service_devices.id'), primary_key=True)
+        sa.ForeignKey('network_function_devices.id'), primary_key=True)
     data_network_id = sa.Column(sa.String(36),
                                 sa.ForeignKey('network_infos.id'),
                                 primary_key=True)
 
 
-class NetworkServiceInstance(BASE, HasId, HasTenant, HasStatusDescription):
+class NetworkFunctionInstance(BASE, HasId, HasTenant, HasStatusDescription):
     """Represents the Network Service Instance"""
-    __tablename__ = 'network_service_instances'
+    __tablename__ = 'network_function_instances'
 
     name = sa.Column(sa.String(255))
     description = sa.Column(sa.String(255))
     ha_state = sa.Column(sa.String(255))
-    network_service_id = sa.Column(
+    network_function_id = sa.Column(
         sa.String(36),
-        sa.ForeignKey('network_services.id', ondelete="SET NULL"),
+        sa.ForeignKey('network_functions.id', ondelete="SET NULL"),
         nullable=True)
-    network_service_device_id = sa.Column(
+    network_function_device_id = sa.Column(
         sa.String(36),
-        sa.ForeignKey('network_service_devices.id', ondelete="SET NULL"),
+        sa.ForeignKey('network_function_devices.id', ondelete="SET NULL"),
         nullable=True)
     port_info = orm.relationship(
         NSIPortAssociation,
-        backref='network_service_instance', cascade='all, delete-orphan')
+        backref='network_function_instance', cascade='all, delete-orphan')
 
 
-class NetworkService(BASE, HasId, HasTenant, HasStatusDescription):
+class NetworkFunction(BASE, HasId, HasTenant, HasStatusDescription):
     """Represents the Network Service object"""
-    __tablename__ = 'network_services'
+    __tablename__ = 'network_functions'
 
     name = sa.Column(sa.String(255))
     description = sa.Column(sa.String(255))
@@ -165,14 +165,14 @@ class NetworkService(BASE, HasId, HasTenant, HasStatusDescription):
     service_profile_id = sa.Column(sa.String(36), nullable=False)
     service_config = sa.Column(sa.TEXT)
     heat_stack_id = sa.Column(sa.String(36), nullable=True)
-    network_service_instances = orm.relationship(
-        NetworkServiceInstance,
-        backref='network_service_instance')
+    network_function_instances = orm.relationship(
+        NetworkFunctionInstance,
+        backref='network_function_instance')
 
 
-class NetworkServiceDevice(BASE, HasId, HasTenant, HasStatusDescription):
+class NetworkFunctionDevice(BASE, HasId, HasTenant, HasStatusDescription):
     """Represents the Network Service Device"""
-    __tablename__ = 'network_service_devices'
+    __tablename__ = 'network_function_devices'
 
     name = sa.Column(sa.String(255))
     description = sa.Column(sa.String(255))
@@ -180,7 +180,7 @@ class NetworkServiceDevice(BASE, HasId, HasTenant, HasStatusDescription):
     mgmt_ip_address = sa.Column(sa.String(36), nullable=True)
     mgmt_data_ports = orm.relationship(
         NSDPortAssociation,
-        backref='network_service_device_mgmt_ports',
+        backref='network_function_device_mgmt_ports',
         cascade='all, delete-orphan')
     ha_monitoring_data_port = sa.Column(sa.String(36),
                                         sa.ForeignKey('port_infos.id'),

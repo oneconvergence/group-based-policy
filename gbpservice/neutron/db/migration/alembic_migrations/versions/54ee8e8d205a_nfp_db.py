@@ -13,7 +13,7 @@
 #    under the License.
 #
 
-"""nsf_db
+"""nfp_db
 Revision ID: 54ee8e8d205a
 Revises: 3791adbf0045
 """
@@ -49,7 +49,7 @@ def upgrade():
     )
 
     op.create_table(
-        'network_services',
+        'network_functions',
         sa.Column('tenant_id', sa.String(length=255), nullable=True),
         sa.Column('id', sa.String(length=36), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=True),
@@ -65,7 +65,7 @@ def upgrade():
     )
 
     op.create_table(
-        'network_service_devices',
+        'network_function_devices',
         sa.Column('tenant_id', sa.String(length=255), nullable=True),
         sa.Column('id', sa.String(length=36), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=True),
@@ -92,7 +92,7 @@ def upgrade():
     )
 
     op.create_table(
-        'network_service_instances',
+        'network_function_instances',
         sa.Column('tenant_id', sa.String(length=255), nullable=True),
         sa.Column('id', sa.String(length=36), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=True),
@@ -100,51 +100,52 @@ def upgrade():
         sa.Column('status', sa.String(length=50), nullable=True),
         sa.Column('status_description', sa.String(length=255), nullable=True),
         sa.Column('ha_state', sa.String(length=50), nullable=True),
-        sa.Column('network_service_id', sa.String(length=36), nullable=True),
-        sa.Column('network_service_device_id',
+        sa.Column('network_function_id', sa.String(length=36), nullable=True),
+        sa.Column('network_function_device_id',
                   sa.String(length=36),
                   nullable=True),
-        sa.ForeignKeyConstraint(['network_service_device_id'],
-                                ['network_service_devices.id']),
-        sa.ForeignKeyConstraint(['network_service_id'],
-                                ['network_services.id']),
+        sa.ForeignKeyConstraint(['network_function_device_id'],
+                                ['network_function_devices.id']),
+        sa.ForeignKeyConstraint(['network_function_id'],
+                                ['network_functions.id']),
         sa.PrimaryKeyConstraint('id')
     )
 
     op.create_table(
         'nsi_dataport_associations',
-        sa.Column('network_service_instance_id',
+        sa.Column('network_function_instance_id',
                   sa.String(length=36),
                   nullable=True),
         sa.Column('data_port_id', sa.String(length=36), nullable=False),
-        sa.ForeignKeyConstraint(['network_service_instance_id'],
-                                ['network_service_instances.id']),
+        sa.ForeignKeyConstraint(['network_function_instance_id'],
+                                ['network_function_instances.id']),
         sa.ForeignKeyConstraint(['data_port_id'], ['port_infos.id']),
-        sa.PrimaryKeyConstraint('network_service_instance_id', 'data_port_id')
+        sa.PrimaryKeyConstraint('network_function_instance_id', 'data_port_id')
     )
 
     op.create_table(
-        'nsd_dataport_associations',
-        sa.Column('network_service_device_id',
+        'nfd_dataport_associations',
+        sa.Column('network_function_device_id',
                   sa.String(length=36),
                   nullable=True),
         sa.Column('data_port_id', sa.String(length=36), nullable=False),
-        sa.ForeignKeyConstraint(['network_service_device_id'],
-                                ['network_service_devices.id']),
+        sa.ForeignKeyConstraint(['network_function_device_id'],
+                                ['network_function_devices.id']),
         sa.ForeignKeyConstraint(['data_port_id'], ['port_infos.id']),
-        sa.PrimaryKeyConstraint('network_service_device_id', 'data_port_id')
+        sa.PrimaryKeyConstraint('network_function_device_id', 'data_port_id')
     )
 
     op.create_table(
-        'nsd_datanetwork_associations',
-        sa.Column('network_service_device_id',
+        'nfd_datanetwork_associations',
+        sa.Column('network_function_device_id',
                   sa.String(length=36),
                   nullable=True),
         sa.Column('data_network_id', sa.String(length=36), nullable=False),
-        sa.ForeignKeyConstraint(['network_service_device_id'],
-                                ['network_service_devices.id']),
+        sa.ForeignKeyConstraint(['network_function_device_id'],
+                                ['network_function_devices.id']),
         sa.ForeignKeyConstraint(['data_network_id'], ['network_infos.id']),
-        sa.PrimaryKeyConstraint('network_service_device_id', 'data_network_id')
+        sa.PrimaryKeyConstraint('network_function_device_id',
+                                'data_network_id')
     )
 
 

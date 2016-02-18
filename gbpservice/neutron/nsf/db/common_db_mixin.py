@@ -68,7 +68,7 @@ def paginate_query(query, model, limit, sorts, marker_obj=None):
         try:
             sort_key_attr = getattr(model, sort_key)
         except AttributeError:
-            # Extension attribute doesn't support for sorting. Because it
+            # Extenfion attribute doesn't support for sorting. Because it
             # existed in attr_info, it will be catched at here
             msg = _("%s is invalid attribute for sort_key") % sort_key
             raise BadRequest(resource=model.__tablename__, msg=msg)
@@ -109,7 +109,7 @@ def paginate_query(query, model, limit, sorts, marker_obj=None):
 
 class CommonDbMixin(object):
     """Common methods used in core and service plugins."""
-    # Plugins, mixin classes implementing extension will register
+    # Plugins, mixin classes implementing extenfion will register
     # hooks into the dict below for "augmenting" the "core way" of
     # building a query for retrieving objects from a model class.
     # To this aim, the register_model_query_hook and unregister_query_hook

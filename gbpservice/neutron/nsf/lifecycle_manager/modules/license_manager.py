@@ -20,7 +20,7 @@ from gbpservice.neutron.nsf.core.main import RpcAgent
 def rpc_init(controller):
     rpcmgr = RpcHandler(cfg.CONF, controller)
     agent = RpcAgent(controller, host=cfg.CONF.host,
-                     topic="NSF_LICENSE_MANAGER", manager=rpcmgr)
+                     topic="NFP_LICENSE_MANAGER", manager=rpcmgr)
     controller.register_rpc_agents([agent])
 
 
@@ -48,11 +48,11 @@ class RpcHandler(object):
     # Health check status change notification from Configurator
     def device_licensed(self, context, device_info):
         license_handler = LicenseHandler(self._controller)
-        return license_handler.handle_licensing_complete(context, device_info)
+        return license_handler.handle_licenfing_complete(context, device_info)
 
-    def device_licensing_failed(self, context, device_info):
+    def device_licenfing_failed(self, context, device_info):
         license_handler = LicenseHandler(self._controller)
-        return license_handler.handle_licensing_failed(context, device_info)
+        return license_handler.handle_licenfing_failed(context, device_info)
 
 
 class LicenseManager(object):
@@ -86,8 +86,8 @@ class LicenseHandler(object):
     def detach_license(self, detach_license_request):
         pass
 
-    def handle_licensing_complete(self, context, device_info):
+    def handle_licenfing_complete(self, context, device_info):
         pass
 
-    def handle_licensing_failed(self, context, device_info):
+    def handle_licenfing_failed(self, context, device_info):
         pass

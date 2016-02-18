@@ -31,8 +31,8 @@ CONF = cfg.CONF
 CONF.register_opts(exc_log_opts)
 
 
-class NSFException(Exception):
-    """Base NSF Exception
+class NFPException(Exception):
+    """Base NFP Exception
 
     To correctly use this class, inherit from it and define
     a 'message' property. That message will get printf'd
@@ -78,7 +78,7 @@ class NSFException(Exception):
             message = six.text_type(message)
 
         self.msg = message
-        super(NSFException, self).__init__(message)
+        super(NFPException, self).__init__(message)
 
     def _should_format(self):
         return self.kwargs['message'] is None or '%(message)' in self.message
@@ -87,19 +87,19 @@ class NSFException(Exception):
         return six.text_type(self.msg)
 
 
-class NotFound(NSFException):
+class NotFound(NFPException):
     message = _("Resource could not be found.")
     code = 404
     safe = True
 
 
-class NetworkServiceNotFound(NotFound):
+class NetworkFunctionNotFound(NotFound):
     pass
 
 
-class NetworkServiceInstanceNotFound(NotFound):
+class NetworkFunctionInstanceNotFound(NotFound):
     pass
 
 
-class NetworkServiceDeviceNotFound(NotFound):
+class NetworkFunctionDeviceNotFound(NotFound):
     pass

@@ -6,7 +6,7 @@ import sys
 import time
 import argparse
 import ConfigParser
-from gbpservice.neutron.nsf_ahmed.core.threadpool import ThreadPool
+from gbpservice.neutron.nfp_ahmed.core.threadpool import ThreadPool
 
 CHANNEL_IDLE_TIME=30 #In seconds
 IDLE_TIME_OUT=None
