@@ -3,11 +3,12 @@ import sys
 import inspect
 
 
-class Utils(object):
+class ConfiguratorUtils(object):
     def __init__(self):
         pass
 
     def load_drivers(self, drivers_dir):
+
         """
         @param drivers_dir : absolute path
         e.g drivers_dir = '/usr/lib/python2.7/dist-packages/gbpservice/
@@ -33,8 +34,13 @@ class Utils(object):
         for module in modules:
             for name, class_obj in inspect.getmembers(module):
                 if inspect.isclass(class_obj):
+                    key = ''
+                    if hasattr(class_obj, 'service_type'):
+                        key += class_obj.service_type
                     if hasattr(class_obj, 'vendor'):
-                        driver_objects[class_obj.vendor] = class_obj
+                        key += class_obj.vendor
+                    if key:
+                        driver_objects[key] = class_obj
 
         return driver_objects
 

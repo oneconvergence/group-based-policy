@@ -1,13 +1,12 @@
 from oslo_log import log
 
 from gbpservice.neutron.nsf.core.main import RpcAgent
-from gbpservice.neutron.nsf.configurator.lib import topics
 from gbpservice.neutron.nsf.configurator.lib.demuxer import ConfiguratorDemuxer
-from gbpservice.neutron.nsf.configurator.lib.utils import Utils
+from gbpservice.neutron.nsf.configurator.lib.utils import ConfiguratorUtils
 
 LOG = log.getLogger(__name__)
 AGENTS_PKG = 'gbpservice.neutron.nsf.configurator.agents'
-
+CONFIGURATOR_RPC_TOPIC = 'configurator'
 
 class ConfiguratorRpcManager(object):
     def __init__(self, sc, sa, conf, demuxer):
@@ -100,7 +99,7 @@ class ConfiguratorModule(object):
 def init_rpc(sc, cm, conf, demuxer):
     rpc_mgr = ConfiguratorRpcManager(sc, cm, conf, demuxer)
     configurator_agent = RpcAgent(sc,
-                                  topic=topics.CONFIGURATOR,
+                                  topic=CONFIGURATOR_RPC_TOPIC,
                                   manager=rpc_mgr)
 
     sc.register_rpc_agents([configurator_agent])
@@ -108,7 +107,7 @@ def init_rpc(sc, cm, conf, demuxer):
 
 def get_configurator_module_handle():
     cm = ConfiguratorModule()
-    cm.imported_service_agents = Utils().load_agents(AGENTS_PKG)
+    cm.imported_service_agents = ConfiguratorUtils().load_agents(AGENTS_PKG)
     LOG.info(" Imported agents %s " % (cm.imported_service_agents))
     return cm
 
