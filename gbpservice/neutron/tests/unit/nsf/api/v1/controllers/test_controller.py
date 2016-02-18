@@ -8,63 +8,69 @@ class ControllerTestCase(unittest.TestCase):
 
     def test_create_network_device_config(self):
         controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object, '_create_network_device_config') as rpc_mock:
+        rpcclient = controller.RPCClient(topic="topic", host="host")
+        with mock.patch.object(controller_object.rpcclient, 'create_network_device_config') as rpc_mock:
             rpc_mock.return_value = True
             value = controller_object._create_network_device_config(body=({"request_data": {
                                                                     "info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with(body={"request_data": {"info": {}, "config": [
-                                         {"resource": "Res", "kwargs": {"context": "context"}}]}})
-        self.assertEqual(value, True)
+            rpc_mock.assert_called_once_with({"info": {}, "config": [
+                {"resource": "Res", "kwargs": {"context": "context"}}]})
+        self.assertEqual(value, 'true')
 
     def test_create_network_function_config(self):
         controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object, '_create_network_function_config') as rpc_mock:
+        rpcclient = controller.RPCClient(topic="topic", host="host")
+        with mock.patch.object(controller_object.rpcclient, 'create_network_service_config') as rpc_mock:
             rpc_mock.return_value = True
             value = controller_object._create_network_function_config(body=({"request_data": {
                                                                       "info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with(body={"request_data": {"info": {}, "config": [
-                                         {"resource": "Res", "kwargs": {"context": "context"}}]}})
-        self.assertEqual(value, True)
+        rpc_mock.assert_called_once_with(
+            {"info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]})
+        self.assertEqual(value, 'true')
 
     def test_update_network_device_config(self):
         controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object, '_update_network_device_config') as rpc_mock:
+        rpcclient = controller.RPCClient(topic="topic", host="host")
+        with mock.patch.object(controller_object.rpcclient, 'update_network_device_config') as rpc_mock:
             rpc_mock.return_value = True
             value = controller_object._update_network_device_config(body=({"request_data": {
                                                                     "info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with(body={"request_data": {"info": {}, "config": [
-                                         {"resource": "Res", "kwargs": {"context": "context"}}]}})
-        self.assertEqual(value, True)
+        rpc_mock.assert_called_once_with(
+            {"info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]})
+        self.assertEqual(value, 'true')
 
     def test_update_network_service_config(self):
         controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object, '_update_network_service_config') as rpc_mock:
+        rpcclient = controller.RPCClient(topic="topic", host="host")
+        with mock.patch.object(controller_object.rpcclient, 'update_network_service_config') as rpc_mock:
             rpc_mock.return_value = True
             value = controller_object._update_network_service_config(body=({"request_data": {
                                                                      "info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with(body={"request_data": {"info": {}, "config": [
-                                         {"resource": "Res", "kwargs": {"context": "context"}}]}})
-        self.assertEqual(value, True)
+        rpc_mock.assert_called_once_with(
+            {"info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]})
+        self.assertEqual(value, 'true')
 
     def test_delete_network_device_config(self):
         controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object, '_delete_network_device_config') as rpc_mock:
+        rpcclient = controller.RPCClient(topic="topic", host="host")
+        with mock.patch.object(controller_object.rpcclient, 'delete_network_device_config') as rpc_mock:
             rpc_mock.return_value = True
             value = controller_object._delete_network_device_config(body=({"request_data": {
                                                                     "info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with(body={"request_data": {"info": {}, "config": [
-                                         {"resource": "Res", "kwargs": {"context": "context"}}]}})
-        self.assertEqual(value, True)
+        rpc_mock.assert_called_once_with(
+            {"info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]})
+        self.assertEqual(value, 'true')
 
     def test_delete_network_service_config(self):
         controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object, '_delete_network_service_config') as rpc_mock:
+        rpcclient = controller.RPCClient(topic="topic", host="host")
+        with mock.patch.object(controller_object.rpcclient, 'delete_network_service_config') as rpc_mock:
             rpc_mock.return_value = True
             value = controller_object._delete_network_service_config(body=({"request_data": {
                                                                      "info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with(body={"request_data": {"info": {}, "config": [
-                                         {"resource": "Res", "kwargs": {"context": "context"}}]}})
-        self.assertEqual(value, True)
+        rpc_mock.assert_called_once_with(
+            {"info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]})
+        self.assertEqual(value, 'true')
 
     def test_create_network_device_config_rpcclient(self):
         rpcclient = controller.RPCClient("topic", "host")
