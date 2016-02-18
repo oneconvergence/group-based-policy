@@ -29,7 +29,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm.exc import NoResultFound
 
 from gbpservice.common import utils
-from gbpservice.neutron.nsf.common import topics as nsf_rpc_topics
+from gbpservice.neutron.nsf.common import topics as nfp_rpc_topics
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     exceptions as exc)
 from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base
@@ -37,7 +37,7 @@ from gbpservice.neutron.services.servicechain.plugins.ncp import model
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 
 
-NSF_NODE_DRIVER_OPTS = [
+NFP_NODE_DRIVER_OPTS = [
     cfg.StrOpt('svc_management_ptg_name',
                default='svc_management_ptg',
                help=_("Name of the PTG that is associated with the "
@@ -56,16 +56,16 @@ NSF_NODE_DRIVER_OPTS = [
                       "to complete")),
 ]
 
-cfg.CONF.register_opts(NSF_NODE_DRIVER_OPTS, "nsf_node_driver")
+cfg.CONF.register_opts(NFP_NODE_DRIVER_OPTS, "nfp_node_driver")
 
-SVC_MGMT_PTG_NAME = cfg.CONF.nsf_node_driver.svc_management_ptg_name
+SVC_MGMT_PTG_NAME = cfg.CONF.nfp_node_driver.svc_management_ptg_name
 
 
 LOG = logging.getLogger(__name__)
 
 
 class InvalidServiceType(exc.NodeCompositionPluginBadRequest):
-    message = _("The NSF Node driver only supports the services "
+    message = _("The NFP Node driver only supports the services "
                 "VPN, Firewall and LB in a Service Chain")
 
 
@@ -74,12 +74,12 @@ class ServiceProfileRequired(exc.NodeCompositionPluginBadRequest):
 
 
 class NodeVendorMismatch(exc.NodeCompositionPluginBadRequest):
-    message = _("The NSF Node driver only handles nodes which have service "
+    message = _("The NFP Node driver only handles nodes which have service "
                 "profile with vendor name %(vendor)s")
 
 
 class DuplicateServiceTypeInChain(exc.NodeCompositionPluginBadRequest):
-    message = _("The NSF Node driver does not support duplicate "
+    message = _("The NFP Node driver does not support duplicate "
                 "service types in same chain")
 
 
@@ -88,18 +88,18 @@ class RequiredProfileAttributesNotSet(exc.NodeCompositionPluginBadRequest):
 
 
 class InvalidNodeOrderInChain(exc.NodeCompositionPluginBadRequest):
-    message = _("The NSF Node driver does not support the order "
+    message = _("The NFP Node driver does not support the order "
                 "of nodes defined in the current service chain spec")
 
 
 class UnSupportedServiceProfile(exc.NodeCompositionPluginBadRequest):
-    message = _("The NSF Node driver does not support this service "
+    message = _("The NFP Node driver does not support this service "
                 "profile with service type %(service_type)s and vendor "
                 "%(vendor)s")
 
 
 class UnSupportedInsertionMode(exc.NodeCompositionPluginBadRequest):
-    message = _("The NSF Node driver supports only L3 Insertion "
+    message = _("The NFP Node driver supports only L3 Insertion "
                 "mode")
 
 
@@ -114,43 +114,43 @@ class VipNspNotSetonProvider(n_exc.NeutronException):
 
 
 class NodeInstanceDeleteFailed(n_exc.NeutronException):
-    message = _("Node instance delete failed in NSF Node driver")
+    message = _("Node instance delete failed in NFP Node driver")
 
 
 class NodeInstanceCreateFailed(n_exc.NeutronException):
-    message = _("Node instance create failed in NSF Node driver")
+    message = _("Node instance create failed in NFP Node driver")
 
 
-class ServiceNodeInstanceNetworkServiceMapping(model_base.BASEV2):
-    """ServiceChainInstance to NSF network service mapping."""
+class ServiceNodeInstanceNetworkFunctionMapping(model_base.BASEV2):
+    """ServiceChainInstance to NFP network function mapping."""
 
-    __tablename__ = 'ncp_node_instance_network_service_mappings'
+    __tablename__ = 'ncp_node_instance_network_function_mappings'
     sc_instance_id = sa.Column(sa.String(36),
                                nullable=False, primary_key=True)
     sc_node_id = sa.Column(sa.String(36),
                            nullable=False, primary_key=True)
-    network_service_id = sa.Column(sa.String(36),
+    network_function_id = sa.Column(sa.String(36),
                                    nullable=False, primary_key=True)
 
 
 # These callback apis are not used today, This is supposed to be used when
 # GBP supports asynchronous operations
-class NSFCallbackApi(object):
+class NFPCallbackApi(object):
     RPC_API_VERSION = "1.0"
     target = oslo_messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, node_driver):
         self.node_driver = node_driver
 
-    def network_service_created(self, context, network_service):
+    def network_function_created(self, context, network_function):
         pass
 
-    def network_service_deleted(self, context, network_service):
+    def network_function_deleted(self, context, network_function):
         pass
 
 
-class NSFClientApi(object):
-    """ Client side of the NSF Framework user """
+class NFPClientApi(object):
+    """ Client side of the NFP Framework user """
 
     RPC_API_VERSION = '1.0'
 
@@ -159,65 +159,67 @@ class NSFClientApi(object):
             topic=topic, version=self.RPC_API_VERSION)
         self.client = n_rpc.get_client(target)
 
-    def create_network_service(self, context, network_service):
+    def create_network_function(self, context, network_function):
         cctxt = self.client.prepare(
-            fanout=False, topic=nsf_rpc_topics.NSF_SERVICE_LCM_TOPIC)
+            fanout=False, topic=nfp_rpc_topics.NFP_SERVICE_LCM_TOPIC)
         return cctxt.call(
-            context, 'create_network_service', network_service=network_service)
+            context,
+            'create_network_function',
+            network_function=network_function)
         # cctxt.cast(context, 'create_service', service_info=service_info)
 
-    def delete_network_service(self, context, network_service_id):
+    def delete_network_function(self, context, network_function_id):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(
             context,
-            'delete_network_service',
-            network_service_id=network_service_id)
+            'delete_network_function',
+            network_function_id=network_function_id)
 
-    def get_network_service(self, context, network_service_id):
+    def get_network_function(self, context, network_function_id):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(
             context,
-            'get_network_service',
-            network_service_id=network_service_id)
+            'get_network_function',
+            network_function_id=network_function_id)
 
-    def notify_consumer_ptg_added(self, context, network_service_id,
-                                  policy_target_group):
+    def consumer_ptg_added_notification(self, context, network_function_id,
+                                        policy_target_group):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(
             context,
-            'notify_consumer_ptg_added',
-            network_service_id=network_service_id,
+            'consumer_ptg_added_notification',
+            network_function_id=network_function_id,
             policy_target_group=policy_target_group)
 
-    def notify_consumer_ptg_removed(self, context, network_service_id,
-                                    policy_target_group):
+    def consumer_ptg_removed_notification(self, context, network_function_id,
+                                          policy_target_group):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(
             context,
-            'notify_consumer_ptg_removed',
-            network_service_id=network_service_id,
+            'consumer_ptg_removed_notification',
+            network_function_id=network_function_id,
             policy_target_group=policy_target_group)
 
-    def notify_policy_target_added(self, context, network_service_id,
-                                   policy_target):
+    def policy_target_added_notification(self, context, network_function_id,
+                                         policy_target):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(
             context,
-            'notify_policy_target_added',
-            network_service_id=network_service_id,
+            'policy_target_added_notification',
+            network_function_id=network_function_id,
             policy_target=policy_target)
 
-    def notify_policy_target_removed(self, context, network_service_id,
-                                     policy_target):
+    def policy_target_removed_notification(self, context, network_function_id,
+                                           policy_target):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(
             context,
-            'notify_policy_target_removed',
-            network_service_id=network_service_id,
+            'policy_target_removed_notification',
+            network_function_id=network_function_id,
             policy_target=policy_target)
 
 
-class NSFNodeDriver(driver_base.NodeDriverBase):
+class NFPNodeDriver(driver_base.NodeDriverBase):
     SUPPORTED_SERVICE_TYPES = [
         pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN]
     SUPPORTED_SERVICE_VENDOR_MAPPING = {
@@ -225,7 +227,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
         pconst.FIREWALL: ["vyos"],
         pconst.VPN: ["vyos"],
     }
-    vendor_name = 'NSF'
+    vendor_name = 'NFP'
     required_heat_resources = {
         pconst.LOADBALANCER: ['OS::Neutron::LoadBalancer',
                               'OS::Neutron::Pool'],
@@ -236,7 +238,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
     initialized = False
 
     def __init__(self):
-        super(NSFNodeDriver, self).__init__()
+        super(NFPNodeDriver, self).__init__()
         self._lbaas_plugin = None
 
     @property
@@ -246,7 +248,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
     def initialize(self, name):
         self.initialized = True
         self._name = name
-        if cfg.CONF.nsf_node_driver.is_service_admin_owned:
+        if cfg.CONF.nfp_node_driver.is_service_admin_owned:
             self.resource_owner_tenant_id = self._resource_owner_tenant_id()
         else:
             self.resource_owner_tenant_id = None
@@ -254,21 +256,21 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
         self._setup_rpc()
 
     def _setup_rpc_listeners(self):
-        self.endpoints = [NSFCallbackApi(self)]
-        self.topic = nsf_rpc_topics.NSF_NODE_DRIVER_CALLBACK_TOPIC
+        self.endpoints = [NFPCallbackApi(self)]
+        self.topic = nfp_rpc_topics.NFP_NODE_DRIVER_CALLBACK_TOPIC
         self.conn = n_rpc.create_connection(new=True)
         self.conn.create_consumer(self.topic, self.endpoints, fanout=False)
         return self.conn.consume_in_threads()
 
     def _setup_rpc(self):
-        self.nsf_notifier = NSFClientApi(nsf_rpc_topics.NSF_SERVICE_LCM_TOPIC)
+        self.nfp_notifier = NFPClientApi(nfp_rpc_topics.NFP_SERVICE_LCM_TOPIC)
 
     def get_plumbing_info(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
         service_type = context.current_profile['service_type']
 
-        # Management PTs are managed by NSF since it supports hosting multiple
+        # Management PTs are managed by NFP since it supports hosting multiple
         # logical services in a single device
         plumbing_request = {'management': [], 'provider': [{}],
                             'consumer': [{}]}
@@ -329,12 +331,12 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
     def create(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
-        network_service_id = self._create_network_service(context)
-        self._set_node_instance_network_service_map(
+        network_function_id = self._create_network_function(context)
+        self._set_node_instance_network_function_map(
             context.plugin_session, context.current_node['id'],
-            context.instance['id'], network_service_id)
-        self._wait_for_network_service_create_completion(
-            context, network_service_id)
+            context.instance['id'], network_function_id)
+        self._wait_for_network_function_create_completion(
+            context, network_function_id)
 
     def update(self, context):
         context._plugin_context = self._get_resource_owner_context(
@@ -344,25 +346,25 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
     def delete(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
-        network_service_map = self._get_node_instance_network_service_map(
+        network_function_map = self._get_node_instance_network_function_map(
             context.plugin_session,
             context.current_node['id'],
             context.instance['id'])
 
-        if not network_service_map:
+        if not network_function_map:
             return
 
-        network_service_id = network_service_map.network_service_id
+        network_function_id = network_function_map.network_function_id
         try:
-            self.nsf_notifier.delete_network_service(
+            self.nfp_notifier.delete_network_function(
                 context=context.plugin_context,
-                network_service_id=network_service_id)
+                network_function_id=network_function_id)
         except Exception:
             LOG.exception(_("Delete Network service Failed"))
 
-        self._wait_for_network_service_delete_completion(
-            context, network_service_id)
-        self._delete_node_instance_network_service_map(
+        self._wait_for_network_function_delete_completion(
+            context, network_function_id)
+        self._delete_node_instance_network_function_map(
             context.plugin_session,
             context.current_node['id'],
             context.instance['id'])
@@ -373,13 +375,13 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
                 return
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
-            network_service_id = self._get_node_instance_network_service_map(
+            network_function_id = self._get_node_instance_network_function_map(
                 context.plugin_session,
                 context.current_node['id'],
                 context.instance['id'])
-            if network_service_id:
-                self.nsf_notifier.notify_policy_target_added(
-                    context.plugin_context, network_service_id, policy_target)
+            if network_function_id:
+                self.nfp_notifier.notify_policy_target_added(
+                    context.plugin_context, network_function_id, policy_target)
 
     def update_policy_target_removed(self, context, policy_target):
         if context.current_profile['service_type'] == pconst.LOADBALANCER:
@@ -387,15 +389,16 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
                 return
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
-            network_service_map = self._get_node_instance_network_service_map(
-                context.plugin_session,
-                context.current_node['id'],
-                context.instance['id'])
+            network_function_map = (
+                self._get_node_instance_network_function_map(
+                    context.plugin_session,
+                    context.current_node['id'],
+                    context.instance['id']))
 
-            if network_service_map:
-                network_service_id = network_service_map.network_service_id
-                self.nsf_notifier.notify_policy_target_removed(
-                    context.plugin_context, network_service_id, policy_target)
+            if network_function_map:
+                network_function_id = network_function_map.network_function_id
+                self.nfp_notifier.notify_policy_target_removed(
+                    context.plugin_context, network_function_id, policy_target)
 
     def notify_chain_parameters_updated(self, context):
         pass  # We are not using the classifier specified in redirect Rule
@@ -404,67 +407,69 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
         if context.current_profile['service_type'] == pconst.FIREWALL:
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
-            network_service_map = self._get_node_instance_network_service_map(
-                context.plugin_session,
-                context.current_node['id'],
-                context.instance['id'])
+            network_function_map = (
+                self._get_node_instance_network_function_map(
+                    context.plugin_session,
+                    context.current_node['id'],
+                    context.instance['id']))
 
-            if network_service_map:
-                network_service_id = network_service_map.network_service_id
-                self.nsf_notifier.notify_consumer_ptg_added(
+            if network_function_map:
+                network_function_id = network_function_map.network_function_id
+                self.nfp_notifier.notify_consumer_ptg_added(
                     context.plugin_context,
-                    network_service_id,
+                    network_function_id,
                     policy_target_group)
 
     def update_node_consumer_ptg_removed(self, context, policy_target_group):
         if context.current_profile['service_type'] == pconst.FIREWALL:
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
-            network_service_map = self._get_node_instance_network_service_map(
-                context.plugin_session,
-                context.current_node['id'],
-                context.instance['id'])
+            network_function_map = (
+                self._get_node_instance_network_function_map(
+                    context.plugin_session,
+                    context.current_node['id'],
+                    context.instance['id']))
 
-            if network_service_map:
-                network_service_id = network_service_map.network_service_id
-                self.nsf_notifier.notify_consumer_ptg_removed(
+            if network_function_map:
+                network_function_id = network_function_map.network_function_id
+                self.nfp_notifier.notify_consumer_ptg_removed(
                     context.plugin_context,
-                    network_service_id,
+                    network_function_id,
                     policy_target_group)
 
-    def _wait_for_network_service_delete_completion(self, context,
-                                                    network_service_id):
+    def _wait_for_network_function_delete_completion(self, context,
+                                                     network_function_id):
         time_waited = 0
-        network_service = None
-        while time_waited < cfg.CONF.nsf_node_driver.service_delete_timeout:
-            network_service = self.nsf_notifier.get_network_service(
-                context.plugin_context, network_service_id)
-            if not network_service:
+        network_function = None
+        while time_waited < cfg.CONF.nfp_node_driver.service_delete_timeout:
+            network_function = self.nfp_notifier.get_network_function(
+                context.plugin_context, network_function_id)
+            if not network_function:
                 break
             eventlet.sleep(5)
             time_waited = time_waited + 5
 
-        if network_service:
-            LOG.error(_("Delete network service %(network_service)s failed"),
-                      {'network_service': network_service_id})
+        if network_function:
+            LOG.error(_("Delete network function %(network_function)s failed"),
+                      {'network_function': network_function_id})
             raise NodeInstanceDeleteFailed()
 
-    def _wait_for_network_service_create_completion(self, context,
-                                                    network_service_id):
+    def _wait_for_network_function_create_completion(self, context,
+                                                     network_function_id):
         time_waited = 0
-        network_service = None
-        while time_waited < cfg.CONF.nsf_node_driver.service_create_timeout:
-            network_service = self.nsf_notifier.get_network_service(
-                context.plugin_context, network_service_id)
-            if (network_service['status'] == 'ACTIVE' or
-                network_service['status'] == 'ERROR'):
+        network_function = None
+        while time_waited < cfg.CONF.nfp_node_driver.service_create_timeout:
+            network_function = self.nfp_notifier.get_network_function(
+                context.plugin_context, network_function_id)
+            if (network_function['status'] == 'ACTIVE' or
+                network_function['status'] == 'ERROR'):
                 break
             eventlet.sleep(5)
             time_waited = time_waited + 5
 
-        if network_service['status'] != 'ACTIVE':
-            LOG.error(_("Delete network service %(network_service)s failed"),
-                      {'network_service': network_service_id})
+        if network_function['status'] != 'ACTIVE':
+            LOG.error(_("Delete network function %(network_function)s failed"),
+                      {'network_function': network_function_id})
             raise NodeInstanceCreateFailed()
 
     def _is_service_target(self, policy_target):
@@ -491,7 +496,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
                 LOG.error(_('Multiple tenants matches found for %s'), tenant)
 
     def _get_resource_owner_context(self, plugin_context):
-        if cfg.CONF.nsf_node_driver.is_service_admin_owned:
+        if cfg.CONF.nfp_node_driver.is_service_admin_owned:
             resource_owner_context = plugin_context.elevated()
             resource_owner_context.tenant_id = self.resource_owner_tenant_id
             user, pwd, ignore_tenant, auth_url = utils.get_keystone_creds()
@@ -509,7 +514,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
                 context.original_node == context.current_node):
                 LOG.info(_("No action to take on update"))
                 return
-        self.nsf_notifier.update_service_config()
+        self.nfp_notifier.update_service_config()
 
     def _get_management_ptg_id(self, context):
         # REVISIT(Magesh): Retrieving management PTG by name will not be
@@ -602,7 +607,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
         if service_type_list_in_chain not in allowed_chain_combinations:
             raise InvalidNodeOrderInChain()
 
-    def _create_network_service(self, context):
+    def _create_network_function(self, context):
         sc_instance = context.instance
         service_targets = self._get_service_targets(context)
         if context.current_profile['service_type'] == pconst.LOADBALANCER:
@@ -621,7 +626,7 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
                 context.core_plugin.update_port(
                     context.plugin_context, provider_port['id'], port)
 
-        network_service = {
+        network_function = {
             'tenant_id': context.provider['tenant_id'],
             'service_chain_id': sc_instance['id'],
             'service_id': context.current_node['id'],
@@ -629,30 +634,32 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
             'management_ptg_id': self._get_management_ptg_id(context),
             'service_config': context.current_node.get('config'),
             'provider_port_id': service_targets['provider_pts'][0],
-            'network_service_mode': 'GBP',
+            'network_function_mode': 'GBP',
         }
 
         if service_targets.get('consumer_ports'):
-            network_service['consumer_port_id'] = service_targets[
+            network_function['consumer_port_id'] = service_targets[
                 'consumer_pts'][0]
 
-        return self.nsf_notifier.create_network_service(
-            context.plugin_context, network_service=network_service)['id']
+        return self.nfp_notifier.create_network_function(
+            context.plugin_context, network_function=network_function)['id']
 
-    def _set_node_instance_network_service_map(
-        self, session, sc_node_id, sc_instance_id, network_service_id):
+    def _set_node_instance_network_function_map(
+        self, session, sc_node_id, sc_instance_id, network_function_id):
         with session.begin(subtransactions=True):
-            sc_node_instance_ns_map = ServiceNodeInstanceNetworkServiceMapping(
-                sc_node_id=sc_node_id,
-                sc_instance_id=sc_instance_id,
-                network_service_id=network_service_id)
+            sc_node_instance_ns_map = (
+                ServiceNodeInstanceNetworkFunctionMapping(
+                    sc_node_id=sc_node_id,
+                    sc_instance_id=sc_instance_id,
+                    network_function_id=network_function_id))
             session.add(sc_node_instance_ns_map)
 
-    def _get_node_instance_network_service_map(self, session, sc_node_id=None,
-                                               sc_instance_id=None):
+    def _get_node_instance_network_function_map(self, session, sc_node_id=None,
+                                                sc_instance_id=None):
         try:
             with session.begin(subtransactions=True):
-                query = session.query(ServiceNodeInstanceNetworkServiceMapping)
+                query = session.query(
+                    ServiceNodeInstanceNetworkFunctionMapping)
                 if sc_node_id:
                     query = query.filter_by(sc_node_id=sc_node_id)
                 if sc_instance_id:
@@ -661,11 +668,11 @@ class NSFNodeDriver(driver_base.NodeDriverBase):
         except NoResultFound:
             return None
 
-    def _delete_node_instance_network_service_map(self, session, sc_node_id,
-                                                  sc_instance_id):
+    def _delete_node_instance_network_function_map(self, session, sc_node_id,
+                                                   sc_instance_id):
         with session.begin(subtransactions=True):
             sc_node_instance_ns_maps = (
-                session.query(ServiceNodeInstanceNetworkServiceMapping).
+                session.query(ServiceNodeInstanceNetworkFunctionMapping).
                 filter_by(sc_node_id=sc_node_id).
                 filter_by(sc_instance_id=sc_instance_id).
                 all())
