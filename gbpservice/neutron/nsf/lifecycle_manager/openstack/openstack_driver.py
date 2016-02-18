@@ -122,7 +122,6 @@ class KeystoneClient(OpenstackApi):
             err = ("Failed to get scoped token from"
                    " Openstack Keystone service"
                    " KeyError :: %s" % (err))
-            cfg.CONF.keystone_authtoken.auth_port,
             LOG.error(err)
             raise Exception(err)
         else:
