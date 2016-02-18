@@ -37,6 +37,8 @@ es_openstack_opts = [
                default='http', help='Auth protocol used.'),
     cfg.IntOpt('auth_port',
                default='5000', help='Auth protocol used.'),
+    cfg.IntOpt('bind_port',
+               default='9696', help='Auth protocol used.'),
     cfg.StrOpt('auth_version',
                default='v2.0', help='Auth protocol used.'),
 ]
@@ -45,7 +47,7 @@ cfg.CONF.register_opts(es_openstack_opts, "keystone_authtoken")
 
 class OpenstackApi(object):
     """Initializes common attributes for openstack client drivers."""
-
+	
     def __init__(self, username=cfg.CONF.keystone_authtoken.admin_user,
                  password=cfg.CONF.keystone_authtoken.admin_password,
                  tenant_id=cfg.CONF.keystone_authtoken.admin_tenant_id,
@@ -59,7 +61,8 @@ class OpenstackApi(object):
         self.network_service = ("%s://%s:%d/" %
                                 (cfg.CONF.keystone_authtoken.auth_protocol,
                                  cfg.CONF.keystone_authtoken.auth_host,
-                                 cfg.CONF.bind_port)) # Neutron listening port
+                                 cfg.CONF.keystone_authtoken.bind_port))
+                                 #cfg.CONF.bind_port)) # Neutron listening port
         self.username = username
         self.password = password
         self.tenant_id = tenant_id
@@ -121,6 +124,7 @@ class KeystoneClient(OpenstackApi):
             err = ("Failed to get scoped token from"
                    " Openstack Keystone service"
                    " KeyError :: %s" % (err))
+            cfg.CONF.keystone_authtoken.auth_port,
             LOG.error(err)
             raise Exception(err)
         else:
@@ -191,29 +195,6 @@ class NovaClient(OpenstackApi):
         except Exception as ex:
             err = ("Failed to get flavor id from flavor name %s: %s" % (
                        flavor_name, ex))
-            LOG.error(err)
-            raise Exception(err)
-
-    def get_flavor_list(self, token, tenant_id):
-        """ Get the supported flavors list
-
-        :param token: A scoped token
-        :param tenant_id: Tenant UUID
-
-        :return: Flavor list
-        """
-        tenant_id = str(tenant_id)
-        flavors_list = []
-        try:
-            nova = nova_client.Client(self.nova_version, auth_token=token,
-                                      tenant_id=tenant_id,
-                                      auth_url=self.identity_service)
-            flavors = nova.flavors.list()
-            flavors_list = [flavor.name for flavor in flavors]
-            return flavors_list
-
-        except Exception as err:
-            err = "Failed to get flavor List"
             LOG.error(err)
             raise Exception(err)
 
@@ -910,7 +891,7 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def delete_l2policy(self, token, l2policy_id):
+    def delete_l2_policy(self, token, l2policy_id):
         """
         :param token:
         :param l2policy_id:
@@ -946,16 +927,6 @@ class GBPClient(OpenstackApi):
             err = ("Failed to list l2 policies. Reason %s" % ex)
             LOG.error(err)
             raise Exception(err)
-
-    def delete_l2_policy(self, token, l2_policy_id):
-        """ Delete the l2 policy
-
-        :param token: A scoped token
-        :param tenant_id: Tenant UUID
-        :param l2_policy_id: L2 policy UUID
-
-        """
-        self.delete_l2policy(token, l2_policy_id)
 
     def get_l2_policy(self, token, policy_id, filters={}):
         """ List L2 policies
@@ -1176,23 +1147,6 @@ class GBPClient(OpenstackApi):
                    " Error :: %s" % (pt_id, ex))
             LOG.error(err)
             raise Exception(err)
-
-    def get_pt_info(self, token, tenant_id, pt_id):
-        """
-        :param token:
-        :param tenant_id:
-        :param pt_id:
-        :return:
-        """
-        try:
-            pt = self.get_policy_target(token, pt_id)
-            port = self.get_port(token, pt['port_id'])
-            port_info = port['port']
-        except Exception:
-            raise Exception("Error getting port details for PT: %r of "
-                            "tenant: %r" % (pt_id, tenant_id))
-        else:
-            return dict(pt=pt, port=port_info)
 
     def get_service_profile(self, token, service_profile_id):
         gbp = gbp_client.Client(token=token,

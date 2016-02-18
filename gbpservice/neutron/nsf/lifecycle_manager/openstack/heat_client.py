@@ -13,23 +13,20 @@
 # under the License.
 from heatclient import client as heat_client
 from heatclient import exc as heat_exc
+from oslo_log import log as logging
 #from neutron.openstack.common import log as logging
 
-#from gbpservice.neutron.services.servicechain.plugins.ncp.node_drivers import (
-#    openstack_heat_api_client as gbp_heat_api_client)
-
-#LOG = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 # We are overriding create and update for now because the upstream
 # heat client class does not take timeout as argument
-#class OCHeatClient(gbp_heat_api_client.HeatClient):
+
 class HeatClient():
 
     def __init__(self, user_name, tenant, heat_uri, password=None,
                  auth_token=None, timeout_mins=30):
         api_version = "1"
         endpoint = "%s/%s" % (heat_uri, tenant)
-        print endpoint
         kwargs = {
             'token': auth_token,
             'username': user_name,
@@ -68,8 +65,8 @@ class HeatClient():
         try:
             self.stacks.delete(stack_id)
         except heat_exc.HTTPNotFound:
-            print "Delete error"
+            LOG.warn(_("Stack %(stack)s created by service chain driver is "
+                      "not found at cleanup"), {'stack': stack_id})
 
     def get(self, stack_id):
         return self.stacks.get(stack_id)
-
