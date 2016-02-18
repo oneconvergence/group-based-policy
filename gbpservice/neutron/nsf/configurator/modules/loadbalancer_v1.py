@@ -247,10 +247,11 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     def _create_vip(self, ev):
         data = ev.data
+        context = data['context']
         vip = data['vip']
         driver = self._get_driver(vip['pool_id'])
         try:
-            driver.create_vip(vip)
+            driver.create_vip(vip,context)
         except Exception:
             self._handle_failed_driver_call('create', 'vip', vip['id'],
                                             driver.get_name())
@@ -260,11 +261,12 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     def _update_vip(self, ev):
         data = ev.data
+        context = data['context']
         old_vip = data['old_vip']
         vip = data['vip']
         driver = self._get_driver(vip['pool_id'])
         try:
-            driver.update_vip(old_vip, vip)
+            driver.update_vip(old_vip, vip, context)
         except Exception:
             self._handle_failed_driver_call('update', 'vip', vip['id'],
                                             driver.get_name())
@@ -274,15 +276,17 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     def _delete_vip(self, ev):
         data = ev.data
+        context = data['context']
         vip = data['vip']
         driver = self._get_driver(vip['pool_id'])
         try:
-            driver.delete_vip(vip)
+            driver.delete_vip(vip, context)
         except Exception:
             LOG.warn(_("Failed to delete vip %s"), vip['id'])
 
     def _create_pool(self, ev):
         data = ev.data
+        context = data['context']
         pool = data['pool']
         driver_name = data['driver_name']
         if driver_name not in self.drivers:
@@ -292,7 +296,7 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
             return
         driver = self.drivers[driver_name]
         try:
-            driver.create_pool(pool)
+            driver.create_pool(pool, context)
         except Exception:
             self._handle_failed_driver_call('create', 'pool',
                                             pool['id'],
@@ -304,11 +308,12 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     def _update_pool(self, ev):
         data = ev.data
+        context = data['context']
         old_pool = data['old_pool']
         pool = data['pool']
         driver = self._get_driver(pool['id'])
         try:
-            driver.update_pool(old_pool, pool)
+            driver.update_pool(old_pool, pool, context)
         except Exception:
             self._handle_failed_driver_call('update', 'pool',
                                             pool['id'],
@@ -320,20 +325,22 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     def _delete_pool(self, ev):
         data = ev.data
+        context = data['context']
         pool = data['pool']
         driver = self._get_driver(pool['id'])
         try:
-            driver.delete_pool(pool)
+            driver.delete_pool(pool, context)
         except Exception:
             LOG.warn(_("Failed to delete pool %s"), pool['id'])
         del self.instance_mapping[pool['id']]
 
     def _create_member(self, ev):
         data = ev.data
+        context = data['context']
         member = data['member']
         driver = self._get_driver(member['pool_id'])
         try:
-            driver.create_member(member)
+            driver.create_member(member, context)
         except Exception:
             self._handle_failed_driver_call('create', 'member',
                                             member['id'],
@@ -344,11 +351,12 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     def _update_member(self, ev):
         data = ev.data
+        context = data['context']
         old_member = data['old_member']
         member = data['member']
         driver = self._get_driver(member['pool_id'])
         try:
-            driver.update_member(old_member, member)
+            driver.update_member(old_member, member, context)
         except Exception:
             self._handle_failed_driver_call('update', 'member',
                                             member['id'],
@@ -359,22 +367,24 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     def _delete_member(self, ev):
         data = ev.data
+        context = data['context']
         member = data['member']
         driver = self._get_driver(member['pool_id'])
         try:
-            driver.delete_member(member)
+            driver.delete_member(member, context)
         except Exception:
             LOG.warn(_("Failed to delete member %s"), member['id'])
 
     def _create_pool_health_monitor(self, ev):
         data = ev.data
+        context = data['context']
         health_monitor = data['health_monitor']
         pool_id = data['pool_id']
         driver = self._get_driver(pool_id)
         assoc_id = {'pool_id': pool_id,
                     'monitor_id': health_monitor['id']}
         try:
-            driver.create_pool_health_monitor(health_monitor, pool_id)
+            driver.create_pool_health_monitor(health_monitor, pool_id, context)
         except Exception:
             self._handle_failed_driver_call(
              'create', 'health_monitor', assoc_id, driver.get_name())
@@ -384,6 +394,7 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     def _update_pool_health_monitor(self, ev):
         data = ev.data
+        context = data['context']
         old_health_monitor = data['old_health_monitor']
         health_monitor = data['health_monitor']
         pool_id = data['pool_id']
@@ -393,7 +404,8 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
         try:
             driver.update_pool_health_monitor(old_health_monitor,
                                               health_monitor,
-                                              pool_id)
+                                              pool_id,
+                                              context)
         except Exception:
             self._handle_failed_driver_call(
              'update', 'health_monitor', assoc_id, driver.get_name())
@@ -403,13 +415,14 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     def _delete_pool_health_monitor(self, ev):
         data = ev.data
+        context = data['context']
         health_monitor = data['health_monitor']
         pool_id = data['pool_id']
         driver = self._get_driver(pool_id)
         assoc_id = {'pool_id': pool_id,
                     'monitor_id': health_monitor['id']}
         try:
-            driver.delete_pool_health_monitor(health_monitor, pool_id)
+            driver.delete_pool_health_monitor(health_monitor, pool_id, context)
         except Exception:
             LOG.warn(_("Failed to delete pool health monitor."
                        " Health monitor: %s, Pool: %s"),

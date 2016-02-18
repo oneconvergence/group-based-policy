@@ -55,12 +55,12 @@ class HaproxyOnVmDriver(BaseDriver):
                             REQUEST_RETRIES, REQUEST_TIMEOUT)
         return client
 
-    def _get_device_for_pool(self, pool_id):
+    def _get_device_for_pool(self, pool_id, context):
         device = self.pool_to_device.get(pool_id, None)
         if device is not None:
             return device
 
-        logical_device = self.plugin_rpc.get_logical_device(pool_id)
+        logical_device = self.plugin_rpc.get_logical_device(pool_id, context)
         vip = logical_device.get('vip', None)
         if vip is None:
             return None
@@ -532,10 +532,11 @@ class HaproxyOnVmDriver(BaseDriver):
 
         return stats
 
-    def create_vip(self, vip):
+    def create_vip(self, vip, context):
         try:
-            device_addr = self._get_device_for_pool(vip['pool_id'])
-            logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'])
+            device_addr = self._get_device_for_pool(vip['pool_id'], context)
+            logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'],
+                                                                context)
 
             self._create_pool(logical_device['pool'], device_addr)
             for member in logical_device['members']:
@@ -553,9 +554,10 @@ class HaproxyOnVmDriver(BaseDriver):
             msg = ("Created vip %s." % vip['id'])
             LOG.emit("info", msg)
 
-    def update_vip(self, old_vip, vip):
+    def update_vip(self, old_vip, vip, context):
         try:
-            device_addr = self._get_device_for_pool(old_vip['pool_id'])
+            device_addr = self._get_device_for_pool(old_vip['pool_id'],
+                                                    context)
 
             # if old_vip is either not having associated to pool
             # or not created
@@ -570,7 +572,8 @@ class HaproxyOnVmDriver(BaseDriver):
 
                 # Create the new VIP along with pool
                 logical_device = self.plugin_rpc.get_logical_device(
-                                                            vip['pool_id'])
+                                                            vip['pool_id'],
+                                                            context)
                 pool = logical_device['pool']
                 self._create_pool(pool, device_addr)
                 self._create_vip(vip, device_addr)
@@ -592,10 +595,11 @@ class HaproxyOnVmDriver(BaseDriver):
             msg = ("Updated vip %s." % vip['id'])
             LOG.emit("info", msg)
 
-    def delete_vip(self, vip):
+    def delete_vip(self, vip, context):
         try:
-            device_addr = self._get_device_for_pool(vip['pool_id'])
-            logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'])
+            device_addr = self._get_device_for_pool(vip['pool_id'], context)
+            logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'],
+                                                                context)
 
             # Delete vip from VM
             self._delete_vip(vip, device_addr)
@@ -611,14 +615,14 @@ class HaproxyOnVmDriver(BaseDriver):
             msg = ("Deleted vip %s." % vip['id'])
             LOG.emit("info", msg)
 
-    def create_pool(self, pool):
+    def create_pool(self, pool, context):
         # nothing to do here because a pool needs a vip to be useful
         LOG.info("[haproxy_lb_driver]: Pool create called")
         pass
 
-    def update_pool(self, old_pool, pool):
+    def update_pool(self, old_pool, pool, context):
         try:
-            device_addr = self._get_device_for_pool(pool['id'])
+            device_addr = self._get_device_for_pool(pool['id'], context)
             if (pool['vip_id'] and
                     device_addr is not None):
                 # create REST client object
@@ -639,14 +643,14 @@ class HaproxyOnVmDriver(BaseDriver):
                    % (old_pool['id'], pool['id']))
             LOG.emit("info", msg)
 
-    def delete_pool(self, pool):
+    def delete_pool(self, pool, context):
         # if pool is not known, do nothing
         try:
             device = self.pool_to_device.get(pool['id'], None)
             if device is None:
                 return
 
-            device_addr = self._get_device_for_pool(pool['id'])
+            device_addr = self._get_device_for_pool(pool['id'], context)
             if (pool['vip_id'] and
                     device_addr):
                 self._delete_pool(pool, device_addr)
@@ -658,10 +662,10 @@ class HaproxyOnVmDriver(BaseDriver):
             msg = ("Deleted pool: %s." % pool['id'])
             LOG.emit("info", msg)
 
-    def create_member(self, member):
+    def create_member(self, member, context):
         # create the member
         try:
-            device_addr = self._get_device_for_pool(member['pool_id'])
+            device_addr = self._get_device_for_pool(member['pool_id'], context)
             if device_addr is not None:
                 self._create_member(member, device_addr)
         except Exception as err:
@@ -672,10 +676,11 @@ class HaproxyOnVmDriver(BaseDriver):
             msg = ("Created member %s." % member['id'])
             LOG.emit("info", msg)
 
-    def update_member(self, old_member, member):
+    def update_member(self, old_member, member, context):
         # delete the old_member
         try:
-            device_addr = self._get_device_for_pool(old_member['pool_id'])
+            device_addr = self._get_device_for_pool(old_member['pool_id'],
+                                                    context)
             if device_addr is not None:
                 self._delete_member(old_member, device_addr)
 
@@ -691,10 +696,11 @@ class HaproxyOnVmDriver(BaseDriver):
             msg = ("updated member %s." % member['id'])
             LOG.emit("info", msg)
 
-    def delete_member(self, member):
+    def delete_member(self, member, context):
         # delete the member
         try:
-            device_addr = self._get_device_for_pool(member['pool_id'])
+            device_addr = self._get_device_for_pool(member['pool_id'],
+                                                    context)
             if device_addr is not None:
                 self._delete_member(member, device_addr)
         except Exception as err:
@@ -705,11 +711,11 @@ class HaproxyOnVmDriver(BaseDriver):
             msg = ("Deleted member %s." % member['id'])
             LOG.emit("info", msg)
 
-    def create_pool_health_monitor(self, health_monitor, pool_id):
+    def create_pool_health_monitor(self, health_monitor, pool_id, context):
         print "create_pool_health_monitor" + str(health_monitor) + pool_id
         # create the health_monitor
         try:
-            device_addr = self._get_device_for_pool(pool_id)
+            device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
                 self._create_pool_health_monitor(health_monitor, pool_id,
                                                  device_addr)
@@ -724,9 +730,9 @@ class HaproxyOnVmDriver(BaseDriver):
             LOG.emit("info", msg)
 
     def update_pool_health_monitor(self, old_health_monitor, health_monitor,
-                                   pool_id):
+                                   pool_id, context):
         try:
-            device_addr = self._get_device_for_pool(pool_id)
+            device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
                 # create REST client object
                 client = self._get_rest_client(device_addr)
@@ -753,11 +759,10 @@ class HaproxyOnVmDriver(BaseDriver):
                    % (str(old_health_monitor), str(health_monitor), pool_id))
             LOG.emit("info", msg)
 
-    def delete_pool_health_monitor(self, health_monitor, pool_id):
-        print "delete_pool_health_monitor" + str(health_monitor) + pool_id
+    def delete_pool_health_monitor(self, health_monitor, pool_id, context):
         # delete the health_monitor
         try:
-            device_addr = self._get_device_for_pool(pool_id)
+            device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
                 self._delete_pool_health_monitor(health_monitor, pool_id,
                                                  device_addr)
