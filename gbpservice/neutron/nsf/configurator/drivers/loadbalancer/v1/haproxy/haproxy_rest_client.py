@@ -34,7 +34,7 @@ class RestClientException(Exception):
         """
         msg = ("REST Request failed for URL: %s, Method: "
                "%s and Response Code: %s" % (url, method, status))
-        LOG.emit("error", msg)
+        LOG.error(msg)
         super(RestClientException, self).__init__(self, msg)
         self.status = status
         self.method = method
@@ -66,7 +66,7 @@ class HttpRequests(object):
         except Exception as err:
             msg = ("Failed in performing HTTP request. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
         return response
 
     def request(self, method, uri, body=None,
@@ -85,22 +85,22 @@ class HttpRequests(object):
 
             msg = ("Request: %s, URI: %s executed."
                    % (method, (self.rest_server_url + uri)))
-            LOG.emit("debug", msg)
+            LOG.debug(msg)
         except httplib.IncompleteRead as err:
             response = err.partial
             msg = ("Request failed in REST Api Server. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
         except Exception as err:
             msg = ("Request failed in REST Api Server. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
 
         if response is None:
             # Request was timed out.
             msg = ("Response is Null, Request for method: %s to "
                    "URI: %s timed out" % (method, uri))
-            LOG.emit("error", msg)
+            LOG.error(msg)
             # TODO(Magesh): Use constants defined in requests or httplib
             # for checking error codes
             raise RestClientException(status=408, method=method, url=url)
@@ -115,13 +115,13 @@ class HttpRequests(object):
             msg = ("Unexpected response code %s from REST "
                    "API Server for %s to %s"
                    % (status, method, url))
-            LOG.emit("error", msg)
+            LOG.error(msg)
             raise RestClientException(status=status, method=method,
                                       url=self.rest_server_url + uri)
         else:
             msg = ("Success: %s, url: %s and status: %s"
                    % (method, (self.rest_server_url + uri), status))
-            LOG.emit("debug", msg)
+            LOG.debug(msg)
         response.body = response.content
         return response
 

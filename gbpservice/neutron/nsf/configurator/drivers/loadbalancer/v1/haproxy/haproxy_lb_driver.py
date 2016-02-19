@@ -42,12 +42,13 @@ LOG = logging.getLogger(__name__)
 
 
 class HaproxyOnVmDriver(BaseDriver):
+    pool_to_device = {}
+
     def __init__(self, conf, plugin_rpc):
         self.conf = conf
         self.context = context.get_admin_context_without_session()
 
         self.plugin_rpc = plugin_rpc
-        self.pool_to_device = {}
 
     def _get_rest_client(self, ip_addr):
         client = haproxy_rest_client.HttpRequests(
@@ -56,23 +57,26 @@ class HaproxyOnVmDriver(BaseDriver):
         return client
 
     def _get_device_for_pool(self, pool_id, context):
-        device = self.pool_to_device.get(pool_id, None)
+        device = HaproxyOnVmDriver.pool_to_device.get(pool_id, None)
         if device is not None:
             return device
 
-        logical_device = self.plugin_rpc.get_logical_device(pool_id, context)
+        logical_device = self.plugin_rpc.get_logical_device(pool_id,
+                                                            context)
         vip = logical_device.get('vip', None)
         if vip is None:
             return None
         else:
-            vip_desc = json.loads(vip['description'])
+            #  vip_desc = json.loads(vip['description'])
+            vip_desc = vip['description']
             device = vip_desc['floating_ip']
             if device:
-                self.pool_to_device[pool_id] = device
+                HaproxyOnVmDriver.pool_to_device[pool_id] = device
                 return device
 
     def _get_interface_mac(self, vip):
-        vip_desc = json.loads(vip['description'])
+        #vip_desc = json.loads(vip['description'])
+        vip_desc = vip['description']
         return vip_desc['provider_interface_mac']
 
     def _expand_expected_codes(self, codes):
@@ -118,7 +122,7 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to prepare frontend. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
         return frontend
 
     def _prepare_haproxy_backend(self, pool):
@@ -192,7 +196,7 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to prepare backend. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
 
     def _prepare_haproxy_backend_with_member(self, member, backend):
         logical_device = self.plugin_rpc.get_logical_device(member['pool_id'])
@@ -216,7 +220,7 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
                 msg = ("Failed to prepare haproxy backend with member. %s"
                        % str(err).capitalize())
-                LOG.emit("error", msg)
+                LOG.error(msg)
         if (vip.get('session_persistence') and
                 vip['session_persistence']['type'] == 'HTTP_COOKIE'):
             backend['server'][member['id']].append(
@@ -255,7 +259,7 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to add health monitor to pool. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
         return backend
 
     def _prepare_backend_deleting_health_monitor_from_pool(self,
@@ -298,7 +302,7 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to delete health monitor from pool %s. %s"
                    % (pool_id, str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
 
         return backend
 
@@ -375,7 +379,7 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to create pool. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
 
     def _delete_pool(self, pool, device_addr):
         # create REST client object
@@ -488,7 +492,7 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to deploy instance. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
 
     def undeploy_instance(self, pool_id):
         try:
@@ -500,7 +504,7 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to undeploy instance. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
 
     def remove_orphans(self, pol_ids):
         raise NotImplementedError
@@ -509,11 +513,11 @@ class HaproxyOnVmDriver(BaseDriver):
         stats = {}
         try:
             # if pool is not known, do nothing
-            device = self.pool_to_device.get(pool_id, None)
+            device = HaproxyOnVmDriver.pool_to_device.get(pool_id, None)
             if device is None:
                 return stats
 
-            device_addr = self._get_device_for_pool(pool_id)
+            device_addr = self._get_device_for_pool(pool_id, None)
 
             # create REST client object
             client = self._get_rest_client(device_addr)
@@ -528,11 +532,12 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to get stats. %s"
                    % str(err).capitalize())
-            LOG.emit("error", msg)
+            LOG.error(msg)
 
         return stats
 
     def create_vip(self, vip, context):
+        LOG.info(" create vip [vip=%s ]" % (vip))
         try:
             device_addr = self._get_device_for_pool(vip['pool_id'], context)
             logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'],
@@ -549,12 +554,13 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to create vip %s. %s"
                    % (vip['id'], str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Created vip %s." % vip['id'])
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def update_vip(self, old_vip, vip, context):
+        LOG.info(" update vip [old_vip=%s, vip=%s ]" % (old_vip, vip))
         try:
             device_addr = self._get_device_for_pool(old_vip['pool_id'],
                                                     context)
@@ -567,6 +573,9 @@ class HaproxyOnVmDriver(BaseDriver):
 
             # is vip's pool changed
             if not vip['pool_id'] == old_vip['pool_id']:
+                LOG.info(" vip pool id changed. first deleting old vip "
+                         " [old pool=%s, new pool=%s]" % (old_vip['pool_id'],
+                                                          vip['pool_id']))
                 # Delete the old VIP
                 self._delete_vip(old_vip, device_addr)
 
@@ -590,12 +599,13 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to update vip %s. %s"
                    % (vip['id'], str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Updated vip %s." % vip['id'])
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def delete_vip(self, vip, context):
+        LOG.info(" delete vip [vip=%s ]" % (vip))
         try:
             device_addr = self._get_device_for_pool(vip['pool_id'], context)
             logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'],
@@ -610,17 +620,18 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to delete vip %s. %s"
                    % (vip['id'], str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Deleted vip %s." % vip['id'])
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def create_pool(self, pool, context):
         # nothing to do here because a pool needs a vip to be useful
-        LOG.info("[haproxy_lb_driver]: Pool create called")
+        LOG.info("create pool [pool=%s]" % (pool))
         pass
 
     def update_pool(self, old_pool, pool, context):
+        LOG.info("update pool [old_pool=%s, pool=%s]" % (old_pool, pool))
         try:
             device_addr = self._get_device_for_pool(pool['id'], context)
             if (pool['vip_id'] and
@@ -637,16 +648,17 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to update pool from %s to %s. %s"
                    % (old_pool['id'], pool['id'], str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Updated pool from %s to %s."
                    % (old_pool['id'], pool['id']))
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def delete_pool(self, pool, context):
         # if pool is not known, do nothing
+        LOG.info("delete pool [pool=%s]" % (pool))
         try:
-            device = self.pool_to_device.get(pool['id'], None)
+            device = HaproxyOnVmDriver.pool_to_device.get(pool['id'], None)
             if device is None:
                 return
 
@@ -657,27 +669,29 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to delete pool: %s. %s"
                    % (pool['id'], str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Deleted pool: %s." % pool['id'])
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def create_member(self, member, context):
-        # create the member
+        LOG.info(" create member [member=%s] " % (member))
         try:
             device_addr = self._get_device_for_pool(member['pool_id'], context)
+            LOG.info(" create_member device_adds is %s " % (device_addr))
             if device_addr is not None:
                 self._create_member(member, device_addr)
         except Exception as err:
             msg = ("Failed to create member %s. %s"
                    % (member['id'], str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Created member %s." % member['id'])
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def update_member(self, old_member, member, context):
-        # delete the old_member
+        LOG.info(" update member [old_member=%, member=%s] " % (old_member,
+                                                                member))
         try:
             device_addr = self._get_device_for_pool(old_member['pool_id'],
                                                     context)
@@ -691,13 +705,13 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to update member %s. %s"
                    % (member['id'], str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("updated member %s." % member['id'])
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def delete_member(self, member, context):
-        # delete the member
+        LOG.info(" delete member [member=%s] " % (member))
         try:
             device_addr = self._get_device_for_pool(member['pool_id'],
                                                     context)
@@ -706,14 +720,15 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception as err:
             msg = ("Failed to delete member %s. %s"
                    % (member['id'], str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Deleted member %s." % member['id'])
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def create_pool_health_monitor(self, health_monitor, pool_id, context):
-        print "create_pool_health_monitor" + str(health_monitor) + pool_id
         # create the health_monitor
+        LOG.info("create pool health monitor [hm=%s, pool_id=%s]"
+                 % (health_monitor, pool_id))
         try:
             device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
@@ -723,14 +738,16 @@ class HaproxyOnVmDriver(BaseDriver):
             msg = ("Failed to create pool health monitor: %s with "
                    "pool ID: %s. %s"
                    % (str(health_monitor), pool_id, str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Created pool health monitor: %s with pool ID: %s"
                    % (str(health_monitor), pool_id))
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def update_pool_health_monitor(self, old_health_monitor, health_monitor,
                                    pool_id, context):
+        LOG.info("update pool health monitor [old_hm=%s, hm=%s, pool_id=%s]"
+                 % (old_health_monitor, health_monitor, pool_id))
         try:
             device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
@@ -753,14 +770,15 @@ class HaproxyOnVmDriver(BaseDriver):
                    "%s for pool: %s. %s"
                    % (str(old_health_monitor), str(health_monitor),
                       pool_id, str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Updated health monitor from %s to %s for pool: %s"
                    % (str(old_health_monitor), str(health_monitor), pool_id))
-            LOG.emit("info", msg)
+            LOG.info(msg)
 
     def delete_pool_health_monitor(self, health_monitor, pool_id, context):
-        # delete the health_monitor
+        LOG.info("delete pool health monitor [hm=%s, pool_id=%s]"
+                 % (health_monitor, pool_id))
         try:
             device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
@@ -770,8 +788,8 @@ class HaproxyOnVmDriver(BaseDriver):
             msg = ("Failed to delete pool health monitor: %s with "
                    "pool ID: %s. %s"
                    % (str(health_monitor), pool_id, str(err).capitalize()))
-            LOG.emit("error", msg)
+            LOG.error(msg)
         else:
             msg = ("Deleted pool health monitor: %s with pool ID: %s"
                    % (str(health_monitor), pool_id))
-            LOG.emit("info", msg)
+            LOG.info(msg)

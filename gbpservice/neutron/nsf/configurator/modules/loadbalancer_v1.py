@@ -14,6 +14,8 @@ from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
 from gbpservice.neutron.nsf.configurator.drivers.loadbalancer.v1.\
  haproxy.haproxy_lb_driver import HaproxyOnVmDriver
 
+from gbpservice.neutron.nsf.configurator.lib.filter import Filter
+from gbpservice.neutron.nsf.configurator.lib.lb_context import Context
 LOG = logging.getLogger(__name__)
 
 
@@ -21,7 +23,7 @@ class DeviceNotFoundOnAgent(n_exc.NotFound):
     msg = _('Unknown device with pool_id %(pool_id)s')
 
 
-class LBaasRpcSender(object):
+class LBaasRpcSender(Filter):
     """Agent side of the Agent to Plugin RPC API."""
 
     API_VERSION = '2.0'
@@ -32,16 +34,20 @@ class LBaasRpcSender(object):
     #       - pool_deployed() and update_status() methods added;
 
     def __init__(self, topic, context, host):
-        '''TODO:(pritam) Call constructor of Filter class
         super(LBaasRpcSender, self).__init__(topic, self.API_VERSION)
-        '''
         self.context = context
         self.host = host
 
-    def get_logical_device(self, pool_id):
+    def get_logical_device(self, pool_id, context=None):
         # Call goes to filter library
+        '''TODO:(pritam) Remove creation of local context'''
+        context = {}
+        c = Context()
+        service_info = c.get_service_info()
+        context['service_info'] = service_info
+
         return self.call(
-            self.context,
+            context,
             self.make_msg(
                 'get_logical_device',
                 pool_id=pool_id
@@ -103,10 +109,9 @@ class LBaasRpcReceiver(object):
     def create_vip(self, context, vip):
 
         arg_dict = {'context': context,
-                    'vip': vip
-                    # TODO:(pritam)
-                    # 'serialize': True,
-                    # 'binding_key': vip['id']
+                    'vip': vip,
+                    'serialize': True,
+                    'binding_key': vip['pool_id']
                     }
         ev = self._sc.event(id='CREATE_VIP', data=arg_dict)
         self._sc.rpc_event(ev)
@@ -114,14 +119,20 @@ class LBaasRpcReceiver(object):
     def update_vip(self, context, old_vip, vip):
         arg_dict = {'context': context,
                     'old_vip': old_vip,
-                    'vip': vip}
+                    'vip': vip,
+                    'serialize': True,
+                    'binding_key': vip['pool_id']
+                    }
         ev = self._sc.event(id='UPDATE_VIP', data=arg_dict)
         self._sc.rpc_event(ev)
 
     def delete_vip(self, context, vip):
 
         arg_dict = {'context': context,
-                    'vip': vip}
+                    'vip': vip,
+                    'serialize': True,
+                    'binding_key': vip['pool_id']
+                    }
         ev = self._sc.event(id='DELETE_VIP', data=arg_dict)
         self._sc.rpc_event(ev)
 
@@ -129,14 +140,20 @@ class LBaasRpcReceiver(object):
 
         arg_dict = {'context': context,
                     'pool': pool,
-                    'driver_name': driver_name}
+                    'driver_name': driver_name,
+                    'serialize': True,
+                    'binding_key': pool['id']
+                    }
         ev = self._sc.event(id='CREATE_POOL', data=arg_dict)
         self._sc.rpc_event(ev)
 
     def update_pool(self, context, old_pool, pool):
         arg_dict = {'context': context,
                     'old_pool': old_pool,
-                    'pool': pool}
+                    'pool': pool,
+                    'serialize': True,
+                    'binding_key': pool['id']
+                    }
 
         ev = self._sc.event(id='UPDATE_POOL', data=arg_dict)
         self._sc.rpc_event(ev)
@@ -144,27 +161,39 @@ class LBaasRpcReceiver(object):
     def delete_pool(self, context, pool):
 
         arg_dict = {'context': context,
-                    'pool': pool}
+                    'pool': pool,
+                    'serialize': True,
+                    'binding_key': pool['id']
+                    }
         ev = self._sc.event(id='DELETE_POOL', data=arg_dict)
         self._sc.rpc_event(ev)
 
     def create_member(self, context, member):
 
         arg_dict = {'context': context,
-                    'member': member}
+                    'member': member,
+                    'serialize': True,
+                    'binding_key': member['pool_id']
+                    }
         ev = self._sc.event(id='CREATE_MEMBER', data=arg_dict)
         self._sc.rpc_event(ev)
 
     def update_member(self, context, old_member, member):
         arg_dict = {'context': context,
                     'old_member': old_member,
-                    'member': member}
+                    'member': member,
+                    'serialize': True,
+                    'binding_key': member['pool_id']
+                    }
         ev = self._sc.event(id='UPDATE_MEMBER', data=arg_dict)
         self._sc.rpc_event(ev)
 
     def delete_member(self, context, member):
         arg_dict = {'context': context,
-                    'member': member}
+                    'member': member,
+                    'serialize': True,
+                    'binding_key': member['pool_id']
+                    }
         ev = self._sc.event(id='DELETE_MEMBER', data=arg_dict)
         self._sc.rpc_event(ev)
 
@@ -172,7 +201,10 @@ class LBaasRpcReceiver(object):
 
         arg_dict = {'context': context,
                     'health_monitor': health_monitor,
-                    'pool_id': pool_id}
+                    'pool_id': pool_id,
+                    'serialize': True,
+                    'binding_key': pool_id
+                    }
         ev = self._sc.event(id='CREATE_POOL_HEALTH_MONITOR', data=arg_dict)
         self._sc.rpc_event(ev)
 
@@ -181,7 +213,10 @@ class LBaasRpcReceiver(object):
         arg_dict = {'context': context,
                     'old_health_monitor': old_health_monitor,
                     'health_monitor': health_monitor,
-                    'pool_id': pool_id}
+                    'pool_id': pool_id,
+                    'serialize': True,
+                    'binding_key': pool_id
+                    }
         ev = self._sc.event(id='UPDATE_POOL_HEALTH_MONITOR', data=arg_dict)
         self._sc.rpc_event(ev)
 
@@ -189,7 +224,10 @@ class LBaasRpcReceiver(object):
 
         arg_dict = {'context': context,
                     'health_monitor': health_monitor,
-                    'pool_id': pool_id}
+                    'pool_id': pool_id,
+                    'serialize': True,
+                    'binding_key': pool_id
+                    }
         ev = self._sc.event(id='DELETE_POOL_HEALTH_MONITOR', data=arg_dict)
         self._sc.rpc_event(ev)
 
@@ -205,6 +243,7 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
     """Handler class for demultiplexing LBaaS rpc requests
     from LBaaS plugin and sending to appropriate driver.
     """
+    instance_mapping = {}
 
     def __init__(self, sc, drivers):
         self._sc = sc
@@ -213,14 +252,15 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
         self.plugin_rpc = LBaasRpcSender(const.LBAAS_AGENT_RPC_TOPIC,
                                          self.context,
                                          cfg.CONF.host)
-        self.instance_mapping = {}
 
     def _get_driver(self, pool_id):
-        if pool_id not in self.instance_mapping:
+        return self.drivers['haproxy_on_vm']
+        '''
+        if pool_id not in LBaasHandler.instance_mapping:
             raise DeviceNotFoundOnAgent(pool_id=pool_id)
-
-        driver_name = self.instance_mapping[pool_id]
+        driver_name = LBaasHandler.instance_mapping[pool_id]
         return self.drivers[driver_name]
+        '''
 
     def handle_event(self, ev):
         try:
@@ -251,7 +291,7 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
         vip = data['vip']
         driver = self._get_driver(vip['pool_id'])
         try:
-            driver.create_vip(vip,context)
+            driver.create_vip(vip, context)
         except Exception:
             self._handle_failed_driver_call('create', 'vip', vip['id'],
                                             driver.get_name())
@@ -302,7 +342,7 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
                                             pool['id'],
                                             driver.get_name())
         else:
-            self.instance_mapping[pool['id']] = driver_name
+            LBaasHandler.instance_mapping[pool['id']] = driver_name
             self.plugin_rpc.update_status('pool', pool['id'],
                                           const.ACTIVE)
 
@@ -332,7 +372,7 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
             driver.delete_pool(pool, context)
         except Exception:
             LOG.warn(_("Failed to delete pool %s"), pool['id'])
-        del self.instance_mapping[pool['id']]
+        del LBaasHandler.instance_mapping[pool['id']]
 
     def _create_member(self, ev):
         data = ev.data
@@ -444,8 +484,8 @@ class LBaasHandler(core_periodic_task.PeriodicTasks):
 
     @core_periodic_task.periodic_task(event='COLLECT_STATS', spacing=60)
     def collect_stats(self, ev):
-        for pool_id, driver_name in self.instance_mapping.items():
-            driver = self.device_drivers[driver_name]
+        for pool_id, driver_name in LBaasHandler.instance_mapping.items():
+            driver = self.drivers[driver_name]
             try:
                 stats = driver.get_stats(pool_id)
                 if stats:
