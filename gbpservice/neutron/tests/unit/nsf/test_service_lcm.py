@@ -209,7 +209,10 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "get_service_details")
-    def test_delete_network_function_with_nfi(self, mock_get_service_details):
+    @mock.patch.object(
+        service_lcm.ServiceLifeCycleHandler, "_create_event")
+    def test_delete_network_function_with_nfi(self, mock_create_event,
+                                              mock_get_service_details):
         service_details = mock.Mock()
         mock_get_service_details.return_value = service_details
         network_function_instance = self.create_network_function_instance()
@@ -226,10 +229,13 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             network_function = self.nfp_db.get_network_function(
                 self.session, network_function_id)
             self.assertEqual('PENDING_DELETE', network_function['status'])
-            self.controller.event.assert_called_once_with(
-                id='DELETE_NETWORK_FUNCTION_INSTANCE',
-                data=network_function_instance['id'])
-            self.controller.rpc_event.assert_called_once_with(mock.ANY)
+            request_data = {
+                'heat_stack_id': network_function['heat_stack_id'],
+                'network_function_id': network_function_id
+            }
+            mock_create_event.assert_called_once_with(
+                'DELETE_USER_CONFIG_IN_PROGRESS',
+                event_data=request_data)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
@@ -314,7 +320,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         self.assertEqual(nfd['id'], db_nfi['network_function_device_id'])
         self.assertIsNotNone(db_nf['heat_stack_id'])
         mock_create_event.assert_called_once_with(
-            'USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
+            'APPLY_USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
 
     def test_event_handle_device_create_failed(self):
         nfd = self.create_network_function_device()
@@ -408,10 +414,33 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         self.assertEqual('ERROR', db_nf['status'])
 
     @mock.patch.object(
+        service_lcm.ServiceLifeCycleHandler, "_create_event")
+    def test_event_handle_user_config_deleted(self, mock_create_event):
+        nfi = self.create_network_function_instance()
+        request_data = {
+            'network_function_id': nfi['network_function_id']
+        }
+        test_event = Event(data=request_data)
+        self.service_lc_handler.handle_user_config_deleted(test_event)
+        mock_create_event.assert_called_once_with(
+            'DELETE_NETWORK_FUNCTION_INSTANCE', event_data=nfi['id'])
+
+    def test_event_handle_user_config_delete_failed(self):
+        network_function = self.create_network_function()
+        request_data = {
+            'network_function_id': network_function['id']
+        }
+        test_event = Event(data=request_data)
+        self.service_lc_handler.handle_user_config_delete_failed(test_event)
+        db_nf = self.nfp_db.get_network_function(
+            self.session, network_function['id'])
+        self.assertEqual('ERROR', db_nf['status'])
+
+    @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "get_service_details")
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
-    def test_delete_network_function(self, mock_create_event, 
+    def test_delete_network_function(self, mock_create_event,
                                      mock_get_service_details):
         service_details = mock.Mock()
         mock_get_service_details.return_value = service_details
@@ -431,8 +460,12 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual('PENDING_DELETE', db_nf['status'])
+            event_data= {
+                'heat_stack_id': network_function['heat_stack_id'],
+                'network_function_id': network_function['id']
+            }
             mock_create_event.assert_called_once_with(
-                'DELETE_NETWORK_FUNCTION_INSTANCE', event_data=nfi['id'])
+                'DELETE_USER_CONFIG_IN_PROGRESS', event_data=event_data)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
@@ -489,7 +522,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         mock_handle_policy_target_added.assert_called_once_with(
             mock.ANY, policy_target)
         mock_create_event.assert_called_once_with(
-            'USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
+            'APPLY_USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "get_service_details")
@@ -512,7 +545,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         mock_handle_pt_removed.assert_called_once_with(
             mock.ANY, policy_target)
         mock_create_event.assert_called_once_with(
-            'USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
+            'APPLY_USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "get_service_details")
@@ -535,7 +568,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         mock_handle_consumer_ptg_added.assert_called_once_with(
             mock.ANY, policy_target_group)
         mock_create_event.assert_called_once_with(
-            'USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
+            'APPLY_USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "get_service_details")
@@ -558,4 +591,4 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         mock_handle_consumer_ptg_removed.assert_called_once_with(
             mock.ANY, policy_target_group)
         mock_create_event.assert_called_once_with(
-            'USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)
+            'APPLY_USER_CONFIG_IN_PROGRESS', event_data=mock.ANY, is_poll_event=True)

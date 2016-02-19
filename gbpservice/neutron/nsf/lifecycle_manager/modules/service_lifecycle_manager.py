@@ -37,9 +37,10 @@ def rpc_init(controller, config):
 def events_init(controller, config, service_lifecycle_handler):
     events = ['DELETE_NETWORK_FUNCTION', 'CREATE_NETWORK_FUNCTION_INSTANCE',
               'DELETE_NETWORK_FUNCTION_INSTANCE', 'DEVICE_ACTIVE',
-              'DEVICE_DELETED', 'USER_CONFIG_IN_PROGRESS',
-              'USER_CONFIG_APPLIED', 'DEVICE_CREATE_FAILED',
-              'USER_CONFIG_FAILED']
+              'DEVICE_DELETED', 'APPLY_USER_CONFIG_IN_PROGRESS',
+              'DELETE_USER_CONFIG_IN_PROGRESS' 'USER_CONFIG_APPLIED',
+              'USER_CONFIG_DELETED', 'USER_CONFIG_DELETE_FAILED',
+              'DEVICE_CREATE_FAILED', 'USER_CONFIG_FAILED']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -131,8 +132,13 @@ class ServiceLifeCycleHandler(object):
             "CREATE_NETWORK_FUNCTION_INSTANCE": (
                 self.create_network_function_instance),
             "DEVICE_ACTIVE": self.handle_device_created,
-            "USER_CONFIG_IN_PROGRESS": self.check_for_user_config_complete,
+            "APPLY_USER_CONFIG_IN_PROGRESS": (
+                self.check_for_user_config_complete),
             "USER_CONFIG_APPLIED": self.handle_user_config_applied,
+            "DELETE_USER_CONFIG_IN_PROGRESS": (
+                self.check_for_user_config_deleted),
+            "USER_CONFIG_DELETED": self.handle_user_config_deleted,
+            "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
             "DEVICE_DELETED": self.handle_device_deleted,
             "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
             "USER_CONFIG_FAILED": self.handle_user_config_failed
@@ -176,7 +182,7 @@ class ServiceLifeCycleHandler(object):
             admin_token, service_profile_id)
         service_chain_id = network_function_info.get('service_chain_id')
         name = "%s.%s.%s" % (service_profile['service_type'],
-                             service_profile['vendor'],
+                             service_profile['service_flavor'],
                              service_chain_id or service_id)
         network_function = {
             'name': name,
@@ -216,7 +222,7 @@ class ServiceLifeCycleHandler(object):
             'network_function_port_info': network_function_port_info,
             'management_network_info': management_network_info,
             'service_type': service_profile['service_type'],
-            'service_vendor': service_profile['vendor'],
+            'service_vendor': service_profile['service_flavor'],
             'share_existing_device': service_profile.get('unique_device', True)
         }
         # Create and event to perform Network service instance
@@ -246,12 +252,12 @@ class ServiceLifeCycleHandler(object):
         service_details = self.get_service_details(nfi)
         self.config_driver.delete(service_details,
                                   network_function_info['heat_stack_id'])
-        # Should we wait for stack delete here or atleast give some time
-        # for processing the delete ? Change to Delete_failed or continue with
-        # instance and device delete if config delete fails??
-        for nfi_id in network_function_info['network_function_instances']:
-            self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
-                               event_data=nfi_id)
+        request_data = {
+            'heat_stack_id': network_function_info['heat_stack_id'],
+            'network_function_id': network_function_id
+        }
+        self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
+                            event_data=request_data)
 
     def create_network_function_instance(self, event):
         request_data = event.data
@@ -297,7 +303,7 @@ class ServiceLifeCycleHandler(object):
             self.db_session, nfi['network_function_id'],
             {'heat_stack_id': request_data['heat_stack_id']})
         request_data['network_function_id'] = nfi['network_function_id']
-        self._create_event('USER_CONFIG_IN_PROGRESS',
+        self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True)
 
@@ -422,6 +428,32 @@ class ServiceLifeCycleHandler(object):
         elif config_status == "IN_PROGRESS":
             return
 
+    def check_for_user_config_deleted(self, event):
+        request_data = event.data
+        config_status = self.config_driver.is_config_delete_complete(
+            request_data['heat_stack_id'])
+        if config_status == "ERROR":
+            event_data = {
+                'network_function_id': request_data['network_function_id']
+            }
+            self._create_event('USER_CONFIG_DELETE_FAILED',
+                                event_data=event_data)
+            # Trigger RPC to notify the Create_Service caller with status
+        elif config_status == "COMPLETED":
+            updated_network_function = {'heat_stack_id': None}
+            network_function = self.db_handler.update_network_function(
+                self.db_session,
+                request_data['network_function_id'],
+                updated_network_function)
+            event_data = {
+                'network_function_id': request_data['network_function_id']
+            }
+            self._create_event('USER_CONFIG_DELETED',
+                                event_data=event_data)
+            # Trigger RPC to notify the Create_Service caller with status
+        elif config_status == "IN_PROGRESS":
+            return
+
     def handle_user_config_applied(self, event):
         request_data = event.data
         network_function = {
@@ -445,6 +477,28 @@ class ServiceLifeCycleHandler(object):
             request_data['network_function_id'],
             updated_network_function)
         # Trigger RPC to notify the Create_Service caller with status
+
+    def handle_user_config_deleted(self, event):
+        request_data = event.data
+        network_function = self.db_handler.get_network_function(
+            self.db_session,
+            request_data['network_function_id'])
+        for nfi_id in network_function['network_function_instances']:
+            self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
+                               event_data=nfi_id)
+
+    # Change to Delete_failed or continue with instance and device
+    # delete if config delete fails? or status CONFIG_DELETE_FAILED ??
+    def handle_user_config_delete_failed(self, event):
+        request_data = event.data
+        updated_network_function = {
+            'status': 'ERROR',
+        }
+        self.db_handler.update_network_function(
+            self.db_session,
+            request_data['network_function_id'],
+            updated_network_function)
+        # Trigger RPC to notify the Create_Service caller with status ??
 
     # When Device LCM deletes Device DB, the Foreign key NSI will be nulled
     # So we have to pass the NSI ID in delete event to device LCM and process
@@ -493,7 +547,7 @@ class ServiceLifeCycleHandler(object):
             'heat_stack_id': config_id,
             'network_function_id': nfi['network_function_id']
         }
-        self._create_event('USER_CONFIG_IN_PROGRESS',
+        self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
     def handle_policy_target_removed(self, context, network_function_id,
@@ -514,7 +568,7 @@ class ServiceLifeCycleHandler(object):
             'heat_stack_id': config_id,
             'network_function_id': nfi['network_function_id']
         }
-        self._create_event('USER_CONFIG_IN_PROGRESS',
+        self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
     def handle_consumer_ptg_added(self, context, network_function_id,
@@ -535,7 +589,7 @@ class ServiceLifeCycleHandler(object):
             'heat_stack_id': config_id,
             'network_function_id': nfi['network_function_id']
         }
-        self._create_event('USER_CONFIG_IN_PROGRESS',
+        self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True)
 
@@ -557,5 +611,5 @@ class ServiceLifeCycleHandler(object):
             'heat_stack_id': config_id,
             'network_function_id': nfi['network_function_id']
         }
-        self._create_event('USER_CONFIG_IN_PROGRESS',
+        self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
