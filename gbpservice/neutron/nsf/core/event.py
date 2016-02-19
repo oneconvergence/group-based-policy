@@ -11,20 +11,18 @@
 #    under the License.
 
 import os
-import sys
 import time
-
-from Queue import Empty as QEMPTY
-from Queue import Full as QFULL
+import Queue
 
 from oslo_log import log as oslo_logging
-from oslo_config import cfg as oslo_config
-from gbpservice.neutron.nsf.core import threadpool as nfp_tp
+
+from gbpservice.neutron.nsf.core import common as nfp_common
 from gbpservice.neutron.nsf.core import poll as nfp_poll
-from gbpservice.neutron.nsf.core.common import *
+from gbpservice.neutron.nsf.core import threadpool as nfp_tp
 
 LOG = oslo_logging.getLogger(__name__)
 PID = os.getpid()
+identify = nfp_common.identify
 
 """ Definition of an 'EVENT' in NFP framework.
 
@@ -165,7 +163,7 @@ class EventQueueHandler(object):
                 "checking the event Q"))
             try:
                 ev = self._evq.get(timeout=0.1)
-            except QEMPTY:
+            except Queue.Empty:
                 pass
             if ev:
                 LOG.debug(_(

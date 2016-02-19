@@ -10,28 +10,24 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import os
-import sys
-import time
 import copy
-import six
+import os
+import Queue
 import random
+import six
+import time
 
-from Queue import Empty as QEMPTY
-from Queue import Full as QFULL
-
-from oslo_log import log as oslo_logging
 from oslo_config import cfg as oslo_config
-from oslo_service import periodic_task as oslo_periodic_task
+from oslo_log import log as oslo_logging
 from oslo_service import loopingcall as oslo_looping_call
+from oslo_service import periodic_task as oslo_periodic_task
 
-from gbpservice.neutron.nsf.core import threadpool as nfp_tp
+from gbpservice.neutron.nsf.core import common as nfp_common
 from gbpservice.neutron.nsf.core import fifo as nfp_fifo
-from gbpservice.neutron.nsf.core.common import *
 
 LOG = oslo_logging.getLogger(__name__)
 PID = os.getpid()
-
+identify = nfp_common.identify
 
 """ Decorator definition """
 
@@ -62,7 +58,7 @@ class _Meta(type):
         for value in cls.__dict__.values():
             if getattr(value, '_desc', False):
                 desc = value
-                name = desc.__name__
+                # name = desc.__name__
                 cls._poll_event_descs[desc._event] = desc
 
 """ Implements the logic to manage periodicity of events.
@@ -194,7 +190,7 @@ class PollQueueHandler(object):
         """
         try:
             return self._pollq.get(timeout=0.1)
-        except QEMPTY:
+        except Queue.Empty:
             return None
 
     def _cancelled(self, ev):

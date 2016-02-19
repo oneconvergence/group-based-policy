@@ -11,14 +11,10 @@
 #    under the License.
 
 import os
-import time
 import sys
-import copy
-import threading
 from operator import itemgetter
 
 import eventlet
-eventlet.monkey_patch()
 
 import multiprocessing
 from multiprocessing import Process as mp_process
@@ -28,21 +24,29 @@ from multiprocessing import Lock as mp_lock
 from neutron.agent.common import config as n_config
 from neutron.common import config as n_common_config
 
-from oslo_log import log as oslo_logging
 from oslo_config import cfg as oslo_config
+from oslo_log import log as oslo_logging
 from oslo_service import service as oslo_service
 
+from gbpservice.neutron.nsf.core import common as nfp_common
 from gbpservice.neutron.nsf.core import cfg as nfp_config
+from gbpservice.neutron.nsf.core import event as nfp_event
+from gbpservice.neutron.nsf.core import poll as nfp_poll
+from gbpservice.neutron.nsf.core import rpc as nfp_rpc
 from gbpservice.neutron.nsf.core import rpc_lb as nfp_rpc_lb
-from gbpservice.neutron.nsf.core.event import *
-from gbpservice.neutron.nsf.core.rpc import *
-from gbpservice.neutron.nsf.core.poll import *
-from gbpservice.neutron.nsf.core.common import *
 
+eventlet.monkey_patch()
 
 LOG = oslo_logging.getLogger(__name__)
 NCPUS = multiprocessing.cpu_count()
 PID = os.getpid()
+identify = nfp_common.identify
+Event = nfp_event.Event
+EventSequencer = nfp_event.EventSequencer
+EventQueueHandler = nfp_event.EventQueueHandler
+ReportStateTask = nfp_rpc.ReportStateTask
+PollingTask = nfp_poll.PollingTask
+PollQueueHandler = nfp_poll.PollQueueHandler
 
 
 """ Implements cache of registered event handlers. """
@@ -189,7 +193,7 @@ class Controller(object):
             LOG.info(_("Initializing module %s" % (identify(module))))
             try:
                 module.module_init(self, self._conf)
-            except AttributeError as s:
+            except AttributeError:
                 LOG.error(_("Module %s does not implement"
                             "module_init() method - skipping"
                             % (identify(module))))
@@ -376,5 +380,5 @@ def main():
     sc = Controller(oslo_config.CONF, modules)
     sc.start()
     sc.init_complete()
-    sc.unit_test()
+    # sc.unit_test()
     sc.wait()

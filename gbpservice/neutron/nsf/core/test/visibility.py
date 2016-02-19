@@ -11,19 +11,17 @@
 #    under the License.
 
 import os
-import sys
-import ast
-import json
 import time
 
+from oslo_config import cfg
 from oslo_log import log as logging
+import oslo_messaging as messaging
+
 from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core.rpc import RpcAgent
 from gbpservice.neutron.nsf.core import poll
 from gbpservice.neutron.nsf.core.poll import PollEventDesc
-from oslo_config import cfg
-import oslo_messaging as messaging
-from neutron.common import rpc as n_rpc
+from gbpservice.neutron.nsf.core.rpc import RpcAgent
+
 
 LOG = logging.getLogger(__name__)
 

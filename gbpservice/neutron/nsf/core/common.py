@@ -10,9 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import os
-import sys
-
 
 def _is_class(obj):
     return 'class' in str(type(obj))
@@ -47,6 +44,6 @@ def identify(obj):
     """
     try:
         return "(%s)" % (_name(obj))
-    except:
+    except Exception:
         """ Some unknown type, returning empty """
         return ""
