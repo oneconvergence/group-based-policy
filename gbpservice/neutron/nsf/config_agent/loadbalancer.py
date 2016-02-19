@@ -20,6 +20,7 @@ class Loadbalancer(object):
         self.topic = topics.LB_NSF_PLUGIN_TOPIC
         _target = target.Target(topic=self.topic,
                                 version=self.API_VERSION)
+        n_rpc.init(cfg.CONF)
         self.client = n_rpc.get_client(_target)
         self.cctxt = self.client.prepare(version=self.API_VERSION,
                                          topic=self.topic)
@@ -55,7 +56,7 @@ class Loadbalancer(object):
 
 class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
     RPC_API_VERSION = '1.0'
-    target = target.Target(version=RPC_API_VERSION)
+    _target = target.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
