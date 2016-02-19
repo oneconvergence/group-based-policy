@@ -1,11 +1,11 @@
-import base
+import filter_base
 from gbpservice.neutron.nsf.configurator.lib import filter
 from gbpservice.neutron.nsf.configurator.lib import (
                         filter_constants as constants)
 import mock
 
 
-class FilterTest(base.BaseTestCase):
+class FilterTest(filter_base.BaseTestCase):
     def __init__(self, *args, **kwargs):
         super(FilterTest, self).__init__(*args, **kwargs)
 
@@ -117,11 +117,11 @@ class FilterTest(base.BaseTestCase):
                     {'tenant_id': self.vpnservices[0]['tenant_id'],
                      'vpnservice_id': self.vpnservices[0]['id'],
                      'ipsec_site_connections':
-                                self.ipsec_site_connections[0]['id']})
+                     self.ipsec_site_connections[0]['id']})
 
         expected = {'service': self.vpnservices[0],
                     'siteconns': [{'connection':
-                                        self.ipsec_site_connections[0],
+                                   self.ipsec_site_connections[0],
                                    'ikepolicy': self.ikepolicies[0],
                                    'ipsecpolicy': self.ipsecpolicies[0]
                                    }]}
@@ -140,7 +140,7 @@ class FilterTest(base.BaseTestCase):
 
         expected = {'service': self.vpnservices[0],
                     'siteconns': [{'connection':
-                                        self.ipsec_site_connections[0],
+                                   self.ipsec_site_connections[0],
                                    'ikepolicy': self.ikepolicies[0],
                                    'ipsecpolicy': self.ipsecpolicies[0]
                                    }]}
@@ -156,9 +156,8 @@ class FilterTest(base.BaseTestCase):
                         constants.SERVICE_TYPE_OPENVPN,
                         {'tenant_id': self.vpnservices[0]['tenant_id'],
                          'vpnservice_id': self.vpnservices[0]['id'],
-                         'ipsec_site_connections': 
-                                self.ipsec_site_connections[0]['id']
-                                })
+                         'ipsec_site_connections':
+                         self.ipsec_site_connections[0]['id']})
         expected = {
                      'sslvpnconns': [{
                             'credential': None,
