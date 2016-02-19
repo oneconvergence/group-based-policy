@@ -1,5 +1,4 @@
 import pecan
-import configparser
 import sys
 import json
 from pecan import rest
@@ -13,8 +12,6 @@ import os
 from multiprocessing import Process, Queue, Lock
 from oslo_config import cfg
 import oslo_messaging
-from neutron.agent.common import config
-from neutron.common import config as common_config
 from neutron.common import rpc as n_rpc
 
 import constants
@@ -30,13 +27,12 @@ class Controller(rest.RestController):
         super(Controller, self).__init__()
 
     @expose(method='GET', content_type='application/json')
-    def get(self, **body):
+    def get(self):
         try:
             body = None
             if request.is_body_readable:
                 body = request.json_body
-
-            return self.get_notifications(body)
+            return self._get_notifications(body)
         except Exception as e:
             return json.dumps({'err_msg': e.message})
 
@@ -74,6 +70,13 @@ class Controller(rest.RestController):
                     return self._delete_network_device_config(body)
                 else:
                     return self._delete_network_service_config(body)
+        except Exception as e:
+            return json.dumps({'err_msg': e.message})
+
+    def _get_notifications(self, body):
+        try:
+            return json.dumps(
+                self.rpcclient.get_notifications())
         except Exception as e:
             return json.dumps({'err_msg': e.message})
 
@@ -141,6 +144,11 @@ class RPCClient(object):
         n_rpc.init(cfg.CONF)
         self.client = n_rpc.get_client(target)
 
+    def get_notifications(self):
+
+        cctxt = self.client.prepare(server=self.host)
+        return cctxt.call(self, 'get_notifications')
+
     def create_network_device_config(self, request_data):
         context = request_data['config'][0]['kwargs']['context']
         del request_data['config'][0]['kwargs']['context']
@@ -182,3 +190,6 @@ class RPCClient(object):
         cctxt = self.client.prepare(server=self.host)
         return cctxt.cast(context, 'delete_network_service_config',
                           request_data=request_data)
+
+    def to_dict(self):
+        return {'context': 'context'}

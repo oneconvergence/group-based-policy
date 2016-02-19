@@ -9,7 +9,7 @@ class ControllerResolver(object):
     """this class send parameter to controller class according to query string"""
     device_config = controller.Controller("device_config")
     service_config = controller.Controller("service_config")
-    notifications = controller.Controller("notifications")
+    get_notifications = controller.Controller("get_notifications")
 
 
 class V1Controller(object):

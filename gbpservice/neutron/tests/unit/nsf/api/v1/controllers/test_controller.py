@@ -6,6 +6,15 @@ import mock
 
 class ControllerTestCase(unittest.TestCase):
 
+    def test_get_notifications(self):
+        controller_object = controller.Controller("module_name")
+        rpcclient = controller.RPCClient(topic="topic", host="host")
+        with mock.patch.object(controller_object.rpcclient, 'get_notifications') as rpc_mock:
+            rpc_mock.return_value = True
+            value = controller_object._get_notifications(body=({}))
+            rpc_mock.assert_called_once_with()
+        self.assertEqual(value, 'true')
+
     def test_create_network_device_config(self):
         controller_object = controller.Controller("module_name")
         rpcclient = controller.RPCClient(topic="topic", host="host")
@@ -71,6 +80,17 @@ class ControllerTestCase(unittest.TestCase):
         rpc_mock.assert_called_once_with(
             {"info": {}, "config": [{"resource": "Res", "kwargs": {"context": "context"}}]})
         self.assertEqual(value, 'true')
+
+    def test_get_notifications_rpcclient(self):
+        rpcclient = controller.RPCClient("topic", "host")
+        with mock.patch.object(rpcclient.client, 'call') as rpc_mock,\
+                mock.patch.object(rpcclient.client, 'prepare') as prepare_mock:
+            prepare_mock.return_value = rpcclient.client
+            rpc_mock.return_value = True
+            value = rpcclient.get_notifications()
+        prepare_mock.assert_called_once_with(server="host")
+        rpc_mock.assert_called_once_with(rpcclient, 'get_notifications')
+        self.assertEqual(value, True)
 
     def test_create_network_device_config_rpcclient(self):
         rpcclient = controller.RPCClient("topic", "host")
