@@ -14,12 +14,12 @@
 from heatclient import client as heat_client
 from heatclient import exc as heat_exc
 from oslo_log import log as logging
-#from neutron.openstack.common import log as logging
 
 LOG = logging.getLogger(__name__)
 
 # We are overriding create and update for now because the upstream
 # heat client class does not take timeout as argument
+
 
 class HeatClient():
 

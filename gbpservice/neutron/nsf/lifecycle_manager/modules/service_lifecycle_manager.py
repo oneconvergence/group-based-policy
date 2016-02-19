@@ -37,8 +37,9 @@ def rpc_init(controller, config):
 def events_init(controller, config, service_lifecycle_handler):
     events = ['DELETE_NETWORK_FUNCTION', 'CREATE_NETWORK_FUNCTION_INSTANCE',
               'DELETE_NETWORK_FUNCTION_INSTANCE', 'DEVICE_ACTIVE',
-              'USER_CONFIG_IN_PROGRESS', 'USER_CONFIG_APPLIED',
-              'DEVICE_CREATE_FAILED', 'USER_CONFIG_FAILED']
+              'DEVICE_DELETED', 'USER_CONFIG_IN_PROGRESS',
+              'USER_CONFIG_APPLIED', 'DEVICE_CREATE_FAILED',
+              'USER_CONFIG_FAILED']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -143,11 +144,11 @@ class ServiceLifeCycleHandler(object):
 
     def handle_event(self, event):
         event_handler = self.event_method_mapping(event.id)
-        event_handler(event.data)
+        event_handler(event)
 
     def handle_poll_event(self, event):
         event_handler = self.event_method_mapping(event)
-        event_handler(event.data)
+        event_handler(event)
 
     def _log_event_created(self, event_id, event_data):
         LOG.debug(_("Created event %s(event_name)s with event "
@@ -164,13 +165,12 @@ class ServiceLifeCycleHandler(object):
         self._log_event_created(event_id, event_data)
 
     def create_network_function(self, context, network_function_info):
-        # We have to differentiate GBP vs Neutron *aas and perform
-        # different things here - eg traffic stitching
+        # For neutron mode, we have handle port creation here
         self._validate_create_service_input(context, network_function_info)
         # GBP or Neutron
-        mode = network_function_info.get('network_function_mode')
-        service_profile_id = network_function_info.get('service_profile_id')
-        service_id = network_function_info.get('service_id')
+        mode = network_function_info['network_function_mode']
+        service_profile_id = network_function_info['service_profile_id']
+        service_id = network_function_info['service_id']
         admin_token = self.keystoneclient.get_admin_token()
         service_profile = self.gbpclient.get_service_profile(
             admin_token, service_profile_id)
@@ -240,11 +240,21 @@ class ServiceLifeCycleHandler(object):
         }
         network_function = self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
+        nfi = self.db_handler.get_network_function_instance(
+            self.db_session,
+            network_function_info['network_function_instances'][0])
+        service_details = self.get_service_details(nfi)
+        self.config_driver.delete(service_details,
+                                  network_function_info['heat_stack_id'])
+        # Should we wait for stack delete here or atleast give some time
+        # for processing the delete ? Change to Delete_failed or continue with
+        # instance and device delete if config delete fails??
         for nfi_id in network_function_info['network_function_instances']:
             self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
                                event_data=nfi_id)
 
-    def create_network_function_instance(self, request_data):
+    def create_network_function_instance(self, event):
+        request_data = event.data
         name = '%s.%s' % (request_data['network_function']['name'],
                           request_data['network_function']['id'])
         create_nfi_request = {
@@ -271,7 +281,8 @@ class ServiceLifeCycleHandler(object):
         self._create_event('CREATE_NETWORK_FUNCTION_DEVICE',
                            event_data=create_nfd_request)
 
-    def handle_device_created(self, request_data):
+    def handle_device_created(self, event):
+        request_data = event.data
         nfi = {
             'status': 'ACTIVE',
             'network_function_device_id': request_data[
@@ -290,7 +301,9 @@ class ServiceLifeCycleHandler(object):
                            event_data=request_data,
                            is_poll_event=True)
 
-    def handle_device_create_failed(self, request_data):
+    def handle_device_create_failed(self, event):
+        request_data = event.data
+        LOG.info(_("request data : %s"), request_data)
         nfi = {
             'status': 'ERROR',
             'network_function_device_id': request_data.get(
@@ -309,6 +322,7 @@ class ServiceLifeCycleHandler(object):
         network_function_device = self.db_handler.get_network_function_device(
             self.db_session, nfi['network_function_device_id'])
 
+        heat_stack_id = network_function['heat_stack_id']
         service_profile_id = network_function['service_profile_id']
         admin_token = self.keystoneclient.get_admin_token()
         service_profile = self.gbpclient.get_service_profile(admin_token,
@@ -355,6 +369,7 @@ class ServiceLifeCycleHandler(object):
             'provider_port': provider_port,
             'mgmt_ip': mgmt_ip,
             'policy_target_group': policy_target_group,
+            'heat_stack_id': heat_stack_id,
         }
 
         return service_details
@@ -362,7 +377,8 @@ class ServiceLifeCycleHandler(object):
     def _update_network_function_instance(self):
         pass
 
-    def delete_network_function_instance(self, nfi_id):
+    def delete_network_function_instance(self, event):
+        nfi_id = event.data
         nfi = {'status': 'PENDING_DELETE'}
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, nfi_id, nfi)
@@ -385,7 +401,8 @@ class ServiceLifeCycleHandler(object):
                 raise Exception("Some mandatory arguments for GBP mode are "
                                 "missing in create service request")
 
-    def check_for_user_config_complete(self, request_data):
+    def check_for_user_config_complete(self, event):
+        request_data = event.data
         config_status = self.config_driver.is_config_complete(
             request_data['heat_stack_id'])
         if config_status == "ERROR":
@@ -405,7 +422,8 @@ class ServiceLifeCycleHandler(object):
         elif config_status == "IN_PROGRESS":
             return
 
-    def handle_user_config_applied(self, request_data):
+    def handle_user_config_applied(self, event):
+        request_data = event.data
         network_function = {
             'status': "ACTIVE",
             'heat_stack_id': request_data['heat_stack_id']
@@ -416,7 +434,8 @@ class ServiceLifeCycleHandler(object):
             network_function)
         # Trigger RPC to notify the Create_Service caller with status
 
-    def handle_user_config_failed(self, request_data):
+    def handle_user_config_failed(self, event):
+        request_data = event.data
         updated_network_function = {
             'status': 'ERROR',
             'heat_stack_id': request_data.get('heat_stack_id')
@@ -430,7 +449,8 @@ class ServiceLifeCycleHandler(object):
     # When Device LCM deletes Device DB, the Foreign key NSI will be nulled
     # So we have to pass the NSI ID in delete event to device LCM and process
     # the result based on that
-    def handle_device_deleted(self, request_data):
+    def handle_device_deleted(self, event):
+        request_data = event.data
         nfi_id = request_data['network_function_instance_id']
         nfi = self.db_handler.get_network_function_instance(
             self.db_session, nfi_id)

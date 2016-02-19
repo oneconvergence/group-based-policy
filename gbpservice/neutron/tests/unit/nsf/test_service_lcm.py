@@ -16,6 +16,7 @@
 import mock
 
 from gbpservice.neutron.nsf.common import exceptions as nfp_exc
+from gbpservice.neutron.nsf.core.main import Event
 from gbpservice.neutron.nsf.lifecycle_manager.modules import (
     service_lifecycle_manager as service_lcm)
 from gbpservice.neutron.nsf.lifecycle_manager.openstack import openstack_driver
@@ -206,18 +207,29 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         self.assertFalse(self.controller.event.called)
         self.assertFalse(self.controller.rpc_event.called)
 
-    def test_delete_network_function_with_nfi(self):
+    @mock.patch.object(
+        service_lcm.ServiceLifeCycleHandler, "get_service_details")
+    def test_delete_network_function_with_nfi(self, mock_get_service_details):
+        service_details = mock.Mock()
+        mock_get_service_details.return_value = service_details
         network_function_instance = self.create_network_function_instance()
         network_function_id = network_function_instance['network_function_id']
-        self.service_lc_handler.delete_network_function(
-            self.context, network_function_id)
         network_function = self.nfp_db.get_network_function(
             self.session, network_function_id)
-        self.assertEqual('PENDING_DELETE', network_function['status'])
-        self.controller.event.assert_called_once_with(
-            id='DELETE_NETWORK_FUNCTION_INSTANCE',
-            data=network_function_instance['id'])
-        self.controller.rpc_event.assert_called_once_with(mock.ANY)
+        with mock.patch.object(
+            self.service_lc_handler.config_driver,
+            "delete") as mock_delete:
+            self.service_lc_handler.delete_network_function(
+                self.context, network_function_id)
+            mock_delete.assert_called_once_with(
+                service_details, network_function['heat_stack_id'])
+            network_function = self.nfp_db.get_network_function(
+                self.session, network_function_id)
+            self.assertEqual('PENDING_DELETE', network_function['status'])
+            self.controller.event.assert_called_once_with(
+                id='DELETE_NETWORK_FUNCTION_INSTANCE',
+                data=network_function_instance['id'])
+            self.controller.rpc_event.assert_called_once_with(mock.ANY)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
@@ -249,9 +261,10 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             'service_vendor': 'vendor',
             'share_existing_device': True
         }
+        test_event = Event(data=create_nfi_request)
         self.assertEqual([], network_function['network_function_instances'])
         self.service_lc_handler.create_network_function_instance(
-            create_nfi_request)
+            test_event)
         db_network_function = self.nfp_db.get_network_function(
             self.session, network_function['id'])
         self.assertEqual(
@@ -286,13 +299,14 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             'network_function_instance_id': nfi['id'],
             'network_function_device_id': nfd['id']
         }
+        test_event = Event(data=request_data)
         self.assertIsNone(nfi['network_function_device_id'])
         with mock.patch.object(
             self.service_lc_handler.config_driver,
             "apply_user_config") as mock_apply_user_config:
             mock_apply_user_config.return_value = "stack_id"
             self.service_lc_handler.handle_device_created(
-                request_data)
+                test_event)
         db_nfi = self.nfp_db.get_network_function_instance(
             self.session, nfi['id'])
         db_nf = self.nfp_db.get_network_function(
@@ -309,9 +323,10 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             'network_function_instance_id': nfi['id'],
             'network_function_device_id': nfd['id']
         }
+        test_event = Event(data=request_data)
         self.assertIsNone(nfi['network_function_device_id'])
         self.service_lc_handler.handle_device_create_failed(
-            request_data)
+            test_event)
         db_nfi = self.nfp_db.get_network_function_instance(
             self.session, nfi['id'])
         db_nf = self.nfp_db.get_network_function(
@@ -329,8 +344,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             request_data = {
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
+            test_event = Event(data=request_data)
             self.service_lc_handler.check_for_user_config_complete(
-                request_data)
+                test_event)
             mock_is_config_complete.assert_called_once_with(
                 request_data['heat_stack_id'])
             db_nf = self.nfp_db.get_network_function(
@@ -343,8 +359,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             request_data = {
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
+            test_event = Event(data=request_data)
             self.service_lc_handler.check_for_user_config_complete(
-                request_data)
+                test_event)
             mock_is_config_complete.assert_called_once_with(
                 request_data['heat_stack_id'])
             db_nf = self.nfp_db.get_network_function(
@@ -357,8 +374,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             request_data = {
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
+            test_event = Event(data=request_data)
             self.service_lc_handler.check_for_user_config_complete(
-                request_data)
+                test_event)
             mock_is_config_complete.assert_called_once_with(
                 request_data['heat_stack_id'])
             db_nf = self.nfp_db.get_network_function(
@@ -371,7 +389,8 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             'heat_stack_id': 'heat_stack_id',
             'network_function_id': network_function['id']
         }
-        self.service_lc_handler.handle_user_config_applied(request_data)
+        test_event = Event(data=request_data)
+        self.service_lc_handler.handle_user_config_applied(test_event)
         db_nf = self.nfp_db.get_network_function(
             self.session, network_function['id'])
         self.assertEqual('ACTIVE', db_nf['status'])
@@ -382,26 +401,38 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             'heat_stack_id': 'heat_stack_id',
             'network_function_id': network_function['id']
         }
-        self.service_lc_handler.handle_user_config_failed(request_data)
+        test_event = Event(data=request_data)
+        self.service_lc_handler.handle_user_config_failed(test_event)
         db_nf = self.nfp_db.get_network_function(
             self.session, network_function['id'])
         self.assertEqual('ERROR', db_nf['status'])
 
     @mock.patch.object(
+        service_lcm.ServiceLifeCycleHandler, "get_service_details")
+    @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
-    def test_delete_network_function(self, mock_create_event):
+    def test_delete_network_function(self, mock_create_event, 
+                                     mock_get_service_details):
+        service_details = mock.Mock()
+        mock_get_service_details.return_value = service_details
         nfi = self.create_network_function_instance()
         network_function = self.nfp_db.get_network_function(
             self.session, nfi['network_function_id'])
         self.assertEqual([nfi['id']],
                          network_function['network_function_instances'])
-        self.service_lc_handler.delete_network_function(
-            self.context, network_function['id'])
-        db_nf = self.nfp_db.get_network_function(
-            self.session, network_function['id'])
-        self.assertEqual('PENDING_DELETE', db_nf['status'])
-        mock_create_event.assert_called_once_with(
-            'DELETE_NETWORK_FUNCTION_INSTANCE', event_data=nfi['id'])
+        with mock.patch.object(
+                self.service_lc_handler.config_driver,
+                "delete") as mock_delete:
+            self.service_lc_handler.delete_network_function(
+                self.context, network_function['id'])
+            mock_delete.assert_called_once_with(
+                service_details,
+                network_function['heat_stack_id'])
+            db_nf = self.nfp_db.get_network_function(
+                self.session, network_function['id'])
+            self.assertEqual('PENDING_DELETE', db_nf['status'])
+            mock_create_event.assert_called_once_with(
+                'DELETE_NETWORK_FUNCTION_INSTANCE', event_data=nfi['id'])
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
@@ -411,8 +442,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             self.session, nfi['network_function_id'])
         self.assertEqual([nfi['id']],
                          network_function['network_function_instances'])
+        test_event = Event(data=nfi['id'])
         self.service_lc_handler.delete_network_function_instance(
-            nfi['id'])
+            test_event)
         db_nfi = self.nfp_db.get_network_function_instance(
             self.session, nfi['id'])
         self.assertEqual('PENDING_DELETE', db_nfi['status'])
@@ -424,8 +456,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         nfi = self.create_network_function_instance()
         ns_id = nfi['network_function_id']
         request_data = {'network_function_instance_id': nfi['id']}
+        test_event = Event(data=request_data)
         self.service_lc_handler.handle_device_deleted(
-            request_data)
+            test_event)
         self.assertRaises(nfp_exc.NetworkFunctionInstanceNotFound,
                           self.nfp_db.get_network_function_instance,
                           self.session,

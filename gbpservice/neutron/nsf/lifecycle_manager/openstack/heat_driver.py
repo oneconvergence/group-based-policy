@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
 import copy
 import time
 
@@ -11,12 +25,18 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
+from oslo_utils._i18n import _
 import yaml
 
-from gbpservice.neutron.nsf.lifecycle_manager.openstack.heat_client import HeatClient
-from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver import GBPClient
-from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver import KeystoneClient
-from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver import NeutronClient
+#from gbpservice.neutron.nsf._i18n import _
+from gbpservice.neutron.nsf.lifecycle_manager.openstack.heat_client\
+    import HeatClient
+from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver\
+    import GBPClient
+from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver\
+    import KeystoneClient
+from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver\
+    import NeutronClient
 from gbpservice.neutron.services.grouppolicy.common import constants as gconst
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 
@@ -122,13 +142,20 @@ class HeatDriver():
         self.keystoneclient = KeystoneClient()
         self.gbp_client = GBPClient()
         self.neutron_client = NeutronClient()
-        #    def initialize(self, name):
         self.initialized = True
         #self._name = name
+        self.resource_owner_tenant_id = None
+
+    @property
+    def resource_owner_tenant_id(self):
+        if self.resource_owner_tenant_id:
+            return self.resource_owner_tenant_id
+
         if cfg.CONF.heat_driver.is_service_admin_owned:
             self.resource_owner_tenant_id = self._resource_owner_tenant_id()
         else:
             self.resource_owner_tenant_id = None
+        return self.resource_owner_tenant_id
 
     def lbaas_plugin(self):
         if self._lbaas_plugin:
@@ -138,7 +165,8 @@ class HeatDriver():
         return self._lbaas_plugin
 
     def _resource_owner_tenant_id(self):
-        user, pwd, tenant_name, auth_url = self.keystoneclient.get_keystone_creds()
+        user, pwd, tenant_name, auth_url =\
+            self.keystoneclient.get_keystone_creds()
         # keystoneclient = keyclient.Client(username=user, password=pwd,
         #                                  auth_url=auth_url)
         auth_token = self.keystoneclient.get_scoped_keystone_token(
@@ -161,7 +189,8 @@ class HeatDriver():
         #auth_token = self.keystoneclient.get_admin_token()
         if cfg.CONF.heat_driver.is_service_admin_owned:
             tenant_id = self.resource_owner_tenant_id
-            user, pwd, tenant_name, auth_url = self.keystoneclient.get_keystone_creds()
+            user, pwd, tenant_name, auth_url =\
+                self.keystoneclient.get_keystone_creds()
             # keystoneclient = keyclient.Client(username=user, password=pwd,
             #                                  auth_url=auth_url)
             # auth_token = keystoneclient.get_token(
@@ -221,7 +250,8 @@ class HeatDriver():
         # self._assign_admin_user_to_project(user_tenant_id)
         # admin_token = self.keystone(tenant_id=user_tenant_id).get_token(
         #        user_tenant_id)
-        user, password, tenant, auth_url = self.keystoneclient.get_keystone_creds()
+        user, password, tenant, auth_url =\
+            self.keystoneclient.get_keystone_creds()
         admin_token = self.keystone(
             user, password, tenant, tenant_id=user_tenant_id)
 
@@ -239,7 +269,8 @@ class HeatDriver():
     def _get_tenant_context(self, tenant_id):
         # tenant_token = self.keystone(tenant_id=tenant_id).get_token(
         #        tenant_id)
-        user, password, tenant, auth_url = self.keystoneclient.get_keystone_creds()
+        user, password, tenant, auth_url =\
+            self.keystoneclient.get_keystone_creds()
 
         auth_token = self.keystone(user, password,
                                    tenant, tenant_id=tenant_id)
@@ -354,8 +385,9 @@ class HeatDriver():
         self._modify_lb_resources_name(
             stack_template, provider_ptg, is_template_aws_version)
         member_ips = self._get_member_ips(auth_token, provider_ptg)
-        LOG.info(_("IN _generate_pool_members member_ips are : %s and %s") %
-                 (member_ips, provider_ptg))
+        LOG.info(_('IN _generate_pool_members member_ips are : %(mem_ips) '
+                 'and %(ptg)') %
+                 {'mem_ips': member_ips, 'ptg': provider_ptg})
         if not member_ips:
             return
         pool_res_name = self._get_heat_resource_key(
@@ -486,8 +518,10 @@ class HeatDriver():
                         continue
 
                     consumer_cidr = subnet['cidr']
-                    LOG.info(_("_update_firewall_template: %s and ID %s") %
-                             (stack_template, consumer['id']))
+                    LOG.info(_('_update_firewall_template: %(stack_data) '
+                             'and ID %(params)') %
+                             {'stack_data': stack_template,
+                              'params': consumer['id']})
                     self._append_firewall_rule(
                         stack_template, provider_cidr, consumer_cidr,
                         fw_template_properties, consumer['id'])
@@ -749,8 +783,9 @@ class HeatDriver():
         # LOG.info(_("Final stack_template : %(template)s, stack_params : "
         #           "%(param)s"), {'template': stack_template,
         #                          'param': stack_params})
-        LOG.info("Final stack_template : %s, stack_params : %s" %
-                 (stack_template, stack_params))
+        LOG.info(_('Final stack_template : %(stack_data), '
+                 'stack_params : %(params)') %
+                 {'stack_data': stack_template, 'params': stack_params})
         return (stack_template, stack_params)
 
     def _wait_for_stack_operation_complete(self, heatclient, stack_id, action,
@@ -842,7 +877,8 @@ class HeatDriver():
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
-        auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+        auth_token, resource_owner_tenant_id =\
+            self._get_resource_owner_context()
         heatclient = self._get_heat_client(resource_owner_tenant_id)
 
         try:
@@ -872,7 +908,8 @@ class HeatDriver():
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
-        auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+        auth_token, resource_owner_tenant_id =\
+            self._get_resource_owner_context()
         heatclient = self._get_heat_client(resource_owner_tenant_id)
 
         try:
@@ -908,7 +945,8 @@ class HeatDriver():
         mgmt_ip = service_details['mgmt_ip']
 
         LOG.info(_("apply_user_config : %s ") % (provider))
-        auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+        auth_token, resource_owner_tenant_id =\
+            self._get_resource_owner_context()
         provider_tenant_id = provider['tenant_id']
         heatclient = self._get_heat_client(resource_owner_tenant_id,
                                            tenant_id=provider_tenant_id)
@@ -924,8 +962,9 @@ class HeatDriver():
             service_chain_node, service_chain_instance, provider,
             consumer_port, provider_port, mgmt_ip=mgmt_ip)
 
-        LOG.info(_("apply_user_config STACK_DATA: %s parametes %s") %
-                 (stack_template, stack_params))
+        LOG.info(_('apply_user_config STACK_DATA: %(stack_data) '
+                 'parametes %(params)') %
+                 {'stack_data': stack_template, 'params': stack_params})
         #stack = heatclient.create(stack_name, stack_template, stack_params)
         stack_id = '70754fdd-0325-4856-8a39-f171b65617d6'
         #stack_id = stack['stack']['id']
@@ -943,8 +982,10 @@ class HeatDriver():
 
         return stack_id
 
-    def delete(self, provider, stack_id):
-        auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+    def delete(self, service_details, stack_id):
+        provider = service_details['policy_target_group']
+        auth_token, resource_owner_tenant_id =\
+            self._get_resource_owner_context()
 
         provider_tenant_id = provider['tenant_id']
         try:
@@ -988,9 +1029,16 @@ class HeatDriver():
                                                             stack_id,
                                                             'delete')
                 except Exception as err:
-                    LOG.error("Stack deletion failed for STACK ID - %r for "
-                              "Tenant - %r . ERROR - %r" %
-                              (stack_id, provider_tenant_id, str(err)))
+                    #LOG.error(_("Stack deletion failed for STACK ID - %r for "
+                    #          "Tenant - %r . ERROR - %r") %
+                    #          (stack_id, provider_tenant_id, str(err)))
+                    LOG.error(_("Stack deletion failed for STACK ID - "
+                              "%(stack_id)s for Tenant - %(tenant_id)s . "
+                              "ERROR - %(err)") %
+                              {'stack_id': stack_id,
+                              'tenant_id': provider_tenant_id,
+                              'err': str(err)})
+
                 stack_name = ("stack_" + service_chain_instance['name'] +
                               service_chain_node['name'] +
                               service_chain_instance['id'][:8] +
@@ -1017,11 +1065,20 @@ class HeatDriver():
                            'configuration would have been lost. Please check '
                            'with the ADMIN for issue of failure and '
                            're-initiate the update node once again.')
-                    LOG.exception('%s NODE-ID: %r  INSTANCE-ID: %r TenantID: '
-                                  '%r . ERROR: %r' %
-                                  (msg, service_chain_node['id'],
-                                   service_chain_instance['id'],
-                                   provider_tenant_id, str(err)))
+                    #LOG.exception('%s NODE-ID: %r  INSTANCE-ID: %r TenantID: '
+                    #              '%r . ERROR: %r' %
+                    #              (msg, service_chain_node['id'],
+                    #               service_chain_instance['id'],
+                    #               provider_tenant_id, str(err)))
+                    LOG.exception(_('%(msg) NODE-ID: %(node_id)s '
+                                  'INSTANCE-ID: %(instance_id)s '
+                                  'TenantID: %(tenant_id)s . '
+                                  'ERROR: %(err)s') %
+                                  {'msg': msg,
+                                   'node_id': service_chain_node['id'],
+                                   'instance_id': service_chain_instance['id'],
+                                   'tenant_id': provider_tenant_id,
+                                   'err': str(err)})
                     raise NodeUpdateException(
                         node=service_chain_node['id'],
                         instance_id=service_chain_instance['id'],
@@ -1057,11 +1114,18 @@ class HeatDriver():
                        'configuration would have been lost. Please check '
                        'with the ADMIN for issue of failure and '
                        're-initiate the update node once again.')
-                LOG.exception('%s NODE-ID: %r  INSTANCE-ID: %r TenantID: '
-                              '%r . ERROR: %r' %
-                              (msg, service_chain_node['id'],
-                               service_chain_instance['id'],
-                               provider_tenant_id, str(err)))
+                #LOG.exception('%s NODE-ID: %r  INSTANCE-ID: %r TenantID: '
+                #              '%r . ERROR: %r' %
+                #              (msg, service_chain_node['id'],
+                #               service_chain_instance['id'],
+                #               provider_tenant_id, str(err)))
+                LOG.exception(_('%(msg) NODE-ID: %(node_id)  INSTANCE-ID: '
+                              '%(instance_id) TenantID: %(tenant_id) . '
+                              'ERROR: %(err)') %
+                              {'msg': msg, 'node_id': service_chain_node['id'],
+                               'instance_id': service_chain_instance['id'],
+                               'tenant_id': provider_tenant_id,
+                               'err': str(err)})
 
                 raise NodeUpdateException(
                     node=service_chain_node['id'],
@@ -1079,7 +1143,8 @@ class HeatDriver():
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
 
-        auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+        auth_token, resource_owner_tenant_id =\
+            self._get_resource_owner_context()
         stack_id = self._update(auth_token, resource_owner_tenant_id,
                                 service_profile, service_chain_node,
                                 service_chain_instance, provider,
@@ -1088,7 +1153,7 @@ class HeatDriver():
 
         return stack_id
 
-    def update_policy_target_added(self, service_details, policy_target):
+    def handle_policy_target_added(self, service_details, policy_target):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1101,7 +1166,8 @@ class HeatDriver():
         if service_profile['service_type'] == pconst.LOADBALANCER:
             if self._is_service_target(policy_target):
                 return
-            auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+            auth_token, resource_owner_tenant_id =\
+                self._get_resource_owner_context()
             stack_id = self._update(auth_token, resource_owner_tenant_id,
                                     service_profile, service_chain_node,
                                     service_chain_instance, provider,
@@ -1110,7 +1176,7 @@ class HeatDriver():
 
         return stack_id
 
-    def update_policy_target_removed(self, service_details, policy_target):
+    def handle_policy_target_removed(self, service_details, policy_target):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1123,7 +1189,8 @@ class HeatDriver():
         if service_profile['service_type'] == pconst.LOADBALANCER:
             if self._is_service_target(policy_target):
                 return
-            auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+            auth_token, resource_owner_tenant_id =\
+                self._get_resource_owner_context()
             try:
                 stack_id = self._update(auth_token, resource_owner_tenant_id,
                                         service_profile, service_chain_node,
@@ -1137,8 +1204,8 @@ class HeatDriver():
     def notify_chain_parameters_updated(self, service_details):
         pass  # We are not using the classifier specified in redirect Rule
 
-    def update_node_consumer_ptg_added(self, service_details,
-                                       policy_target_group):
+    def handle_consumer_ptg_added(self, service_details,
+                                  policy_target_group):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1149,7 +1216,8 @@ class HeatDriver():
         stack_id = service_details['heat_stack_id']
 
         if service_profile['service_type'] == pconst.FIREWALL:
-            auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+            auth_token, resource_owner_tenant_id =\
+                self._get_resource_owner_context()
             stack_id = self._update(auth_token, resource_owner_tenant_id,
                                     service_profile, service_chain_node,
                                     service_chain_instance, provider,
@@ -1158,8 +1226,8 @@ class HeatDriver():
 
             return stack_id
 
-    def update_node_consumer_ptg_removed(self, service_details,
-                                         policy_target_group):
+    def handle_consumer_ptg_removed(self, service_details,
+                                    policy_target_group):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1170,7 +1238,8 @@ class HeatDriver():
         stack_id = service_details['heat_stack_id']
 
         if service_profile['service_type'] == pconst.FIREWALL:
-            auth_token, resource_owner_tenant_id = self._get_resource_owner_context()
+            auth_token, resource_owner_tenant_id =\
+                self._get_resource_owner_context()
             stack_id = self._update(auth_token, resource_owner_tenant_id,
                                     service_profile, service_chain_node,
                                     service_chain_instance, provider,

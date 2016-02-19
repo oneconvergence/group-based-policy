@@ -18,7 +18,6 @@ from novaclient import client as nova_client
 from keystoneclient.v2_0 import client as identity_client
 from oslo_config import cfg
 
-
 LOG = logging.getLogger(__name__)
 
 es_openstack_opts = [
@@ -47,7 +46,7 @@ cfg.CONF.register_opts(es_openstack_opts, "keystone_authtoken")
 
 class OpenstackApi(object):
     """Initializes common attributes for openstack client drivers."""
-	
+
     def __init__(self, username=cfg.CONF.keystone_authtoken.admin_user,
                  password=cfg.CONF.keystone_authtoken.admin_password,
                  tenant_id=cfg.CONF.keystone_authtoken.admin_tenant_id,
@@ -62,7 +61,6 @@ class OpenstackApi(object):
                                 (cfg.CONF.keystone_authtoken.auth_protocol,
                                  cfg.CONF.keystone_authtoken.auth_host,
                                  cfg.CONF.keystone_authtoken.bind_port))
-                                 #cfg.CONF.bind_port)) # Neutron listening port
         self.username = username
         self.password = password
         self.tenant_id = tenant_id
@@ -113,13 +111,13 @@ class KeystoneClient(OpenstackApi):
             raise Exception(err)
 
         keystone = identity_client.Client(
-                         username=user,
-                         password=password,
-                         tenant_name=tenant_name,
-                         tenant_id=tenant_id,
-                         auth_url=self.identity_service)
+            username=user,
+            password=password,
+            tenant_name=tenant_name,
+            tenant_id=tenant_id,
+            auth_url=self.identity_service)
         try:
-            scoped_token = keystone.auth_token 
+            scoped_token = keystone.auth_token
         except Exception as err:
             err = ("Failed to get scoped token from"
                    " Openstack Keystone service"
@@ -140,7 +138,7 @@ class KeystoneClient(OpenstackApi):
         """
         try:
             keystone = identity_client.Client(token=token,
-                                     auth_url=self.identity_service)
+                                              auth_url=self.identity_service)
             tenant = keystone.tenants.find(name=tenant_name)
             return tenant.id
         except Exception as ex:
@@ -152,6 +150,7 @@ class KeystoneClient(OpenstackApi):
         err = 'No tenant with name "%s" found in keystone db' % tenant_name
         LOG.error(err)
         raise Exception(err)
+
 
 class NovaClient(OpenstackApi):
     """ Nova Client Api driver. """
@@ -173,10 +172,10 @@ class NovaClient(OpenstackApi):
             return image.id
         except Exception as ex:
             err = ("Failed to get image id from image name %s: %s" % (
-                       image_name, ex))
+                image_name, ex))
             LOG.error(err)
             raise Exception(err)
- 
+
     def get_flavor_id(self, token, tenant_id, flavor_name):
         """ Get the flavor UUID associated to flavor name
 
@@ -194,7 +193,7 @@ class NovaClient(OpenstackApi):
             return flavor.id
         except Exception as ex:
             err = ("Failed to get flavor id from flavor name %s: %s" % (
-                       flavor_name, ex))
+                flavor_name, ex))
             LOG.error(err)
             raise Exception(err)
 
@@ -216,13 +215,13 @@ class NovaClient(OpenstackApi):
             if instance:
                 return instance.to_dict()
             raise Exception("No instance with id %s found in db for tenant %s"
-                         % (instance_id, tenant_id))
+                            % (instance_id, tenant_id))
         except Exception as ex:
             err = ("Failed to read instance information from"
                    " Openstack Nova service's response"
                    " KeyError :: %s" % (ex))
             LOG.error(err)
-            raise Exception(err) 
+            raise Exception(err)
 
     def get_keypair(self, token, tenant_id, keypair_name):
         """ Get Nova keypair details
@@ -244,7 +243,7 @@ class NovaClient(OpenstackApi):
         except Exception as ex:
             err = ("Failed to read keypair information from"
                    " Openstack Nova service's response."
-                   " %s" %  ex)
+                   " %s" % ex)
             LOG.error(err)
             raise Exception(err)
 
@@ -264,7 +263,7 @@ class NovaClient(OpenstackApi):
             return instance
         except Exception as ex:
             err = ("Failed to attach interface %s to instance"
-                   " %s  %s" %  (port_id, instance_id, ex))
+                   " %s  %s" % (port_id, instance_id, ex))
             LOG.error(err)
             raise Exception(err)
 
@@ -283,7 +282,7 @@ class NovaClient(OpenstackApi):
             return instance
         except Exception as ex:
             err = ("Failed to detach interface %s from instance"
-                   " %s  %s" %  (port_id, instance_id, ex))
+                   " %s  %s" % (port_id, instance_id, ex))
             LOG.error(err)
             raise Exception(err)
 
@@ -302,7 +301,7 @@ class NovaClient(OpenstackApi):
             nova.servers.delete(instance_id)
         except Exception as ex:
             err = ("Failed to delete instance"
-                   " %s  %s" %  (instance_id, ex))
+                   " %s  %s" % (instance_id, ex))
             LOG.error(err)
             raise Exception(err)
 
@@ -317,9 +316,9 @@ class NovaClient(OpenstackApi):
 
         """
         if (
-            not filters or
-            type(filters) != dict or
-            'tenant_id' not in filters
+                        not filters or
+                            type(filters) != dict or
+                        'tenant_id' not in filters
         ):
             err = ("Failed to process get_instances,"
                    " filters(type: dict) with tenant_id is mandatory")
@@ -336,7 +335,7 @@ class NovaClient(OpenstackApi):
             return data
         except Exception as ex:
             err = ("Failed to list instances under tenant"
-                   " %s  %s" %  (tenant_id, ex))
+                   " %s  %s" % (tenant_id, ex))
             LOG.error(err)
             raise Exception(err)
 
@@ -370,17 +369,16 @@ class NovaClient(OpenstackApi):
         kwargs = dict()
         if volume_support:
             block_device_mapping_v2 = [
-                    {
-                        "boot_index": "1",
-                        "uuid": image_id,
-                        "source_type": "image",
-                        "volume_size": volume_size,
-                        "destination_type": "volume",
-                        "delete_on_termination": True
-                    }
+                {
+                    "boot_index": "1",
+                    "uuid": image_id,
+                    "source_type": "image",
+                    "volume_size": volume_size,
+                    "destination_type": "volume",
+                    "delete_on_termination": True
+                }
             ]
             kwargs.update(block_device_mapping_v2=block_device_mapping_v2)
-
 
         if different_hosts:
             kwargs.update(scheduler_hints={"different_host": different_hosts})
@@ -396,8 +394,8 @@ class NovaClient(OpenstackApi):
             kwargs.update(files=files)
         if nw_port_id_list:
             nics = [{"port-id": entry.get("port"), "net-id": entry.get("uuid"),
-                        "v4-fixed-ip": entry.get("fixed_ip")}
-                     for entry in nw_port_id_list]
+                     "v4-fixed-ip": entry.get("fixed_ip")}
+                    for entry in nw_port_id_list]
             kwargs.update(nics=nics)
         kwargs.update(security_groups=[secgroup_name])
 
@@ -412,7 +410,7 @@ class NovaClient(OpenstackApi):
             return data['id']
         except Exception as ex:
             err = ("Failed to create instance under tenant"
-                   " %s  %s" %  (tenant_id, ex))
+                   " %s  %s" % (tenant_id, ex))
             LOG.error(err)
             raise Exception(err)
 
@@ -563,7 +561,7 @@ class NeutronClient(OpenstackApi):
             neutron = neutron_client.Client(token=token,
                                             endpoint_url=self.network_service)
             data = neutron.list_floatingips(port_id=[kwargs[key]
-                                            for key in kwargs])
+                                                     for key in kwargs])
             return data
         except Exception as ex:
             raise Exception(ex)
@@ -593,12 +591,12 @@ class NeutronClient(OpenstackApi):
         :return:
         """
         info = {
-                "floatingip": {
+            "floatingip": {
                 "port_id": None}
-                }
+        }
         self._update_floatingip(token, floatingip_id, info)
         LOG.debug("Successfully disassociated floatingip %s"
-                     % floatingip_id)
+                  % floatingip_id)
 
     def associate_floating_ip(self, token, floatingip_id, port_id):
         """
@@ -609,13 +607,13 @@ class NeutronClient(OpenstackApi):
         """
 
         info = {
-                "floatingip": {
+            "floatingip": {
                 "port_id": port_id}
-                }
+        }
 
         self._update_floatingip(token, floatingip_id, info)
         LOG.debug("Successfully associated floatingip %s"
-                     % floatingip_id)
+                  % floatingip_id)
 
     def list_ports(self, token, port_ids=[], **kwargs):
         """
@@ -644,7 +642,7 @@ class NeutronClient(OpenstackApi):
         try:
             neutron = neutron_client.Client(token=token,
                                             endpoint_url=self.network_service)
-            subnets= neutron.list_subnets(id=subnet_ids).get('subnets', [])
+            subnets = neutron.list_subnets(id=subnet_ids).get('subnets', [])
             return subnets
         except Exception as ex:
             err = ("Failed to list subnets %s" % ex)
@@ -655,10 +653,10 @@ class NeutronClient(OpenstackApi):
 
         attr = {
             'port': {
-                        #'tenant_id': tenant_id,
-                        'network_id': net_id
-                    }
-                }
+                # 'tenant_id': tenant_id,
+                'network_id': net_id
+            }
+        }
 
         if attrs:
             attr['port'].update(attrs)
@@ -686,6 +684,7 @@ class NeutronClient(OpenstackApi):
                    " Exception :: %s" % (port_id, ex))
             LOG.error(err)
             raise Exception(err)
+
 
 class GBPClient(OpenstackApi):
     """ GBP Client Api Driver. """
@@ -902,8 +901,8 @@ class GBPClient(OpenstackApi):
                                     endpoint_url=self.network_service)
             return gbp.delete_l2_policy(l2policy_id)
         except Exception as ex:
-            err = ("Failed to delete l2 policy %s. Reason %s" % 
-                       (l2policy_id, ex))
+            err = ("Failed to delete l2 policy %s. Reason %s" %
+                   (l2policy_id, ex))
             LOG.error(err)
             raise Exception(err)
 
@@ -1058,7 +1057,7 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def create_l3_policy(self, token, l3_policy_info): #tenant_id, name):
+    def create_l3_policy(self, token, l3_policy_info):  # tenant_id, name):
 
         try:
             gbp = gbp_client.Client(token=token,
@@ -1110,7 +1109,6 @@ class GBPClient(OpenstackApi):
             err = ("Failed to list l3 policies. Reason %s" % ex)
             LOG.error(err)
             raise Exception(err)
-
 
     def get_policy_targets(self, token, filters={}):
         """ List Policy Targets
