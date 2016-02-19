@@ -992,8 +992,6 @@ class HeatDriver():
             heatclient = self._get_heat_client(resource_owner_tenant_id,
                                                tenant_id=provider_tenant_id)
             heatclient.delete(stack_id)
-            self._wait_for_stack_operation_complete(
-                heatclient, stack_id, 'delete')
         except Exception:
             # Log the error and continue with VM delete in case of *aas
             # cleanup failure
