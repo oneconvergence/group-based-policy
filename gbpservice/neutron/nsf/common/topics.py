@@ -12,3 +12,5 @@
 
 NFP_SERVICE_LCM_TOPIC = "nfp-service-lifecycle"
 NFP_NODE_DRIVER_CALLBACK_TOPIC = "nfp-node-driver-callbacks"
+NFP_DLCM_CONFIGURATOR_TOPIC = "nfp-dlcm-configurator"
+NFP_CONFIGURATOR_DLCM_TOPIC = "nfp-configurator-dlcm"
