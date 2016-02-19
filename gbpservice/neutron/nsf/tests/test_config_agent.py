@@ -17,7 +17,7 @@ from oslo_messaging import target
 import threading
 from neutron.common import rpc as n_rpc
 from neutron.agent.common import config
-from neutron import context
+from neutron import context as ctx
 from neutron.common import config as common_config
 from oslo_config import cfg
 import time
@@ -25,12 +25,6 @@ from multiprocessing import Process
 import httplib
 
 n_count = 0
-
-
-class Context(object):
-
-    def to_dict(self):
-        return {}
 
 
 class FirewallTestCase(unittest.TestCase):
@@ -98,8 +92,9 @@ class FirewallTestCase(unittest.TestCase):
     '''
 
     def _prepare_firewall_request_data(self):
+        context = ctx.Context('some_user', 'some_tenant')
         context.__setattr__('service_info', {})
-        context.__setattr__('is_admin', False)
+        context.is_admin = False
         fw = {'tenant_id': 123}
         host = ''
         conf = {}
@@ -235,8 +230,9 @@ class LoadBalanceTestCase(unittest.TestCase):
     '''
 
     def _prepare_request_data(self):
+        context = ctx.Context('some_user', 'some_tenant')
         context.__setattr__('service_info', {})
-        context.__setattr__('is_admin', False)
+        context.is_admin = False
         conf = {}
         sc = {}
         return context, sc, conf
@@ -536,8 +532,9 @@ class VPNTestCase(unittest.TestCase):
     '''
 
     def _prepare_request_data(self):
+        context = ctx.Context('some_user', 'some_tenant')
         context.__setattr__('service_info', {})
-        context.__setattr__('is_admin', False)
+        context.is_admin = False
         conf = {}
         sc = {}
         return context, sc, conf
@@ -602,8 +599,9 @@ class GenericConfigTestCase(unittest.TestCase):
         return False
 
     def _prepare_request_data(self):
+        context = ctx.Context('some_user', 'some_tenant')
         context.__setattr__('service_info', {})
-        context.__setattr__('is_admin', False)
+        context.is_admin = False
         conf = {}
         sc = {}
         return context, sc, conf
@@ -662,8 +660,9 @@ class GenericConfigTestCase(unittest.TestCase):
 class NotificationTestCase(unittest.TestCase):
 
     def _get_context(self):
+        context = ctx.Context('some_user', 'some_tenant')
         context.__setattr__('service_info', {})
-        context.__setattr__('is_admin', False)
+        context.is_admin = False
         return context
 
     def _prepare_request_data(self, receiver, resource,
@@ -702,9 +701,8 @@ class NotificationTestCase(unittest.TestCase):
     def test_rpc_pull_event(self):
         import_ca = 'gbpservice.neutron.nsf.config_agent.'
         with patch(import_ca + 'RestClientOverUnix.get') as get,\
-                patch('neutron.common.rpc.get_client') as client:
-            cctxt = client.prepare.return_value
-            cctxt.cast.return_value = self._cast
+                patch('oslo_messaging.rpc.client._CallContext.cast') as cast:
+            cast.side_effect = self._cast
             get.side_effect = self._get
             ev = ''
             sc = {}
