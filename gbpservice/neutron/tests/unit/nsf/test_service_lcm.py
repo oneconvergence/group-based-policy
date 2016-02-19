@@ -31,7 +31,7 @@ class ServiceLCModuleTestCase(test_nfp_db.NFPDBTestCase):
     @mock.patch.object(service_lcm, 'events_init')
     @mock.patch.object(service_lcm, 'rpc_init')
     def test_module_init(self, mock_rpc_init, mock_events_init):
-        controller = "test"
+        controller = mock.Mock()
         config = "testconfig"
         service_lcm.module_init(controller, config)
         mock_events_init.assert_called_once_with(controller, config, mock.ANY)
@@ -235,7 +235,8 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             }
             mock_create_event.assert_called_once_with(
                 'DELETE_USER_CONFIG_IN_PROGRESS',
-                event_data=request_data)
+                event_data=request_data,
+                is_poll_event=True)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
@@ -375,8 +376,11 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual('ERROR', db_nf['status'])
+            self.controller.poll_event_done.assert_called_once_with(
+                test_event)
 
             # Verify return status COMPLETED from config driver
+            self.controller.poll_event_done.reset_mock()
             mock_is_config_complete.reset_mock()
             mock_is_config_complete.return_value = "COMPLETED"
             request_data = {
@@ -390,6 +394,8 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual('ACTIVE', db_nf['status'])
+            self.controller.poll_event_done.assert_called_once_with(
+                test_event)
 
     def test_event_handle_user_config_applied(self):
         network_function = self.create_network_function()
@@ -414,6 +420,72 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         db_nf = self.nfp_db.get_network_function(
             self.session, network_function['id'])
         self.assertEqual('ERROR', db_nf['status'])
+
+    @mock.patch.object(
+        service_lcm.ServiceLifeCycleHandler, "_create_event")
+    def test_event_check_for_user_config_deleted(self, mock_create_event):
+        network_function = self.create_network_function()
+        with mock.patch.object(
+            self.service_lc_handler.config_driver,
+            "is_config_delete_complete") as mock_is_config_delete_complete:
+            # Verify return status IN_PROGRESS from config driver
+            mock_is_config_delete_complete.return_value = "IN_PROGRESS"
+            request_data = {
+                'heat_stack_id': 'heat_stack_id',
+                'network_function_id': network_function['id']}
+            test_event = Event(data=request_data)
+            self.service_lc_handler.check_for_user_config_deleted(
+                test_event)
+            mock_is_config_delete_complete.assert_called_once_with(
+                request_data['heat_stack_id'])
+            db_nf = self.nfp_db.get_network_function(
+                self.session, network_function['id'])
+            self.assertEqual(network_function['status'], db_nf['status'])
+            self.assertEqual(network_function['heat_stack_id'],
+                             db_nf['heat_stack_id'])
+
+            # Verify return status ERROR from config driver
+            mock_is_config_delete_complete.reset_mock()
+            mock_is_config_delete_complete.return_value = "ERROR"
+            request_data = {
+                'heat_stack_id': 'heat_stack_id',
+                'network_function_id': network_function['id']}
+            test_event = Event(data=request_data)
+            self.service_lc_handler.check_for_user_config_deleted(
+                test_event)
+            mock_is_config_delete_complete.assert_called_once_with(
+                request_data['heat_stack_id'])
+            event_data = {
+                'network_function_id': network_function['id']
+            }
+            mock_create_event.assert_called_once_with(
+                'USER_CONFIG_DELETE_FAILED', event_data=event_data)
+            self.controller.poll_event_done.assert_called_once_with(
+                test_event)
+
+            # Verify return status COMPLETED from config driver
+            self.controller.poll_event_done.reset_mock()
+            mock_is_config_delete_complete.reset_mock()
+            mock_create_event.reset_mock()
+            mock_is_config_delete_complete.return_value = "COMPLETED"
+            request_data = {
+                'heat_stack_id': 'heat_stack_id',
+                'network_function_id': network_function['id']}
+            test_event = Event(data=request_data)
+            self.service_lc_handler.check_for_user_config_deleted(
+                test_event)
+            mock_is_config_delete_complete.assert_called_once_with(
+                request_data['heat_stack_id'])
+            db_nf = self.nfp_db.get_network_function(
+                self.session, network_function['id'])
+            self.assertEqual(None, db_nf['heat_stack_id'])
+            event_data = {
+                'network_function_id': network_function['id']
+            }
+            mock_create_event.assert_called_once_with(
+                'USER_CONFIG_DELETED', event_data=event_data)
+            self.controller.poll_event_done.assert_called_once_with(
+                test_event)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")
@@ -467,7 +539,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
                 'network_function_id': network_function['id']
             }
             mock_create_event.assert_called_once_with(
-                'DELETE_USER_CONFIG_IN_PROGRESS', event_data=event_data)
+                'DELETE_USER_CONFIG_IN_PROGRESS',
+                event_data=event_data,
+                is_poll_event=True)
 
     @mock.patch.object(
         service_lcm.ServiceLifeCycleHandler, "_create_event")

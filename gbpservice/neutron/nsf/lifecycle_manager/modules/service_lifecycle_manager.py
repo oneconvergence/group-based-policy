@@ -257,7 +257,7 @@ class ServiceLifeCycleHandler(object):
             'network_function_id': network_function_id
         }
         self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
-                           event_data=request_data)
+                           event_data=request_data, is_poll_event=True)
 
     def create_network_function_instance(self, event):
         request_data = event.data
@@ -417,6 +417,7 @@ class ServiceLifeCycleHandler(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
+            self._controller.poll_event_done(event)
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "COMPLETED":
             updated_network_function = {'status': 'ACTIVE'}
@@ -424,6 +425,7 @@ class ServiceLifeCycleHandler(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
+            self._controller.poll_event_done(event)
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "IN_PROGRESS":
             return
@@ -438,6 +440,7 @@ class ServiceLifeCycleHandler(object):
             }
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data)
+            self._controller.poll_event_done(event)
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "COMPLETED":
             updated_network_function = {'heat_stack_id': None}
@@ -450,6 +453,7 @@ class ServiceLifeCycleHandler(object):
             }
             self._create_event('USER_CONFIG_DELETED',
                                event_data=event_data)
+            self._controller.poll_event_done(event)
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "IN_PROGRESS":
             return
