@@ -43,7 +43,7 @@ def rpc_init(controller, config):
     agent = RpcAgent(
         controller,
         host=config.host,
-        topic=nsf_topics.NSF_CONFIGURATOR_DLCM_TOPIC,
+        topic=nsf_topics.NFP_CONFIGURATOR_DLCM_TOPIC,
         manager=rpcmgr)
     controller.register_rpc_agents([agent])
 
@@ -55,16 +55,21 @@ def events_init(controller, config):
         Event(id='DEVICE_SPAWNING', handler=device_lifecycle_mgr_obj),
         Event(id='DEVICE_UP', handler=device_lifecycle_mgr_obj),
         Event(id='DEVICE_HEALTHY', handler=device_lifecycle_mgr_obj),
+        Event(id='CONFIGURE_DEVICE', handler=device_lifecycle_mgr_obj),
         Event(id='DEVICE_CONFIGURED', handler=device_lifecycle_mgr_obj),
 
         Event(id='DELETE_NETWORK_FUNCTION_DEVICE',
               handler=device_lifecycle_mgr_obj),
         Event(id='DELETE_CONFIGURATION', handler=device_lifecycle_mgr_obj),
-        Event(id='DELETE_CONFIGURATION_COMPLETED', handler=device_lifecycle_mgr_obj),
+        Event(id='DELETE_CONFIGURATION_COMPLETED',
+              handler=device_lifecycle_mgr_obj),
+        Event(id='DELETE_DEVICE', handler=device_lifecycle_mgr_obj),
 
         Event(id='DEVICE_NOT_UP', handler=device_lifecycle_mgr_obj),
         Event(id='DEVICE_NOT_REACHABLE', handler=device_lifecycle_mgr_obj),
-        Event(id='DEVICE_CONFIGURATION_FAILED', handler=device_lifecycle_mgr_obj),
+        Event(id='DEVICE_CONFIGURATION_FAILED',
+              handler=device_lifecycle_mgr_obj),
+        Event(id='DEVICE_ERROR', handler=device_lifecycle_mgr_obj),
         ]
     controller.register_events(evs)
 
@@ -82,30 +87,33 @@ class RpcHandler(object):
         super(RpcHandler, self).__init__()
         self.conf = conf
         self._controller = controller
-        self.rpc_event_mapping = {'healthmonitor': {'success': 'DEVICE_HEALTHY',
-                                                    'failure': 'DEVICE_NOT_REACHABLE'},
-                                  'interfaces': {'success': 'DEVICE_HEALTHY',
-                                                    'failure': 'DEVICE_NOT_REACHABLE'},
-                                  'routes': {'success': 'DEVICE_HEALTHY',
-                                                    'failure': 'DEVICE_NOT_REACHABLE'},
+        self.rpc_event_mapping = {'healthmonitor': ['DEVICE_HEALTHY',
+                                                   'DEVICE_NOT_REACHABLE'],
+                                  'interfaces':    ['DEVICE_CONFIGURED',
+                                                   'DEVICE_CONFIGURED_FAILED'],
+                                  'routes':        ['DEVICE_CONFIGURED',
+                                                   'DEVICE_CONFIGURED_FAILED'],
                                   }
 
     # RPC APIs status notification from Configurator
     def get_network_function_config_info(self, context, **kwargs):
         #context = kwargs.get('context')
         notification_data = kwargs.get('notification_data')
-        resource = notification_data.get('resource')
-        response_data = notification_data.get('kwargs')
-        result = response_data.get('result')
-        device_id = response_data.get('device_id')
+        responses = notification_data.get('kwargs')
 
-        if resource == 'healthmonitor':
-            if result == 'success':
-                event_id = 'DEVICE_HEALTHY'
-            else:
-                event_id = 'DEVICE_NOT_REACHABLE'
+        for response in responses:
+            resource = response.get('resource')
+            resp_kwargs = response.get('kwargs')
+            result = resp_kwargs.get('result')
+            device_id = resp_kwargs.get('device_id')   # response.get('context')
+            event_id = self.rpc_event_mapping[resource][0]
 
-        self._create_event(event_id=event_id, event_data={'device_id': device_id})
+            if result != 'success':
+                event_id = self.rpc_event_mapping[resource][1]
+                break
+
+        self._create_event(event_id=event_id,
+                           event_data={'device_id': device_id})
 
 
 
@@ -122,7 +130,8 @@ class DeviceLifeCycleManager(object):
             "DEVICE_UP": device_lifecycle_handler.perform_health_check,
             "DEVICE_HEALTHY": (
                         device_lifecycle_handler.plug_interfaces),
-            "CONFIGURE_DEVICE": device_lifecycle_handler.create_device_configuration,
+            "CONFIGURE_DEVICE": (
+                        device_lifecycle_handler.create_device_configuration),
             "DEVICE_CONFIGURED": (
                 device_lifecycle_handler.device_configuration_complete),
 
@@ -130,18 +139,19 @@ class DeviceLifeCycleManager(object):
                 device_lifecycle_handler.delete_network_function_device),
             "DELETE_CONFIGURATION": (
                 device_lifecycle_handler.delete_device_configuration),
-            "DEVICE_CONFIGURATION_DELETED": (
+            "DELETE_CONFIGURATION_COMPLETED": (
                 device_lifecycle_handler.unplug_interfaces),
             #"DELETE_HEALTH_MONITOR": device_lifecycle_handler.delete_device_health_monitor,
-            #"HEALTH_MONITOR_DELETED": device_lifecycle_handler.device_delete, # should we wait for
+            #"HEALTH_MONITOR_DELETED": device_lifecycle_handler.delete_device, # should we wait for
                                                                     # this, or simply delete device
-            "DELETE_DEVICE": device_lifecycle_handler.device_delete,
+            "DELETE_DEVICE": device_lifecycle_handler.delete_device,
 
             "DEVICE_NOT_REACHABLE": (
                 device_lifecycle_handler.handle_device_not_reachable),
             "DEVICE_CONFIGURATION_FAILED": (
                 device_lifecycle_handler.handle_device_config_failed),
             "DEVICE_ERROR": device_lifecycle_handler.handle_device_error,
+            "DEVICE_NOT_UP": device_lifecycle_handler.handle_device_not_up,
         }
         if state not in state_machine:
             raise Exception("Invalid state")
@@ -231,13 +241,14 @@ class DeviceLifeCycleHandler(object):
             device['status_description'] = self.state_map[state]
 
 
-    def _get_mgmt_data_ports(self, device):
-
-        mgmt_data_ports = []
-        for port_id in device.pop('mgmt_data_ports'):
+    def _get_ports(self, port_ids):
+        data_ports = []
+        for port_id in port_ids:
             port_info = self.nsf_db.get_port_info(self.db_session, port_id)
-            mgmt_data_ports.append(port_info)
-        return mgmt_data_ports
+            data_ports.append(port_info)
+        return data_ports
+
+
 
     def _create_network_function_device_db(self, device_info, state):
         self._update_device_status(device_info, state)
@@ -250,7 +261,8 @@ class DeviceLifeCycleHandler(object):
         #device_info['mgmt_data_ports']['id'] = device_id
         device = self.nsf_db.create_network_function_device(self.db_session,
                                                            device_info)
-        mgmt_data_ports = self._get_mgmt_data_ports(device)
+        mgmt_port_ids = device.pop('mgmt_data_ports')
+        mgmt_data_ports = self._get_ports(mgmt_port_ids)
         device['mgmt_data_ports'] = mgmt_data_ports
         return device
 
@@ -266,7 +278,8 @@ class DeviceLifeCycleHandler(object):
         network_function_devices = self.nsf_db.get_network_function_devices(
                                                 self.db_session, filters)
         for device in network_function_devices:
-            mgmt_data_ports = self._get_mgmt_data_ports(device)
+            mgmt_port_ids = device.pop('mgmt_data_ports')
+            mgmt_data_ports = self._get_ports(device)
             device['mgmt_data_ports'] = mgmt_data_ports
         return network_function_devices
 
@@ -319,9 +332,11 @@ class DeviceLifeCycleHandler(object):
 
     def _get_device_to_reuse(self, device_data, dev_sharing_info):
         device_filters = dev_sharing_info['filters']
+        # TODO (ashu) should DLCM return whole dict, or selective fields.
         devices = self._get_network_function_devices(device_filters)
 
-        device = self.lifecycle_driver.get_device_to_reuse(devices, device_data)
+        device = self.lifecycle_driver.select_network_function_device(devices,
+                                                                device_data)
         return device
 
     def _get_device_data(self, nfd_request):
@@ -383,6 +398,8 @@ class DeviceLifeCycleHandler(object):
                 device_data))
         if dev_sharing_info:
             device = self._get_device_to_reuse(device_data, dev_sharing_info)
+            if device:
+                device = self._update_device_data(device, device_data)
 
         # To handle case, when device sharing is supported but device not
         # exists to share, so create a new device.
@@ -425,7 +442,7 @@ class DeviceLifeCycleHandler(object):
         # TODO (ashu) return value from driver, this should be true/false
         is_device_up = (
             self.lifecycle_driver.get_network_function_device_status(device))
-        if is_device_up:
+        if is_device_up == 'ACTIVE':
             self._controller.poll_event_done(event)
 
             # create event DEVICE_UP
@@ -433,7 +450,7 @@ class DeviceLifeCycleHandler(object):
                                event_data=device)
             self._update_network_function_device_db(device,
                                                    'DEVICE_UP')
-        elif device['status'] == 'ERROR' or not is_device_up:
+        elif is_device_up == 'ERROR':
             self._controller.poll_event_done(event)
             # create event DEVICE_NOT_UP
 
@@ -445,7 +462,9 @@ class DeviceLifeCycleHandler(object):
     def perform_health_check(self, event):
         # The driver tells which protocol / port to monitor ??
         device = event.data
-        hm_req = self.lifecycle_driver.get_network_function_device_healthcheck_info(device)
+        hm_req = (
+            self.lifecycle_driver.get_network_function_device_healthcheck_info(
+                                                                device))
         self.configurator_rpc.create_network_function_device_config(device,
                                                                     hm_req)
         LOG.debug(_("Health Check RPC sent to configurator for device: "
@@ -456,7 +475,9 @@ class DeviceLifeCycleHandler(object):
 
     def plug_interfaces(self, event):
         device = event.data
-        _ifaces_plugged_in = self.lifecycle_driver.plug_network_function_device_interface(device)
+        _ifaces_plugged_in = (
+            self.lifecycle_driver.plug_network_function_device_interfaces(
+                                                                device))
         if _ifaces_plugged_in:
             self._increment_device_interface_count(device)
             self._create_event(event_id='CONFIGURE_DEVICE',
@@ -467,7 +488,9 @@ class DeviceLifeCycleHandler(object):
 
     def create_device_configuration(self, event):
         device = event.data
-        config_params = self.lifecycle_driver.get_network_function_device_config_info(device)
+        config_params = (
+            self.lifecycle_driver.get_network_function_device_config_info(
+                                                                device))
         self.configurator_rpc.create_network_function_device_config(
                                                     device, config_params)
 
@@ -483,9 +506,9 @@ class DeviceLifeCycleHandler(object):
                   {'device_id': device['id'], 'device': device})
 
         device_created_data = {
-            'network_function_id' : device['network_function_id'],
-            'network_function_instance_id' : device['network_function_instance_id'],
-            'network_function_device_id' : device['id'],
+        'network_function_id' : device['network_function_id'],
+        'network_function_instance_id' : device['network_function_instance_id'],
+        'network_function_device_id' : device['id'],
         }
         # DEVICE_ACTIVE event for Service LCM.
         self._create_event(event_id='DEVICE_ACTIVE',
@@ -494,20 +517,26 @@ class DeviceLifeCycleHandler(object):
 
     # Delete path
     def delete_network_function_device(self, event):
-        device = event.data
-        # Invoke driver deletes, driver informs if ref count is to be
-        # decremented or entry deleted from DB. We do the DB handling here
-        # accordingly. Then generate an event to Service LCM to inform about
-        # the status
-        LOG.info(_("Received delete network service device request for device"
-                   "%(device)s"), {'device': device})
+        delete_nfd_request = event.data
+        network_function_instance = (
+                            delete_nfd_request['network_function_instance'])
+        nfd_id = delete_nfd_request['network_function_device_id']
+
+        LOG.info(_("Received delete network service device request for device "
+                   "%(device)s"), {'device': delete_nfd_request})
         device = self.nsf_db.get_network_function_device(self.db_session,
-                                        device['network_function_device_id'])
-        mgmt_data_ports = self._get_mgmt_data_ports(device)
+                                                    nfd_id)
+        mgmt_port_ids = device.pop('mgmt_data_ports')
+        mgmt_data_ports = self._get_ports(mgmt_port_ids)
         device['mgmt_data_ports'] = mgmt_data_ports
         device['compute_policy'] = 'nova'
         device['network_policy'] = mgmt_data_ports[0]['port_policy']
-        self._update_device_data(device, event.data)
+        device['network_function_instance_id'] = network_function_instance['id']
+        #self._update_device_data(device, event.data)
+
+        data_port_ids = network_function_instance.pop('port_info')
+        data_ports = self._get_ports(data_port_ids)
+        device['ports'] = data_ports
 
         self._create_event(event_id='DELETE_CONFIGURATION',
                            event_data=device)
@@ -524,10 +553,12 @@ class DeviceLifeCycleHandler(object):
         device = event.data
 
         is_interface_unplugged = (
-            self.lifecycle_driver.unplug_network_function_device_interface(
+            self.lifecycle_driver.unplug_network_function_device_interfaces(
                                                         device))
         if is_interface_unplugged:
+            mgmt_data_ports = device['mgmt_data_ports']
             self._decrement_device_interface_count(device)
+            device['mgmt_data_ports'] = mgmt_data_ports
         else:
             # Ignore unplug error
             pass
@@ -543,7 +574,7 @@ class DeviceLifeCycleHandler(object):
         device_ref_count = device['reference_count']
         if device_ref_count == 0:
             #(TODO) (ashu) - delete health monitor
-            self.lifecycle_driver.delete_device(device)
+            self.lifecycle_driver.delete_network_function_device(device)
             self._delete_network_function_device_db(device['id'])
         else:
             desc = 'Network Service Device can be reuse'
@@ -652,15 +683,15 @@ class DLCMConfiguratorRpcApi(object):
         self.context = context
         self.client = n_rpc.get_client(self.target)
         self.rpc_api = self.client.prepare(version=self.API_VERSION,
-                                topic=nsf_topics.NSF_DLCM_CONFIGURATOR_TOPIC)
+                                topic=nsf_topics.NFP_DLCM_CONFIGURATOR_TOPIC)
 
-    def create_network_function_device_config(self, config_params):
+    def create_network_function_device_config(self, device_data, config_params):
         return self.rpc_api.cast(
                 self.context,
                 'create_network_function_device_config',
                               config_params=config_params
                 )
-    def delete_network_function_device_config(self, config_params):
+    def delete_network_function_device_config(self, device_data, config_params):
         return self.rpc_api.cast(
                 self.context,
                 'delete_network_function_device_config',
