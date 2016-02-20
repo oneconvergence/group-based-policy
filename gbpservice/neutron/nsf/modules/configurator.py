@@ -11,15 +11,15 @@ LOG = log.getLogger(__name__)
 
 """Implements procedure calls invoked by an RPC peer.
 
-    Implements following RPC methods.
-    - create_network_device_config
-    - delete_network_device_config
-    - update_network_device_config
-    - create_network_service_config
-    - delete_network_service_config
-    - update_network_service_config
-    - get_notifications
-    Also implements local methods for supporting RPC methods
+Implements following RPC methods.
+  - create_network_device_config
+  - delete_network_device_config
+  - update_network_device_config
+  - create_network_service_config
+  - delete_network_service_config
+  - update_network_service_config
+  - get_notifications
+Also implements local methods for supporting RPC methods
 
 """
 
@@ -83,13 +83,18 @@ class ConfiguratorRpcManager(object):
         
         # Notification data list that needs to be returned after processing
         # RPC request. Format of notification data:
-        # [{'receiver': <neutron/orchestrator>,
-        #   'resource': <firewall/vpn/loadbalancer/
-        #                healthmonitor/routes/interfaces>,
-        #   'method': <network_function_device_notification/
-        #              *aaS response RPC method name>,
-        #   'kwargs': [{<data1>}, {data2}]},
-        #  {}, ... ]
+        # notification_data[
+        #    {
+        #        'receiver': <neutron/orchestrator>,
+        #        'resource': <firewall/vpn/loadbalancer/healthmonitor/
+        #                    routes/interfaces>,
+        #        'method': <network_function_device_notification/
+        #                  *aaS response RPC method name>,
+        #        'kwargs': [{<data1>}, {data2}]
+        #    },
+        #    {
+        #    }, ...
+        # ]
         #
         # Initially, notification data will be empty and is populated
         # after processing each request data in the request data list
@@ -97,7 +102,7 @@ class ConfiguratorRpcManager(object):
         
         # Handover the request data list and notification data to the
         # identified service agent
-        sa_obj.process_request(context, sa_info_list, notification_data)
+        sa_obj.forward_request(context, sa_info_list, notification_data)
         
 
     def create_network_device_config(self, context, request_data):
