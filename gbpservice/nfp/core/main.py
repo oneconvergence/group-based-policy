@@ -28,12 +28,12 @@ from oslo_config import cfg as oslo_config
 from oslo_log import log as oslo_logging
 from oslo_service import service as oslo_service
 
-from gbpservice.neutron.nsf.core import common as nfp_common
-from gbpservice.neutron.nsf.core import cfg as nfp_config
-from gbpservice.neutron.nsf.core import event as nfp_event
-from gbpservice.neutron.nsf.core import poll as nfp_poll
-from gbpservice.neutron.nsf.core import rpc as nfp_rpc
-from gbpservice.neutron.nsf.core import rpc_lb as nfp_rpc_lb
+from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import cfg as nfp_config
+from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import rpc as nfp_rpc
+from gbpservice.nfp.core import rpc_lb as nfp_rpc_lb
 
 eventlet.monkey_patch()
 
@@ -97,7 +97,6 @@ class Controller(object):
         self._lock = mp_lock()
         # Sequencer to sequence the related events.
         self._sequencer = EventSequencer(self)
-	self._event = multiprocessing.Event()
 
     def lock(self):
         self._lock.acquire()

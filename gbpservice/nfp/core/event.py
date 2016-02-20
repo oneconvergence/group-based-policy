@@ -16,9 +16,9 @@ import Queue
 
 from oslo_log import log as oslo_logging
 
-from gbpservice.neutron.nsf.core import common as nfp_common
-from gbpservice.neutron.nsf.core import poll as nfp_poll
-from gbpservice.neutron.nsf.core import threadpool as nfp_tp
+from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import threadpool as nfp_tp
 
 LOG = oslo_logging.getLogger(__name__)
 PID = os.getpid()

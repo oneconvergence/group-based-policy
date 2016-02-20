@@ -17,10 +17,10 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging as messaging
 
-from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core import poll
-from gbpservice.neutron.nsf.core.poll import PollEventDesc
-from gbpservice.neutron.nsf.core.rpc import RpcAgent
+from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core import poll
+from gbpservice.nfp.core.poll import PollEventDesc
+from gbpservice.nfp.core.rpc import RpcAgent
 
 
 LOG = logging.getLogger(__name__)

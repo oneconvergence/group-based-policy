@@ -22,8 +22,8 @@ from oslo_log import log as oslo_logging
 from oslo_service import loopingcall as oslo_looping_call
 from oslo_service import periodic_task as oslo_periodic_task
 
-from gbpservice.neutron.nsf.core import common as nfp_common
-from gbpservice.neutron.nsf.core import fifo as nfp_fifo
+from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import fifo as nfp_fifo
 
 LOG = oslo_logging.getLogger(__name__)
 PID = os.getpid()
