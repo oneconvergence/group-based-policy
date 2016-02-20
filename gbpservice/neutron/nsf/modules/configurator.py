@@ -3,6 +3,7 @@ from oslo_log import log
 from gbpservice.neutron.nsf.core.main import RpcAgent
 from gbpservice.neutron.nsf.configurator.lib.demuxer import ConfiguratorDemuxer
 from gbpservice.neutron.nsf.configurator.lib.utils import ConfiguratorUtils
+from gbpservice.neutron.nsf.configurator.lib import constants as const
 
 LOG = log.getLogger(__name__)
 AGENTS_PKG = 'gbpservice.neutron.nsf.configurator.agents'
@@ -18,46 +19,81 @@ class ConfiguratorRpcManager(object):
     def _get_service_agent_obj(self, service_type):
         return self.sa.service_agent_objs[service_type]
 
-    def _invoke_service_agent_method(self, method, request_data):
-        try:
-            sa_info_list = self.demuxer.get_service_agent_info(method,
-                                                               request_data)
-        except Exception as err:
-            msg = ("Failed to demultiplex RPC requests in Configurator. " +
-                   str(err).capitalize())
-            LOG.error(msg)
-            raise msg
+    def _invoke_service_agent_method(self, context, method, request_data):
+        service_type = self.demuxer.get_service_type(request_data)
+        if (service_type == const.invalid_service_type):
+            msg = ("Invalid service type %s received." % service_type)
+            raise Exception(msg)
 
-        for sa_info in sa_info_list:
-            try:
-                sa_obj = self._get_service_agent_obj(sa_info['service_type'])
-            except Exception as err:
-                msg = ("Failed to get service agent object in Configurator. " +
-                       str(err).capitalize())
-                LOG.error(msg)
-                raise msg
+        sa_info_list = self.demuxer.get_service_agent_info(
+                                                    method,
+                                                    service_type,
+                                                    request_data)
+        if not sa_info_list:
+            msg = ("Invalid data format received for service type %s."
+                   "Data format: %r" % (service_type, request_data))
+            raise Exception(msg)
 
-            try:
-                getattr(sa_obj, sa_info['method'])(**sa_info['kwargs'])
-            except Exception as err:
-                msg = ("Failed to call service agent RPC manager from "
-                       "Configurator. " + str(err).capitalize())
-                LOG.error(msg)
-                raise msg
+        sa_obj = self._get_service_agent_obj(service_type)
+        if not sa_obj:
+            msg = ("Failed to find agent with service type %s." % service_type)
+            raise Exception(msg)
+        
+        notification_data = []
+        sa_obj.process_request(context, sa_info_list, notification_data)
+        
 
     def create_network_device_config(self, context, request_data):
-        self._invoke_service_agent_method('create', request_data)
+        try:
+            self._invoke_service_agent_method(context, 'create', request_data)
+        except Exception as err:
+            msg = ("Failed to create network device configuration." +
+                   str(err).capitalize())
+            LOG.error(msg)
 
     def delete_network_device_config(self, context, request_data):
-        self._invoke_service_agent_method('delete', request_data)
+        try:
+            self._invoke_service_agent_method(context, 'delete', request_data)
+        except Exception as err:
+            msg = ("Failed to delete network device configuration." +
+                   str(err).capitalize())
+            LOG.error(msg)        
+
+    def update_network_device_config(self, context, request_data):
+        try:
+            self._invoke_service_agent_method(context, 'update', request_data)
+        except Exception as err:
+            msg = ("Failed to update network device configuration." +
+                   str(err).capitalize())
+            LOG.error(msg)        
 
     def create_network_service_config(self, context, request_data):
-        self._invoke_service_agent_method('create', request_data)
+        try:
+            self._invoke_service_agent_method(context, 'create', request_data)
+        except Exception as err:
+            msg = ("Failed to create network service configuration." +
+                   str(err).capitalize())
+            LOG.error(msg)
 
     def delete_network_service_config(self, context, request_data):
-        self._invoke_service_agent_method('delete', request_data)
+        try:
+            self._invoke_service_agent_method(context, 'delete', request_data)
+        except Exception as err:
+            msg = ("Failed to delete network device configuration." +
+                   str(err).capitalize())
+            LOG.error(msg)
+    
+    def update_network_service_config(self, context, request_data):
+        try:
+            self._invoke_service_agent_method(context, 'update', request_data)
+        except Exception as err:
+            msg = ("Failed to update network device configuration." +
+                   str(err).capitalize())
+            LOG.error(msg)        
 
-
+    def get_notification(self):
+        pass
+    
 class ConfiguratorModule(object):
     def __init__(self):
         self.service_agent_objs = {}
