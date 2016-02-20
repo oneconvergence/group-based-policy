@@ -1,29 +1,34 @@
-import os
-import sys
-import ast
-import json
-import time
-from oslo_log import log as oslo_logging
-from neutron.agent.common import config as n_config
-from neutron.common import config as n_common_config
-from gbpservice.neutron.nsf.core.main import Controller
-from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core.main import EventHandlers
-from gbpservice.neutron.nsf.core.main import RpcAgent
-from gbpservice.neutron.nsf.core.main import EventSequencer
+#  Licensed under the Apache License, Version 2.0 (the "License"); you may
+#  not use this file except in compliance with the License. You may obtain
+#  a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations
+#  under the License.from gbpservice.neutron.nsf.core import main
+
 from gbpservice.neutron.nsf.core import cfg as nfp_config
-from oslo_config import cfg as oslo_config
-from neutron.common import rpc as n_rpc
-import oslo_messaging as messaging
-import unittest
-from mock import patch, Mock
-from multiprocessing import Process
+from gbpservice.neutron.nsf.core import main
+import mock
 import multiprocessing as multiprocessing
+from neutron.agent.common import config as n_config
+import os
+from oslo_config import cfg as oslo_config
+from oslo_log import log as oslo_logging
+import sys
+import time
+import unittest
+LOG = oslo_logging.getLogger(__name__)
 
 
 class Test_Process_Model(unittest.TestCase):
 
-    @patch('gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put')
+    @mock.patch(
+        'gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put'
+    )
     def test_event_create(self, mock_put):
         event = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT1', data=self.service1,
@@ -34,7 +39,9 @@ class Test_Process_Model(unittest.TestCase):
         self.assertIsNotNone(event.worker_attached)
         mock_put.assert_called_once_with(event)
 
-    @patch('gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put')
+    @mock.patch(
+        'gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put'
+    )
     def test_events_with_same_binding_keys(self, mock_put):
         event1 = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT1', data=self.service1,
@@ -53,7 +60,9 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(event1.worker_attached, event2.worker_attached)
         self.assertEqual(mock_put.call_count, 2)
 
-    @patch('gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put')
+    @mock.patch(
+        'gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put'
+    )
     def test_events_with_no_binding_key(self, mock_put):
         event1 = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT1', data=self.service1,
@@ -63,10 +72,6 @@ class Test_Process_Model(unittest.TestCase):
             id='DUMMY_SERVICE_EVENT2', data=self.service1,
             key=self.service1['id'], serialize=False
         )
-        print "worker 1: %d" % (self.sc._workers[0][0].pid)
-        print "worker 2: %d" % (self.sc._workers[1][0].pid)
-        print "worker 2: %d" % (self.sc._workers[2][0].pid)
-        print "worker 2: %d" % (self.sc._workers[3][0].pid)
         self.sc.post_event(event1)
         self.sc.post_event(event2)
         self.assertIsNotNone(event1.worker_attached)
@@ -74,7 +79,9 @@ class Test_Process_Model(unittest.TestCase):
         self.assertNotEqual(event1.worker_attached, event2.worker_attached)
         self.assertEqual(mock_put.call_count, 2)
 
-    @patch('gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put')
+    @mock.patch(
+        'gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put'
+    )
     def test_loadbalancing_events(self, mock_put):
         event1 = self.sc.new_event(
             id='SERVICE_CREATE', data=self.service1,
@@ -105,7 +112,7 @@ class Test_Process_Model(unittest.TestCase):
             )
         self.assertEqual(mock_put.call_count, 2)
 
-    @patch('gbpservice.neutron.nsf.core.main.EventSequencer.add')
+    @mock.patch('gbpservice.neutron.nsf.core.main.EventSequencer.add')
     def test_serialize_events_serialize_false(self, mock_sequencer):
         event1 = self.mock_event(
             id='SERVICE_CREATE', data=self.service1,
@@ -117,7 +124,7 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(mock_sequencer.call_count, 0)
         self.assertEqual(sequenced_event1, event1)
 
-    @patch('gbpservice.neutron.nsf.core.main.EventSequencer.add')
+    @mock.patch('gbpservice.neutron.nsf.core.main.EventSequencer.add')
     def test_serialize_events_serialze_true(self, mock_sequencer):
         event1 = self.mock_event(
             id='SERVICE_CREATE', data=self.service1,
@@ -133,7 +140,7 @@ class Test_Process_Model(unittest.TestCase):
         sequenced_event1 = self.sc.sequencer_put_event(event1)
         self.assertEqual(sequenced_event1, event1)
 
-    @patch('gbpservice.neutron.nsf.core.main.EventSequencer')
+    @mock.patch('gbpservice.neutron.nsf.core.main.EventSequencer')
     def test_EventSequencer_add(self, mocked_sequencer):
         event1 = self.mock_event(
             id='SERVICE_CREATE', data=self.service1,
@@ -141,7 +148,7 @@ class Test_Process_Model(unittest.TestCase):
             key=self.service1['id'], serialize=True,
             worker_attached=self.sc._workers[0][0].pid
         )
-        mocked_sequencer_map = Mock()
+        mocked_sequencer_map = mock.Mock()
         mocked_sequencer._sequencer_map = mocked_sequencer_map
         mocked_sequencer_map = {}
         self.assertEqual(self.EventSequencer.add(event1), False)
@@ -217,7 +224,7 @@ class Test_Process_Model(unittest.TestCase):
 
     def test_worker_process_initilized(self):
         workers = self.sc._workers
-        test_process = Process()
+        test_process = multiprocessing.Process()
         self.assertEqual(len(workers), 4)
         for worker in workers:
             self.assertTrue(type(worker[0]), type(test_process))
@@ -244,7 +251,7 @@ class Test_Process_Model(unittest.TestCase):
 
     def modules_import(self):
         modules = []
-        modules_dir = 'gbpservice.neutron.tests.unit.nsf'
+        modules_dir = 'gbpservice.neutron.tests.unit.nfp.EventHandler'
         base_module = __import__(
             modules_dir,
             globals(), locals(),
@@ -299,6 +306,6 @@ class Test_Process_Model(unittest.TestCase):
         n_config.setup_logging()
         self._conf = oslo_config.CONF
         self._modules = modules
-        self.sc = Controller(oslo_config.CONF, modules)
-        self.EventSequencer = EventSequencer(self.sc)
+        self.sc = main.Controller(oslo_config.CONF, modules)
+        self.EventSequencer = main.EventSequencer(self.sc)
         self.sc.start()

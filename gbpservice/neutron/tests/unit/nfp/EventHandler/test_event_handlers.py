@@ -1,14 +1,24 @@
-import os
+#  Licensed under the Apache License, Version 2.0 (the "License"); you may
+#  not use this file except in compliance with the License. You may obtain
+#  a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations
+#  under the License.from gbpservice.neutron.nsf.core import main
+
+from gbpservice.neutron.nsf.core import main
 from gbpservice.neutron.nsf.core import poll
-from gbpservice.neutron.nsf.core.poll import PollEventDesc
-from gbpservice.neutron.nsf.core.main import Event
+import os
 from oslo_log import log as logging
-from oslo_config import cfg
 import time
 LOG = logging.getLogger(__name__)
 
 
-class Handler_Class(PollEventDesc):
+class Handler_Class(poll.PollEventDesc):
 
     def __init__(self, sc):
         self._sc = sc
@@ -26,7 +36,7 @@ class Handler_Class(PollEventDesc):
             if self.counter == 2:
                 self._sc._event.set()
         LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Poll event %s" % (ev.key)
+        print("Poll event %s", (ev.key))
 
     def handle_event(self, ev):
         LOG.debug("Process ID :%d" % (os.getpid()))
@@ -75,15 +85,13 @@ class Handler_Class(PollEventDesc):
         if self.counter == 0:
             self.timer = time.time()
             self.counter = self.counter + 1
-            print "timer = %d" % (self.timer)
         else:
             time_now = time.time()
             time_elapsed = int(round(time_now - self.timer))
-            print "time elapsed = %d" % (time_elapsed)
             if ev.id == 'DUMMY_SERVICE_EVENT5' and time_elapsed == 10:
                 self._sc._event.set()
         LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Decorator Poll event %s" % (ev.key)
+        print ("Decorator Poll event %s", (ev.key))
 
     @poll.poll_event_desc(event='DUMMY_SERVICE_EVENT6', spacing=20)
     def dummy_event6_poll_event(self, ev):
@@ -96,16 +104,16 @@ class Handler_Class(PollEventDesc):
             if ev.id == 'DUMMY_SERVICE_EVENT6' and time_elapsed == 20:
                 self._sc._event.set()
         LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Decorator Poll event %s" % (ev.key)
+        print ("Decorator Poll event %s", (ev.key))
 
 
 def module_init(sc, conf):
     evs = [
-        Event(id='DUMMY_SERVICE_EVENT1', handler=Handler_Class(sc)),
-        Event(id='DUMMY_SERVICE_EVENT2', handler=Handler_Class(sc)),
-        Event(id='DUMMY_SERVICE_EVENT3', handler=Handler_Class(sc)),
-        Event(id='DUMMY_SERVICE_EVENT4', handler=Handler_Class(sc)),
-        Event(id='DUMMY_SERVICE_EVENT5', handler=Handler_Class(sc)),
-        Event(id='DUMMY_SERVICE_EVENT6', handler=Handler_Class(sc))
+        main.Event(id='DUMMY_SERVICE_EVENT1', handler=Handler_Class(sc)),
+        main.Event(id='DUMMY_SERVICE_EVENT2', handler=Handler_Class(sc)),
+        main.Event(id='DUMMY_SERVICE_EVENT3', handler=Handler_Class(sc)),
+        main.Event(id='DUMMY_SERVICE_EVENT4', handler=Handler_Class(sc)),
+        main.Event(id='DUMMY_SERVICE_EVENT5', handler=Handler_Class(sc)),
+        main.Event(id='DUMMY_SERVICE_EVENT6', handler=Handler_Class(sc))
     ]
     sc.register_events(evs)
