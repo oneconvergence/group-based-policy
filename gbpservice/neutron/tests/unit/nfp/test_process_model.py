@@ -8,10 +8,10 @@
 #  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
 #  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #  License for the specific language governing permissions and limitations
-#  under the License.from gbpservice.neutron.nsf.core import main
+#  under the License.
 
-from gbpservice.neutron.nsf.core import cfg as nfp_config
-from gbpservice.neutron.nsf.core import main
+from gbpservice.nfp.core import cfg as nfp_config
+from gbpservice.nfp.core import main
 import mock
 import multiprocessing as multiprocessing
 from neutron.agent.common import config as n_config
@@ -27,7 +27,7 @@ LOG = oslo_logging.getLogger(__name__)
 class Test_Process_Model(unittest.TestCase):
 
     @mock.patch(
-        'gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put'
+        'gbpservice.nfp.core.main.multiprocessing.queues.Queue.put'
     )
     def test_event_create(self, mock_put):
         event = self.sc.new_event(
@@ -40,7 +40,7 @@ class Test_Process_Model(unittest.TestCase):
         mock_put.assert_called_once_with(event)
 
     @mock.patch(
-        'gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put'
+        'gbpservice.nfp.core.main.multiprocessing.queues.Queue.put'
     )
     def test_events_with_same_binding_keys(self, mock_put):
         event1 = self.sc.new_event(
@@ -61,7 +61,7 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(mock_put.call_count, 2)
 
     @mock.patch(
-        'gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put'
+        'gbpservice.nfp.core.main.multiprocessing.queues.Queue.put'
     )
     def test_events_with_no_binding_key(self, mock_put):
         event1 = self.sc.new_event(
@@ -80,7 +80,7 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(mock_put.call_count, 2)
 
     @mock.patch(
-        'gbpservice.neutron.nsf.core.main.multiprocessing.queues.Queue.put'
+        'gbpservice.nfp.core.main.multiprocessing.queues.Queue.put'
     )
     def test_loadbalancing_events(self, mock_put):
         event1 = self.sc.new_event(
@@ -112,7 +112,7 @@ class Test_Process_Model(unittest.TestCase):
             )
         self.assertEqual(mock_put.call_count, 2)
 
-    @mock.patch('gbpservice.neutron.nsf.core.main.EventSequencer.add')
+    @mock.patch('gbpservice.nfp.core.main.EventSequencer.add')
     def test_serialize_events_serialize_false(self, mock_sequencer):
         event1 = self.mock_event(
             id='SERVICE_CREATE', data=self.service1,
@@ -124,7 +124,7 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(mock_sequencer.call_count, 0)
         self.assertEqual(sequenced_event1, event1)
 
-    @mock.patch('gbpservice.neutron.nsf.core.main.EventSequencer.add')
+    @mock.patch('gbpservice.nfp.core.main.EventSequencer.add')
     def test_serialize_events_serialze_true(self, mock_sequencer):
         event1 = self.mock_event(
             id='SERVICE_CREATE', data=self.service1,
@@ -140,7 +140,7 @@ class Test_Process_Model(unittest.TestCase):
         sequenced_event1 = self.sc.sequencer_put_event(event1)
         self.assertEqual(sequenced_event1, event1)
 
-    @mock.patch('gbpservice.neutron.nsf.core.main.EventSequencer')
+    @mock.patch('gbpservice.nfp.core.main.EventSequencer')
     def test_EventSequencer_add(self, mocked_sequencer):
         event1 = self.mock_event(
             id='SERVICE_CREATE', data=self.service1,

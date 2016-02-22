@@ -28,8 +28,12 @@ from gbpservice.nfp.core import fifo as nfp_fifo
 LOG = oslo_logging.getLogger(__name__)
 PID = os.getpid()
 identify = nfp_common.identify
+log_info = nfp_common.log_info
+log_debug = nfp_common.log_debug
+log_error = nfp_common.log_error
 
-""" Decorator definition """
+
+"""Decorator definition """
 
 
 def poll_event_desc(*args, **kwargs):
@@ -41,7 +45,7 @@ def poll_event_desc(*args, **kwargs):
 
     return decorator
 
-""" Meta class. """
+"""Meta class. """
 
 
 class _Meta(type):
@@ -61,7 +65,7 @@ class _Meta(type):
                 # name = desc.__name__
                 cls._poll_event_descs[desc._event] = desc
 
-""" Implements the logic to manage periodicity of events.
+"""Implements the logic to manage periodicity of events.
     Reference to corresponding decorated methods are returned
     if event has timedout.
 """
@@ -99,7 +103,7 @@ class PollEventDesc(object):
         return current_time - offset + jitter
 
     def _timedout(self, desc, event):
-        """ Check if event timedout w.r.t its spacing. """
+        """Check if event timedout w.r.t its spacing. """
         spacing = desc._spacing
         last_run = event.last_run
         delta = 0
@@ -112,7 +116,7 @@ class PollEventDesc(object):
         return event
 
     def check_timedout(self, event):
-        """ Check if event timedout w.r.t its spacing.
+        """Check if event timedout w.r.t its spacing.
 
             First check if the spacing is set for this event, if
             not then return the event - in this case events timeout
@@ -126,7 +130,7 @@ class PollEventDesc(object):
             return self._timedout(desc, event)
 
     def get_poll_event_desc(self, event):
-        """ Get the registered event handler for the event.
+        """Get the registered event handler for the event.
 
             Check if the event has a specific periodic handler
             defined, if then return it.
@@ -136,7 +140,7 @@ class PollEventDesc(object):
         return self._poll_event_descs[event.id]
 
 
-""" Periodic task to poll for nfp events.
+"""Periodic task to poll for nfp events.
 
     Derived from oslo periodic task, polls periodically for the
     NFP events, invokes registered event handler for the timedout
@@ -156,11 +160,11 @@ class PollingTask(oslo_periodic_task.PeriodicTasks):
 
     @oslo_periodic_task.periodic_task(spacing=1)
     def periodic_sync_task(self, context):
-        LOG.debug(_("Periodic sync task invoked !"))
+        log_debug(LOG, "Periodic sync task invoked !")
         # invoke the common class to handle event timeouts
         self._sc.timeout()
 
-""" Handles the polling queue, searches for the timedout events.
+"""Handles the polling queue, searches for the timedout events.
 
     Invoked in PollingTask, fetches new events from pollQ to cache them.
     Searches in cache for timedout events, enqueues timedout events to
@@ -184,7 +188,7 @@ class PollQueueHandler(object):
         self._cache = nfp_fifo.Fifo(sc)
 
     def _get(self):
-        """ Internal method to get messages from pollQ.
+        """Internal method to get messages from pollQ.
 
             Handles the empty queue exception.
         """
@@ -194,26 +198,26 @@ class PollQueueHandler(object):
             return None
 
     def _cancelled(self, ev):
-        """ To cancel an event.
+        """To cancel an event.
 
             Removes the event from internal cache and scheds the
             event to worker to handle any cleanup.
         """
-        LOG.info(_("Poll event %s cancelled" % (ev.identify())))
+        log_info(LOG, "Poll event %s cancelled" % (ev.identify()))
         ev.poll_event = 'POLL_EVENT_CANCELLED'
         self._event_done(ev)
         self._sc.post_event(ev)
 
     def _schedule(self, ev):
-        """ Schedule the event to approp worker.
+        """Schedule the event to approp worker.
 
             Checks if the event has timedout and if yes,
             then schedules it to the approp worker. Approp worker -
             worker which handled this event earlier.
         """
-        LOG.debug(_("Schedule event %s" % (ev.identify())))
+        log_debug(LOG, "Schedule event %s" % (ev.identify()))
         eh = self._ehs.get(ev)
-        """ Check if the event has any defined spacing interval, if yes
+        """Check if the event has any defined spacing interval, if yes
             then did it timeout w.r.t the spacing ?
             If yes, then event is scheduled.
             Spacing for event can only be defined if the registered event
@@ -222,23 +226,23 @@ class PollQueueHandler(object):
         """
         if isinstance(eh, PollEventDesc):
             if eh.check_timedout(ev):
-                LOG.info(_(
-                    "Event %s timed out -"
-                    "scheduling it to a worker" % (ev.identify())))
+                log_info(LOG,
+                         "Event %s timed out -"
+                         "scheduling it to a worker" % (ev.identify()))
                 self._sc.post_event(ev)
                 return ev
         else:
-            LOG.info(_(
-                "Event %s timed out -"
-                "scheduling it to a worker" % (ev.identify())))
+            log_info(LOG,
+                     "Event %s timed out -"
+                     "scheduling it to a worker" % (ev.identify()))
             self._sc.post_event(ev)
             return ev
         return None
 
     def _process_event(self, ev):
-        """ Process different type of poll event. """
+        """Process different type of poll event. """
 
-        LOG.debug(_("Processing poll event %s" % (ev.identify())))
+        log_debug(LOG, "Processing poll event %s" % (ev.identify()))
         if ev.id == 'POLL_EVENT_DONE':
             return self._event_done(ev)
         copyev = copy.deepcopy(ev)
@@ -251,77 +255,80 @@ class PollQueueHandler(object):
             ev.last_run = copyev.last_run
 
     def _event_done(self, ev):
-        """ Marks the event as complete.
+        """Marks the event as complete.
 
             Invoked by caller to mark the event as complete.
             Removes the event from internal cache.
         """
-        LOG.info(_("Poll event %s to be marked done !" % (ev.identify())))
+        log_info(LOG, "Poll event %s to be marked done !" % (ev.identify()))
         self.remove(ev)
 
     def add(self, event):
-        """ Adds an event to the pollq.
+        """Adds an event to the pollq.
 
             Invoked in context of worker process
             to send event to polling task.
         """
-        LOG.debug(_("Add event %s to the pollq" % (event.identify())))
+        log_debug(LOG, "Add event %s to the pollq" % (event.identify()))
         self._pollq.put(event)
 
     def remove(self, event):
-        """ Remove an event from polling cache.
+        """Remove an event from polling cache.
 
             All the events which matches with the event.key
             are removed from cache.
         """
-        LOG.info(_("Remove event %s from pollq" % (event.identify())))
-        LOG.info(
-            _("Removing all poll events with key %s" % (event.identify())))
+        log_info(LOG, "Remove event %s from pollq" % (event.identify()))
+        log_info(LOG,
+                 "Removing all poll events with key %s" % (event.identify()))
         remevs = []
         cache = self._cache.copy()
         for elem in cache:
             if elem.key == event.key:
-                LOG.info(_(
-                    "Event %s key matched event %s key - "
-                    "removing event %s from pollq"
-                    % (elem.identify(), event.identify(), elem.identify())))
+                log_info(LOG,
+                         "Event %s key matched event %s key - "
+                         "removing event %s from pollq"
+                         % (elem.identify(), event.identify(),
+                            elem.identify()))
                 remevs.append(elem)
         self._cache.remove(remevs)
 
     def fill(self):
-        """ Fill polling cache with events from poll queue.
+        """Fill polling cache with events from poll queue.
 
             Fetch messages from poll queue which is
             python mutiprocessing.queue and fill local cache.
             Events need to persist and polled they are declated complete
             or cancelled.
         """
-        LOG.debug(_("Fill events from multi processing Q to internal cache"))
+        log_debug(LOG, "Fill events from multi processing Q to internal cache")
         # Get some events from queue into cache
         for i in range(0, 10):
             ev = self._get()
             if ev:
-                LOG.debug(_(
-                    "Got new event %s from multi processing Q"
-                    % (ev.identify())))
+                log_debug(LOG,
+                          "Got new event %s from multi processing Q"
+                          % (ev.identify()))
                 self._cache.put(ev)
 
     def peek(self, idx, count):
-        """ Peek for events instead of popping.
+        """Peek for events instead of popping.
 
             Peek into specified number of events, this op does
             not result in pop of events from queue, hence the events
             are not lost.
         """
-        LOG.debug(_("Peek poll events from index:%d count:%d" % (idx, count)))
+        log_debug(LOG,
+                  "Peek poll events from index:%d count:%d"
+                  % (idx, count))
         cache = self._cache.copy()
         qlen = len(cache)
-        LOG.debug(_("Number of elements in poll q - %d" % (qlen)))
+        log_debug(LOG, "Number of elements in poll q - %d" % (qlen))
         pull = qlen if (idx + count) > qlen else count
         return cache[idx:(idx + pull)], pull
 
     def run(self):
-        """ Invoked in loop of periodic task to check for timedout events. """
+        """Invoked in loop of periodic task to check for timedout events. """
         # Fill the cache first
         self.fill()
         # Peek the events from cache
