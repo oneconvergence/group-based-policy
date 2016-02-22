@@ -690,7 +690,7 @@ class HaproxyOnVmDriver(BaseDriver):
             LOG.info(msg)
 
     def update_member(self, old_member, member, context):
-        LOG.info(" update member [old_member=%, member=%s] " % (old_member,
+        LOG.info(" update member [old_member=%s, member=%s] " % (old_member,
                                                                 member))
         try:
             device_addr = self._get_device_for_pool(old_member['pool_id'],
