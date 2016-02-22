@@ -44,9 +44,9 @@ class FilterTest(filter_base.BaseTestCase):
     def test_make_msg(self):
 
         retval = self.filter_obj.make_msg('get_logical_device',
-                                          pool_id=[self.pools[0]['id']])
+                                          pool_id=self.pools[0]['id'])
         self.assertEqual(retval, {'method': 'get_logical_device',
-                                  'args': {'pool_id': [self.pools[0]['id']]}})
+                                  'args': {'pool_id': self.pools[0]['id']}})
 
     def test_make_msg_empty(self):
 
@@ -96,7 +96,7 @@ class FilterTest(filter_base.BaseTestCase):
 
         retval = self._make_test(self._make_lb_service_context(),
                                  'get_logical_device',
-                                 pool_id=[self.pools[0]['id']])
+                                 pool_id=self.pools[0]['id'])
 
         self.ports[0]['fixed_ips'] = self.subnets[1]
         self.vips[0]['port'] = self.ports[0]
