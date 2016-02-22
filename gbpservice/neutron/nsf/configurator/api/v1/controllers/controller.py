@@ -1,18 +1,11 @@
-import pecan
-import sys
 import json
-from pecan import rest
-from pecan import expose, response, request, abort, conf
 
-import eventlet
-import time
-import threading
-import sys
-import os
-from multiprocessing import Process, Queue, Lock
+from neutron.common import rpc as n_rpc
+from neutron.agent.common import config
 from oslo_config import cfg
 import oslo_messaging
-from neutron.common import rpc as n_rpc
+from pecan import expose, request
+from pecan import rest
 
 import constants
 
@@ -20,7 +13,7 @@ import constants
 class Controller(rest.RestController):
 
     """controller class for handling all the curl request"""
-    
+
     def __init__(self, module_name):
         self.rpcclient = RPCClient(topic=constants.TOPIC, host='hostname')
         self.module_name = module_name
@@ -29,17 +22,12 @@ class Controller(rest.RestController):
     @expose(method='GET', content_type='application/json')
     def get(self):
         try:
-            body = None
-            if request.is_body_readable:
-                body = request.json_body
-            return self._get_notifications(body)
+            return self._get_notifications()
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
     @expose(method='POST', content_type='application/json')
     def post(self, **body):
-        import pdb
-        pdb.set_trace()
         try:
             body = None
             if request.is_body_readable:
@@ -49,7 +37,7 @@ class Controller(rest.RestController):
             else:
                 return self._create_network_service_config(body)
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
     @expose(method='PUT', content_type='application/json')
     def put(self, **body):
@@ -58,27 +46,19 @@ class Controller(rest.RestController):
             if request.is_body_readable:
                 body = request.json_body
 
-            header = request.headers
-            method = header.get('Method-type')
-            if method == 'UPDATE':
-                if self.module_name == "device_config":
-                    return self._update_network_device_config(body)
-                else:
-                    return self._update_network_service_config(body)
+            if self.module_name == "device_config":
+                return self._delete_network_device_config(body)
             else:
-                if self.module_name == "device_config":
-                    return self._delete_network_device_config(body)
-                else:
-                    return self._delete_network_service_config(body)
+                return self._delete_network_service_config(body)
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
-    def _get_notifications(self, body):
+    def _get_notifications(self):
         try:
             return json.dumps(
                 self.rpcclient.get_notifications())
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
     def _create_network_device_config(self, body):
         request_data = body.get("request_data")
@@ -86,15 +66,15 @@ class Controller(rest.RestController):
             return json.dumps(
                 self.rpcclient.create_network_device_config(request_data))
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
-    def _create_network_function_config(self, body):
+    def _create_network_service_config(self, body):
         request_data = body.get("request_data")
         try:
             return json.dumps(
                 self.rpcclient.create_network_service_config(request_data))
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
     def _update_network_device_config(self, body):
         request_data = body.get("request_data")
@@ -102,7 +82,7 @@ class Controller(rest.RestController):
             return json.dumps(
                 self.rpcclient.update_network_device_config(request_data))
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
     def _update_network_service_config(self, body):
         request_data = body.get("request_data")
@@ -110,7 +90,7 @@ class Controller(rest.RestController):
             return json.dumps(
                 self.rpcclient.update_network_service_config(request_data))
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
     def _delete_network_device_config(self, body):
         request_data = body.get("request_data")
@@ -118,7 +98,7 @@ class Controller(rest.RestController):
             return json.dumps(
                 self.rpcclient.delete_network_device_config(request_data))
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
     def _delete_network_service_config(self, body):
         request_data = body.get("request_data")
@@ -126,12 +106,13 @@ class Controller(rest.RestController):
             return json.dumps(
                 self.rpcclient.delete_network_service_config(request_data))
         except Exception as e:
-            return json.dumps({'err_msg': e.message})
+            return json.dumps({'err_msg': e.args})
 
 
 class RPCClient(object):
 
-    """send RPC call/cast on behalf of controller class according to the curl request"""
+    """send RPC call/cast on behalf of controller class
+    according to the curl request"""
     API_VERSION = '1.0'
 
     def __init__(self, topic, host):
