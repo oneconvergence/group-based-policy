@@ -16,7 +16,8 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import six
 
-from gbpservice.neutron.nsf._i18n import _, _LE
+from gbpservice.neutron.nsf._i18n import _
+from gbpservice.neutron.nsf._i18n import _LE
 
 
 LOG = logging.getLogger(__name__)
