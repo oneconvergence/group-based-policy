@@ -384,5 +384,5 @@ def main():
     sc = Controller(oslo_config.CONF, modules)
     sc.start()
     sc.init_complete()
-    # sc.unit_test()
+    sc.unit_test()
     sc.wait()
