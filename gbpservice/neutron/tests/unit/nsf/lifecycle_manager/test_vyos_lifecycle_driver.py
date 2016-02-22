@@ -3,7 +3,7 @@ from mock import patch
 import unittest
 
 from gbpservice.neutron.nsf.lifecycle_manager.drivers import (
-    haproxy_lifecycle_driver
+    vyos_lifecycle_driver
 )
 
 
@@ -19,18 +19,18 @@ OPENSTACK_DRIVER_CLASS_PATH = ('gbpservice.neutron.nsf.lifecycle_manager'
        mock.MagicMock(return_value=None))
 @patch(OPENSTACK_DRIVER_CLASS_PATH + '.NeutronClient.__init__',
        mock.MagicMock(return_value=None))
-class HaproxyLifecycleDriverTestCase(unittest.TestCase):
+class VyosLifecycleDriverTestCase(unittest.TestCase):
 
     def test_get_nfd_sharing_info_when_device_sharing_unsupported(
                                                                 self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                         supports_device_sharing=False)
         self.assertRaises(Exception,
                           driver.get_network_function_device_sharing_info,
                           None)
 
     def test_get_network_function_device_sharing_info(self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                         supports_device_sharing=True,
                         supports_hotplug=True)
         device_data = {'tenant_id': 'tenant_id',
@@ -48,7 +48,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
 
     def test_select_network_function_device_when_device_sharing_unsupported(
                                                                         self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                         supports_device_sharing=False)
         self.assertRaises(Exception,
                           driver.select_network_function_device,
@@ -56,7 +56,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
                           None)
 
     def test_select_network_function_device(self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -88,7 +88,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
                                ' the device supports'))
 
     def test_create_network_function_device(self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -120,7 +120,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
         # test for create device when interface hotplug is enabled
         device_data = {'tenant_id': '1',
                        'network_policy': 'gbp',
-                       'service_vendor': 'haproxy',
+                       'service_vendor': 'vyos',
                        'management_network_info': {'id': '2'},
                        'compute_policy': 'xyz',
                        'ports': [{'id': '3',
@@ -150,7 +150,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
                                    ' is not a dictionary'))
 
     def test_delete_network_function_device(self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -178,7 +178,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
         self.assertIsNone(driver.delete_network_function_device(device_data))
 
     def test_get_network_function_device_status(self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -203,7 +203,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
                 'ACTIVE')
 
     def test_plug_network_function_device_interfaces(self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -241,7 +241,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
                         msg='')
 
     def test_unplug_network_function_device_interfaces(self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -280,7 +280,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
                         msg='')
 
     def test_get_network_function_device_healthcheck_info(self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -293,7 +293,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
             dict, msg='')
 
     def test_get_network_function_device_config_info(self):
-        driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
+        driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -319,7 +319,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
                                             'gateway_ip': 'p.q.r.1'
                                         }})
 
-        device_data = {'service_vendor': 'haproxy',
+        device_data = {'service_vendor': 'vyos',
                        'mgmt_ip_address': 'a.b.c.d',
                        'ports': [{'id': '3',
                                   'port_policy': 'gbp',
