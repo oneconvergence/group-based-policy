@@ -10,11 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.neutron.nsf.lifecycle_manager.drivers.lifecycle_driver_base\
-    import GenericLifeCycleDriver
+from oslo_log import log as logging
+
+from gbpservice.neutron.nsf.lifecycle_manager.drivers.lifecycle_driver_base \
+    import LifeCycleDriverBase
+
+LOG = logging.getLogger(__name__)
 
 
-class HaproxyLifeCycleDriver(GenericLifeCycleDriver):
+class HaproxyLifeCycleDriver(LifeCycleDriverBase):
     """Haproxy Service VM Driver for Lifecycle handling of virtual appliances
 
     Overrides methods from HotplugSupportedLifeCycleDriver class for performing
@@ -26,38 +30,87 @@ class HaproxyLifeCycleDriver(GenericLifeCycleDriver):
             supports_device_sharing=supports_device_sharing,
             supports_hotplug=supports_hotplug,
             max_interfaces=max_interfaces)
+        self.service_vendor = 'Haproxy'
 
-    def get_devices_to_reuse(self, tenant_id, service_type, service_vendor,
-                             ha_type, num_devices):
-        filters = {'tenant_id': [tenant_id],
-                   'service_vendor': [service_vendor],
-                   'interfaces_in_use': ' < max_interfaces'}
-        devices = self.get_device_instances_db(filters=filters)
-        if devices:
-            return devices[0]
-        else:
+    def get_network_function_device_config_info(self, device_data):
+        if any(key not in device_data
+               for key in ['service_vendor',
+                           'mgmt_ip_address',
+                           'ports']):
+            # TODO[RPM]: raise proper exception
+            raise Exception('Not enough required data is received')
+
+        try:
+            token = (device_data['token']
+                     if device_data.get('token')
+                     else self.identity_handler.get_admin_token())
+        except Exception:
+            LOG.error(_('Failed to get token'
+                        ' for get device config info operation'))
             return None
 
-    def _get_ports_for_device_create(self):
-        pass
+        provider_ip = None
+        provider_mac = None
+        provider_cidr = None
+        consumer_ip = None
+        consumer_mac = None
+        consumer_cidr = None
+        consumer_gateway_ip = None
 
-    def _get_management_port(self):
-        pass
+        for port in device_data['ports']:
+            if port['port_classification'] == 'provider':
+                try:
+                    port_id = self._get_port_id(port, token)
+                    (provider_ip, provider_mac,
+                     provider_cidr, _) = self._get_port_details(token, port_id)
+                except Exception:
+                    LOG.error(_('Failed to get provider port details'
+                                ' for get device config info operation'))
+                    return None
+            elif port['port_classification'] == 'comsumer':
+                try:
+                    port_id = self._get_port_id(port, token)
+                    (consumer_ip, consumer_mac,
+                     consumer_cidr,
+                     consumer_gateway_ip) = self._get_port_details(token,
+                                                                   port_id)
+                except Exception:
+                    LOG.error(_('Failed to get consumer port details'
+                                ' for get device config info operation'))
+                    return None
 
-    def _is_ha_monitoring_port_required(self):
-        return False
-
-    def create_device(self):
-        pass
-
-    def setup_traffic_steering(self):
-        self.network_handler.setup_traffic_steering()
-
-    def plug_interface(self):
-        pass
-
-    def unplug_interface(self):
-        pass
-
-    def delete_device(self):
-        pass
+        return {
+            'info': {
+                'version': 1
+            },
+            'config': [
+                {
+                    'resource': 'interfaces',
+                    'kwargs': {
+                        'mgmt_ip': device_data['mgmt_ip_address'],
+                        'service_vendor': device_data['service_vendor'],
+                        'provider_ip': provider_ip,
+                        'provider_cidr': provider_cidr,
+                        'provider_interface_position': 2,
+                        'stitching_ip': consumer_ip,
+                        'stitching_cidr': consumer_cidr,
+                        'stitching_interface_position': 3,
+                        'provider_mac': provider_mac,
+                        'stitching_mac': consumer_mac
+                    }
+                },
+                {
+                    'resource': 'routes',
+                    'kwargs': {
+                        'mgmt_ip': device_data['mgmt_ip_address'],
+                        'service_vendor': device_data['service_vendor'],
+                        'source_cidrs': ([provider_cidr, consumer_cidr]
+                                         if consumer_cidr
+                                         else [provider_cidr]),
+                        'destination_cidr': consumer_cidr,
+                        'gateway_ip': consumer_gateway_ip,
+                        'provider_interface_position': 2
+                    }
+                }
+            ]
+        }
