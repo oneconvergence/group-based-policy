@@ -153,7 +153,7 @@ class ServiceLifeCycleHandler(object):
         event_handler(event)
 
     def handle_poll_event(self, event):
-        event_handler = self.event_method_mapping(event)
+        event_handler = self.event_method_mapping(event.id)
         event_handler(event)
 
     def _log_event_created(self, event_id, event_data):
@@ -388,8 +388,10 @@ class ServiceLifeCycleHandler(object):
         nfi = {'status': 'PENDING_DELETE'}
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, nfi_id, nfi)
+        delete_nfd_request = {'network_function_device_id': nfi['network_function_device_id'],
+                              'network_function_instance': nfi}
         self._create_event('DELETE_NETWORK_FUNCTION_DEVICE',
-                           event_data=nfi['network_function_device_id'])
+                           event_data=delete_nfd_request)
 
     def _validate_create_service_input(self, context, create_service_request):
         required_attributes = ["tenant_id", "service_id", "service_chain_id",
@@ -482,6 +484,7 @@ class ServiceLifeCycleHandler(object):
             updated_network_function)
         # Trigger RPC to notify the Create_Service caller with status
 
+    # TODO: When Device LCM deletes Device DB, the Foreign key NSI will be nulled
     def handle_user_config_deleted(self, event):
         request_data = event.data
         network_function = self.db_handler.get_network_function(

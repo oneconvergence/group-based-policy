@@ -180,7 +180,7 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             marker_obj=marker_obj, page_reverse=page_reverse)
 
     def _set_mgmt_ports_for_nfd(self, session, network_function_device_db,
-                                network_function_device):
+                                network_function_device, is_update=False):
         nfd_db = network_function_device_db
         mgmt_data_ports = network_function_device.get('mgmt_data_ports')
         if not mgmt_data_ports:
@@ -194,7 +194,10 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                     port_policy=port['port_policy'],
                     port_classification=port['port_classification'],
                     port_type=port['port_type'])
-                session.add(port_info_db)
+                if is_update:
+                    session.merge(port_info_db)
+                else:
+                    session.add(port_info_db)
                 assoc = nfp_db_model.NSDPortAssociation(
                     network_function_device_id=network_function_device_db[
                         'id'],
@@ -288,7 +291,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                 self._set_mgmt_ports_for_nfd(
                     session,
                     network_function_device_db,
-                    updated_network_function_device)
+                    updated_network_function_device,
+                    is_update=True)
             if 'ha_monitoring_data_port' in updated_network_function_device:
                 self._set_ha_monitoring_data_port_for_nfd(
                     session,
