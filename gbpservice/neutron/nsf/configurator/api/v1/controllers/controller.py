@@ -131,46 +131,41 @@ class RPCClient(object):
         return cctxt.call(self, 'get_notifications')
 
     def create_network_device_config(self, request_data):
-        context = request_data['config'][0]['kwargs']['context']
-        del request_data['config'][0]['kwargs']['context']
+      
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(context, 'create_network_device_config',
+        return cctxt.cast(self, 'create_network_device_config',
                           request_data=request_data)
 
     def create_network_service_config(self, request_data):
-        context = request_data['config'][0]['kwargs']['context']
-        del request_data['config'][0]['kwargs']['context']
+      
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(context, 'create_network_service_config',
+        return cctxt.cast(self, 'create_network_service_config',
                           request_data=request_data)
 
     def update_network_device_config(self, request_data):
-        context = request_data['config'][0]['kwargs']['context']
-        del request_data['config'][0]['kwargs']['context']
+      
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(context, 'update_network_device_config',
+        return cctxt.cast(self, 'update_network_device_config',
                           request_data=request_data)
 
     def update_network_service_config(self, request_data):
-        context = request_data['config'][0]['kwargs']['context']
-        del request_data['config'][0]['kwargs']['context']
+      
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(context, 'update_network_service_config',
+        return cctxt.cast(self, 'update_network_service_config',
                           request_data=request_data)
 
     def delete_network_device_config(self, request_data):
-        context = request_data['config'][0]['kwargs']['context']
-        del request_data['config'][0]['kwargs']['context']
+      
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(context, 'delete_network_device_config',
+        return cctxt.cast(self, 'delete_network_device_config',
                           request_data=request_data)
 
     def delete_network_service_config(self, request_data):
-        context = request_data['config'][0]['kwargs']['context']
-        del request_data['config'][0]['kwargs']['context']
+      
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(context, 'delete_network_service_config',
+        return cctxt.cast(self, 'delete_network_service_config',
                           request_data=request_data)
 
     def to_dict(self):
-        return {'context': 'context'}
+      
+        return {}
