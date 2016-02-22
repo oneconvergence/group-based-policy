@@ -232,11 +232,11 @@ class Filter():
 
     def get_logical_device(self, context, filters):
         """
-        :param filters e.g {'pool_id': [pool_id]}
+        :param filters e.g {'pool_id': pool_id}
         """
         service_info = context['service_info']
         pool_id = filters.get('pool_id')
-        pool = self.get_record(service_info['pools'], 'id', pool_id[0])
+        pool = self.get_record(service_info['pools'], 'id', pool_id)
 
         '''
         pool will be in the following format
