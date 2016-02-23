@@ -5,16 +5,16 @@ import json
 import time
 
 from oslo_log import log as logging
-from gbpservice.neutron.nsf.core.main import ServiceController
-from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core.main import RpcAgent
+from gbpservice.neutron.nfp.core.main import ServiceController
+from gbpservice.neutron.nfp.core.main import Event
+from gbpservice.neutron.nfp.core.main import RpcAgent
 
-from gbpservice.neutron.nsf.config_agent import topics
-from gbpservice.neutron.nsf.config_agent.firewall import *
-from gbpservice.neutron.nsf.config_agent.loadbalancer import *
-from gbpservice.neutron.nsf.config_agent.vpn import *
-from gbpservice.neutron.nsf.config_agent.generic import *
-from gbpservice.neutron.nsf.config_agent.rpc_cb import *
+from gbpservice.neutron.nfp.config_agent import topics
+from gbpservice.neutron.nfp.config_agent.firewall import *
+from gbpservice.neutron.nfp.config_agent.loadbalancer import *
+from gbpservice.neutron.nfp.config_agent.vpn import *
+from gbpservice.neutron.nfp.config_agent.generic import *
+from gbpservice.neutron.nfp.config_agent.rpc_cb import *
 
 from oslo_config import cfg
 import oslo_messaging as messaging
@@ -28,7 +28,7 @@ def rpc_init(sc, conf):
     fwagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
-        topic=topics.FW_NSF_CONFIGAGENT_TOPIC,
+        topic=topics.FW_NFP_CONFIGAGENT_TOPIC,
         manager=fwrpcmgr
     )
 
@@ -36,7 +36,7 @@ def rpc_init(sc, conf):
     lbagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
-        topic=topics.LB_NSF_CONFIGAGENT_TOPIC,
+        topic=topics.LB_NFP_CONFIGAGENT_TOPIC,
         manager=lbrpcmgr
     )
 
@@ -44,7 +44,7 @@ def rpc_init(sc, conf):
     vpnagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
-        topic=topics.VPN_NSF_CONFIGAGENT_TOPIC,
+        topic=topics.VPN_NFP_CONFIGAGENT_TOPIC,
         manager=vpnrpcmgr
     )
 
@@ -52,7 +52,7 @@ def rpc_init(sc, conf):
     gcagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
-        topic=topics.GC_NSF_CONFIGAGENT_TOPIC,
+        topic=topics.GC_NFP_CONFIGAGENT_TOPIC,
         manager=gcrpcmgr
     )
 
