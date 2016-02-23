@@ -991,7 +991,6 @@ class HeatDriver():
             consumer_port, provider_port,
             update=True, mgmt_ip=mgmt_ip)
         if stack_id:
-            # FIXME(Magesh): Fix the update stack issue on Heat/*aas driver
             if service_type == pconst.VPN or service_type == pconst.FIREWALL:
                 heatclient.delete(stack_id)
                 try:
