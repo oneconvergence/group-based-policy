@@ -63,7 +63,8 @@ class HaproxyLifeCycleDriver(LifeCycleDriverBase):
                 try:
                     port_id = self._get_port_id(port, token)
                     (provider_ip, provider_mac,
-                     provider_cidr, _) = self._get_port_details(token, port_id)
+                     provider_cidr, dummy) = self._get_port_details(token,
+                                                                    port_id)
                 except Exception:
                     LOG.error(_('Failed to get provider port details'
                                 ' for get device config info operation'))
