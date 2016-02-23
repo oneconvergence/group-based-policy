@@ -76,7 +76,7 @@ def upgrade():
         sa.Column('mgmt_ip_address', sa.String(length=36), nullable=True),
         sa.Column('ha_monitoring_data_port',
                   sa.String(length=36),
-                  nullable=False),
+                  nullable=True),
         sa.Column('ha_monitoring_data_network',
                   sa.String(length=36),
                   nullable=True),
@@ -112,7 +112,7 @@ def upgrade():
     )
 
     op.create_table(
-        'nsi_dataport_associations',
+        'nfi_dataport_associations',
         sa.Column('network_function_instance_id',
                   sa.String(length=36),
                   nullable=True),
