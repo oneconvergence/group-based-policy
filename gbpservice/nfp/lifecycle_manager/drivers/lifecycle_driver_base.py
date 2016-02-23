@@ -12,8 +12,8 @@
 
 from oslo_log import log as logging
 
-from gbpservice.neutron.nsf._i18n import _
-from gbpservice.neutron.nsf.lifecycle_manager.openstack import (
+from gbpservice.nfp._i18n import _
+from gbpservice.nfp.lifecycle_manager.openstack import (
     openstack_driver
 )
 

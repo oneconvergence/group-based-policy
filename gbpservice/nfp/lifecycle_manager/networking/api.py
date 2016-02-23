@@ -10,9 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.neutron.nsf.lifecycle_manager.networking.drivers import (
+from gbpservice.nfp.lifecycle_manager.networking.drivers import (
     gbp_driver)
-from gbpservice.neutron.nsf.lifecycle_manager.networking.drivers import (
+from gbpservice.nfp.lifecycle_manager.networking.drivers import (
     neutron_driver)
 
 

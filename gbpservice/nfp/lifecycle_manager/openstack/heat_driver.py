@@ -28,13 +28,13 @@ from oslo_utils import excutils
 from oslo_utils._i18n import _
 import yaml
 
-from gbpservice.neutron.nsf.lifecycle_manager.openstack.heat_client\
+from gbpservice.nfp.lifecycle_manager.openstack.heat_client\
     import HeatClient
-from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver\
+from gbpservice.nfp.lifecycle_manager.openstack.openstack_driver\
     import GBPClient
-from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver\
+from gbpservice.nfp.lifecycle_manager.openstack.openstack_driver\
     import KeystoneClient
-from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver\
+from gbpservice.nfp.lifecycle_manager.openstack.openstack_driver\
     import NeutronClient
 from gbpservice.neutron.services.grouppolicy.common import constants as gconst
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
@@ -950,8 +950,8 @@ class HeatDriver():
         if service_profile['service_type'] == pconst.LOADBALANCER:
             auth_token, provider_tenant_id = self._get_tenant_context(
                 provider_tenant_id)
-             self._create_policy_target_for_vip(auth_token,
-                  provider_tenant_id, provider)
+            self._create_policy_target_for_vip(auth_token,
+                provider_tenant_id, provider)
 
         return stack_id
 
@@ -993,8 +993,7 @@ class HeatDriver():
         if stack_id:
             # FIXME(Magesh): Fix the update stack issue on Heat/*aas driver
             if service_type == pconst.VPN or service_type == pconst.FIREWALL:
-                 heatclient.delete(stack_id)
-
+                heatclient.delete(stack_id)
                 try:
                     self._wait_for_stack_operation_complete(heatclient,
                                                             stack_id,
@@ -1013,7 +1012,7 @@ class HeatDriver():
                               service_chain_node['id'][:8] + '-' +
                               time.strftime("%Y%m%d%H%M%S"))
                 try:
-                     stack = heatclient.create(stack_name, stack_template,
+                    stack = heatclient.create(stack_name, stack_template,
                                               stack_params)
                 except Exception as err:
                     msg = ('Fatal error. Heat Stack creation failed while '

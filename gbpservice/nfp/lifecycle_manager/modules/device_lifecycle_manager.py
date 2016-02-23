@@ -14,25 +14,23 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging as messaging
 
-from gbpservice.neutron.nsf.core.main import ServiceController
-from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core.main import RpcAgent
-from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
-from gbpservice.neutron.nsf.common import topics as nsf_topics
-from gbpservice.neutron.nsf.db import nfp_db as nfp_db
-from gbpservice.neutron.nsf.db import api as nfp_db_api
-#from gbpservice.neutron.nsf.lifecycle_manager.compute.drivers import (
+from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.common import topics as nsf_topics
+from gbpservice.nfp.db import nfp_db as nfp_db
+from gbpservice.nfp.db import api as nfp_db_api
+#from gbpservice.nfp.lifecycle_manager.compute.drivers import (
 #    nova_driver)
-'''from gbpservice.neutron.nsf.lifecycle_manager.drivers import (
+'''from gbpservice.nfp.lifecycle_manager.drivers import (
     haproxy_lifecycle_driver)
-from gbpservice.neutron.nsf.lifecycle_manager.drivers import (
+from gbpservice.nfp.lifecycle_manager.drivers import (
     vyos_lifecycle_driver)
 '''
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 
 
-from gbpservice.neutron.nsf.lib import extension_manager as ext_mgr
+from gbpservice.nfp.lib import extension_manager as ext_mgr
 
 
 LOG = logging.getLogger(__name__)
@@ -432,11 +430,10 @@ class DeviceLifeCycleHandler(object):
 
             self._create_event(event_id='DEVICE_SPAWNING',
                                event_data=device,
-                               #is_poll_event=True,
+                               is_poll_event=True,
                                #original_event=event)
                                )
 
-    @core_periodic_task.periodic_task(event='DEVICE_SPAWNING', spacing=30)
     def check_device_is_up(self, event):
         device = event.data
         # TODO (ashu) return value from driver, this should be true/false

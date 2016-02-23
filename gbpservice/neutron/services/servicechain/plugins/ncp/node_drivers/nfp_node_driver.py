@@ -29,7 +29,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm.exc import NoResultFound
 
 from gbpservice.common import utils
-from gbpservice.neutron.nsf.common import topics as nfp_rpc_topics
+from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     exceptions as exc)
 from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base

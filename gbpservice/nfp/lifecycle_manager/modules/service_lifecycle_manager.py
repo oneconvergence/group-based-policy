@@ -13,13 +13,13 @@
 from oslo_log import log as logging
 import oslo_messaging
 
-from gbpservice.neutron.nsf.common import topics as nfp_rpc_topics
-from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core.main import RpcAgent
-from gbpservice.neutron.nsf.db import api as nfp_db_api
-from gbpservice.neutron.nsf.db import nfp_db as nfp_db
-from gbpservice.neutron.nsf.lifecycle_manager.openstack import heat_driver
-from gbpservice.neutron.nsf.lifecycle_manager.openstack import openstack_driver
+from gbpservice.nfp.common import topics as nfp_rpc_topics
+from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.db import api as nfp_db_api
+from gbpservice.nfp.db import nfp_db as nfp_db
+from gbpservice.nfp.lifecycle_manager.openstack import heat_driver
+from gbpservice.nfp.lifecycle_manager.openstack import openstack_driver
 
 
 LOG = logging.getLogger(__name__)
