@@ -112,7 +112,7 @@ class AgentBaseEventHandler(object):
             # Prepare success notification and populate notification data list
             msg = {
                     'receiver': const.ORCHESTRATOR,
-                    'resource': service_type,
+                    'resource': const.ORCHESTRATOR,
                     'method': "network_function_device_notification",
                     'kwargs': [{'context': context, 'result': result}]
                 }
@@ -148,6 +148,6 @@ def init_agent_complete(cm, sc, conf):
     pass
 
 
-def init_agent(cm, sc, conf):
+def init_agent(cm, sc, conf, nqueue):
     """Placeholder method to satisfy configurator module agent loading."""
     pass

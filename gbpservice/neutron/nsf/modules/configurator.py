@@ -358,7 +358,7 @@ def init_rpc(sc, cm, conf, demuxer):
     sc.register_rpc_agents([configurator_agent])
 
 
-def get_configurator_module_instance(self, sc):
+def get_configurator_module_instance(sc):
     """ Provides ConfiguratorModule class object and loads service agents.
 
     Returns: Instance of ConfiguratorModule class
@@ -444,7 +444,7 @@ def init_complete(sc, conf):
     """
 
     try:
-        cm = get_configurator_module_instance()
+        cm = get_configurator_module_instance(sc)
         cm.init_service_agents_complete(sc, conf)
     except Exception as err:
         msg = ("Failed to trigger initialization complete for configurator"

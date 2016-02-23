@@ -174,7 +174,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
             driver = self._get_driver(service_type)
 
             # Invoke service driver methods based on event type received
-            result = getattr(driver, "%s" % ev.id)(context, kwargs)
+            result = getattr(driver, "%s" % ev.id.lower())(context, kwargs)
         except Exception as err:
             result = ("Failed to process %s request for %s service type. %s" %
                       (ev.id, service_type, str(err).capitalize()))
@@ -209,19 +209,19 @@ def events_init(sc, drivers, rpcmgr, nqueue):
     """
 
     evs = [
-        main.Event(id='CONFIGURE_INTERFACES',
+        main.Event(id=const.EVENT_CONFIGURE_INTERFACES,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue)),
-        main.Event(id='CLEAR_INTERFACES',
+        main.Event(id=const.EVENT_CLEAR_INTERFACES,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue)),
-        main.Event(id='CONFIGURE_ROUTES',
+        main.Event(id=const.EVENT_CONFIGURE_ROUTES,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue)),
-        main.Event(id='CLEAR_ROUTES',
+        main.Event(id=const.EVENT_CLEAR_ROUTES,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue)),
-        main.Event(id='PROCESS_BATCH',
+        main.Event(id=const.EVENT_PROCESS_BATCH,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue))
     ]
