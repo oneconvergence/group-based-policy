@@ -108,8 +108,9 @@ invoked by core service controller.
 
 
 class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
-    def __init__(self, sc, drivers, rpcmgr):
-        super(GenericConfigEventHandler, self).__init__(sc, drivers, rpcmgr)
+    def __init__(self, sc, drivers, rpcmgr, nqueue):
+        super(GenericConfigEventHandler, self).__init__(
+                                        sc, drivers, rpcmgr, nqueue)
 
     def _get_driver(self, service_type):
         """Retrieves service driver object based on service type input.
@@ -156,6 +157,11 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
         kwargs = ev.data.get('kwargs')
         context = ev.data.get('context')
         service_type = kwargs.get('service_type')
+
+        # Retrieve notification and remove it from context. Context is used
+        # as transport from batch processing function to this last event
+        # processing function. To keep the context unchanged, delete the
+        # notification_data before invoking driver API.
         notification_data = context.get('notification_data')
         del context['notification_data']
 
@@ -168,23 +174,15 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
             driver = self._get_driver(service_type)
 
             # Invoke service driver methods based on event type received
-            if ev.id == 'CONFIGURE_INTERFACES':
-                result = driver.configure_interfaces(context, kwargs)
-            elif ev.id == 'CLEAR_INTERFACES':
-                result = driver.clear_interfaces(context, kwargs)
-            elif ev.id == 'CONFIGURE_ROUTES':
-                result = driver.configure_source_routes(context, kwargs)
-            elif ev.id == 'CLEAR_ROUTES':
-                result = driver.delete_source_routes(context, kwargs)
-            else:
-                msg = ("Invalid event %s received for %s service type." %
-                       (ev.id, service_type))
-                LOG.error(msg)
-                raise Exception(msg)
-
+            result = getattr(driver, "%s" % ev.id)(context, kwargs)
+        except Exception as err:
+            result = ("Failed to process %s request for %s service type. %s" %
+                      (ev.id, service_type, str(err).capitalize()))
+            LOG.error(result)
+        finally:
             msg = {'receiver': const.ORCHESTRATOR,
                    'resource': service_type,
-                   'method': ev.id.lower(),
+                   'method': ev.id,
                    'kwargs': [{'context': context, 'result': result}]
                    }
             if not notification_data:
@@ -193,21 +191,10 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
                 data = {'context': context,
                         'result': result}
                 notification_data['kwargs'].extend(data)
-            self.qu.put(msg)
-        except Exception as err:
-            result = ("Failed to process %s request for %s service type. %s" %
-                      (ev.id.lower(), service_type, str(err).capitalize()))
-
-            msg = {'receiver': const.ORCHESTRATOR,
-                   'resource': service_type,
-                   'method': ev.id.lower(),
-                   'kwargs': [{'context': context, 'result': result}]
-                   }
-            self.qu.put(msg)
-            LOG.error(result)
+            self.nqueue.put(notification_data)
 
 
-def events_init(sc, drivers, rpcmgr):
+def events_init(sc, drivers, rpcmgr, nqueue):
     """Registers events with core service controller.
 
     All the events will come to handle_event method of class instance
@@ -223,15 +210,20 @@ def events_init(sc, drivers, rpcmgr):
 
     evs = [
         main.Event(id='CONFIGURE_INTERFACES',
-                   handler=GenericConfigEventHandler(sc, drivers, rpcmgr)),
+                   handler=GenericConfigEventHandler(
+                                        sc, drivers, rpcmgr, nqueue)),
         main.Event(id='CLEAR_INTERFACES',
-                   handler=GenericConfigEventHandler(sc, drivers, rpcmgr)),
+                   handler=GenericConfigEventHandler(
+                                        sc, drivers, rpcmgr, nqueue)),
         main.Event(id='CONFIGURE_ROUTES',
-                   handler=GenericConfigEventHandler(sc, drivers, rpcmgr)),
+                   handler=GenericConfigEventHandler(
+                                        sc, drivers, rpcmgr, nqueue)),
         main.Event(id='CLEAR_ROUTES',
-                   handler=GenericConfigEventHandler(sc, drivers, rpcmgr)),
+                   handler=GenericConfigEventHandler(
+                                        sc, drivers, rpcmgr, nqueue)),
         main.Event(id='PROCESS_BATCH',
-                   handler=GenericConfigEventHandler(sc, drivers, rpcmgr))
+                   handler=GenericConfigEventHandler(
+                                        sc, drivers, rpcmgr, nqueue))
     ]
     sc.register_events(evs)
 
@@ -263,7 +255,7 @@ def register_service_agent(cm, sc, conf, rpcmgr):
     cm.register_service_agent(service_type, rpcmgr)
 
 
-def init_agent(cm, sc, conf):
+def init_agent(cm, sc, conf, nqueue):
     """Initializes generic configuration agent.
 
     :param cm: Instance of configuration module
@@ -287,7 +279,7 @@ def init_agent(cm, sc, conf):
     rpcmgr = GenericConfigRpcManager(sc, conf)
 
     try:
-        events_init(sc, drivers, rpcmgr)
+        events_init(sc, drivers, rpcmgr, nqueue)
     except Exception as err:
         msg = ("Generic configuration agent failed to initialize events. %s"
                % (str(err).capitalize()))

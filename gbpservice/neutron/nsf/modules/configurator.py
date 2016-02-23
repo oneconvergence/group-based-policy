@@ -3,13 +3,14 @@ from gbpservice.neutron.nsf.configurator.lib import constants
 from gbpservice.neutron.nsf.configurator.lib import demuxer
 from gbpservice.neutron.nsf.core import main
 from oslo_log import log
+from gbpservice.neutron.nsf.core import queue
 from gbpservice.neutron.nsf.configurator.lib import utils
 
 AGENTS_PKG = 'gbpservice.neutron.nsf.configurator.agents'
 CONFIGURATOR_RPC_TOPIC = 'configurator'
 LOG = log.getLogger(__name__)
 
-"""Implements procedure calls invoked by an RPC peer.
+"""Implements procedure calls invoked by an REST server.
 
 Implements following RPC methods.
   - create_network_device_config
@@ -25,9 +26,9 @@ Also implements local methods for supporting RPC methods
 
 
 class ConfiguratorRpcManager(object):
-    def __init__(self, sc, sa, conf, demuxer):
+    def __init__(self, sc, cm, conf, demuxer):
         self.sc = sc
-        self.sa = sa
+        self.cm = cm
         self.conf = conf
         self.demuxer = demuxer
 
@@ -40,7 +41,7 @@ class ConfiguratorRpcManager(object):
 
         """
 
-        return self.sa.service_agent_instances[service_type]
+        return self.cm.service_agent_instances[service_type]
 
     def _send_request(self, operation, request_data):
         """Maps and invokes an RPC call to a service agent method.
@@ -236,7 +237,7 @@ class ConfiguratorRpcManager(object):
                    str(err).capitalize())
             LOG.error(msg)
 
-    def get_notification(self, context):
+    def get_notifications(self, context):
         """RPC method to get all notifications published by configurator.
 
         Gets all the notifications from the notifications from notification
@@ -247,7 +248,8 @@ class ConfiguratorRpcManager(object):
         Returns: notification_data
 
         """
-        pass
+
+        return self.cm.nqueue.get()
 
 """Implements configurator module APIs.
 
@@ -259,9 +261,10 @@ class ConfiguratorRpcManager(object):
 
 
 class ConfiguratorModule(object):
-    def __init__(self):
+    def __init__(self, sc):
         self.service_agent_instances = {}
         self.imported_service_agents = []
+        self.nqueue = queue.Queue(sc)
 
     def register_service_agent(self, service_type, service_agent):
         """Stores service agent object.
@@ -301,7 +304,7 @@ class ConfiguratorModule(object):
 
         for agent in self.imported_service_agents:
             try:
-                agent.init_agent(self, sc, conf)
+                agent.init_agent(self, sc, conf, self.nqueue)
             except AttributeError as attr_err:
                 LOG.error(agent.__dict__)
                 raise AttributeError(agent.__file__ + ': ' + str(attr_err))
@@ -355,14 +358,14 @@ def init_rpc(sc, cm, conf, demuxer):
     sc.register_rpc_agents([configurator_agent])
 
 
-def get_configurator_module_instance():
+def get_configurator_module_instance(self, sc):
     """ Provides ConfiguratorModule class object and loads service agents.
 
     Returns: Instance of ConfiguratorModule class
 
     """
 
-    cm = ConfiguratorModule()
+    cm = ConfiguratorModule(sc)
     conf_utils = utils.ConfiguratorUtils()
 
     # Loads all the service agents under AGENT_PKG module path
@@ -393,7 +396,7 @@ def module_init(sc, conf):
 
     # Create configurator module and de-multiplexer objects
     try:
-        cm = get_configurator_module_instance()
+        cm = get_configurator_module_instance(sc)
         demuxer_instance = demuxer.ConfiguratorDemuxer()
     except Exception as err:
         msg = ("Failed to initialize configurator de-multiplexer. %s."

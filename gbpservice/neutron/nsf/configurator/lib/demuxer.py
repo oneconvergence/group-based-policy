@@ -122,6 +122,7 @@ class ConfiguratorDemuxer(object):
         Returns: List with the following format.
         sa_info_list [
             {
+                'context': <context dictionary>
                 'service_type': <firewall/vpn/loadbalancer/generic_config>
                 'method': <*aas RPC methods/generic configuration methods>
                 'kwargs' <kwargs taken from request data of API>

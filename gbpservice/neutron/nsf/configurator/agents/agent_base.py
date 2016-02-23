@@ -1,7 +1,6 @@
 
 from gbpservice.neutron.nsf.configurator.lib import (
                             generic_config_constants as const)
-from gbpservice.neutron.nsf.core import queue
 
 """Implements base class for all service agents.
 
@@ -63,11 +62,11 @@ class AgentBaseRPCManager(object):
 
 
 class AgentBaseEventHandler(object):
-    def __init__(self, sc, drivers, rpcmgr):
+    def __init__(self, sc, drivers, rpcmgr, nqueue):
         self._sc = sc
         self.drivers = drivers
         self._rpcmgr = rpcmgr
-        self.qu = queue.Queue(sc)
+        self.nqueue = nqueue
 
     def process_batch(self, ev):
         """Processes a request with multiple data blobs.
@@ -103,21 +102,13 @@ class AgentBaseEventHandler(object):
             # processing. All other return values and exceptions are treated
             # as failures.
             result = getattr(driver, method)(context, **kwargs)
+            success = True
         except Exception as err:
             result = ("Failed to process %s request for %s service type. %s" %
                       (method, service_type, str(err).capitalize()))
 
-            # Prepare the failure notification and enqueue in
-            # notification queue
-            msg = {
-                    'receiver': const.ORCHESTRATOR,
-                    'resource': service_type,
-                    'method': "network_function_device_notification",
-                    'kwargs': [{'context': context, 'result': result}]
-                }
-            self.qu.put(msg)
-            raise Exception(err)
-        else:
+            success = False
+        finally:
             # Prepare success notification and populate notification data list
             msg = {
                     'receiver': const.ORCHESTRATOR,
@@ -138,6 +129,7 @@ class AgentBaseEventHandler(object):
                         'result': result}
                 notification_data['kwargs'].extend(data)
 
+        if success:
             # Remove the processed request data blob from the service
             # information list. APIs will always process first data blob in
             # the request.
@@ -146,6 +138,9 @@ class AgentBaseEventHandler(object):
             # Invoke base class method to process further data blobs in the
             # request
             self._rpcmgr.forward_request(sa_info_list, notification_data)
+        else:
+            self.nqueue.put(notification_data)
+            raise Exception(err)
 
 
 def init_agent_complete(cm, sc, conf):

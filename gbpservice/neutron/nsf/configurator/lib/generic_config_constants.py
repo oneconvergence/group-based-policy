@@ -15,3 +15,7 @@ DRIVERS_DIR = '/usr/lib/python2.7/dist-packages/gbpservice/neutron/nsf/'\
               'configurator/drivers'
 SERVICE_TYPE = 'generic_config'
 ORCHESTRATOR = 'orchestrator'
+EVENT_CONFIGURE_INTERFACES = 'configure_interfaces'
+EVENT_CLEAR_INTERFACES = 'clear_interfaces'
+EVENT_CONFIGURE_ROUTES = 'configure_routes'
+EVENT_CLEAR_ROUTES = 'clear_routes'
