@@ -557,9 +557,13 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         db_nfi = self.nfp_db.get_network_function_instance(
             self.session, nfi['id'])
         self.assertEqual('PENDING_DELETE', db_nfi['status'])
+        delete_event_data = {
+            'network_function_device_id': nfi['network_function_device_id'],
+            'network_function_instance': db_nfi
+        }
         mock_create_event.assert_called_once_with(
             'DELETE_NETWORK_FUNCTION_DEVICE',
-            event_data=nfi['network_function_device_id'])
+            event_data=delete_event_data)
 
     def test_event_handle_device_deleted(self):
         nfi = self.create_network_function_instance()
