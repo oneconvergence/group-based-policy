@@ -1,4 +1,5 @@
 import json
+import subprocess
 
 from neutron.common import rpc as n_rpc
 from neutron.agent.common import config
@@ -15,7 +16,8 @@ class Controller(rest.RestController):
     """controller class for handling all the curl request"""
 
     def __init__(self, module_name):
-        self.rpcclient = RPCClient(topic=constants.TOPIC, host='hostname')
+        self.host = subprocess.check_output('hostname', shell=True).rstrip()
+        self.rpcclient = RPCClient(topic=constants.TOPIC, host=self.host)
         self.module_name = module_name
         super(Controller, self).__init__()
 
