@@ -4,14 +4,14 @@ import mock
 import copy
 from mock import patch
 
-from gbpservice.neutron.nsf.lifecycle_manager.modules import (
+from gbpservice.nfp.lifecycle_manager.modules import (
     device_lifecycle_manager)
-from gbpservice.neutron.nsf.lifecycle_manager.drivers import (
+from gbpservice.nfp.lifecycle_manager.drivers import (
     lifecycle_driver_base)
-from gbpservice.neutron.nsf.lifecycle_manager.drivers import (
+from gbpservice.nfp.lifecycle_manager.drivers import (
     haproxy_lifecycle_driver)
-from gbpservice.neutron.nsf.db import api as db_api
-from gbpservice.neutron.nsf.db import nfp_db as nfpdb
+from gbpservice.nfp.db import api as db_api
+from gbpservice.nfp.db import nfp_db as nfpdb
 
 
 class DummyEvent():
@@ -40,9 +40,9 @@ class DummyEvent():
 param_req = {'param1': 'value1', 'param2': 'value2'}
 
 haproxy_driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver()
-LIFECYCLE_MANAGER_CLASS_PATH = ('gbpservice.neutron.nsf.lifecycle_manager'
+LIFECYCLE_MANAGER_CLASS_PATH = ('gbpservice.nfp.lifecycle_manager'
                                  '.modules.device_lifecycle_manager')
-LIFECYCLE_DRIVER_CLASS_PATH = ('gbpservice.neutron.nsf.lifecycle_manager'
+LIFECYCLE_DRIVER_CLASS_PATH = ('gbpservice.nfp.lifecycle_manager'
                                  '.drivers.lifecycle_driver_base')
 
 
