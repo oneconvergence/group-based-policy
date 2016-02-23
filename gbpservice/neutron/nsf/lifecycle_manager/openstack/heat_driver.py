@@ -28,7 +28,6 @@ from oslo_utils import excutils
 from oslo_utils._i18n import _
 import yaml
 
-#from gbpservice.neutron.nsf._i18n import _
 from gbpservice.neutron.nsf.lifecycle_manager.openstack.heat_client\
     import HeatClient
 from gbpservice.neutron.nsf.lifecycle_manager.openstack.openstack_driver\
@@ -261,7 +260,7 @@ class HeatDriver():
         return HeatClient(
             user,
             user_tenant_id,
-            cfg.CONF.heat_driver.heat_uri,  # need to check for heat uri
+            cfg.CONF.heat_driver.heat_uri,
             password,
             auth_token=admin_token,
             timeout_mins=timeout_mins)
@@ -316,15 +315,12 @@ class HeatDriver():
         policy_targets = self.gbp_client.get_policy_targets(
             auth_token,
             filters={'id': ptg.get("policy_targets")})
-        LOG.info(_("IN _get_member_ips policy_targets : %s ") %
-                 (policy_targets))
         for policy_target in policy_targets:
             if not self._is_service_target(policy_target):
                 port_id = policy_target.get("port_id")
                 if port_id:
                     port = self.neutron_client.get_port(
                         auth_token, port_id)['port']
-                    LOG.info(_("IN _get_member_ips port : %s ") % (port))
                     ip_address = port.get('fixed_ips')[0].get("ip_address")
                     member_addresses.append(ip_address)
         return member_addresses
@@ -380,14 +376,9 @@ class HeatDriver():
                                config_param_values, provider_ptg,
                                is_template_aws_version):
         resources_key = 'Resources' if is_template_aws_version else 'resources'
-        LOG.info(_("IN _generate_pool_members stack template : %s ") %
-                 (stack_template))
         self._modify_lb_resources_name(
             stack_template, provider_ptg, is_template_aws_version)
         member_ips = self._get_member_ips(auth_token, provider_ptg)
-        LOG.info(_('IN _generate_pool_members member_ips are : %(mem_ips) '
-                 'and %(ptg)') %
-                 {'mem_ips': member_ips, 'ptg': provider_ptg})
         if not member_ips:
             return
         pool_res_name = self._get_heat_resource_key(
@@ -487,8 +478,6 @@ class HeatDriver():
             filters = {'id': consumer_ptgs}
             consumer_ptgs_details = self.gbp_client.get_policy_target_groups(
                 auth_token, filters)
-            LOG.info(_("_update_firewall_template CONSUMER_PTG_DETAILS: %s") %
-                (consumer_ptgs_details))
             provider_l2p_subnets = self.neutron_client.list_subnets(
                 auth_token,
                 filters={'id': provider['subnets']})
@@ -518,10 +507,6 @@ class HeatDriver():
                         continue
 
                     consumer_cidr = subnet['cidr']
-                    LOG.info(_('_update_firewall_template: %(stack_data) '
-                             'and ID %(params)') %
-                             {'stack_data': stack_template,
-                              'params': consumer['id']})
                     self._append_firewall_rule(
                         stack_template, provider_cidr, consumer_cidr,
                         fw_template_properties, consumer['id'])
@@ -529,8 +514,6 @@ class HeatDriver():
             filters = {'id': consumer_eps}
             consumer_eps_details = self.gbp_client.get_external_policies(
                 auth_token, filters)
-            LOG.info(_("_update_firewall_template CONSUMER_EP_DETAILS: %s") %
-                     (consumer_eps_details))
             for consumer_ep in consumer_eps_details:
                 fw_template_properties.update({'name': consumer_ep['id'][:3]})
                 self._append_firewall_rule(stack_template, provider_cidr,
@@ -628,7 +611,6 @@ class HeatDriver():
                 keys.append(key)
         return keys
 
-    # tenant_id not sure about that
     def _update_node_config(self, auth_token, tenant_id, service_profile,
                             service_chain_node, service_chain_instance,
                             provider, consumer_port,
@@ -703,7 +685,6 @@ class HeatDriver():
             rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token, update)
             config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
                 'ip_pool']
-            # consumer_port = service_targets['consumer_ports'][0]
             config_param_values['Subnet'] = (
                 consumer_port['fixed_ips'][0]['subnet_id']
                 if consumer_port else None)
@@ -780,11 +761,8 @@ class HeatDriver():
             if parameter in config_param_values:
                 stack_params[parameter] = config_param_values[parameter]
 
-        # LOG.info(_("Final stack_template : %(template)s, stack_params : "
-        #           "%(param)s"), {'template': stack_template,
-        #                          'param': stack_params})
-        LOG.info(_('Final stack_template : %(stack_data), '
-                 'stack_params : %(params)') %
+        LOG.info(_('Final stack_template : %(stack_data)s, '
+                 'stack_params : %(params)s') %
                  {'stack_data': stack_template, 'params': stack_params})
         return (stack_template, stack_params)
 
@@ -944,7 +922,6 @@ class HeatDriver():
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
 
-        LOG.info(_("apply_user_config : %s ") % (provider))
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
         provider_tenant_id = provider['tenant_id']
@@ -962,12 +939,8 @@ class HeatDriver():
             service_chain_node, service_chain_instance, provider,
             consumer_port, provider_port, mgmt_ip=mgmt_ip)
 
-        LOG.info(_('apply_user_config STACK_DATA: %(stack_data) '
-                 'parametes %(params)') %
-                 {'stack_data': stack_template, 'params': stack_params})
-        #stack = heatclient.create(stack_name, stack_template, stack_params)
-        stack_id = '70754fdd-0325-4856-8a39-f171b65617d6'
-        #stack_id = stack['stack']['id']
+        stack = heatclient.create(stack_name, stack_template, stack_params)
+        stack_id = stack['stack']['id']
         LOG.info(_("Created stack with ID %(stack_id)s and name %(stack_name)s"
                    " for provider PTG %(provider)s"),
                  {'stack_id': stack_id, 'stack_name': stack_name,
@@ -977,8 +950,8 @@ class HeatDriver():
         if service_profile['service_type'] == pconst.LOADBALANCER:
             auth_token, provider_tenant_id = self._get_tenant_context(
                 provider_tenant_id)
-            # self._create_policy_target_for_vip(auth_token,
-            #      provider_tenant_id, provider)
+             self._create_policy_target_for_vip(auth_token,
+                  provider_tenant_id, provider)
 
         return stack_id
 
@@ -1020,16 +993,13 @@ class HeatDriver():
         if stack_id:
             # FIXME(Magesh): Fix the update stack issue on Heat/*aas driver
             if service_type == pconst.VPN or service_type == pconst.FIREWALL:
-                # heatclient.delete(stack_id)
+                 heatclient.delete(stack_id)
 
                 try:
                     self._wait_for_stack_operation_complete(heatclient,
                                                             stack_id,
                                                             'delete')
                 except Exception as err:
-                    #LOG.error(_("Stack deletion failed for STACK ID - %r for "
-                    #          "Tenant - %r . ERROR - %r") %
-                    #          (stack_id, provider_tenant_id, str(err)))
                     LOG.error(_("Stack deletion failed for STACK ID - "
                               "%(stack_id)s for Tenant - %(tenant_id)s . "
                               "ERROR - %(err)") %
@@ -1043,9 +1013,8 @@ class HeatDriver():
                               service_chain_node['id'][:8] + '-' +
                               time.strftime("%Y%m%d%H%M%S"))
                 try:
-                    # stack = heatclient.create(stack_name, stack_template,
-                    #                          stack_params)
-                    a = "dasad"
+                     stack = heatclient.create(stack_name, stack_template,
+                                              stack_params)
                 except Exception as err:
                     msg = ('Fatal error. Heat Stack creation failed while '
                            'update of node. To recover,please delete the '
@@ -1054,20 +1023,14 @@ class HeatDriver():
                     raise NodeDBUpdateException(msg=msg)
                 try:
                     self._wait_for_stack_operation_complete(
-                        heatclient, stack_id, "create")
-                    # heatclient, stack["stack"]["id"], "create")
-                    #stack_id = stack["stack"]["id"]
+                        heatclient, stack["stack"]["id"], "create")
+                    stack_id = stack["stack"]["id"]
                 except Exception as err:
                     msg = ('Node update failed. There can be a chance if the '
                            'service is FIREWALL or VPN, the related '
                            'configuration would have been lost. Please check '
                            'with the ADMIN for issue of failure and '
                            're-initiate the update node once again.')
-                    #LOG.exception('%s NODE-ID: %r  INSTANCE-ID: %r TenantID: '
-                    #              '%r . ERROR: %r' %
-                    #              (msg, service_chain_node['id'],
-                    #               service_chain_instance['id'],
-                    #               provider_tenant_id, str(err)))
                     LOG.exception(_('%(msg) NODE-ID: %(node_id)s '
                                   'INSTANCE-ID: %(instance_id)s '
                                   'TenantID: %(tenant_id)s . '
@@ -1112,11 +1075,6 @@ class HeatDriver():
                        'configuration would have been lost. Please check '
                        'with the ADMIN for issue of failure and '
                        're-initiate the update node once again.')
-                #LOG.exception('%s NODE-ID: %r  INSTANCE-ID: %r TenantID: '
-                #              '%r . ERROR: %r' %
-                #              (msg, service_chain_node['id'],
-                #               service_chain_instance['id'],
-                #               provider_tenant_id, str(err)))
                 LOG.exception(_('%(msg) NODE-ID: %(node_id)  INSTANCE-ID: '
                               '%(instance_id) TenantID: %(tenant_id) . '
                               'ERROR: %(err)') %
