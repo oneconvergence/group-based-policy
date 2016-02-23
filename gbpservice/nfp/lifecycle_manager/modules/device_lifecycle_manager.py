@@ -253,6 +253,7 @@ class DeviceLifeCycleHandler(object):
         #device_info['mgmt_data_ports']['id'] = device_id
         device = self.nsf_db.create_network_function_device(self.db_session,
                                                             device_info)
+        # Fix me : handle device create failed, driver returns None
         mgmt_port_ids = device.pop('mgmt_data_ports')
         mgmt_data_ports = self._get_ports(mgmt_port_ids)
         device['mgmt_data_ports'] = mgmt_data_ports
