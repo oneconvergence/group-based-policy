@@ -186,7 +186,7 @@ class DeviceLifeCycleHandler(object):
         LOG.info(_("self.drivers = %s" % self.drivers))
 
         self.lifecycle_driver = self._get_vendor_lifecycle_driver(
-            'haproxy', 'cls')
+            'vyos', 'cls')
         self.compute_driver = self._get_compute_driver(
             'compute')
 
@@ -220,15 +220,16 @@ class DeviceLifeCycleHandler(object):
     def _create_event(self, event_id, event_data=None,
                       is_poll_event=False, original_event=False):
         if is_poll_event:
-            ev = self._controller.event(id=event_id, data=event_data,
-                                        serialize=original_event.serialize,
-                                        binding_key=original_event.binding_key,
-                                        key=original_event.key)
+            ev = self._controller.new_event(
+                id=event_id, data=event_data,
+                serialize=original_event.serialize,
+                binding_key=original_event.binding_key,
+                key=original_event.key)
             LOG.debug(_("_create_event - poll event %s" % ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
-            ev = self._controller.event(id=event_id, data=event_data)
-            self._controller.rpc_event(ev)
+            ev = self._controller.new_event(id=event_id, data=event_data)
+            self._controller.post_event(ev)
         self._log_event_created(event_id, event_data)
 
     def _update_device_status(self, device, state, status_desc=None):

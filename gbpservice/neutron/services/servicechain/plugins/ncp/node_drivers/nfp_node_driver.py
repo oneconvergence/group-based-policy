@@ -282,8 +282,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             plumbing_request['plumbing_type'] = 'endpoint'
 
         LOG.info(_("Requesting plumber for %(plumbing_request)s PTs for "
-                   "service type %(service_type)s")
-                 % (plumbing_request, service_type))
+                   "service type %(service_type)s"),
+                 {'plumbing_request': plumbing_request,
+                  'service_type': service_type})
         return plumbing_request
 
     def validate_create(self, context):

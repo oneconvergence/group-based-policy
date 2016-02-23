@@ -163,11 +163,11 @@ class ServiceLifeCycleHandler(object):
 
     def _create_event(self, event_id, event_data=None, key=None,
                       binding_key=None, serialize=False, is_poll_event=False):
-        event = self._controller.event(id=event_id, data=event_data)
+        event = self._controller.new_event(id=event_id, data=event_data)
         if is_poll_event:
             self._controller.poll_event(event)
         else:
-            self._controller.rpc_event(event)
+            self._controller.post_event(event)
         self._log_event_created(event_id, event_data)
 
     def create_network_function(self, context, network_function_info):

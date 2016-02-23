@@ -13,7 +13,7 @@
 #    under the License.
 #
 
-"""servicechain_instance_stacks
+"""ncp_node_instance_nf_mapping
 
 Revision ID: c1aab79622fe
 Revises: 54ee8e8d205a
@@ -31,13 +31,13 @@ import sqlalchemy as sa
 
 def upgrade(active_plugins=None, options=None):
     op.create_table(
-        'ncp_node_instance_network_service_mappings',
+        'ncp_node_instance_network_function_mappings',
         sa.Column('sc_instance_id', sa.String(length=36), nullable=False),
         sa.Column('sc_node_id', sa.String(length=36), nullable=False),
-        sa.Column('network_service_id', sa.String(length=36), nullable=False),
+        sa.Column('network_function_id', sa.String(length=36), nullable=False),
         sa.PrimaryKeyConstraint('sc_instance_id',
                                 'sc_node_id',
-                                'network_service_id'),
+                                'network_function_id'),
     )
 
 
