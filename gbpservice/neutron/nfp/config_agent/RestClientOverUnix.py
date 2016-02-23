@@ -1,14 +1,30 @@
-import os
-import sys
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import httplib2
 import httplib
-import six
-import six.moves.urllib.parse as urlparse
 import socket
 import exceptions
+from oslo_config import cfg
+import six.moves.urllib.parse as urlparse
 
 
-class UnixDomainHTTPConnection(httplib.HTTPConnection):
+class RestClientException(exceptions.Exception):
+
+    def __init__(self, message):
+        self.message = message
+
+
+class UnixHTTPConnection(httplib.HTTPConnection):
 
     """Connection class for HTTP over UNIX domain socket."""
 
@@ -22,16 +38,14 @@ class UnixDomainHTTPConnection(httplib.HTTPConnection):
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         if self.timeout:
             self.sock.settimeout(self.timeout)
-        self.sock.connect(self.socket_path)
+        try:
+            self.sock.connect(self.socket_path)
+        except socket.error, exc:
+            raise RestClientException(
+                "Caught exception socket.error : %s" % exc)
 
 
-class RestClientException(exceptions.Exception):
-
-    def __init__(self, message):
-        self.message = message
-
-
-class SendRequest():
+class UnixRestClient():
 
     def _http_request(self, url, method_type, headers=None, body=None):
         h = httplib2.Http()
@@ -40,16 +54,16 @@ class SendRequest():
             method=method_type,
             headers=headers,
             body=body,
-            connection_type=UnixDomainHTTPConnection)
+            connection_type=UnixHTTPConnection)
         return resp, content
 
     def send_request(self, path, method_type, request_method='http',
                      server_addr='127.0.0.1',
                      headers=None, body=None):
-        path = '/v1/' + path
+        path = '/v1/nfp/' + path
         url = urlparse.urlunsplit((
             request_method,
-            server_addr,  # a dummy value to make the request proper
+            server_addr,
             path,
             None,
             ''))
@@ -93,13 +107,13 @@ class SendRequest():
 
 
 def get(path):
-    return SendRequest().send_request(path, 'GET')
+    return UnixRestClient().send_request(path, 'GET')
 
 
 def put(path, body):
     headers = {'content-type': 'application/json'}
-    return SendRequest().send_request(path, 'PUT',
-                                      headers=headers, body=body)
+    return UnixRestClient().\
+        send_request(path, 'PUT', headers=headers, body=body)
 
 
 def post(path, body, delete=False):
@@ -108,5 +122,5 @@ def post(path, body, delete=False):
         headers.update({'method-type': 'DELETE'})
     else:
         headers.update({'method-type': 'CREATE'})
-    return SendRequest().send_request(path, 'POST',
-                                      headers=headers, body=body)
+    return UnixRestClient().\
+        send_request(path, 'POST', headers=headers, body=body)

@@ -4,14 +4,14 @@ import sys
 import json
 import mock
 from mock import patch
-from gbpservice.neutron.nsf.config_agent import firewall
-from gbpservice.neutron.nsf.config_agent import loadbalancer as lb
-from gbpservice.neutron.nsf.config_agent import vpn
-from gbpservice.neutron.nsf.config_agent import generic as gc
-from gbpservice.neutron.nsf.config_agent import rpc_cb
-from gbpservice.neutron.nsf.config_agent import topics
-from gbpservice.neutron.nsf.core import main as controller
-from gbpservice.neutron.nsf.core import cfg as core_cfg
+from gbpservice.neutron.nfp.config_agent import firewall
+from gbpservice.neutron.nfp.config_agent import loadbalancer as lb
+from gbpservice.neutron.nfp.config_agent import vpn
+from gbpservice.neutron.nfp.config_agent import generic as gc
+from gbpservice.neutron.nfp.config_agent import rpc_cb
+from gbpservice.neutron.nfp.config_agent import topics
+from gbpservice.neutron.nfp.core import main as controller
+from gbpservice.neutron.nfp.core import cfg as core_cfg
 from neutron import manager
 from oslo_messaging import target
 import threading
@@ -25,6 +25,15 @@ from multiprocessing import Process
 import httplib
 
 n_count = 0
+
+
+class TestContext:
+
+    def get_context(self):
+        try:
+            return ctx.Context('some_user', 'some_tenant')
+        except:
+            return ctx.Context('some_user', 'some_tenant')
 
 
 class FirewallTestCase(unittest.TestCase):
@@ -56,11 +65,11 @@ class FirewallTestCase(unittest.TestCase):
 
     def _verify_firewall_data(self, blob_data):
 
-        if all(k in blob_data for k in ["context", "host", "fw"]):
+        if all(k in blob_data for k in ["context", "host", "firewall"]):
             context = blob_data['context']
             try:
-                if context.service_info:
-                    data = context.service_info
+                if context['service_info']:
+                    data = context['service_info']
                     if all(k in data for k in ["firewalls",
                                                "firewall_policies",
                                                "firewall_rules",
@@ -84,15 +93,8 @@ class FirewallTestCase(unittest.TestCase):
         print("create_firewall_verified:Failed")
         return (httplib.NOT_FOUND, "create_firewall_verified:Failed")
 
-    '''
-    def _verify_firewall_data_for_put(self, path, body):
-        if self._verify_body_structure(path, body):
-            return (httplib.OK, "update_firewall_verified:Success")
-        return (httplib.OK, "update_firewall_verified:Success")
-    '''
-
     def _prepare_firewall_request_data(self):
-        context = ctx.Context('some_user', 'some_tenant')
+        context = TestContext().get_context()
         context.__setattr__('service_info', {})
         context.is_admin = False
         fw = {'tenant_id': 123}
@@ -104,7 +106,7 @@ class FirewallTestCase(unittest.TestCase):
     def test_create_firewall(self):
         import_db = 'neutron_fwaas.db.firewall.firewall_db.\
 Firewall_db_mixin.'
-        import_ca = 'gbpservice.neutron.nsf.config_agent.'
+        import_ca = 'gbpservice.neutron.nfp.config_agent.'
 
         with patch(import_db + 'get_firewalls') as gfw,\
                 patch(import_db + 'get_firewall_policies') as gfwp,\
@@ -118,28 +120,10 @@ Firewall_db_mixin.'
             fw_handler = firewall.FwAgent(conf, sc)
             fw_handler.create_firewall(context, fw, host)
 
-    '''
-    def test_update_firewall(self):
-        import_db = 'neutron_fwaas.db.firewall.firewall_db.\
-Firewall_db_mixin.'
-        import_cfg_agent = 'gbpservice.neutron.nsf.config_agent.'
-        with patch(import_db + 'get_firewalls') as get_firewalls,\
-                patch(import_db + 'get_firewall_policies') as gfwp,\
-                patch(import_db + 'get_firewall_rules') as gfwr,\
-                patch(import_db + '_core_plugin') as _cp,\
-                patch(import_cfg_agent + 'RestClientOverUnix.put') as put:
-
-            put.side_effect = self._verify_firewall_data_for_put
-            context, fw, sc, conf, host = self.\
-                _prepare_firewall_request_data()
-            fw_handler = firewall.FwAgent(conf, sc)
-            fw_handler.update_firewall(context, fw, host)
-    '''
-
     def test_delete_firewall(self):
         import_db = 'neutron_fwaas.db.firewall.firewall_db.\
 Firewall_db_mixin.'
-        import_cfg_agent = 'gbpservice.neutron.nsf.config_agent.'
+        import_cfg_agent = 'gbpservice.neutron.nfp.config_agent.'
 
         with patch(import_db + 'get_firewalls') as get_firewalls,\
                 patch(import_db + 'get_firewall_policies') as gfwp,\
@@ -186,8 +170,8 @@ class LoadBalanceTestCase(unittest.TestCase):
         if all(k in blob_data for k in ["context", resource]):
             context = blob_data['context']
             try:
-                if context.service_info:
-                    data = context.service_info
+                if context['service_info']:
+                    data = context['service_info']
                     if all(k in data for k in ["pools", "vips", "members",
                                                "health_monitors",
                                                "subnets", "ports"]):
@@ -195,13 +179,6 @@ class LoadBalanceTestCase(unittest.TestCase):
             except AttributeError:
                 return False
         return False
-    '''
-    def _verify_update_data(self, data):
-        resource = data['resource']
-        if "old" + resource in data['kwargs']:
-            return True
-        return False
-    '''
 
     def _verify_delete_post(self, path, body, delete=False):
         if self._verify_body_structure(path, body):
@@ -221,16 +198,8 @@ class LoadBalanceTestCase(unittest.TestCase):
         print("create_%s_verified:Failed" % (resource))
         return (httplib.NOT_FOUND, "create_%s_verified:Failed" % (resource))
 
-    '''
-    def _verify_update(self, path, body:
-        if self._verify_body_structure(path, body);
-            if self._verify_update_data(body['request_data']['config'][0]):
-                return (httplib.OK, "update_%s_verified:Success" % (resource))
-        return (httplib.OK, "update_%s_verified:Failed" % (resource))
-    '''
-
     def _prepare_request_data(self):
-        context = ctx.Context('some_user', 'some_tenant')
+        context = TestContext().get_context()
         context.__setattr__('service_info', {})
         context.is_admin = False
         conf = {}
@@ -240,7 +209,7 @@ class LoadBalanceTestCase(unittest.TestCase):
     def test_create_vip(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
 .LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
+        import_config_agent = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_db + 'get_pools') as get_pools,\
                 patch(import_db + 'get_vips') as get_vips,\
                 patch(import_db + 'get_members') as get_members,\
@@ -257,7 +226,7 @@ class LoadBalanceTestCase(unittest.TestCase):
     def test_create_pool(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
 .LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
+        import_config_agent = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_db + 'get_pools') as get_pools,\
                 patch(import_db + 'get_vips') as get_vips,\
                 patch(import_db + 'get_members') as get_members,\
@@ -275,7 +244,7 @@ class LoadBalanceTestCase(unittest.TestCase):
     def test_create_member(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
 .LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
+        import_config_agent = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_db + 'get_pools') as get_pools,\
                 patch(import_db + 'get_vips') as get_vips,\
                 patch(import_db + 'get_members') as get_members,\
@@ -292,7 +261,7 @@ class LoadBalanceTestCase(unittest.TestCase):
     def test_create_pool_health_monitor(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
 .LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
+        import_config_agent = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_db + 'get_pools') as get_pools,\
                 patch(import_db + 'get_vips') as get_vips,\
                 patch(import_db + 'get_members') as get_members,\
@@ -307,85 +276,10 @@ class LoadBalanceTestCase(unittest.TestCase):
             lb_handler = lb.LbAgent(conf, sc)
             lb_handler.create_pool_health_monitor(context, hm, pool_id)
 
-    '''
-    def test_update_vip(self):
-        import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
-.LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
-        with patch(import_db + 'get_pools') as get_pools,\
-                patch(import_db + 'get_vips') as get_vips,\
-                patch(import_db + 'get_members') as get_members,\
-                patch(import_db + 'get_health_monitors') as get_hm,\
-                patch(import_db + '_core_plugin') as _core_plugin,\
-                patch(import_config_agent + 'RestClientOverUnix.put') as put:
-
-            put.side_effect = self._verify_update
-            context, sc, conf = self._prepare_request_data()
-            old_vip = {'id': 123, 'tenant_id': 123}
-            vip = {}
-            lb_handler = lb.LbAgent(conf, sc)
-            lb_handler.update_vip(context, old_vip, vip)
-
-    def test_update_pool(self):
-        import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
-.LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
-        with patch(import_db + 'get_pools') as get_pools,\
-                patch(import_db + 'get_vips') as get_vips,\
-                patch(import_db + 'get_members') as get_members,\
-                patch(import_db + 'get_health_monitors') as get_hm,\
-                patch(import_db + '_core_plugin') as _core_plugin,\
-                patch(import_config_agent + 'RestClientOverUnix.put') as put:
-
-            put.side_effect = self._verify_update
-            context, sc, conf = self._prepare_request_data()
-            old_pool = {'id': 123, 'tenant_id': 123}
-            pool = {}
-            lb_handler = lb.LbAgent(conf, sc)
-            lb_handler.update_pool(context, old_pool, pool)
-
-    def test_update_member(self):
-        import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
-.LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
-        with patch(import_db + 'get_pools') as get_pools,\
-                patch(import_db + 'get_vips') as get_vips,\
-                patch(import_db + 'get_members') as get_members,\
-                patch(import_db + 'get_health_monitors') as get_hm,\
-                patch(import_db + '_core_plugin') as _core_plugin,\
-                patch(import_config_agent + 'RestClientOverUnix.put') as put:
-
-            put.side_effect = self._verify_update
-            context, sc, conf = self._prepare_request_data()
-            old_member = {'id': 123, 'tenant_id': 123}
-            member = {}
-            lb_handler = lb.LbAgent(conf, sc)
-            lb_handler.update_member(context, old_member, member)
-
-    def test_update_pool_health_monitor(self):
-        import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
-.LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
-        with patch(import_db + 'get_pools') as get_pools,\
-                patch(import_db + 'get_vips') as get_vips,\
-                patch(import_db + 'get_members') as get_members,\
-                patch(import_db + 'get_health_monitors') as get_hm,\
-                patch(import_db + '_core_plugin') as _core_plugin,\
-                patch(import_config_agent + 'RestClientOverUnix.put') as put:
-
-            put.side_effect = self._verify_update
-            context, sc, conf = self._prepare_request_data()
-            old_hm = {'id': 123, 'tenant_id': 123}
-            hm = {}
-            pool_id = 123
-            lb_handler = lb.LbAgent(conf, sc)
-            lb_handler.update_pool_health_monitor(context, old_hm, hm, pool_id)
-    '''
-
     def test_delete_vip(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
 .LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
+        import_config_agent = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_db + 'get_pools') as get_pools,\
                 patch(import_db + 'get_vips') as get_vips,\
                 patch(import_db + 'get_members') as get_members,\
@@ -402,7 +296,7 @@ class LoadBalanceTestCase(unittest.TestCase):
     def test_delete_pool(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
 .LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
+        import_config_agent = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_db + 'get_pools') as get_pools,\
                 patch(import_db + 'get_vips') as get_vips,\
                 patch(import_db + 'get_members') as get_members,\
@@ -419,7 +313,7 @@ class LoadBalanceTestCase(unittest.TestCase):
     def test_delete_member(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
 .LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
+        import_config_agent = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_db + 'get_pools') as get_pools,\
                 patch(import_db + 'get_vips') as get_vips,\
                 patch(import_db + 'get_members') as get_members,\
@@ -436,7 +330,7 @@ class LoadBalanceTestCase(unittest.TestCase):
     def test_delete_pool_health_monitor(self):
         import_db = 'neutron_lbaas.db.loadbalancer.loadbalancer_db\
 .LoadBalancerPluginDb.'
-        import_config_agent = 'gbpservice.neutron.nsf.config_agent.'
+        import_config_agent = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_db + 'get_pools') as get_pools,\
                 patch(import_db + 'get_vips') as get_vips,\
                 patch(import_db + 'get_members') as get_members,\
@@ -484,8 +378,8 @@ class VPNTestCase(unittest.TestCase):
         if all(k in blob_data for k in ["context", "resource"]):
             context = blob_data['context']
             try:
-                if context.service_info:
-                    data = context.service_info
+                if context['service_info']:
+                    data = context['service_info']
                     if all(k in data for k in ["vpnservices",
                                                "ikepolicies",
                                                "ipsecpolicies",
@@ -496,14 +390,6 @@ class VPNTestCase(unittest.TestCase):
             except AttributeError:
                 return False
         return False
-
-    '''
-    def _verify_update_data(self, data):
-        resource = data['resource']
-        if "old" + resource in data['kwargs']:
-            return True
-        return False
-    '''
 
     def _verify_delete_post(self, path, body, delete=False):
         if self._verify_body_structure(path, body):
@@ -523,16 +409,8 @@ class VPNTestCase(unittest.TestCase):
         print("create_%s_verified:Failed" % (resource))
         return (httplib.NOT_FOUND, "create_%s_verified:Failed" % (resource))
 
-    '''
-    def _verify_update(self, path, body:
-        if self._verify_body_structure(path, body);
-            if self._verify_update_data(body['request_data']['config'][0]):
-                return (httplib.OK, "update_%s_verified:Success" % (resource))
-        return (httplib.OK, "update_%s_verified:Failed" % (resource))
-    '''
-
     def _prepare_request_data(self):
-        context = ctx.Context('some_user', 'some_tenant')
+        context = TestContext().get_context()
         context.__setattr__('service_info', {})
         context.is_admin = False
         conf = {}
@@ -547,18 +425,14 @@ class VPNTestCase(unittest.TestCase):
 
     def test_update_vpnservice(self):
         import_db = 'neutron_vpnaas.db.vpn.vpn_db.VPNPluginDb.'
-        import_ca = 'gbpservice.neutron.nsf.config_agent.'
+        import_ca = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_db + 'get_vpnservices') as gvs,\
                 patch(import_db + 'get_ikepolicies') as gikp,\
                 patch(import_db + 'get_ipsecpolicies') as gipp,\
                 patch(import_db + 'get_ipsec_site_connections') as gisc,\
                 patch(import_ca + 'vpn.VpnAgent.core_plugin') as _cp,\
-                patch(import_ca + 'RestClientOverUnix.post') as post,\
-                patch(import_ca + 'RestClientOverUnix.put') as put:
+                patch(import_ca + 'RestClientOverUnix.post') as post:
             post.side_effect = self._verify_delete_post
-            '''
-            put.side_effect = self._verify_update
-            '''
             context, sc, conf = self._prepare_request_data()
             rsrc_types = ['ipsec', 'vpnservice']
             reasons = ['create', 'delete']
@@ -599,7 +473,7 @@ class GenericConfigTestCase(unittest.TestCase):
         return False
 
     def _prepare_request_data(self):
-        context = ctx.Context('some_user', 'some_tenant')
+        context = TestContext().get_context()
         context.__setattr__('service_info', {})
         context.is_admin = False
         conf = {}
@@ -637,7 +511,7 @@ class GenericConfigTestCase(unittest.TestCase):
                 "create_network_function_device_config_verified:Failed")
 
     def test_create_network_function_device_config(self):
-        import_ca = 'gbpservice.neutron.nsf.config_agent.'
+        import_ca = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_ca + 'RestClientOverUnix.post') as post:
             post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
@@ -647,7 +521,7 @@ class GenericConfigTestCase(unittest.TestCase):
                                                              request_data)
 
     def test_delete_network_function_device_config(self):
-        import_ca = 'gbpservice.neutron.nsf.config_agent.'
+        import_ca = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_ca + 'RestClientOverUnix.post') as post:
             post.side_effect = self._verify_delete_post
             context, sc, conf = self._prepare_request_data()
@@ -660,7 +534,7 @@ class GenericConfigTestCase(unittest.TestCase):
 class NotificationTestCase(unittest.TestCase):
 
     def _get_context(self):
-        context = ctx.Context('some_user', 'some_tenant')
+        context = TestContext().get_context()
         context.__setattr__('service_info', {})
         context.is_admin = False
         return context
@@ -679,7 +553,7 @@ class NotificationTestCase(unittest.TestCase):
         return response_data
 
     def _get(self, path):
-        if path == 'nsf/get_notifications':
+        if path == 'nfp/get_notifications':
             if n_count == 1:
                 print("cast method: orchestrator")
                 return self.\
@@ -699,7 +573,7 @@ class NotificationTestCase(unittest.TestCase):
         return
 
     def test_rpc_pull_event(self):
-        import_ca = 'gbpservice.neutron.nsf.config_agent.'
+        import_ca = 'gbpservice.neutron.nfp.config_agent.'
         with patch(import_ca + 'RestClientOverUnix.get') as get,\
                 patch('oslo_messaging.rpc.client._CallContext.cast') as cast:
             cast.side_effect = self._cast
