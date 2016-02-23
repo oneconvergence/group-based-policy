@@ -16,7 +16,7 @@ def _is_class(obj):
 
 
 def _name(obj):
-    """ Helper method to construct name of an object.
+    """Helper method to construct name of an object.
 
     'module.class' if object is of type 'class'
     'module.class.method' if object is of type 'method'
@@ -37,7 +37,7 @@ def _name(obj):
 
 
 def identify(obj):
-    """ Helper method to display identify an object.
+    """Helper method to display identify an object.
 
     Useful for logging. Decodes based on the type of obj.
     Supports 'class' & 'method' types for now.
@@ -45,5 +45,25 @@ def identify(obj):
     try:
         return "(%s)" % (_name(obj))
     except Exception:
-        """ Some unknown type, returning empty """
+        """Some unknown type, returning empty """
         return ""
+
+
+def log_info(log, msg):
+    log.info(msg)
+
+
+def log_debug(log, msg):
+    log.debug(msg)
+
+
+def log_error(log, msg):
+    log.error(msg)
+
+
+def log_warn(log, msg):
+    log.warn(msg)
+
+
+def log_exception(log, msg):
+    log.exception(msg)

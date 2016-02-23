@@ -10,8 +10,8 @@
 #  License for the specific language governing permissions and limitations
 #  under the License.from gbpservice.neutron.nsf.core import main
 
-from gbpservice.neutron.nsf.core import main
-from gbpservice.neutron.nsf.core import poll
+from gbpservice.nfp.core import main
+from gbpservice.nfp.core import poll
 import os
 from oslo_log import log as logging
 import time

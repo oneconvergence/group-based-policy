@@ -11,7 +11,7 @@
 #    under the License.
 
 
-""" Implements simple roundrobin loadbalancing algo.
+"""Implements simple roundrobin loadbalancing algo.
 
     When invoked by caller, returns the next worker in
     the queue.
@@ -33,7 +33,7 @@ class RoundRobin(object):
     def get(self, rsrcid):
         return self._rr()
 
-""" Implements round robin algo with stickiness to a worker.
+"""Implements round robin algo with stickiness to a worker.
 
     All the events with same rsrcid, are scheduled to same
     worker. Maintains the map in dict.

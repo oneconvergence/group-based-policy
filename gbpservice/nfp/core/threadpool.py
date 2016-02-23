@@ -10,22 +10,30 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import os
 import eventlet
+import os
+
 from eventlet import greenpool
 from eventlet import greenthread
+
 from oslo_log import log as logging
+
+from gbpservice.nfp.core import common as nfp_common
 
 LOG = logging.getLogger(__name__)
 
 eventlet.monkey_patch()
+
+log_info = nfp_common.log_info
+log_debug = nfp_common.log_debug
+log_error = nfp_common.log_error
 
 
 def _thread_done(gt, *args, **kwargs):
     kwargs['pool'].thread_done(kwargs['thread'])
 
 
-""" Descriptor class for green thread """
+"""Descriptor class for green thread """
 
 
 class Thread(object):
@@ -46,7 +54,7 @@ class Thread(object):
     def identify(self):
         return "(%d -> %s)" % (os.getpid(), 'Thread')
 
-""" Abstract class to manage green threads """
+"""Abstract class to manage green threads """
 
 
 class ThreadPool(object):
@@ -56,18 +64,18 @@ class ThreadPool(object):
         self.threads = []
 
     def dispatch(self, callback, *args, **kwargs):
-        """ Invokes the specified function in one of the thread """
+        """Invokes the specified function in one of the thread """
         gt = self.pool.spawn(callback, *args, **kwargs)
         th = Thread(gt, self)
         self.threads.append(th)
         return th
 
     def thread_done(self, thread):
-        """ Invoked when thread is complete, remove it from cache """
+        """Invoked when thread is complete, remove it from cache """
         self.threads.remove(thread)
 
     def stop(self):
-        """ To stop the thread """
+        """To stop the thread """
         current = greenthread.getcurrent()
 
         # Make a copy
@@ -78,10 +86,10 @@ class ThreadPool(object):
             try:
                 x.stop()
             except Exception as ex:
-                LOG.error(_("Exception", ex))
+                log_error("Exception", ex)
 
     def wait(self):
-        """ Wait for the thread """
+        """Wait for the thread """
         current = greenthread.getcurrent()
 
         # Make a copy
@@ -93,4 +101,4 @@ class ThreadPool(object):
             except eventlet.greenlet.GreenletExit:
                 pass
             except Exception as ex:
-                LOG.error(_("Exception", ex))
+                log_error("Exception", ex)
