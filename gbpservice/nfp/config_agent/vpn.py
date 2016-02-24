@@ -11,8 +11,8 @@
 #    under the License.
 
 from neutron_vpnaas.db.vpn import vpn_db
-from gbpservice.neutron.nfp.config_agent.common import *
-from gbpservice.neutron.nfp.config_agent import RestClientOverUnix as rc
+from gbpservice.nfp.config_agent.common import *
+from gbpservice.nfp.config_agent import RestClientOverUnix as rc
 
 LOG = logging.getLogger(__name__)
 
@@ -42,6 +42,15 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             self._core_plugin = manager.NeutronManager.get_plugin()
             return self._core_plugin
 
+    @property 
+    def l3_plugin(self): 
+        try: 
+            return self._l3_plugin 
+        except AttributeError: 
+            self._l3_plugin = manager.NeutronManager.get_service_plugins().get( 
+                constants.L3_ROUTER_NAT) 
+            return self._l3_plugin 
+
     def _eval_rest_calls(self, reason, body):
         if reason == 'update':
             return rc.put('update_network_function_config', body=body)
@@ -62,13 +71,14 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         body = prepare_request_data(resource, kwargs, "vpn")
         try:
             resp, content = self._eval_rest_calls(reason, body)
-        except:
-            LOG.error("vpnservice_updated -> request failed.")
+        except rc.RestClientException as rce:
+            LOG.error("vpnservice_updated -> request failed.Reason %s"%(
+            rce))
 
     def _context(self, context, tenant_id):
         if context.is_admin:
             tenant_id = context.tenant_id
-        filters = {'tenant_id': tenant_id}
+        filters = {'tenant_id': [tenant_id]}
         db = self._get_vpn_context(context, filters)
         db.update(self._get_core_context(context, filters))
         return db
@@ -84,5 +94,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     def _get_core_context(self, context, filters):
         args = {'context': context, 'filters': filters}
         core_plugin = self.core_plugin
+        l3_plugin = self.l3_plugin
         return {'subnets': core_plugin.get_subnets(**args),
-                'routers': core_plugin.get_routers(**args)}
+                'routers': l3_plugin.get_routers(**args)}
