@@ -10,16 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import eventlet
+import operator
 import os
 import sys
-from operator import itemgetter
-
-import eventlet
 
 import multiprocessing
-from multiprocessing import Process as mp_process
-from multiprocessing import Queue as mp_queue
-from multiprocessing import Lock as mp_lock
 
 from neutron.agent.common import config as n_config
 from neutron.common import config as n_common_config
@@ -28,12 +24,12 @@ from oslo_config import cfg as oslo_config
 from oslo_log import log as oslo_logging
 from oslo_service import service as oslo_service
 
-from gbpservice.neutron.nsf.core import common as nfp_common
-from gbpservice.neutron.nsf.core import cfg as nfp_config
-from gbpservice.neutron.nsf.core import event as nfp_event
-from gbpservice.neutron.nsf.core import poll as nfp_poll
-from gbpservice.neutron.nsf.core import rpc as nfp_rpc
-from gbpservice.neutron.nsf.core import rpc_lb as nfp_rpc_lb
+from gbpservice.nfp.core import cfg as nfp_config
+from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import rpc as nfp_rpc
+from gbpservice.nfp.core import rpc_lb as nfp_rpc_lb
 
 eventlet.monkey_patch()
 
@@ -47,9 +43,16 @@ EventQueueHandler = nfp_event.EventQueueHandler
 ReportStateTask = nfp_rpc.ReportStateTask
 PollingTask = nfp_poll.PollingTask
 PollQueueHandler = nfp_poll.PollQueueHandler
+mp_lock = multiprocessing.Lock
+mp_process = multiprocessing.Process
+mp_queue = multiprocessing.Queue
+itemgetter = operator.itemgetter
+log_info = nfp_common.log_info
+log_debug = nfp_common.log_debug
+log_error = nfp_common.log_error
 
 
-""" Implements cache of registered event handlers. """
+"""Implements cache of registered event handlers. """
 
 
 class EventHandlers(object):
@@ -58,7 +61,7 @@ class EventHandlers(object):
         self._ehs = {}
 
     def register(self, event_desc):
-        LOG.debug(_("Registering handler %s" % (self.identify(event_desc))))
+        log_debug(LOG, "Registering handler %s" % (self.identify(event_desc)))
         if event_desc.id in self._ehs.keys():
             self._ehs[event_desc.id].extend([event_desc])
         else:
@@ -67,7 +70,7 @@ class EventHandlers(object):
     def get(self, event):
         for id, eh in self._ehs.iteritems():
             if id == event.id:
-                LOG.debug(_("Returning handler %s" % (self.identify(eh[0]))))
+                log_debug(LOG, "Returning handler %s" % (self.identify(eh[0])))
                 return eh[0].handler
         return None
 
@@ -75,7 +78,7 @@ class EventHandlers(object):
         return "%s - %s" % (event.identify(), identify(event.handler))
 
 
-""" Common class implements all the APIs & cache.
+"""Common class implements all the APIs & cache.
 
     Common class used across modules and classes to access the
     cache of required objects.
@@ -97,17 +100,18 @@ class Controller(object):
         self._lock = mp_lock()
         # Sequencer to sequence the related events.
         self._sequencer = EventSequencer(self)
+        self._event = multiprocessing.Event()
 
     def lock(self):
         self._lock.acquire()
-        LOG.debug(_("Acquired lock.."))
+        log_debug(LOG, "Acquired lock..")
 
     def unlock(self):
         self._lock.release()
-        LOG.debug(_("Released lock.."))
+        log_debug(LOG, "Released lock..")
 
     def sequencer_put_event(self, event):
-        """ Put an event in sequencer.
+        """Put an event in sequencer.
 
             Check if event needs to be sequenced, this is module logic choice.
             If yes, then invokes sequencer. If this is the first event in
@@ -121,7 +125,7 @@ class Controller(object):
         return None
 
     def sequencer_get_event(self):
-        """ Get an event from the sequencer map.
+        """Get an event from the sequencer map.
 
             Invoked by workers to get the first event in sequencer map.
             Since it is a FIFO, first event could be waiting long to be
@@ -129,7 +133,6 @@ class Controller(object):
             Loops over copy of sequencer map and returns the first waiting
             event.
         """
-        LOG.debug(_(""))
         seq_map = self._sequencer.copy()
         for seq in seq_map.values():
             for val in seq.values():
@@ -139,23 +142,23 @@ class Controller(object):
                     if val['queue'] == []:
                         continue
                     event = val['queue'][0]
-                    LOG.debug(_("Returing serialized event %s"
-                                % (event.identify())))
+                    log_debug(LOG, "Returing serialized event %s"
+                              % (event.identify()))
                     return event
         return None
 
     def report_state(self):
-        """ Invoked by report_task to report states of all agents. """
+        """Invoked by report_task to report states of all agents. """
         for agent in self._rpc_agents:
             rpc_agent = itemgetter(0)(agent)
             rpc_agent.report_state()
 
     def timeout(self):
-        """ Invoked by poll task to handle timer events. """
+        """Invoked by poll task to handle timer events. """
         self._pollhandler.run()
 
     def workers_init(self):
-        """ Initialize the configured number of worker process.
+        """Initialize the configured number of worker process.
 
             This method just creates the process and not start them.
             If count is not specified in config file, then 2*NCPUS
@@ -165,7 +168,7 @@ class Controller(object):
         wc = 2 * (NCPUS)
         if oslo_config.CONF.workers != wc:
             wc = oslo_config.CONF.workers
-            LOG.info(_("Creating %d number of workers" % (wc)))
+            log_info(LOG, "Creating %d number of workers" % (wc))
 
         ev_workers = [tuple() for w in range(0, wc)]
 
@@ -178,31 +181,31 @@ class Controller(object):
         return ev_workers
 
     def poll_handler_init(self):
-        """ Initialize poll handler, creates a poll queue. """
+        """Initialize poll handler, creates a poll queue. """
         pollq = mp_queue()
         handler = PollQueueHandler(self, pollq, self._event_handlers)
         return handler
 
     def modules_init(self, modules):
-        """ Initializes all the loaded NFP modules.
+        """Initializes all the loaded NFP modules.
 
             Invokes "module_init" method of each module.
             Module can register its rpc & event handlers.
         """
         for module in modules:
-            LOG.info(_("Initializing module %s" % (identify(module))))
+            log_info(LOG, "Initializing module %s" % (identify(module)))
             try:
                 module.module_init(self, self._conf)
             except AttributeError:
-                LOG.error(_("Module %s does not implement"
-                            "module_init() method - skipping"
-                            % (identify(module))))
+                log_error(LOG, "Module %s does not implement"
+                          "module_init() method - skipping"
+                          % (identify(module)))
                 continue
                 # raise AttributeError(module.__file__ + ': ' + str(s))
         return modules
 
     def init(self):
-        """ Intializes the NFP multi process framework.
+        """Intializes the NFP multi process framework.
 
             Top level method to initialize all the resources required.
         """
@@ -211,18 +214,19 @@ class Controller(object):
         self._modules = self.modules_init(self._modules)
         self._workers = self.workers_init()
         self._pollhandler = self.poll_handler_init()
+        nfp_rpc_lb.StickyRoundRobin(self._workers)
         self._loadbalancer = getattr(
             globals()['nfp_rpc_lb'],
             oslo_config.CONF.rpc_loadbalancer)(self._workers)
 
     def wait(self):
-        """ To wait for workers & rpc agents to stop. """
+        """To wait for workers & rpc agents to stop. """
         # self.rpc_agents.wait()
         for w in self._workers:
             w[0].join()
 
     def start(self):
-        """ To start all the execution contexts.
+        """To start all the execution contexts.
 
             Starts worker process, rpc agents, polling task,
             report task.
@@ -235,14 +239,14 @@ class Controller(object):
 
         for worker in self._workers:
             worker[0].start()
-            LOG.debug(_("Started worker - %d" % (worker[0].pid)))
+            log_debug(LOG, "Started worker - %d" % (worker[0].pid))
 
         for idx, agent in enumerate(self._rpc_agents):
             launcher = oslo_service.launch(oslo_config.CONF, agent[0])
             self._rpc_agents[idx] = agent + (launcher,)
 
     def post_event(self, event):
-        """ API for NFP module to generate a new internal event.
+        """API for NFP module to generate a new internal event.
 
             Schedules this event to one of the worker. 'binding_key' is
             glue between different events, all events with same 'binding_key'
@@ -250,20 +254,20 @@ class Controller(object):
         """
         worker = self._loadbalancer.get(event.binding_key)
         event.worker_attached = worker[0].pid
-        LOG.info(_("Scheduling internal event %s"
-                   "to worker %d"
-                   % (event.identify(), event.worker_attached)))
+        log_info(LOG, "Scheduling internal event %s"
+                 "to worker %d"
+                 % (event.identify(), event.worker_attached))
         evq = worker[1]
         evq.put(event)
 
     def event_done(self, event):
-        """ API for NFP modules to mark an event complete.
+        """API for NFP modules to mark an event complete.
 
             This is how framework learns that an event is complete and
             any other sequenced event can now be scheduled.
             Ideally, for event module at some point should call event_done.
         """
-        LOG.info(_("Event %s done" % (event.identify())))
+        log_info(LOG, "Event %s done" % (event.identify()))
         seq_map = self._sequencer.copy()
         seq_map = seq_map[event.worker_attached]
 
@@ -271,69 +275,69 @@ class Controller(object):
         if event.binding_key not in seq_map:
             return
 
-        LOG.debug(_("Checking if event %s in serialize Q"
-                    % (event.identify())))
+        log_debug(LOG, "Checking if event %s in serialize Q"
+                  % (event.identify()))
         seq_q = seq_map[event.binding_key]['queue']
         for seq_event in seq_q:
             if seq_event.key == event.key:
-                LOG.debug(_("Removing event %s from serialize Q"
-                            % (seq_event.identify())))
+                log_debug(LOG, "Removing event %s from serialize Q"
+                          % (seq_event.identify()))
                 self._sequencer.remove(seq_event)
                 break
         self._sequencer.delete_eventmap(event)
 
     def poll_event(self, event, max_times=sys.maxint):
-        """ API for NFP modules to generate a new poll event.
+        """API for NFP modules to generate a new poll event.
 
             Adds event to pollq for the poller to poll on it
             periodically.
             max_times - Defines the max number of times this event
             can timeout, after that event is auto cancelled.
         """
-        LOG.info(_("Adding to pollq - event %s for maxtimes: %d"
-                   % (event.identify(), max_times)))
+        log_info(LOG, "Adding to pollq - event %s for maxtimes: %d"
+                 % (event.identify(), max_times))
         event.max_times = max_times
         self._pollhandler.add(event)
 
     def poll_event_done(self, event):
-        """ API for NFP modules to mark a poll event complete.
+        """API for NFP modules to mark a poll event complete.
 
             If on any condition, module logic decides to stop polling
             for an event before it gets auto cancelled, then this
             method can be invoked.
         """
-        LOG.info(_("Poll event %s done.. Adding to pollq"
-                   % (event.identify())))
+        log_info(LOG, "Poll event %s done.. Adding to pollq"
+                 % (event.identify()))
         event.id = 'POLL_EVENT_DONE'
         self._pollhandler.add(event)
 
     def new_event(self, **kwargs):
-        """ API for NFP modules to prep an Event from passed args """
+        """API for NFP modules to prep an Event from passed args """
         return Event(**kwargs)
 
     def register_events(self, events):
-        """ API for NFP modules to register events """
+        """API for NFP modules to register events """
         for event in events:
-            LOG.info(_("Registering event %s & handler %s"
-                       % (event.identify(), identify(event.handler))))
+            log_info(LOG, "Registering event %s & handler %s"
+                     % (event.identify(), identify(event.handler)))
             self._event_handlers.register(event)
 
     def register_rpc_agents(self, agents):
-        """ API for NFP mofules to register rpc agents """
+        """API for NFP mofules to register rpc agents """
         for agent in agents:
             self._rpc_agents.extend([(agent,)])
 
     def init_complete(self):
-        """ Invokes NFP modules init_complete() to do any post init logic """
+        """Invokes NFP modules init_complete() to do any post init logic """
         for module in self._modules:
-            LOG.info(_("Invoking init_complete() of module %s"
-                       % (identify(module))))
+            log_info(LOG, "Invoking init_complete() of module %s"
+                     % (identify(module)))
             try:
                 module.init_complete(self, self._conf)
             except AttributeError:
-                LOG.info(_("Module %s does not implement"
-                           "init_complete() method - skipping"
-                           % (identify(module))))
+                log_info(LOG, "Module %s does not implement"
+                         "init_complete() method - skipping"
+                         % (identify(module)))
 
     def unit_test(self):
         for module in self._modules:
@@ -341,7 +345,7 @@ class Controller(object):
 
 
 def modules_import():
-    """ Imports all the .py files from specified modules dir """
+    """Imports all the .py files from specified modules dir """
     modules = []
     # os.path.realpath(__file__)
     base_module = __import__(oslo_config.CONF.modules_dir,
@@ -354,7 +358,7 @@ def modules_import():
     try:
         files = os.listdir(modules_dir)
     except OSError:
-        LOG.error(_("Failed to read files.."))
+        log_error(LOG, "Failed to read files..")
         files = []
 
     for fname in files:
