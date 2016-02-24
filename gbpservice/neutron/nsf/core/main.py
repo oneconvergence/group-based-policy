@@ -48,6 +48,30 @@ ReportStateTask = nfp_rpc.ReportStateTask
 PollingTask = nfp_poll.PollingTask
 PollQueueHandler = nfp_poll.PollQueueHandler
 
+""" Signal Handler"""
+class SignalHandle(object):
+    def __init__(self, sc):
+        self.sc = sc
+
+    def signal_handler(self, signal, frame):
+        pid, sig = os.wait()
+        _pollq_map  = self.sc._pollhandler._pollq_map
+        for w in _pollq_map:
+            if pid == w[0].pid :
+                print "#################################### Worker %d is  KILLED#############" %(w[0].pid)
+                pollq =  w[1] #pending events
+                """
+                if pollq.empty():
+                    print "$$$$$$$$$$$$$$$$$$$ Polling Queue is Empty";
+                else:
+                    events = []
+                    while(pollq.empty() == False):
+                        event.append(pollq.get())
+                    for e in events:
+                        print" EVENT ID = %s " %e.id
+                """
+                break
+
 
 """ Implements cache of registered event handlers. """
 
@@ -99,12 +123,18 @@ class Controller(object):
         self._sequencer = EventSequencer(self)
 
     def lock(self):
+        pass
+    """
         self._lock.acquire()
         LOG.debug(_("Acquired lock.."))
+    """
 
     def unlock(self):
+        pass
+    """
         self._lock.release()
         LOG.debug(_("Released lock.."))
+    """
 
     def sequencer_put_event(self, event):
         """ Put an event in sequencer.
@@ -179,8 +209,11 @@ class Controller(object):
 
     def poll_handler_init(self):
         """ Initialize poll handler, creates a poll queue. """
-        pollq = mp_queue()
-        handler = PollQueueHandler(self, pollq, self._event_handlers)
+        worker_pollq_map = []
+        for w in self._workers :
+            pollq = mp_queue()
+            worker_pollq_map.extend([(w[0], pollq)])
+        handler = PollQueueHandler(self, worker_pollq_map, self._event_handlers)
         return handler
 
     def modules_init(self, modules):
@@ -215,6 +248,7 @@ class Controller(object):
             globals()['nfp_rpc_lb'],
             oslo_config.CONF.rpc_loadbalancer)(self._workers)
 
+
     def wait(self):
         """ To wait for workers & rpc agents to stop. """
         # self.rpc_agents.wait()
@@ -229,7 +263,7 @@ class Controller(object):
         """
         self.init()
         # Polling task to poll for timer events
-        self._polling_task = PollingTask(self)
+        #self._polling_task = PollingTask(self)
         # Seperate task for reporting as report state rpc is a 'call'
         self._reportstate_task = ReportStateTask(self)
 
@@ -240,6 +274,8 @@ class Controller(object):
         for idx, agent in enumerate(self._rpc_agents):
             launcher = oslo_service.launch(oslo_config.CONF, agent[0])
             self._rpc_agents[idx] = agent + (launcher,)
+
+        self._polling_task = PollingTask(self)
 
     def post_event(self, event):
         """ API for NFP module to generate a new internal event.
@@ -366,6 +402,13 @@ def modules_import():
     sys.path = syspath
     return modules
 
+def sc_wait(sc):
+    #handling the process signal
+    sig_handle = SignalHandle(sc);
+    signal.signal(signal.SIGCHLD, sig_handle.signal_handler)
+
+    for w in sc._workers:
+            w[0].join()
 
 def main():
     oslo_config.CONF.register_opts(nfp_config.OPTS)
@@ -380,5 +423,7 @@ def main():
     sc = Controller(oslo_config.CONF, modules)
     sc.start()
     sc.init_complete()
-    # sc.unit_test()
+    sc.unit_test()
+    
+    #sc_wait(sc)
     sc.wait()
