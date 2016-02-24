@@ -28,7 +28,7 @@ OPTS = [
     ),
     cfg.StrOpt(
         'modules_dir',
-        default='gbpservice.neutron.nsf.core.test',
+        default='gbpservice.neutron.nsf.modules',
         help=_('Path for NFP modules.'
                'All modules from this path are autloaded by framework')
     ),
