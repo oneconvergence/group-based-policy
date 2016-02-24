@@ -180,10 +180,8 @@ class DeviceLifeCycleHandler(object):
 
         self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
         self.drivers = self.ext_mgr.drivers
-        LOG.info(_("self.drivers = %s" % self.drivers))
+        #LOG.info(_("self.drivers = %s" % self.drivers))
 
-        self.lifecycle_driver = self._get_vendor_lifecycle_driver(
-            'vyos', 'cls')
         self.compute_driver = self._get_compute_driver(
             'compute')
 
@@ -294,21 +292,13 @@ class DeviceLifeCycleHandler(object):
         device['interfaces_in_use'] -= len(device['ports'])
         self._update_network_function_device_db(device, device['status'])
 
-    def _get_vendor_lifecycle_driver(self, vendor_name, cls):
+    def _get_vendor_lifecycle_driver(self, vendor_name):
         # Replace with an autoload and auto choose mechanism
         # Each driver either registers the service type and vendor it supports
         # or there is an interface in driver to get that information
         #vendor_name = data['service_vendor']
         return self.drivers[vendor_name.lower()]
-        '''vendor_name = 'haproxy'
-        if vendor_name == "haproxy":
-            return haproxy_lifecycle_driver.HaproxyLifeCycleDriver()
-        elif vendor_name == "vyos":
-            return vyos_lifecycle_driver.VyosLifeCycleDriver()
-        else:
-            raise Exception() # Raise a proper exception class
-        '''
-
+ 
     def _get_compute_driver(self, drvr_name):
         # Replace with an autoload and auto choose mechanism
         # Each driver either registers the service type and vendor it supports
@@ -320,13 +310,19 @@ class DeviceLifeCycleHandler(object):
         else:
             raise Exception()   # Raise a proper exception class
 
+    def _get_lifecycle_driver(self, service_vendor):
+        return self.drivers[service_vendor.lower()]
+
     def _get_device_to_reuse(self, device_data, dev_sharing_info):
         device_filters = dev_sharing_info['filters']
+        lifecycle_driver = self._get_lifecycle_driver(
+                                        device_data['service_vendor'])
+
         # TODO (ashu) should DLCM return whole dict, or selective fields.
         devices = self._get_network_function_devices(device_filters)
 
-        device = self.lifecycle_driver.select_network_function_device(devices,
-                                                                device_data)
+        device = lifecycle_driver.select_network_function_device(devices,
+                                                                 device_data)
         return device
 
     def _get_device_data(self, nfd_request):
@@ -382,8 +378,10 @@ class DeviceLifeCycleHandler(object):
                    "%(data)s"), {'data': nfd_request})
 
         device_data = self._get_device_data(nfd_request)
+        lifecycle_driver = self._get_lifecycle_driver(
+                                    device_data['service_vendor'])
         dev_sharing_info = (
-            self.lifecycle_driver.get_network_function_device_sharing_info(
+            lifecycle_driver.get_network_function_device_sharing_info(
                 device_data))
         if dev_sharing_info:
             device = self._get_device_to_reuse(device_data, dev_sharing_info)
@@ -402,8 +400,7 @@ class DeviceLifeCycleHandler(object):
             LOG.info(_("No Device exists for sharing, Creating new device,"
                        "device request: %(device)s"), {'device': nfd_request})
             driver_device_info = (
-                self.lifecycle_driver.create_network_function_device(
-                                                                device_data))
+                lifecycle_driver.create_network_function_device(device_data))
             if not driver_device_info:
                 LOG.info(_("Device creation failed"))
                 self._create_event(event_id='DEVICE_ERROR',
@@ -423,14 +420,15 @@ class DeviceLifeCycleHandler(object):
             self._create_event(event_id='DEVICE_SPAWNING',
                                event_data=device,
                                is_poll_event=True,
-                               #original_event=event)
+                               original_event=event,
                                )
 
     def check_device_is_up(self, event):
         device = event.data
+        lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         # TODO (ashu) return value from driver, this should be true/false
         is_device_up = (
-            self.lifecycle_driver.get_network_function_device_status(device))
+            lifecycle_driver.get_network_function_device_status(device))
         if is_device_up == 'ACTIVE':
             self._controller.poll_event_done(event)
 
@@ -451,8 +449,9 @@ class DeviceLifeCycleHandler(object):
     def perform_health_check(self, event):
         # The driver tells which protocol / port to monitor ??
         device = event.data
+        lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         hm_req = (
-            self.lifecycle_driver.get_network_function_device_healthcheck_info(
+            lifecycle_driver.get_network_function_device_healthcheck_info(
                                                                 device))
         self.configurator_rpc.create_network_function_device_config(device,
                                                                     hm_req)
@@ -464,9 +463,9 @@ class DeviceLifeCycleHandler(object):
 
     def plug_interfaces(self, event):
         device = event.data
+        lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         _ifaces_plugged_in = (
-            self.lifecycle_driver.plug_network_function_device_interfaces(
-                                                                device))
+            lifecycle_driver.plug_network_function_device_interfaces(device))
         if _ifaces_plugged_in:
             self._increment_device_interface_count(device)
             self._create_event(event_id='CONFIGURE_DEVICE',
@@ -477,9 +476,9 @@ class DeviceLifeCycleHandler(object):
 
     def create_device_configuration(self, event):
         device = event.data
+        lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         config_params = (
-            self.lifecycle_driver.get_network_function_device_config_info(
-                                                                device))
+            lifecycle_driver.get_network_function_device_config_info(device))
         self.configurator_rpc.create_network_function_device_config(
                                                     device, config_params)
 
@@ -534,18 +533,19 @@ class DeviceLifeCycleHandler(object):
 
     def delete_device_configuration(self, event):
         device = event.data
+        lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         config_params = (
-            self.lifecycle_driver.get_network_function_device_config_info(
+            lifecycle_driver.get_network_function_device_config_info(
                                                                 device))
         self.configurator_rpc.delete_network_function_device_config(device,
                                                                 config_params)
 
     def unplug_interfaces(self, event):
         device = event.data
+        lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
 
         is_interface_unplugged = (
-            self.lifecycle_driver.unplug_network_function_device_interfaces(
-                                                        device))
+            lifecycle_driver.unplug_network_function_device_interfaces(device))
         if is_interface_unplugged:
             mgmt_data_ports = device['mgmt_data_ports']
             self._decrement_device_interface_count(device)
@@ -559,12 +559,13 @@ class DeviceLifeCycleHandler(object):
     def delete_device(self, event):
         # Update status in DB, send DEVICE_DELETED event to service LCM.
         device = event.data
+        lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
 
         self._decrement_device_ref_count(device)
         device_ref_count = device['reference_count']
         if device_ref_count == 0:
             #(TODO) (ashu) - delete health monitor
-            self.lifecycle_driver.delete_network_function_device(device)
+            lifecycle_driver.delete_network_function_device(device)
             self._delete_network_function_device_db(device['id'])
         else:
             desc = 'Network Service Device can be reuse'
