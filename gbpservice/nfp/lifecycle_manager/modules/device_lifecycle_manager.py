@@ -19,6 +19,7 @@ from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.db import nfp_db as nfp_db
 from gbpservice.nfp.db import api as nfp_db_api
 from gbpservice.nfp.lib import extension_manager as ext_mgr
+from gbpservice.nfp.lifecycle_manager.openstack import openstack_driver
 #from gbpservice.nfp.lifecycle_manager.compute.drivers import (
 #    nova_driver)
 '''from gbpservice.nfp.lifecycle_manager.drivers import (
@@ -91,24 +92,24 @@ class RpcHandler(object):
                                   }
 
     # RPC APIs status notification from Configurator
-    def get_network_function_config_info(self, context, **kwargs):
+    def get_network_function_config_info(self, context, notifications_data):
         #context = kwargs.get('context')
-        notification_data = kwargs.get('notification_data')
-        responses = notification_data.get('kwargs')
+        #notification_data = kwargs.get('notification_data')
+        responses = notifications_data[0].get('kwargs')
 
         for response in responses:
             resource = response.get('resource')
-            resp_kwargs = response.get('kwargs')
-            result = resp_kwargs.get('result')
-            device_id = resp_kwargs.get('device_id')  # response.get('context')
-            event_id = self.rpc_event_mapping[resource][0]
+            request_info = response.get('request_info')
+            result = response.get('result')
 
+            event_id = self.rpc_event_mapping[resource][0]
             if result != 'success':
                 event_id = self.rpc_event_mapping[resource][1]
                 break
 
+        event_data = request_info
         self._create_event(event_id=event_id,
-                           event_data={'device_id': device_id})
+                           event_data=event_data)
 
 
 class DeviceLifeCycleManager(object):
@@ -177,6 +178,8 @@ class DeviceLifeCycleHandler(object):
         self.request = request
         self.nsf_db = nfp_db.NFPDbBase()
         self.db_session = nfp_db_api.get_session()
+        self.gbpclient = openstack_driver.GBPClient()
+        self.keystoneclient = openstack_driver.KeystoneClient()
 
         self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
         self.drivers = self.ext_mgr.drivers
@@ -327,21 +330,22 @@ class DeviceLifeCycleHandler(object):
 
     def _get_device_data(self, nfd_request):
         device_data = {}
-        network_function = nfd_request['network_function']
+        network_function = nfd_request.get('network_function')
         network_function_instance = nfd_request['network_function_instance']
-        service_type = nfd_request['service_type']
-        service_vendor = nfd_request['service_vendor']
+        service_type = nfd_request.get('service_type')
+        service_vendor = nfd_request.get('service_vendor')
         device_data['share_existing_device'] = (
-                                    nfd_request['share_existing_device'])
+                                    nfd_request.get('share_existing_device'))
         device_data['management_network_info'] = (
-                                    nfd_request['management_network_info'])
+                                    nfd_request.get('management_network_info'))
 
-        device_data['network_function_id'] = network_function['id']
-        device_data['tenant_id'] = network_function['tenant_id']
-        device_data['service_chain_id'] = network_function['service_chain_id']
+        if network_function:
+            device_data['network_function_id'] = network_function['id']
+            device_data['service_chain_id'] = network_function['service_chain_id']
 
         device_data['network_function_instance_id'] = (
                                     network_function_instance['id'])
+        device_data['tenant_id'] = network_function_instance['tenant_id']
 
         nsi_port_info = []
         for port_id in network_function_instance.pop('port_info'):
@@ -350,8 +354,10 @@ class DeviceLifeCycleHandler(object):
 
         device_data['ports'] = nsi_port_info
 
-        device_data['service_vendor'] = service_vendor
-        device_data['service_type'] = service_type
+        if service_vendor:
+            device_data['service_vendor'] = service_vendor
+        if service_type:
+            device_data['service_type'] = service_type
         # TODO: Get these values from SLCM, it should be available in service
         # profile.
         device_data['compute_policy'] = 'nova'
@@ -359,6 +365,10 @@ class DeviceLifeCycleHandler(object):
         device_data['network_policy'] = nsi_port_info[0]['port_policy'].lower()
 
         return device_data
+
+    def _get_nsf_db_resource(self, resource_name, resource_id):
+        db_method = getattr(self.nsf_db, 'get_' + resource_name)
+        return db_method(self.db_session, resource_id)
 
     def _update_device_data(self, device, device_data):
         device.update(device_data)
@@ -461,8 +471,52 @@ class DeviceLifeCycleHandler(object):
         self._update_network_function_device_db(device,
                                                'HEALTH_CHECK_PENDING')
 
+    def _get_service_vendor(self, service_profile_id):
+        admin_token = self.keystoneclient.get_admin_token()
+        service_profile = self.gbpclient.get_service_profile(
+            admin_token, service_profile_id)
+        return service_profile['service_flavor']      # service_flovor
+        
+    def _prepare_device_data(self, device_info):
+        network_function_id = device_info['network_function_id']
+        network_function_device_id = device_info['network_function_device_id']
+        network_function_instance_id = (
+                                device_info['network_function_instance_id'])
+        #service_vendor = device_info['service_vendor']
+
+        network_function = self._get_nsf_db_resource(
+                                'network_function',
+                                network_function_id)
+        network_function_device = self._get_nsf_db_resource(
+                                'network_function_device',
+                                network_function_device_id)
+        network_function_instance = self._get_nsf_db_resource(
+                                'network_function_instance',
+                                network_function_instance_id)
+
+        # either keep service vendor in request_info or get it from gbpclient
+        service_vendor = self._get_service_vendor(
+                                    network_function['service_profile_id'])
+
+        device_info.update({
+                    'network_function_instance': network_function_instance})
+        device_info.update({'id': network_function_device_id})
+        device_info.update({'service_vendor': service_vendor})
+
+        device = self._get_device_data(device_info)
+        device = self._update_device_data(device, network_function_device)
+
+        mgmt_port_ids = network_function_device.pop('mgmt_data_ports')
+        mgmt_data_ports = self._get_ports(mgmt_port_ids)
+        device['mgmt_data_ports'] = mgmt_data_ports
+        device['network_function_id'] = network_function_id
+        return device
+
     def plug_interfaces(self, event):
-        device = event.data
+        device_info = event.data
+        # Get event data, as configurator sends back only request_info, which
+        # contains nf_id, nfi_id, nfd_id.
+        device = self._prepare_device_data(device_info)
         lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         _ifaces_plugged_in = (
             lifecycle_driver.plug_network_function_device_interfaces(device))
@@ -483,7 +537,8 @@ class DeviceLifeCycleHandler(object):
                                                     device, config_params)
 
     def device_configuration_complete(self, event):
-        device = event.data
+        device_info = event.data
+        device = self._prepare_device_data(device_info)
         # Change status to active in DB and generate an event DEVICE_ACTIVE
         # to inform Service LCM
         self._increment_device_ref_count(device)
@@ -541,7 +596,8 @@ class DeviceLifeCycleHandler(object):
                                                                 config_params)
 
     def unplug_interfaces(self, event):
-        device = event.data
+        device_info = event.data
+        device = self._prepare_device_data(device_info)
         lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
 
         is_interface_unplugged = (
@@ -674,8 +730,23 @@ class DLCMConfiguratorRpcApi(object):
         self.rpc_api = self.client.prepare(version=self.API_VERSION,
                                 topic=nsf_topics.NFP_DLCM_CONFIGURATOR_TOPIC)
 
+    def _get_request_info(self, device):
+        request_info = {
+                'network_function_id': device['network_function_id'],
+                'network_function_instance_id': (
+                                device['network_function_instance_id']),
+                'network_function_device_id': device['id']
+        }
+        return request_info
+
+    def _update_params(self, device_data, config_params):
+        request_info = self._get_request_info(device_data)
+        for config in config_params['config']:
+            config['kwargs'] = request_info
+
     def create_network_function_device_config(self, device_data,
                                               config_params):
+        self._update_params(device_data, config_params)
         return self.rpc_api.cast(
                     self.context,
                     'create_network_function_device_config',
@@ -684,6 +755,7 @@ class DLCMConfiguratorRpcApi(object):
 
     def delete_network_function_device_config(self, device_data,
                                               config_params):
+        self._update_params(device_data, config_params)
         return self.rpc_api.cast(
                     self.context,
                     'delete_network_function_device_config',
