@@ -56,6 +56,8 @@ class AgentBaseRPCManager(object):
         else:
             sa_info_list[0]['context'].update(
                             {'notification_data': notification_data})
+            sa_info_list[0]['context'].update(
+                            {'resource': sa_info_list[0]['resource']})
             getattr(self, sa_info_list[0]['method'])(
                                             sa_info_list[0]['context'],
                                             **sa_info_list[0]['kwargs'])
@@ -91,7 +93,10 @@ class AgentBaseEventHandler(object):
             # Process the first data blob from the service information list.
             # Get necessary parameters needed for driver method invocation.
             method = sa_info_list[0]['method']
+            resource = sa_info_list[0]['resource']
             kwargs = sa_info_list[0]['kwargs']
+            request_info = kwargs['request_info']
+            del kwargs['request_info']
             context = sa_info_list[0]['context']
             service_type = kwargs.get('kwargs').get('service_type')
 
@@ -114,7 +119,14 @@ class AgentBaseEventHandler(object):
                     'receiver': const.ORCHESTRATOR,
                     'resource': const.ORCHESTRATOR,
                     'method': "network_function_device_notification",
-                    'kwargs': [{'context': context, 'result': result}]
+                    'kwargs': [
+                                {
+                                 'context': context,
+                                 'resource': resource,
+                                 'request_info': request_info,
+                                 'result': result,
+                                }
+                            ]
                 }
 
             # If the data processed is first one, then prepare notification
@@ -125,8 +137,12 @@ class AgentBaseEventHandler(object):
             if not notification_data:
                 notification_data.update(msg)
             else:
-                data = {'context': context,
-                        'result': result}
+                data = {
+                        'context': context,
+                        'resource': resource,
+                        'request_info': request_info,
+                        'result': result
+                        }
                 notification_data['kwargs'].extend(data)
 
         if success:

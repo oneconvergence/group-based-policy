@@ -155,6 +155,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
 
         # Process single request data blob
         kwargs = ev.data.get('kwargs')
+        request_info = kwargs['request_info']
+        del kwargs['request_info']
         context = ev.data.get('context')
         service_type = kwargs.get('service_type')
 
@@ -164,6 +166,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
         # notification_data before invoking driver API.
         notification_data = context.get('notification_data')
         del context['notification_data']
+        resource = context.get('resource')
+        del context['resource']
 
         try:
             msg = ("Worker process with ID: %s starting "
@@ -181,15 +185,26 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
             LOG.error(result)
         finally:
             msg = {'receiver': const.ORCHESTRATOR,
-                   'resource': service_type,
+                   'resource': resource,
                    'method': ev.id,
-                   'kwargs': [{'context': context, 'result': result}]
+                   'kwargs': [
+                              {
+                               'context': context,
+                               'resource': resource,
+                               'request_info': request_info,
+                               'result': result
+                               }
+                            ]
                    }
             if not notification_data:
                 notification_data.update(msg)
             else:
-                data = {'context': context,
-                        'result': result}
+                data = {
+                        'context': context,
+                        'resource': resource,
+                        'request_info': request_info,
+                        'result': result
+                        }
                 notification_data['kwargs'].extend(data)
             self.nqueue.put(notification_data)
 
