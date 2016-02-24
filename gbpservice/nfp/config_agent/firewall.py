@@ -11,8 +11,8 @@
 #    under the License.
 
 from neutron_fwaas.db.firewall import firewall_db
-from gbpservice.neutron.nfp.config_agent.common import *
-from gbpservice.neutron.nfp.config_agent import RestClientOverUnix as rc
+from gbpservice.nfp.config_agent.common import *
+from gbpservice.nfp.config_agent import RestClientOverUnix as rc
 
 LOG = logging.getLogger(__name__)
 
@@ -46,40 +46,50 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         self._sc = sc
         super(FwAgent, self).__init__()
 
-    def create_firewall(self, context, fw, host):
+    @property
+    def l3_plugin(self):
+        try:
+            return self._l3_plugin
+        except AttributeError:
+            self._l3_plugin = manager.NeutronManager.get_service_plugins().get(
+                constants.L3_ROUTER_NAT)
+            return self._l3_plugin
 
-        db = self._context(context, fw['tenant_id'])
+    def create_firewall(self, context, firewall, host):
+
+        db = self._context(context, firewall['tenant_id'])
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         resource = 'firewall'
-        kwargs = {resource: fw,
+        kwargs = {resource: firewall,
                   'host': host,
                   'context': context_dict}
         body = prepare_request_data(resource, kwargs, "firewall")
         try:
             resp, content = rc.post(
                 'create_network_function_config', body=body)
-        except:
-            LOG.error("create_firewall -> POST request failed.")
+        except rc.RestClientException as rce:
+            LOG.error("create_firewall -> POST request failed.Reason: %s"%(
+                rce))
 
-    def delete_firewall(self, context, fw, host):
-
-        db = self._context(context, fw['tenant_id'])
+    def delete_firewall(self, context, firewall, host):
+        db = self._context(context, firewall['tenant_id'])
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         resource = 'firewall'
-        kwargs = {resource: fw, 'host': host, 'context': context_dict}
+        kwargs = {resource: firewall, 'host': host, 'context': context_dict}
         body = prepare_request_data(resource, kwargs, "firewall")
         try:
             resp, content = rc.post('delete_network_function_config',
                                     body=body, delete=True)
-        except:
-            LOG.error("delete_firewall -> DELETE request failed.")
+        except rc.RestClientException as rce:
+            LOG.error("delete_firewall -> DELETE request failed.Reason: %s"%(
+                rce))
 
     def _context(self, context, tenant_id):
         if context.is_admin:
             tenant_id = context.tenant_id
-        filters = {'tenant_id': tenant_id}
+        filters = {'tenant_id': [tenant_id]}
         db = self._get_firewall_context(context, filters)
         db.update(self._get_core_context(context, filters))
         return db
@@ -94,6 +104,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
     def _get_core_context(self, context, filters):
         args = {'context': context, 'filters': filters}
         core_plugin = self._core_plugin
+        l3_plugin = self.l3_plugin
         return {'subnets': core_plugin.get_subnets(**args),
-                'routers': core_plugin.get_routers(**args),
+                'routers': l3_plugin.get_routers(**args),
                 'ports': core_plugin.get_ports(**args)}

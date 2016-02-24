@@ -19,10 +19,7 @@ import six.moves.urllib.parse as urlparse
 
 
 class RestClientException(exceptions.Exception):
-
-    def __init__(self, message):
-        self.message = message
-
+    """ RestClient Exception """
 
 class UnixHTTPConnection(httplib.HTTPConnection):
 
@@ -48,14 +45,21 @@ class UnixHTTPConnection(httplib.HTTPConnection):
 class UnixRestClient():
 
     def _http_request(self, url, method_type, headers=None, body=None):
-        h = httplib2.Http()
-        resp, content = h.request(
-            url,
-            method=method_type,
-            headers=headers,
-            body=body,
-            connection_type=UnixHTTPConnection)
-        return resp, content
+        try :
+            h = httplib2.Http()
+            resp, content = h.request(
+                url,
+                method=method_type,
+                headers=headers,
+                body=body,
+                connection_type=UnixHTTPConnection)
+            return resp, content
+
+        except httplib2.ServerNotFoundError:
+            raise RestClientException("Server Not Found")
+
+        except exceptions.Exception as e:
+            raise RestClientException("httplib response error %s" %(e))
 
     def send_request(self, path, method_type, request_method='http',
                      server_addr='127.0.0.1',
@@ -70,8 +74,8 @@ class UnixRestClient():
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
-        except httplib2.ServerNotFoundError:
-            raise RestClientException("Server Not Found")
+        except RestClientException as rce :
+            raise rce
 
         success_code = [200, 201, 202, 204]
         if success_code.__contains__(resp.status):
