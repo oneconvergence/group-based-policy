@@ -12,8 +12,8 @@
 
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from gbpservice.neutron.nfp.config_agent.common import *
-from gbpservice.neutron.nfp.config_agent import RestClientOverUnix as rc
+from gbpservice.nfp.config_agent.common import *
+from gbpservice.nfp.config_agent import RestClientOverUnix as rc
 
 LOG = logging.getLogger(__name__)
 
@@ -72,8 +72,9 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         try:
             resp, content = rc.post(
                 'create_network_function_config', body=body)
-        except:
-            LOG.error("create_%s -> request failed." % (name))
+        except rc.RestClientException as rce:
+            LOG.error("create_%s -> request failed. Reason %s" % (
+                name, rce))
 
     def _delete(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
@@ -84,8 +85,9 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         try:
             resp, content = rc.post('delete_network_function_config',
                                     body=body, delete=True)
-        except:
-            LOG.error("delete_%s -> request failed." % (name))
+        except rc.RestClientException as rce:
+            LOG.error("delete_%s -> request failed.Reason %s" % (
+                name, rce))
 
     def create_vip(self, context, vip):
         self._post(context, vip['tenant_id'], 'vip', vip=vip)
@@ -109,20 +111,20 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
             context, member['tenant_id'], 'member',
             member=member)
 
-    def create_pool_health_monitor(self, context, hm, pool_id):
-        self._post(context, hm[
-            'tenant_id'], 'hm',
-            hm=hm, pool_id=pool_id)
+    def create_pool_health_monitor(self, context, health_monitor, pool_id):
+        self._post(context, health_monitor[
+            'tenant_id'], 'health_monitor',
+            health_monitor=health_monitor, pool_id=pool_id)
 
-    def delete_pool_health_monitor(self, context, hm, pool_id):
+    def delete_pool_health_monitor(self, context, health_monitor, pool_id):
         self._delete(
-            context, hm['tenant_id'], 'hm',
-            hm=hm, pool_id=pool_id)
+            context, health_monitor['tenant_id'], 'health_monitor',
+            health_monitor=health_monitor, pool_id=pool_id)
 
     def _context(self, context, tenant_id):
         if context.is_admin:
             tenant_id = context.tenant_id
-        filters = {'tenant_id': tenant_id}
+        filters = {'tenant_id': [tenant_id]}
         db = self._get_lb_context(context, filters)
         db.update(self._get_core_context(context, filters))
         return db

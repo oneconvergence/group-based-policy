@@ -5,16 +5,16 @@ import json
 import time
 
 from oslo_log import log as logging
-from gbpservice.neutron.nfp.core.main import ServiceController
-from gbpservice.neutron.nfp.core.main import Event
-from gbpservice.neutron.nfp.core.main import RpcAgent
+from gbpservice.nfp.core.main import Controller
+from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core.rpc import RpcAgent
 
-from gbpservice.neutron.nfp.config_agent import topics
-from gbpservice.neutron.nfp.config_agent.firewall import *
-from gbpservice.neutron.nfp.config_agent.loadbalancer import *
-from gbpservice.neutron.nfp.config_agent.vpn import *
-from gbpservice.neutron.nfp.config_agent.generic import *
-from gbpservice.neutron.nfp.config_agent.rpc_cb import *
+from gbpservice.nfp.config_agent import topics
+from gbpservice.nfp.config_agent.firewall import *
+from gbpservice.nfp.config_agent.loadbalancer import *
+from gbpservice.nfp.config_agent.vpn import *
+from gbpservice.nfp.config_agent.generic import *
+from gbpservice.nfp.config_agent.rpc_cb import *
 
 from oslo_config import cfg
 import oslo_messaging as messaging
@@ -24,6 +24,7 @@ LOG = logging.getLogger(__name__)
 
 
 def rpc_init(sc, conf):
+
     fwrpcmgr = FwAgent(conf, sc)
     fwagent = RpcAgent(
         sc,
@@ -71,5 +72,5 @@ def module_init(sc, conf):
 
 
 def init_complete(sc, conf):
-    ev = sc.event(id='PULL_RPC_NOTIFICATIONS', key='PULL_RPC_NOTIFICATIONS')
-    sc.rpc_event(ev)
+    ev = sc.new_event(id='PULL_RPC_NOTIFICATIONS', key='PULL_RPC_NOTIFICATIONS')
+    sc.post_event(ev)

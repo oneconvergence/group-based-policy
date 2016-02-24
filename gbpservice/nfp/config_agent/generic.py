@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.neutron.nfp.config_agent.common import *
-from gbpservice.neutron.nfp.config_agent import RestClientOverUnix as rc
+from gbpservice.nfp.config_agent.common import *
+from gbpservice.nfp.config_agent import RestClientOverUnix as rc
 
 LOG = logging.getLogger(__name__)
 
@@ -43,9 +43,9 @@ class GcAgent(object):
         try:
             resp, content = rc.post('create_network_function_device_config',
                                     body=request_data)
-        except:
-            LOG.error(
-                "create_network_function_device_config -> request failed.")
+        except rc.RestClientException as rce:
+            LOG.error("create_network_function_device_config -> request failed\
+.Reason %s "%(rce))
 
     def _delete(self, context, request_data):
         for ele in request_data['request_data']['config']:
@@ -53,9 +53,10 @@ class GcAgent(object):
         try:
             resp, content = rc.post('delete_network_function_device_config',
                                     body=request_data, delete=True)
-        except:
+        except rc.RestClientException as rce:
             LOG.error(
-                "delete_network_function_device_config -> request failed.")
+                "delete_network_function_device_config -> request failed\
+.Reason %s "%(rce))
 
     def create_network_function_device_config(self, context, request_data):
         self._post(context, request_data)
