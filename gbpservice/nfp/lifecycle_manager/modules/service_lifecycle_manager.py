@@ -159,16 +159,16 @@ class ServiceLifeCycleHandler(object):
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
-	except Exception:
-            LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event_id})
+        except Exception:
+            LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event.id})
 
     def handle_poll_event(self, event):
-	LOG.info(_("Service LCM handle_poll_event, event ID %(id)s"), {'id': event.id})
+        LOG.info(_("Service LCM handle_poll_event, event ID %(id)s"), {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
-	except Exception:
-            LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event_id})
+        except Exception:
+            LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event.id})
 
     def _log_event_created(self, event_id, event_data):
         LOG.debug(_("Created event %s(event_name)s with event "
@@ -263,13 +263,13 @@ class ServiceLifeCycleHandler(object):
         nfi = self.db_handler.get_network_function_instance(
             self.db_session,
             network_function_info['network_function_instances'][0])
-	if not network_function_info['heat_stack_id']:
-	    event_data = {
+        if not network_function_info['heat_stack_id']:
+            event_data = {
                 'network_function_id': network_function_id
             }
             self._create_event('USER_CONFIG_DELETED',
                                event_data=event_data)
-	    return 
+            return 
         service_details = self.get_service_details(nfi)
         self.config_driver.delete(service_details,
                                   network_function_info['heat_stack_id'])
@@ -321,8 +321,8 @@ class ServiceLifeCycleHandler(object):
         service_details = self.get_service_details(nfi)
         request_data['heat_stack_id'] = self.config_driver.apply_user_config(
                 service_details)  # Heat driver to launch stack
-	request_data['tenant_id'] = nfi['tenant_id']
-	LOG.debug("handle_device_created heat_stack_id: %s" %(request_data['heat_stack_id']))
+        request_data['tenant_id'] = nfi['tenant_id']
+        LOG.debug("handle_device_created heat_stack_id: %s" %(request_data['heat_stack_id']))
         self.db_handler.update_network_function(
             self.db_session, nfi['network_function_id'],
             {'heat_stack_id': request_data['heat_stack_id']})
@@ -458,11 +458,11 @@ class ServiceLifeCycleHandler(object):
 
     def check_for_user_config_deleted(self, event):
         request_data = event.data
-	try:
+        try:
             config_status = self.config_driver.is_config_delete_complete(
                 request_data['heat_stack_id'], request_data['tenant_id'])
-	except Exception as err:
-	    LOG.error(_("Checking is_config_delete_complete failed. Error: %(err)s"), {'err': err})
+        except Exception as err:
+            LOG.error(_("Checking is_config_delete_complete failed. Error: %(err)s"), {'err': err})
         if config_status == "ERROR":
             event_data = {
                 'network_function_id': request_data['network_function_id']
@@ -556,14 +556,14 @@ class ServiceLifeCycleHandler(object):
         self._controller.event_done(event)
 
     def get_network_function(self, context, network_function_id):
-	try:
-	    network_function = self.db_handler.get_network_function(
+        try:
+            network_function = self.db_handler.get_network_function(
                 self.db_session, network_function_id)
-	    LOG.info(_("In get_network_function, returning: %(network_function)s"), {'network_function': network_function})
-	    return network_function
-	except Exception:
-	    LOG.exception(_("Error in get_network_function"))
-        return None
+            LOG.info(_("In get_network_function, returning: %(network_function)s"), {'network_function': network_function})
+            return network_function
+        except Exception:
+            LOG.exception(_("Error in get_network_function"))
+            return None
 
     def get_network_functions(self, context, filters):
         return self.db_handler.get_network_functions(
