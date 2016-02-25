@@ -26,6 +26,17 @@ class Handler_Class(poll.PollEventDesc):
         self.timer = 0
 
     def handle_poll_event(self, ev):
+        if ev.id == 'DUMMY_SERVICE_EVENT7':
+            sequenscer_map = self._sc._sequencer.copy()
+            if ev.worker_attached in sequenscer_map:
+                seq_map_worker = sequenscer_map[ev.worker_attached]
+                if ev.binding_key in seq_map_worker:
+                    qu = seq_map_worker[ev.binding_key]['queue']
+                    for event in qu:
+                        print (event.id)
+                        if event.id == 'DUMMY_SERVICE_EVENT8':
+                            self._sc._event.set()
+
         if os.getpid() == ev.worker_attached and \
                 ev.id == 'DUMMY_SERVICE_EVENT2' and self.counter == 0:
             self._sc._event.set()
@@ -52,6 +63,12 @@ class Handler_Class(poll.PollEventDesc):
             self._handle_dummy_event5(ev)
         elif ev.id == 'DUMMY_SERVICE_EVENT6':
             self._handle_dummy_event6(ev)
+        elif ev.id == 'DUMMY_SERVICE_EVENT7':
+            self._handle_dummy_event7(ev)
+        elif ev.id == 'DUMMY_SERVICE_EVENT8':
+            self._handle_dummy_event8(ev)
+        elif ev.id == 'DUMMY_SERVICE_EVENT9':
+            self._handle_dummy_event9(ev)
 
     def _handle_dummy_event6(self, ev):
         self._sc.event_done(ev)
@@ -70,10 +87,26 @@ class Handler_Class(poll.PollEventDesc):
     def _handle_dummy_event1(self, ev):
         if os.getpid() == ev.worker_attached:
             self._sc._event.set()
+        self._sc.event_done(ev)
 
     def _handle_dummy_event2(self, ev):
         self._sc.event_done(ev)
         self._sc.poll_event(ev, max_times=1)
+
+    def _handle_dummy_event7(self, ev):
+        sequenscer_map = self._sc._sequencer.copy()
+        print(sequenscer_map)
+        # self._sc.event_done(ev)
+        self._sc.poll_event(ev, max_times=2)
+
+    def _handle_dummy_event8(self, ev):
+        print("%s event handle called", (ev.key))
+        if ev.id == 'DUMMY_SERVICE_EVENT8':
+            self._sc._event.set()
+
+    def _handle_dummy_event9(self, ev):
+        print("Calling Event done %s", (ev.key))
+        self._sc.event_done(ev)
 
     def poll_event_cancel(self, ev):
         if os.getpid() == ev.worker_attached and self.counter == 2:
@@ -114,6 +147,9 @@ def module_init(sc, conf):
         main.Event(id='DUMMY_SERVICE_EVENT3', handler=Handler_Class(sc)),
         main.Event(id='DUMMY_SERVICE_EVENT4', handler=Handler_Class(sc)),
         main.Event(id='DUMMY_SERVICE_EVENT5', handler=Handler_Class(sc)),
-        main.Event(id='DUMMY_SERVICE_EVENT6', handler=Handler_Class(sc))
+        main.Event(id='DUMMY_SERVICE_EVENT6', handler=Handler_Class(sc)),
+        main.Event(id='DUMMY_SERVICE_EVENT7', handler=Handler_Class(sc)),
+        main.Event(id='DUMMY_SERVICE_EVENT8', handler=Handler_Class(sc)),
+        main.Event(id='DUMMY_SERVICE_EVENT9', handler=Handler_Class(sc))
     ]
     sc.register_events(evs)

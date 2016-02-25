@@ -11,9 +11,10 @@
 #  under the License.
 
 from gbpservice.nfp.core import cfg as nfp_config
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import main
 import mock
-import multiprocessing as multiprocessing
+import multiprocessing
 from neutron.agent.common import config as n_config
 import os
 from oslo_config import cfg as oslo_config
@@ -27,9 +28,10 @@ LOG = oslo_logging.getLogger(__name__)
 class Test_Process_Model(unittest.TestCase):
 
     @mock.patch(
-        'gbpservice.nfp.core.main.multiprocessing.queues.Queue.put'
+        'multiprocessing.queues.Queue.put'
     )
     def test_event_create(self, mock_put):
+        self.initialize_process_model()
         event = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT1', data=self.service1,
             binding_key=self.service1['id'],
@@ -40,9 +42,10 @@ class Test_Process_Model(unittest.TestCase):
         mock_put.assert_called_once_with(event)
 
     @mock.patch(
-        'gbpservice.nfp.core.main.multiprocessing.queues.Queue.put'
+        'multiprocessing.queues.Queue.put'
     )
     def test_events_with_same_binding_keys(self, mock_put):
+        self.initialize_process_model()
         event1 = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT1', data=self.service1,
             binding_key=self.service1['tenant'],
@@ -60,10 +63,49 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(event1.worker_attached, event2.worker_attached)
         self.assertEqual(mock_put.call_count, 2)
 
+    def test_serialize_events(self):
+        self.initialize_process_model()
+        event1 = self.sc.new_event(
+            id='DUMMY_SERVICE_EVENT7', data=self.service1,
+            binding_key=self.service1['tenant'],
+            key=self.service1['id'], serialize=True
+        )
+        event2 = self.sc.new_event(
+            id='DUMMY_SERVICE_EVENT8', data=self.service1,
+            binding_key=self.service1['tenant'],
+            key=self.service1['id'], serialize=True
+        )
+        self.sc.post_event(event1)
+        time.sleep(5)
+        self.sc.post_event(event2)
+        time.sleep(3)
+        event2_on_sequencer_map = self.sc._event.wait(20)
+        self.assertTrue(event2_on_sequencer_map)
+
+    def test_serialize_event_dequeued(self):
+        self.initialize_process_model()
+        event1 = self.sc.new_event(
+            id='DUMMY_SERVICE_EVENT9', data=self.service1,
+            binding_key=self.service1['tenant'],
+            key=self.service1['id'], serialize=True
+        )
+        event2 = self.sc.new_event(
+            id='DUMMY_SERVICE_EVENT8', data=self.service1,
+            binding_key=self.service1['tenant'],
+            key=self.service1['id'], serialize=True
+        )
+        self.sc.post_event(event1)
+        time.sleep(5)
+        self.sc.post_event(event2)
+        time.sleep(3)
+        event2_dequeued = self.sc._event.wait(20)
+        self.assertTrue(event2_dequeued)
+
     @mock.patch(
-        'gbpservice.nfp.core.main.multiprocessing.queues.Queue.put'
+        'multiprocessing.queues.Queue.put'
     )
     def test_events_with_no_binding_key(self, mock_put):
+        self.initialize_process_model()
         event1 = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT1', data=self.service1,
             key=self.service1['id'], serialize=False
@@ -80,9 +122,10 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(mock_put.call_count, 2)
 
     @mock.patch(
-        'gbpservice.nfp.core.main.multiprocessing.queues.Queue.put'
+        'multiprocessing.queues.Queue.put'
     )
     def test_loadbalancing_events(self, mock_put):
+        self.initialize_process_model()
         event1 = self.sc.new_event(
             id='SERVICE_CREATE', data=self.service1,
             binding_key=self.service1['id'],
@@ -113,7 +156,8 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(mock_put.call_count, 2)
 
     @mock.patch('gbpservice.nfp.core.main.EventSequencer.add')
-    def test_serialize_events_serialize_false(self, mock_sequencer):
+    def test_sequencer_put_serialize_false(self, mock_sequencer):
+        self.initialize_process_model()
         event1 = self.mock_event(
             id='SERVICE_CREATE', data=self.service1,
             binding_key=self.service1['id'],
@@ -125,7 +169,8 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(sequenced_event1, event1)
 
     @mock.patch('gbpservice.nfp.core.main.EventSequencer.add')
-    def test_serialize_events_serialze_true(self, mock_sequencer):
+    def test_sequencer_put_serialze_true(self, mock_sequencer):
+        self.initialize_process_model()
         event1 = self.mock_event(
             id='SERVICE_CREATE', data=self.service1,
             binding_key=self.service1['id'],
@@ -140,8 +185,9 @@ class Test_Process_Model(unittest.TestCase):
         sequenced_event1 = self.sc.sequencer_put_event(event1)
         self.assertEqual(sequenced_event1, event1)
 
-    @mock.patch('gbpservice.nfp.core.main.EventSequencer')
+    @mock.patch('gbpservice.nfp.core.event.EventSequencer')
     def test_EventSequencer_add(self, mocked_sequencer):
+        self.initialize_process_model()
         event1 = self.mock_event(
             id='SERVICE_CREATE', data=self.service1,
             binding_key=self.service1['id'],
@@ -159,6 +205,7 @@ class Test_Process_Model(unittest.TestCase):
         self.assertEqual(self.EventSequencer.add(event1), True)
 
     def test_handle_event_on_queue(self):
+        self.initialize_process_model()
         event1 = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT1', data=self.service1,
             binding_key=self.service1['id'],
@@ -170,6 +217,7 @@ class Test_Process_Model(unittest.TestCase):
         self.assertTrue(handle_event_invoked)
 
     def test_poll_handle_event(self):
+        self.initialize_process_model()
         ev = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT2', data=self.service1,
             binding_key=self.service1['id'],
@@ -181,6 +229,7 @@ class Test_Process_Model(unittest.TestCase):
         self.assertTrue(poll_handle_event_invoked)
 
     def test_poll_event_maxtimes(self):
+        self.initialize_process_model()
         ev = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT3', data=self.service1,
             binding_key=self.service1['id'],
@@ -192,6 +241,7 @@ class Test_Process_Model(unittest.TestCase):
         self.assertTrue(event_polled_maxtimes)
 
     def test_poll_event_done(self):
+        self.initialize_process_model()
         ev = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT4', data=self.service1,
             binding_key=self.service1['id'],
@@ -202,7 +252,8 @@ class Test_Process_Model(unittest.TestCase):
         sc_event_set = self.sc._event.wait(30)
         self.assertFalse(sc_event_set)
 
-    def test_periodic_method_withspacing_10(self):
+    '''def test_periodic_method_withspacing_10(self):
+        self.initialize_process_model()
         ev = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT5', data=self.service1,
             binding_key=self.service1['id'],
@@ -213,6 +264,7 @@ class Test_Process_Model(unittest.TestCase):
         self.assertTrue(called_with_correct_spacing)
 
     def test_periodic_method_withspacing_20(self):
+        self.initialize_process_model()
         ev = self.sc.new_event(
             id='DUMMY_SERVICE_EVENT6', data=self.service1,
             binding_key=self.service1['id'],
@@ -220,14 +272,46 @@ class Test_Process_Model(unittest.TestCase):
         self.sc.post_event(ev)
         time.sleep(3)
         called_with_correct_spacing = self.sc._event.wait(30)
-        self.assertTrue(called_with_correct_spacing)
+        self.assertTrue(called_with_correct_spacing)'''
 
     def test_worker_process_initilized(self):
+        self.initialize_process_model()
         workers = self.sc._workers
         test_process = multiprocessing.Process()
         self.assertEqual(len(workers), 4)
         for worker in workers:
             self.assertTrue(type(worker[0]), type(test_process))
+
+    def test_modules_import_nonexisting_path(self):
+        modules_dir = 'this.path.does.not.exist'
+        import_error_seen = False
+        try:
+            self.initialize_process_model(modules_dir)
+        except ImportError:
+            import_error_seen = True
+        self.assertTrue(import_error_seen)
+
+    def test_modules_import_path_format(self):
+        modules_dir = 'gbpservice/neutron/tests/unit/nfp/EventHandler'
+        import_error_seen = False
+        try:
+            self.initialize_process_model(modules_dir)
+        except ImportError:
+            import_error_seen = True
+        self.assertTrue(import_error_seen)
+
+    @mock.patch('gbpservice.nfp.core.main.LOG')
+    def test_no_modules_init(self, mock_log):
+        modules_dir = 'gbpservice.neutron.tests.unit.nfp.DummyModule'
+        self.initialize_process_model(modules_dir)
+        modules = self.sc._modules
+        identify = nfp_common.identify
+        for module in modules:
+            mock_log.error.assert_called_with(
+                _("Module %s does not implement"
+                  "module_init() method - skipping"
+                   % (identify(module))))
+        self.assertEqual(len(self.sc._workers), 4)
 
     def create_sequencer_map(self, worker_attached, binding_key):
         sequencer_map = {}
@@ -263,7 +347,7 @@ class Test_Process_Model(unittest.TestCase):
         try:
             files = os.listdir(modules_dir_test)
         except OSError:
-            LOG.error(_("Failed to read files.."))
+            #LOG.error(_("Failed to read files.."))
             files = []
         for fname in files:
             if fname.endswith(".py") and fname != '__init__.py':
@@ -276,13 +360,24 @@ class Test_Process_Model(unittest.TestCase):
         sys.path = syspath
         return modules
 
+    def initialize_process_model(
+        self, modules_dir='gbpservice.neutron.tests.unit.nfp.EventHandler',
+        no_of_workers=4
+    ):
+        oslo_config.CONF.workers = no_of_workers
+        oslo_config.CONF.modules_dir = modules_dir
+        modules = main.modules_import()
+        self._modules = modules
+        self.sc = main.Controller(oslo_config.CONF, modules)
+        self.EventSequencer = main.EventSequencer(self.sc)
+        self.sc.start()
+
     def setUp(self):
         oslo_config.CONF.register_opts(nfp_config.OPTS)
-        modules = self.modules_import()
+        #modules = self.modules_import()
         n_config.register_interface_driver_opts_helper(oslo_config.CONF)
         n_config.register_agent_state_opts_helper(oslo_config.CONF)
         n_config.register_root_helper(oslo_config.CONF)
-        oslo_config.CONF.workers = 4
         self.service1 = {
             'id': 'sc2f2b13-e284-44b1-9d9a-2597e216271a',
             'tenant': '40af8c0695dd49b7a4980bd1b47e1a1b',
@@ -305,7 +400,3 @@ class Test_Process_Model(unittest.TestCase):
         }
         n_config.setup_logging()
         self._conf = oslo_config.CONF
-        self._modules = modules
-        self.sc = main.Controller(oslo_config.CONF, modules)
-        self.EventSequencer = main.EventSequencer(self.sc)
-        self.sc.start()
