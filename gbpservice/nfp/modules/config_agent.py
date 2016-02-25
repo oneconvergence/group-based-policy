@@ -72,5 +72,5 @@ def module_init(sc, conf):
 
 
 def init_complete(sc, conf):
-    ev = sc.new_event(id='PULL_RPC_NOTIFICATIONS', key='PULL_RPC_NOTIFICATIONS')
+    ev = sc.new_event(id='PULL_RPC_NOTIFICATIONS', key='PULL_RPC_NOTIFICATIONS',serialize=True)
     sc.post_event(ev)

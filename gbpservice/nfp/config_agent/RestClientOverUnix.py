@@ -16,7 +16,10 @@ import socket
 import exceptions
 from oslo_config import cfg
 import six.moves.urllib.parse as urlparse
+import json
+from gbpservice.nfp.config_agent.common import *
 
+LOG = logging.getLogger(__name__)
 
 class RestClientException(exceptions.Exception):
     """ RestClient Exception """
@@ -65,6 +68,7 @@ class UnixRestClient():
                      server_addr='127.0.0.1',
                      headers=None, body=None):
         path = '/v1/nfp/' + path
+        body = json.dumps(body)
         url = urlparse.urlunsplit((
             request_method,
             server_addr,
@@ -111,7 +115,8 @@ class UnixRestClient():
 
 
 def get(path):
-    return UnixRestClient().send_request(path, 'GET')
+    headers = {'content-type': 'application/json'}
+    return UnixRestClient().send_request(path, 'GET', headers=headers)
 
 
 def put(path, body):
