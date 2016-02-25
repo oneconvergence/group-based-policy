@@ -18,7 +18,7 @@ from gbpservice.nfp.config_agent import firewall as fw
 from gbpservice.nfp.config_agent import vpn as vpn
 from gbpservice.nfp.config_agent import generic as gc
 from gbpservice.nfp.config_agent.common import *
-
+import json
 LOG = logging.getLogger(__name__)
 
 CONFIG_AGENT_MODULES = {'loadbalancer': lb,
@@ -48,7 +48,8 @@ class RpcCallback(core_pt.PollEventDesc):
     @core_pt.poll_event_desc(event='PULL_RPC_NOTIFICATIONS', spacing=1)
     def rpc_pull_event(self, ev):
         try :
-            rpc_cbs_data = rc.get('nfp/get_notifications')
+            resp, rpc_cbs_data = rc.get('get_notifications')
+            rpc_cbs_data = json.loads(rpc_cbs_data) 
             '''
             {response_data : [
                 {'receiver': <neutron/orchestrator>,
@@ -58,16 +59,19 @@ class RpcCallback(core_pt.PollEventDesc):
             },
             ]}
             '''
-            rpc_cbs = rpc_cbs_data['response_data']
-            for rpc_cb in rpc_cbs:
-                try:
-                    self._method_handler(rpc_cb)
-                except AttributeError:
-                    LOG.error("AttributeError while handling message" % (
-                        rpc_cb))
-                except Exception as e:
-                    LOG.error("Generic exception (%s) \
-                        while handling message (%s)" % (e, rpc_cb))
+            if not rpc_cbs_data :
+                LOG.info("get_notification -> GET request: Empty")
+            else :
+                rpc_cbs = rpc_cbs_data['response_data']
+                for rpc_cb in rpc_cbs:
+                    try:
+                        self._method_handler(rpc_cb)
+                    except AttributeError:
+                        LOG.error("AttributeError while handling message" % (
+                            rpc_cb))
+                    except Exception as e:
+                        LOG.error("Generic exception (%s) \
+                            while handling message (%s)" % (e, rpc_cb))
         except rc.RestClientException as rce:
             LOG.error("get_notification -> GET request failed. Reason : %s"%(
                 rce))
