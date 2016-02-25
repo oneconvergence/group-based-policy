@@ -11,28 +11,25 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import json
 
 from neutron import context
 from oslo_log import log as logging
 from gbpservice.neutron.nsf.configurator.drivers.loadbalancer.v1.haproxy \
                                                     import(haproxy_rest_client)
-from gbpservice.neutron.nsf.configurator.lib import lb_constants as const
+from gbpservice.neutron.nsf.configurator.lib import lb_constants
 from gbpservice.neutron.nsf.configurator.drivers.base.base_driver\
-    import BaseDriver
-# from gbpservice.neutron.nsf.configurator.modules.loadbalancer import (
-#                                                            LBaasRpcSender)
+                                                    import BaseDriver
 
 DRIVER_NAME = 'haproxy_on_vm'
 PROTOCOL_MAP = {
-    const.PROTOCOL_TCP: 'tcp',
-    const.PROTOCOL_HTTP: 'http',
-    const.PROTOCOL_HTTPS: 'https',
+    lb_constants.PROTOCOL_TCP: 'tcp',
+    lb_constants.PROTOCOL_HTTP: 'http',
+    lb_constants.PROTOCOL_HTTPS: 'https',
 }
 BALANCE_MAP = {
-    const.LB_METHOD_ROUND_ROBIN: 'roundrobin',
-    const.LB_METHOD_LEAST_CONNECTIONS: 'leastconn',
-    const.LB_METHOD_SOURCE_IP: 'source'
+    lb_constants.LB_METHOD_ROUND_ROBIN: 'roundrobin',
+    lb_constants.LB_METHOD_LEAST_CONNECTIONS: 'leastconn',
+    lb_constants.LB_METHOD_SOURCE_IP: 'source'
 }
 REQUEST_RETRIES = 0
 REQUEST_TIMEOUT = 10
@@ -42,17 +39,15 @@ LOG = logging.getLogger(__name__)
 
 
 class HaproxyOnVmDriver(BaseDriver):
+    service_type = 'loadbalancer'
     pool_to_device = {}
 
-    def __init__(self, conf, plugin_rpc):
-        self.conf = conf
-        self.context = context.get_admin_context_without_session()
-
+    def __init__(self, plugin_rpc=None):
         self.plugin_rpc = plugin_rpc
 
     def _get_rest_client(self, ip_addr):
         client = haproxy_rest_client.HttpRequests(
-                            ip_addr, const.HAPROXY_AGENT_LISTEN_PORT,
+                            ip_addr, lb_constants.HAPROXY_AGENT_LISTEN_PORT,
                             REQUEST_RETRIES, REQUEST_TIMEOUT)
         return client
 
@@ -75,7 +70,7 @@ class HaproxyOnVmDriver(BaseDriver):
                 return device
 
     def _get_interface_mac(self, vip):
-        #vip_desc = json.loads(vip['description'])
+        # vip_desc = json.loads(vip['description'])
         vip_desc = vip['description']
         return vip_desc['provider_interface_mac']
 
@@ -115,7 +110,7 @@ class HaproxyOnVmDriver(BaseDriver):
         if vip['connection_limit'] >= 0:
             frontend.update({'maxconn': '%s' % vip['connection_limit']})
         try:
-            if protocol == const.PROTOCOL_HTTP:
+            if protocol == lb_constants.PROTOCOL_HTTP:
                 frontend['option'].update({'forwardfor': True})
             provider_interface_mac = self._get_interface_mac(vip)
             frontend.update({'provider_interface_mac': provider_interface_mac})
@@ -125,8 +120,9 @@ class HaproxyOnVmDriver(BaseDriver):
             LOG.error(msg)
         return frontend
 
-    def _prepare_haproxy_backend(self, pool):
-        logical_device = self.plugin_rpc.get_logical_device(pool['id'])
+    def _prepare_haproxy_backend(self, pool, context):
+        logical_device = self.plugin_rpc.get_logical_device(pool['id'],
+                                                            context)
         protocol = pool['protocol']
         lb_method = pool['lb_method']
         monitor = None
@@ -142,7 +138,7 @@ class HaproxyOnVmDriver(BaseDriver):
             'server': {}
         }
         try:
-            if protocol == const.PROTOCOL_HTTP:
+            if protocol == lb_constants.PROTOCOL_HTTP:
                 backend['option'].update({'forwardfor': True})
 
             # health monitor options
@@ -153,15 +149,15 @@ class HaproxyOnVmDriver(BaseDriver):
 
                 backend['timeout'].update({'check': '%ds'
                                            % monitor['timeout']})
-                if monitor['type'] in (const.HEALTH_MONITOR_HTTP,
-                                       const.HEALTH_MONITOR_HTTPS):
+                if monitor['type'] in (lb_constants.HEALTH_MONITOR_HTTP,
+                                       lb_constants.HEALTH_MONITOR_HTTPS):
                     backend['option'].update(
                         {'httpchk': '%(http_method)s %(url_path)s' % monitor})
                     backend.update({'http-check expect': 'rstatus %s'
                                     % '|'.join(
                                         self._expand_expected_codes(
                                             monitor['expected_codes']))})
-                if monitor['type'] == const.HEALTH_MONITOR_HTTPS:
+                if monitor['type'] == lb_constants.HEALTH_MONITOR_HTTPS:
                     backend['option'].update({'ssl-hello-chk': True})
 
             # session persistance options
@@ -195,11 +191,12 @@ class HaproxyOnVmDriver(BaseDriver):
             return backend
         except Exception as err:
             msg = ("Failed to prepare backend. %s"
-                   % str(err).capitalize())
+                   % (err))
             LOG.error(msg)
 
-    def _prepare_haproxy_backend_with_member(self, member, backend):
-        logical_device = self.plugin_rpc.get_logical_device(member['pool_id'])
+    def _prepare_haproxy_backend_with_member(self, member, backend, context):
+        logical_device = self.plugin_rpc.get_logical_device(member['pool_id'],
+                                                            context)
         vip = logical_device['vip']
         monitor = None
         # chose first monitor
@@ -246,15 +243,15 @@ class HaproxyOnVmDriver(BaseDriver):
         try:
             backend['timeout'].update({'check': '%ds'
                                        % health_monitor['timeout']})
-            if health_monitor['type'] in (const.HEALTH_MONITOR_HTTP,
-                                          const.HEALTH_MONITOR_HTTPS):
+            if health_monitor['type'] in (lb_constants.HEALTH_MONITOR_HTTP,
+                                          lb_constants.HEALTH_MONITOR_HTTPS):
                 backend['option'].update(
                     {'httpchk': ('%(http_method)s %(url_path)s'
                                  % health_monitor)})
                 backend.update({'http-check expect': 'rstatus %s' % (
                                 '|'.join(self._expand_expected_codes(
                                     health_monitor['expected_codes'])))})
-            if health_monitor['type'] == const.PROTOCOL_HTTPS:
+            if health_monitor['type'] == lb_constants.PROTOCOL_HTTPS:
                 backend['option'].update({'ssl-hello-chk': True})
         except Exception as err:
             msg = ("Failed to add health monitor to pool. %s"
@@ -265,8 +262,8 @@ class HaproxyOnVmDriver(BaseDriver):
     def _prepare_backend_deleting_health_monitor_from_pool(self,
                                                            health_monitor,
                                                            pool_id,
-                                                           backend):
-        logical_device = self.plugin_rpc.get_logical_device(pool_id)
+                                                           backend, context):
+        logical_device = self.plugin_rpc.get_logical_device(pool_id, context)
         remaining_hms_type = []
         for monitor in logical_device['healthmonitors']:
             if health_monitor['type'] != monitor['type']:
@@ -276,14 +273,14 @@ class HaproxyOnVmDriver(BaseDriver):
         # Not removing http or https configuration if any 1 of them,
         # present in remaining hms type.
         try:
-            if ((const.HEALTH_MONITOR_HTTP and
-                    const.HEALTH_MONITOR_HTTPS)
+            if ((lb_constants.HEALTH_MONITOR_HTTP and
+                    lb_constants.HEALTH_MONITOR_HTTPS)
                 not in remaining_hms_type and health_monitor['type'] in
-                    (const.HEALTH_MONITOR_HTTP,
-                     const.HEALTH_MONITOR_HTTPS)):
+                    (lb_constants.HEALTH_MONITOR_HTTP,
+                     lb_constants.HEALTH_MONITOR_HTTPS)):
                 del backend['option']['httpchk']
                 del backend['http-check expect']
-                if health_monitor['type'] == const.HEALTH_MONITOR_HTTPS:
+                if health_monitor['type'] == lb_constants.HEALTH_MONITOR_HTTPS:
                     del backend['option']['ssl-hello-chk']
 
             server_addon = ('check inter %(delay)ds fall %(max_retries)d'
@@ -325,15 +322,15 @@ class HaproxyOnVmDriver(BaseDriver):
         try:
             backend['timeout'].update({'check': '%ds'
                                        % health_monitor['timeout']})
-            if health_monitor['type'] in (const.HEALTH_MONITOR_HTTP,
-                                          const.HEALTH_MONITOR_HTTPS):
+            if health_monitor['type'] in (lb_constants.HEALTH_MONITOR_HTTP,
+                                          lb_constants.HEALTH_MONITOR_HTTPS):
                 backend['option'].update(
                     {'httpchk': ('%(http_method)s %(url_path)s'
                                  % health_monitor)})
                 backend.update({'http-check expect': 'rstatus %s' % '|'.join(
                                     self._expand_expected_codes(
                                         health_monitor['expected_codes']))})
-            if health_monitor['type'] == const.HEALTH_MONITOR_HTTPS:
+            if health_monitor['type'] == lb_constants.HEALTH_MONITOR_HTTPS:
                 backend['option'].update({'ssl-hello-chk': True})
         except Exception:
             raise Exception()
@@ -365,13 +362,13 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception:
             raise Exception()
 
-    def _create_pool(self, pool, device_addr):
+    def _create_pool(self, pool, device_addr, context):
         # create REST client object
         try:
             client = self._get_rest_client(device_addr)
 
             # Prepare the backend request body
-            backend = self._prepare_haproxy_backend(pool)
+            backend = self._prepare_haproxy_backend(pool, context)
             body = {'bck:%s' % pool['id']: backend}
 
             # Send REST API request to Haproxy agent on VM
@@ -391,7 +388,7 @@ class HaproxyOnVmDriver(BaseDriver):
         except Exception:
             raise Exception()
 
-    def _create_member(self, member, device_addr):
+    def _create_member(self, member, device_addr, context):
         # create REST client object
         try:
             client = self._get_rest_client(device_addr)
@@ -401,7 +398,7 @@ class HaproxyOnVmDriver(BaseDriver):
                                           % member['pool_id'])
 
             backend = self._prepare_haproxy_backend_with_member(
-                                                    member, backend)
+                                                    member, backend, context)
 
             # Send REST API request to Haproxy agent on VM
             client.update_resource("backend/bck:%s" % member['pool_id'],
@@ -445,7 +442,7 @@ class HaproxyOnVmDriver(BaseDriver):
             raise Exception()
 
     def _delete_pool_health_monitor(self, hm, pool_id,
-                                    device_addr):
+                                    device_addr, context):
         # create REST client object
         try:
             client = self._get_rest_client(device_addr)
@@ -455,7 +452,8 @@ class HaproxyOnVmDriver(BaseDriver):
             backend = self._prepare_backend_deleting_health_monitor_from_pool(
                                                                     hm,
                                                                     pool_id,
-                                                                    backend)
+                                                                    backend,
+                                                                    context)
 
             client.update_resource("backend/bck:%s" % pool_id, backend)
         except Exception:
@@ -470,10 +468,10 @@ class HaproxyOnVmDriver(BaseDriver):
         if (not logical_config or
                 'vip' not in logical_config or
                 (logical_config['vip']['status'] not in
-                 const.ACTIVE_PENDING_STATUSES) or
+                 lb_constants.ACTIVE_PENDING_STATUSES) or
                 not logical_config['vip']['admin_state_up'] or
                 (logical_config['pool']['status'] not in
-                 const.ACTIVE_PENDING_STATUSES) or
+                 lb_constants.ACTIVE_PENDING_STATUSES) or
                 not logical_config['pool']['admin_state_up']):
             return
 
@@ -494,10 +492,11 @@ class HaproxyOnVmDriver(BaseDriver):
                    % str(err).capitalize())
             LOG.error(msg)
 
-    def undeploy_instance(self, pool_id):
+    def undeploy_instance(self, pool_id, context):
         try:
-            device_addr = self._get_device_for_pool(pool_id)
-            logical_device = self.plugin_rpc.get_logical_device(pool_id)
+            device_addr = self._get_device_for_pool(pool_id, context)
+            logical_device = self.plugin_rpc.get_logical_device(pool_id,
+                                                                context)
 
             self._delete_vip(logical_device['vip'], device_addr)
             self._delete_pool(logical_device['pool'], device_addr)
@@ -543,9 +542,9 @@ class HaproxyOnVmDriver(BaseDriver):
             logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'],
                                                                 context)
 
-            self._create_pool(logical_device['pool'], device_addr)
+            self._create_pool(logical_device['pool'], device_addr, context)
             for member in logical_device['members']:
-                self._create_member(member, device_addr)
+                self._create_member(member, device_addr, context)
             for hm in logical_device['healthmonitors']:
                 self._create_pool_health_monitor(hm,
                                                  vip['pool_id'], device_addr)
@@ -638,10 +637,11 @@ class HaproxyOnVmDriver(BaseDriver):
                     device_addr is not None):
                 # create REST client object
                 client = self._get_rest_client(device_addr)
-
+                LOG.info('update_pool client is %s ' % (client))
                 # Prepare the backend request body for create request
-                backend = self._prepare_haproxy_backend(pool)
+                backend = self._prepare_haproxy_backend(pool, context)
                 body = backend
+                LOG.info('update_pool body is %s ' % (body))
 
                 # Send REST API request to Haproxy agent on VM
                 client.update_resource("backend/bck:%s" % pool['id'], body)
@@ -680,7 +680,7 @@ class HaproxyOnVmDriver(BaseDriver):
             device_addr = self._get_device_for_pool(member['pool_id'], context)
             LOG.info(" create_member device_adds is %s " % (device_addr))
             if device_addr is not None:
-                self._create_member(member, device_addr)
+                self._create_member(member, device_addr, context)
         except Exception as err:
             msg = ("Failed to create member %s. %s"
                    % (member['id'], str(err).capitalize()))
@@ -691,7 +691,7 @@ class HaproxyOnVmDriver(BaseDriver):
 
     def update_member(self, old_member, member, context):
         LOG.info(" update member [old_member=%s, member=%s] " % (old_member,
-                                                                member))
+                                                                 member))
         try:
             device_addr = self._get_device_for_pool(old_member['pool_id'],
                                                     context)
@@ -699,9 +699,9 @@ class HaproxyOnVmDriver(BaseDriver):
                 self._delete_member(old_member, device_addr)
 
             # create the member (new)
-            device_addr = self._get_device_for_pool(member['pool_id'])
+            device_addr = self._get_device_for_pool(member['pool_id'], context)
             if device_addr is not None:
-                self._create_member(member, device_addr)
+                self._create_member(member, device_addr, context)
         except Exception as err:
             msg = ("Failed to update member %s. %s"
                    % (member['id'], str(err).capitalize()))
@@ -783,7 +783,7 @@ class HaproxyOnVmDriver(BaseDriver):
             device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
                 self._delete_pool_health_monitor(health_monitor, pool_id,
-                                                 device_addr)
+                                                 device_addr, context)
         except Exception as err:
             msg = ("Failed to delete pool health monitor: %s with "
                    "pool ID: %s. %s"

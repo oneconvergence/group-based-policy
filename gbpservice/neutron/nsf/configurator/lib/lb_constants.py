@@ -1,3 +1,8 @@
+DRIVERS_DIR = '/usr/lib/python2.7/dist-packages/gbpservice/neutron/nsf/'\
+              'configurator/drivers/loadbalancer/'
+SERVICE_TYPE = 'loadbalancer'
+NEUTRON = 'neutron'
+
 LBAAS_AGENT_RPC_TOPIC = 'lbaas_agent'
 LBAAS_GENERIC_CONFIG_RPC_TOPIC = 'lbaas_generic_config'
 LBAAS_PLUGIN_RPC_TOPIC = 'n-lbaas-plugin'

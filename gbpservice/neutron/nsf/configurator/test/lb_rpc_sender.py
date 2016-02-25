@@ -1,3 +1,7 @@
+"""
+Test file to send LBaaS standard rpcs to loadbalancer module
+"""
+
 import eventlet
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -13,7 +17,6 @@ LOG = logging.getLogger(__name__)
 
 LB_RPC_TOPIC = "lbaas_agent"
 LB_GENERIC_RPC_TOPIC = "lbaas_generic_config"
-
 
 class LBResources(object):
 
@@ -105,14 +108,14 @@ class LBResources(object):
                      }
 
 
-class SvcManagerClientApiTestCase(object):
+class LBRpcSender(object):
     """ Client side of service manager """
 
     API_VERSION = '1.0'
 
     def __init__(self, host='devstack', topic=LB_RPC_TOPIC):
         self.host = host
-        super(SvcManagerClientApiTestCase, self).__init__()
+        super(LBRpcSender, self).__init__()
         target = oslo_messaging.Target(
                                        topic=topic,
                                        version=self.API_VERSION)
@@ -243,7 +246,7 @@ class SvcManagerClientApiTestCase(object):
 
 
 # LBaaS rpc test cases
-client = SvcManagerClientApiTestCase("devstack", LB_RPC_TOPIC)
+client = LBRpcSender("devstack", LB_RPC_TOPIC)
 client.test_create_pool()
 client.test_create_vip()
 client.test_create_member()
@@ -260,7 +263,7 @@ client.test_create_health_monitor()
 # client.test_delete_pool()
 
 # Generic Config Test cases
-# client = SvcManagerClientApiTestCase("devstack", LB_GENERIC_RPC_TOPIC)
+# client = LBRpcSender("devstack", LB_GENERIC_RPC_TOPIC)
 # client.configure_interfaces()
 # client.clear_interfaces()
 # client.configure_source_routes()
