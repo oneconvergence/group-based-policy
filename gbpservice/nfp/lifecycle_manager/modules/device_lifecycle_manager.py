@@ -570,7 +570,7 @@ class DeviceLifeCycleHandler(object):
         LOG.info(_("Received delete network service device request for device "
                    "%(device)s"), {'device': delete_nfd_request})
         device = self.nsf_db.get_network_function_device(self.db_session,
-                                                    nfd_id)
+                                                         nfd_id)
         mgmt_port_ids = device.pop('mgmt_data_ports')
         mgmt_data_ports = self._get_ports(mgmt_port_ids)
         device['mgmt_data_ports'] = mgmt_data_ports
@@ -593,7 +593,7 @@ class DeviceLifeCycleHandler(object):
             lifecycle_driver.get_network_function_device_config_info(
                                                                 device))
         self.configurator_rpc.delete_network_function_device_config(device,
-                                                                config_params)
+                                                                    config_params)
 
     def unplug_interfaces(self, event):
         device_info = event.data

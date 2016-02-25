@@ -275,7 +275,7 @@ class ServiceLifeCycleHandler(object):
                                   network_function_info['heat_stack_id'])
         request_data = {
             'heat_stack_id': network_function_info['heat_stack_id'],
-	    'tenant_id': nfi['tenant_id'],
+            'tenant_id': nfi['tenant_id'],
             'network_function_id': network_function_id
         }
         self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
@@ -412,8 +412,10 @@ class ServiceLifeCycleHandler(object):
         nfi = {'status': 'PENDING_DELETE'}
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, nfi_id, nfi)
-        delete_nfd_request = {'network_function_device_id': nfi['network_function_device_id'],
-                              'network_function_instance': nfi}
+        delete_nfd_request = {
+            'network_function_device_id': nfi['network_function_device_id'],
+            'network_function_instance': nfi
+        }
         self._create_event('DELETE_NETWORK_FUNCTION_DEVICE',
                            event_data=delete_nfd_request)
 
@@ -607,7 +609,7 @@ class ServiceLifeCycleHandler(object):
             {'heat_stack_id': config_id})
         request_data = {
             'heat_stack_id': config_id,
-	    'tenant_id': nfi['tenant_id'],
+            'tenant_id': nfi['tenant_id'],
             'network_function_id': nfi['network_function_id']
         }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
@@ -629,7 +631,7 @@ class ServiceLifeCycleHandler(object):
             {'heat_stack_id': config_id})
         request_data = {
             'heat_stack_id': config_id,
-	    'tenant_id': nfi['tenant_id'],
+            'tenant_id': nfi['tenant_id'],
             'network_function_id': nfi['network_function_id']
         }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
@@ -652,7 +654,7 @@ class ServiceLifeCycleHandler(object):
             {'heat_stack_id': config_id})
         request_data = {
             'heat_stack_id': config_id,
-	    'tenant_id': nfi['tenant_id'],
+            'tenant_id': nfi['tenant_id'],
             'network_function_id': nfi['network_function_id']
         }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
