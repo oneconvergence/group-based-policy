@@ -38,6 +38,11 @@ class Controller(rest.RestController):
                 return self._create_network_device_config(body)
             elif self.module_name == "create_network_service_config":
                 return self._create_network_service_config(body)
+            elif self.module_name == "delete_network_device_config":
+                return self._delete_network_device_config(body)
+            elif self.module_name == "delete_network_service_config":
+                return self._delete_network_service_config(body)
+
             else:
                 raise Exception('Invalid Request')
         except Exception as e:
@@ -50,12 +55,8 @@ class Controller(rest.RestController):
             if request.is_body_readable:
                 body = request.json_body
 
-            if self.module_name == "delete_network_device_config":
-                return self._delete_network_device_config(body)
-            elif self.module_name == "update_network_device_config":
+            if self.module_name == "update_network_device_config":
                 return self._update_network_device_config(body)
-            elif self.module_name == "delete_network_service_config":
-                return self._delete_network_service_config(body)
             elif self.module_name == "update_network_service_config":
                 return self._update_network_service_config(body)
             else:
