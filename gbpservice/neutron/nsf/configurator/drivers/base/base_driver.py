@@ -11,14 +11,14 @@ class BaseDriver(object):
     def __init__(self):
         pass
 
-    def configure_interfaces(self, **kwargs):
+    def configure_interfaces(self, context, kwargs):
         return SUCCESS
 
-    def clear_interfaces(self, **kwargs):
+    def clear_interfaces(self, context, kwargs):
         return SUCCESS
 
-    def configure_source_routes(self, **kwargs):
+    def configure_routes(self, context, kwargs):
         return SUCCESS
 
-    def clear_source_routes(self, **kwargs):
+    def clear_routes(self, context, kwargs):
         return SUCCESS
