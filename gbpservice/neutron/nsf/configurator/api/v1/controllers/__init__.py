@@ -15,11 +15,11 @@ class ControllerResolver(object):
         "delete_network_device_config")
     update_network_device_config = controller.Controller(
         "update_network_device_config")
-    create_network_service_config = controller.Controller(
+    create_network_function_config = controller.Controller(
         "create_network_service_config")
-    delete_network_service_config = controller.Controller(
+    delete_network_function_config = controller.Controller(
         "delete_network_service_config")
-    update_network_service_config = controller.Controller(
+    update_network_function_config = controller.Controller(
         "update_network_service_config")
     get_notifications = controller.Controller("get_notifications")
 
