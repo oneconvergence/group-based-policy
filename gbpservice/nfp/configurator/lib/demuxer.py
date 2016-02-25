@@ -103,7 +103,7 @@ class ConfiguratorDemuxer(object):
 
         # Get service type based on the fact that for some request data
         # formats the 'type' key is absent. Check for invalid types
-        service_type = request_data['info'].get('type')
+        service_type = request_data['info'].get('service_type')
         if (service_type not in constants.supported_service_types):
             return constants.invalid_service_type
         elif not service_type:
