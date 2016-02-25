@@ -105,9 +105,11 @@ def upgrade():
                   sa.String(length=36),
                   nullable=True),
         sa.ForeignKeyConstraint(['network_function_device_id'],
-                                ['network_function_devices.id']),
+                                ['network_function_devices.id'],
+                                ondelete='SET NULL'),
         sa.ForeignKeyConstraint(['network_function_id'],
-                                ['network_functions.id']),
+                                ['network_functions.id'],
+                                ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id')
     )
 

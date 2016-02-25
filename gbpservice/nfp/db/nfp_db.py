@@ -50,7 +50,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             return self._get_by_id(
                 session, nfp_db_model.NetworkFunction, network_function_id)
         except exc.NoResultFound:
-            raise nfp_exc.NetworkFunctionNotFound()
+            raise nfp_exc.NetworkFunctionNotFound(
+                network_function_id=network_function_id)
 
     def update_network_function(self, session, network_function_id,
                                updated_network_function):
@@ -135,7 +136,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                 nfp_db_model.NetworkFunctionInstance,
                 network_function_instance_id)
         except exc.NoResultFound:
-            raise nfp_exc.NetworkFunctionInstanceNotFound()
+            raise nfp_exc.NetworkFunctionInstanceNotFound(
+                network_function_instance_id=network_function_instance_id)
 
     def update_network_function_instance(self, session,
                                          network_function_instance_id,
@@ -279,7 +281,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                 nfp_db_model.NetworkFunctionDevice,
                 network_function_device_id)
         except exc.NoResultFound:
-            raise nfp_exc.NetworkFunctionDeviceNotFound()
+            raise nfp_exc.NetworkFunctionDeviceNotFound(
+                network_function_device_id=network_function_device_id)
 
     def update_network_function_device(self, session,
                                        network_function_device_id,

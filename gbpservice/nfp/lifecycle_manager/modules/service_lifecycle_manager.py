@@ -38,7 +38,7 @@ def events_init(controller, config, service_lifecycle_handler):
     events = ['DELETE_NETWORK_FUNCTION', 'CREATE_NETWORK_FUNCTION_INSTANCE',
               'DELETE_NETWORK_FUNCTION_INSTANCE', 'DEVICE_ACTIVE',
               'DEVICE_DELETED', 'APPLY_USER_CONFIG_IN_PROGRESS',
-              'DELETE_USER_CONFIG_IN_PROGRESS' 'USER_CONFIG_APPLIED',
+              'DELETE_USER_CONFIG_IN_PROGRESS', 'USER_CONFIG_APPLIED',
               'USER_CONFIG_DELETED', 'USER_CONFIG_DELETE_FAILED',
               'DEVICE_CREATE_FAILED', 'USER_CONFIG_FAILED']
     events_to_register = []
@@ -84,6 +84,9 @@ class RpcHandler(object):
             context, network_function_id, updated_network_function)
 
     def delete_network_function(self, context, network_function_id):
+        LOG.info(_("RPC call delete_network_function for "
+                   "%(network_function_id)s"),
+                 {'network_function_id': network_function_id})
         service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
         return service_lifecycle_handler.delete_network_function(
             context, network_function_id)
@@ -118,11 +121,15 @@ class ServiceLifeCycleHandler(object):
     def __init__(self, controller):
         self._controller = controller
         self.db_handler = nfp_db.NFPDbBase()
-        self.db_session = nfp_db_api.get_session()
+        #self.db_session = nfp_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient()
         self.keystoneclient = openstack_driver.KeystoneClient()
         self.neutronclient = openstack_driver.NeutronClient()
         self.config_driver = heat_driver.HeatDriver()
+
+    @property
+    def db_session(self):
+        return nfp_db_api.get_session()
 
     def event_method_mapping(self, event_id):
         event_handler_mapping = {
@@ -149,12 +156,19 @@ class ServiceLifeCycleHandler(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        event_handler = self.event_method_mapping(event.id)
-        event_handler(event)
+        try:
+            event_handler = self.event_method_mapping(event.id)
+            event_handler(event)
+	except Exception:
+            LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event_id})
 
     def handle_poll_event(self, event):
-        event_handler = self.event_method_mapping(event.id)
-        event_handler(event)
+	LOG.info(_("Service LCM handle_poll_event, event ID %(id)s"), {'id': event.id})
+        try:
+            event_handler = self.event_method_mapping(event.id)
+            event_handler(event)
+	except Exception:
+            LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event_id})
 
     def _log_event_created(self, event_id, event_data):
         LOG.debug(_("Created event %s(event_name)s with event "
@@ -249,11 +263,19 @@ class ServiceLifeCycleHandler(object):
         nfi = self.db_handler.get_network_function_instance(
             self.db_session,
             network_function_info['network_function_instances'][0])
+	if not network_function_info['heat_stack_id']:
+	    event_data = {
+                'network_function_id': network_function_id
+            }
+            self._create_event('USER_CONFIG_DELETED',
+                               event_data=event_data)
+	    return 
         service_details = self.get_service_details(nfi)
         self.config_driver.delete(service_details,
                                   network_function_info['heat_stack_id'])
         request_data = {
             'heat_stack_id': network_function_info['heat_stack_id'],
+	    'tenant_id': nfi['tenant_id'],
             'network_function_id': network_function_id
         }
         self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
@@ -299,6 +321,8 @@ class ServiceLifeCycleHandler(object):
         service_details = self.get_service_details(nfi)
         request_data['heat_stack_id'] = self.config_driver.apply_user_config(
                 service_details)  # Heat driver to launch stack
+	request_data['tenant_id'] = nfi['tenant_id']
+	LOG.debug("handle_device_created heat_stack_id: %s" %(request_data['heat_stack_id']))
         self.db_handler.update_network_function(
             self.db_session, nfi['network_function_id'],
             {'heat_stack_id': request_data['heat_stack_id']})
@@ -309,7 +333,7 @@ class ServiceLifeCycleHandler(object):
 
     def handle_device_create_failed(self, event):
         request_data = event.data
-        LOG.info(_("request data : %s"), request_data)
+        LOG.info(_("In handle_device_create_failed request data : %s"), request_data)
         nfi = {
             'status': 'ERROR',
             'network_function_device_id': request_data.get(
@@ -412,7 +436,7 @@ class ServiceLifeCycleHandler(object):
     def check_for_user_config_complete(self, event):
         request_data = event.data
         config_status = self.config_driver.is_config_complete(
-            request_data['heat_stack_id'])
+            request_data['heat_stack_id'], request_data['tenant_id'])
         if config_status == "ERROR":
             updated_network_function = {'status': 'ERROR'}
             self.db_handler.update_network_function(
@@ -434,8 +458,11 @@ class ServiceLifeCycleHandler(object):
 
     def check_for_user_config_deleted(self, event):
         request_data = event.data
-        config_status = self.config_driver.is_config_delete_complete(
-            request_data['heat_stack_id'])
+	try:
+            config_status = self.config_driver.is_config_delete_complete(
+                request_data['heat_stack_id'], request_data['tenant_id'])
+	except Exception as err:
+	    LOG.error(_("Checking is_config_delete_complete failed. Error: %(err)s"), {'err': err})
         if config_status == "ERROR":
             event_data = {
                 'network_function_id': request_data['network_function_id']
@@ -529,8 +556,14 @@ class ServiceLifeCycleHandler(object):
         self._controller.event_done(event)
 
     def get_network_function(self, context, network_function_id):
-        return self.db_handler.get_network_function(
-            self.db_session, network_function_id)
+	try:
+	    network_function = self.db_handler.get_network_function(
+                self.db_session, network_function_id)
+	    LOG.info(_("In get_network_function, returning: %(network_function)s"), {'network_function': network_function})
+	    return network_function
+	except Exception:
+	    LOG.exception(_("Error in get_network_function"))
+        return None
 
     def get_network_functions(self, context, filters):
         return self.db_handler.get_network_functions(
@@ -552,6 +585,7 @@ class ServiceLifeCycleHandler(object):
             {'heat_stack_id': config_id})
         request_data = {
             'heat_stack_id': config_id,
+	    'tenant_id': nfi['tenant_id'],
             'network_function_id': nfi['network_function_id']
         }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
@@ -573,6 +607,7 @@ class ServiceLifeCycleHandler(object):
             {'heat_stack_id': config_id})
         request_data = {
             'heat_stack_id': config_id,
+	    'tenant_id': nfi['tenant_id'],
             'network_function_id': nfi['network_function_id']
         }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
@@ -594,6 +629,7 @@ class ServiceLifeCycleHandler(object):
             {'heat_stack_id': config_id})
         request_data = {
             'heat_stack_id': config_id,
+	    'tenant_id': nfi['tenant_id'],
             'network_function_id': nfi['network_function_id']
         }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
@@ -616,6 +652,7 @@ class ServiceLifeCycleHandler(object):
             {'heat_stack_id': config_id})
         request_data = {
             'heat_stack_id': config_id,
+	    'tenant_id': nfi['tenant_id'],
             'network_function_id': nfi['network_function_id']
         }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',

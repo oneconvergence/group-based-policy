@@ -851,16 +851,17 @@ class HeatDriver():
                             time=wait_timeout,
                             stack_owner=stack.stack_owner)
 
-    def is_config_complete(self, stack_id):
+    def is_config_complete(self, stack_id, tenant_id):
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
-        heatclient = self._get_heat_client(resource_owner_tenant_id)
+        heatclient = self._get_heat_client(resource_owner_tenant_id, tenant_id=tenant_id)
 
         try:
             stack = heatclient.get(stack_id)
+	    LOG.info(_("Stack %(stack)s status is %(status)s"), {'stack': stack_id, 'status': stack.stack_status})
             if stack.stack_status == 'DELETE_FAILED':
                 return failure_status
             elif stack.stack_status == 'CREATE_COMPLETE':
@@ -882,13 +883,13 @@ class HeatDriver():
                           {'stack': stack_id})
             return failure_status
 
-    def is_config_delete_complete(self, stack_id):
+    def is_config_delete_complete(self, stack_id, tenant_id):
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
-        heatclient = self._get_heat_client(resource_owner_tenant_id)
+        heatclient = self._get_heat_client(resource_owner_tenant_id, tenant_id=tenant_id)
 
         try:
             stack = heatclient.get(stack_id)

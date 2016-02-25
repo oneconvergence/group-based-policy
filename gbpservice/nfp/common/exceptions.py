@@ -95,12 +95,14 @@ class NotFound(NFPException):
 
 
 class NetworkFunctionNotFound(NotFound):
-    pass
+    message = _("NetworkFunction %(network_function_id)s could not be found")
 
 
 class NetworkFunctionInstanceNotFound(NotFound):
-    pass
+    message = _("NetworkFunctionInstance %(network_function_instance_id)s "
+                "could not be found")
 
 
 class NetworkFunctionDeviceNotFound(NotFound):
-    pass
+    message = _("NetworkFunctionDevice %(network_function_device_id)s could "
+                "not be found")

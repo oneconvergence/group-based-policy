@@ -462,6 +462,12 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         while time_waited < cfg.CONF.nfp_node_driver.service_create_timeout:
             network_function = self.nfp_notifier.get_network_function(
                 context.plugin_context, network_function_id)
+	    if not network_function:
+		LOG.error(_("Failed to retrieve network function"))
+	        eventlet.sleep(5)
+		continue
+	    else:
+		LOG.info(_("Create network function result: %(network_function)s"), {'network_function': network_function})
             if (network_function['status'] == 'ACTIVE' or
                 network_function['status'] == 'ERROR'):
                 break
@@ -469,8 +475,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             time_waited = time_waited + 5
 
         if network_function['status'] != 'ACTIVE':
-            LOG.error(_("Delete network function %(network_function)s failed"),
-                      {'network_function': network_function_id})
+            LOG.error(_("Create network function %(network_function)s failed. status: %(status)s"),
+                      {'network_function': network_function_id, 'status': network_function['status']})
             raise NodeInstanceCreateFailed()
 
     def _is_service_target(self, policy_target):
