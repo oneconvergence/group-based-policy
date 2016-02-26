@@ -185,50 +185,50 @@ class NFPClientApi(object):
     def consumer_ptg_added_notification(self, context, network_function_id,
                                         policy_target_group):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
-	cctxt.cast(context, 'consumer_ptg_added_notification', network_function_id=network_function_id, policy_target_group=policy_target_group)
-	'''
+        cctxt.cast(context, 'consumer_ptg_added_notification', network_function_id=network_function_id, policy_target_group=policy_target_group)
+        '''
         return cctxt.call(
             context,
             'consumer_ptg_added_notification',
             network_function_id=network_function_id,
             policy_target_group=policy_target_group)
-	'''
+        '''
 
     def consumer_ptg_removed_notification(self, context, network_function_id,
                                           policy_target_group):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
-	cctxt.cast(context, 'consumer_ptg_removed_notification', network_function_id=network_function_id, policy_target_group=policy_target_group)
-	'''
+        cctxt.cast(context, 'consumer_ptg_removed_notification', network_function_id=network_function_id, policy_target_group=policy_target_group)
+        '''
         return cctxt.call(
             context,
             'consumer_ptg_removed_notification',
             network_function_id=network_function_id,
             policy_target_group=policy_target_group)
-	'''
+        '''
 
     def policy_target_added_notification(self, context, network_function_id,
                                          policy_target):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
-	cctxt.cast(context, 'policy_target_added_notification', network_function_id=network_function_id, policy_target=policy_target)
-	'''
+        cctxt.cast(context, 'policy_target_added_notification', network_function_id=network_function_id, policy_target=policy_target)
+        '''
         return cctxt.call(
             context,
             'policy_target_added_notification',
             network_function_id=network_function_id,
             policy_target=policy_target)
-	'''
+        '''
 
     def policy_target_removed_notification(self, context, network_function_id,
                                            policy_target):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
-	cctxt.cast(context, 'policy_target_removed_notification', network_function_id=network_function_id, policy_target=policy_target)
-	'''
+        cctxt.cast(context, 'policy_target_removed_notification', network_function_id=network_function_id, policy_target=policy_target)
+        '''
         return cctxt.call(
             context,
             'policy_target_removed_notification',
             network_function_id=network_function_id,
             policy_target=policy_target)
-	'''
+        '''
 
 
 class NFPNodeDriver(driver_base.NodeDriverBase):
