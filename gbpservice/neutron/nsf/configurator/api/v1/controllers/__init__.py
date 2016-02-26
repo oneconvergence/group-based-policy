@@ -9,11 +9,11 @@ import controller
 class ControllerResolver(object):
     """this class send parameter to controller class
     according to query string"""
-    create_network_device_config = controller.Controller(
+    create_network_function_device_config = controller.Controller(
         "create_network_device_config")
-    delete_network_device_config = controller.Controller(
+    delete_network_function_device_config = controller.Controller(
         "delete_network_device_config")
-    update_network_device_config = controller.Controller(
+    update_network_function_device_config = controller.Controller(
         "update_network_device_config")
     create_network_function_config = controller.Controller(
         "create_network_service_config")
