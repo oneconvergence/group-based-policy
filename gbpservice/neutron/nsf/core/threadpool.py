@@ -11,14 +11,17 @@
 #    under the License.
 
 import os
+import sys
+import threading
+import time
 import eventlet
+eventlet.monkey_patch()
+from eventlet import event
 from eventlet import greenpool
 from eventlet import greenthread
 from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
-
-eventlet.monkey_patch()
 
 
 def _thread_done(gt, *args, **kwargs):

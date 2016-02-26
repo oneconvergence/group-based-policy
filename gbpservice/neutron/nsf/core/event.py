@@ -12,6 +12,7 @@
 
 import os
 import time
+import sys
 import Queue
 
 from oslo_log import log as oslo_logging
@@ -19,6 +20,11 @@ from oslo_log import log as oslo_logging
 from gbpservice.neutron.nsf.core import common as nfp_common
 from gbpservice.neutron.nsf.core import poll as nfp_poll
 from gbpservice.neutron.nsf.core import threadpool as nfp_tp
+
+from gbpservice.neutron.nsf.core.common import *
+from oslo_config import cfg as oslo_config
+from Queue import Empty as QEMPTY
+from Queue import Full as QFULL
 
 LOG = oslo_logging.getLogger(__name__)
 PID = os.getpid()
@@ -162,7 +168,8 @@ class EventQueueHandler(object):
                 "No event pending in sequencer Q - "
                 "checking the event Q"))
             try:
-                ev = self._evq.get(timeout=0.1)
+                if self._evq.poll(0.1):
+                    ev = self._evq.recv()
             except Queue.Empty:
                 pass
             if ev:

@@ -20,6 +20,9 @@ from neutron import context as n_context
 from neutron.agent import rpc as n_agent_rpc
 from neutron.common import rpc as n_rpc
 
+import os
+import sys
+
 LOG = oslo_logging.getLogger(__name__)
 
 """ Wrapper class for Neutron RpcAgent definition.

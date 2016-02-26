@@ -20,9 +20,16 @@ import multiprocessing
 from multiprocessing import Process as mp_process
 from multiprocessing import Queue as mp_queue
 from multiprocessing import Lock as mp_lock
+from multiprocessing import Pipe as mp_pipe
 
 from neutron.agent.common import config as n_config
 from neutron.common import config as n_common_config
+
+import signal
+import time
+import copy
+import threading
+
 
 from oslo_config import cfg as oslo_config
 from oslo_log import log as oslo_logging
@@ -200,12 +207,21 @@ class Controller(object):
         ev_workers = [tuple() for w in range(0, wc)]
 
         for w in range(0, wc):
+            evq_send, evq_receive = mp_pipe()
+            evq_handler = EventQueueHandler(self, evq_receive, self._event_handlers)
+            worker = mp_process(target=evq_handler.run, args=(evq_receive,))
+            worker.daemon = True
+            ev_workers[w] = ev_workers[w] + (worker, evq_send, evq_handler, evq_receive)
+        return ev_workers
+        """
+        for w in range(0, wc):
             evq = mp_queue()
             evq_handler = EventQueueHandler(self, evq, self._event_handlers)
             worker = mp_process(target=evq_handler.run, args=(evq,))
             worker.daemon = True
             ev_workers[w] = ev_workers[w] + (worker, evq, evq_handler)
         return ev_workers
+        """
 
     def poll_handler_init(self):
         """ Initialize poll handler, creates a poll queue. """
@@ -290,7 +306,7 @@ class Controller(object):
                    "to worker %d"
                    % (event.identify(), event.worker_attached)))
         evq = worker[1]
-        evq.put(event)
+        evq.send(event)
 
     def event_done(self, event):
         """ API for NFP modules to mark an event complete.

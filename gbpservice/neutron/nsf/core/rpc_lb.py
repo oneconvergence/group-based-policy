@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import os
+import sys
 
 """ Implements simple roundrobin loadbalancing algo.
 
@@ -48,18 +50,40 @@ class StickyRoundRobin(object):
         self._rridx = 0
         self._rrsize = len(self._workers)
 
+    def _remove_assoc(self, wpid):
+        assoc_elem = None
+        print self._assoc
+        
+        for w in self._workers :
+            if w[0].pid == wpid :
+                self._workers.remove(w)
+                break
+    
+
+        for key, value in self._assoc.iteritems() :
+            if value[0].pid == wpid :
+                del  self._assoc[key]
+                break
+
+        print "!!!!!!!! %d is Removed from ASSOC "
+        print "Worker structure :"
+
+        print self._assoc
+
     def _rr(self):
         item = self._workers[self._rridx]
-        self._rridx = (self._rridx + 1) % (self._rrsize)
+        self._rridx = (self._rridx + 1) % (len(self._workers))
         return item
 
     def get(self, rsrcid):
         if not rsrcid:
+            print "@@@@@@ DOING PLAIN ROUND ROBIN @@@@@@@"
             return self._rr()
 
         if rsrcid in self._assoc.keys():
             worker = self._assoc[rsrcid]
         else:
+            print "@@@@@@@ RSRCID %s not in ASSOC MAP" %(rsrcid)
             worker = self._rr()
             self._assoc[rsrcid] = worker
         return worker

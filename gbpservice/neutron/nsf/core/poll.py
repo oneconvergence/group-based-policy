@@ -16,6 +16,10 @@ import Queue
 import random
 import six
 import time
+import copy
+import sys
+from Queue import Empty as QEMPTY
+from Queue import Full as QFULL
 
 from oslo_config import cfg as oslo_config
 from oslo_log import log as oslo_logging
@@ -24,6 +28,7 @@ from oslo_service import periodic_task as oslo_periodic_task
 
 from gbpservice.neutron.nsf.core import common as nfp_common
 from gbpservice.neutron.nsf.core import fifo as nfp_fifo
+from gbpservice.neutron.nsf.core import threadpool as nfp_tp
 
 LOG = oslo_logging.getLogger(__name__)
 PID = os.getpid()
@@ -159,7 +164,7 @@ class PollingTask(oslo_periodic_task.PeriodicTasks):
     """
     def _is_worker_alive(self):
         for w in self._sc._pollhandler._pollq_map:
-            print"PROCESS Id = %d Queue Size = %d" % (w[0].pid, int(w[1].qsize()))
+            print"PROCESS Id = %d POLL Queue Size = %d" % (w[0].pid, int(w[1].qsize()))
 
         for w in self._sc._pollhandler._pollq_map:
             if w[0].is_alive() == False :
@@ -174,14 +179,18 @@ class PollingTask(oslo_periodic_task.PeriodicTasks):
                 wq_events = []
                 for wk in self._sc._workers :
                     if wk[0].pid == w[0].pid:
-                        while(wk[1].empty() == False ):
-                            wq_events.append(wk[1].get())
-                    self._sc._workers.remove(wk)
-                    break
-                print"XXXXXXXXXXXX Pending Worker Events"
+                        while wk[3].poll(0.1) != False :
+                            wq_events.append(wk[3].recv())
                 print wq_events
 
+                self._sc._loadbalancer._remove_assoc(w[0].pid)
                 self._sc._pollhandler._pollq_map.remove(w)
+
+                print"...#....#.....#..... Rescheduling Worker Events.......#.......#.....# "
+                wq_events.reverse()
+                for ev in wq_events :
+                    self._sc.post_event(ev)
+                    print">>>>>>>>>>>>>>> Event %s is Rescheduled " % ev.id
 
     @oslo_periodic_task.periodic_task(spacing=1)
     def periodic_sync_task(self, context):

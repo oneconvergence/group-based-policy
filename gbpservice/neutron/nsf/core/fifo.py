@@ -12,6 +12,7 @@
 
 import Queue
 import sys
+import os
 from collections import deque
 
 """ Implements FIFO using python deque.

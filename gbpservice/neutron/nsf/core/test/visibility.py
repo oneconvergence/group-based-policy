@@ -12,6 +12,9 @@
 
 import os
 import time
+import sys
+import ast
+import json
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -22,6 +25,7 @@ from gbpservice.neutron.nsf.core import poll
 from gbpservice.neutron.nsf.core.poll import PollEventDesc
 from gbpservice.neutron.nsf.core.rpc import RpcAgent
 
+from neutron.common import rpc as n_rpc
 
 LOG = logging.getLogger(__name__)
 
@@ -42,8 +46,8 @@ def rpc_init(sc, conf):
 def events_init(sc):
     evs = [
         Event(id='SERVICE_CREATE', handler=Agent(sc)),
-        Event(id='SERVICE_DELETE', handler=Agent(sc)),
-        Event(id='SERVICE_DUMMY_EVENT', handler=Agent(sc))]
+        Event(id='SERVICE_CREATE_DUMMY', handler=Agent(sc)),
+        Event(id='SERVICE_DELETE', handler=Agent(sc)),]
     sc.register_events(evs)
 
 
@@ -53,7 +57,7 @@ def module_init(sc, conf):
 
 
 def unit_test(conf, sc):
-    for i in range(0, 1):
+    for i in range(0,20):
         test_service_create(conf, sc)
 
 
@@ -75,6 +79,9 @@ def test_service_create(conf, sc):
                       binding_key=service1['id'],
                       key=service1['id'], serialize=True)
     sc.post_event(ev)
+
+    time.sleep(.9)
+    
     service2 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216272a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216562c',
@@ -84,10 +91,12 @@ def test_service_create(conf, sc):
                 'service_type': 'firewall',
                 'ip': '192.168.20.197'
                 }
-    ev = sc.new_event(id='SERVICE_CREATE', data=service2,
+    ev = sc.new_event(id='SERVICE_CREATE_DUMMY', data=service2,
                       binding_key=service2['id'],
                       key=service2['id'], serialize=True)
     sc.post_event(ev)
+
+    """
     service3 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216273a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216563c',
@@ -97,12 +106,12 @@ def test_service_create(conf, sc):
                 'service_type': 'vpn',
                 'ip': '192.168.20.197'
                 }
-
+    
     ev = sc.new_event(id='SERVICE_CREATE', data=service3,
                       binding_key=service3['id'],
                       key=service3['id'], serialize=True)
     sc.post_event(ev)
-
+    
     time.sleep(5)
     ev = sc.new_event(id='SERVICE_DELETE', data=service1,
                       binding_key=service1['id'],
@@ -111,6 +120,8 @@ def test_service_create(conf, sc):
 
     ev = sc.new_event(id='SERVICE_DUMMY_EVENT', key='dummy_event')
     sc.post_event(ev)
+    """
+    
 
 
 class Collector(object):
@@ -153,20 +164,30 @@ class Agent(PollEventDesc):
         LOG.debug("Process ID :%d" % (os.getpid()))
         if ev.id == 'SERVICE_CREATE':
             self._handle_create_event(ev)
+        elif ev.id == 'SERVICE_CREATE_DUMMY':
+            self._handle_create_dummy(ev)
         elif ev.id == 'SERVICE_DELETE':
             self._handle_delete_event(ev)
-        elif ev.id == 'SERVICE_DUMMY_EVENT':
-            self._handle_dummy_event(ev)
 
     def _handle_create_event(self, ev):
         '''
         Driver logic here.
         '''
+        print "####### ##################################"
+        print "Worker Attached % s Worker ID = %s" %(str(ev.worker_attached), str(ev.id))
+        print "#############################################"
         self._sc.event_done(ev)
         self._sc.poll_event(ev)
 
-    def _handle_dummy_event(self, ev):
-        self._sc.poll_event(ev, max_times=2)
+    def _handle_create_dummy(self, ev):
+        '''
+        Driver logic here.
+        '''
+        print "####### ##################################"
+        print "Worker Attached % s Worker ID = %s" %(str(ev.worker_attached), str(ev.id))
+        print "#############################################"
+        self._sc.event_done(ev)
+        self._sc.poll_event(ev)
 
     def _handle_delete_event(self, ev):
         '''
@@ -177,17 +198,17 @@ class Agent(PollEventDesc):
 
     @poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
-        LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Decorator Poll event (%s:%s)" % (ev.id, ev.key)
+        LOG.debug("Poll event (%s) ID = %s" % (str(ev),ev.id))
+        print "Decorator Poll event (%s:%s)++++++ PROCESS ID = %d" % (ev.id, ev.key,os.getpid())
 
-    @poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=10)
+    @poll.poll_event_desc(event='SERVICE_CREATE_DUMMY', spacing=10)
     def service_dummy_poll_event(self, ev):
-        LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Decorator Poll event (%s:%s)" % (ev.id, ev.key)
+        LOG.debug("Poll event (%s) ID = %s" % (str(ev),ev.id))
+        print "Decorator Poll event (%s:%s)+++++++ PROCESS ID = %d" % (ev.id, ev.key, os.getpid())
 
     def _handle_poll_event(self, ev):
         '''
         Driver logic here
         '''
         LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Poll event %s" % (ev.key)
+        print "**********Poll event %s**** PROCESS ID %s.... EVENT ID %s" % (ev.key, os.getpid(),ev.id)
