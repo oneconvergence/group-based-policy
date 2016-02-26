@@ -12,7 +12,11 @@
 
 import os
 import Queue
+import sys
 import time
+
+from Queue import Empty as QEMPTY
+from Queue import Full as QFULL
 
 from oslo_log import log as oslo_logging
 
@@ -164,8 +168,9 @@ class EventQueueHandler(object):
                 "No event pending in sequencer Q - "
                 "checking the event Q")
             try:
-                ev = self._evq.get(timeout=0.1)
-            except Queue.Empty:
+                if self._evq.poll(0.1):
+                    ev = self._evq.recv()
+            except QEMPTY:
                 pass
             if ev:
                 log_debug(LOG,

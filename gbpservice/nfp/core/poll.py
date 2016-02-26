@@ -15,6 +15,7 @@ import os
 import Queue
 import random
 import six
+import sys
 import time
 
 from oslo_config import cfg as oslo_config
@@ -24,6 +25,9 @@ from oslo_service import periodic_task as oslo_periodic_task
 
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import fifo as nfp_fifo
+
+from Queue import Empty as QEMPTY
+from Queue import Full as QFULL
 
 LOG = oslo_logging.getLogger(__name__)
 PID = os.getpid()
@@ -158,10 +162,44 @@ class PollingTask(oslo_periodic_task.PeriodicTasks):
         pulse.start(
             interval=oslo_config.CONF.periodic_interval, initial_delay=None)
 
+    """
+    method used to handle dead worker process and its pending events
+    """
+    def _is_worker_alive(self):
+        for w in self._sc._pollhandler._pollq_map:
+            print"PROCESS Id = %d POLL Queue Size = %d" % (w[0].pid, int(w[1].qsize()))
+
+        for w in self._sc._pollhandler._pollq_map:
+            if w[0].is_alive() == False :
+                print"XXXXXXXXXXXXX Process id = %d is killed" % w[0].pid
+                pq_events = []
+                while w[1].empty() == False :
+                    pq_events.append(w[1].get())
+                print"XXXXXXXXXXXXXXXX Pending Polling events "
+                print pq_events
+                print "Removing Worker  : %d " %w[0].pid
+                
+                wq_events = []
+                for wk in self._sc._workers :
+                    if wk[0].pid == w[0].pid:
+                        while wk[3].poll(0.1) != False :
+                            wq_events.append(wk[3].recv())
+                print wq_events
+
+                self._sc._loadbalancer._remove_assoc(w[0].pid)
+                self._sc._pollhandler._pollq_map.remove(w)
+
+                print"...#....#.....#..... Rescheduling Worker Events.......#.......#.....# "
+                wq_events.reverse()
+                for ev in wq_events :
+                    self._sc.post_event(ev)
+                    print">>>>>>>>>>>>>>> Event %s is Rescheduled " % ev.id
+
     @oslo_periodic_task.periodic_task(spacing=1)
     def periodic_sync_task(self, context):
         log_debug(LOG, "Periodic sync task invoked !")
         # invoke the common class to handle event timeouts
+        self._is_worker_alive()
         self._sc.timeout()
 
 """Handles the polling queue, searches for the timedout events.
@@ -178,22 +216,30 @@ class PollingTask(oslo_periodic_task.PeriodicTasks):
 
 class PollQueueHandler(object):
 
-    def __init__(self, sc, qu, ehs, batch=-1):
+    def __init__(self, sc, pollq_map, ehs, batch=-1):
         self._sc = sc
         self._ehs = ehs
-        self._pollq = qu
+        self._pollq_map = pollq_map
+        self._pollq = None
         self._procidx = 0
         self._procpending = 0
         self._batch = 10 if batch == -1 else batch
         self._cache = nfp_fifo.Fifo(sc)
 
-    def _get(self):
+    def _get_pollq(self):
+        pid = os.getpid()
+        for elem in self._pollq_map:
+            if pid == elem[0].pid:
+                return elem[1]
+        return None
+
+    def _get(self, pollq):
         """Internal method to get messages from pollQ.
 
             Handles the empty queue exception.
         """
         try:
-            return self._pollq.get(timeout=0.1)
+            return pollq.get(timeout=0.1)
         except Queue.Empty:
             return None
 
@@ -270,6 +316,8 @@ class PollQueueHandler(object):
             to send event to polling task.
         """
         log_debug(LOG, "Add event %s to the pollq" % (event.identify()))
+        print("@@@@@@@@@@@@@@@@@@@@@@@@@ PollHandler Add method PRocess id %d",os.getpid());
+        self._pollq = self._get_pollq()
         self._pollq.put(event)
 
     def remove(self, event):
@@ -293,7 +341,7 @@ class PollQueueHandler(object):
                 remevs.append(elem)
         self._cache.remove(remevs)
 
-    def fill(self):
+    def fill(self, pollq):
         """Fill polling cache with events from poll queue.
 
             Fetch messages from poll queue which is
@@ -304,7 +352,7 @@ class PollQueueHandler(object):
         log_debug(LOG, "Fill events from multi processing Q to internal cache")
         # Get some events from queue into cache
         for i in range(0, 10):
-            ev = self._get()
+            ev = self._get(pollq)
             if ev:
                 log_debug(LOG,
                           "Got new event %s from multi processing Q"
@@ -329,10 +377,11 @@ class PollQueueHandler(object):
 
     def run(self):
         """Invoked in loop of periodic task to check for timedout events. """
-        # Fill the cache first
-        self.fill()
-        # Peek the events from cache
-        evs, count = self.peek(0, self._batch)
-        for ev in evs:
-            self._process_event(ev)
-        self._procidx = (self._procidx + count) % (self._batch)
+        for elem in self._pollq_map:
+            # Fill the cache first
+            self.fill(elem[1])
+            # Peek the events from cache
+            evs, count = self.peek(0, self._batch)
+            for ev in evs:
+                self._process_event(ev)
+            self._procidx = (self._procidx + count) % (self._batch)

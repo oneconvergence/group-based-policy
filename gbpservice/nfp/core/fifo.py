@@ -13,6 +13,8 @@
 import collections
 import Queue
 import sys
+import os
+from collections import deque
 
 deque = collections.deque
 

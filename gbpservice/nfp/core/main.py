@@ -15,7 +15,12 @@ import operator
 import os
 import sys
 
-import multiprocessing
+import time
+
+import copy
+import threading
+from operator import itemgetter
+import signal
 
 from neutron.agent.common import config as n_config
 from neutron.common import config as n_common_config
@@ -31,6 +36,13 @@ from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.core import rpc as nfp_rpc
 from gbpservice.nfp.core import rpc_lb as nfp_rpc_lb
 
+import multiprocessing
+from multiprocessing import Process as mp_process
+from multiprocessing import Pipe as mp_pipe
+from multiprocessing import Queue as mp_queue
+from multiprocessing import Lock as mp_lock
+
+import eventlet
 eventlet.monkey_patch()
 
 LOG = oslo_logging.getLogger(__name__)
@@ -50,9 +62,33 @@ itemgetter = operator.itemgetter
 log_info = nfp_common.log_info
 log_debug = nfp_common.log_debug
 log_error = nfp_common.log_error
+     
+""" Signal Handler"""
+class SignalHandle(object):
+    def __init__(self, sc):
+        self.sc = sc
+
+    def signal_handler(self, signal, frame):
+        pid, sig = os.wait()
+        _pollq_map  = self.sc._pollhandler._pollq_map
+        for w in _pollq_map:
+            if pid == w[0].pid :
+                print "#################################### Worker %d is  KILLED#############" %(w[0].pid)
+                pollq =  w[1] #pending events
+                """
+                if pollq.empty():
+                    print "$$$$$$$$$$$$$$$$$$$ Polling Queue is Empty";
+                else:
+                    events = []
+                    while(pollq.empty() == False):
+                        event.append(pollq.get())
+                    for e in events:
+                        print" EVENT ID = %s " %e.id
+                """
+                break
 
 
-"""Implements cache of registered event handlers. """
+""" Implements cache of registered event handlers. """
 
 
 class EventHandlers(object):
@@ -103,13 +139,17 @@ class Controller(object):
         self._event = multiprocessing.Event()
 
     def lock(self):
+        pass
+    """
         self._lock.acquire()
         log_debug(LOG, "Acquired lock..")
-
+	"""
     def unlock(self):
+        pass
+    """
         self._lock.release()
         log_debug(LOG, "Released lock..")
-
+	"""
     def sequencer_put_event(self, event):
         """Put an event in sequencer.
 
@@ -173,17 +213,20 @@ class Controller(object):
         ev_workers = [tuple() for w in range(0, wc)]
 
         for w in range(0, wc):
-            evq = mp_queue()
-            evq_handler = EventQueueHandler(self, evq, self._event_handlers)
-            worker = mp_process(target=evq_handler.run, args=(evq,))
+            evq_send, evq_receive = mp_pipe()
+            evq_handler = EventQueueHandler(self, evq_receive, self._event_handlers)
+            worker = mp_process(target=evq_handler.run, args=(evq_receive,))
             worker.daemon = True
-            ev_workers[w] = ev_workers[w] + (worker, evq, evq_handler)
+            ev_workers[w] = ev_workers[w] + (worker, evq_send, evq_handler, evq_receive)
         return ev_workers
 
     def poll_handler_init(self):
         """Initialize poll handler, creates a poll queue. """
-        pollq = mp_queue()
-        handler = PollQueueHandler(self, pollq, self._event_handlers)
+        worker_pollq_map = []
+        for w in self._workers :
+            pollq = mp_queue()
+            worker_pollq_map.extend([(w[0], pollq)])
+        handler = PollQueueHandler(self, worker_pollq_map, self._event_handlers)
         return handler
 
     def modules_init(self, modules):
@@ -233,7 +276,6 @@ class Controller(object):
         """
         self.init()
         # Polling task to poll for timer events
-        self._polling_task = PollingTask(self)
         # Seperate task for reporting as report state rpc is a 'call'
         self._reportstate_task = ReportStateTask(self)
 
@@ -244,6 +286,7 @@ class Controller(object):
         for idx, agent in enumerate(self._rpc_agents):
             launcher = oslo_service.launch(oslo_config.CONF, agent[0])
             self._rpc_agents[idx] = agent + (launcher,)
+        self._polling_task = PollingTask(self)
 
     def post_event(self, event):
         """API for NFP module to generate a new internal event.
@@ -258,7 +301,7 @@ class Controller(object):
                  "to worker %d"
                  % (event.identify(), event.worker_attached))
         evq = worker[1]
-        evq.put(event)
+        evq.send(event)
 
     def event_done(self, event):
         """API for NFP modules to mark an event complete.
@@ -370,6 +413,13 @@ def modules_import():
     sys.path = syspath
     return modules
 
+def sc_wait(sc):
+    #handling the process signal
+    sig_handle = SignalHandle(sc);
+    signal.signal(signal.SIGCHLD, sig_handle.signal_handler)
+
+    for w in sc._workers:
+            w[0].join()
 
 def main():
     oslo_config.CONF.register_opts(nfp_config.OPTS)
@@ -384,5 +434,6 @@ def main():
     sc = Controller(oslo_config.CONF, modules)
     sc.start()
     sc.init_complete()
-    # sc.unit_test()
+    sc.unit_test()
+    #sc_wait(sc)
     sc.wait()
