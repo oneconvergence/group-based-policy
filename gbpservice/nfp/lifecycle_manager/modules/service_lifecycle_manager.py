@@ -561,7 +561,7 @@ class ServiceLifeCycleHandler(object):
         try:
             network_function = self.db_handler.get_network_function(
                 self.db_session, network_function_id)
-            LOG.info(_("In get_network_function, returning: %(network_function)s"), {'network_function': network_function})
+            LOG.info(_("In get_network_function, returning: %(network_function)s"), {'network_function': network_function['status']})
             return network_function
         except Exception:
             LOG.exception(_("Error in get_network_function"))
