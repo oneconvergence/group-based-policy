@@ -12,6 +12,30 @@
 
 from oslo_config import cfg
 
+es_openstack_opts = [
+    cfg.StrOpt('auth_host',
+               default='localhost',
+               help='Openstack controller IP Address'),
+    cfg.StrOpt('admin_user',
+               help='Admin user name to create service VMs'),
+    cfg.StrOpt('admin_password',
+               help='Admin password to create service VMs'),
+    cfg.StrOpt('admin_tenant_name',
+               help='Admin tenant name to create service VMs'),
+    cfg.StrOpt('admin_tenant_id',
+               help='Admin tenant ID to create service VMs'),
+    cfg.StrOpt('auth_protocol',
+               default='http', help='Auth protocol used.'),
+    cfg.IntOpt('auth_port',
+               default='5000', help='Auth protocol used.'),
+    cfg.IntOpt('bind_port',
+               default='9696', help='Auth protocol used.'),
+    cfg.StrOpt('auth_version',
+               default='v2.0', help='Auth protocol used.'),
+    cfg.StrOpt('auth_uri',
+               default='', help='Auth URI.'),
+]
+
 OPTS = [
     cfg.IntOpt(
         'workers',

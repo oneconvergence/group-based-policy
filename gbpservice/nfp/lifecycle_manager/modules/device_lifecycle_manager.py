@@ -102,6 +102,10 @@ class RpcHandler(object):
             request_info = response.get('request_info')
             result = response.get('result')
 
+            if resource == 'healthmonitor':
+                LOG.info(_("healthmonitor not implemented yet, so ignoring for now."))
+                return None
+
             event_id = self.rpc_event_mapping[resource][0]
             if result != 'success':
                 event_id = self.rpc_event_mapping[resource][1]
@@ -122,9 +126,10 @@ class DeviceLifeCycleManager(object):
             "CREATE_NETWORK_FUNCTION_DEVICE": (
                 device_lifecycle_handler.create_network_function_device),
             "DEVICE_SPAWNING": device_lifecycle_handler.check_device_is_up,
-            "DEVICE_UP": device_lifecycle_handler.perform_health_check,
-            "DEVICE_HEALTHY": (
-                        device_lifecycle_handler.plug_interfaces),
+            #"DEVICE_UP": device_lifecycle_handler.perform_health_check,
+            #"DEVICE_HEALTHY": (
+            #            device_lifecycle_handler.plug_interfaces),
+            "DEVICE_UP": device_lifecycle_handler.plug_interfaces,
             "CONFIGURE_DEVICE": (
                         device_lifecycle_handler.create_device_configuration),
             "DEVICE_CONFIGURED": (
@@ -181,10 +186,14 @@ class DeviceLifeCycleHandler(object):
         self.gbpclient = openstack_driver.GBPClient()
         self.keystoneclient = openstack_driver.KeystoneClient()
 
-        self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
-        self.drivers = self.ext_mgr.drivers
-        #LOG.info(_("self.drivers = %s" % self.drivers))
+        #self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
+        #self.drivers = self.ext_mgr.drivers
 
+        from gbpservice.nfp.lifecycle_manager.drivers import vyos_lifecycle_driver
+        vyos_driver = vyos_lifecycle_driver.VyosLifeCycleDriver()
+
+        self.drivers = {'vyos': vyos_driver}
+        LOG.info(_("self.drivers = %s" % self.drivers))
         self.compute_driver = self._get_compute_driver(
             'compute')
 
@@ -419,6 +428,7 @@ class DeviceLifeCycleHandler(object):
 
             # Update newly created device with required params
             device = self._update_device_data(driver_device_info, device_data)
+            device['network_function_device_id'] = device['id']
             #device = self._update_device_data(device, device_data)
 
             self._create_network_function_device_db(device,
@@ -428,19 +438,21 @@ class DeviceLifeCycleHandler(object):
             #                   event_data=device)
 
             self._create_event(event_id='DEVICE_SPAWNING',
-                               event_data=device,
-                               is_poll_event=True,
-                               original_event=event,
-                               )
+                               event_data=device)
+                               #is_poll_event=True,
+                               #original_event=event,
+                               #)
 
     def check_device_is_up(self, event):
         device = event.data
+        print 'sleeping for 15 secs'
+        import time;time.sleep(15)
         lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         # TODO (ashu) return value from driver, this should be true/false
         is_device_up = (
             lifecycle_driver.get_network_function_device_status(device))
         if is_device_up == 'ACTIVE':
-            self._controller.poll_event_done(event)
+            #self._controller.poll_event_done(event)
 
             # create event DEVICE_UP
             self._create_event(event_id='DEVICE_UP',
@@ -448,7 +460,7 @@ class DeviceLifeCycleHandler(object):
             self._update_network_function_device_db(device,
                                                    'DEVICE_UP')
         elif is_device_up == 'ERROR':
-            self._controller.poll_event_done(event)
+            #self._controller.poll_event_done(event)
             # create event DEVICE_NOT_UP
 
             self._create_event(event_id='DEVICE_NOT_UP',
@@ -479,7 +491,8 @@ class DeviceLifeCycleHandler(object):
         
     def _prepare_device_data(self, device_info):
         network_function_id = device_info['network_function_id']
-        network_function_device_id = device_info['network_function_device_id']
+        #network_function_device_id = device_info['network_function_device_id']
+        network_function_device_id = device_info['id']
         network_function_instance_id = (
                                 device_info['network_function_instance_id'])
         #service_vendor = device_info['service_vendor']
@@ -535,6 +548,8 @@ class DeviceLifeCycleHandler(object):
             lifecycle_driver.get_network_function_device_config_info(device))
         self.configurator_rpc.create_network_function_device_config(
                                                     device, config_params)
+        import time; time.sleep(300)
+        self._create_event(event_id='DEVICE_CONFIGURED', event_data=device)
 
     def device_configuration_complete(self, event):
         device_info = event.data
@@ -742,22 +757,25 @@ class DLCMConfiguratorRpcApi(object):
     def _update_params(self, device_data, config_params):
         request_info = self._get_request_info(device_data)
         for config in config_params['config']:
-            config['kwargs'] = request_info
+            #config['kwargs'] = request_info
+            config['kwargs']['request_info'] = request_info
 
     def create_network_function_device_config(self, device_data,
                                               config_params):
         self._update_params(device_data, config_params)
+        LOG.info(_("create_network_function_device_config - config_params = %s" % config_params))
         return self.rpc_api.cast(
                     self.context,
                     'create_network_function_device_config',
-                    config_params=config_params
+                    request_data=config_params
                     )
 
     def delete_network_function_device_config(self, device_data,
                                               config_params):
         self._update_params(device_data, config_params)
+        LOG.info(_("delete_network_function_device_config - config_params = %s" % config_params))
         return self.rpc_api.cast(
                     self.context,
                     'delete_network_function_device_config',
-                    config_params=config_params
+                    request_data=config_params
                     )

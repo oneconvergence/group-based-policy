@@ -519,12 +519,13 @@ class HeatDriver():
                 self._append_firewall_rule(stack_template, provider_cidr,
                                            "0.0.0.0/0", fw_template_properties,
                                            consumer_ep['id'])
-
+        """ [RPM] Why firewall rules are deleted ?
         for rule_key in fw_rule_keys:
             del stack_template[resources_key][rule_key]
             stack_template[resources_key][fw_policy_key][
                 properties_key]['firewall_rules'].remove(
                     {'get_resource': rule_key})
+        """
 
         return stack_template
 
