@@ -6,7 +6,7 @@ from pecan import rest
 from pecan import set_config
 from pecan.testing import load_test_app
 
-from gbpservice.neutron.nsf.configurator.api.v1.controllers import controller
+from gbpservice.neutron.nfp.configurator.api.v1.controllers import controller
 
 
 
