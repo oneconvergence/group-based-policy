@@ -143,7 +143,7 @@ class FwGenericConfigDriver(object):
         return const.STATUS_SUCCESS
 
     def configure_routes(self, context, kwargs):
-        vm_mgmt_ip = kwargs.get('mgmt_ip')
+        vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
         source_cidrs = kwargs.get('source_cidrs')
         gateway_ip = kwargs.get('gateway_ip')
 
@@ -199,7 +199,7 @@ class FwGenericConfigDriver(object):
                     "Response Content: %r" % (resp.status_code, resp.content))
 
     def clear_routes(self, context, kwargs):
-        vm_mgmt_ip = kwargs.get('mgmt_ip')
+        vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
         source_cidrs = kwargs.get('source_cidrs')
 
         # REVISIT(VK): This was all along bad way, don't know why at all it

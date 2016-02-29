@@ -34,10 +34,14 @@ class Controller(rest.RestController):
             body = None
             if request.is_body_readable:
                 body = request.json_body
-            if self.module_name == "create_network_device_config":
-                return self._create_network_device_config(body)
-            elif self.module_name == "create_network_service_config":
-                return self._create_network_service_config(body)
+            if self.module_name == "create_network_function_device_config":
+                return self._create_network_function_device_config(body)
+            elif self.module_name == "create_network_function_config":
+                return self._create_network_function_config(body)
+            elif self.module_name == "delete_network_function_device_config":
+                return self._delete_network_function_device_config(body)
+            elif self.module_name == "delete_network_function_config":
+                return self._delete_network_function_config(body)
             else:
                 raise Exception('Invalid Request')
         except Exception as e:
@@ -50,14 +54,10 @@ class Controller(rest.RestController):
             if request.is_body_readable:
                 body = request.json_body
 
-            if self.module_name == "delete_network_device_config":
-                return self._delete_network_device_config(body)
-            elif self.module_name == "update_network_device_config":
-                return self._update_network_device_config(body)
-            elif self.module_name == "delete_network_service_config":
-                return self._delete_network_service_config(body)
-            elif self.module_name == "update_network_service_config":
-                return self._update_network_service_config(body)
+            if self.module_name == "update_network_function_device_config":
+                return self._update_network_function_device_config(body)
+            elif self.module_name == "update_network_function_config":
+                return self._update_network_function_config(body)
             else:
                 raise Exception('Invalid Request')
         except Exception as e:
@@ -70,51 +70,51 @@ class Controller(rest.RestController):
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
-    def _create_network_device_config(self, body):
-        request_data = body.get("request_data")
+    def _create_network_function_device_config(self, body):
+        request_data = body
         try:
             return json.dumps(
-                self.rpcclient.create_network_device_config(request_data))
+                self.rpcclient.create_network_function_device_config(request_data))
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
-    def _create_network_service_config(self, body):
-        request_data = body.get("request_data")
+    def _create_network_function_config(self, body):
+        request_data = body
         try:
             return json.dumps(
-                self.rpcclient.create_network_service_config(request_data))
+                self.rpcclient.create_network_function_config(request_data))
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
-    def _update_network_device_config(self, body):
-        request_data = body.get("request_data")
+    def _update_network_function_device_config(self, body):
+        request_data = body
         try:
             return json.dumps(
-                self.rpcclient.update_network_device_config(request_data))
+                self.rpcclient.update_network_function_device_config(request_data))
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
-    def _update_network_service_config(self, body):
-        request_data = body.get("request_data")
+    def _update_network_function_config(self, body):
+        request_data = body
         try:
             return json.dumps(
-                self.rpcclient.update_network_service_config(request_data))
+                self.rpcclient.update_network_function_config(request_data))
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
-    def _delete_network_device_config(self, body):
-        request_data = body.get("request_data")
+    def _delete_network_function_device_config(self, body):
+        request_data = body
         try:
             return json.dumps(
-                self.rpcclient.delete_network_device_config(request_data))
+                self.rpcclient.delete_network_function_device_config(request_data))
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
-    def _delete_network_service_config(self, body):
-        request_data = body.get("request_data")
+    def _delete_network_function_config(self, body):
+        request_data = body
         try:
             return json.dumps(
-                self.rpcclient.delete_network_service_config(request_data))
+                self.rpcclient.delete_network_function_config(request_data))
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
@@ -140,40 +140,40 @@ class RPCClient(object):
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self, 'get_notifications')
 
-    def create_network_device_config(self, request_data):
+    def create_network_function_device_config(self, request_data):
 
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(self, 'create_network_device_config',
+        return cctxt.cast(self, 'create_network_function_device_config',
                           request_data=request_data)
 
-    def create_network_service_config(self, request_data):
+    def create_network_function_config(self, request_data):
 
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(self, 'create_network_service_config',
+        return cctxt.cast(self, 'create_network_function_config',
                           request_data=request_data)
 
-    def update_network_device_config(self, request_data):
+    def update_network_function_device_config(self, request_data):
 
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(self, 'update_network_device_config',
+        return cctxt.cast(self, 'update_network_function_device_config',
                           request_data=request_data)
 
-    def update_network_service_config(self, request_data):
+    def update_network_function_config(self, request_data):
 
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(self, 'update_network_service_config',
+        return cctxt.cast(self, 'update_network_function_config',
                           request_data=request_data)
 
-    def delete_network_device_config(self, request_data):
+    def delete_network_function_device_config(self, request_data):
 
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(self, 'delete_network_device_config',
+        return cctxt.cast(self, 'delete_network_function_device_config',
                           request_data=request_data)
 
-    def delete_network_service_config(self, request_data):
+    def delete_network_function_config(self, request_data):
 
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.cast(self, 'delete_network_service_config',
+        return cctxt.cast(self, 'delete_network_function_config',
                           request_data=request_data)
 
     def to_dict(self):

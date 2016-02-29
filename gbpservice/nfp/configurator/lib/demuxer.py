@@ -61,11 +61,9 @@ class ConfiguratorDemuxer(object):
         """
 
         # Type checks
-        if (isinstance(request_data, dict) and
+        if not (isinstance(request_data, dict) and
                 isinstance(request_data['info'], dict) and
                 isinstance(request_data['config'], list)):
-            return True
-        else:
             return False
 
         # Validation for malformed request data
@@ -75,16 +73,14 @@ class ConfiguratorDemuxer(object):
                 request_data['info']['version'] and
                 (len(request_data['config']) > 0)):
             return False
-        else:
-            return True
 
         # Validation for malformed configuration
         for config in request_data['config']:
             if not (config['resource'] and
                     config['kwargs']):
                 return False
-            else:
-                return True
+
+        return True
 
     def get_service_type(self, request_data):
         """Retrieves service type from request data.
@@ -103,7 +99,7 @@ class ConfiguratorDemuxer(object):
 
         # Get service type based on the fact that for some request data
         # formats the 'type' key is absent. Check for invalid types
-        service_type = request_data['info'].get('type')
+        service_type = request_data['info'].get('service_type')
         if (service_type not in constants.supported_service_types):
             return constants.invalid_service_type
         elif not service_type:
@@ -161,9 +157,13 @@ class ConfiguratorDemuxer(object):
             if not data:
                 return None
 
-            sa_info.update({'kwargs': data})
-            sa_info.update({'context': sa_info['kwargs']['context']})
-            del sa_info['kwargs']['context']
+            context = config_data['kwargs']['context']
+            sa_info.update({'context': context})
+            del config_data['kwargs']['context']
+            if 'generic' in sa_info['service_type']: 
+            	sa_info.update({'kwargs': {'kwargs': data}})
+            else:
+		sa_info.update({'kwargs': data})
             sa_info_list.append(sa_info)
 
         return sa_info_list

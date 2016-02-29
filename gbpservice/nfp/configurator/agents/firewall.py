@@ -205,6 +205,7 @@ class FWaasEventHandler(object):
 
         elif ev.id == 'DELETE_FIREWALL':
             if not self._is_firewall_rule_exists(firewall):
+                LOG.info("No firewall rule to delete")
                 return self.plugin_rpc.firewall_deleted(context,
                                                         firewall['id'])
             try:

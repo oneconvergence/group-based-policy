@@ -121,6 +121,7 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            import time; time.sleep(180)
             self._send_request('create', request_data)
         except Exception as err:
             msg = ("Failed to create network device configuration. %s" %
