@@ -243,6 +243,8 @@ class PollQueueHandler(object):
         """Process different type of poll event. """
 
         log_debug(LOG, "Processing poll event %s" % (ev.identify()))
+        if ev.id == 'NOTIFICATION_EVENT':
+            return
         if ev.id == 'POLL_EVENT_DONE':
             return self._event_done(ev)
         copyev = copy.deepcopy(ev)
@@ -326,6 +328,13 @@ class PollQueueHandler(object):
         log_debug(LOG, "Number of elements in poll q - %d" % (qlen))
         pull = qlen if (idx + count) > qlen else count
         return cache[idx:(idx + pull)], pull
+
+    def get_notification_event(self):
+        copy = self._cache.copy()
+        for ev in copy:
+            if ev.id == 'NOTIFICATION_EVENT':
+                self._cache.remove([ev])
+                return ev
 
     def run(self):
         """Invoked in loop of periodic task to check for timedout events. """
