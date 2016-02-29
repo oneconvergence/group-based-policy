@@ -260,9 +260,9 @@ class Controller(object):
                     event.worker_attached = os.getpid()
                     worker = w
                     break
-        LOG.info(_("Scheduling internal event %s"
-                   "to worker %d"
-                   % (event.identify(), event.worker_attached)))
+        log_info(LOG, "Scheduling internal event %s"
+                 "to worker %d"
+                 % (event.identify(), event.worker_attached))
         evq = worker[1]
         evq.put(event)
 
@@ -344,6 +344,11 @@ class Controller(object):
                 log_info(LOG, "Module %s does not implement"
                          "init_complete() method - skipping"
                          % (identify(module)))
+
+    def get_notification(self):
+        event = self._pollhandler.get_notification_event()
+        if event:
+            return event.data
 
     def unit_test(self):
         for module in self._modules:
