@@ -38,7 +38,7 @@ class GcAgent(object):
         super(GcAgent, self).__init__()
 
     def _post(self, context, request_data):
-        for ele in request_data['request_data']['config']:
+        for ele in request_data['config']:
             ele['kwargs'].update({'context': context.to_dict()})
         try:
             resp, content = rc.post('create_network_function_device_config',
@@ -48,7 +48,7 @@ class GcAgent(object):
 .Reason %s "%(rce))
 
     def _delete(self, context, request_data):
-        for ele in request_data['request_data']['config']:
+        for ele in request_data['config']:
             ele['kwargs'].update({'context': context.to_dict()})
         try:
             resp, content = rc.post('delete_network_function_device_config',

@@ -33,7 +33,10 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
         if any(key not in device_data
                for key in ['service_vendor',
                            'mgmt_ip_address',
-                           'ports']):
+                           'ports',
+                           'service_type',
+                           'network_function_id',
+                           'tenant_id']):
             # TODO[RPM]: raise proper exception
             raise Exception('Not enough required data is received')
 
@@ -65,7 +68,7 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
                     LOG.error(_('Failed to get provider port details'
                                 ' for get device config info operation'))
                     return None
-            elif port['port_classification'] == 'comsumer':
+            elif port['port_classification'] == 'consumer':
                 try:
                     port_id = self._get_port_id(port, token)
                     (consumer_ip, consumer_mac,
@@ -85,29 +88,38 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
                 {
                     'resource': 'interfaces',
                     'kwargs': {
-                        'mgmt_ip': device_data['mgmt_ip_address'],
-                        'service_vendor': device_data['service_vendor'],
-                        'provider_ip': provider_ip,
-                        'provider_cidr': provider_cidr,
-                        'provider_interface_position': 2,
-                        'stitching_ip': consumer_ip,
-                        'stitching_cidr': consumer_cidr,
-                        'stitching_interface_position': 3,
-                        'provider_mac': provider_mac,
-                        'stitching_mac': consumer_mac
+                       'vm_mgmt_ip': device_data['mgmt_ip_address'],
+                       'service_vendor': device_data['service_vendor'],
+                       'provider_ip': provider_ip,
+                       'provider_cidr': provider_cidr,
+                       'provider_interface_position': 2,
+                       'stitching_ip': consumer_ip,
+                       'stitching_cidr': consumer_cidr,
+                       'stitching_interface_position': 3,
+                       'provider_mac': provider_mac,
+                       'stitching_mac': consumer_mac,
+                       'rule_info':{
+                           'active_provider_mac': provider_mac,
+                           'active_stitching_mac': consumer_mac,
+                           'active_fip': device_data['mgmt_ip_address'],
+                           'service_id': device_data['network_function_id'],
+                           'tenant_id': device_data['tenant_id']
+                        },
+                       'service_type': device_data['service_type'].lower()
                     }
                 },
                 {
                     'resource': 'routes',
                     'kwargs': {
-                        'mgmt_ip': device_data['mgmt_ip_address'],
+                        'vm_mgmt_ip': device_data['mgmt_ip_address'],
                         'service_vendor': device_data['service_vendor'],
                         'source_cidrs': ([provider_cidr, consumer_cidr]
                                          if consumer_cidr
                                          else [provider_cidr]),
                         'destination_cidr': consumer_cidr,
                         'gateway_ip': consumer_gateway_ip,
-                        'provider_interface_position': 2
+                        'provider_interface_position': 2,
+                        'service_type': device_data['service_type'].lower(),
                     }
                 }
             ]

@@ -48,4 +48,4 @@ def prepare_request_data(resource, kwargs, service_type):
         }]
     }
 
-    return {'request_data': request_data}
+    return request_data
