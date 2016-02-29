@@ -121,6 +121,9 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            # REVISIT: This is added during integration testing as health
+            # monitoring support is not provided. This needs to be removed
+            # once HM is added to configurator
             import time; time.sleep(180)
             self._send_request('create', request_data)
         except Exception as err:
