@@ -45,7 +45,7 @@ class AgentBaseRPCManager(object):
         if not self.validate_request(sa_info_list, notification_data):
             # TODO: Need to send failure notification
             return
-        print "sa_info_list -------------- %s" % sa_info_list[0]
+
         # Multiple request data blobs needs batch processing. Send batch
         # processing event or do direct processing of single request data blob
         if (len(sa_info_list) > 1):
@@ -56,6 +56,7 @@ class AgentBaseRPCManager(object):
             ev = self._sc.new_event(id='PROCESS_BATCH', data=args_dict)
             self._sc.post_event(ev)
         else:
+	    print "HELLOOOOOO"
             sa_info_list[0]['context'].update(
                             {'notification_data': notification_data})
             sa_info_list[0]['context'].update(
@@ -72,6 +73,10 @@ class AgentBaseEventHandler(object):
         self._rpcmgr = rpcmgr
         self.nqueue = nqueue
 
+    def _notification(self, data):
+	event = self._sc.new_event(id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
+	self._sc.poll_event(event)
+
     def process_batch(self, ev):
 	LOG.info("MAIN ENETERING PROCESS BATCH")
         """Processes a request with multiple data blobs.
@@ -86,12 +91,13 @@ class AgentBaseEventHandler(object):
         corresponding event data to be processed.
 
         """
-        print "data ========== \n%s" % ev.data
+
         try:
             # Get service agent information list and notification data list
             # from the event data
             sa_info_list = ev.data.get('sa_info_list')
             notification_data = ev.data.get('notification_data')
+	    LOG.info("AAAAAA %r" % sa_info_list)
 
             # Process the first data blob from the service information list.
             # Get necessary parameters needed for driver method invocation.
@@ -99,9 +105,9 @@ class AgentBaseEventHandler(object):
             resource = sa_info_list[0]['resource']
             kwargs = sa_info_list[0]['kwargs']
 	    LOG.info("KKKKKKKKKKKKKKKKK %r" % kwargs)
-            request_info = kwargs['kwargs']['request_info']
+            request_info = kwargs.get('kwargs')['request_info']
 	    LOG.info("KKKKKKKKKKKKKKKKK %r" % request_info)
-            del kwargs['kwargs']['request_info']
+            del kwargs.get('kwargs')['request_info']
             context = sa_info_list[0]['context']
 	    LOG.info("BEFRE GOT DRIVER OBJ")
             service_type = kwargs.get('kwargs').get('service_type')
@@ -113,7 +119,8 @@ class AgentBaseEventHandler(object):
             # Service driver should return "success" on successful API
             # processing. All other return values and exceptions are treated
             # as failures.
-            result = getattr(driver, method)(context, **kwargs)
+            #result = getattr(driver, method)(context, **kwargs)
+            result = "DEEPAK"
 	    if result == 'SUCCESS':
                 success = True
 	    else:
@@ -169,7 +176,8 @@ class AgentBaseEventHandler(object):
             self._rpcmgr.forward_request(sa_info_list, notification_data)
 	    LOG.info("AFTER  FWD RQST %r" % sa_info_list,)
         else:
-            self.nqueue.put(notification_data)
+            self._notification(notification_data)
+	    LOG.info("QUEUE obj ID %r" % (self.nqueue))
             raise Exception(msg)
 
 
