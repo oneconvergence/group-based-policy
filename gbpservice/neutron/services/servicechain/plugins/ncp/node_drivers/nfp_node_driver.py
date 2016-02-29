@@ -38,10 +38,6 @@ from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 
 
 NFP_NODE_DRIVER_OPTS = [
-    cfg.StrOpt('svc_management_ptg_name',
-               default='svc_management_ptg',
-               help=_("Name of the PTG that is associated with the "
-                      "service management network")),
     cfg.BoolOpt('is_service_admin_owned',
                 help=_("Parameter to indicate whether the Service VM has to "
                        "be owned by the Admin"),
@@ -57,8 +53,6 @@ NFP_NODE_DRIVER_OPTS = [
 ]
 
 cfg.CONF.register_opts(NFP_NODE_DRIVER_OPTS, "nfp_node_driver")
-
-SVC_MGMT_PTG_NAME = cfg.CONF.nfp_node_driver.svc_management_ptg_name
 
 
 LOG = logging.getLogger(__name__)
@@ -185,7 +179,10 @@ class NFPClientApi(object):
     def consumer_ptg_added_notification(self, context, network_function_id,
                                         policy_target_group):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
-        cctxt.cast(context, 'consumer_ptg_added_notification', network_function_id=network_function_id, policy_target_group=policy_target_group)
+        cctxt.cast(context,
+                   'consumer_ptg_added_notification',
+                   network_function_id=network_function_id,
+                   policy_target_group=policy_target_group)
         '''
         return cctxt.call(
             context,
@@ -197,7 +194,10 @@ class NFPClientApi(object):
     def consumer_ptg_removed_notification(self, context, network_function_id,
                                           policy_target_group):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
-        cctxt.cast(context, 'consumer_ptg_removed_notification', network_function_id=network_function_id, policy_target_group=policy_target_group)
+        cctxt.cast(context,
+                   'consumer_ptg_removed_notification',
+                   network_function_id=network_function_id,
+                   policy_target_group=policy_target_group)
         '''
         return cctxt.call(
             context,
@@ -209,7 +209,10 @@ class NFPClientApi(object):
     def policy_target_added_notification(self, context, network_function_id,
                                          policy_target):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
-        cctxt.cast(context, 'policy_target_added_notification', network_function_id=network_function_id, policy_target=policy_target)
+        cctxt.cast(context,
+                   'policy_target_added_notification',
+                   network_function_id=network_function_id,
+                   policy_target=policy_target)
         '''
         return cctxt.call(
             context,
@@ -221,7 +224,10 @@ class NFPClientApi(object):
     def policy_target_removed_notification(self, context, network_function_id,
                                            policy_target):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
-        cctxt.cast(context, 'policy_target_removed_notification', network_function_id=network_function_id, policy_target=policy_target)
+        cctxt.cast(context,
+                   'policy_target_removed_notification',
+                   network_function_id=network_function_id,
+                   policy_target=policy_target)
         '''
         return cctxt.call(
             context,
@@ -474,12 +480,12 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         while time_waited < cfg.CONF.nfp_node_driver.service_create_timeout:
             network_function = self.nfp_notifier.get_network_function(
                 context.plugin_context, network_function_id)
-	    if not network_function:
-		LOG.error(_("Failed to retrieve network function"))
-	        eventlet.sleep(5)
-		continue
-	    else:
-		LOG.info(_("Create network function result: %(network_function)s"), {'network_function': network_function})
+            if not network_function:
+                LOG.error(_("Failed to retrieve network function"))
+                eventlet.sleep(5)
+                continue
+            else:
+                LOG.info(_("Create network function result: %(network_function)s"), {'network_function': network_function})
             if (network_function['status'] == 'ACTIVE' or
                 network_function['status'] == 'ERROR'):
                 break
@@ -534,18 +540,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 LOG.info(_("No action to take on update"))
                 return
         self.nfp_notifier.update_service_config()
-
-    def _get_management_ptg_id(self, context):
-        # REVISIT(Magesh): Retrieving management PTG by name will not be
-        # required when the service_ptg patch is merged
-        filters = {'name': [SVC_MGMT_PTG_NAME]}
-        svc_mgmt_ptgs = context.gbp_plugin.get_policy_target_groups(
-            context.plugin_context, filters)
-        if not svc_mgmt_ptgs:
-            LOG.error(_("Service Management Group is not created by Admin"))
-            raise Exception()
-        else:
-            return svc_mgmt_ptgs[0]['id']
 
     def _get_service_target_from_relations(self, context, relationship):
         LOG.debug("Relation: %s instance_id: %s node_id: %s tenant_id: %s"
@@ -640,8 +634,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             for provider_port in service_targets['provider_ports']:
                 provider_port['allowed_address_pairs'] = [
                     {'ip_address': vip_ip}]
-                port = {}
-                port['port'] = provider_port
+                port = {
+                    'port': provider_port
+                }
                 context.core_plugin.update_port(
                     context.plugin_context, provider_port['id'], port)
 
@@ -650,7 +645,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             'service_chain_id': sc_instance['id'],
             'service_id': context.current_node['id'],
             'service_profile_id': context.current_profile['id'],
-            'management_ptg_id': self._get_management_ptg_id(context),
+            'management_ptg_id': sc_instance['management_ptg_id'],
             'service_config': context.current_node.get('config'),
             'provider_port_id': service_targets['provider_pts'][0],
             'network_function_mode': 'GBP',
