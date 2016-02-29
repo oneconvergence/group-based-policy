@@ -155,6 +155,7 @@ class ConfiguratorDemuxer(object):
                     return None
 
             sa_info.update({'method': method})
+            sa_info.update({'resource': config_data['resource']})
 
             data = config_data['kwargs']
             if not data:

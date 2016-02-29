@@ -17,13 +17,15 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging as messaging
 
-from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core import poll
-from gbpservice.neutron.nsf.core.poll import PollEventDesc
-from gbpservice.neutron.nsf.core.rpc import RpcAgent
+from gbpservice.nfp.core import main as nfp_main
+from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import rpc as nfp_rpc
 
 
 LOG = logging.getLogger(__name__)
+Event = nfp_main.Event
+PollEventDesc = nfp_poll.PollEventDesc
+RpcAgent = nfp_rpc.RpcAgent
 
 VISIBILITY_RPC_TOPIC = "visiblity_topic"
 
@@ -58,9 +60,8 @@ def unit_test(conf, sc):
 
 
 def test_service_create(conf, sc):
-    '''
-    Write the unit test logic here
-    '''
+    """Write the unit test logic here
+    """
     service1 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216271a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a1b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e2161c',
@@ -159,9 +160,8 @@ class Agent(PollEventDesc):
             self._handle_dummy_event(ev)
 
     def _handle_create_event(self, ev):
-        '''
-        Driver logic here.
-        '''
+        """Driver logic here.
+        """
         self._sc.event_done(ev)
         self._sc.poll_event(ev)
 
@@ -169,25 +169,20 @@ class Agent(PollEventDesc):
         self._sc.poll_event(ev, max_times=2)
 
     def _handle_delete_event(self, ev):
-        '''
-        Driver logic here.
-        '''
+        """Driver logic here.
+        """
         self._sc.event_done(ev)
         self._sc.poll_event_done(ev)
 
-    @poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
+    @nfp_poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
         LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Decorator Poll event (%s:%s)" % (ev.id, ev.key)
 
-    @poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=10)
+    @nfp_poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=10)
     def service_dummy_poll_event(self, ev):
         LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Decorator Poll event (%s:%s)" % (ev.id, ev.key)
 
     def _handle_poll_event(self, ev):
-        '''
-        Driver logic here
-        '''
+        """Driver logic here
+        """
         LOG.debug("Poll event (%s)" % (str(ev)))
-        print "Poll event %s" % (ev.key)
