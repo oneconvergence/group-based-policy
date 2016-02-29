@@ -54,6 +54,7 @@ class Fifo(object):
             raise Queue.Full()
 
     def _pop(self, out):
+        self._is_empty()
         out.append(self._q.popleft())
         return out
 
@@ -75,11 +76,18 @@ class Fifo(object):
         msgs = []
         try:
             self._sc.lock()
-            self._is_empty()
-            for i in range(0, limit):
+            while True:
                 msgs = self._pop(msgs)
         except Queue.Empty:
             pass
+
+        except Exception as e:
+            import sys
+            import traceback
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print traceback.format_exception(exc_type,
+                                             exc_value, exc_traceback)
+
         finally:
             self._sc.unlock()
             return msgs
