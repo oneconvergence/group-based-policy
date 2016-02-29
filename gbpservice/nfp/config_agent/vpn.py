@@ -42,14 +42,14 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             self._core_plugin = manager.NeutronManager.get_plugin()
             return self._core_plugin
 
-    @property 
-    def l3_plugin(self): 
-        try: 
-            return self._l3_plugin 
-        except AttributeError: 
-            self._l3_plugin = manager.NeutronManager.get_service_plugins().get( 
-                constants.L3_ROUTER_NAT) 
-            return self._l3_plugin 
+    @property
+    def l3_plugin(self):
+        try:
+            return self._l3_plugin
+        except AttributeError:
+            self._l3_plugin = manager.NeutronManager.get_service_plugins().get(
+                constants.L3_ROUTER_NAT)
+            return self._l3_plugin
 
     def _eval_rest_calls(self, reason, body):
         if reason == 'update':
@@ -72,8 +72,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         try:
             resp, content = self._eval_rest_calls(reason, body)
         except rc.RestClientException as rce:
-            LOG.error("vpnservice_updated -> request failed.Reason %s"%(
-            rce))
+            LOG.error("vpnservice_updated -> request failed.Reason %s" % (
+                rce))
 
     def _context(self, context, tenant_id):
         if context.is_admin:
