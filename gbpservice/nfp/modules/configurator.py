@@ -121,13 +121,8 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            print "sleeping for 180secs. check IP on VM"
-            import time; time.sleep(180)
             self._send_request('create', request_data)
         except Exception as err:
-            import sys, traceback
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            print traceback.format_exception(exc_type, exc_value, exc_traceback)
             msg = ("Failed to create network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
@@ -150,9 +145,6 @@ class ConfiguratorRpcManager(object):
         try:
             self._send_request('delete', request_data)
         except Exception as err:
-            import sys, traceback
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            print traceback.format_exception(exc_type, exc_value, exc_traceback)
             msg = ("Failed to delete network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
@@ -175,9 +167,6 @@ class ConfiguratorRpcManager(object):
         try:
             self._send_request('update', request_data)
         except Exception as err:
-            import sys, traceback
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            print traceback.format_exception(exc_type, exc_value, exc_traceback)
             msg = ("Failed to update network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
@@ -200,9 +189,6 @@ class ConfiguratorRpcManager(object):
         try:
             self._send_request('create', request_data)
         except Exception as err:
-            import sys, traceback
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            print traceback.format_exception(exc_type, exc_value, exc_traceback)
             msg = ("Failed to create network service configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
@@ -225,9 +211,6 @@ class ConfiguratorRpcManager(object):
         try:
             self._send_request('delete', request_data)
         except Exception as err:
-            import sys, traceback
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            print traceback.format_exception(exc_type, exc_value, exc_traceback)
             msg = ("Failed to delete network service configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
@@ -266,7 +249,10 @@ class ConfiguratorRpcManager(object):
 
         """
 
-        return self.cm.nqueue.get()
+        #notifications =  self.cm.nqueue.get()
+	notifications = self.sc.get_notification()
+	LOG.info("TTTTTTTTTTTTTTTTTT %r and QUEUE ID %r" % (notifications, self.cm.nqueue))
+	return notifications
 
 """Implements configurator module APIs.
 
