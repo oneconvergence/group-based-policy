@@ -491,8 +491,8 @@ class DeviceLifeCycleHandler(object):
         
     def _prepare_device_data(self, device_info):
         network_function_id = device_info['network_function_id']
-        #network_function_device_id = device_info['network_function_device_id']
-        network_function_device_id = device_info['id']
+        network_function_device_id = device_info['network_function_device_id']
+        #network_function_device_id = device_info['id']
         network_function_instance_id = (
                                 device_info['network_function_instance_id'])
         #service_vendor = device_info['service_vendor']
@@ -548,8 +548,6 @@ class DeviceLifeCycleHandler(object):
             lifecycle_driver.get_network_function_device_config_info(device))
         self.configurator_rpc.create_network_function_device_config(
                                                     device, config_params)
-        import time; time.sleep(300)
-        self._create_event(event_id='DEVICE_CONFIGURED', event_data=device)
 
     def device_configuration_complete(self, event):
         device_info = event.data
