@@ -45,7 +45,7 @@ class GcAgent(object):
                                     body=request_data)
         except rc.RestClientException as rce:
             LOG.error("create_network_function_device_config -> request failed\
-.Reason %s "%(rce))
+.Reason %s " % (rce))
 
     def _delete(self, context, request_data):
         for ele in request_data['config']:
@@ -56,7 +56,7 @@ class GcAgent(object):
         except rc.RestClientException as rce:
             LOG.error(
                 "delete_network_function_device_config -> request failed\
-.Reason %s "%(rce))
+.Reason %s " % (rce))
 
     def create_network_function_device_config(self, context, request_data):
         self._post(context, request_data)

@@ -69,7 +69,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
             resp, content = rc.post(
                 'create_network_function_config', body=body)
         except rc.RestClientException as rce:
-            LOG.error("create_firewall -> POST request failed.Reason: %s"%(
+            LOG.error("create_firewall -> POST request failed.Reason: %s" % (
                 rce))
 
     def delete_firewall(self, context, firewall, host):
@@ -83,7 +83,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
             resp, content = rc.post('delete_network_function_config',
                                     body=body, delete=True)
         except rc.RestClientException as rce:
-            LOG.error("delete_firewall -> DELETE request failed.Reason: %s"%(
+            LOG.error("delete_firewall -> DELETE request failed.Reason: %s" % (
                 rce))
 
     def _context(self, context, tenant_id):

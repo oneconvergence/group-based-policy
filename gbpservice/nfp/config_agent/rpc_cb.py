@@ -47,11 +47,11 @@ class RpcCallback(core_pt.PollEventDesc):
 
     @core_pt.poll_event_desc(event='PULL_RPC_NOTIFICATIONS', spacing=1)
     def rpc_pull_event(self, ev):
-        try :
+        try:
             resp, rpc_cbs_data = rc.get('get_notifications')
-            rpc_cbs_data = json.loads(rpc_cbs_data) 
+            rpc_cbs_data = json.loads(rpc_cbs_data)
             '''
-            {response_data : [
+            response_data = {[
                 {'receiver': <neutron/orchestrator>,
                  'resource': <firewall/vpn/loadbalancer/generic>,
                  'method': <notification method name>,
@@ -59,10 +59,10 @@ class RpcCallback(core_pt.PollEventDesc):
             },
             ]}
             '''
-            if not rpc_cbs_data :
+            if not rpc_cbs_data:
                 LOG.info("get_notification -> GET request: Empty")
-            else :
-                rpc_cbs = rpc_cbs_data['response_data']
+            else:
+                rpc_cbs = rpc_cbs_data
                 for rpc_cb in rpc_cbs:
                     try:
                         self._method_handler(rpc_cb)
@@ -73,5 +73,5 @@ class RpcCallback(core_pt.PollEventDesc):
                         LOG.error("Generic exception (%s) \
                             while handling message (%s)" % (e, rpc_cb))
         except rc.RestClientException as rce:
-            LOG.error("get_notification -> GET request failed. Reason : %s"%(
+            LOG.error("get_notification -> GET request failed. Reason : %s" % (
                 rce))

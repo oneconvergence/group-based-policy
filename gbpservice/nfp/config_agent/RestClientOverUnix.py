@@ -21,8 +21,10 @@ from gbpservice.nfp.config_agent.common import *
 
 LOG = logging.getLogger(__name__)
 
+
 class RestClientException(exceptions.Exception):
     """ RestClient Exception """
+
 
 class UnixHTTPConnection(httplib.HTTPConnection):
 
@@ -48,7 +50,7 @@ class UnixHTTPConnection(httplib.HTTPConnection):
 class UnixRestClient():
 
     def _http_request(self, url, method_type, headers=None, body=None):
-        try :
+        try:
             h = httplib2.Http()
             resp, content = h.request(
                 url,
@@ -62,7 +64,7 @@ class UnixRestClient():
             raise RestClientException("Server Not Found")
 
         except exceptions.Exception as e:
-            raise RestClientException("httplib response error %s" %(e))
+            raise RestClientException("httplib response error %s" % (e))
 
     def send_request(self, path, method_type, request_method='http',
                      server_addr='127.0.0.1',
@@ -78,7 +80,7 @@ class UnixRestClient():
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
-        except RestClientException as rce :
+        except RestClientException as rce:
             raise rce
 
         success_code = [200, 201, 202, 204]
@@ -92,12 +94,12 @@ class UnixRestClient():
             raise RestClientException("HTTPForbidden: %s" % resp.reason)
         elif resp.status == 404:
             raise RestClientException("HttpNotFound: %s" % resp.reason)
-        elif resp_code.status == 405:
+        elif resp.status == 405:
             raise RestClientException(
                 "HTTPMethodNotAllowed: %s" % resp.reason)
-        elif resp_code.status == 406:
+        elif resp.status == 406:
             raise RestClientException("HTTPNotAcceptable: %s" % resp.reason)
-        elif resp_code.status == 408:
+        elif resp.status == 408:
             raise RestClientException("HTTPRequestTimeout: %s" % resp.reason)
         elif resp.status == 409:
             raise RestClientException("HTTPConflict: %s" % resp.reason)
