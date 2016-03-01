@@ -358,12 +358,21 @@ class LifeCycleDriverBase(object):
 
         try:
             for port in device_data['ports']:
-                port_id = self._get_port_id(port, token)
-                self.compute_handler_nova.attach_interface(
-                            token,
-                            device_data['tenant_id'],
-                            device_data['id'],
-                            port_id)
+                if port['port_classification'].lower() == 'provider':
+                    port_id = self._get_port_id(port, token)
+                    self.compute_handler_nova.attach_interface(
+                                token,
+                                device_data['tenant_id'],
+                                device_data['id'],
+                                port_id)
+            for port in device_data['ports']:
+                if port['port_classification'].lower() == 'consumer':
+                    port_id = self._get_port_id(port, token)
+                    self.compute_handler_nova.attach_interface(
+                                token,
+                                device_data['tenant_id'],
+                                device_data['id'],
+                                port_id)
         except Exception:
             LOG.error(_('Failed to plug interface(s) to the device'))
             return False  # TODO[RPM]: should we raise an Exception here?
