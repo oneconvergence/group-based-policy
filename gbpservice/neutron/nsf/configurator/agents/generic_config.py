@@ -6,9 +6,16 @@ from oslo_log import log as logging
 from gbpservice.neutron.nsf.core import main
 import os
 from gbpservice.neutron.nsf.configurator.lib import utils
+from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
 
 LOG = logging.getLogger(__name__)
 
+SUCCESS = 'SUCCESS'
+FAILED = 'FAILED'
+MAX_FAIL_COUNT = 5
+INITIAL = 'initial'
+FOREVER = 'forever'
+INITIAL_HM_RETRIES = 12  # 5 secs delay * 12 = 120 secs
 
 """Implements APIs invoked by configurator for processing RPC messages.
 
@@ -98,6 +105,39 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
         ev = self._sc.event(id='CLEAR_ROUTES', data=arg_dict)
         self._sc.rpc_event(ev)
 
+    def configure_healthmonitor(self, context, kwargs):
+        """Enqueues event for worker to process configure healthmonitor request.
+
+        :param context: RPC context
+        :param kwargs: RPC Request data
+
+        Returns: None
+
+        """
+        kwargs['fail_count'] = 0
+        arg_dict = {'context': context,
+                    'kwargs': kwargs}
+        ev = self._sc.event(id=const.EVENT_CONFIGURE_HEALTHMONITOR,
+                            data=arg_dict, key=kwargs['vmid'])
+        self._sc.rpc_event(ev)
+
+    def clear_healthmonitor(self, context, kwargs):
+        """Enqueues event for worker to process clear healthmonitor request.
+
+        :param context: RPC context
+        :param kwargs: RPC Request data
+
+        Returns: None
+
+        """
+
+        arg_dict = {'context': context,
+                    'kwargs': kwargs}
+        ev = self._sc.event(id=const.EVENT_CLEAR_HEALTHMONITOR,
+                            data=arg_dict, key=kwargs['vmid'])
+        self._sc.rpc_event(ev)
+
+
 """Implements event handlers and their helper methods.
 
 Object of this class is registered with the event class of core service
@@ -107,7 +147,8 @@ invoked by core service controller.
 """
 
 
-class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
+class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
+                                core_periodic_task.PeriodicTasks):
     def __init__(self, sc, drivers, rpcmgr, nqueue):
         super(GenericConfigEventHandler, self).__init__(
                                         sc, drivers, rpcmgr, nqueue)
@@ -136,23 +177,37 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
         - Clear Interfaces
         - Configure routes
         - Clear routes
+        - Configure health monitor
+        - Clear health monitor
         Enqueues responses into notification queue.
 
         Returns: None
 
         """
 
-        # Process batch of request data blobs
         try:
-            if ev.id == 'PROCESS_BATCH':
+            # Process batch of request data blobs
+            if ev.id == const.EVENT_PROCESS_BATCH:
                 self.process_batch(ev)
                 return
+            # Process HM poll events
+            elif ev.id == const.EVENT_CONFIGURE_HEALTHMONITOR:
+                kwargs = ev.data.get('kwargs')
+                periodicity = kwargs.get('periodicity')
+                if periodicity == INITIAL:
+                    self._sc.poll_event(ev, max_times=INITIAL_HM_RETRIES)
+                elif periodicity == FOREVER:
+                    self._sc.poll_event(ev)
+                return
+            else:
+                self._process_event(ev)
         except Exception as err:
-            msg = ("Failed to process data batch. %s" %
-                   str(err).capitalize())
+            msg = ("Failed to process event %s, reason %s " % (ev.data, err))
             LOG.error(msg)
             return
 
+    def _process_event(self, ev):
+        LOG.info(" Handling event %s " % (ev.data))
         # Process single request data blob
         kwargs = ev.data.get('kwargs')
         context = ev.data.get('context')
@@ -172,26 +227,84 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
             LOG.debug(msg)
 
             driver = self._get_driver(service_type)
-
             # Invoke service driver methods based on event type received
-            result = getattr(driver, "%s" % ev.id)(context, kwargs)
+            result = getattr(driver, "%s" % ev.id.lower())(context, kwargs)
         except Exception as err:
             result = ("Failed to process %s request for %s service type. %s" %
                       (ev.id, service_type, str(err).capitalize()))
             LOG.error(result)
-        finally:
-            msg = {'receiver': const.ORCHESTRATOR,
-                   'resource': service_type,
-                   'method': ev.id,
-                   'kwargs': [{'context': context, 'result': result}]
-                   }
-            if not notification_data:
-                notification_data.update(msg)
-            else:
-                data = {'context': context,
-                        'result': result}
-                notification_data['kwargs'].extend(data)
+
+        notification_data = self._prepare_notification_data(service_type,
+                                                            ev.id, context,
+                                                            result,
+                                                            notification_data)
+        if ev.id == const.EVENT_CONFIGURE_HEALTHMONITOR:
+            if (kwargs.get('periodicity') == INITIAL and
+                    result == SUCCESS):
+                    LOG.info("Even handling done successfully %s "
+                             "sending notification_data=%s " % (
+                                                            ev.data,
+                                                            notification_data))
+                    self._sc.poll_event_done(ev)
+                    self.nqueue.put(notification_data)
+            elif kwargs.get('periodicity') == FOREVER:
+                    if result == FAILED:
+                        # If health monitoring fails continuously for 5 times
+                        # send fail notification to orchestrator
+                        kwargs['fail_count'] = kwargs.get('fail_count') + 1
+                        if kwargs.get('fail_count') >= MAX_FAIL_COUNT:
+                            self._sc.poll_event_done(ev)
+                            self.nqueue.put(notification_data)
+                    elif result == SUCCESS:
+                        # set fail_count to 0 if it had failed earlier even
+                        # once
+                        kwargs['fail_count'] = 0
+        elif ev.id == const.EVENT_CLEAR_HEALTHMONITOR:
+            # Stop current poll event. event.key is vmid which will stop
+            # that particular service vm's health monitor
+            self._sc.poll_event_done(ev)
             self.nqueue.put(notification_data)
+        # For other events, irrespective of result send notification
+        else:
+            LOG.info("Even handling done successfully %s "
+                     "Sending notification_data=%s" % (ev.data,
+                                                       notification_data))
+            self.nqueue.put(notification_data)
+
+    def _prepare_notification_data(self, service_type, method, context, result,
+                                   notification_data):
+        msg = {'receiver': const.ORCHESTRATOR,
+               'resource': service_type,
+               'method': method,
+               'kwargs': [{'context': context, 'result': result}]
+               }
+        if not notification_data:
+            notification_data.update(msg)
+        else:
+            data = {'context': context,
+                    'result': result}
+            notification_data['kwargs'].extend(data)
+        return notification_data
+
+    def poll_event_cancel(self, ev):
+        LOG.error('Health monitoring failed for event %s ' % (ev.data))
+        kwargs = ev.data.get('kwargs')
+        context = ev.data.get('context')
+        service_type = kwargs.get('service_type')
+        notification_data = context.get('notification_data')
+        del context['notification_data']
+        result = FAILED
+        notification_data = self._prepare_notification_data(
+                                                        service_type,
+                                                        ev.id, context,
+                                                        result,
+                                                        notification_data)
+        self.nqueue.put(notification_data)
+
+    @core_periodic_task.periodic_task(event=const.EVENT_CONFIGURE_HEALTHMONITOR,
+                                      spacing=5)
+    def handle_configure_healthmonitor(self, ev):
+        self._process_event(ev)
 
 
 def events_init(sc, drivers, rpcmgr, nqueue):
@@ -209,19 +322,25 @@ def events_init(sc, drivers, rpcmgr, nqueue):
     """
 
     evs = [
-        main.Event(id='CONFIGURE_INTERFACES',
+        main.Event(id=const.EVENT_CONFIGURE_INTERFACES,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue)),
-        main.Event(id='CLEAR_INTERFACES',
+        main.Event(id=const.EVENT_CLEAR_INTERFACES,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue)),
-        main.Event(id='CONFIGURE_ROUTES',
+        main.Event(id=const.EVENT_CONFIGURE_ROUTES,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue)),
-        main.Event(id='CLEAR_ROUTES',
+        main.Event(id=const.EVENT_CLEAR_ROUTES,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue)),
-        main.Event(id='PROCESS_BATCH',
+        main.Event(id=const.EVENT_CONFIGURE_HEALTHMONITOR,
+                   handler=GenericConfigEventHandler(
+                                        sc, drivers, rpcmgr, nqueue)),
+        main.Event(id=const.EVENT_CLEAR_HEALTHMONITOR,
+                   handler=GenericConfigEventHandler(
+                                        sc, drivers, rpcmgr, nqueue)),
+        main.Event(id=const.EVENT_PROCESS_BATCH,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr, nqueue))
     ]
