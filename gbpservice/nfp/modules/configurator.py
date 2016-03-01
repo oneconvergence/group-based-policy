@@ -1,12 +1,12 @@
 
-from gbpservice.neutron.nsf.configurator.lib import constants
-from gbpservice.neutron.nsf.configurator.lib import demuxer
-from gbpservice.neutron.nsf.core import main
+from gbpservice.nfp.configurator.lib import constants
+from gbpservice.nfp.configurator.lib import demuxer
 from oslo_log import log
-from gbpservice.neutron.nsf.core import queue
-from gbpservice.neutron.nsf.configurator.lib import utils
+from gbpservice.nfp.core import rpc
+from gbpservice.nfp.core import fifo as queue
+from gbpservice.nfp.configurator.lib import utils
 
-AGENTS_PKG = 'gbpservice.neutron.nsf.configurator.agents'
+AGENTS_PKG = 'gbpservice.nfp.configurator.agents'
 CONFIGURATOR_RPC_TOPIC = 'configurator'
 LOG = log.getLogger(__name__)
 
@@ -121,6 +121,10 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            # REVISIT: This is added during integration testing as health
+            # monitoring support is not provided. This needs to be removed
+            # once HM is added to configurator
+            import time; time.sleep(180)
             self._send_request('create', request_data)
         except Exception as err:
             msg = ("Failed to create network device configuration. %s" %
@@ -264,7 +268,7 @@ class ConfiguratorModule(object):
     def __init__(self, sc):
         self.service_agent_instances = {}
         self.imported_service_agents = []
-        self.nqueue = queue.Queue(sc)
+        self.nqueue = queue.Fifo(sc)
 
     def register_service_agent(self, service_type, service_agent):
         """Stores service agent object.
@@ -350,7 +354,7 @@ def init_rpc(sc, cm, conf, demuxer):
 
     # Initializes RPC client
     rpc_mgr = ConfiguratorRpcManager(sc, cm, conf, demuxer)
-    configurator_agent = main.RpcAgent(sc,
+    configurator_agent = rpc.RpcAgent(sc,
                                        topic=CONFIGURATOR_RPC_TOPIC,
                                        manager=rpc_mgr)
 

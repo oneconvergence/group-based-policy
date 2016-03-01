@@ -1,5 +1,5 @@
 
-from gbpservice.neutron.nsf.configurator.lib import (
+from gbpservice.nfp.configurator.lib import (
                             generic_config_constants as const)
 
 """Implements base class for all service agents.
@@ -51,8 +51,8 @@ class AgentBaseRPCManager(object):
                          'sa_info_list': sa_info_list,
                          'notification_data': notification_data
                         }
-            ev = self._sc.event(id='PROCESS_BATCH', data=args_dict)
-            self._sc.rpc_event(ev)
+            ev = self._sc.new_event(id='PROCESS_BATCH', data=args_dict)
+            self._sc.post_event(ev)
         else:
             sa_info_list[0]['context'].update(
                             {'notification_data': notification_data})
@@ -95,8 +95,8 @@ class AgentBaseEventHandler(object):
             method = sa_info_list[0]['method']
             resource = sa_info_list[0]['resource']
             kwargs = sa_info_list[0]['kwargs']
-            request_info = kwargs['request_info']
-            del kwargs['request_info']
+            request_info = kwargs['kwargs']['request_info']
+            del kwargs['kwargs']['request_info']
             context = sa_info_list[0]['context']
             service_type = kwargs.get('kwargs').get('service_type')
 
@@ -107,10 +107,13 @@ class AgentBaseEventHandler(object):
             # processing. All other return values and exceptions are treated
             # as failures.
             result = getattr(driver, method)(context, **kwargs)
-            success = True
+            if result == 'SUCCESS':
+                success = True
+            else:
+                success = False
         except Exception as err:
-            result = ("Failed to process %s request for %s service type. %s" %
-                      (method, service_type, str(err).capitalize()))
+            result = ("Failed to process %s request. %s" %
+                      (method, str(err).capitalize()))
 
             success = False
         finally:
@@ -156,7 +159,7 @@ class AgentBaseEventHandler(object):
             self._rpcmgr.forward_request(sa_info_list, notification_data)
         else:
             self.nqueue.put(notification_data)
-            raise Exception(err)
+            raise Exception(msg)
 
 
 def init_agent_complete(cm, sc, conf):
