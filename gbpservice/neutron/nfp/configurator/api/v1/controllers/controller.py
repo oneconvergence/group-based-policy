@@ -74,7 +74,8 @@ class Controller(rest.RestController):
         request_data = body
         try:
             return json.dumps(
-                self.rpcclient.create_network_function_device_config(request_data))
+                self.rpcclient.create_network_function_device_config(
+                    request_data))
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
@@ -90,7 +91,8 @@ class Controller(rest.RestController):
         request_data = body
         try:
             return json.dumps(
-                self.rpcclient.update_network_function_device_config(request_data))
+                self.rpcclient.update_network_function_device_config(
+                    request_data))
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
@@ -106,7 +108,8 @@ class Controller(rest.RestController):
         request_data = body
         try:
             return json.dumps(
-                self.rpcclient.delete_network_function_device_config(request_data))
+                self.rpcclient.delete_network_function_device_config(
+                    request_data))
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 

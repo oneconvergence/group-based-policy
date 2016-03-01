@@ -1,5 +1,3 @@
-from pecan import expose
-from pecan import rest
 from wsmeext import pecan as wsme_pecan
 from wsme import types as wtypes
 
