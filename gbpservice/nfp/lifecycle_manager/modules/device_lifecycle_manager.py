@@ -86,10 +86,30 @@ class RpcHandler(object):
         self.rpc_event_mapping = {'healthmonitor': ['DEVICE_HEALTHY',
                                                    'DEVICE_NOT_REACHABLE'],
                                   'interfaces':    ['DEVICE_CONFIGURED',
-                                                   'DEVICE_CONFIGURED_FAILED'],
+                                                   'DEVICE_CONFIGURATION_FAILED'],
                                   'routes':        ['DEVICE_CONFIGURED',
-                                                   'DEVICE_CONFIGURED_FAILED'],
+                                                   'DEVICE_CONFIGURATION_FAILED'],
                                   }
+
+    def _log_event_created(self, event_id, event_data):
+        LOG.info(_("Created event %s(event_name)s with event "
+                    "data: %(event_data)s"),
+                  {'event_name': event_id, 'event_data': event_data})
+
+    def _create_event(self, event_id, event_data=None,
+                      is_poll_event=False, original_event=False):
+        if is_poll_event:
+            ev = self._controller.new_event(
+                id=event_id, data=event_data,
+                serialize=original_event.serialize,
+                binding_key=original_event.binding_key,
+                key=original_event.key)
+            LOG.debug(_("_create_event - poll event %s" % ev.id))
+            self._controller.poll_event(ev, max_times=10)
+        else:
+            ev = self._controller.new_event(id=event_id, data=event_data)
+            self._controller.post_event(ev)
+        self._log_event_created(event_id, event_data)
 
     # RPC APIs status notification from Configurator
     def network_function_device_notification(self, context, notification_data):
@@ -107,7 +127,7 @@ class RpcHandler(object):
                 return None
 
             event_id = self.rpc_event_mapping[resource][0]
-            if result != 'success':
+            if result.lower() != 'success':
                 event_id = self.rpc_event_mapping[resource][1]
                 break
 
