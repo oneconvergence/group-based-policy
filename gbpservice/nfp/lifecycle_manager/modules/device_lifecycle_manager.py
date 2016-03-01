@@ -92,10 +92,10 @@ class RpcHandler(object):
                                   }
 
     # RPC APIs status notification from Configurator
-    def get_network_function_config_info(self, context, notifications_data):
+    def network_function_device_notification(self, context, notification_data):
         #context = kwargs.get('context')
         #notification_data = kwargs.get('notification_data')
-        responses = notifications_data[0].get('kwargs')
+        responses = notification_data.get('kwargs')
 
         for response in responses:
             resource = response.get('resource')
@@ -215,7 +215,7 @@ class DeviceLifeCycleHandler(object):
 
     # Helper functions
     def _log_event_created(self, event_id, event_data):
-        LOG.debug(_("Created event %s(event_name)s with event "
+        LOG.info(_("Created event %s(event_name)s with event "
                     "data: %(event_data)s"),
                   {'event_name': event_id, 'event_data': event_data})
 
