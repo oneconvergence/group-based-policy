@@ -2,7 +2,7 @@ from gbpservice.neutron.nsf.configurator.lib import (
     filter_constants as constants)
 
 
-class Filter():
+class Filter(object):
 
     def __init__(self, topic, default_version):
         pass
@@ -15,7 +15,7 @@ class Filter():
         """
         try:
             filters = msg['args']
-            method = getattr(self, '%s' % (msg['method']))
+            method = getattr(self, '_%s' % (msg['method']))
             return method(context, filters)
         except Exception as e:
             raise e
@@ -49,7 +49,7 @@ class Filter():
             if key in d and d[key] == value:
                 return d
 
-    def get_vpn_services(self, context, filters):
+    def _get_vpn_services(self, context, filters):
         """
         :param filters e.g { 'ids' : [list vpn service ids],
                               'filters': filters
@@ -69,7 +69,7 @@ class Filter():
         else:
             return self.apply_filter(vpnservices, filters['filters'])
 
-    def get_ipsec_conns(self, context, filters):
+    def _get_ipsec_conns(self, context, filters):
         """
         :param filters e.g { 'tenant_id': [tenant_id],
                              'peer_address': [conn['peer_address']]
@@ -79,7 +79,7 @@ class Filter():
         ipsec_conns = service_info['ipsec_site_conns']
         return self.apply_filter(ipsec_conns, filters)
 
-    def get_ssl_vpn_conns(self, context, filters):
+    def _get_ssl_vpn_conns(self, context, filters):
         """
         :param filters e.g { 'tenant_id': [tenant_id] }
         """
@@ -88,7 +88,7 @@ class Filter():
         ssl_vpn_conns = service_info['ssl_vpn_conns']
         return self.apply_filter(ssl_vpn_conns, filters)
 
-    def get_vpn_servicecontext(self, context, svctype, filters):
+    def _get_vpn_servicecontext(self, context, svctype, filters):
         if svctype == constants.SERVICE_TYPE_IPSEC:
             return self._get_ipsec_site2site_contexts(context, filters)
         elif svctype == constants.SERVICE_TYPE_OPENVPN:
@@ -103,7 +103,6 @@ class Filter():
         'tenant_id' - To get s2s conns of that tenant
         'vpnservice_id' - To get s2s conns of that vpn service
         'siteconn_id' - To get a specific s2s conn
-
         :returns vpnservices
             e.g { 'vpnserviceid':
                     { 'service': <VPNService>,
@@ -172,7 +171,6 @@ class Filter():
         :param filters e.g   { 'tenant_id': <value>,
                                 'vpnservice_id': <value>,
                                 'sslvpnconn_id': <value> }
-
         :returns vpnservices
             e.g { 'vpnserviceid':
                     { 'service': <VPNService>,
@@ -230,33 +228,13 @@ class Filter():
 
         return vpnservices.values()
 
-    def get_logical_device(self, context, filters):
+    def _get_logical_device(self, context, filters):
         """
         :param filters e.g {'pool_id': pool_id}
         """
         service_info = context['service_info']
         pool_id = filters.get('pool_id')
         pool = self.get_record(service_info['pools'], 'id', pool_id)
-
-        '''
-        pool will be in the following format
-
-        pool = {"status": "ACTIVE", "lb_method": "ROUND_ROBIN",
-        "protocol": "HTTP", "description": "Haproxy pool from teplate",
-        "health_monitors": ["eaf1f1b9-ca61-41ea-ab0f-c794d8881fbb"],
-        "members": ["356c52ee-ae16-494e-b16a-521876e94ca3",
-                    "ec01cb97-936a-45a4-b983-ae6e7e555a71"],
-         "status_description": null,
-         "id": "d4b6ea3c-1f80-4705-8ea0-d53de8e90233",
-         "vip_id": "8da1f096-660b-428f-b877-6267494a55b3",
-         "name": "Haproxy pool-lb-provider", "admin_state_up": true,
-         "subnet_id": "5de09e43-0eec-4407-ae97-40103bffad65",
-         "tenant_id": "c13efc8d70164b5caba6526d7d1b37ed",
-         "health_monitors_status":
-              [{"monitor_id": "eaf1f1b9-ca61-41ea-ab0f-c794d8881fbb",
-              "status": "ACTIVE", "status_description": null}],
-          "provider": "haproxy_on_vm"}
-        '''
 
         retval = {}
         retval['pool'] = pool  # self._make_pool_dict(pool)
@@ -265,7 +243,6 @@ class Filter():
             vip = self.get_record(
                 service_info['vips'], 'id', pool['vip_id'])
             retval['vip'] = vip  # self._make_vip_dict(vip)
-
 
             port = self.get_record(service_info['ports'],
                                    'id', vip['port_id'])
@@ -298,4 +275,3 @@ class Filter():
 
         retval['driver'] = pool['provider']
         return retval
-
