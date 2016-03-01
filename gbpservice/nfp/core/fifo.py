@@ -54,6 +54,7 @@ class Fifo(object):
             raise Queue.Full()
 
     def _pop(self, out):
+        self._is_empty()
         out.append(self._q.popleft())
         return out
 
@@ -75,7 +76,6 @@ class Fifo(object):
         msgs = []
         try:
             self._sc.lock()
-            self._is_empty()
             for i in range(0, limit):
                 msgs = self._pop(msgs)
         except Queue.Empty:
