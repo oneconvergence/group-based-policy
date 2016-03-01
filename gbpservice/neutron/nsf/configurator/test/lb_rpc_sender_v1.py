@@ -549,7 +549,8 @@ class LBRpcSenderV1(object):
     def test_configure_interfaces(self):
         print 'called test_configure_interfaces'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer'},
+                'kwargs': {'service_type': 'loadbalancer',
+                           'request_info': {}},
                 }
         request_data = {
                      'info':   {'version': 'v1'},
@@ -563,7 +564,7 @@ class LBRpcSenderV1(object):
     def test_clear_interfaces(self):
         print 'called test_clear_interfaces'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer'},
+                'kwargs': {'service_type': 'loadbalancer', 'request_info': {}},
                 }
         request_data = {
                      'info':   {'version': 'v1'},
@@ -577,7 +578,7 @@ class LBRpcSenderV1(object):
     def test_configure_source_routes(self):
         print 'called test_configure_source_routes'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer'},
+                'kwargs': {'service_type': 'loadbalancer', 'request_info': {}},
                 }
         request_data = {
                      'info':   {'version': 'v1'},
@@ -591,7 +592,7 @@ class LBRpcSenderV1(object):
     def test_clear_source_routes(self):
         print 'called test_clear_source_routes'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer'},
+                'kwargs': {'service_type': 'loadbalancer', 'request_info': {}},
                 }
         request_data = {
                      'info':   {'version': 'v1'},
@@ -608,7 +609,8 @@ class LBRpcSenderV1(object):
                 'kwargs': {'service_type': 'loadbalancer',
                            'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
                            'mgmt_ip': '11.0.0.4',
-                           'periodicity': periodicity
+                           'periodicity': periodicity,
+                           'request_info': {}
                            }
                 }
         request_data = {
@@ -625,6 +627,7 @@ class LBRpcSenderV1(object):
         data = {'context': {},
                 'kwargs': {'service_type': 'loadbalancer',
                            'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
+                           'request_info': {}
                            }
                 }
         request_data = {
@@ -661,4 +664,4 @@ client = LBRpcSenderV1("devstack", CONFIGURATOR_TOPIC)
 
 # client.test_configure_healthmonitor('initial')
 # client.test_configure_healthmonitor('forever')
-# client.test_clear_healthmonitor()
+client.test_clear_healthmonitor()
