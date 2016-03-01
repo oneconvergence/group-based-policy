@@ -13,15 +13,17 @@
 from neutron_fwaas.db.firewall import firewall_db
 from gbpservice.nfp.config_agent.common import *
 from gbpservice.nfp.config_agent import RestClientOverUnix as rc
+from neutron import context as n_context
 
 LOG = logging.getLogger(__name__)
 
 
 def set_firewall_status(**kwargs):
-    rpcClient = RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
+    rpcClient = RPCClient(topics.FW_NFP_PLUGIN_TOPIC)    
     context = kwargs.get('context')
+    rpc_ctx = n_context.Context.from_dict(context)
     del kwargs['context']
-    rpcClient.cctxt.cast(context, 'set_firewall_status',
+    rpcClient.cctxt.cast(rpc_ctx, 'set_firewall_status',
                          host=kwargs['host'],
                          firewall_id=kwargs['firewall_id'],
                          status=kwargs['status'])
@@ -30,8 +32,9 @@ def set_firewall_status(**kwargs):
 def firewall_deleted(**kwargs):
     rpcClient = RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
     context = kwargs.get('context')
+    rpc_ctx = n_context.Context.from_dict(context)
     del kwargs['context']
-    rpcClient.cctxt.cast(context, 'firewall_deleted',
+    rpcClient.cctxt.cast(rpc_ctx, 'firewall_deleted',
                          host=kwargs['host'],
                          firewall_id=kwargs['firewall_id'])
 
