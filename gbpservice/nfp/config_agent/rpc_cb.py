@@ -39,7 +39,7 @@ class RpcCallback(core_pt.PollEventDesc):
         if rpc_cb['receiver'] == 'orchestrator':
             mod = CONFIG_AGENT_MODULES['generic']
             mod_method = getattr(mod, rpc_cb['method'])
-            mod_method(rpc_cb['resource'], **rpc_cb['kwargs'])
+            mod_method(rpc_cb['resource'], rpc_cb['kwargs'])
         else:
             mod = CONFIG_AGENT_MODULES[rpc_cb['resource']]
             mod_method = getattr(mod, rpc_cb['method'])
@@ -47,26 +47,35 @@ class RpcCallback(core_pt.PollEventDesc):
 
     @core_pt.poll_event_desc(event='PULL_RPC_NOTIFICATIONS', spacing=1)
     def rpc_pull_event(self, ev):
-        try:
+        try :
+            print "coming for polling request"
             resp, rpc_cbs_data = rc.get('get_notifications')
             rpc_cbs_data = json.loads(rpc_cbs_data)
             '''
-            response_data = {[
+            response_data = [
                 {'receiver': <neutron/orchestrator>,
-                 'resource': <firewall/vpn/loadbalancer/generic>,
+                 'resource': <firewall/vpn/loadbalancer/orchestrator>,
                  'method': <notification method name>,
                  'kwargs': <notification method arguments>
             },
-            ]}
+            ]
             '''
-            if not rpc_cbs_data:
+            if not rpc_cbs_data :
                 LOG.info("get_notification -> GET request: Empty")
-            else:
+            else :
                 rpc_cbs = rpc_cbs_data
                 for rpc_cb in rpc_cbs:
+                    if not rpc_cb :
+                        LOG.info("Receiver Response: Empty")
+                        continue
                     try:
                         self._method_handler(rpc_cb)
                     except AttributeError:
+                        import sys
+                        import traceback
+                        exc_type, exc_value, exc_traceback = sys.exc_info()
+                        print traceback.format_exception(exc_type, exc_value, exc_traceback)
+
                         LOG.error("AttributeError while handling message" % (
                             rpc_cb))
                     except Exception as e:

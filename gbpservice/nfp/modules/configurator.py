@@ -211,6 +211,9 @@ class ConfiguratorRpcManager(object):
         try:
             self._send_request('delete', request_data)
         except Exception as err:
+            import sys, traceback
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print traceback.format_exception(exc_type, exc_value, exc_traceback)
             msg = ("Failed to delete network service configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
@@ -249,10 +252,7 @@ class ConfiguratorRpcManager(object):
 
         """
 
-        #notifications =  self.cm.nqueue.get()
-	notifications = self.sc.get_notification()
-	LOG.info("TTTTTTTTTTTTTTTTTT %r and QUEUE ID %r" % (notifications, self.cm.nqueue))
-	return notifications
+        return self.cm.nqueue.get()
 
 """Implements configurator module APIs.
 
