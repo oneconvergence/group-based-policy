@@ -186,14 +186,10 @@ class DeviceLifeCycleHandler(object):
         self.gbpclient = openstack_driver.GBPClient()
         self.keystoneclient = openstack_driver.KeystoneClient()
 
-        #self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
-        #self.drivers = self.ext_mgr.drivers
-
-        from gbpservice.nfp.lifecycle_manager.drivers import vyos_lifecycle_driver
-        vyos_driver = vyos_lifecycle_driver.VyosLifeCycleDriver()
-
-        self.drivers = {'vyos': vyos_driver}
+        self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
+        self.drivers = self.ext_mgr.drivers
         LOG.info(_("self.drivers = %s" % self.drivers))
+
         self.compute_driver = self._get_compute_driver(
             'compute')
 
