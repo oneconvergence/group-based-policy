@@ -602,12 +602,46 @@ class LBRpcSenderV1(object):
         return cctxt.call(self.context, 'delete_network_device_config',
                           request_data=request_data)
 
+    def test_configure_healthmonitor(self, periodicity):
+        print 'called test_configure_healthmonitor'
+        data = {'context': {},
+                'kwargs': {'service_type': 'loadbalancer',
+                           'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
+                           'mgmt_ip': '11.0.0.4',
+                           'periodicity': periodicity
+                           }
+                }
+        request_data = {
+                     'info':   {'version': 'v1'},
+                     'config': [{'resource': 'healthmonitor',
+                                'kwargs': data}]
+                       }
+        cctxt = self.client.prepare(server=self.host)
+        return cctxt.call(self.context, 'create_network_device_config',
+                          request_data=request_data)
+
+    def test_clear_healthmonitor(self):
+        print 'called test_clear_healthmonitor'
+        data = {'context': {},
+                'kwargs': {'service_type': 'loadbalancer',
+                           'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
+                           }
+                }
+        request_data = {
+                     'info':   {'version': 'v1'},
+                     'config': [{'resource': 'healthmonitor',
+                                'kwargs': data}]
+                       }
+        cctxt = self.client.prepare(server=self.host)
+        return cctxt.call(self.context, 'delete_network_device_config',
+                          request_data=request_data)
+
 # LBaaS rpc test cases
 client = LBRpcSenderV1("devstack", CONFIGURATOR_TOPIC)
-client.test_create_pool()
-client.test_create_vip()
-client.test_create_member()
-client.test_create_health_monitor()
+# client.test_create_pool()
+# client.test_create_vip()
+# client.test_create_member()
+# client.test_create_health_monitor()
 
 # client.test_update_pool()
 # client.test_update_vip()
@@ -624,3 +658,7 @@ client.test_create_health_monitor()
 # client.test_clear_interfaces()
 # client.test_configure_source_routes()
 # client.test_clear_source_routes()
+
+# client.test_configure_healthmonitor('initial')
+# client.test_configure_healthmonitor('forever')
+# client.test_clear_healthmonitor()
