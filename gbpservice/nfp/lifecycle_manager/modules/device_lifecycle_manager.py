@@ -606,6 +606,8 @@ class DeviceLifeCycleHandler(object):
         device['compute_policy'] = 'nova'
         device['network_policy'] = mgmt_data_ports[0]['port_policy']
         device['network_function_instance_id'] = network_function_instance['id']
+        device['network_function_id'] = device['id']
+        device['service_type'] = 'firewall'
         #self._update_device_data(device, event.data)
 
         data_port_ids = network_function_instance.pop('port_info')
@@ -673,7 +675,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_device_create_failed(self, event):
         device = event.data
-        status = device['status']
+        status = device.get('status')
         desc = device['status_description']
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -702,7 +704,7 @@ class DeviceLifeCycleHandler(object):
     def handle_device_config_failed(self, event):
         # change device status to error only in case of health check fail
         device = event.data
-        status = device['status']
+        status = device.get('status')
         desc = 'Configuring Device Failed.'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -714,7 +716,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_interfaces_setup_failed(self, event):
         device = event.data
-        status = device['status']
+        status = device.get('status')
         desc = 'Interfaces configuration failed'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -726,7 +728,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_routes_config_failed(self, event):
         device = event.data
-        status = device['status']
+        status = device.get('status')
         desc = 'Routes configuration Failed'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -770,7 +772,7 @@ class DLCMConfiguratorRpcApi(object):
 
     def _update_params(self, device_data, config_params):
         request_info = self._get_request_info(device_data)
-        for config in config_params['config']:
+        for config in config_params.get('config'):
             #config['kwargs'] = request_info
             config['kwargs']['request_info'] = request_info
 
