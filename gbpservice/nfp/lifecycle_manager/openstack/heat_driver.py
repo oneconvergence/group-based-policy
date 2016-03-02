@@ -511,6 +511,7 @@ class HeatDriver():
                         stack_template, provider_cidr, consumer_cidr,
                         fw_template_properties, consumer['id'])
 
+        if consumer_eps:
             filters = {'id': consumer_eps}
             consumer_eps_details = self.gbp_client.get_external_policies(
                 auth_token, filters)
