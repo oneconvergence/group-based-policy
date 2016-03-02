@@ -13,8 +13,9 @@
 from oslo_log import log as logging
 
 from gbpservice.nfp._i18n import _
-from gbpservice.nfp.lifecycle_manager.drivers.lifecycle_driver_base \
-    import LifeCycleDriverBase
+from gbpservice.nfp.lifecycle_manager.drivers.lifecycle_driver_base import (
+    LifeCycleDriverBase
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -30,13 +31,21 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
         self.service_vendor = 'Vyos'
 
     def get_network_function_device_config_info(self, device_data):
-        if any(key not in device_data
-               for key in ['service_vendor',
-                           'mgmt_ip_address',
-                           'ports',
-                           'service_type',
-                           'network_function_id',
-                           'tenant_id']):
+        if (
+            any(key not in device_data
+                for key in ['service_vendor',
+                            'mgmt_ip_address',
+                            'ports',
+                            'service_type',
+                            'network_function_id',
+                            'tenant_id']) or
+
+            any(key not in port
+                for port in device_data['ports']
+                for key in ['id',
+                            'port_classification',
+                            'port_policy'])
+        ):
             # TODO[RPM]: raise proper exception
             raise Exception('Not enough required data is received')
 
@@ -45,6 +54,7 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
                      if device_data.get('token')
                      else self.identity_handler.get_admin_token())
         except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
             LOG.error(_('Failed to get token'
                         ' for get device config info operation'))
             return None
@@ -65,6 +75,7 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
                      provider_cidr, dummy) = self._get_port_details(token,
                                                                     port_id)
                 except Exception:
+                    self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_('Failed to get provider port details'
                                 ' for get device config info operation'))
                     return None
@@ -76,6 +87,7 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
                      consumer_gateway_ip) = self._get_port_details(token,
                                                                    port_id)
                 except Exception:
+                    self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_('Failed to get consumer port details'
                                 ' for get device config info operation'))
                     return None
