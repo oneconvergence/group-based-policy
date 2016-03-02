@@ -21,8 +21,7 @@ OPENSTACK_DRIVER_CLASS_PATH = ('gbpservice.nfp.lifecycle_manager'
        mock.MagicMock(return_value=None))
 class HaproxyLifecycleDriverTestCase(unittest.TestCase):
 
-    def test_get_nfd_sharing_info_when_device_sharing_unsupported(
-                                                                self):
+    def test_get_nfd_sharing_info_when_device_sharing_unsupported(self):
         driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
                         supports_device_sharing=False)
         self.assertRaises(Exception,
@@ -171,6 +170,8 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
                        'mgmt_data_ports': [{'id': '3',
                                             'port_policy': 'gbp',
                                             'port_classification': 'mgmt'}]}
+        driver.stats['instances'] = 1
+        driver.stats['management_interfaces'] = 1
         self.assertRaises(Exception,
                           driver.delete_network_function_device,
                           device_data)

@@ -171,6 +171,8 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
                        'mgmt_data_ports': [{'id': '3',
                                             'port_policy': 'gbp',
                                             'port_classification': 'mgmt'}]}
+        driver.stats['instances'] = 1
+        driver.stats['management_interfaces'] = 1
         self.assertRaises(Exception,
                           driver.delete_network_function_device,
                           device_data)
@@ -323,7 +325,10 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
                        'mgmt_ip_address': 'a.b.c.d',
                        'ports': [{'id': '3',
                                   'port_policy': 'gbp',
-                                  'port_classification': 'provider'}]}
+                                  'port_classification': 'provider'}],
+                       'service_type': 'firewall',
+                       'network_function_id': '4',
+                       'tenant_id': '5'}
 
         reply = driver.get_network_function_device_config_info(device_data)
         self.assertIsInstance(reply, dict, msg='')

@@ -42,13 +42,39 @@ class LifeCycleDriverBase(object):
         self.network_handler_gbp = openstack_driver.GBPClient()
         self.network_handler_neutron = openstack_driver.NeutronClient()
 
+        # statistics available
+        # - instances
+        # - management_interfaces
+        # - keystone_token_get_failures
+        # - image_details_get_failures
+        # - port_details_get_failures
+        # - instance_launch_failures
+        # - instance_details_get_failures
+        # - instance_delete_failures
+        # - interface_plug_failures
+        # - interface_unplug_failures
+        self.stats = {}
+
+    def _increment_stats_counter(self, metric, by=1):
+        self.stats.update({metric: self.stats.get(metric, 0) + by})
+
+    def _decrement_stats_counter(self, metric, by=1):
+        self.stats.update({metric: self.stats[metric] - by})
+
     def _is_device_sharing_supported(self):
         return self.supports_device_sharing and self.supports_hotplug
 
     def _create_management_interface(self, device_data):
-        token = (device_data['token']
-                 if device_data.get('token')
-                 else self.identity_handler.get_admin_token())
+        try:
+            token = (device_data['token']
+                     if device_data.get('token')
+                     else self.identity_handler.get_admin_token())
+        except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
+            LOG.error(_('Failed to get token for management interface'
+                        ' creation'))
+            return None
+
         name = 'mgmt_interface'  # TODO[RPM]: Use proper name
         if device_data['network_policy'].lower() == 'gbp':
             mgmt_ptg_id = device_data['management_network_info']['id']
@@ -70,9 +96,15 @@ class LifeCycleDriverBase(object):
                 'port_type': 'NA'}
 
     def _delete_management_interface(self, device_data, interface):
-        token = (device_data['token']
-                 if device_data.get('token')
-                 else self.identity_handler.get_admin_token())
+        try:
+            token = (device_data['token']
+                     if device_data.get('token')
+                     else self.identity_handler.get_admin_token())
+        except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
+            LOG.error(_('Failed to get token for management interface'
+                        ' deletion'))
+            return None
 
         if interface['port_policy'].lower() == 'gbp':
             self.network_handler_gbp.delete_policy_target(token,
@@ -134,8 +166,24 @@ class LifeCycleDriverBase(object):
             # TODO[RPM]: raise proper exception
             raise Exception("Driver doesn't support device sharing")
 
-        if any(key not in device_data
-               for key in ['ports']):
+        if (
+            any(key not in device_data
+                for key in ['ports']) or
+
+            type(device_data['ports']) is not list or
+
+            any(key not in port
+                for port in device_data['ports']
+                for key in ['id',
+                            'port_classification',
+                            'port_policy']) or
+
+            type(devices) is not list or
+
+            any(key not in device
+                for device in devices
+                for key in ['interfaces_in_use'])
+        ):
             # TODO[RPM]: raise proper exception
             raise Exception('Not enough required data is received')
 
@@ -153,13 +201,26 @@ class LifeCycleDriverBase(object):
         return None
 
     def create_network_function_device(self, device_data):
-        if any(key not in device_data
-               for key in ['tenant_id',
-                           'service_vendor',
-                           'compute_policy',
-                           'network_policy',
-                           'management_network_info',
-                           'ports']):
+        if (
+            any(key not in device_data
+                for key in ['tenant_id',
+                            'service_vendor',
+                            'compute_policy',
+                            'network_policy',
+                            'management_network_info',
+                            'ports']) or
+
+            any(key not in device_data['management_network_info']
+                for key in ['id']) or
+
+            type(device_data['ports']) is not list or
+
+            any(key not in port
+                for port in device_data['ports']
+                for key in ['id',
+                            'port_classification',
+                            'port_policy'])
+        ):
             # TODO[RPM]: raise proper exception
             raise Exception('Not enough required data is received')
 
@@ -175,14 +236,20 @@ class LifeCycleDriverBase(object):
         except Exception:
             LOG.error(_('Failed to get interfaces for device creation'))
             return None
+        else:
+            self._increment_stats_counter('management_interfaces',
+                                          by=len(interfaces))
 
         try:
             token = (device_data['token']
                      if device_data.get('token')
                      else self.identity_handler.get_admin_token())
         except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
             LOG.error(_('Failed to get token, for device creation'))
             self._delete_interfaces(device_data, interfaces)
+            self._decrement_stats_counter('management_interfaces',
+                                          by=len(interfaces))
             return None
 
         image_name = '%s' % device_data['service_vendor'].lower()
@@ -192,10 +259,13 @@ class LifeCycleDriverBase(object):
                     device_data['tenant_id'],
                     image_name)
         except Exception:
+            self._increment_stats_counter('image_details_get_failures')
             LOG.error(_('Failed to get image id for device creation.'
                         ' image name: %s'
                         % (image_name)))
             self._delete_interfaces(device_data, interfaces)
+            self._decrement_stats_counter('management_interfaces',
+                                          by=len(interfaces))
             return None
 
         flavor = 'm1.medium'
@@ -215,9 +285,12 @@ class LifeCycleDriverBase(object):
                         port_id = self._get_port_id(port, token)
                         interfaces_to_attach.append({'port': port_id})
         except Exception:
+            self._increment_stats_counter('port_details_get_failures')
             LOG.error(_('Failed to fetch list of interfaces to attach'
                         ' for device creation'))
             self._delete_interfaces(device_data, interfaces)
+            self._decrement_stats_counter('management_interfaces',
+                                          by=len(interfaces))
             return None
 
         instance_name = 'instance'  # TODO[RPM]:use proper name
@@ -227,10 +300,15 @@ class LifeCycleDriverBase(object):
                     image_id, flavor,
                     interfaces_to_attach, instance_name)
         except Exception:
+            self._increment_stats_counter('instance_launch_failures')
             LOG.error(_('Failed to create %s instance'
                         % (device_data['compute_policy'])))
             self._delete_interfaces(device_data, interfaces)
+            self._decrement_stats_counter('management_interfaces',
+                                          by=len(interfaces))
             return None
+        else:
+            self._increment_stats_counter('instances')
 
         mgmt_ip_address = None
         try:
@@ -242,8 +320,21 @@ class LifeCycleDriverBase(object):
                     mgmt_ip_address = port['port']['fixed_ips'][0][
                                                                 'ip_address']
         except Exception:
+            self._increment_stats_counter('port_details_get_failures')
             LOG.error(_('Failed to get management port details'))
+            try:
+                self.compute_handler_nova.delete_instance(
+                                            token,
+                                            device_data['tenant_id'],
+                                            device_data['id'])
+            except Exception:
+                self._increment_stats_counter('instance_delete_failures')
+                LOG.error(_('Failed to delete %s instance'
+                            % (device_data['compute_policy'])))
+            self._decrement_stats_counter('instances')
             self._delete_interfaces(device_data, interfaces)
+            self._decrement_stats_counter('management_interfaces',
+                                          by=len(interfaces))
             return None
 
         return {'id': instance_id,
@@ -255,11 +346,21 @@ class LifeCycleDriverBase(object):
                 'description': ''}  # TODO[RPM]: what should be the description
 
     def delete_network_function_device(self, device_data):
-        if any(key not in device_data
-               for key in ['id',
-                           'tenant_id',
-                           'compute_policy',
-                           'mgmt_data_ports']):
+        if (
+            any(key not in device_data
+                for key in ['id',
+                            'tenant_id',
+                            'compute_policy',
+                            'mgmt_data_ports']) or
+
+            type(device_data['mgmt_data_ports']) is not list or
+
+            any(key not in port
+                for port in device_data['mgmt_data_ports']
+                for key in ['id',
+                            'port_classification',
+                            'port_policy'])
+        ):
             # TODO[RPM]: raise proper exception
             raise Exception('Not enough required data is received')
 
@@ -275,6 +376,7 @@ class LifeCycleDriverBase(object):
                      if device_data.get('token')
                      else self.identity_handler.get_admin_token())
         except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
             LOG.error(_('Failed to get token for device deletion'))
             return None
 
@@ -283,14 +385,21 @@ class LifeCycleDriverBase(object):
                                                       device_data['tenant_id'],
                                                       device_data['id'])
         except Exception:
+            self._increment_stats_counter('instance_delete_failures')
             LOG.error(_('Failed to delete %s instance'
                         % (device_data['compute_policy'])))
+        else:
+            self._decrement_stats_counter('instances')
 
         try:
             self._delete_interfaces(device_data,
                                     device_data['mgmt_data_ports'])
         except Exception:
             LOG.error(_('Failed to delete the management data port(s)'))
+        else:
+            self._decrement_stats_counter(
+                                    'management_interfaces',
+                                    by=len(device_data['mgmt_data_ports']))
 
     def get_network_function_device_status(self, device_data):
         if any(key not in device_data
@@ -312,6 +421,7 @@ class LifeCycleDriverBase(object):
                      if device_data.get('token')
                      else self.identity_handler.get_admin_token())
         except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
             LOG.error(_('Failed to get token for get device status operation'))
             return None
 
@@ -321,6 +431,7 @@ class LifeCycleDriverBase(object):
                             device_data['tenant_id'],
                             device_data['id'])
         except Exception:
+            self._increment_stats_counter('instance_details_get_failures')
             LOG.error(_('Failed to get %s instance details'
                         % (device_data['compute_policy'])))
             return None  # TODO[RPM]: should we raise an Exception here?
@@ -332,11 +443,21 @@ class LifeCycleDriverBase(object):
         if not self.supports_hotplug:
             raise Exception("Driver doesn't support interface hotplug")
 
-        if any(key not in device_data
-               for key in ['id',
-                           'tenant_id',
-                           'compute_policy',
-                           'ports']):
+        if (
+            any(key not in device_data
+                for key in ['id',
+                            'tenant_id',
+                            'compute_policy',
+                            'ports']) or
+
+            type(device_data['ports']) is not list or
+
+            any(key not in port
+                for port in device_data['ports']
+                for key in ['id',
+                            'port_classification',
+                            'port_policy'])
+        ):
             # TODO[RPM]: raise proper exception
             raise Exception('Not enough required data is received')
 
@@ -352,6 +473,7 @@ class LifeCycleDriverBase(object):
                      if device_data.get('token')
                      else self.identity_handler.get_admin_token())
         except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
             LOG.error(_('Failed to get token for plug interface to device'
                         ' operation'))
             return False  # TODO[RPM]: should we raise an Exception here?
@@ -374,6 +496,7 @@ class LifeCycleDriverBase(object):
                                 device_data['id'],
                                 port_id)
         except Exception:
+            self._increment_stats_counter('interface_plug_failures')
             LOG.error(_('Failed to plug interface(s) to the device'))
             return False  # TODO[RPM]: should we raise an Exception here?
         else:
@@ -383,11 +506,19 @@ class LifeCycleDriverBase(object):
         if not self.supports_hotplug:
             raise Exception("Driver doesn't support interface hotplug")
 
-        if any(key not in device_data
-               for key in ['id',
-                           'tenant_id',
-                           'compute_policy',
-                           'ports']):
+        if (
+            any(key not in device_data
+                for key in ['id',
+                            'tenant_id',
+                            'compute_policy',
+                            'ports']) or
+
+            any(key not in port
+                for port in device_data['ports']
+                for key in ['id',
+                            'port_classification',
+                            'port_policy'])
+        ):
             # TODO[RPM]: raise proper exception
             raise Exception('Not enough required data is received')
 
@@ -403,6 +534,7 @@ class LifeCycleDriverBase(object):
                      if device_data.get('token')
                      else self.identity_handler.get_admin_token())
         except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
             LOG.error(_('Failed to get token for unplug interface from device'
                         ' operation'))
             return False  # TODO[RPM]: should we raise an Exception here?
@@ -416,6 +548,7 @@ class LifeCycleDriverBase(object):
                             device_data['id'],
                             port_id)
         except Exception:
+            self._increment_stats_counter('interface_unplug_failures')
             LOG.error(_('Failed to unplug interface(s) from the device'))
             return False  # TODO[RPM]: should we raise an Exception here?
         else:
