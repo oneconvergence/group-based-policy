@@ -414,7 +414,8 @@ class ServiceLifeCycleHandler(object):
             self.db_session, nfi_id, nfi)
         delete_nfd_request = {
             'network_function_device_id': nfi['network_function_device_id'],
-            'network_function_instance': nfi
+            'network_function_instance': nfi,
+            'network_function_id': nfi['network_function_id']
         }
         self._create_event('DELETE_NETWORK_FUNCTION_DEVICE',
                            event_data=delete_nfd_request)

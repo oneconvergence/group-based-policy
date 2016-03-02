@@ -83,12 +83,15 @@ class RpcHandler(object):
         super(RpcHandler, self).__init__()
         self.conf = conf
         self._controller = controller
-        self.rpc_event_mapping = {'healthmonitor': ['DEVICE_HEALTHY',
-                                                   'DEVICE_NOT_REACHABLE'],
-                                  'interfaces':    ['DEVICE_CONFIGURED',
-                                                   'DEVICE_CONFIGURATION_FAILED'],
-                                  'routes':        ['DEVICE_CONFIGURED',
-                                                   'DEVICE_CONFIGURATION_FAILED'],
+        self.rpc_event_mapping = {
+                          'healthmonitor': ['DEVICE_HEALTHY',
+                                           'DEVICE_NOT_REACHABLE'],
+                          'interfaces':    ['DEVICE_CONFIGURED',
+                                            'DELETE_CONFIGURATION_COMPLETED',
+                                            'DEVICE_CONFIGURATION_FAILED'],
+                          'routes':        ['DEVICE_CONFIGURED',
+                                            'DELETE_CONFIGURATION_COMPLETED',
+                                            'DEVICE_CONFIGURATION_FAILED'],
                                   }
 
     def _log_event_created(self, event_id, event_data):
@@ -121,17 +124,29 @@ class RpcHandler(object):
             resource = response.get('resource')
             request_info = response.get('request_info')
             result = response.get('result')
+            operation = request_info['operation']
 
             if resource == 'healthmonitor':
                 LOG.info(_("healthmonitor not implemented yet, so ignoring for now."))
                 return None
 
-            event_id = self.rpc_event_mapping[resource][0]
-            if result.lower() != 'success':
+            is_delete_request = True if operation == 'delete' else False
+
+            if is_delete_request:
                 event_id = self.rpc_event_mapping[resource][1]
+            else:
+                event_id = self.rpc_event_mapping[resource][0]
+
+            if result.lower() != 'success':
+                if is_delete_request:
+                    # ignore any errors
+                    event_id = self.rpc_event_mapping[resource][1]
+                else:
+                    event_id = self.rpc_event_mapping[resource][2]
                 break
 
         event_data = request_info
+        event_data['id'] = request_info['network_function_device_id']
         self._create_event(event_id=event_id,
                            event_data=event_data)
 
@@ -461,8 +476,8 @@ class DeviceLifeCycleHandler(object):
 
     def check_device_is_up(self, event):
         device = event.data
-        print 'sleeping for 15 secs'
-        import time;time.sleep(15)
+        print 'sleeping for 50 secs'
+        import time;time.sleep(50)
         lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         # TODO (ashu) return value from driver, this should be true/false
         is_device_up = (
@@ -595,6 +610,7 @@ class DeviceLifeCycleHandler(object):
         network_function_instance = (
                             delete_nfd_request['network_function_instance'])
         nfd_id = delete_nfd_request['network_function_device_id']
+        nf_id = delete_nfd_request['network_function_id']
 
         LOG.info(_("Received delete network service device request for device "
                    "%(device)s"), {'device': delete_nfd_request})
@@ -606,7 +622,7 @@ class DeviceLifeCycleHandler(object):
         device['compute_policy'] = 'nova'
         device['network_policy'] = mgmt_data_ports[0]['port_policy']
         device['network_function_instance_id'] = network_function_instance['id']
-        device['network_function_id'] = device['id']
+        device['network_function_id'] = nf_id
         device['service_type'] = 'firewall'
         #self._update_device_data(device, event.data)
 
@@ -623,6 +639,9 @@ class DeviceLifeCycleHandler(object):
         config_params = (
             lifecycle_driver.get_network_function_device_config_info(
                                                                 device))
+        if not config_params:
+            #TODO(ashu): need to handle error scenarios
+            print 'skip this event'
         self.configurator_rpc.delete_network_function_device_config(device,
                                                                     config_params)
 
@@ -761,24 +780,25 @@ class DLCMConfiguratorRpcApi(object):
         self.rpc_api = self.client.prepare(version=self.API_VERSION,
                                 topic=nsf_topics.NFP_DLCM_CONFIGURATOR_TOPIC)
 
-    def _get_request_info(self, device):
+    def _get_request_info(self, device, operation):
         request_info = {
                 'network_function_id': device['network_function_id'],
                 'network_function_instance_id': (
                                 device['network_function_instance_id']),
-                'network_function_device_id': device['id']
+                'network_function_device_id': device['id'],
+                'operation': operation
         }
         return request_info
 
-    def _update_params(self, device_data, config_params):
-        request_info = self._get_request_info(device_data)
+    def _update_params(self, device_data, config_params, operation):
+        request_info = self._get_request_info(device_data, operation)
         for config in config_params.get('config'):
             #config['kwargs'] = request_info
             config['kwargs']['request_info'] = request_info
 
     def create_network_function_device_config(self, device_data,
                                               config_params):
-        self._update_params(device_data, config_params)
+        self._update_params(device_data, config_params, operation='create')
         LOG.info(_("create_network_function_device_config - config_params = %s" % config_params))
         return self.rpc_api.cast(
                     self.context,
@@ -788,7 +808,7 @@ class DLCMConfiguratorRpcApi(object):
 
     def delete_network_function_device_config(self, device_data,
                                               config_params):
-        self._update_params(device_data, config_params)
+        self._update_params(device_data, config_params, operation='delete')
         LOG.info(_("delete_network_function_device_config - config_params = %s" % config_params))
         return self.rpc_api.cast(
                     self.context,
