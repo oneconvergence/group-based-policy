@@ -56,10 +56,18 @@ class LifeCycleDriverBase(object):
         self.stats = {}
 
     def _increment_stats_counter(self, metric, by=1):
-        self.stats.update({metric: self.stats.get(metric, 0) + by})
+        try:
+            self.stats.update({metric: self.stats.get(metric, 0) + by})
+        except Exception:
+            LOG.error(_("Statistics failure. Failed to increment '%s' by %d"
+                        % (metric, by)))
 
     def _decrement_stats_counter(self, metric, by=1):
-        self.stats.update({metric: self.stats[metric] - by})
+        try:
+            self.stats.update({metric: self.stats[metric] - by})
+        except Exception:
+            LOG.error(_("Statistics failure. Failed to decrement '%s' by %d"
+                        % (metric, by)))
 
     def _is_device_sharing_supported(self):
         return self.supports_device_sharing and self.supports_hotplug
