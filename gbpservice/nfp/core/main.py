@@ -232,14 +232,15 @@ class Controller(object):
             report task.
         """
         self.init()
-        # Polling task to poll for timer events
-        self._polling_task = PollingTask(self)
-        # Seperate task for reporting as report state rpc is a 'call'
-        self._reportstate_task = ReportStateTask(self)
 
         for worker in self._workers:
             worker[0].start()
             log_debug(LOG, "Started worker - %d" % (worker[0].pid))
+
+        # Polling task to poll for timer events
+        self._polling_task = PollingTask(self)
+        # Seperate task for reporting as report state rpc is a 'call'
+        self._reportstate_task = ReportStateTask(self)
 
         for idx, agent in enumerate(self._rpc_agents):
             launcher = oslo_service.launch(oslo_config.CONF, agent[0])
