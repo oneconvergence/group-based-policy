@@ -111,6 +111,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
     def __init__(self, sc, drivers, rpcmgr, nqueue):
         super(GenericConfigEventHandler, self).__init__(
                                         sc, drivers, rpcmgr, nqueue)
+        self.sc = sc
 
     def _get_driver(self, service_type):
         """Retrieves service driver object based on service type input.
@@ -128,6 +129,12 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
 
         return self.drivers[service_type]()
 
+    def _notification(self, data):
+	LOG.info("NOTIFICATION DATA generic file %r" % data)
+        event = self.sc.new_event(
+            id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
+        self.sc.poll_event(event)
+
     def handle_event(self, ev):
         """Processes the generated events in worker context.
 
@@ -143,13 +150,9 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
         """
 
         # Process batch of request data blobs
-	LOG.info("HHHH %r" % ev.data)
-	LOG.info("IDDDDDDDDDDDDD %r" % ev.id)
         try:
             if ev.id == 'PROCESS_BATCH':
-		LOG.info("GETTING IN PROCESS BATCH")
                 self.process_batch(ev)
-		LOG.info("GETTING OUT OF PROCESS BATCH")
                 return
         except Exception as err:
             msg = ("Failed to process data batch. %s" %
@@ -158,9 +161,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
             return
 
         # Process single request data blob
-	LOG.info("ZZZZ %r " % ev.data)
         kwargs = ev.data.get('kwargs')
-	LOG.info("VVVVVVVVVVVVVVVVVVV %r " % kwargs)
         request_info = kwargs['request_info']
         del kwargs['request_info']
         context = ev.data.get('context')
@@ -211,8 +212,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
                         'request_info': request_info,
                         'result': result
                         }
-                notification_data['kwargs'].extend(data)
-            self.nqueue.put(notification_data)
+                notification_data['kwargs'].append(data)
+	    self._notification(notification_data)
 
 
 def events_init(sc, drivers, rpcmgr, nqueue):
