@@ -8,6 +8,9 @@ import oslo_messaging
 from pecan import expose, request
 from pecan import rest
 
+from oslo_log import log as logging
+LOG = logging.getLogger(__name__)
+
 import constants
 
 
@@ -24,7 +27,10 @@ class Controller(rest.RestController):
     @expose(method='GET', content_type='application/json')
     def get(self):
         try:
-            return self._get_notifications()
+            notification_data = self._get_notifications()
+            LOG.info("sending notification data %s" %(notification_data))
+            return notification_data
+            
         except Exception as e:
             return json.dumps({'err_msg': e.args})
 
@@ -32,16 +38,17 @@ class Controller(rest.RestController):
     def post(self, **body):
         try:
             body = None
+            LOG.info("calling function %s" %self.module_name)
             if request.is_body_readable:
                 body = request.json_body
             if self.module_name == "create_network_device_config":
-                return self._create_network_device_config(body)
+                self._create_network_device_config(body)
             elif self.module_name == "create_network_service_config":
-                return self._create_network_service_config(body)
+                self._create_network_service_config(body)
             elif self.module_name == "delete_network_device_config":
-                return self._delete_network_device_config(body)
+                self._delete_network_device_config(body)
             elif self.module_name == "delete_network_service_config":
-                return self._delete_network_service_config(body)
+                self._delete_network_service_config(body)
             else:
                 raise Exception('Invalid Request')
         except Exception as e:
@@ -51,6 +58,7 @@ class Controller(rest.RestController):
     def put(self, **body):
         try:
             body = None
+            LOG.info("calling function %s" %self.module_name)
             if request.is_body_readable:
                 body = request.json_body
 

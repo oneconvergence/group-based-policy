@@ -54,6 +54,9 @@ class FwGenericConfigDriver(object):
                     active_fip))
         LOG.info(msg)
         try:
+            msg = ("url: %s, data: %s, timeout: %s" % (url, data, self.timeout))
+            LOG.info(msg)
+            
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError, err:
             msg = ("Failed to establish connection to primary service at: "
@@ -424,3 +427,5 @@ class FwaasDriver(FwGenericConfigDriver, BaseDriver):
             self._print_exception('Failure', resp.status_code, url,
                                   'create', resp.content)
             return const.STATUS_ERROR
+
+
