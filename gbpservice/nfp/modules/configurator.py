@@ -26,6 +26,7 @@ Also implements local methods for supporting RPC methods
 
 
 class ConfiguratorRpcManager(object):
+
     def __init__(self, sc, cm, conf, demuxer):
         self.sc = sc
         self.cm = cm
@@ -68,9 +69,10 @@ class ConfiguratorRpcManager(object):
         # Format of sa_info_list:
         # [{'method': <m1>, 'kwargs': <rpc_data1>}, {}, ... ]
         sa_info_list = self.demuxer.get_service_agent_info(
-                                                    operation,
-                                                    service_type,
-                                                    request_data)
+            operation,
+            service_type,
+            request_data)
+	LOG.info("QQQQQQQQQQQQQQQQQQQQQQQQQ %r" % sa_info_list)
         if not sa_info_list:
             msg = ("Configurator received invalid data format for service"
                    " type %s. Data format: %r" % (service_type, request_data))
@@ -121,8 +123,15 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            #print "sleeping for 180secs. check IP on VM"
+            #import time
+            #time.sleep(180)
             self._send_request('create', request_data)
         except Exception as err:
+            import sys
+            import traceback
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print traceback.format_exception(exc_type, exc_value, exc_traceback)
             msg = ("Failed to create network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
@@ -211,9 +220,6 @@ class ConfiguratorRpcManager(object):
         try:
             self._send_request('delete', request_data)
         except Exception as err:
-            import sys, traceback
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            print traceback.format_exception(exc_type, exc_value, exc_traceback)
             msg = ("Failed to delete network service configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
@@ -252,7 +258,9 @@ class ConfiguratorRpcManager(object):
 
         """
 
-        return self.cm.nqueue.get()
+        notifications = self.sc.get_notification()
+	LOG.info("GET NOTI API DATA %r" % notifications)
+        return [notifications]
 
 """Implements configurator module APIs.
 
@@ -264,6 +272,7 @@ class ConfiguratorRpcManager(object):
 
 
 class ConfiguratorModule(object):
+
     def __init__(self, sc):
         self.service_agent_instances = {}
         self.imported_service_agents = []
@@ -354,8 +363,8 @@ def init_rpc(sc, cm, conf, demuxer):
     # Initializes RPC client
     rpc_mgr = ConfiguratorRpcManager(sc, cm, conf, demuxer)
     configurator_agent = rpc.RpcAgent(sc,
-                                       topic=CONFIGURATOR_RPC_TOPIC,
-                                       manager=rpc_mgr)
+                                      topic=CONFIGURATOR_RPC_TOPIC,
+                                      manager=rpc_mgr)
 
     # Registers RPC client object with core service controller
     sc.register_rpc_agents([configurator_agent])
