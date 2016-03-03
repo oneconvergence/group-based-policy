@@ -65,6 +65,7 @@ def events_init(controller, config):
         Event(id='DEVICE_NOT_REACHABLE', handler=device_lifecycle_mgr_obj),
         Event(id='DEVICE_CONFIGURATION_FAILED',
               handler=device_lifecycle_mgr_obj),
+        Event(id='DRIVER_ERROR', handler=device_lifecycle_mgr_obj),
         Event(id='DEVICE_ERROR', handler=device_lifecycle_mgr_obj),
         ]
     controller.register_events(evs)
@@ -188,6 +189,7 @@ class DeviceLifeCycleManager(object):
                 device_lifecycle_handler.handle_device_config_failed),
             "DEVICE_ERROR": device_lifecycle_handler.handle_device_error,
             "DEVICE_NOT_UP": device_lifecycle_handler.handle_device_not_up,
+            "DRIVER_ERROR": device_lifecycle_handler.handle_driver_error
         }
         if state not in state_machine:
             raise Exception("Invalid state")
@@ -274,7 +276,7 @@ class DeviceLifeCycleHandler(object):
         if status_desc:
             device['status_description'] = status_desc
         else:
-            device['status_description'] = self.state_map[state]
+            device['status_description'] = self.state_map.get(state)
 
     def _get_ports(self, port_ids):
         data_ports = []
@@ -506,6 +508,9 @@ class DeviceLifeCycleHandler(object):
         hm_req = (
             lifecycle_driver.get_network_function_device_healthcheck_info(
                                                                 device))
+        if not hm_req:
+            self._create_event(event_id='DRIVER_ERROR',
+                               event_data=device)
         self.configurator_rpc.create_network_function_device_config(device,
                                                                     hm_req)
         LOG.debug(_("Health Check RPC sent to configurator for device: "
@@ -577,6 +582,9 @@ class DeviceLifeCycleHandler(object):
         lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         config_params = (
             lifecycle_driver.get_network_function_device_config_info(device))
+        if not config_params:
+            self._create_event(event_id='DRIVER_ERROR',
+                               event_data=device)
         self.configurator_rpc.create_network_function_device_config(
                                                     device, config_params)
 
@@ -640,8 +648,8 @@ class DeviceLifeCycleHandler(object):
             lifecycle_driver.get_network_function_device_config_info(
                                                                 device))
         if not config_params:
-            #TODO(ashu): need to handle error scenarios
-            print 'skip this event'
+            self._create_event(event_id='DRIVER_ERROR',
+                               event_data=device)
         self.configurator_rpc.delete_network_function_device_config(device,
                                                                     config_params)
 
@@ -757,10 +765,10 @@ class DeviceLifeCycleHandler(object):
                     "with config: %(routes_config)s"),
                   {'device_id': device['id'], 'routes_config': device})
 
-    def handle_license_failed(self, event):
+    def handle_driver_error(self, event):
         device = event.data
         status = 'ERROR'
-        desc = 'Licensing failed for device'
+        desc = 'driver returned None data'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
