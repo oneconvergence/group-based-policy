@@ -64,18 +64,25 @@ class FwaasRpcSender(object):
         self.host = host
         self.qu = nqueue
 
+    def _notification(self, data):
+	LOG.info("NOTIFICATION DATA firewall %r" % data)
+        event = self.sc.new_event(
+            id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
+        self.sc.poll_event(event)
+
     def set_firewall_status(self, context, firewall_id, status):
         """Make an RPC to set the status of a firewall."""
 
         msg = {'receiver': const.NEUTRON,
                'resource': const.SERVICE_TYPE,
                'method': 'set_firewall_status',
-               'data': {'context': context,
-                        'host': self.host,
-                        'firewall_id': firewall_id,
-                        'status': status}
+               'kwargs': {'context': context,
+                          'host': self.host,
+                          'firewall_id': firewall_id,
+                          'status': status}
                }
-        self.qu.put(msg)
+        self._notification(msg)
+	#self.qu.put(msg)
 
     def firewall_deleted(self, context, firewall_id):
         """Make an RPC to indicate that the firewall resources are deleted."""
@@ -83,11 +90,12 @@ class FwaasRpcSender(object):
         msg = {'receiver': const.NEUTRON,
                'resource': const.SERVICE_TYPE,
                'method': 'firewall_deleted',
-               'data': {'context': context,
-                        'host': self.host,
-                        'firewall_id': firewall_id}
+               'kwargs': {'context': context,
+                          'host': self.host,
+                          'firewall_id': firewall_id}
                }
-        self.qu.put(msg)
+        self._notification(msg)
+	#self.qu.put(msg)
 
 
 class FWaasRpcManager(agent_base.AgentBaseRPCManager):
@@ -165,7 +173,6 @@ class FWaasEventHandler(object):
                    "handle task: %s of type firewall. "
                    % (os.getpid(), ev.id))
             LOG.debug(msg)
-            LOG.info(msg)
 
             driver = self._get_driver()
             self.method = getattr(driver, "%s" % (ev.id.lower()))
@@ -206,7 +213,6 @@ class FWaasEventHandler(object):
 
         elif ev.id == 'DELETE_FIREWALL':
             if not self._is_firewall_rule_exists(firewall):
-                LOG.info("No firewall rule to delete")
                 return self.plugin_rpc.firewall_deleted(context,
                                                         firewall['id'])
             try:
