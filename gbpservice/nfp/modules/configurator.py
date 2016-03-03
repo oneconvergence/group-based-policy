@@ -26,6 +26,7 @@ Also implements local methods for supporting RPC methods
 
 
 class ConfiguratorRpcManager(object):
+
     def __init__(self, sc, cm, conf, demuxer):
         self.sc = sc
         self.cm = cm
@@ -249,7 +250,8 @@ class ConfiguratorRpcManager(object):
 
         """
 
-        return self.cm.nqueue.get()
+        notifications = self.sc.get_notification()
+        return [notifications]
 
 """Implements configurator module APIs.
 
@@ -261,6 +263,7 @@ class ConfiguratorRpcManager(object):
 
 
 class ConfiguratorModule(object):
+
     def __init__(self, sc):
         self.service_agent_instances = {}
         self.imported_service_agents = []
@@ -351,8 +354,8 @@ def init_rpc(sc, cm, conf, demuxer):
     # Initializes RPC client
     rpc_mgr = ConfiguratorRpcManager(sc, cm, conf, demuxer)
     configurator_agent = rpc.RpcAgent(sc,
-                                       topic=CONFIGURATOR_RPC_TOPIC,
-                                       manager=rpc_mgr)
+                                      topic=CONFIGURATOR_RPC_TOPIC,
+                                      manager=rpc_mgr)
 
     # Registers RPC client object with core service controller
     sc.register_rpc_agents([configurator_agent])

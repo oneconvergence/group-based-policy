@@ -1,5 +1,8 @@
+from oslo_log import log as logging
 
 from gbpservice.nfp.configurator.lib import constants
+
+LOG = logging.getLogger(__name__)
 
 """Implements supporting methods for configurator module.
 
@@ -164,10 +167,10 @@ class ConfiguratorDemuxer(object):
             context = config_data['kwargs']['context']
             sa_info.update({'context': context})
             del config_data['kwargs']['context']
-            if 'generic' in sa_info['service_type']: 
-            	sa_info.update({'kwargs': {'kwargs': data}})
+            if 'generic' in sa_info['service_type']:
+                sa_info.update({'kwargs': {'kwargs': data}})
             else:
-		sa_info.update({'kwargs': data})
+                sa_info.update({'kwargs': data})
             sa_info_list.append(sa_info)
 
         return sa_info_list

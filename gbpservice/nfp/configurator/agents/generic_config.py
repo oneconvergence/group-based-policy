@@ -108,9 +108,11 @@ invoked by core service controller.
 
 
 class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
+
     def __init__(self, sc, drivers, rpcmgr, nqueue):
         super(GenericConfigEventHandler, self).__init__(
                                         sc, drivers, rpcmgr, nqueue)
+        self.sc = sc
 
     def _get_driver(self, service_type):
         """Retrieves service driver object based on service type input.
@@ -127,6 +129,11 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
         """
 
         return self.drivers[service_type]()
+
+    def _notification(self, data):
+        event = self.sc.new_event(
+            id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
+        self.sc.poll_event(event)
 
     def handle_event(self, ev):
         """Processes the generated events in worker context.
@@ -205,8 +212,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
                         'request_info': request_info,
                         'result': result
                         }
-                notification_data['kwargs'].extend(data)
-            self.nqueue.put(notification_data)
+                notification_data['kwargs'].append(data)
+            self._notification(notification_data)
 
 
 def events_init(sc, drivers, rpcmgr, nqueue):
