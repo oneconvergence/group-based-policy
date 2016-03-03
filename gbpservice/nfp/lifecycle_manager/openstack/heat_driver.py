@@ -520,13 +520,12 @@ class HeatDriver():
                 self._append_firewall_rule(stack_template, provider_cidr,
                                            "0.0.0.0/0", fw_template_properties,
                                            consumer_ep['id'])
-        """ [RPM] Why firewall rules are deleted ?
+
         for rule_key in fw_rule_keys:
             del stack_template[resources_key][rule_key]
             stack_template[resources_key][fw_policy_key][
                 properties_key]['firewall_rules'].remove(
                     {'get_resource': rule_key})
-        """
 
         return stack_template
 
@@ -648,8 +647,6 @@ class HeatDriver():
         properties_key = ('Properties' if is_template_aws_version
                           else 'properties')
 
-        # FIXME(Magesh): Adapt to the new model with HA
-        # Is this okay just using the first entry
         provider_port_mac = provider_port['mac_address']
         standby_provider_port_mac = None
 
@@ -978,8 +975,6 @@ class HeatDriver():
                 consumer_port, provider_port, stack_id, mgmt_ip=None,
                 pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
-        # FIXME(Magesh): Why are we invoking heat update for FW and VPN
-        # in Phase 1 even when there was no config change ??
         service_type = service_profile['service_type']
         provider_tenant_id = provider['tenant_id']
         heatclient = self._get_heat_client(resource_owner_tenant_id,
