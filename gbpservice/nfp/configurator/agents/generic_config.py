@@ -1,3 +1,4 @@
+
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import (
                             generic_config_constants as const)
@@ -16,33 +17,41 @@ FOREVER = 'forever'
 INITIAL_HM_RETRIES = 2  # 5 secs delay * 24 = 120 secs
 
 """Implements APIs invoked by configurator for processing RPC messages.
+
 RPC client of configurator module receives RPC messages from REST server
 and invokes the API of this class. The instance of this class is registered
 with configurator module using register_service_agent API. Configurator module
 identifies the service agent object based on service type and invokes ones of
 the methods of this class to configure the device.
+
 """
 
 
 class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
     def __init__(self, sc, conf):
         """Instantiates child and parent class objects.
+
         Passes the instances of core service controller and oslo configuration
         to parent instance inorder to provide event enqueue facility for batch
         processing event.
+
         :param sc: Service Controller object that is used for interfacing
         with core service controller.
         :param conf: Configuration object that is used for configuration
         parameter access.
+
         """
 
         super(GenericConfigRpcManager, self).__init__(sc, conf)
 
     def configure_interfaces(self, context, kwargs):
         """Enqueues event for worker to process configure interfaces request.
+
         :param context: RPC context
         :param kwargs: RPC Request data
+
         Returns: None
+
         """
 
         arg_dict = {'context': context,
@@ -52,9 +61,12 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
     def clear_interfaces(self, context, kwargs):
         """Enqueues event for worker to process clear interfaces request.
+
         :param context: RPC context
         :param kwargs: RPC Request data
+
         Returns: None
+
         """
 
         arg_dict = {'context': context,
@@ -64,9 +76,12 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
     def configure_routes(self, context, kwargs):
         """Enqueues event for worker to process configure routes request.
+
         :param context: RPC context
         :param kwargs: RPC Request data
+
         Returns: None
+
         """
 
         arg_dict = {'context': context,
@@ -76,9 +91,12 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
     def clear_routes(self, context, kwargs):
         """Enqueues event for worker to process clear routes request.
+
         :param context: RPC context
         :param kwargs: RPC Request data
+
         Returns: None
+
         """
 
         arg_dict = {'context': context,
@@ -88,9 +106,12 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
     def configure_healthmonitor(self, context, kwargs):
         """Enqueues event for worker to process configure healthmonitor request.
+
         :param context: RPC context
         :param kwargs: RPC Request data
+
         Returns: None
+
         """
 
         kwargs['fail_count'] = 0
@@ -102,9 +123,12 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
     def clear_healthmonitor(self, context, kwargs):
         """Enqueues event for worker to process clear healthmonitor request.
+
         :param context: RPC context
         :param kwargs: RPC Request data
+
         Returns: None
+
         """
 
         arg_dict = {'context': context,
@@ -115,9 +139,11 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
 
 """Implements event handlers and their helper methods.
+
 Object of this class is registered with the event class of core service
 controller. Based on the event key, handle_event method of this class is
 invoked by core service controller.
+
 """
 
 
@@ -130,12 +156,16 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
 
     def _get_driver(self, service_type):
         """Retrieves service driver object based on service type input.
+
         Currently, service drivers are identified with service type. Support
         for single driver per service type is provided. When multi-vendor
         support is going to be provided, the driver should be selected based
         on both service type and vendor name.
+
         :param service_type: Service type - firewall/vpn/loadbalancer
+
         Returns: Service driver instance
+
         """
 
         return self.drivers[service_type]()
@@ -151,6 +181,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
 
     def handle_event(self, ev):
         """Processes the generated events in worker context.
+
         Processes the following events.
         - Configure Interfaces
         - Clear Interfaces
@@ -159,7 +190,9 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         - Configure health monitor
         - Clear health monitor
         Enqueues responses into notification queue.
+
         Returns: None
+
         """
         LOG.info(" handling event ev.id %s" % (ev.id))
 
@@ -296,12 +329,16 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
 
 def events_init(sc, drivers, rpcmgr, nqueue):
     """Registers events with core service controller.
+
     All the events will come to handle_event method of class instance
     registered in 'handler' field.
+
     :param drivers: Driver instances registered with the service agent
     :param rpcmgr: Instance to receive all the RPC messages from configurator
     module.
+
     Returns: None
+
     """
 
     evs = [
@@ -332,8 +369,10 @@ def events_init(sc, drivers, rpcmgr, nqueue):
 
 def load_drivers():
     """Imports all the driver files.
+
     Returns: Dictionary of driver objects with a specified service type and
     vendor name
+
     """
 
     cutils = utils.ConfiguratorUtils()
@@ -342,11 +381,13 @@ def load_drivers():
 
 def register_service_agent(cm, sc, conf, rpcmgr):
     """Registers generic configuration service agent with configurator module.
+
     :param cm: Instance of configurator module
     :param sc: Instance of core service controller
     :param conf: Instance of oslo configuration
     :param rpcmgr: Instance containing RPC methods which are invoked by
     configurator module on corresponding RPC message arrival
+
     """
 
     service_type = const.SERVICE_TYPE
@@ -355,9 +396,11 @@ def register_service_agent(cm, sc, conf, rpcmgr):
 
 def init_agent(cm, sc, conf, nqueue):
     """Initializes generic configuration agent.
+
     :param cm: Instance of configuration module
     :param sc: Instance of core service controller
     :param conf: Instance of oslo configuration
+
     """
 
     try:
