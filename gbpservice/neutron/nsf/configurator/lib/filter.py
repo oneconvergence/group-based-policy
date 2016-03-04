@@ -33,7 +33,7 @@ class Filter(object):
         """
         for fk, fv in filters.items():
             for d in data[:]:
-                if d.get(fk) is None:
+                if d['resource'].get(fk) is None:
                     data.remove(d)
                 if fk in d and d[fk] != fv[0]:
                     data.remove(d)
@@ -60,14 +60,18 @@ class Filter(object):
             vpn_ids = filters['ids']
         service_info = context['service_info']
         vpnservices = service_info['vpnservices']
+        t_filtered_vpns = []
         filtered_vpns = []
         if vpn_ids:
             for vpn_id in vpn_ids:
                 filtered_vpns.append(
                     self.get_record(vpnservices, 'id', vpn_id))
+            filtered_vpns.append(t_filtered_vpns[0]['resource'])
             return filtered_vpns
         else:
-            return self.apply_filter(vpnservices, filters['filters'])
+            t_filtered_vpns = self.apply_filter(vpnservices, filters['filters'])
+            filtered_vpns.append(t_filtered_vpns[0]['resource'])
+            return filtered_vpns
 
     def _get_ipsec_conns(self, context, filters):
         """
@@ -77,10 +81,15 @@ class Filter(object):
         """
         service_info = context['service_info']
         ipsec_conns = service_info['ipsec_site_conns']
-        return self.apply_filter(ipsec_conns, filters)
+        filtered_conns = []
+        t_filtered_conns = self.apply_filter(ipsec_conns, filters['filters'])
+        filtered_conns.append(t_filtered_conns[0]['resource'])
+        return filtered_conns
 
-    def _get_vpn_servicecontext(self, context filters):
-        return self._get_ipsec_site2site_contexts(context, filters)
+
+    def _get_vpn_servicecontext(self, context, filters):
+            #return self._get_ipsec_site2site_contexts(context, filters)[DH]
+            return self._get_ipsec_site2site_contexts(context, filters['filters'])
 
     def _get_ipsec_site2site_contexts(self, context, filters=None):
         """
@@ -104,7 +113,6 @@ class Filter(object):
                 }
         """
         service_info = context['service_info']
-
         vpnservices = {}
         s_filters = {}
 
@@ -119,18 +127,18 @@ class Filter(object):
 
         ipsec_site_conns = self.apply_filter(service_info['ipsec_site_conns'],
                                              s_filters)
-
         for conn in ipsec_site_conns:
 
-            vpnservice = [vpn for vpn in service_info['vpnservices']
-                          if vpn['id'] == conn['vpnservice_id']][0]
+            t_vpnservice = [vpn for vpn in service_info['vpnservices']
+                           if vpn['resource']['id'] == conn['resource']['vpnservice_id']][0]
+            vpnservice = t_vpnservice['resource']
 
             ikepolicy = [ikepolicy for ikepolicy in service_info['ikepolicies']
-                         if ikepolicy['id'] == conn['ikepolicy_id']][0]
+                         if ikepolicy['id'] == conn['resource']['ikepolicy_id']][0]
 
             ipsecpolicy = [ipsecpolicy for ipsecpolicy in
                            service_info['ipsecpolicies']
-                           if ipsecpolicy['id'] == conn['ipsecpolicy_id']][0]
+                           if ipsecpolicy['id'] == conn['resource']['ipsecpolicy_id']][0]
             """
             Get the local subnet cidr
             """
@@ -140,17 +148,15 @@ class Filter(object):
             vpnservice['cidr'] = cidr
 
             siteconn = {}
-            siteconn['connection'] = conn
+            siteconn['connection'] = conn['resource']
             siteconn['ikepolicy'] = ikepolicy
             siteconn['ipsecpolicy'] = ipsecpolicy
             vpnserviceid = vpnservice['id']
-
             if vpnserviceid not in vpnservices.keys():
                 vpnservices[vpnserviceid] = \
                     {'service': vpnservice, 'siteconns': []}
 
             vpnservices[vpnserviceid]['siteconns'].append(siteconn)
-
         site2site_context = self._make_vpnservice_context(vpnservices)
         return site2site_context
 
@@ -210,3 +216,4 @@ class Filter(object):
 
         retval['driver'] = pool['provider']
         return retval
+
