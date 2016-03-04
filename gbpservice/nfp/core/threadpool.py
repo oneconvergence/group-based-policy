@@ -1,16 +1,39 @@
-import time
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import eventlet
-eventlet.monkey_patch()
-from eventlet import event
+import os
+
 from eventlet import greenpool
 from eventlet import greenthread
-import os
-import sys
-import threading
+
+from oslo_log import log as logging
+
+from gbpservice.nfp.core import common as nfp_common
+
+LOG = logging.getLogger(__name__)
+
+eventlet.monkey_patch()
+
+log_info = nfp_common.log_info
+log_debug = nfp_common.log_debug
+log_error = nfp_common.log_error
 
 
 def _thread_done(gt, *args, **kwargs):
     kwargs['pool'].thread_done(kwargs['thread'])
+
+
+"""Descriptor class for green thread """
 
 
 class Thread(object):
@@ -28,6 +51,11 @@ class Thread(object):
     def link(self, func, *args, **kwargs):
         self.thread.link(func, *args, **kwargs)
 
+    def identify(self):
+        return "(%d -> %s)" % (os.getpid(), 'Thread')
+
+"""Abstract class to manage green threads """
+
 
 class ThreadPool(object):
 
@@ -36,33 +64,35 @@ class ThreadPool(object):
         self.threads = []
 
     def dispatch(self, callback, *args, **kwargs):
+        """Invokes the specified function in one of the thread """
         gt = self.pool.spawn(callback, *args, **kwargs)
         th = Thread(gt, self)
         self.threads.append(th)
         return th
 
     def thread_done(self, thread):
+        """Invoked when thread is complete, remove it from cache """
         self.threads.remove(thread)
 
     def stop(self):
+        """To stop the thread """
         current = greenthread.getcurrent()
 
-        # Iterate over a copy of self.threads so thread_done doesn't
-        # modify the list while we're iterating
+        # Make a copy
         for x in self.threads[:]:
             if x is current:
-                # don't kill the current thread.
+                # Skipping the current thread
                 continue
             try:
                 x.stop()
             except Exception as ex:
-                print ex
+                log_error("Exception", ex)
 
     def wait(self):
+        """Wait for the thread """
         current = greenthread.getcurrent()
 
-        # Iterate over a copy of self.threads so thread_done doesn't
-        # modify the list while we're iterating
+        # Make a copy
         for x in self.threads[:]:
             if x is current:
                 continue
@@ -71,22 +101,4 @@ class ThreadPool(object):
             except eventlet.greenlet.GreenletExit:
                 pass
             except Exception as ex:
-                print ex
-
-"""
-def PrintMe(arg1, arg2):
-    time.sleep(10)
-    print "Hi, its me - (%d)" %(threading.current_thread().ident)
-    #done = event.Event()
-    #done.wait()
-
-
-if __name__=='__main__':
-    tp = ThreadPool()
-    while True:
-        tp.dispatch(PrintMe, None, None)
-        time.sleep(1)
-        print "Hi, its not me"
-
-    #tp.wait()
-"""
+                log_error("Exception", ex)
