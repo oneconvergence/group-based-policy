@@ -1,16 +1,17 @@
-
+from oslo_log import log as logging
 from gbpservice.nfp.configurator.lib import (
-                            generic_config_constants as const)
+    generic_config_constants as const)
+
+LOG = logging.getLogger(__name__)
 
 """Implements base class for all service agents.
-
 Common methods for service agents are implemented in this class. Configurator
 module invokes these methods through the service agent's child class instance.
-
 """
 
 
 class AgentBaseRPCManager(object):
+
     def __init__(self, sc, conf):
         self._sc = sc
         self.conf = conf
@@ -24,19 +25,15 @@ class AgentBaseRPCManager(object):
 
     def forward_request(self, sa_info_list, notification_data):
         """Forwards the RPC message from configurator to service agents.
-
         Checks if the request message contains multiple data blobs. If multiple
         data blobs are found, a batch event is generated otherwise a single
         event.
-
         :param sa_info_list: List of data blobs prepared by de-multiplexer
         for service agents processing.
         :param notification_data: Notification blobs prepared by the service
         agents after processing requests blobs. Each request blob will have
         a corresponding notification blob.
-
         Returns: None
-
         """
 
         # In case of malformed input, send failure notification
@@ -48,40 +45,43 @@ class AgentBaseRPCManager(object):
         # processing event or do direct processing of single request data blob
         if (len(sa_info_list) > 1):
             args_dict = {
-                         'sa_info_list': sa_info_list,
-                         'notification_data': notification_data
-                        }
+                'sa_info_list': sa_info_list,
+                'notification_data': notification_data
+            }
             ev = self._sc.new_event(id='PROCESS_BATCH', data=args_dict)
             self._sc.post_event(ev)
         else:
             sa_info_list[0]['context'].update(
-                            {'notification_data': notification_data})
+                {'notification_data': notification_data})
             sa_info_list[0]['context'].update(
-                            {'resource': sa_info_list[0]['resource']})
+                {'resource': sa_info_list[0]['resource']})
             getattr(self, sa_info_list[0]['method'])(
-                                            sa_info_list[0]['context'],
-                                            **sa_info_list[0]['kwargs'])
+                sa_info_list[0]['context'],
+                **sa_info_list[0]['kwargs'])
 
 
 class AgentBaseEventHandler(object):
+
     def __init__(self, sc, drivers, rpcmgr, nqueue):
         self._sc = sc
         self.drivers = drivers
         self._rpcmgr = rpcmgr
         self.nqueue = nqueue
 
+    def _notification(self, data):
+        event = self._sc.new_event(
+            id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
+        self._sc.poll_event(event)
+
     def process_batch(self, ev):
         """Processes a request with multiple data blobs.
-
         Configurator processes the request with multiple data blobs and sends
         a list of service information to be processed. This function goes
         through the list of service information and invokes specific service
         driver methods. After processing each request data blob, notification
         data blob is prepared.
-
         :param ev: Event instance that contains information of event type and
         corresponding event data to be processed.
-
         """
 
         try:
@@ -119,18 +119,18 @@ class AgentBaseEventHandler(object):
         finally:
             # Prepare success notification and populate notification data list
             msg = {
-                    'receiver': const.ORCHESTRATOR,
-                    'resource': const.ORCHESTRATOR,
-                    'method': "network_function_device_notification",
-                    'kwargs': [
-                                {
-                                 'context': context,
-                                 'resource': resource,
-                                 'request_info': request_info,
-                                 'result': result,
-                                }
-                            ]
-                }
+                'receiver': const.ORCHESTRATOR,
+                'resource': const.ORCHESTRATOR,
+                'method': "network_function_device_notification",
+                'kwargs': [
+                    {
+                        'context': context,
+                        'resource': resource,
+                        'request_info': request_info,
+                        'result': result,
+                    }
+                ]
+            }
 
             # If the data processed is first one, then prepare notification
             # dict. Otherwise, append the notification to the kwargs list.
@@ -141,12 +141,12 @@ class AgentBaseEventHandler(object):
                 notification_data.update(msg)
             else:
                 data = {
-                        'context': context,
-                        'resource': resource,
-                        'request_info': request_info,
-                        'result': result
-                        }
-                notification_data['kwargs'].extend(data)
+                    'context': context,
+                    'resource': resource,
+                    'request_info': request_info,
+                    'result': result
+                }
+                notification_data['kwargs'].append(data)
 
         if success:
             # Remove the processed request data blob from the service
@@ -158,7 +158,7 @@ class AgentBaseEventHandler(object):
             # request
             self._rpcmgr.forward_request(sa_info_list, notification_data)
         else:
-            self.nqueue.put(notification_data)
+            self._notification(notification_data)
             raise Exception(msg)
 
 

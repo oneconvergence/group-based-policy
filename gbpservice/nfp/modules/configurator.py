@@ -1,4 +1,3 @@
-
 from gbpservice.nfp.configurator.lib import constants
 from gbpservice.nfp.configurator.lib import demuxer
 from oslo_log import log
@@ -11,7 +10,6 @@ CONFIGURATOR_RPC_TOPIC = 'configurator'
 LOG = log.getLogger(__name__)
 
 """Implements procedure calls invoked by an REST server.
-
 Implements following RPC methods.
   - create_network_device_config
   - delete_network_device_config
@@ -21,11 +19,11 @@ Implements following RPC methods.
   - update_network_service_config
   - get_notifications
 Also implements local methods for supporting RPC methods
-
 """
 
 
 class ConfiguratorRpcManager(object):
+
     def __init__(self, sc, cm, conf, demuxer):
         self.sc = sc
         self.cm = cm
@@ -34,27 +32,20 @@ class ConfiguratorRpcManager(object):
 
     def _get_service_agent_instance(self, service_type):
         """Provides service agent instance based on service type.
-
         :param service_type: firewall/vpn/loadbalancer/generic_config
-
         Returns: Instance of service agent for a given service type
-
         """
 
         return self.cm.service_agent_instances[service_type]
 
     def _send_request(self, operation, request_data):
         """Maps and invokes an RPC call to a service agent method.
-
         Takes help of de-multiplexer to get service type and corresponding
         data and invokes the method of service agent. Service agent instance
         is identified based on the service type passed in the request data
-
         :param operation: Operation type - create/delete/update
         :param request_data: RPC data
-
         Returns: None
-
         """
 
         # Retrieves service type from RPC data
@@ -107,24 +98,16 @@ class ConfiguratorRpcManager(object):
 
     def create_network_device_config(self, context, request_data):
         """RPC method to configure a network service device.
-
         Configures a network service VM to facilitate network service
         operation. This RPC method is invoked by the configurator REST
         server. It configures a network service based on the configuration
         request specified in the request_data argument.
-
         :param context: RPC context instance
         :param request_data: RPC data
-
         Returns: None
-
         """
 
         try:
-            # REVISIT: This is added during integration testing as health
-            # monitoring support is not provided. This needs to be removed
-            # once HM is added to configurator
-            import time; time.sleep(180)
             self._send_request('create', request_data)
         except Exception as err:
             msg = ("Failed to create network device configuration. %s" %
@@ -133,17 +116,13 @@ class ConfiguratorRpcManager(object):
 
     def delete_network_device_config(self, context, request_data):
         """RPC method to clear configuration of a network service device.
-
         Clears configuration of a network service VM. This RPC method is
         invoked by the configurator REST server. It clears configuration
         of a network service based on the configuration request specified
         in the request_data argument.
-
         :param context: RPC context instance
         :param request_data: RPC data
-
         Returns: None
-
         """
 
         try:
@@ -155,17 +134,13 @@ class ConfiguratorRpcManager(object):
 
     def update_network_device_config(self, context, request_data):
         """RPC method to update of configuration in a network service device.
-
         Updates configuration of a network service VM. This RPC method is
         invoked by the configurator REST server. It updates configuration
         of a network service based on the configuration request specified
         in the request_data argument.
-
         :param context: RPC context instance
         :param request_data: RPC data
-
         Returns: None
-
         """
 
         try:
@@ -177,17 +152,13 @@ class ConfiguratorRpcManager(object):
 
     def create_network_service_config(self, context, request_data):
         """RPC method to configure a network service.
-
         Configures a network service specified in the request data. This
         RPC method is invoked by the configurator REST server. It configures
         a network service based on the configuration request specified in
         the request_data argument.
-
         :param context: RPC context instance
         :param request_data: RPC data
-
         Returns: None
-
         """
 
         try:
@@ -199,17 +170,13 @@ class ConfiguratorRpcManager(object):
 
     def delete_network_service_config(self, context, request_data):
         """RPC method to clear configuration of a network service.
-
         Clears configuration of a network service. This RPC method is
         invoked by the configurator REST server. It clears configuration
         of a network service based on the configuration request specified
         in the request_data argument.
-
         :param context: RPC context instance
         :param request_data: RPC data
-
         Returns: None
-
         """
 
         try:
@@ -221,17 +188,13 @@ class ConfiguratorRpcManager(object):
 
     def update_network_service_config(self, context, request_data):
         """RPC method to update of configuration in a network service.
-
         Updates configuration of a network service. This RPC method is
         invoked by the configurator REST server. It updates configuration
         of a network service based on the configuration request specified
         in the request_data argument.
-
         :param context: RPC context instance
         :param request_data: RPC data
-
         Returns: None
-
         """
 
         try:
@@ -243,28 +206,24 @@ class ConfiguratorRpcManager(object):
 
     def get_notifications(self, context):
         """RPC method to get all notifications published by configurator.
-
         Gets all the notifications from the notifications from notification
         queue and sends to configurator agent
-
         :param context: RPC context instance
-
         Returns: notification_data
-
         """
 
-        return self.cm.nqueue.get()
+        notifications = self.sc.get_notification()
+        return [notifications]
 
 """Implements configurator module APIs.
-
     Implements methods which are either invoked by registered service agents
     or by the configurator global methods. The methods invoked by configurator
     global methods interface with service agents.
-
 """
 
 
 class ConfiguratorModule(object):
+
     def __init__(self, sc):
         self.service_agent_instances = {}
         self.imported_service_agents = []
@@ -272,13 +231,10 @@ class ConfiguratorModule(object):
 
     def register_service_agent(self, service_type, service_agent):
         """Stores service agent object.
-
         :param service_type: Type of service - firewall/vpn/loadbalancer/
         generic_config.
         :param service_agent: Instance of service agent class.
-
         Returns: Nothing
-
         """
 
         if service_type not in self.service_agent_instances:
@@ -296,14 +252,11 @@ class ConfiguratorModule(object):
 
     def init_service_agents(self, sc, conf):
         """Invokes service agent initialization method.
-
         :param sc: Service Controller object that is used for interfacing
         with core service controller.
         :param conf: Configuration object that is used for configuration
         parameter access.
-
         Returns: None
-
         """
 
         for agent in self.imported_service_agents:
@@ -315,14 +268,11 @@ class ConfiguratorModule(object):
 
     def init_service_agents_complete(self, sc, conf):
         """Invokes service agent initialization complete method.
-
         :param sc: Service Controller object that is used for interfacing
         with core service controller.
         :param conf: Configuration object that is used for configuration
         parameter access.
-
         Returns: None
-
         """
 
         for agent in self.imported_service_agents:
@@ -335,10 +285,8 @@ class ConfiguratorModule(object):
 
 def init_rpc(sc, cm, conf, demuxer):
     """Initializes oslo RPC client.
-
     Creates RPC manager object and registers the configurator's RPC
     agent object with core service controller.
-
     :param sc: Service Controller object that is used for interfacing
     with core service controller.
     :param cm: Configurator module object that is used for accessing
@@ -347,16 +295,14 @@ def init_rpc(sc, cm, conf, demuxer):
     parameter access.
     :param demuxer: De-multiplexer object that is used for accessing
     ConfiguratorDemuxer class methods.
-
     Returns: None
-
     """
 
     # Initializes RPC client
     rpc_mgr = ConfiguratorRpcManager(sc, cm, conf, demuxer)
     configurator_agent = rpc.RpcAgent(sc,
-                                       topic=CONFIGURATOR_RPC_TOPIC,
-                                       manager=rpc_mgr)
+                                      topic=CONFIGURATOR_RPC_TOPIC,
+                                      manager=rpc_mgr)
 
     # Registers RPC client object with core service controller
     sc.register_rpc_agents([configurator_agent])
@@ -364,9 +310,7 @@ def init_rpc(sc, cm, conf, demuxer):
 
 def get_configurator_module_instance(sc):
     """ Provides ConfiguratorModule class object and loads service agents.
-
     Returns: Instance of ConfiguratorModule class
-
     """
 
     cm = ConfiguratorModule(sc)
@@ -382,20 +326,16 @@ def get_configurator_module_instance(sc):
 
 def module_init(sc, conf):
     """Initializes configurator module.
-
     Creates de-multiplexer object and invokes all the agent entry point
     functions. Initializes oslo RPC client for receiving messages from
     REST server. Exceptions are raised to parent function for all types
     of failures.
-
     :param sc: Service Controller object that is used for interfacing
     with core service controller.
     :param conf: Configuration object that is used for configuration
     parameter access.
-
     Returns: None
     Raises: Generic exception including error message
-
     """
 
     # Create configurator module and de-multiplexer objects
@@ -436,15 +376,12 @@ def module_init(sc, conf):
 
 def init_complete(sc, conf):
     """Invokes service agent's initialization complete methods.
-
     :param sc: Service Controller object that is used for interfacing
     with core service controller.
     :param conf: Configuration object that is used for configuration
     parameter access.
-
     Returns: None
     Raises: Generic exception including error message
-
     """
 
     try:
