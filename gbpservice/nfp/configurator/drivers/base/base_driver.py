@@ -38,7 +38,7 @@ class BaseDriver(object):
            if they want to support other types.
         """
         ip = kwargs.get('mgmt_ip')
-        COMMAND = 'ping -c15 '+ip
+        COMMAND = 'ping -c5 '+ip
         try:
             subprocess.check_output(COMMAND, stderr=subprocess.STDOUT,
                                     shell=True)
