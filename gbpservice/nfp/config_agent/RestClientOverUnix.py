@@ -77,9 +77,11 @@ class UnixRestClient():
             path,
             None,
             ''))
+        LOG.info("Rest Request is triggerd for %s with body : %s"%(method_type,body))
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
+            LOG.info("Response Recieved : %s : %s"%(resp, content))
         except RestClientException as rce:
             raise rce
 

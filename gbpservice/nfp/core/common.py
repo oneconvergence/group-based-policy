@@ -50,10 +50,12 @@ def identify(obj):
 
 
 def log_info(log, msg):
+    return
     log.info(msg)
 
 
 def log_debug(log, msg):
+    return
     log.debug(msg)
 
 
