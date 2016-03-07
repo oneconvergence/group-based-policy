@@ -1,15 +1,13 @@
 import os
 import oslo_messaging as messaging
 
-from gbpservice.neutron.nsf.configurator.agents import agent_base
+from gbpservice.nfp.configurator.agents import agent_base
 from oslo_log import log as logging
-from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core.queue import Queue
-from gbpservice.neutron.nsf.core import queue
-from gbpservice.neutron.nsf.configurator.lib import utils
-from gbpservice.neutron.nsf.configurator.lib.filter import Filter
-from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
-from gbpservice.neutron.nsf.configurator.lib import lb_constants
+from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.configurator.lib import utils
+from gbpservice.nfp.configurator.lib.filter import Filter
+from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.configurator.lib import lb_constants
 
 LOG = logging.getLogger(__name__)
 
@@ -25,7 +23,14 @@ class LBaasRpcSender(Filter):
     #       - pool_deployed() and update_status() methods added;
 
     def __init__(self, sc=None):
-        self.queue = Queue(sc)
+        self.sc = sc
+        pass
+
+    def _notification(self, data):
+        LOG.info("Sending notification: %s" % data)
+        event = self.sc.new_event(
+            id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
+        self.sc.poll_event(event)
 
     def get_logical_device(self, pool_id, context=None):
         # Call goes to filter library
@@ -45,8 +50,7 @@ class LBaasRpcSender(Filter):
                            'obj_id': obj_id,
                            'status': status}]
                }
-        LOG.info("Adding response msg - %s to queue " % (msg))
-        self.queue.put(msg)
+        self._notification(msg)
 
     def update_pool_stats(self, pool_id, stats):
         LOG.info("[LbaaSRpcSender]: Update pool stats called")
@@ -56,8 +60,7 @@ class LBaasRpcSender(Filter):
                'kwargs': [{'pool_id': pool_id,
                            'stats': stats}]
                }
-        LOG.info("Adding response msg - %s to queue " % (msg))
-        self.queue.put(msg)
+        self._notification(msg)
 
 
 """Implements APIs invoked by configurator for processing RPC messages.
@@ -95,8 +98,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': vip['pool_id']
                     }
-        ev = self._sc.event(id='CREATE_VIP', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='CREATE_VIP', data=arg_dict)
+        self._sc.post_event(ev)
 
     def update_vip(self, context, old_vip, vip):
         arg_dict = {'context': context,
@@ -105,8 +108,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': vip['pool_id']
                     }
-        ev = self._sc.event(id='UPDATE_VIP', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='UPDATE_VIP', data=arg_dict)
+        self._sc.post_event(ev)
 
     def delete_vip(self, context, vip):
 
@@ -115,8 +118,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': vip['pool_id']
                     }
-        ev = self._sc.event(id='DELETE_VIP', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='DELETE_VIP', data=arg_dict)
+        self._sc.post_event(ev)
 
     def create_pool(self, context, pool, driver_name):
 
@@ -126,11 +129,10 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': pool['id']
                     }
-        ev = self._sc.event(id='CREATE_POOL', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='CREATE_POOL', data=arg_dict)
+        self._sc.post_event(ev)
 
     def update_pool(self, context, old_pool, pool):
-        LOG.info(' update_pool() context - %s ' % (context))
         arg_dict = {'context': context,
                     'old_pool': old_pool,
                     'pool': pool,
@@ -138,8 +140,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'binding_key': pool['id']
                     }
 
-        ev = self._sc.event(id='UPDATE_POOL', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='UPDATE_POOL', data=arg_dict)
+        self._sc.post_event(ev)
 
     def delete_pool(self, context, pool):
 
@@ -148,8 +150,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': pool['id']
                     }
-        ev = self._sc.event(id='DELETE_POOL', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='DELETE_POOL', data=arg_dict)
+        self._sc.post_event(ev)
 
     def create_member(self, context, member):
 
@@ -158,8 +160,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': member['pool_id']
                     }
-        ev = self._sc.event(id='CREATE_MEMBER', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='CREATE_MEMBER', data=arg_dict)
+        self._sc.post_event(ev)
 
     def update_member(self, context, old_member, member):
         arg_dict = {'context': context,
@@ -168,8 +170,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': member['pool_id']
                     }
-        ev = self._sc.event(id='UPDATE_MEMBER', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='UPDATE_MEMBER', data=arg_dict)
+        self._sc.post_event(ev)
 
     def delete_member(self, context, member):
         arg_dict = {'context': context,
@@ -177,8 +179,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': member['pool_id']
                     }
-        ev = self._sc.event(id='DELETE_MEMBER', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='DELETE_MEMBER', data=arg_dict)
+        self._sc.post_event(ev)
 
     def create_pool_health_monitor(self, context, health_monitor, pool_id):
 
@@ -188,8 +190,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': pool_id
                     }
-        ev = self._sc.event(id='CREATE_POOL_HEALTH_MONITOR', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='CREATE_POOL_HEALTH_MONITOR', data=arg_dict)
+        self._sc.post_event(ev)
 
     def update_pool_health_monitor(self, context, old_health_monitor,
                                    health_monitor, pool_id):
@@ -200,8 +202,8 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': pool_id
                     }
-        ev = self._sc.event(id='UPDATE_POOL_HEALTH_MONITOR', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='UPDATE_POOL_HEALTH_MONITOR', data=arg_dict)
+        self._sc.post_event(ev)
 
     def delete_pool_health_monitor(self, context, health_monitor, pool_id):
 
@@ -211,15 +213,15 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
                     'serialize': True,
                     'binding_key': pool_id
                     }
-        ev = self._sc.event(id='DELETE_POOL_HEALTH_MONITOR', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='DELETE_POOL_HEALTH_MONITOR', data=arg_dict)
+        self._sc.post_event(ev)
 
     def agent_updated(self, context, payload):
         """Handle the agent_updated notification event."""
         arg_dict = {'context': context,
                     'payload': payload}
-        ev = self._sc.event(id='AGENT_UPDATED', data=arg_dict)
-        self._sc.rpc_event(ev)
+        ev = self._sc.new_event(id='AGENT_UPDATED', data=arg_dict)
+        self._sc.post_event(ev)
 
 
 """Implements event handlers and their helper methods.
@@ -231,14 +233,14 @@ invoked by core service controller.
 """
 
 
-class LBaaSEventHandler(core_periodic_task.PeriodicTasks):
+class LBaaSEventHandler(nfp_poll.PollEventDesc):
     instance_mapping = {}
 
-    def __init__(self, sc, drivers, rpcmgr):
+    def __init__(self, sc, drivers, rpcmgr, nqueue):
         self._sc = sc
         self.drivers = drivers
         self._rpcmgr = rpcmgr
-        self.qu = queue.Queue(sc)
+        self.nqueue = nqueue
         self.plugin_rpc = LBaasRpcSender(sc)
 
     def _get_driver(self, service_type):
@@ -292,6 +294,8 @@ class LBaaSEventHandler(core_periodic_task.PeriodicTasks):
         except Exception as err:
             LOG.error("Failed to perform the operation: %s. %s"
                       % (ev.id, str(err).capitalize()))
+            import traceback
+            traceback.print_exc()
         """
         finally:
             if ev.id == 'COLLECT_STATS':
@@ -490,16 +494,14 @@ class LBaaSEventHandler(core_periodic_task.PeriodicTasks):
         return None
 
     def _handle_failed_driver_call(self, operation, obj_type, obj_id, driver):
-        LOG.exception(_('%(operation)s %(obj)s %(id)s failed on device driver '
-                        '%(driver)s'),
-                      {'operation': operation.capitalize(), 'obj': obj_type,
-                       'id': obj_id, 'driver': driver})
+        LOG.error("Failed operation=%s,for obj_type=%s,obj_id=%s,"
+                  "driver=%s " % (operation, obj_type, obj_id, driver))
         self.plugin_rpc.update_status(obj_type, obj_id, lb_constants.ERROR)
 
     def _collect_stats(self, ev):
         self._sc.poll_event(ev)
 
-    @core_periodic_task.periodic_task(event='COLLECT_STATS', spacing=60)
+    @nfp_poll.poll_event_desc(event='COLLECT_STATS', spacing=60)
     def collect_stats(self, ev):
         for pool_id, driver_name in LBaaSEventHandler.instance_mapping.items():
             driver = self.drivers[driver_name]
@@ -512,7 +514,7 @@ class LBaaSEventHandler(core_periodic_task.PeriodicTasks):
                               pool_id)
 
 
-def events_init(sc, drivers, rpcmgr):
+def events_init(sc, drivers, rpcmgr, nqueue):
     """Registers events with core service controller.
 
     All the events will come to handle_event method of class instance
@@ -527,39 +529,34 @@ def events_init(sc, drivers, rpcmgr):
     """
     evs = [
         # Events for LBaaS standard RPCs coming from LBaaS Plugin
-        Event(id='CREATE_POOL', handler=LBaaSEventHandler(sc, drivers,
-                                                          rpcmgr)),
-        Event(id='UPDATE_POOL', handler=LBaaSEventHandler(sc, drivers,
-                                                          rpcmgr)),
-        Event(id='DELETE_POOL', handler=LBaaSEventHandler(sc, drivers,
-                                                          rpcmgr)),
-
-        Event(id='CREATE_VIP', handler=LBaaSEventHandler(sc, drivers, rpcmgr)),
-        Event(id='UPDATE_VIP', handler=LBaaSEventHandler(sc, drivers, rpcmgr)),
-        Event(id='DELETE_VIP', handler=LBaaSEventHandler(sc, drivers, rpcmgr)),
-
-
-        Event(id='CREATE_MEMBER', handler=LBaaSEventHandler(sc, drivers,
-                                                            rpcmgr)),
-        Event(id='UPDATE_MEMBER', handler=LBaaSEventHandler(sc, drivers,
-                                                            rpcmgr)),
-        Event(id='DELETE_MEMBER', handler=LBaaSEventHandler(sc, drivers,
-                                                            rpcmgr)),
-
+        Event(id='CREATE_POOL', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='UPDATE_POOL', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='DELETE_POOL', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='CREATE_VIP', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='UPDATE_VIP', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='DELETE_VIP', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='CREATE_MEMBER', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='UPDATE_MEMBER', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='DELETE_MEMBER', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
         Event(id='CREATE_POOL_HEALTH_MONITOR', handler=LBaaSEventHandler(
-                                                                sc, drivers,
-                                                                rpcmgr)),
+                                                sc, drivers, rpcmgr, nqueue)),
         Event(id='UPDATE_POOL_HEALTH_MONITOR', handler=LBaaSEventHandler(
-                                                                sc, drivers,
-                                                                rpcmgr)),
+                                                sc, drivers, rpcmgr, nqueue)),
         Event(id='DELETE_POOL_HEALTH_MONITOR', handler=LBaaSEventHandler(
-                                                                sc, drivers,
-                                                                rpcmgr)),
-        Event(id='AGENT_UPDATED', handler=LBaaSEventHandler(sc, drivers,
-                                                            rpcmgr)),
-        Event(id='COLLECT_STATS', handler=LBaaSEventHandler(sc, drivers,
-                                                            rpcmgr)),
-
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='AGENT_UPDATED', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue)),
+        Event(id='COLLECT_STATS', handler=LBaaSEventHandler(
+                                                sc, drivers, rpcmgr, nqueue))
         ]
     sc.register_events(evs)
 
@@ -623,7 +620,7 @@ def init_agent(cm, sc, conf, nqueue):
     rpcmgr = LBaaSRpcManager(sc, conf)
 
     try:
-        events_init(sc, drivers, rpcmgr)
+        events_init(sc, drivers, rpcmgr, nqueue)
     except Exception as err:
         msg = ("Loadbalaner agent failed to initialize events. %s"
                % (str(err).capitalize()))
@@ -649,8 +646,8 @@ def init_agent(cm, sc, conf, nqueue):
 
 def _start_collect_stats(sc):
     arg_dict = {}
-    ev = sc.event(id='COLLECT_STATS', data=arg_dict)
-    sc.rpc_event(ev)
+    ev = sc.new_event(id='COLLECT_STATS', data=arg_dict)
+    sc.post_event(ev)
 
 
 def init_agent_complete(cm, sc, conf):

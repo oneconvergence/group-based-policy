@@ -1,15 +1,8 @@
-"""
-Test file to send LBaaS standard rpcs to configurator module using
-generic apis
-"""
-
 import eventlet
+import oslo_messaging
 from oslo_config import cfg
 from oslo_log import log as logging
-import oslo_messaging
-
-from gbpservice.neutron.nsf.configurator.modules import \
-                                                 loadbalancer_v1 as lb_v1
+from gbpservice.nfp.configurator.agents import loadbalancer_v1
 from neutron.common import rpc as n_rpc
 from neutron import context
 eventlet.monkey_patch()
@@ -17,12 +10,18 @@ eventlet.monkey_patch()
 LOG = logging.getLogger(__name__)
 
 CONFIGURATOR_TOPIC = "configurator"
+HOST = "Devstack-8"
+
+"""
+Test file to send LBaaS standard rpcs to configurator module using
+generic apis
+"""
 
 
 class LBResources(object):
 
     def __init__(self):
-        self.driver_name = 'haproxy_on_vm'
+        self.driver_name = 'loadbalancer'
 
         self.vip = {
                     "status": "ACTIVE",
@@ -322,7 +321,7 @@ class LBRpcSenderV1(object):
 
     API_VERSION = '1.0'
 
-    def __init__(self, host='devstack', topic=CONFIGURATOR_TOPIC):
+    def __init__(self, host=HOST, topic=CONFIGURATOR_TOPIC):
         self.host = host
         super(LBRpcSenderV1, self).__init__()
         target = oslo_messaging.Target(
@@ -334,6 +333,15 @@ class LBRpcSenderV1(object):
         self.context = context.get_admin_context_without_session()
         self.lb_context = LBContext()
 
+    def _prepare_request_data(self, resource, kwargs):
+        request_data = {
+             'info':   {'version': 'v1',
+                        'service_type': 'loadbalancer'},
+             'config': [{'resource': resource,
+                         'kwargs': kwargs}]
+            }
+        return request_data
+
     def test_create_pool(self):
         print 'called test_create_pool'
         pool_info = {'context': {'service_info':
@@ -342,12 +350,7 @@ class LBRpcSenderV1(object):
                      'driver_name': 'loadbalancer'
                      }
 
-        pool_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'pool',
-                                 'kwargs': pool_info}]
-                    }
+        pool_data = self._prepare_request_data('pool', pool_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'create_network_service_config',
                           request_data=pool_data)
@@ -361,12 +364,7 @@ class LBRpcSenderV1(object):
                      'pool': self.lb_resources.pool,
                      }
 
-        pool_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'pool',
-                                 'kwargs': pool_info}]
-                    }
+        pool_data = self._prepare_request_data('pool', pool_info)
         return cctxt.cast(self.context, 'update_network_service_config',
                           request_data=pool_data)
 
@@ -377,12 +375,7 @@ class LBRpcSenderV1(object):
                      'pool': self.lb_resources.pool
                      }
 
-        pool_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'pool',
-                                 'kwargs': pool_info}]
-                    }
+        pool_data = self._prepare_request_data('pool', pool_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'delete_network_service_config',
                           request_data=pool_data)
@@ -394,12 +387,7 @@ class LBRpcSenderV1(object):
                     'vip': self.lb_resources.vip
                     }
 
-        vip_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'vip',
-                                 'kwargs': vip_info}]
-                    }
+        vip_data = self._prepare_request_data('vip', vip_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'create_network_service_config',
                           request_data=vip_data)
@@ -412,12 +400,7 @@ class LBRpcSenderV1(object):
                     'vip': self.lb_resources.vip
                     }
 
-        vip_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'vip',
-                                 'kwargs': vip_info}]
-                    }
+        vip_data = self._prepare_request_data('vip', vip_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'update_network_service_config',
                           request_data=vip_data)
@@ -429,12 +412,7 @@ class LBRpcSenderV1(object):
                     'vip': self.lb_resources.vip
                     }
 
-        vip_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'vip',
-                                 'kwargs': vip_info}]
-                    }
+        vip_data = self._prepare_request_data('vip', vip_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'delete_network_service_config',
                           request_data=vip_data)
@@ -446,12 +424,7 @@ class LBRpcSenderV1(object):
                        'member': self.lb_resources.member
                        }
 
-        member_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'member',
-                                 'kwargs': member_info}]
-                    }
+        member_data = self._prepare_request_data('member', member_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'create_network_service_config',
                           request_data=member_data)
@@ -464,12 +437,7 @@ class LBRpcSenderV1(object):
                        'member': self.lb_resources.member
                        }
 
-        member_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'member',
-                                 'kwargs': member_info}]
-                    }
+        member_data = self._prepare_request_data('member', member_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'update_network_service_config',
                           request_data=member_data)
@@ -481,17 +449,12 @@ class LBRpcSenderV1(object):
                        'member': self.lb_resources.member
                        }
 
-        member_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'member',
-                                 'kwargs': member_info}]
-                    }
+        member_data = self._prepare_request_data('member', member_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'delete_network_service_config',
                           request_data=member_data)
 
-    def test_create_health_monitor(self):
+    def test_create_pool_health_monitor(self):
         print 'called test_create_health_monitor'
         hm_info = {'context': {'service_info':
                                self.lb_context.get_service_info()},
@@ -499,17 +462,13 @@ class LBRpcSenderV1(object):
                    'pool_id': self.lb_resources.pool['id']
                    }
 
-        hm_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'pool_health_monitor',
-                                 'kwargs': hm_info}]
-                    }
+        hm_data = self._prepare_request_data('pool_health_monitor',
+                                             hm_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'create_network_service_config',
                           request_data=hm_data)
 
-    def test_update_health_monitor(self):
+    def test_update_pool_health_monitor(self):
         print 'called test_update_health_monitor'
         hm_info = {'context': {'service_info':
                                self.lb_context.get_service_info()},
@@ -518,17 +477,13 @@ class LBRpcSenderV1(object):
                    'pool_id': self.lb_resources.pool['id']
                    }
 
-        hm_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'pool_health_monitor',
-                                 'kwargs': hm_info}]
-                    }
+        hm_data = self._prepare_request_data('pool_health_monitor',
+                                             hm_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'update_network_service_config',
                           request_data=hm_data)
 
-    def test_delete_health_monitor(self):
+    def test_delete_pool_health_monitor(self):
         print 'called test_delete_health_monitor'
         hm_info = {'context': {'service_info':
                                self.lb_context.get_service_info()},
@@ -536,12 +491,8 @@ class LBRpcSenderV1(object):
                    'pool_id': self.lb_resources.pool['id']
                    }
 
-        hm_data = {
-                     'info':   {'version': 'v1',
-                                'type': 'loadbalancer'},
-                     'config': [{'resource': 'pool_health_monitor',
-                                 'kwargs': hm_info}]
-                    }
+        hm_data = self._prepare_request_data('pool_health_monitor',
+                                             hm_info)
         cctxt = self.client.prepare(server=self.host)
         return cctxt.call(self.context, 'delete_network_service_config',
                           request_data=hm_data)
@@ -549,8 +500,8 @@ class LBRpcSenderV1(object):
     def test_configure_interfaces(self):
         print 'called test_configure_interfaces'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer',
-                           'request_info': {}},
+                'service_type': 'loadbalancer',
+                'request_info': {},
                 }
         request_data = {
                      'info':   {'version': 'v1'},
@@ -564,7 +515,8 @@ class LBRpcSenderV1(object):
     def test_clear_interfaces(self):
         print 'called test_clear_interfaces'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer', 'request_info': {}},
+                'service_type': 'loadbalancer',
+                'request_info': {},
                 }
         request_data = {
                      'info':   {'version': 'v1'},
@@ -578,7 +530,8 @@ class LBRpcSenderV1(object):
     def test_configure_source_routes(self):
         print 'called test_configure_source_routes'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer', 'request_info': {}},
+                'service_type': 'loadbalancer',
+                'request_info': {},
                 }
         request_data = {
                      'info':   {'version': 'v1'},
@@ -592,7 +545,8 @@ class LBRpcSenderV1(object):
     def test_clear_source_routes(self):
         print 'called test_clear_source_routes'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer', 'request_info': {}},
+                'service_type': 'loadbalancer',
+                'request_info': {},
                 }
         request_data = {
                      'info':   {'version': 'v1'},
@@ -606,13 +560,13 @@ class LBRpcSenderV1(object):
     def test_configure_healthmonitor(self, periodicity):
         print 'called test_configure_healthmonitor'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer',
-                           'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
-                           'mgmt_ip': '11.0.0.4',
-                           'periodicity': periodicity,
-                           'request_info': {}
-                           }
+                'service_type': 'loadbalancer',
+                'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
+                'mgmt_ip': '127.0.0.1',
+                'periodicity': periodicity,
+                'request_info': {}
                 }
+
         request_data = {
                      'info':   {'version': 'v1'},
                      'config': [{'resource': 'healthmonitor',
@@ -625,10 +579,9 @@ class LBRpcSenderV1(object):
     def test_clear_healthmonitor(self):
         print 'called test_clear_healthmonitor'
         data = {'context': {},
-                'kwargs': {'service_type': 'loadbalancer',
-                           'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
-                           'request_info': {}
-                           }
+                'service_type': 'loadbalancer',
+                'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
+                'request_info': {}
                 }
         request_data = {
                      'info':   {'version': 'v1'},
@@ -640,18 +593,18 @@ class LBRpcSenderV1(object):
                           request_data=request_data)
 
 # LBaaS rpc test cases
-client = LBRpcSenderV1("devstack", CONFIGURATOR_TOPIC)
-# client.test_create_pool()
-# client.test_create_vip()
-# client.test_create_member()
-# client.test_create_health_monitor()
+client = LBRpcSenderV1(HOST, CONFIGURATOR_TOPIC)
+client.test_create_pool()
+client.test_create_vip()
+client.test_create_member()
+client.test_create_pool_health_monitor()
 
 # client.test_update_pool()
 # client.test_update_vip()
 # client.test_update_member()
-# client.test_update_health_monitor()
+# client.test_update_pool_health_monitor()
 #
-# client.test_delete_health_monitor()
+# client.test_delete_pool_health_monitor()
 # client.test_delete_member()
 # client.test_delete_vip()
 # client.test_delete_pool()
@@ -664,4 +617,4 @@ client = LBRpcSenderV1("devstack", CONFIGURATOR_TOPIC)
 
 # client.test_configure_healthmonitor('initial')
 # client.test_configure_healthmonitor('forever')
-client.test_clear_healthmonitor()
+# client.test_clear_healthmonitor()
