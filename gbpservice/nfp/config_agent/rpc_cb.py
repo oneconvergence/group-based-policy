@@ -48,7 +48,6 @@ class RpcCallback(core_pt.PollEventDesc):
     @core_pt.poll_event_desc(event='PULL_RPC_NOTIFICATIONS', spacing=1)
     def rpc_pull_event(self, ev):
         try :
-            print "coming for polling request"
             resp, rpc_cbs_data = rc.get('get_notifications')
             rpc_cbs_data = json.loads(rpc_cbs_data)
             '''
