@@ -95,7 +95,6 @@ class FwGenericConfigDriver(object):
         
 
     def configure_interfaces(self,  context, kwargs):
-	"""import time; time.sleep(10)"""
         try:
             result_static_ips = self._configure_static_ips(kwargs)
         except Exception as err:
@@ -106,7 +105,7 @@ class FwGenericConfigDriver(object):
             if result_static_ips != const.STATUS_SUCCESS:
                 return result_static_ips
             else:
-                LOG.info("Added static IPs. Error: %s" % result_static_ips)
+                LOG.info("Added static IPs. Result: %s" % result_static_ips)
 
         rule_info = kwargs.get('rule_info')
 
