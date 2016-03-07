@@ -693,16 +693,16 @@ class DeviceLifeCycleHandler(object):
     # Error Handling
     def handle_device_error(self, event):
         device = event.data
-        status = 'ERROR'
-        desc = 'Internal Server Error'
-        self._update_network_function_device_db(device, status, desc)
+        #status = 'ERROR'
+        #desc = 'Internal Server Error'
+        #self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
 
     def handle_device_create_failed(self, event):
         device = event.data
-        status = device.get('status')
+        status = 'ERROR'
         desc = device['status_description']
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -731,7 +731,7 @@ class DeviceLifeCycleHandler(object):
     def handle_device_config_failed(self, event):
         # change device status to error only in case of health check fail
         device = event.data
-        status = device.get('status')
+        status = 'ERROR'
         desc = 'Configuring Device Failed.'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -743,7 +743,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_interfaces_setup_failed(self, event):
         device = event.data
-        status = device.get('status')
+        status = 'ERROR'
         desc = 'Interfaces configuration failed'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -755,7 +755,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_routes_config_failed(self, event):
         device = event.data
-        status = device.get('status')
+        status = 'ERROR'
         desc = 'Routes configuration Failed'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
