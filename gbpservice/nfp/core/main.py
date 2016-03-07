@@ -232,14 +232,14 @@ class Controller(object):
             report task.
         """
         self.init()
+        for worker in self._workers:
+            worker[0].start()
+            log_debug(LOG, "Started worker - %d" % (worker[0].pid))
+
         # Polling task to poll for timer events
         self._polling_task = PollingTask(self)
         # Seperate task for reporting as report state rpc is a 'call'
         self._reportstate_task = ReportStateTask(self)
-
-        for worker in self._workers:
-            worker[0].start()
-            log_debug(LOG, "Started worker - %d" % (worker[0].pid))
 
         for idx, agent in enumerate(self._rpc_agents):
             launcher = oslo_service.launch(oslo_config.CONF, agent[0])
@@ -298,6 +298,9 @@ class Controller(object):
                  % (event.identify(), max_times))
         event.max_times = max_times
         self._pollhandler.add(event)
+
+    def poll_event_timedout(self, eh, event):
+        self._pollhandler.event_timedout(eh, event)
 
     def poll_event_done(self, event):
         """API for NFP modules to mark a poll event complete.

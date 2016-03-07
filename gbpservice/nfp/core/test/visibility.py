@@ -163,10 +163,10 @@ class Agent(PollEventDesc):
         """Driver logic here.
         """
         self._sc.event_done(ev)
-        self._sc.poll_event(ev)
+        self._sc.poll_event(ev, max_times=100)
 
     def _handle_dummy_event(self, ev):
-        self._sc.poll_event(ev, max_times=2)
+        self._sc.poll_event(ev)
 
     def _handle_delete_event(self, ev):
         """Driver logic here.
@@ -176,11 +176,22 @@ class Agent(PollEventDesc):
 
     @nfp_poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
-        LOG.debug("Poll event (%s)" % (str(ev)))
+        poll = True
 
-    @nfp_poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=10)
+        if not ev.data.get('count'):
+            ev.data['count'] = 2
+        else:
+            ev.data['count'] -= 1
+        if not ev.data['count']:
+            poll = False
+
+        LOG.debug("Poll event (%s)" % (str(ev)))
+        return {'poll': poll, 'event': ev}
+
+    @nfp_poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=1)
     def service_dummy_poll_event(self, ev):
         LOG.debug("Poll event (%s)" % (str(ev)))
+        self._sc.poll_event_done(ev)
 
     def _handle_poll_event(self, ev):
         """Driver logic here

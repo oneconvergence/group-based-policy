@@ -160,9 +160,9 @@ class EventQueueHandler(object):
         LOG.debug("Checking serialize Q for events long pending")
         ev = self._sc.sequencer_get_event()
         if not ev:
-            LOG.debug(
-                "No event pending in sequencer Q - "
-                "checking the event Q")
+            log_debug(LOG,
+                      "No event pending in sequencer Q - "
+                      "checking the event Q")
             try:
                 ev = self._evq.get(timeout=0.1)
             except Queue.Empty:
@@ -180,26 +180,7 @@ class EventQueueHandler(object):
                 ev = self._sc.sequencer_put_event(ev)
         return ev
 
-    def _cancelled(self, eh, ev):
-        """Internal function to cancel an event.
-
-            Removes it from poll_queue also.
-            Invokes the 'poll_event_cancel' method of the
-            registered handler if it is implemented.
-        """
-        log_info(LOG,
-                 "Event %s cancelled"
-                 "invoking %s handler's poll_event_cancel method"
-                 % (ev.identify(), identify(eh)))
-        try:
-            self._sc.poll_event_done(ev)
-            eh.poll_event_cancel(ev)
-        except AttributeError:
-            log_info(LOG,
-                     "Handler %s does not implement"
-                     "poll_event_cancel method" % (identify(eh)))
-
-    def _poll_event(self, eh, ev):
+    def _dispatch_poll_event(self, eh, ev):
         """Internal function to handle the poll event.
 
             Poll task adds the timedout events to the worker process.
@@ -212,33 +193,10 @@ class EventQueueHandler(object):
                   "Event %s to be scheduled to handler %s"
                   % (ev.identify(), identify(eh)))
 
-        # Event handler can implement decorated timeout methods only if it
-        # is dervied from periodic_task. Checking here.
-        if isinstance(eh, nfp_poll.PollEventDesc):
-            # Check if this event has a decorated timeout method
-            peh = eh.get_poll_event_desc(ev)
-            if peh:
-                t = self._tpool.dispatch(peh, eh, ev)
-                log_info(LOG,
-                         "Dispatched method %s of handler %s"
-                         "for event %s to thread %s"
-                         % (identify(peh), identify(eh),
-                            ev.identify(), t.identify()))
-
-            else:
-                t = self._tpool.dispatch(eh.handle_poll_event, ev)
-                log_info(LOG,
-                         "Dispatched handle_poll_event() of handler %s"
-                         "for event %s to thread %s"
-                         % (identify(eh),
-                            ev.identify(), t.identify()))
-        else:
-            t = self._tpool.dispatch(eh.handle_poll_event, ev)
-            log_info(LOG,
-                     "Dispatched handle_poll_event() of handler %s"
-                     "for event %s to thread %s"
-                     % (identify(eh),
-                        ev.identify(), t.identify()))
+        t = self._tpool.dispatch(self._sc.poll_event_timedout, eh, ev)
+        log_info(LOG,
+                 "Invoking event_timedout method in thread %s"
+                 % (t.identify()))
 
     def run(self, qu):
         """Worker process loop to fetch & process events from event queue.
@@ -269,12 +227,7 @@ class EventQueueHandler(object):
                               "to thread %s"
                               % (ev.identify(), identify(eh), t.identify()))
                 else:
-                    if ev.poll_event == 'POLL_EVENT_CANCELLED':
-                        log_debug(LOG,
-                                  "Got cancelled event %s" % (ev.identify()))
-                        self._cancelled(eh, ev)
-                    else:
-                        log_info(LOG, "Got POLL Event %s scheduling"
-                                 % (ev.identify()))
-                        self._poll_event(eh, ev)
+                    self._dispatch_poll_event(eh, ev)
+                    log_info(LOG, "Got POLL Event %s scheduling"
+                             % (ev.identify()))
             time.sleep(0)  # Yield the CPU
