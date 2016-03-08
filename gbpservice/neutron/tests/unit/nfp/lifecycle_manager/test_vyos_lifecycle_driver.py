@@ -21,13 +21,11 @@ OPENSTACK_DRIVER_CLASS_PATH = ('gbpservice.nfp.lifecycle_manager'
        mock.MagicMock(return_value=None))
 class VyosLifecycleDriverTestCase(unittest.TestCase):
 
-    def test_get_nfd_sharing_info_when_device_sharing_unsupported(
-                                                                self):
+    def test_get_nfd_sharing_info_when_device_sharing_unsupported(self):
         driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                         supports_device_sharing=False)
-        self.assertRaises(Exception,
-                          driver.get_network_function_device_sharing_info,
-                          None)
+        self.assertIsNone(driver.get_network_function_device_sharing_info(
+                                                                        None))
 
     def test_get_network_function_device_sharing_info(self):
         driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
@@ -50,10 +48,7 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
                                                                         self):
         driver = vyos_lifecycle_driver.VyosLifeCycleDriver(
                         supports_device_sharing=False)
-        self.assertRaises(Exception,
-                          driver.select_network_function_device,
-                          None,
-                          None)
+        self.assertIsNone(driver.select_network_function_device(None, None))
 
     def test_select_network_function_device(self):
         driver = vyos_lifecycle_driver.VyosLifeCycleDriver(

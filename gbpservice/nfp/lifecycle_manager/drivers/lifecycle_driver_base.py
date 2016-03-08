@@ -55,6 +55,9 @@ class LifeCycleDriverBase(object):
         # - interface_unplug_failures
         self.stats = {}
 
+    def _get_admin_tenant_id(self):
+        return openstack_driver.cfg.CONF.keystone_authtoken.admin_tenant_id
+
     def _increment_stats_counter(self, metric, by=1):
         try:
             self.stats.update({metric: self.stats.get(metric, 0) + by})
@@ -88,14 +91,14 @@ class LifeCycleDriverBase(object):
             mgmt_ptg_id = device_data['management_network_info']['id']
             mgmt_interface = self.network_handler_gbp.create_policy_target(
                                 token,
-                                device_data['tenant_id'],
+                                self._get_admin_tenant_id(),
                                 mgmt_ptg_id,
                                 name)
         else:
             mgmt_net_id = device_data['management_network_info']['id']
             mgmt_interface = self.network_handler_neutron.create_port(
                                 token,
-                                device_data['tenant_id'],
+                                self._get_admin_tenant_id(),
                                 mgmt_net_id)
 
         return {'id': mgmt_interface['id'],
@@ -152,8 +155,7 @@ class LifeCycleDriverBase(object):
 
     def get_network_function_device_sharing_info(self, device_data):
         if not self._is_device_sharing_supported():
-            # TODO[RPM]: raise proper exception
-            raise Exception("Driver doesn't support device sharing")
+            return None
 
         if any(key not in device_data
                for key in ['tenant_id',
@@ -171,8 +173,7 @@ class LifeCycleDriverBase(object):
 
     def select_network_function_device(self, devices, device_data):
         if not self._is_device_sharing_supported():
-            # TODO[RPM]: raise proper exception
-            raise Exception("Driver doesn't support device sharing")
+            return None
 
         if (
             any(key not in device_data
@@ -264,7 +265,7 @@ class LifeCycleDriverBase(object):
         try:
             image_id = self.compute_handler_nova.get_image_id(
                     token,
-                    device_data['tenant_id'],
+                    self._get_admin_tenant_id(),
                     image_name)
         except Exception:
             self._increment_stats_counter('image_details_get_failures')
@@ -304,7 +305,7 @@ class LifeCycleDriverBase(object):
         instance_name = 'instance'  # TODO[RPM]:use proper name
         try:
             instance_id = self.compute_handler_nova.create_instance(
-                    token, device_data['tenant_id'],
+                    token, self._get_admin_tenant_id(),
                     image_id, flavor,
                     interfaces_to_attach, instance_name)
         except Exception:
@@ -333,7 +334,7 @@ class LifeCycleDriverBase(object):
             try:
                 self.compute_handler_nova.delete_instance(
                                             token,
-                                            device_data['tenant_id'],
+                                            self._get_admin_tenant_id(),
                                             device_data['id'])
             except Exception:
                 self._increment_stats_counter('instance_delete_failures')
@@ -389,9 +390,10 @@ class LifeCycleDriverBase(object):
             return None
 
         try:
-            self.compute_handler_nova.delete_instance(token,
-                                                      device_data['tenant_id'],
-                                                      device_data['id'])
+            self.compute_handler_nova.delete_instance(
+                                            token,
+                                            self._get_admin_tenant_id(),
+                                            device_data['id'])
         except Exception:
             self._increment_stats_counter('instance_delete_failures')
             LOG.error(_('Failed to delete %s instance'
@@ -436,7 +438,7 @@ class LifeCycleDriverBase(object):
         try:
             device = self.compute_handler_nova.get_instance(
                             token,
-                            device_data['tenant_id'],
+                            self._get_admin_tenant_id(),
                             device_data['id'])
         except Exception:
             self._increment_stats_counter('instance_details_get_failures')
@@ -492,7 +494,7 @@ class LifeCycleDriverBase(object):
                     port_id = self._get_port_id(port, token)
                     self.compute_handler_nova.attach_interface(
                                 token,
-                                device_data['tenant_id'],
+                                self._get_admin_tenant_id(),
                                 device_data['id'],
                                 port_id)
             for port in device_data['ports']:
@@ -500,7 +502,7 @@ class LifeCycleDriverBase(object):
                     port_id = self._get_port_id(port, token)
                     self.compute_handler_nova.attach_interface(
                                 token,
-                                device_data['tenant_id'],
+                                self._get_admin_tenant_id(),
                                 device_data['id'],
                                 port_id)
         except Exception:
@@ -552,7 +554,7 @@ class LifeCycleDriverBase(object):
                 port_id = self._get_port_id(port, token)
                 self.compute_handler_nova.detach_interface(
                             token,
-                            device_data['tenant_id'],
+                            self._get_admin_tenant_id(),
                             device_data['id'],
                             port_id)
         except Exception:
