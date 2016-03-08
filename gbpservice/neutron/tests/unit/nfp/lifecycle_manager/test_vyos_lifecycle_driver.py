@@ -91,6 +91,10 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
                                                         return_value='token')
+        driver.identity_handler.get_tenant_id = mock.MagicMock(
+                                                            return_value='8')
+        driver.identity_handler.get_keystone_creds = mock.MagicMock(
+                                    return_value=(None, None, 'admin', None))
         driver.network_handler_gbp.create_policy_target = mock.MagicMock(
                                                 return_value={'id': '5'})
         driver.network_handler_neutron.create_port = mock.MagicMock(
@@ -153,6 +157,10 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
                                                         return_value='token')
+        driver.identity_handler.get_tenant_id = mock.MagicMock(
+                                                            return_value='8')
+        driver.identity_handler.get_keystone_creds = mock.MagicMock(
+                                    return_value=(None, None, 'admin', None))
         driver.compute_handler_nova.delete_instance = mock.MagicMock(
                                                         return_value=None)
         driver.network_handler_gbp.delete_policy_target = mock.MagicMock(
@@ -183,6 +191,10 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
                                                         return_value='token')
+        driver.identity_handler.get_tenant_id = mock.MagicMock(
+                                                            return_value='8')
+        driver.identity_handler.get_keystone_creds = mock.MagicMock(
+                                    return_value=(None, None, 'admin', None))
         driver.compute_handler_nova.get_instance = mock.MagicMock(
                                             return_value={'status': 'ACTIVE'})
 
@@ -208,6 +220,10 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
                                                         return_value='token')
+        driver.identity_handler.get_tenant_id = mock.MagicMock(
+                                                            return_value='8')
+        driver.identity_handler.get_keystone_creds = mock.MagicMock(
+                                    return_value=(None, None, 'admin', None))
         driver.compute_handler_nova.attach_interface = mock.MagicMock(
                                                         return_value=None)
         driver.network_handler_gbp.get_policy_target = mock.MagicMock(
@@ -246,6 +262,10 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
                                                         return_value='token')
+        driver.identity_handler.get_tenant_id = mock.MagicMock(
+                                                            return_value='8')
+        driver.identity_handler.get_keystone_creds = mock.MagicMock(
+                                    return_value=(None, None, 'admin', None))
         driver.compute_handler_nova.detach_interface = mock.MagicMock(
                                                         return_value=None)
         driver.network_handler_gbp.get_policy_target = mock.MagicMock(
