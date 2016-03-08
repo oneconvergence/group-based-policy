@@ -1,0 +1,50 @@
+# DRIVERS_DIR = '/usr/lib/python2.7/dist-packages/gbpservice/nfp/'\
+#              'configurator/drivers/loadbalancer/'
+DRIVERS_DIR = '/opt/stack/gbp/gbpservice/nfp/configurator/drivers/loadbalancer/'
+SERVICE_TYPE = 'loadbalancer'
+NEUTRON = 'neutron'
+
+LBAAS_AGENT_RPC_TOPIC = 'lbaas_agent'
+LBAAS_GENERIC_CONFIG_RPC_TOPIC = 'lbaas_generic_config'
+LBAAS_PLUGIN_RPC_TOPIC = 'n-lbaas-plugin'
+AGENT_TYPE_LOADBALANCER = 'OC Loadbalancer agent'
+
+# Service operation status constants
+ACTIVE = "ACTIVE"
+DOWN = "DOWN"
+CREATED = "CREATED"
+PENDING_CREATE = "PENDING_CREATE"
+PENDING_UPDATE = "PENDING_UPDATE"
+PENDING_DELETE = "PENDING_DELETE"
+INACTIVE = "INACTIVE"
+ERROR = "ERROR"
+
+ACTIVE_PENDING_STATUSES = (
+    ACTIVE,
+    PENDING_CREATE,
+    PENDING_UPDATE
+)
+
+""" HTTP request/response """
+HAPROXY_AGENT_LISTEN_PORT = 1234
+HTTP_REQ_METHOD_POST = 'POST'
+HTTP_REQ_METHOD_GET = 'GET'
+HTTP_REQ_METHOD_PUT = 'PUT'
+HTTP_REQ_METHOD_DELETE = 'DELETE'
+CONTENT_TYPE_HEADER = 'Content-type'
+JSON_CONTENT_TYPE = 'application/json'
+
+LB_METHOD_ROUND_ROBIN = 'ROUND_ROBIN'
+LB_METHOD_LEAST_CONNECTIONS = 'LEAST_CONNECTIONS'
+LB_METHOD_SOURCE_IP = 'SOURCE_IP'
+
+PROTOCOL_TCP = 'TCP'
+PROTOCOL_HTTP = 'HTTP'
+PROTOCOL_HTTPS = 'HTTPS'
+
+HEALTH_MONITOR_PING = 'PING'
+HEALTH_MONITOR_TCP = 'TCP'
+HEALTH_MONITOR_HTTP = 'HTTP'
+HEALTH_MONITOR_HTTPS = 'HTTPS'
+
+LBAAS = 'lbaas'
