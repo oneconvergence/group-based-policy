@@ -24,9 +24,8 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
     def test_get_nfd_sharing_info_when_device_sharing_unsupported(self):
         driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
                         supports_device_sharing=False)
-        self.assertRaises(Exception,
-                          driver.get_network_function_device_sharing_info,
-                          None)
+        self.assertIsNone(driver.get_network_function_device_sharing_info(
+                                                                        None))
 
     def test_get_network_function_device_sharing_info(self):
         driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
@@ -49,10 +48,7 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
                                                                         self):
         driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
                         supports_device_sharing=False)
-        self.assertRaises(Exception,
-                          driver.select_network_function_device,
-                          None,
-                          None)
+        self.assertIsNone(driver.select_network_function_device(None, None))
 
     def test_select_network_function_device(self):
         driver = haproxy_lifecycle_driver.HaproxyLifeCycleDriver(
