@@ -1,10 +1,10 @@
-from gbpservice.neutron.nsf.configurator.lib import (
+from gbpservice.nfp.configurator.lib import (
     filter_constants as constants)
 
 
 class Filter(object):
 
-    def __init__(self, topic, default_version):
+    def __init__(self):
         pass
 
     def call(self, context, msg):
