@@ -1,19 +1,31 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import os
-import sys
-import ast
-import json
 import time
 
-from oslo_log import log as logging
-from gbpservice.neutron.nsf.core.main import ServiceController
-from gbpservice.neutron.nsf.core.main import Event
-from gbpservice.neutron.nsf.core.main import RpcAgent
-from gbpservice.neutron.nsf.core import periodic_task as core_periodic_task
 from oslo_config import cfg
+from oslo_log import log as logging
 import oslo_messaging as messaging
-from neutron.common import rpc as n_rpc
+
+from gbpservice.nfp.core import main as nfp_main
+from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import rpc as nfp_rpc
+
 
 LOG = logging.getLogger(__name__)
+Event = nfp_main.Event
+PollEventDesc = nfp_poll.PollEventDesc
+RpcAgent = nfp_rpc.RpcAgent
 
 VISIBILITY_RPC_TOPIC = "visiblity_topic"
 
@@ -48,9 +60,8 @@ def unit_test(conf, sc):
 
 
 def test_service_create(conf, sc):
-    '''
-    Write the unit test logic here
-    '''
+    """Write the unit test logic here
+    """
     service1 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216271a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a1b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e2161c',
@@ -61,10 +72,10 @@ def test_service_create(conf, sc):
                 'ip': '192.168.20.199'
                 }
     # Collector(service).create()
-    ev = sc.event(id='SERVICE_CREATE', data=service1,
-                  binding_key=service1['id'],
-                  key=service1['id'], serialize=True)
-    sc.rpc_event(ev)
+    ev = sc.new_event(id='SERVICE_CREATE', data=service1,
+                      binding_key=service1['id'],
+                      key=service1['id'], serialize=True)
+    sc.post_event(ev)
     service2 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216272a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216562c',
@@ -74,10 +85,10 @@ def test_service_create(conf, sc):
                 'service_type': 'firewall',
                 'ip': '192.168.20.197'
                 }
-    ev = sc.event(id='SERVICE_CREATE', data=service2,
-                  binding_key=service2['id'],
-                  key=service2['id'], serialize=True)
-    sc.rpc_event(ev)
+    ev = sc.new_event(id='SERVICE_CREATE', data=service2,
+                      binding_key=service2['id'],
+                      key=service2['id'], serialize=True)
+    sc.post_event(ev)
     service3 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216273a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216563c',
@@ -88,19 +99,19 @@ def test_service_create(conf, sc):
                 'ip': '192.168.20.197'
                 }
 
-    ev = sc.event(id='SERVICE_CREATE', data=service3,
-                  binding_key=service3['id'],
-                  key=service3['id'], serialize=True)
-    sc.rpc_event(ev)
+    ev = sc.new_event(id='SERVICE_CREATE', data=service3,
+                      binding_key=service3['id'],
+                      key=service3['id'], serialize=True)
+    sc.post_event(ev)
 
     time.sleep(5)
-    ev = sc.event(id='SERVICE_DELETE', data=service1,
-                  binding_key=service1['id'],
-                  key=service1['id'], serialize=True)
-    sc.rpc_event(ev)
+    ev = sc.new_event(id='SERVICE_DELETE', data=service1,
+                      binding_key=service1['id'],
+                      key=service1['id'], serialize=True)
+    sc.post_event(ev)
 
-    ev = sc.event(id='SERVICE_DUMMY_EVENT', key='dummy_event')
-    sc.rpc_event(ev)
+    ev = sc.new_event(id='SERVICE_DUMMY_EVENT', key='dummy_event')
+    sc.post_event(ev)
 
 
 class Collector(object):
@@ -110,12 +121,9 @@ class Collector(object):
 
     def create(self):
         pass
-        # RSyslogConfigure().configure_rsyslog_as_client(**self._service)
-        # Filebeat(**self._service).configure()
 
     def delete(self):
         pass
-        # Filebeat(**self._service).delete_configure()
 
 
 class RpcManager(object):
@@ -129,22 +137,12 @@ class RpcManager(object):
 
     def service_created(self, context, **kwargs):
         pass
-        # service = kwargs.get('service')
-        # service = ast.literal_eval(json.dumps(kwargs.get('arg')))
-        # Collector(service).create()
-        # ev = self._sc.event(id='SERVICE_CREATE', data=service)
-        # self._sc.rpc_event(ev, service['id'])
 
     def service_deleted(self, context, **kwargs):
         pass
-        # service = kwargs.get('service')
-        # service = ast.literal_eval(json.dumps(kwargs.get('arg')))
-        # Collector(service).delete()
-        # ev = self._sc.event(id='SERVICE_DELETE', data=service, handler=None)
-        # self._sc.rpc_event(ev, service['id'])
 
 
-class Agent(core_periodic_task.PeriodicTasks):
+class Agent(PollEventDesc):
 
     def __init__(self, sc):
         self._sc = sc
@@ -162,37 +160,40 @@ class Agent(core_periodic_task.PeriodicTasks):
             self._handle_dummy_event(ev)
 
     def _handle_create_event(self, ev):
-        '''
-        Driver logic here.
-        '''
+        """Driver logic here.
+        """
         self._sc.event_done(ev)
-        self._sc.poll_event(ev)
+        self._sc.poll_event(ev, max_times=100)
 
     def _handle_dummy_event(self, ev):
-        self._sc.poll_event(ev, max_times=2)
+        self._sc.poll_event(ev)
 
     def _handle_delete_event(self, ev):
-        '''
-        Driver logic here.
-        '''
+        """Driver logic here.
+        """
         self._sc.event_done(ev)
         self._sc.poll_event_done(ev)
 
-    @core_periodic_task.periodic_task(event='SERVICE_CREATE', spacing=1)
+    @nfp_poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
-        LOG.debug("Poll event (%s)" %(str(ev)))
-        print "Decorator Poll event %s" %(ev.key)
+        poll = True
 
-    @core_periodic_task.periodic_task(event='SERVICE_DUMMY_EVENT', spacing=10)
+        if not ev.data.get('count'):
+            ev.data['count'] = 2
+        else:
+            ev.data['count'] -= 1
+        if not ev.data['count']:
+            poll = False
+
+        LOG.debug("Poll event (%s)" % (str(ev)))
+        return {'poll': poll, 'event': ev}
+
+    @nfp_poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=1)
     def service_dummy_poll_event(self, ev):
-        LOG.debug("Poll event (%s)" %(str(ev)))
-        print "Decorator Poll event %s" %(ev.key)
+        LOG.debug("Poll event (%s)" % (str(ev)))
+        self._sc.poll_event_done(ev)
 
     def _handle_poll_event(self, ev):
-        '''
-        Driver logic here
-        '''
-        LOG.debug("Poll event (%s)" %(str(ev)))
-        print "Poll event %s" %(ev.key)
-        # stats_driver = OCStatsDriver()
-        # stats_driver.get_and_store_stats(**ev.data)
+        """Driver logic here
+        """
+        LOG.debug("Poll event (%s)" % (str(ev)))
