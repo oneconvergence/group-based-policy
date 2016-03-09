@@ -49,7 +49,7 @@ class FwGenericConfigDriver(object):
 
         url = const.request_url % (active_fip,
                                    const.CONFIGURATION_SERVER_PORT,
-                                   'add_prov_ip')
+                                   'add_static_ip')
         data = json.dumps(static_ips_info)
 
         msg = ("Initiating POST request to add static IPs to primary "
