@@ -75,7 +75,6 @@ class AgentBaseEventHandler(object):
         self.nqueue = nqueue
 
     def _notification(self, data):
-	LOG.info("NOTIFICATION DATA generic %r" % data)
         event = self._sc.new_event(
             id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
         self._sc.poll_event(event)
