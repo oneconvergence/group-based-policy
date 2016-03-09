@@ -1,24 +1,11 @@
-# One Convergence, Inc. CONFIDENTIAL
-# Copyright (c) 2012-2016, One Convergence, Inc., USA
-# All Rights Reserved.
-#
-# All information contained herein is, and remains the property of
-# One Convergence, Inc. and its suppliers, if any. The intellectual and
-# technical concepts contained herein are proprietary to One Convergence,
-# Inc. and its suppliers.
-#
-# Dissemination of this information or reproduction of this material is
-# strictly forbidden unless prior written permission is obtained from
-# One Convergence, Inc., USA
 
 import ast
 import json
 import requests
 
+from neutron import context
 from oslo_config import cfg
 from oslo_log import log as logging
-
-from neutron import context
 
 from gbpservice.nfp.configurator.drivers.base.\
                             base_driver import BaseDriver
@@ -52,7 +39,7 @@ class FwGenericConfigDriver(object):
                                    'add_static_ip')
         data = json.dumps(static_ips_info)
 
-        msg = ("Initiating POST request to add static IPs to primary "
+        msg = ("Initiating POST request to add static IPs for primary "
                "service with SERVICE ID: %r of tenant: %r at: %r" % (
                 rule_info['service_id'], rule_info['tenant_id'],
                 active_fip))
@@ -68,7 +55,7 @@ class FwGenericConfigDriver(object):
             return msg
         except requests.exceptions.RequestException, err:
             msg = ("Unexpected ERROR happened  while adding "
-                   "static IPs primary service at: %r "
+                   "static IPs for primary service at: %r "
                    "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
                     active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
@@ -159,7 +146,77 @@ class FwGenericConfigDriver(object):
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
+    def _clear_static_ips(self, kwargs):
+        rule_info = kwargs.get('rule_info')
+        static_ips_info = dict(
+                    provider_ip=kwargs.get('provider_ip'),
+                    provider_cidr=kwargs.get('provider_cidr'),
+                    provider_mac=kwargs.get('provider_mac'),
+                    stitching_ip=kwargs.get('stitching_ip'),
+                    stitching_cidr=kwargs.get('stitching_cidr'),
+                    stitching_mac=kwargs.get('stitching_mac'))
+        active_fip = rule_info['active_fip']
+
+        url = const.request_url % (active_fip,
+                                   const.CONFIGURATION_SERVER_PORT,
+                                   'del_static_ip')
+        data = json.dumps(static_ips_info)
+
+        msg = ("Initiating POST request to remove static IPs for primary "
+               "service with SERVICE ID: %r of tenant: %r at: %r" % (
+                rule_info['service_id'], rule_info['tenant_id'],
+                active_fip))
+        LOG.info(msg)
+        try:
+            resp = requests.delete(url, data=data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError, err:
+            msg = ("Failed to establish connection to primary service at: "
+                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
+                    active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except requests.exceptions.RequestException, err:
+            msg = ("Unexpected ERROR happened  while removing "
+                   "static IPs for primary service at: %r "
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
+                    active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response, invalid JSON. URL: "
+                   "%r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if not result['status']:
+            msg = ("Error removing static IPs. URL: %r" % url)
+            LOG.error(msg)
+            return msg
+
+        msg = ("Static IPs successfully removed for SERVICE ID: %r"
+               " of tenant: %r" % (rule_info['service_id'],
+                                   rule_info['tenant_id']))
+        LOG.info(msg)
+        return const.STATUS_SUCCESS
+
     def clear_interfaces(self, context, kwargs):
+        try:
+            result_static_ips = self._clear_static_ips(kwargs)
+        except Exception as err:
+            msg = ("Failed to remove static IPs. Error: %s" % err)
+            LOG.error(msg)
+            return msg
+        else:
+            if result_static_ips != const.STATUS_SUCCESS:
+                return result_static_ips
+            else:
+                LOG.info("Successfully removed static IPs. "
+                         "Result: %s" % result_static_ips)
+
         rule_info = kwargs.get('rule_info')
 
         active_rule_info = dict(
