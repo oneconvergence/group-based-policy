@@ -72,5 +72,11 @@ class ConfigAgentProxyTestCase(unittest.TestCase):
             mock_post.side_effect = self._post
             self.manager.delete_network_function_device_config(self.context,_data)
 
+    def test_get_notifications(self):
+        _data = "data"
+        with mock.patch(self.imprt_rc + '.get') as mock_get:
+            mock_get.side_effect = self._post
+            self.manager.get_notifications(self.context,_data)
+
 if __name__ == "__main__":
     unittest.main()
