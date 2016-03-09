@@ -28,7 +28,7 @@ OPTS = [
     ),
     cfg.StrOpt(
         'modules_dir',
-        default='gbpservice.nfp.core.test',
+        default='gbpservice.nfp.config_agent_proxy.modules',
         help='Path for NFP modules.'
         'All modules from this path are autloaded by framework'
     ),
