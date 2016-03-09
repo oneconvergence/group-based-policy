@@ -72,7 +72,6 @@ class ConfiguratorRpcManager(object):
             operation,
             service_type,
             request_data)
-	LOG.info("QQQQQQQQQQQQQQQQQQQQQQQQQ %r" % sa_info_list)
         if not sa_info_list:
             msg = ("Configurator received invalid data format for service"
                    " type %s. Data format: %r" % (service_type, request_data))
@@ -259,7 +258,8 @@ class ConfiguratorRpcManager(object):
         """
 
         notifications = self.sc.get_notification()
-	LOG.info("GET NOTI API DATA %r" % notifications)
+        if notifications:
+	    LOG.info("GET NOTIFICATION API DATA %r" % notifications)
         return [notifications]
 
 """Implements configurator module APIs.
