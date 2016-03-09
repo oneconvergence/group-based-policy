@@ -30,12 +30,12 @@ echo "GroupName: $GROUP"
 PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
 
 sleep 2
-echo "Collecting ImageId : for $ImageName"
-ImageId=`glance image-list|grep $ImageName |awk '{print $2}'`
+echo "Collecting ImageId : for $ConfiguratorImageName"
+ImageId=`glance image-list|grep $ConfiguratorImageName |awk '{print $2}'`
 if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
     echo $ImageId
 else
-    echo "No image found with name $ImageName ..."
+    echo "No image found with name $ConfiguratorImageName ..."
     exit
 fi
 
