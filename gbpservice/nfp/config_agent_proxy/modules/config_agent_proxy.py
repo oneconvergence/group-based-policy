@@ -63,8 +63,7 @@ class RpcHandler(object):
      	try:
             resp, content = rc.post(
                 'create_network_function_config', body=body)
-            LOG.info(_("create_network_function_config post resposnse content : %(content)s"
-                               ),{'content':content})
+            LOG.info("create_network_function_config -> POST response: (%s)" % (content))
 
         except rc.RestClientException as rce:
             LOG.error("create_firewall -> POST request failed.Reason: %s"%(
@@ -75,8 +74,7 @@ class RpcHandler(object):
     	try:
             resp, content = rc.post('delete_network_function_config',
                                     body=body, delete=True)
-            LOG.info(_("create_network_function_config post resposnse content : %(content)s"
-                               ),{'content':content})
+            LOG.info("delete_network_function_config -> POST response: (%s)" % (content))
 
         except rc.RestClientException as rce:
             LOG.error("delete_firewall -> DELETE request failed.Reason: %s"%(
@@ -87,8 +85,7 @@ class RpcHandler(object):
      	try:
             resp, content = rc.post('create_network_function_device_config',
                                     body=body)
-            LOG.info(_("create_network_function_config post resposnse content : %(content)s"
-                               ),{'content':content})
+            LOG.info("create_network_function_device_config -> POST response: (%s)" % (content))
 
         except rc.RestClientException as rce:
             LOG.error("create_network_function_device_config -> request failed\
@@ -99,11 +96,24 @@ class RpcHandler(object):
     	 try:
             resp, content = rc.post('delete_network_function_device_config',
                                     body=body, delete=True)
-            LOG.info(_("create_network_function_config post resposnse content : %(content)s"
-                               ),{'content':content})
+            LOG.info("delete_network_function_device_config -> POST response: (%s)" % (content))
 
          except rc.RestClientException as rce:
             LOG.error(
                 "delete_network_function_device_config -> request failed\
 .Reason %s "%(rce))
+
+    #Notification RPC by call() method
+    def get_notifications(slef, context, body):
+        try:
+            resp, content = rc.get('get_notifications')
+            LOG.info("get_notification -> GET response: (%s)" % (content))
+            return list((resp, content))
+        except rc.RestClientException as rce:
+            LOG.error("get_notification -> GET request failed. Reason : %s"%(
+            resp))
+            if not content :
+                content =" "
+            return list((resp, content))
+
 
