@@ -1395,7 +1395,8 @@ echo_summary "stack.sh completed in $SECONDS seconds."
 GBP_SCRIPT_DIR=/opt/stack/gbp/gbpservice/nfp/Automation-Scripts/GBP_SCRIPT
 sudo bash $GBP_SCRIPT_DIR/configure_oc_gbp_params.sh $GBP_SCRIPT_DIR $TOP_DIR $EXT_NET_NAME $EXT_NET_SUBNET_NAME $EXT_NET_GATEWAY $EXT_NET_ALLOCATION_POOL_START $EXT_NET_ALLOCATION_POOL_END $EXT_NET_CIDR $EXT_NET_MASK 
 
-sudo bash $GBP_SCRIPT_DIR/wakeup_service.sh $Qcow2Image $GBP_SCRIPT_DIR $TOP_DIR
+sudo bash $GBP_SCRIPT_DIR/wakeup_service.sh $ConfiguratorQcow2Image $VyosQcow2Image $GBP_SCRIPT_DIR $TOP_DIR
+
 # Restore/close logging file descriptors 
 exec 1>&3
 exec 2>&3

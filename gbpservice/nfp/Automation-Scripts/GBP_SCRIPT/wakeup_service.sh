@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 
-TOP_DIR=$3
-GBP_SCRIPT_DIR=$2
+TOP_DIR=$4
+GBP_SCRIPT_DIR=$3
 #source $TOP_DIR/keystonerc_neutron neutron service
 source $TOP_DIR/openrc neutron service
 echo "wakeup_service.sh ImageName"
-ImageName=$1
+ConfiguratorQcow2ImageName=$1
+VyosQcow2Image=$2
+ConfiguratorImageName=configurator
+VyosImageName=vyos
 sudo bash $GBP_SCRIPT_DIR/oc_gbp_basic.sh $GBP_SCRIPT_DIR $TOP_DIR
 sudo bash $GBP_SCRIPT_DIR/oc_gbp_script.sh $GBP_SCRIPT_DIR $TOP_DIR
 
 
 if [ ! -z "$1" -a "$1" != " " ]; then
     ImageName=$1
-    echo "Uploading Image : $ImageName"
-    glance image-create --name $ImageName --disk-format qcow2  --container-format bare  --visibility public --file $ImageName
+    echo "Uploading Image : $ConfiguratorImageName $VyosImageName"
+    glance image-create --name $ConfiguratorImageName --disk-format qcow2  --container-format bare  --visibility public --file $ConfiguratorQcow2ImageName
+    glance image-create --name $VyosImageName --disk-format qcow2  --container-format bare  --visibility public --file $VyosQcow2Image
 else
     echo "ImageName not provided ..."
     exit
@@ -26,12 +30,12 @@ echo "GroupName: $GROUP"
 PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
 
 sleep 2
-echo "Collecting ImageId : for $ImageName"
-ImageId=`glance image-list|grep $ImageName |awk '{print $2}'`
+echo "Collecting ImageId : for $ConfiguratorImageName"
+ImageId=`glance image-list|grep $ConfiguratorImageName |awk '{print $2}'`
 if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
     echo $ImageId
 else
-    echo "No image found with name $ImageName ..."
+    echo "No image found with name $ConfiguratorImageName ..."
     exit
 fi
 
