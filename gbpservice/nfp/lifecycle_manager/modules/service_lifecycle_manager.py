@@ -171,9 +171,13 @@ class ServiceLifeCycleHandler(object):
             LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event.id})
 
     def _log_event_created(self, event_id, event_data):
-        LOG.debug(_("Created event %s(event_name)s with event "
-                    "data: %(event_data)s"),
-                  {'event_name': event_id, 'event_data': event_data})
+	import os
+        LOG.info(_("Created event %s(event_name)s with event "
+                    "data: %(event_data)s PID: %(pid)s, controller: %(controller)s"),
+                  {'event_name': event_id, 'event_data': event_data, 'pid': os.getpid(), 'controller': id(self._controller)})
+	workers = self._controller._workers
+        for worker in workers:
+            LOG.info(_("In PID : %(pid)s, worker: %(wid)s evq: %(evq)s evqid: %(evqid)s"), {'pid': os.getpid(), 'wid': worker[0].pid, 'evq': worker[1], 'evqid': id(worker[1])})
 
     def _create_event(self, event_id, event_data=None, key=None,
                       binding_key=None, serialize=False, is_poll_event=False):
@@ -367,6 +371,9 @@ class ServiceLifeCycleHandler(object):
         mgmt_ip = network_function_device['mgmt_ip_address']
         consumer_port = None
         provider_port = None
+        consumer_policy_target_group = None
+        provider_policy_target_group = None
+        policy_target = None
         for port in nfi['port_info']:
             port_info = self.db_handler.get_port_info(self.db_session, port)
             port_classification = port_info['port_classification']
@@ -375,21 +382,28 @@ class ServiceLifeCycleHandler(object):
                 port_id = self.gbpclient.get_policy_targets(
                     admin_token,
                     filters={'id': policy_target_id})[0]['port_id']
+                policy_target = self.gbpclient.get_policy_target(
+                    admin_token, policy_target_id)
             else:
                 port_id = port_info['id']
 
             if port_classification == "consumer":
                 consumer_port = self.neutronclient.get_port(admin_token,
                         port_id)['port']
-            else:
+                if policy_target: 
+                    consumer_policy_target_group =\
+                        self.gbpclient.get_policy_target_group(
+                            admin_token,
+                            policy_target['policy_target_group_id'])
+            elif port_classification == "provider":
                 LOG.info(_("provider info: %s") % (port_id))
                 provider_port = self.neutronclient.get_port(admin_token,
                         port_id)['port']
-
-        policy_target = self.gbpclient.get_policy_target(
-            admin_token, policy_target_id)
-        policy_target_group = self.gbpclient.get_policy_target_group(
-            admin_token, policy_target['policy_target_group_id'])
+                if policy_target:
+                    provider_policy_target_group =\
+                        self.gbpclient.get_policy_target_group(
+                            admin_token,
+                            policy_target['policy_target_group_id'])
 
         service_details = {
             'service_profile': service_profile,
@@ -398,7 +412,7 @@ class ServiceLifeCycleHandler(object):
             'consumer_port': consumer_port,
             'provider_port': provider_port,
             'mgmt_ip': mgmt_ip,
-            'policy_target_group': policy_target_group,
+            'policy_target_group': provider_policy_target_group,
             'heat_stack_id': heat_stack_id,
         }
 
