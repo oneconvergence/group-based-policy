@@ -36,7 +36,77 @@ class FwGenericConfigDriver(object):
     def __init__(self):
         self.timeout = cfg.CONF.rest_timeout
 
+    def _configure_static_ips(self, kwargs):
+        rule_info = kwargs.get('rule_info')
+        static_ips_info = dict(
+                    provider_ip=kwargs.get('provider_ip'),
+                    provider_cidr=kwargs.get('provider_cidr'),
+                    provider_mac=kwargs.get('provider_mac'),
+                    stitching_ip=kwargs.get('stitching_ip'),
+                    stitching_cidr=kwargs.get('stitching_cidr'),
+                    stitching_mac=kwargs.get('stitching_mac'))
+        active_fip = rule_info['active_fip']
+
+        url = const.request_url % (active_fip,
+                                   const.CONFIGURATION_SERVER_PORT,
+                                   'add_static_ip')
+        data = json.dumps(static_ips_info)
+
+        msg = ("Initiating POST request to add static IPs to primary "
+               "service with SERVICE ID: %r of tenant: %r at: %r" % (
+                rule_info['service_id'], rule_info['tenant_id'],
+                active_fip))
+        LOG.info(msg)
+        try:
+            resp = requests.post(url, data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError, err:
+            msg = ("Failed to establish connection to primary service at: "
+                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
+                    active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except requests.exceptions.RequestException, err:
+            msg = ("Unexpected ERROR happened  while adding "
+                   "static IPs primary service at: %r "
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
+                    active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response, invalid JSON. URL: "
+                   "%r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if not result['status']:
+            msg = ("Error adding static IPs. URL: %r" % url)
+            LOG.error(msg)
+            return msg
+
+        msg = ("Static IPs successfully added for SERVICE ID: %r"
+               " of tenant: %r" % (rule_info['service_id'],
+                                   rule_info['tenant_id']))
+        LOG.info(msg)
+        return const.STATUS_SUCCESS
+        
+
     def configure_interfaces(self,  context, kwargs):
+        try:
+            result_static_ips = self._configure_static_ips(kwargs)
+        except Exception as err:
+            msg = ("Failed to add static IPs. Error: %s" % err)
+            LOG.error(msg)
+            return msg
+        else:
+            if result_static_ips != const.STATUS_SUCCESS:
+                return result_static_ips
+            else:
+                LOG.info("Added static IPs. Result: %s" % result_static_ips)
+
         rule_info = kwargs.get('rule_info')
 
         active_rule_info = dict(
@@ -93,10 +163,10 @@ class FwGenericConfigDriver(object):
         rule_info = kwargs.get('rule_info')
 
         active_rule_info = dict(
-            provider_mac=rule_info['provider_mac'],
-            stitching_mac=rule_info['stitching_mac'])
+            provider_mac=rule_info['active_provider_mac'],
+            stitching_mac=rule_info['active_stitching_mac'])
 
-        active_fip = rule_info['fip']
+        active_fip = rule_info['active_fip']
 
         msg = ("Initiating DELETE persistent rule for SERVICE ID: %r of "
                "tenant: %r " %
