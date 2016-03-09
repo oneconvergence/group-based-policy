@@ -198,37 +198,63 @@ class HeatDriver():
                 pwd, tenant_name, self.resource_owner_tenant_id)
         return auth_token, tenant_id
 
-    def _get_v3_keystone_admin_client(self):
-        """ Returns keystone v3 client with admin credentials
-            Using this client one can perform CRUD operations over
-            keystone resources.
-        """
-        keystone_conf = cfg.CONF.keystone_authtoken
-        v3_auth_url = ('%s://%s:%s/%s/' % (
-            keystone_conf.auth_protocol, keystone_conf.auth_host,
-            keystone_conf.auth_port, cfg.CONF.heat_driver.keystone_version))
-        v3client = keyclientv3.Client(
-            username=keystone_conf.admin_user,
-            password=keystone_conf.admin_password,
-            domain_name="default",  # FIXME(Magesh): Make this config driven
-            auth_url=v3_auth_url)
-        return v3client
-
-    def _get_role_by_name(self, v3client, name):
-        role = v3client.roles.list(name=name)
-        if role:
-            return role[0]
+    def _get_role_by_name(self, keystone_client, name, keystone_version):
+        if keystone_version == 'v2.0':
+            roles = keystone_client.roles.list()
+            if roles:
+                for role in roles:
+                    if name in role.name:
+                        return role
         else:
-            raise RequiredRoleNotCreated(role_name=name)
+            role = keystone_client.roles.list(name=name)
+            if role:
+                return role[0]
+
+    def get_allocated_roles(self, v2client, user, tenant_id=None):
+        allocated_role_names = []
+        allocated_roles = v2client.roles.roles_for_user(user, tenant=tenant_id)
+        if allocated_roles:
+            for role in allocated_roles:
+                allocated_role_names.append(role.name)
+        return allocated_role_names
 
     def _assign_admin_user_to_project(self, project_id):
-        v3client = self._get_v3_keystone_admin_client()
         keystone_conf = cfg.CONF.keystone_authtoken
-        admin_id = v3client.users.find(name=keystone_conf.admin_user).id
-        admin_role = self._get_role_by_name(v3client, "admin")
-        v3client.roles.grant(admin_role.id, user=admin_id, project=project_id)
-        heat_role = self._get_role_by_name(v3client, "heat_stack_owner")
-        v3client.roles.grant(heat_role.id, user=admin_id, project=project_id)
+        keystone_version = keystone_conf.auth_version
+
+        if keystone_version == 'v2.0':
+            v2client = self.keystoneclient._get_v2_keystone_admin_client()
+            admin_id = v2client.users.find(name=keystone_conf.admin_user).id
+            admin_role = self._get_role_by_name(v2client, "admin",
+                             keystone_version)
+            allocated_role_names = self.get_allocated_roles(v2client,
+                                        admin_id, project_id)
+
+            if admin_role:
+                if admin_role.name not in allocated_role_names:
+                    v2client.roles.add_user_role(admin_id,
+                                   admin_role.id, tenant=project_id)
+
+            heat_role = self._get_role_by_name(v2client, "heat_stack_owner",
+                             keystone_version)
+            if heat_role:
+                if heat_role.name not in allocated_role_names:
+                    LOG.info("Trying add to heat_role")
+                    v2client.roles.add_user_role(admin_id, heat_role.id,
+                        tenant=project_id)
+        else:
+            v3client = self.keystoneclient._get_v3_keystone_admin_client()
+            admin_id = v3client.users.find(name=keystone_conf.admin_user).id
+            admin_role = self._get_role_by_name(v3client, "admin",
+                             keystone_version)
+            if admin_role:
+                v3client.roles.grant(admin_role.id, user=admin_id,
+                                 project=project_id)
+            heat_role = self._get_role_by_name(v3client, "heat_stack_owner",
+                             keystone_version)
+            if heat_role:
+                v3client.roles.grant(heat_role.id, user=admin_id,
+                                 project=project_id)
 
     def keystone(self, user, pwd, tenant_name, tenant_id=None):
         if tenant_id:
@@ -246,7 +272,11 @@ class HeatDriver():
 
     def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None):
         user_tenant_id = tenant_id or resource_owner_tenant_id
-        # self._assign_admin_user_to_project(user_tenant_id)
+	try:
+            self._assign_admin_user_to_project(user_tenant_id)
+	except Exception:
+	    LOG.exception(_("Failed to assign admin user to project"))
+	    raise
         # admin_token = self.keystone(tenant_id=user_tenant_id).get_token(
         #        user_tenant_id)
         user, password, tenant, auth_url =\
@@ -925,6 +955,8 @@ class HeatDriver():
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
         provider_tenant_id = provider['tenant_id']
+        LOG.info(_("User Tenant ID %(provider_tenant_id)s")%
+                  {'provider_tenant_id': provider_tenant_id})
         heatclient = self._get_heat_client(resource_owner_tenant_id,
                                            tenant_id=provider_tenant_id)
         stack_name = ("stack_" + service_chain_instance['name'] +
