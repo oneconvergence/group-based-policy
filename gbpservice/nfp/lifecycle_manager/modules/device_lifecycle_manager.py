@@ -478,8 +478,8 @@ class DeviceLifeCycleHandler(object):
 
     def check_device_is_up(self, event):
         device = event.data
-        print 'sleeping for 50 secs'
-        import time;time.sleep(50)
+        print 'sleeping for 100 secs'
+        import time;time.sleep(100)
         lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         # TODO (ashu) return value from driver, this should be true/false
         is_device_up = (
