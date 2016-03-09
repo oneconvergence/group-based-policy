@@ -130,7 +130,6 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
         return self.drivers[service_type]()
 
     def _notification(self, data):
-	LOG.info("NOTIFICATION DATA generic file %r" % data)
         event = self.sc.new_event(
             id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
         self.sc.poll_event(event)
