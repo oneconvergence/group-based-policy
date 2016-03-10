@@ -1,9 +1,19 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
 from gbpservice.nfp.configurator.lib import constants
 from gbpservice.nfp.configurator.lib import demuxer
 from oslo_log import log
 from gbpservice.nfp.core import rpc
-from gbpservice.nfp.core import fifo as queue
 from gbpservice.nfp.configurator.lib import utils
 
 AGENTS_PKG = 'gbpservice.nfp.configurator.agents'
@@ -13,12 +23,12 @@ LOG = log.getLogger(__name__)
 """Implements procedure calls invoked by an REST server.
 
 Implements following RPC methods.
-  - create_network_device_config
-  - delete_network_device_config
-  - update_network_device_config
-  - create_network_service_config
-  - delete_network_service_config
-  - update_network_service_config
+  - create_network_function_device_config
+  - delete_network_function_device_config
+  - update_network_function_device_config
+  - create_network_function_config
+  - delete_network_function_config
+  - update_network_function_config
   - get_notifications
 Also implements local methods for supporting RPC methods
 
@@ -42,9 +52,9 @@ class ConfiguratorRpcManager(object):
 
         """
 
-        return self.cm.service_agent_instances[service_type]
+        return self.cm.sa_instances[service_type]
 
-    def _send_request(self, operation, request_data):
+    def _invoke_service_agent(self, operation, request_data):
         """Maps and invokes an RPC call to a service agent method.
 
         Takes help of de-multiplexer to get service type and corresponding
@@ -66,20 +76,20 @@ class ConfiguratorRpcManager(object):
             raise Exception(msg)
 
         # Retrieves service agent information from RPC data
-        # Format of sa_info_list:
+        # Format of sa_req_list:
         # [{'method': <m1>, 'kwargs': <rpc_data1>}, {}, ... ]
-        sa_info_list = self.demuxer.get_service_agent_info(
+        sa_req_list = self.demuxer.get_service_agent_info(
                                                     operation,
                                                     service_type,
                                                     request_data)
-        if not sa_info_list:
+        if not sa_req_list:
             msg = ("Configurator received invalid data format for service"
                    " type %s. Data format: %r" % (service_type, request_data))
             raise Exception(msg)
 
         # Retrieves service agent instance using service type
-        sa_obj = self._get_service_agent_instance(service_type)
-        if not sa_obj:
+        sa_instance = self._get_service_agent_instance(service_type)
+        if not sa_instance:
             msg = ("Failed to find agent with service type %s." % service_type)
             raise Exception(msg)
 
@@ -104,9 +114,9 @@ class ConfiguratorRpcManager(object):
 
         # Handover the request data list and notification data to the
         # identified service agent
-        sa_obj.forward_request(sa_info_list, notification_data)
+        sa_instance.process_request(sa_req_list, notification_data)
 
-    def create_network_device_config(self, context, request_data):
+    def create_network_function_device_config(self, context, request_data):
         """RPC method to configure a network service device.
 
         Configures a network service VM to facilitate network service
@@ -122,13 +132,13 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            self._send_request('create', request_data)
+            self._invoke_service_agent('create', request_data)
         except Exception as err:
             msg = ("Failed to create network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
 
-    def delete_network_device_config(self, context, request_data):
+    def delete_network_function_device_config(self, context, request_data):
         """RPC method to clear configuration of a network service device.
 
         Clears configuration of a network service VM. This RPC method is
@@ -144,13 +154,13 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            self._send_request('delete', request_data)
+            self._invoke_service_agent('delete', request_data)
         except Exception as err:
             msg = ("Failed to delete network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
 
-    def update_network_device_config(self, context, request_data):
+    def update_network_function_device_config(self, context, request_data):
         """RPC method to update of configuration in a network service device.
 
         Updates configuration of a network service VM. This RPC method is
@@ -166,13 +176,13 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            self._send_request('update', request_data)
+            self._invoke_service_agent('update', request_data)
         except Exception as err:
             msg = ("Failed to update network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
 
-    def create_network_service_config(self, context, request_data):
+    def create_network_function_config(self, context, request_data):
         """RPC method to configure a network service.
 
         Configures a network service specified in the request data. This
@@ -188,13 +198,13 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            self._send_request('create', request_data)
+            self._invoke_service_agent('create', request_data)
         except Exception as err:
             msg = ("Failed to create network service configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
 
-    def delete_network_service_config(self, context, request_data):
+    def delete_network_function_config(self, context, request_data):
         """RPC method to clear configuration of a network service.
 
         Clears configuration of a network service. This RPC method is
@@ -210,13 +220,13 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            self._send_request('delete', request_data)
+            self._invoke_service_agent('delete', request_data)
         except Exception as err:
             msg = ("Failed to delete network service configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
 
-    def update_network_service_config(self, context, request_data):
+    def update_network_function_config(self, context, request_data):
         """RPC method to update of configuration in a network service.
 
         Updates configuration of a network service. This RPC method is
@@ -232,7 +242,7 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            self._send_request('update', request_data)
+            self._invoke_service_agent('update', request_data)
         except Exception as err:
             msg = ("Failed to update network service configuration. %s" %
                    str(err).capitalize())
@@ -265,9 +275,8 @@ class ConfiguratorRpcManager(object):
 class ConfiguratorModule(object):
 
     def __init__(self, sc):
-        self.service_agent_instances = {}
-        self.imported_service_agents = []
-        self.nqueue = queue.Fifo(sc)
+        self.sa_instances = {}
+        self.imported_sas = []
 
     def register_service_agent(self, service_type, service_agent):
         """Stores service agent object.
@@ -280,7 +289,7 @@ class ConfiguratorModule(object):
 
         """
 
-        if service_type not in self.service_agent_instances:
+        if service_type not in self.sa_instances:
 
             msg = ("Configurator registered service agent of type %s." %
                    service_type)
@@ -291,7 +300,7 @@ class ConfiguratorModule(object):
             LOG.warn(msg)
 
         # Register the service agent irrespective of previous registration
-        self.service_agent_instances.update({service_type: service_agent})
+        self.sa_instances.update({service_type: service_agent})
 
     def init_service_agents(self, sc, conf):
         """Invokes service agent initialization method.
@@ -305,9 +314,9 @@ class ConfiguratorModule(object):
 
         """
 
-        for agent in self.imported_service_agents:
+        for agent in self.imported_sas:
             try:
-                agent.init_agent(self, sc, conf, self.nqueue)
+                agent.init_agent(self, sc, conf)
             except AttributeError as attr_err:
                 LOG.error(agent.__dict__)
                 raise AttributeError(agent.__file__ + ': ' + str(attr_err))
@@ -324,7 +333,7 @@ class ConfiguratorModule(object):
 
         """
 
-        for agent in self.imported_service_agents:
+        for agent in self.imported_sas:
             try:
                 agent.init_agent_complete(self, sc, conf)
             except AttributeError as attr_err:
@@ -345,7 +354,7 @@ def init_rpc(sc, cm, conf, demuxer):
     :param conf: Configuration object that is used for configuration
     parameter access.
     :param demuxer: De-multiplexer object that is used for accessing
-    ConfiguratorDemuxer class methods.
+    ServiceAgentDemuxer class methods.
 
     Returns: None
 
@@ -372,9 +381,9 @@ def get_configurator_module_instance(sc):
     conf_utils = utils.ConfiguratorUtils()
 
     # Loads all the service agents under AGENT_PKG module path
-    cm.imported_service_agents = conf_utils.load_agents(AGENTS_PKG)
+    cm.imported_sas = conf_utils.load_agents(AGENTS_PKG)
     msg = ("Configurator loaded service agents from %s location."
-           % (cm.imported_service_agents))
+           % (cm.imported_sas))
     LOG.info(msg)
     return cm
 
@@ -400,7 +409,7 @@ def module_init(sc, conf):
     # Create configurator module and de-multiplexer objects
     try:
         cm = get_configurator_module_instance(sc)
-        demuxer_instance = demuxer.ConfiguratorDemuxer()
+        demuxer_instance = demuxer.ServiceAgentDemuxer()
     except Exception as err:
         msg = ("Failed to initialize configurator de-multiplexer. %s."
                % (str(err).capitalize()))
