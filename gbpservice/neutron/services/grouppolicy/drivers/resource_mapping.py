@@ -131,10 +131,12 @@ class ResourceMappingDriver(api.PolicyDriver, local_api.LocalAPI,
         if context.current['l2_policy_id']:
             l2p = context._plugin.get_l2_policy(
                 context._plugin_context, context.current['l2_policy_id'])
+            '''
             if l2p['tenant_id'] != context.current['tenant_id']:
                 raise (
                     exc.
                     CrossTenantPolicyTargetGroupL2PolicyNotSupported())
+            '''
 
     def _reject_cross_tenant_l2p_l3p(self, context):
         # Can't create non shared L2p on a shared L3p
@@ -142,8 +144,10 @@ class ResourceMappingDriver(api.PolicyDriver, local_api.LocalAPI,
             l3p = context._plugin.get_l3_policy(
                 context._plugin_context,
                 context.current['l3_policy_id'])
+            '''
             if l3p['tenant_id'] != context.current['tenant_id']:
                 raise exc.CrossTenantL2PolicyL3PolicyNotSupported()
+            '''
 
     def _reject_non_shared_net_on_shared_l2p(self, context):
         if context.current.get('shared') and context.current['network_id']:
