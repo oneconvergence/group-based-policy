@@ -154,7 +154,7 @@ class ServiceAgentDemuxer(object):
                 if service_type == 'firewall':
                     method = operation + '_' + config_data['resource']
                 elif service_type == 'vpn':
-                    method = 'vpn_service_updated'
+                    method = 'vpnservice_updated'
                 elif service_type == 'loadbalancer':
                     method = operation + '_' + config_data['resource']
             else:
