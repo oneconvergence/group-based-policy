@@ -106,3 +106,19 @@ class NetworkFunctionInstanceNotFound(NotFound):
 class NetworkFunctionDeviceNotFound(NotFound):
     message = _("NetworkFunctionDevice %(network_function_device_id)s could "
                 "not be found")
+
+
+class IncompleteData(NFPException):
+    message = _("Data passed is incomplete")
+
+
+class NotSupported(NFPException):
+    message = _("Feature is not supported")
+
+
+class ComputePolicyNotSupported(NotSupported):
+    message = _("Compute policy %(compute_policy)s is not supported")
+
+
+class HotplugNotSupported(NotSupported):
+    message = _("Vendor %(vendor)s doesn't support hotplug feature")
