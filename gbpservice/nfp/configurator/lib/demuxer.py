@@ -167,7 +167,6 @@ class ConfiguratorDemuxer(object):
             context = config_data['kwargs']['context']
             sa_info.update({'context': context})
             del config_data['kwargs']['context']
-	    LOG.info("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD %r" % config_data['kwargs'])
             if 'generic' in sa_info['service_type']: 
             	sa_info.update({'kwargs': {'kwargs': data}})
             else:

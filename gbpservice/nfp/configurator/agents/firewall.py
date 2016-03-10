@@ -65,7 +65,6 @@ class FwaasRpcSender(object):
         self.qu = nqueue
 
     def _notification(self, data):
-	LOG.info("NOTIFICATION DATA firewall %r" % data)
         event = self.sc.new_event(
             id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
         self.sc.poll_event(event)

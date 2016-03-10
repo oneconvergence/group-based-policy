@@ -16,6 +16,7 @@ from gbpclient.v2_0 import client as gbp_client
 from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 from keystoneclient.v2_0 import client as identity_client
+from keystoneclient.v3 import client as keyclientv3
 from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
@@ -151,6 +152,40 @@ class KeystoneClient(OpenstackApi):
         LOG.error(err)
         raise Exception(err)
 
+    def _get_v2_keystone_admin_client(self):
+        """ Returns keystone v2 client with admin credentials
+            Using this client one can perform CRUD operations over
+            keystone resources.
+        """
+        keystone_conf = cfg.CONF.keystone_authtoken
+        keystone_conf.admin_user = 'neutron'
+        keystone_conf.admin_password = 'admin_pass'
+        keystone_conf.admin_tenant_name = 'service'
+
+        v2client = identity_client.Client(
+            username=keystone_conf.admin_user,
+            password=keystone_conf.admin_password,
+            tenant_name=keystone_conf.admin_tenant_name,
+            tenant_id=None,
+            auth_url=self.identity_service)
+
+        return v2client
+
+    def _get_v3_keystone_admin_client(self):
+        """ Returns keystone v3 client with admin credentials
+            Using this client one can perform CRUD operations over
+            keystone resources.
+        """
+        keystone_conf = cfg.CONF.keystone_authtoken
+        v3_auth_url = ('%s://%s:%s/%s/' % (
+            keystone_conf.auth_protocol, keystone_conf.auth_host,
+            keystone_conf.auth_port, cfg.CONF.heat_driver.keystone_version))
+        v3client = keyclientv3.Client(
+            username=keystone_conf.admin_user,
+            password=keystone_conf.admin_password,
+            domain_name="default",  # FIXME(Magesh): Make this config driven
+            auth_url=v3_auth_url)
+        return v3client
 
 class NovaClient(OpenstackApi):
     """ Nova Client Api driver. """
