@@ -13,6 +13,7 @@
 from oslo_log import log as logging
 
 from gbpservice.nfp._i18n import _
+from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.lifecycle_manager.drivers.lifecycle_driver_base import (
     LifeCycleDriverBase
 )
@@ -47,8 +48,7 @@ class HaproxyLifeCycleDriver(LifeCycleDriverBase):
                             'port_classification',
                             'port_policy'])
         ):
-            # TODO[RPM]: raise proper exception
-            raise Exception('Not enough required data is received')
+            raise exceptions.IncompleteData()
 
         try:
             token = (device_data['token']

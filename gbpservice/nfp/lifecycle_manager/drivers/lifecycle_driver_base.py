@@ -13,6 +13,7 @@
 from oslo_log import log as logging
 
 from gbpservice.nfp._i18n import _
+from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.lifecycle_manager.openstack import (
     openstack_driver
 )
@@ -173,8 +174,7 @@ class LifeCycleDriverBase(object):
         if any(key not in device_data
                for key in ['tenant_id',
                            'service_vendor']):
-            # TODO[RPM]: raise proper exception
-            raise Exception('Not enough required data is received')
+            raise exceptions.IncompleteData()
 
         return {
                 'filters': {
@@ -206,8 +206,7 @@ class LifeCycleDriverBase(object):
                 for device in devices
                 for key in ['interfaces_in_use'])
         ):
-            # TODO[RPM]: raise proper exception
-            raise Exception('Not enough required data is received')
+            raise exceptions.IncompleteData()
 
         hotplug_ports_count = 1  # for provider interface (default)
         if any(port['port_classification'].lower() == 'consumer'
@@ -243,15 +242,11 @@ class LifeCycleDriverBase(object):
                             'port_classification',
                             'port_policy'])
         ):
-            # TODO[RPM]: raise proper exception
-            raise Exception('Not enough required data is received')
+            raise exceptions.IncompleteData()
 
-        # Not handling operations on compute policies other than 'nova' for now
         if device_data['compute_policy'] != 'nova':
-            # TODO[RPM]: raise proper exception
-            raise Exception("Driver doesn't support operation"
-                            " with compute policy %s"
-                            % (device_data['compute_policy']))
+            raise exceptions.ComputePolicyNotSupported(
+                                compute_policy=device_data['compute_policy'])
 
         try:
             interfaces = self._get_interfaces_for_device_create(device_data)
@@ -384,15 +379,11 @@ class LifeCycleDriverBase(object):
                             'port_classification',
                             'port_policy'])
         ):
-            # TODO[RPM]: raise proper exception
-            raise Exception('Not enough required data is received')
+            raise exceptions.IncompleteData()
 
-        # Not handling operations on compute policies other than 'nova' for now
         if device_data['compute_policy'] != 'nova':
-            # TODO[RPM]: raise proper exception
-            raise Exception("Driver doesn't support operation"
-                            " with compute policy %s"
-                            % (device_data['compute_policy']))
+            raise exceptions.ComputePolicyNotSupported(
+                                compute_policy=device_data['compute_policy'])
 
         try:
             token = (device_data['token']
@@ -431,15 +422,11 @@ class LifeCycleDriverBase(object):
                for key in ['id',
                            'tenant_id',
                            'compute_policy']):
-            # TODO[RPM]: raise proper exception
             raise Exception('Not enough required data is received')
 
-        # Not handling operations on compute policies other than 'nova' for now
         if device_data['compute_policy'] != 'nova':
-            # TODO[RPM]: raise proper exception
-            raise Exception("Driver doesn't support operation"
-                            " with compute policy %s"
-                            % (device_data['compute_policy']))
+            raise exceptions.ComputePolicyNotSupported(
+                                compute_policy=device_data['compute_policy'])
 
         try:
             token = (device_data['token']
@@ -461,12 +448,11 @@ class LifeCycleDriverBase(object):
                         % (device_data['compute_policy'])))
             return None  # TODO[RPM]: should we raise an Exception here?
 
-        # return True if device['status'] == 'ACTIVE' else False
         return device['status']
 
     def plug_network_function_device_interfaces(self, device_data):
         if not self.supports_hotplug:
-            raise Exception("Driver doesn't support interface hotplug")
+            raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
 
         if (
             any(key not in device_data
@@ -483,15 +469,11 @@ class LifeCycleDriverBase(object):
                             'port_classification',
                             'port_policy'])
         ):
-            # TODO[RPM]: raise proper exception
-            raise Exception('Not enough required data is received')
+            raise exceptions.IncompleteData()
 
-        # Not handling operations on compute policies other than 'nova' for now
         if device_data['compute_policy'] != 'nova':
-            # TODO[RPM]: raise proper exception
-            raise Exception("Driver doesn't support operation"
-                            " with compute policy %s"
-                            % (device_data['compute_policy']))
+            raise exceptions.ComputePolicyNotSupported(
+                                compute_policy=device_data['compute_policy'])
 
         try:
             token = (device_data['token']
@@ -529,7 +511,7 @@ class LifeCycleDriverBase(object):
 
     def unplug_network_function_device_interfaces(self, device_data):
         if not self.supports_hotplug:
-            raise Exception("Driver doesn't support interface hotplug")
+            raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
 
         if (
             any(key not in device_data
@@ -544,15 +526,11 @@ class LifeCycleDriverBase(object):
                             'port_classification',
                             'port_policy'])
         ):
-            # TODO[RPM]: raise proper exception
-            raise Exception('Not enough required data is received')
+            raise exceptions.IncompleteData()
 
-        # Not handling operations on compute policies other than 'nova' for now
         if device_data['compute_policy'] != 'nova':
-            # TODO[RPM]: raise proper exception
-            raise Exception("Driver doesn't support operation"
-                            " with compute policy %s"
-                            % (device_data['compute_policy']))
+            raise exceptions.ComputePolicyNotSupported(
+                                compute_policy=device_data['compute_policy'])
 
         try:
             token = (device_data['token']
@@ -583,8 +561,7 @@ class LifeCycleDriverBase(object):
         if any(key not in device_data
                for key in ['id',
                            'mgmt_ip_address']):
-            # TODO[RPM]: raise proper exception
-            raise Exception('Not enough required data is received')
+            raise exceptions.IncompleteData()
 
         return {
             'info': {
