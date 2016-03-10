@@ -339,10 +339,9 @@ def events_init(sc, drivers, rpcmgr, nqueue):
                      const.FIREWALL_UPDATE_EVENT,
                      const.FIREWALL_DELETE_EVENT]
     evs = []
-    def _register_event(event_id_list):
-        for event in event_id_list:
-            evs.append(main.Event(id=event, handler=FWaasEventHandler(
-                                  sc, drivers, rpcmgr, nqueue)))
+    for event in event_id_list:
+        evs.append(main.Event(id=event, handler=FWaasEventHandler(
+                              sc, drivers, rpcmgr, nqueue)))
     sc.register_events(evs)
 
 
