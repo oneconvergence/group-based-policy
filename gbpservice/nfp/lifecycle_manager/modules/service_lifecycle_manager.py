@@ -171,13 +171,9 @@ class ServiceLifeCycleHandler(object):
             LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event.id})
 
     def _log_event_created(self, event_id, event_data):
-	import os
-        LOG.info(_("Created event %s(event_name)s with event "
-                    "data: %(event_data)s PID: %(pid)s, controller: %(controller)s"),
-                  {'event_name': event_id, 'event_data': event_data, 'pid': os.getpid(), 'controller': id(self._controller)})
-	workers = self._controller._workers
-        for worker in workers:
-            LOG.info(_("In PID : %(pid)s, worker: %(wid)s evq: %(evq)s evqid: %(evqid)s"), {'pid': os.getpid(), 'wid': worker[0].pid, 'evq': worker[1], 'evqid': id(worker[1])})
+        LOG.debug(_("Created event %s(event_name)s with event "
+                    "data: %(event_data)s"),
+                  {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None, key=None,
                       binding_key=None, serialize=False, is_poll_event=False):
