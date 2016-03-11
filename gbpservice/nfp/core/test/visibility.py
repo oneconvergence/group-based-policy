@@ -163,7 +163,7 @@ class Agent(PollEventDesc):
         """Driver logic here.
         """
         self._sc.event_done(ev)
-        self._sc.poll_event(ev, max_times=100)
+        self._sc.poll_event(ev, max_times=2)
 
     def _handle_dummy_event(self, ev):
         self._sc.poll_event(ev)

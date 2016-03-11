@@ -232,7 +232,7 @@ class PollQueueHandler(object):
                      "Event %s cancelled"
                      "invoking %s handler's poll_event_cancel method"
                      % (event.identify(), identify(eh)))
-            return eh.poll_event_cancel(uevent)
+            return eh.poll_event_cancel(event)
         except AttributeError:
             log_info(LOG,
                      "Handler %s does not implement"
