@@ -530,6 +530,28 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
+    def get_subnets(self, token, filters=None):
+        """ List subnets
+
+        :param token: A scoped_token
+        :param filters: Parameters for list filter
+        example for filter: ?tenant_id=%s&id=%s
+
+        :return: Subnet List
+
+        """
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            subnets = neutron.list_subnets(**filters).get('subnets', [])
+            return subnets
+        except Exception as ex:
+            err = ("Failed to read subnet list from"
+                   " Openstack Neutron service's response"
+                   " KeyError :: %s" % (ex))
+            LOG.error(err)
+            raise Exception(err)
+
     def get_subnet(self, token, subnet_id):
         """ Get subnet details
         :param token: A scoped_token
