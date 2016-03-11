@@ -1,358 +1,16 @@
-import requests
 import unittest
 import mock
 import json
 
-from oslo_config import cfg
 from oslo_log import log as logging
-import oslo_messaging
 
-from neutron.common import rpc as n_rpc
 
-from gbpservice.nfp.modules import configurator as cfgr
 import loadbalancer_v1 as lb
-from gbpservice.nfp.configurator.agents import generic_config as gc
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy.haproxy_lb_driver import HaproxyOnVmDriver
-#from gbpservice.neutron.nsf.configurator.agents.vyos_fw_driver import FwGenericConfigDriver
-from gbpservice.nfp.configurator.lib import demuxer as demuxer_lib
-from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy \
-    import(haproxy_rest_client)
-
+from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import haproxy_rest_client
+from test_input_data import FakeObjects
 
 LOG = logging.getLogger(__name__)
-
-
-class FakeObjects(object):
-
-    sc = 'sc'
-    empty_dict = {}
-    context = {'notification_data': {},
-               'resource': 'context_resource'}
-    lb = 'lb'
-    host = 'host'
-    conf = 'conf'
-    kwargs = 'kwargs'
-    rpcmgr = 'rpcmgr'
-    nqueue = 'nqueue'
-    drivers = 'drivers'
-    url = 'http://172.24.4.5:8888'
-
-    def fake_request_data_vip(self):
-        request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
-            "config": [{
-                "resource": "vip",
-                "kwargs": {
-                    "context": self.context,
-                    "vip": self._fake_vip_obj()
-                }}]}
-        return request_data
-
-    def fake_request_data_vip_update(self):
-        request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
-            "config": [{
-                "resource": "vip",
-                "kwargs": {
-                    "context": self.context,
-                    "vip": self._fake_vip_obj(),
-                    "old_vip": self._fake_old_vip_obj()
-                }}]}
-        return request_data
-
-    def fake_request_data_create_pool(self):
-        request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
-            "config": [{
-                "resource": "pool",
-                "kwargs": {
-                    "context": self.context,
-                    "pool": self._fake_pool_obj(),
-                    "driver_name": "ha_proxy"
-                }}]}
-        return request_data
-
-    def fake_request_data_delete_pool(self):
-        request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
-            "config": [{
-                "resource": "pool",
-                "kwargs": {
-                    "context": self.context,
-                    "pool": self._fake_pool_obj(),
-                }}]}
-        return request_data
-
-    def fake_request_data_update_pool(self):
-        request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
-            "config": [{
-                "resource": "pool",
-                "kwargs": {
-                    "context": self.context,
-                    "pool": self._fake_pool_obj(),
-                    "old_pool": 'old_pool'
-                }}]}
-        return request_data
-
-    def fake_request_data_create_member(self):
-        request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
-            "config": [{
-                "resource": "member",
-                "kwargs": {
-                    "context": self.context,
-                    "member": self._fake_member_obj(),
-                }}]}
-        return request_data
-
-    def fake_request_data_create_hm(self):
-        request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
-            "config": [{
-                "resource": "pool_health_monitor",
-                "kwargs": {
-                    "context": self.context,
-                    "health_monitor": self._fake_hm_obj(),
-                    "pool_id": "pool_id"
-                }}]}
-        return request_data
-
-    def fake_request_data_update_hm(self):
-        request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
-            "config": [{
-                "resource": "pool_health_monitor",
-                "kwargs": {
-                    "context": self.context,
-                    "health_monitor": self._fake_hm_obj(),
-                    "pool_id": "pool_id",
-                    "old_health_monitor": "old_health_monitor"
-                }}]}
-        return request_data
-
-    def fake_request_data_update_member(self):
-        request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
-            "config": [{
-                "resource": "member",
-                "kwargs": {
-                    "context": self.context,
-                    "member": self._fake_member_obj(),
-                    "old_member": "old_member"
-                }}]}
-        return request_data
-
-    def _fake_pool_obj(self):
-        pool = {"status": "ACTIVE",
-                "lb_method": "ROUND_ROBIN",
-                "protocol": "TCP",
-                "description": "",
-                "health_monitors": [],
-                "members":
-                    [
-                        "4910851f-4af7-4592-ad04-08b508c6fa21",
-                        "76d2a5fc-b39f-4419-9f33-3b21cf16fe47"
-                ],
-                "status_description": None,
-                "id": "6350c0fd-07f8-46ff-b797-62acd23760de",
-                "vip_id": "7a755739-1bbb-4211-9130-b6c82d9169a5",
-                "name": "lb-pool",
-                    "admin_state_up": True,
-                    "subnet_id": "b31cdafe-bdf3-4c19-b768-34d623d77d6c",
-                    "tenant_id": "f6b09b7a590642d8ac6de73df0ab0686",
-                    "health_monitors_status": [],
-                    "provider": "haproxy"}
-        return pool
-
-    def _fake_old_pool_obj(self):
-
-        pool = {"status": "ACTIVE",
-                "lb_method": "ROUND_ROBIN",
-                "protocol": "TCP",
-                "description": "",
-                "health_monitors": [],
-                "members":
-                [
-                            "4910851f-4af7-4592-ad04-08b508c6fa21",
-                            "76d2a5fc-b39f-4419-9f33-3b21cf16fe47"
-                ],
-                "status_description": None,
-                "id": "6350c0fd-07f8-46ff-b797-62acd23760de",
-                "vip_id": "7a755739-1bbb-4211-9130-b6c82d9169a5",
-                "name": "lb-pool",
-                "admin_state_up": True,
-                "subnet_id": "b31cdafe-bdf3-4c19-b768-34d623d77d6c",
-                "tenant_id": "f6b09b7a590642d8ac6de73df0ab0686",
-                "health_monitors_status": [],
-                "provider": "haproxy"
-                }
-        return pool
-
-    def _fake_vip_obj(self):
-        vip = {"status": "ACTIVE",
-               "protocol": "TCP",
-               "description": {"floating_ip": "192.168.100.149",
-                               "provider_interface_mac":
-                               "aa:bb:cc:dd:ee:ff"},
-               "address": "42.0.0.14",
-               "protocol_port": 22,
-               "port_id": "cfd9fcc0-c27b-478b-985e-8dd73f2c16e8",
-               "id": "7a755739-1bbb-4211-9130-b6c82d9169a5",
-               "status_description": None,
-               "name": "lb-vip",
-               "admin_state_up": True,
-               "subnet_id": "b31cdafe-bdf3-4c19-b768-34d623d77d6c",
-               "tenant_id": "f6b09b7a590642d8ac6de73df0ab0686",
-               "connection_limit": -1,
-               "pool_id": "6350c0fd-07f8-46ff-b797-62acd23760de",
-               "session_persistence": None}
-        return vip
-
-    def _fake_old_vip_obj(self):
-        old_vip = {"status": "ACTIVE",
-                   "protocol": "TCP",
-                   "description": {"floating_ip": "192.168.100.149",
-                                   "provider_interface_mac":
-                                   "aa:bb:cc:dd:ee:ff"},
-                   "address": "42.0.0.14",
-                   "protocol_port": 22,
-                   "port_id": "cfd9fcc0-c27b-478b-985e-8dd73f2c16e8",
-                   "id": "7a755739-1bbb-4211-9130-b6c82d9169a5",
-                   "status_description": None,
-                   "name": "lb-vip",
-                   "admin_state_up": True,
-                   "subnet_id": "b31cdafe-bdf3-4c19-b768-34d623d77d6c",
-                   "tenant_id": "f6b09b7a590642d8ac6de73df0ab0686",
-                   "connection_limit": -1,
-                   "pool_id": "6350c0fd-07f8-46ff-b797-62acd23760de",
-                   "session_persistence": None}
-        return old_vip
-
-    def _fake_member_obj(self):
-        member = [{
-            "admin_state_up": True,
-            "status": "ACTIVE",
-            "status_description": None,
-            "weight": 1,
-            "address": "42.0.0.11",
-            "tenant_id": "f6b09b7a590642d8ac6de73df0ab0686",
-            "protocol_port": 80,
-            "id": "4910851f-4af7-4592-ad04-08b508c6fa21",
-            "pool_id": "6350c0fd-07f8-46ff-b797-62acd23760de"}]
-        return member
-
-    def _fake_old_member_obj(self):
-        member = [{
-            "admin_state_up": True,
-            "status": "ACTIVE",
-            "status_description": None,
-            "weight": 1,
-            "address": "42.0.0.11",
-            "tenant_id": "f6b09b7a590642d8ac6de73df0ab0686",
-            "protocol_port": 80,
-            "id": "4910851f-4af7-4592-ad04-08b508c6fa21",
-            "pool_id": "6350c0fd-07f8-46ff-b797-62acd23760de"}]
-        return member
-
-    def _fake_hm_obj(self):
-        hm = [{
-            "admin_state_up": True,
-            "tenant_id": "f6b09b7a590642d8ac6de73df0ab0686",
-            "delay": 10,
-            "max_retries": 3,
-            "timeout": 10,
-            "pools": [],
-            "type": "PING",
-                    "id": "c30d8a88-c719-4b93-aa64-c58efb397d86"
-        }]
-        return hm
-
-    def _fake_old_hm_obj(self):
-        hm = [{
-            "admin_state_up": True,
-            "tenant_id": "f6b09b7a590642d8ac6de73df0ab0686",
-            "delay": 10,
-            "max_retries": 3,
-            "timeout": 10,
-            "pools": [],
-            "type": "PING",
-                    "id": "c30d8a88-c719-4b93-aa64-c58efb397d86"
-        }]
-        return hm
-
-    def _fake_kwargs(self):
-        kwargs = {'service_type': 'loadbalancer',
-                  'vm_mgmt_ip': '172.24.4.5',
-                  'mgmt_ip': '172.24.4.5',
-                  'source_cidrs': ['1.2.3.4/24'],
-                  'destination_cidr': ['1.2.3.4/24'],
-                  'gateway_ip': '1.2.3.4',
-                  'provider_interface_position': '1',
-                  'request_info': 'some_id',
-                  'rule_info': {
-                      'active_provider_mac': '00:0a:95:9d:68:16',
-                      'provider_mac': '00:0a:95:9d:68:16',
-                      'active_stitching_mac': '00:0a:95:9d:68:25',
-                      'stitching_mac': '00:0a:95:9d:68:25',
-                      'active_fip': '172.24.4.5',
-                      'fip': '172.24.4.5',
-                      'service_id': '1df1cd7a-d82e-4bbd-8b26-a1f106075a6b',
-                      'tenant_id': '6bb921bb81254b3e90e3d8c71a6d72dc'},
-                  'context': {'notification_data': 'hello'}
-                  }
-        return kwargs
-
-
-class FakeEvent(object):
-
-    def __init__(self):
-        fo = FakeObjects()
-        kwargs = fo._fake_kwargs()
-        self.data = {
-            'context': {'notification_data': {},
-                        'resource': 'context_resource'},
-            'vip': fo._fake_vip_obj(),
-            'old_vip': fo._fake_old_vip_obj(),
-            'pool': fo._fake_pool_obj(),
-            'old_pool': 'oldpool',
-            'member': fo._fake_member_obj(),
-            'old_member': 'oldmember',
-            'health_monitor': fo._fake_hm_obj(),
-            'old_health_monitor': 'oldhm',
-            'pool_id': '6350c0fd-07f8-46ff-b797-62acd23760de',
-            'driver_name': 'haproxy',
-            'host': fo.host,
-            'kwargs': kwargs,
-        }
-        self.id = 'dummy'
 
 
 class LbaasDriverTestCase(unittest.TestCase):
@@ -368,11 +26,11 @@ class LbaasDriverTestCase(unittest.TestCase):
         self.fo.vip = self.fo._fake_vip_obj()
         self.fo.old_vip = self.fo._fake_vip_obj()
         self.fo.pool = self.fo._fake_pool_obj()
-        self.fo.old_pool = self.fo._fake_old_pool_obj()
+        self.fo.old_pool = self.fo._fake_pool_obj()
         self.fo.hm = self.fo._fake_hm_obj()
-        self.fo.old_hm = self.fo._fake_old_hm_obj()
+        self.fo.old_hm = self.fo._fake_hm_obj()
         self.fo.member = self.fo._fake_member_obj()
-        self.fo.old_member = self.fo._fake_old_member_obj()
+        self.fo.old_member = self.fo._fake_member_obj()
         self.vip = json.dumps(self.fo.vip)
         self.pool_id = '6350c0fd-07f8-46ff-b797-62acd23760de'
         self.resp = mock.Mock()
@@ -388,12 +46,12 @@ class LbaasDriverTestCase(unittest.TestCase):
     @mock.patch(__name__ + '.FakeObjects.rpcmgr')
     @mock.patch(__name__ + '.FakeObjects.drivers')
     @mock.patch(__name__ + '.FakeObjects.sc')
-    def _get_LbHandler_objects(self, sc, drivers, rpcmgr, nqueue):
+    def _get_lb_handler_objects(self, sc, drivers, rpcmgr, nqueue):
         agent = lb.LBaaSEventHandler(sc, drivers, rpcmgr, nqueue)
         return agent
 
     def _test_lbaasdriver(self, method_name):
-        agent = self._get_LbHandler_objects()
+        agent = self._get_lb_handler_objects()
         driver = HaproxyOnVmDriver(agent.plugin_rpc)
         rest_client = haproxy_rest_client.HttpRequests(
             '192.168.100.149', '1234')
@@ -569,9 +227,8 @@ class LbaasDriverTestCase(unittest.TestCase):
 
     def test_pool_health_monitor_update_lbaasdriver(self):
         self._test_lbaasdriver('UPDATE_POOL_HEALTH_MONITOR')
-        # pass
+        pass
 
 
 if __name__ == '__main__':
     unittest.main()
-
