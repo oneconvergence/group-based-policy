@@ -1,34 +1,28 @@
-import requests
-import unittest
-import mock
+
 import json
+import mock
+import requests
 import subprocess
+import unittest
 
-from oslo_config import cfg
 from oslo_log import log as logging
-import oslo_messaging
-
-from neutron.common import rpc as n_rpc
 
 from gbpservice.nfp.modules import configurator as cfgr
 from gbpservice.nfp.configurator.agents import firewall as fw
 from gbpservice.nfp.configurator.agents import generic_config as gc
-from gbpservice.nfp.configurator.drivers.firewall.\
-                            vyos.vyos_fw_driver import FwaasDriver
-from gbpservice.nfp.configurator.drivers.firewall.\
-                            vyos.vyos_fw_driver import FwGenericConfigDriver
+from gbpservice.nfp.configurator.drivers.firewall.vyos import (
+                                                    vyos_fw_driver as fw_dvr)
 from gbpservice.nfp.configurator.lib import demuxer as demuxer_lib
 from gbpservice.nfp.configurator.lib import (
-                            generic_config_constants as gen_cfg_const)
-
-
+                                    generic_config_constants as gen_cfg_const)
 
 LOG = logging.getLogger(__name__)
 
-FIREWALL_RPC_TOPIC = "firewall_topic"
-FIREWALL_GENERIC_CONFIG_RPC_TOPIC = "vyos_firewall_topic"
-HOST = 'configurator-dpak'
 STATUS_ACTIVE = "ACTIVE"
+
+""" Implements fake objects for assertion.
+
+"""
 
 
 class FakeObjects(object):
@@ -39,9 +33,8 @@ class FakeObjects(object):
     firewall = 'firewall'
     host = 'host'
     conf = 'conf'
-    kwargs = { 'vmid': 'vmid'}
+    kwargs = {'vmid': 'vmid'}
     rpcmgr = 'rpcmgr'
-    nqueue = 'nqueue'
     drivers = 'drivers'
     vm_mgmt_ip = '172.24.4.5'
     service_vendor = 'service_vendor'
@@ -64,6 +57,13 @@ class FakeObjects(object):
     timeout = 30
 
     def fake_request_data_generic_bulk(self):
+        """ A sample bulk request data for generic APIs
+
+        Returns: data which is the input for generic configuration
+        RPC receivers of configurator.
+
+        """
+
         request_data = {
             "info": {
                 "version": 1
@@ -77,9 +77,12 @@ class FakeObjects(object):
                     "mgmt_ip": "120.0.0.15",
                     "service_vendor": "vyos",
                     "request_info": {
-                        "network_function_id": "5084bb63-459f-4edd-a090-97168764e632",
-                        "network_function_device_id": "9b7f6b15-3e67-4f26-8463-b4efb36cbb08",
-                        "network_function_instance_id": "940dcdf3-77c8-4119-9f95-ec1e16a50fa8"
+                        "network_function_id": (
+                                    "5084bb63-459f-4edd-a090-97168764e632"),
+                        "network_function_device_id": (
+                                    "9b7f6b15-3e67-4f26-8463-b4efb36cbb08"),
+                        "network_function_instance_id": (
+                                    "940dcdf3-77c8-4119-9f95-ec1e16a50fa8")
                     },
                     "provider_mac": "fa:16:3e:0f:0f:06",
                     "provider_interface_position": 2,
@@ -95,9 +98,12 @@ class FakeObjects(object):
                     "mgmt_ip": "120.0.0.15",
                     "service_vendor": "vyos",
                     "request_info": {
-                        "network_function_id": "5084bb63-459f-4edd-a090-97168764e632",
-                        "network_function_device_id": "9b7f6b15-3e67-4f26-8463-b4efb36cbb08",
-                        "network_function_instance_id": "940dcdf3-77c8-4119-9f95-ec1e16a50fa8"
+                        "network_function_id": (
+                                    "5084bb63-459f-4edd-a090-97168764e632"),
+                        "network_function_device_id": (
+                                    "9b7f6b15-3e67-4f26-8463-b4efb36cbb08"),
+                        "network_function_instance_id": (
+                                    "940dcdf3-77c8-4119-9f95-ec1e16a50fa8")
                     },
                     "provider_interface_position": 2,
                     "gateway_ip": None,
@@ -109,13 +115,27 @@ class FakeObjects(object):
             }]
         }
         return request_data
-    
+
     def fake_request_data_generic_single(self):
+        """ A sample single request data for generic APIs
+
+        Returns: data which is the input for generic configuration
+        RPC receivers of configurator.
+
+        """
+
         request_data = self.fake_request_data_generic_bulk()
         request_data['config'].pop()
         return request_data
 
     def fake_request_data_fw(self):
+        """ A sample request data for FwaaS APIs
+
+        Returns: data which is the input for firewall configuration
+        RPC receivers of configurator.
+
+        """
+
         request_data = {
             "info": {
                 "version": 1,
@@ -127,65 +147,81 @@ class FakeObjects(object):
                     "context": self.context,
                     "firewall": self._fake_firewall_obj(),
                     "host": self.host
-                  
-            }}]}
+                    }}]}
         return request_data
 
-        
-        
-    def fake_sa_info_list(self):
-        sa_info_list = [{
-        'service_type': 'generic',
-        'resource': 'interfaces',
-        'method': 'configure_interfaces',
-        'context': {
-            'domain': None
-        },
-        'kwargs': {
+    def fake_sa_req_list(self):
+        """ A sample data for agent handlers
+
+        Returns: data which is the input for event handler
+        functions of agents.
+
+        """
+
+        sa_req_list = [{
+            'service_type': 'generic',
+            'resource': 'interfaces',
+            'method': 'configure_interfaces',
+            'context': {
+                'domain': None
+            },
             'kwargs': {
-                'stitching_mac': None,
-                'service_vendor': 'vyos',
-                'provider_interface_position': 2,
-                'provider_ip': '11.0.0.1',
-                'stitching_interface_position': 3,
-                'stitching_ip': None,
-                'mgmt_ip': '120.0.0.15',
-                'stitching_cidr': None,
-                'request_info': {
-                    'network_function_id': '5084bb63-459f-4edd-a090-97168764e632',
-                    'network_function_device_id': '9b7f6b15-3e67-4f26-8463-b4efb36cbb08',
-                    'network_function_instance_id': '940dcdf3-77c8-4119-9f95-ec1e16a50fa8'
-                },
-                'provider_mac': 'fa:16:3e:0f:0f:06',
-                'provider_cidr': '11.0.0.0/24'
-            }
-        }
-    }, {
-        'service_type': 'generic',
-        'resource': 'routes',
-        'method': 'configure_routes',
-        'context': {
-            'domain': None
-        },
-        'kwargs': {
-            'kwargs': {
-                'provider_interface_position': 2,
-                'gateway_ip': None,
-                'destination_cidr': None,
-                'mgmt_ip': '120.0.0.15',
-                'source_cidrs': ['11.0.0.0/24'],
-                'service_vendor': 'vyos',
-                'request_info': {
-                    'network_function_id': '5084bb63-459f-4edd-a090-97168764e632',
-                    'network_function_device_id': '9b7f6b15-3e67-4f26-8463-b4efb36cbb08',
-                    'network_function_instance_id': '940dcdf3-77c8-4119-9f95-ec1e16a50fa8'
+                'kwargs': {
+                    'stitching_mac': None,
+                    'service_vendor': 'vyos',
+                    'provider_interface_position': 2,
+                    'provider_ip': '11.0.0.1',
+                    'stitching_interface_position': 3,
+                    'stitching_ip': None,
+                    'mgmt_ip': '120.0.0.15',
+                    'stitching_cidr': None,
+                    'request_info': {
+                        'network_function_id': (
+                                    '5084bb63-459f-4edd-a090-97168764e632'),
+                        'network_function_device_id': (
+                                    '9b7f6b15-3e67-4f26-8463-b4efb36cbb08'),
+                        'network_function_instance_id': (
+                                    '940dcdf3-77c8-4119-9f95-ec1e16a50fa8')
+                    },
+                    'provider_mac': 'fa:16:3e:0f:0f:06',
+                    'provider_cidr': '11.0.0.0/24'
                 }
             }
-        }
-    }]
-        return sa_info_list
-    
+        }, {
+            'service_type': 'generic',
+            'resource': 'routes',
+            'method': 'configure_routes',
+            'context': {
+                'domain': None
+            },
+            'kwargs': {
+                'kwargs': {
+                    'provider_interface_position': 2,
+                    'gateway_ip': None,
+                    'destination_cidr': None,
+                    'mgmt_ip': '120.0.0.15',
+                    'source_cidrs': ['11.0.0.0/24'],
+                    'service_vendor': 'vyos',
+                    'request_info': {
+                        'network_function_id': (
+                                    '5084bb63-459f-4edd-a090-97168764e632'),
+                        'network_function_device_id': (
+                                    '9b7f6b15-3e67-4f26-8463-b4efb36cbb08'),
+                        'network_function_instance_id': (
+                                    '940dcdf3-77c8-4119-9f95-ec1e16a50fa8')
+                    }
+                }
+            }
+        }]
+        return sa_req_list
+
     def _fake_kwargs(self):
+        """ A sample keyword arguments for configurator
+
+        Returns: kwargs
+
+        """
+
         kwargs = {'service_type': 'firewall',
                   'vm_mgmt_ip': '172.24.4.5',
                   'mgmt_ip': '172.24.4.5',
@@ -209,6 +245,12 @@ class FakeObjects(object):
         return kwargs
 
     def _fake_firewall_obj(self):
+        """ A sample firewall resource object
+
+        Returns: firewall object
+
+        """
+
         firewall = {
                      "admin_state_up": True,
                      "description": "",
@@ -229,27 +271,12 @@ class FakeObjects(object):
                     }
         return firewall
 
-    def fake_request_data_generic_config(self):
-        data = {
-                'context': {},
-                'kwargs': self._fake_kwargs(),
-                'request_info': 'xxx'}
+""" Tests RPC manager class of configurator
 
-        request_data = {
-                 'info':   {
-                             'version': 'v1'},
-
-                 'config': [
-                        {'resource': 'interfaces',
-                         'kwargs': data}
-                    ]
-                }
-
-        return request_data
+"""
 
 
 class ConfiguratorRpcManagerTestCase(unittest.TestCase):
-    ''' Configurator RPC receiver '''
 
     def __init__(self, *args, **kwargs):
         super(ConfiguratorRpcManagerTestCase, self).__init__(*args, **kwargs)
@@ -257,9 +284,9 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
 
     @mock.patch(__name__ + '.FakeObjects.conf')
     @mock.patch(__name__ + '.FakeObjects.sc')
-    def _get_ConfiguratorRpcManager_object(self,sc, conf):
+    def _get_ConfiguratorRpcManager_object(self, sc, conf):
         cm = cfgr.ConfiguratorModule(sc)
-        demuxer = demuxer_lib.ConfiguratorDemuxer()
+        demuxer = demuxer_lib.ServiceAgentDemuxer()
         rpc_mgr = cfgr.ConfiguratorRpcManager(sc, cm, conf, demuxer)
         return sc, conf, rpc_mgr
 
@@ -267,30 +294,40 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
         agent = gc.GenericConfigRpcManager(sc, conf)
         return agent, sc
 
-    @mock.patch(__name__ + '.FakeObjects.nqueue')
     @mock.patch(__name__ + '.FakeObjects.drivers')
-    def _get_GenericConfigEventHandler_object(self, sc, rpcmgr, drivers, nqueue):
-        agent = gc.GenericConfigEventHandler(sc, drivers, rpcmgr, nqueue)
+    def _get_GenericConfigEventHandler_object(self, sc, rpcmgr, drivers):
+        agent = gc.GenericConfigEventHandler(sc, drivers, rpcmgr)
         return agent
 
     def _get_FWaasRpcManager_object(self, conf, sc):
         agent = fw.FWaasRpcManager(sc, conf)
         return agent, sc
 
-    def _test_generic_event_creation(self, operation, method, bulk=False):
+    def _test_network_device_config(self, operation, method, batch=False):
         sc, conf, rpc_mgr = self._get_ConfiguratorRpcManager_object()
         agent, sc = self._get_GenericConfigRpcManager_object(conf, sc)
-        
-        if bulk:
-            request_data = self.fo.fake_request_data_generic_bulk()
-            request_data1 = self.fo.fake_request_data_generic_bulk()
-        else:
-            request_data = self.fo.fake_request_data_generic_single()
-            request_data1 = self.fo.fake_request_data_generic_single()
 
-        if (method == 'CONFIGURE_ROUTES' or method == 'CLEAR_ROUTES'):
-            request_data1['config'][0]['resource'] = 'routes'
-            request_data['config'][0]['resource'] = 'routes'
+        request_data = {'batch': {
+                'request_data_actual': (
+                            self.fo.fake_request_data_generic_bulk()),
+                'request_data_expected': (
+                            self.fo.fake_request_data_generic_bulk())},
+                        'single': {
+                'request_data_actual': (
+                            self.fo.fake_request_data_generic_single()),
+                'request_data_expected': (
+                            self.fo.fake_request_data_generic_single())}
+                        }
+        if batch:
+            request_data_actual, request_data_expected = (
+                                            request_data['batch'].values())
+        else:
+            request_data_actual, request_data_expected = (
+                                            request_data['single'].values())
+
+        if 'ROUTES' in method:
+            request_data_expected['config'][0]['resource'] = 'routes'
+            request_data_actual['config'][0]['resource'] = 'routes'
 
         with mock.patch.object(
                     sc, 'new_event', return_value='foo') as mock_sc_event, \
@@ -299,30 +336,34 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
                               '_get_service_agent_instance',
                               return_value=agent):
             if operation == 'create':
-                rpc_mgr.create_network_device_config(
-                                    self.fo.context, request_data)
+                rpc_mgr.create_network_function_device_config(
+                                    self.fo.context, request_data_actual)
             elif operation == 'delete':
-                rpc_mgr.delete_network_device_config(
-                                    self.fo.context, request_data)
+                rpc_mgr.delete_network_function_device_config(
+                                    self.fo.context, request_data_actual)
 
-            context = request_data1['config'][0]['kwargs']['context']
+            context = request_data_expected['config'][0]['kwargs'][
+                                                                    'context']
             context.update({'notification_data': {}})
-            context.update({'resource': request_data1['config'][0]['resource']})
-            del request_data1['config'][0]['kwargs']['context']
-            kwargs = request_data1['config'][0]['kwargs']
-            if bulk:
-                sa_info_list = self.fo.fake_sa_info_list()
+            context.update(
+                    {'resource': request_data_expected['config'][0][
+                                                                'resource']})
+            del request_data_expected['config'][0]['kwargs']['context']
+            kwargs = request_data_expected['config'][0]['kwargs']
+            if batch:
+                sa_req_list = self.fo.fake_sa_req_list()
                 if operation == 'delete':
-                    sa_info_list[0]['method'] = 'clear_interfaces'
-                    sa_info_list[1]['method'] = 'clear_routes'
+                    sa_req_list[0]['method'] = 'clear_interfaces'
+                    sa_req_list[1]['method'] = 'clear_routes'
                 args_dict = {
-                         'sa_info_list': sa_info_list,
+                         'sa_req_list': sa_req_list,
                          'notification_data': {}
                         }
             else:
                 args_dict = {'context': context,
                              'kwargs': kwargs}
-            mock_sc_event.assert_called_with(id=method, data=args_dict)
+            mock_sc_event.assert_called_with(id=method,
+                                             data=args_dict, key=None)
             mock_sc_rpc_event.assert_called_with('foo')
 
     def _test_fw_event_creation(self, operation):
@@ -331,9 +372,9 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
         arg_dict = {'context': self.fo.context,
                     'firewall': self.fo._fake_firewall_obj(),
                     'host': self.fo.host}
-        method = {'CREATE_FIREWALL': 'create_network_service_config',
-                  'UPDATE_FIREWALL': 'update_network_service_config',
-                  'DELETE_FIREWALL': 'delete_network_service_config'}
+        method = {'CREATE_FIREWALL': 'create_network_function_config',
+                  'UPDATE_FIREWALL': 'update_network_function_config',
+                  'DELETE_FIREWALL': 'delete_network_function_config'}
         request_data = self.fo.fake_request_data_fw()
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
                                                         mock_sc_event), \
@@ -343,58 +384,59 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
                               return_value=agent):
             getattr(rpc_mgr, method[operation])(self.fo.context, request_data)
 
-            mock_sc_event.assert_called_with(id=operation, data=arg_dict)
+            mock_sc_event.assert_called_with(id=operation,
+                                             data=arg_dict, key=None)
             mock_sc_rpc_event.assert_called_with('foo')
 
     def _test_notifications(self, bulk=False):
         sc, conf, rpc_mgr = self._get_ConfiguratorRpcManager_object()
         agent = self._get_GenericConfigEventHandler_object(sc, rpc_mgr)
-        
+
         data = "PUT ME IN THE QUEUE!"
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
-                                                        mock_new_event), \
-            mock.patch.object(sc, 'poll_event') as (mock_poll_event):
-            
-            agent._notification(data)
+                                                            mock_new_event), \
+            mock.patch.object(sc, 'poll_event') as mock_poll_event:
+
+            agent.notify._notification(data)
 
             mock_new_event.assert_called_with(id='NOTIFICATION_EVENT',
                                               key='NOTIFICATION_EVENT',
                                               data=data)
             mock_poll_event.assert_called_with('foo')
-        
+
     def test_configure_routes(self):
         method = "CONFIGURE_ROUTES"
         operation = 'create'
-        self._test_generic_event_creation(operation, method)
-        
+        self._test_network_device_config(operation, method)
+
     def test_clear_routes(self):
         method = "CLEAR_ROUTES"
         operation = 'delete'
-        self._test_generic_event_creation(operation, method)
+        self._test_network_device_config(operation, method)
 
     def test_configure_interfaces(self):
         method = "CONFIGURE_INTERFACES"
         operation = 'create'
-        self._test_generic_event_creation(operation, method)
-        
+        self._test_network_device_config(operation, method)
+
     def test_clear_interfaces(self):
         method = "CLEAR_INTERFACES"
         operation = 'delete'
-        self._test_generic_event_creation(operation, method)
-        
+        self._test_network_device_config(operation, method)
+
     def test_configure_bulk(self):
         method = "PROCESS_BATCH"
         operation = 'create'
-        self._test_generic_event_creation(operation, method, True)
+        self._test_network_device_config(operation, method, True)
 
     def test_clear_bulk(self):
         method = "PROCESS_BATCH"
         operation = 'delete'
-        self._test_generic_event_creation(operation, method, True)
+        self._test_network_device_config(operation, method, True)
 
     def test_create_firewall(self):
         self._test_fw_event_creation('CREATE_FIREWALL')
-        
+
     def test_update_firewall(self):
         self._test_fw_event_creation('UPDATE_FIREWALL')
 
@@ -403,6 +445,7 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
 
     def test_get_notifications_generic(self):
         self._test_notifications()
+
 
 class FWaasRpcManagerTestCase(unittest.TestCase):
     ''' Fwaas RPC receiver for Firewall module '''
@@ -428,7 +471,8 @@ class FWaasRpcManagerTestCase(unittest.TestCase):
             call_method = getattr(agent, method.lower())
             call_method(self.fo.context, self.fo.firewall, self.fo.host)
 
-            mock_sc_event.assert_called_with(id=method, data=arg_dict)
+            mock_sc_event.assert_called_with(id=method,
+                                             data=arg_dict, key=None)
             mock_sc_rpc_event.assert_called_with('foo')
 
     def test_create_firewall_fwaasrpcmanager(self):
@@ -474,7 +518,8 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
                                                  data=arg_dict,
                                                  key=self.fo.kwargs['vmid'])
             else:
-                mock_sc_event.assert_called_with(id=method, data=arg_dict)
+                mock_sc_event.assert_called_with(id=method,
+                                                 data=arg_dict, key=None)
             mock_sc_rpc_event.assert_called_with('foo')
 
     def test_configure_interfaces_genericconfigrpcmanager(self):
@@ -533,36 +578,34 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         self.context = {'notification_data': {},
                         'resource': 'interfaces'}
 
-    @mock.patch(__name__ + '.FakeObjects.nqueue')
     @mock.patch(__name__ + '.FakeObjects.rpcmgr')
     @mock.patch(__name__ + '.FakeObjects.drivers')
     @mock.patch(__name__ + '.FakeObjects.sc')
-    def _get_GenericConfigEventHandler_object(self, sc,
-                                              drivers, rpcmgr, nqueue):
-        agent = gc.GenericConfigEventHandler(sc, drivers, rpcmgr, nqueue)
+    def _get_GenericConfigEventHandler_object(self, sc, drivers, rpcmgr):
+        agent = gc.GenericConfigEventHandler(sc, drivers, rpcmgr)
         return agent, sc
 
     def _test_handle_event(self, ev):
         agent, sc = self._get_GenericConfigEventHandler_object()
-        driver = FwaasDriver()
+        driver = fw_dvr.FwaasDriver()
         with mock.patch.object(
                 driver, 'configure_interfaces') as mock_config_inte, \
-             mock.patch.object(
+            mock.patch.object(
                 driver, 'clear_interfaces') as mock_clear_inte, \
-             mock.patch.object(
+            mock.patch.object(
                 driver, 'configure_routes') as mock_config_src_routes, \
-             mock.patch.object(
+            mock.patch.object(
                 driver, 'clear_routes') as mock_delete_src_routes, \
-             mock.patch.object(
+            mock.patch.object(
                 sc, 'poll_event') as mock_hm_poll_event, \
-             mock.patch.object(
+            mock.patch.object(
                 sc, 'poll_event_done') as mock_hm_poll_event_done, \
-             mock.patch.object(
-                driver, 'configure_healthmonitor', return_value='SUCCESS') as mock_hm_driver_call, \
-             mock.patch.object(
+            mock.patch.object(
+                driver, 'configure_healthmonitor', return_value='SUCCESS'), \
+            mock.patch.object(
                 agent, '_get_driver', return_value=driver):
             agent.handle_event(ev)
-            
+
             kwargs = self.fo._fake_kwargs()
             kwargs.pop('request_info')
             if ev.id == 'CONFIGURE_INTERFACES':
@@ -590,16 +633,16 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
     def _test_handle_periodic_event(self, ev):
         agent, sc = self._get_GenericConfigEventHandler_object()
-        driver = FwaasDriver()
+        driver = fw_dvr.FwaasDriver()
         with mock.patch.object(
-                agent, '_get_driver', return_value=driver) as mock_driver, \
+                agent, '_get_driver', return_value=driver), \
             mock.patch.object(
                     driver, 'configure_healthmonitor',
-                    return_value='SUCCESS') as mock_hm, \
+                    return_value='SUCCESS'), \
             mock.patch.object(
                 sc, 'poll_event_done') as mock_poll_event_done, \
             mock.patch.object(subprocess, 'check_output', return_value=True):
-            
+
             agent.handle_configure_healthmonitor(ev)
             mock_poll_event_done.assert_called_with(ev)
 
@@ -661,30 +704,29 @@ class FwaasHandlerTestCase(unittest.TestCase):
         self.fo = FakeObjects()
         self.ev = FakeEvent()
 
-    @mock.patch(__name__ + '.FakeObjects.nqueue')
     @mock.patch(__name__ + '.FakeObjects.rpcmgr')
     @mock.patch(__name__ + '.FakeObjects.drivers')
     @mock.patch(__name__ + '.FakeObjects.sc')
-    def _get_FwHandler_objects(self, sc, drivers, rpcmgr, nqueue):
-        agent = fw.FWaasEventHandler(sc, drivers, rpcmgr, nqueue)
+    def _get_FwHandler_objects(self, sc, drivers, rpcmgr):
+        agent = fw.FWaasEventHandler(sc, drivers, rpcmgr)
         return agent
 
     def _test_handle_event(self, rule_list_info=True):
         agent = self._get_FwHandler_objects()
-        driver = FwaasDriver()
+        driver = fw_dvr.FwaasDriver()
 
         with mock.patch.object(
              agent.plugin_rpc, 'set_firewall_status') as (
                                                     mock_set_fw_status), \
-             mock.patch.object(
+            mock.patch.object(
                 agent.plugin_rpc, 'firewall_deleted') as (mock_fw_deleted), \
-             mock.patch.object(
+            mock.patch.object(
                 driver, 'create_firewall') as mock_create_fw, \
-             mock.patch.object(
+            mock.patch.object(
                 driver, 'update_firewall') as mock_update_fw, \
-             mock.patch.object(
+            mock.patch.object(
                 driver, 'delete_firewall') as mock_delete_fw, \
-             mock.patch.object(
+            mock.patch.object(
                 agent, '_get_driver', return_value=driver):
 
             firewall = self.fo._fake_firewall_obj()
@@ -760,7 +802,7 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(FwGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
         self.fo = FakeObjects()
-        self.driver = FwGenericConfigDriver()
+        self.driver = fw_dvr.FwGenericConfigDriver()
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True}
         self.kwargs = self.fo._fake_kwargs()
@@ -788,11 +830,6 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                                 self.fo.url_for_del_inte,
                                 data=self.fo.data_for_interface,
                                 timeout=self.fo.timeout)
-
-    def test_clear_interfaces_key_error(self):
-        self.kwargs['rule_info'].pop('fip')
-        with self.assertRaises(KeyError):
-            self.driver.clear_interfaces(self.fo.context, self.kwargs)
 
     def test_configure_source_routes(self):
         with mock.patch.object(
@@ -826,7 +863,7 @@ class FwaasDriverTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(FwaasDriverTestCase, self).__init__(*args, **kwargs)
         self.fo = FakeObjects()
-        self.driver = FwaasDriver()
+        self.driver = fw_dvr.FwaasDriver()
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,
                                'config_success': True,

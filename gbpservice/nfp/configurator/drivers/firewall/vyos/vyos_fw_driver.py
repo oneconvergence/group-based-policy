@@ -31,14 +31,14 @@ class FwGenericConfigDriver(object):
     def _configure_static_ips(self, kwargs):
         """ Configure static IPs for provider and stitching interfaces
         of service VM.
-        
+
         Issues REST call to service VM for configuration of static IPs.
-        
+
         :param kwargs: a dictionary of firewall rules and objects
         send by neutron plugin
-        
+
         Returns: SUCCESS/Failure message with reason.
-        
+
         """
 
         rule_info = kwargs.get('rule_info')
@@ -96,21 +96,20 @@ class FwGenericConfigDriver(object):
                                    rule_info['tenant_id']))
         LOG.info(msg)
         return const.STATUS_SUCCESS
-        
 
     def configure_interfaces(self,  context, kwargs):
         """ Configure interfaces for the service VM.
-        
+
         Calls static IP configuration function and implements
         persistent rule addition in the service VM.
         Issues REST call to service VM for configuration of interfaces.
-        
+
         :param context: neutron context
         :param kwargs: a dictionary of firewall rules and objects
         send by neutron plugin
-        
-        Returns: SUCCESS/Failure message with reason. 
- 
+
+        Returns: SUCCESS/Failure message with reason.
+
         """
 
         try:
@@ -181,14 +180,14 @@ class FwGenericConfigDriver(object):
     def _clear_static_ips(self, kwargs):
         """ Clear static IPs for provider and stitching
         interfaces of the service VM.
-        
+
         Issues REST call to service VM for deletion of static IPs.
 
         :param kwargs: a dictionary of firewall rules and objects
         send by neutron plugin
-        
-        Returns: SUCCESS/Failure message with reason. 
- 
+
+        Returns: SUCCESS/Failure message with reason.
+
         """
 
         rule_info = kwargs.get('rule_info')
@@ -249,17 +248,17 @@ class FwGenericConfigDriver(object):
 
     def clear_interfaces(self, context, kwargs):
         """ Clear interfaces for the service VM.
-        
+
         Calls static IP clear function and implements
         persistent rule deletion in the service VM.
         Issues REST call to service VM for deletion of interfaces.
-        
+
         :param context: neutron context
         :param kwargs: a dictionary of firewall rules and objects
         send by neutron plugin
-        
-        Returns: SUCCESS/Failure message with reason. 
- 
+
+        Returns: SUCCESS/Failure message with reason.
+
         """
 
         try:
@@ -330,15 +329,15 @@ class FwGenericConfigDriver(object):
 
     def configure_routes(self, context, kwargs):
         """ Configure routes for the service VM.
-        
+
         Issues REST call to service VM for configuration of routes.
-        
+
         :param context: neutron context
         :param kwargs: a dictionary of firewall rules and objects
         send by neutron plugin
-        
-        Returns: SUCCESS/Failure message with reason. 
- 
+
+        Returns: SUCCESS/Failure message with reason.
+
         """
 
         vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
@@ -398,15 +397,15 @@ class FwGenericConfigDriver(object):
 
     def clear_routes(self, context, kwargs):
         """ Clear routes for the service VM.
-        
+
         Issues REST call to service VM for deletion of routes.
-        
+
         :param context: neutron context
         :param kwargs: a dictionary of firewall rules and objects
         send by neutron plugin
-        
-        Returns: SUCCESS/Failure message with reason. 
- 
+
+        Returns: SUCCESS/Failure message with reason.
+
         """
 
         vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
@@ -470,12 +469,12 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
     def _get_firewall_attribute(self, firewall):
         """ Retrieves management IP from the firewall resource received
-        
+
         :param firewall: firewall dictionary containing rules
         and other objects
-        
+
         Returns: management IP
-        
+
         """
 
         description = ast.literal_eval(firewall["description"])
@@ -534,15 +533,15 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
     def create_firewall(self, context, firewall, host):
         """ Implements firewall creation
-        
+
         Issues REST call to service VM for firewall creation
-        
+
         :param context: Neutron context
         :param firewall: Firewall resource object from neutron fwaas plugin
         :param host: Name of the host machine
-        
+
         Returns: SUCCESS/Failure message with reason.
-        
+
         """
 
         msg = ("Processing create firewall request in FWaaS Driver "
@@ -595,15 +594,15 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
     def update_firewall(self, context, firewall, host):
         """ Implements firewall updation
-        
+
         Issues REST call to service VM for firewall updation
-        
+
         :param context: Neutron context
         :param firewall: Firewall resource object from neutron fwaas plugin
         :param host: Name of the host machine
-        
+
         Returns: SUCCESS/Failure message with reason.
-        
+
         """
 
         vm_mgmt_ip = self._get_firewall_attribute(firewall)
@@ -629,15 +628,15 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
     def delete_firewall(self, context, firewall, host):
         """ Implements firewall deletion
-        
+
         Issues REST call to service VM for firewall deletion
-        
+
         :param context: Neutron context
         :param firewall: Firewall resource object from neutron fwaas plugin
         :param host: Name of the host machine
-        
+
         Returns: SUCCESS/Failure message with reason.
-        
+
         """
 
         vm_mgmt_ip = self._get_firewall_attribute(firewall)
