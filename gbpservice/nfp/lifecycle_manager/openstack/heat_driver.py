@@ -313,7 +313,7 @@ class HeatDriver():
     def _create_policy_target_for_vip(self, auth_token,
                                       provider_tenant_id, provider):
         provider_subnet = None
-        provider_l2p_subnets = self.neutron_client.list_subnets(
+        provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token,
             filters={'id': provider['subnets']})
         for subnet in provider_l2p_subnets:
@@ -508,7 +508,7 @@ class HeatDriver():
             filters = {'id': consumer_ptgs}
             consumer_ptgs_details = self.gbp_client.get_policy_target_groups(
                 auth_token, filters)
-            provider_l2p_subnets = self.neutron_client.list_subnets(
+            provider_l2p_subnets = self.neutron_client.get_subnets(
                 auth_token,
                 filters={'id': provider['subnets']})
             for subnet in provider_l2p_subnets:
@@ -647,7 +647,7 @@ class HeatDriver():
                             provider, consumer_port,
                             provider_port, update=False, mgmt_ip=None):
         provider_cidr = provider_subnet = None
-        provider_l2p_subnets = self.neutron_client.list_subnets(
+        provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
         for subnet in provider_l2p_subnets:
             if not subnet['name'].startswith(APIC_OWNED_RES):
@@ -955,8 +955,6 @@ class HeatDriver():
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
         provider_tenant_id = provider['tenant_id']
-        LOG.info(_("User Tenant ID %(provider_tenant_id)s")%
-                  {'provider_tenant_id': provider_tenant_id})
         heatclient = self._get_heat_client(resource_owner_tenant_id,
                                            tenant_id=provider_tenant_id)
         stack_name = ("stack_" + service_chain_instance['name'] +
