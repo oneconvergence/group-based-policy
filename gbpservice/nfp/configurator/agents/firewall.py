@@ -269,7 +269,7 @@ class FWaasEventHandler(object):
             try:
                 status = self.method(context, firewall, host)
             except ConnectionError:
-                # FIXME(Vikash) It can't be correct everytime
+                # FIXME It can't be correct everytime
                 msg = ("There is a connection error for firewall %r of "
                        "tenant %r. Assuming either there is serious "
                        "issue with VM or data path is completely "
@@ -279,7 +279,7 @@ class FWaasEventHandler(object):
                 self.plugin_rpc.firewall_deleted(context, firewall['id'])
 
             except Exception as err:
-                # TODO(Vikash) Is it correct to raise ? As the subsequent
+                # TODO Is it correct to raise ? As the subsequent
                 # attempt to clean will only re-raise the last one.And it
                 # can go on and on and may not be ever recovered.
                 self.plugin_rpc.set_firewall_status(

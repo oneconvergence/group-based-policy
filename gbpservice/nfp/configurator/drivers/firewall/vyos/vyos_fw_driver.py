@@ -453,6 +453,10 @@ class FwGenericConfigDriver(object):
 """ Firewall as a service driver for handling firewall
 service configuration requests.
 
+We initialize service type in this class because agent loads
+class object only for those driver classes that have service type
+initialized. Also, only this driver class is exposed to the agent.
+
 """
 
 
