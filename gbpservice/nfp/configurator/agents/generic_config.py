@@ -1,13 +1,25 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
 from gbpservice.nfp.configurator.agents import agent_base
+from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import (
                             generic_config_constants as gen_cfg_const)
-from gbpservice.nfp.configurator.lib import constants as common_const
 from oslo_log import log as logging
 from gbpservice.nfp.core import main
 import os
-from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.configurator.lib import utils
+
 LOG = logging.getLogger(__name__)
 
 """Implements APIs invoked by configurator for processing RPC messages.
@@ -38,6 +50,21 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         super(GenericConfigRpcManager, self).__init__(sc, conf)
 
+    def _send_event(self, context, kwargs, event_id, event_key=None):
+        """Posts an event to framework.
+
+        :param context: RPC context dictionary
+        :param kwargs: Keyword arguments which are passed as data to event
+        :param event_id: Unique identifier for the event
+        :param event_key: Event key for serialization
+
+        """
+
+        arg_dict = {'context': context,
+                    'kwargs': kwargs}
+        ev = self._sc.new_event(id=event_id, data=arg_dict, key=event_key)
+        self._sc.post_event(ev)
+
     def configure_interfaces(self, context, kwargs):
         """Enqueues event for worker to process configure interfaces request.
 
@@ -48,11 +75,9 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
-        arg_dict = {'context': context,
-                    'kwargs': kwargs}
-        ev = self._sc.new_event(id=gen_cfg_const.EVENT_CONFIGURE_INTERFACES,
-                                data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(context,
+                         kwargs,
+                         gen_cfg_const.EVENT_CONFIGURE_INTERFACES)
 
     def clear_interfaces(self, context, kwargs):
         """Enqueues event for worker to process clear interfaces request.
@@ -64,11 +89,9 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
-        arg_dict = {'context': context,
-                    'kwargs': kwargs}
-        ev = self._sc.new_event(id=gen_cfg_const.EVENT_CLEAR_INTERFACES,
-                                data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(context,
+                         kwargs,
+                         gen_cfg_const.EVENT_CLEAR_INTERFACES)
 
     def configure_routes(self, context, kwargs):
         """Enqueues event for worker to process configure routes request.
@@ -80,11 +103,9 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
-        arg_dict = {'context': context,
-                    'kwargs': kwargs}
-        ev = self._sc.new_event(id=gen_cfg_const.EVENT_CONFIGURE_ROUTES,
-                                data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(context,
+                         kwargs,
+                         gen_cfg_const.EVENT_CONFIGURE_ROUTES)
 
     def clear_routes(self, context, kwargs):
         """Enqueues event for worker to process clear routes request.
@@ -96,11 +117,9 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
-        arg_dict = {'context': context,
-                    'kwargs': kwargs}
-        ev = self._sc.new_event(id=gen_cfg_const.EVENT_CLEAR_ROUTES,
-                                data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(context,
+                         kwargs,
+                         gen_cfg_const.EVENT_CLEAR_ROUTES)
 
     def configure_healthmonitor(self, context, kwargs):
         """Enqueues event for worker to process configure healthmonitor request.
@@ -113,11 +132,10 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
         """
 
         kwargs['fail_count'] = 0
-        arg_dict = {'context': context,
-                    'kwargs': kwargs}
-        ev = self._sc.new_event(id=gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
-                                data=arg_dict, key=kwargs['vmid'])
-        self._sc.post_event(ev)
+        self._send_event(context,
+                         kwargs,
+                         gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
+                         kwargs['vmid'])
 
     def clear_healthmonitor(self, context, kwargs):
         """Enqueues event for worker to process clear healthmonitor request.
@@ -129,11 +147,10 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
-        arg_dict = {'context': context,
-                    'kwargs': kwargs}
-        ev = self._sc.new_event(id=gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
-                                data=arg_dict, key=kwargs['vmid'])
-        self._sc.post_event(ev)
+        self._send_event(context,
+                         kwargs,
+                         gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
+                         kwargs['vmid'])
 
 
 """Implements event handlers and their helper methods.
@@ -147,9 +164,9 @@ invoked by core service controller.
 
 class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                                 nfp_poll.PollEventDesc):
-    def __init__(self, sc, drivers, rpcmgr, nqueue):
+    def __init__(self, sc, drivers, rpcmgr):
         super(GenericConfigEventHandler, self).__init__(
-                                        sc, drivers, rpcmgr, nqueue)
+                                        sc, drivers, rpcmgr)
         self.sc = sc
 
     def _get_driver(self, service_type):
@@ -167,12 +184,6 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         """
 
         return self.drivers[service_type]()
-
-    def _notification(self, data):
-        LOG.info(" Sending notification=%s " % (data))
-        event = self.sc.new_event(
-            id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
-        self.sc.poll_event(event)
 
     def handle_event(self, ev):
         """Processes the generated events in worker context.
@@ -243,19 +254,20 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                     result == common_const.SUCCESS):
                 notification_data = self._prepare_notification_data(ev, result)
                 self._sc.poll_event_done(ev)
-                self._notification(notification_data)
+                self.notify._notification(notification_data)
             elif kwargs.get('periodicity') == gen_cfg_const.FOREVER:
                 if result == common_const.FAILED:
                     """If health monitoring fails continuously for 5 times
                        send fail notification to orchestrator
                     """
                     kwargs['fail_count'] = kwargs.get('fail_count') + 1
-                    if kwargs.get('fail_count') >= gen_cfg_const.MAX_FAIL_COUNT:
+                    if (kwargs.get('fail_count') >=
+                            gen_cfg_const.MAX_FAIL_COUNT):
                         notification_data = self._prepare_notification_data(
-                                                                        ev,
-                                                                        result)
+                                                                    ev,
+                                                                    result)
                         self._sc.poll_event_done(ev)
-                        self._notification(notification_data)
+                        self.notify._notification(notification_data)
                 elif result == common_const.SUCCESS:
                     """set fail_count to 0 if it had failed earlier even once
                     """
@@ -266,11 +278,11 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
             """
             notification_data = self._prepare_notification_data(ev, result)
             self._sc.poll_event_done(ev)
-            self._notification(notification_data)
+            self.notify._notification(notification_data)
         else:
             """For other events, irrespective of result send notification"""
             notification_data = self._prepare_notification_data(ev, result)
-            self._notification(notification_data)
+            self.notify._notification(notification_data)
 
     def _prepare_notification_data(self, ev, result):
         """Prepare notification data as expected by config agent
@@ -324,15 +336,15 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
            polling threshold ev.max_times.
            Finally it Enqueues response into notification queue.
 
-        :praram ev: event object
+        :param ev: Event object
 
         Returns: None
 
         """
-        LOG.error('Poll event cancelled for event %s ' % (ev.data))
+        LOG.error('Cancelled poll event. Event Data: %s ' % (ev.data))
         result = common_const.FAILED
         notification_data = self._prepare_notification_data(ev, result)
-        self._notification(notification_data)
+        self.notify._notification(notification_data)
 
     @nfp_poll.poll_event_desc(
                             event=gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
@@ -341,7 +353,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         """Decorator method called for poll event CONFIGURE_HEALTHMONITOR
            Finally it Enqueues response into notification queue.
 
-        :param ev: event object
+        :param ev: Event object
 
         Returns: None
 
@@ -349,7 +361,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         self._process_event(ev)
 
 
-def events_init(sc, drivers, rpcmgr, nqueue):
+def events_init(sc, drivers, rpcmgr):
     """Registers events with core service controller.
 
     All the events will come to handle_event method of class instance
@@ -366,25 +378,25 @@ def events_init(sc, drivers, rpcmgr, nqueue):
     evs = [
         main.Event(id=gen_cfg_const.EVENT_CONFIGURE_INTERFACES,
                    handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr, nqueue)),
+                                        sc, drivers, rpcmgr)),
         main.Event(id=gen_cfg_const.EVENT_CLEAR_INTERFACES,
                    handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr, nqueue)),
+                                        sc, drivers, rpcmgr)),
         main.Event(id=gen_cfg_const.EVENT_CONFIGURE_ROUTES,
                    handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr, nqueue)),
+                                        sc, drivers, rpcmgr)),
         main.Event(id=gen_cfg_const.EVENT_CLEAR_ROUTES,
                    handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr, nqueue)),
+                                        sc, drivers, rpcmgr)),
         main.Event(id=gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
                    handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr, nqueue)),
+                                        sc, drivers, rpcmgr)),
         main.Event(id=gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
                    handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr, nqueue)),
+                                        sc, drivers, rpcmgr)),
         main.Event(id=gen_cfg_const.EVENT_PROCESS_BATCH,
                    handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr, nqueue))
+                                        sc, drivers, rpcmgr))
     ]
     sc.register_events(evs)
 
@@ -416,7 +428,7 @@ def register_service_agent(cm, sc, conf, rpcmgr):
     cm.register_service_agent(service_type, rpcmgr)
 
 
-def init_agent(cm, sc, conf, nqueue):
+def init_agent(cm, sc, conf):
     """Initializes generic configuration agent.
 
     :param cm: Instance of configuration module
@@ -440,7 +452,7 @@ def init_agent(cm, sc, conf, nqueue):
     rpcmgr = GenericConfigRpcManager(sc, conf)
 
     try:
-        events_init(sc, drivers, rpcmgr, nqueue)
+        events_init(sc, drivers, rpcmgr)
     except Exception as err:
         msg = ("Generic configuration agent failed to initialize events. %s"
                % (str(err).capitalize()))
