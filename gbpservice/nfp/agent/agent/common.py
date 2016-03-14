@@ -14,7 +14,7 @@ from oslo_config import cfg
 from oslo_messaging import target
 from oslo_log import log as logging
 from neutron import manager
-from gbpservice.nfp.config_agent import topics
+from gbpservice.nfp.agent.agent import topics
 from neutron.common import rpc as n_rpc
 from neutron.plugins.common import constants
 

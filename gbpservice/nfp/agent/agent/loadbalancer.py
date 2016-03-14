@@ -12,8 +12,8 @@
 
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from gbpservice.nfp.config_agent.common import *
-from gbpservice.nfp.config_agent import RestClientOverUnix as rc
+from gbpservice.nfp.agent.agent.common import *
+from gbpservice.nfp.agent.agent import RestClientOverUnix as rc
 
 LOG = logging.getLogger(__name__)
 
