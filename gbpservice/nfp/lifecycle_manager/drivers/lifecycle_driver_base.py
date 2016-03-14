@@ -485,23 +485,32 @@ class LifeCycleDriverBase(object):
                         ' operation'))
             return False  # TODO[RPM]: should we raise an Exception here?
 
+        allowed_address_pairs = [{"ip_address": "0.0.0.0/0"}]
         try:
             for port in device_data['ports']:
                 if port['port_classification'].lower() == 'provider':
                     port_id = self._get_port_id(port, token)
+                    self.network_handler_neutron.update_port(
+                                token, port_id,
+                                allowed_address_pairs=allowed_address_pairs)
                     self.compute_handler_nova.attach_interface(
                                 token,
                                 self._get_admin_tenant_id(token=token),
                                 device_data['id'],
                                 port_id)
+                    break
             for port in device_data['ports']:
                 if port['port_classification'].lower() == 'consumer':
                     port_id = self._get_port_id(port, token)
+                    self.network_handler_neutron.update_port(
+                                token, port_id,
+                                allowed_address_pairs=allowed_address_pairs)
                     self.compute_handler_nova.attach_interface(
                                 token,
                                 self._get_admin_tenant_id(token=token),
                                 device_data['id'],
                                 port_id)
+                    break
         except Exception:
             self._increment_stats_counter('interface_plug_failures')
             LOG.error(_('Failed to plug interface(s) to the device'))
@@ -550,6 +559,9 @@ class LifeCycleDriverBase(object):
                             self._get_admin_tenant_id(token=token),
                             device_data['id'],
                             port_id)
+                self.network_handler_neutron.update_port(
+                            token, port_id,
+                            allowed_address_pairs=None)
         except Exception:
             self._increment_stats_counter('interface_unplug_failures')
             LOG.error(_('Failed to unplug interface(s) from the device'))
