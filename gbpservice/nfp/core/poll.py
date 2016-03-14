@@ -219,7 +219,7 @@ class PollQueueHandler(object):
                          % (identify(eh),
                             event.identify()))
         else:
-            ret = eh.handle_poll_event(ev)
+            ret = eh.handle_poll_event(event)
             log_info(LOG,
                      "Invoking handle_poll_event() of handler %s"
                      "for event %s "
