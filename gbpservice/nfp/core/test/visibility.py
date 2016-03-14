@@ -174,6 +174,10 @@ class Agent(PollEventDesc):
         self._sc.event_done(ev)
         self._sc.poll_event_done(ev)
 
+    def poll_event_cancel(self,event):
+        print "In Poll_Event_Cancle method of Event Handler"
+
+
     @nfp_poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
         poll = True
