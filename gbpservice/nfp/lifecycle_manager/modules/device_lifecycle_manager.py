@@ -14,6 +14,7 @@ from oslo_log import log as logging
 import oslo_messaging as messaging
 
 from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core.poll import poll_event_desc
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.db import nfp_db as nfp_db
@@ -266,6 +267,18 @@ class DeviceLifeCycleHandler(object):
             self._controller.post_event(ev)
         self._log_event_created(event_id, event_data)
 
+    def poll_event_cancel(self, ev):
+        LOG.info(_("Poll event %s cancelled." % ev.id))
+
+        if ev.id == 'DEVICE_SPAWNING':
+            LOG.info(_("Device is not up still after 10secs of launch"))
+            # create event DEVICE_NOT_UP
+            device = ev.data
+            self._create_event(event_id='DEVICE_NOT_UP',
+                               event_data=device)
+            self._update_network_function_device_db(device,
+                                                    'DEVICE_NOT_UP')
+
     def _update_device_status(self, device, state, status_desc=None):
         device['status'] = state
         if status_desc:
@@ -466,21 +479,20 @@ class DeviceLifeCycleHandler(object):
             #                   event_data=device)
 
             self._create_event(event_id='DEVICE_SPAWNING',
-                               event_data=device)
-                               #is_poll_event=True,
-                               #original_event=event,
-                               #)
+                               event_data=device,
+                               is_poll_event=True,
+                               original_event=event)
 
+    @poll_event_desc(event='DEVICE_SPAWNING', spacing=1)
     def check_device_is_up(self, event):
         device = event.data
-        print 'sleeping for 100 secs'
-        import time;time.sleep(100)
+
         lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         # TODO (ashu) return value from driver, this should be true/false
         is_device_up = (
             lifecycle_driver.get_network_function_device_status(device))
         if is_device_up == 'ACTIVE':
-            #self._controller.poll_event_done(event)
+            self._controller.poll_event_done(event)
 
             # create event DEVICE_UP
             self._create_event(event_id='DEVICE_UP',
@@ -488,9 +500,9 @@ class DeviceLifeCycleHandler(object):
             self._update_network_function_device_db(device,
                                                    'DEVICE_UP')
         elif is_device_up == 'ERROR':
-            #self._controller.poll_event_done(event)
-            # create event DEVICE_NOT_UP
+            self._controller.poll_event_done(event)
 
+            # create event DEVICE_NOT_UP
             self._create_event(event_id='DEVICE_NOT_UP',
                                event_data=device)
             self._update_network_function_device_db(device,
