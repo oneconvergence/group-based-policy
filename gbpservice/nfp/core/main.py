@@ -233,7 +233,6 @@ class Controller(object):
             report task.
         """
         self.init()
-
         for worker in self._workers:
             worker[0].start()
             log_debug(LOG, "Started worker - %d" % (worker[0].pid))
@@ -248,7 +247,7 @@ class Controller(object):
             self._rpc_agents[idx] = agent + (launcher,)
 
     def post_event(self, event):
-        """ API for NFP module to generate a new internal event.
+        """API for NFP module to generate a new internal event.
 
             Schedules this event to one of the worker. 'binding_key' is
             glue between different events, all events with same 'binding_key'
@@ -307,6 +306,9 @@ class Controller(object):
         event.max_times = max_times
         self._pollhandler.add(event)
 
+    def poll_event_timedout(self, eh, event):
+        self._pollhandler.event_timedout(eh, event)
+
     def poll_event_done(self, event):
         """API for NFP modules to mark a poll event complete.
 
@@ -362,11 +364,6 @@ class Controller(object):
 
     def get_stash_event(self):
         event = self._pollhandler.get_stash_event()
-        if event:
-            return event.data
-
-    def get_notification(self):
-        event = self._pollhandler.get_notification_event()
         if event:
             return event.data
 
