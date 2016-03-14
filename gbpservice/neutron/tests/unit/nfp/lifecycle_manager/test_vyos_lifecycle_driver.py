@@ -224,6 +224,8 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
                                                             return_value='8')
         driver.identity_handler.get_keystone_creds = mock.MagicMock(
                                     return_value=(None, None, 'admin', None))
+        driver.network_handler_neutron.update_port = mock.MagicMock(
+                                                        return_value=None)
         driver.compute_handler_nova.attach_interface = mock.MagicMock(
                                                         return_value=None)
         driver.network_handler_gbp.get_policy_target = mock.MagicMock(
@@ -266,6 +268,8 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
                                                             return_value='8')
         driver.identity_handler.get_keystone_creds = mock.MagicMock(
                                     return_value=(None, None, 'admin', None))
+        driver.network_handler_neutron.update_port = mock.MagicMock(
+                                                        return_value=None)
         driver.compute_handler_nova.detach_interface = mock.MagicMock(
                                                         return_value=None)
         driver.network_handler_gbp.get_policy_target = mock.MagicMock(
