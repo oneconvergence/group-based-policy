@@ -285,25 +285,75 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
     @mock.patch(__name__ + '.FakeObjects.conf')
     @mock.patch(__name__ + '.FakeObjects.sc')
     def _get_ConfiguratorRpcManager_object(self, sc, conf):
+        """ Retrieves RPC manager object of configurator.
+
+        :param sc: mocked service controller object of process model framework
+        :param conf: mocked OSLO configuration file
+
+        Returns: object of configurator's RPC manager.
+
+        """
+
         cm = cfgr.ConfiguratorModule(sc)
         demuxer = demuxer_lib.ServiceAgentDemuxer()
         rpc_mgr = cfgr.ConfiguratorRpcManager(sc, cm, conf, demuxer)
         return sc, conf, rpc_mgr
 
     def _get_GenericConfigRpcManager_object(self, conf, sc):
+        """ Retrieves RPC manager object of generic config agent.
+
+        :param sc: mocked service controller object of process model framework
+        :param conf: mocked OSLO configuration file
+
+        Returns: object of generic config's RPC manager
+        and service controller.
+
+        """
+
         agent = gc.GenericConfigRpcManager(sc, conf)
         return agent, sc
 
     @mock.patch(__name__ + '.FakeObjects.drivers')
     def _get_GenericConfigEventHandler_object(self, sc, rpcmgr, drivers):
+        """ Retrieves event handler object of generic configuration.
+
+        :param sc: mocked service controller object of process model framework
+        :param rpcmgr: object of configurator's RPC manager
+        :param drivers: list of driver objects for firewall agent
+
+        Returns: object of generic config's event handler
+
+        """
+
         agent = gc.GenericConfigEventHandler(sc, drivers, rpcmgr)
         return agent
 
     def _get_FWaasRpcManager_object(self, conf, sc):
+        """ Retrieves RPC manager object of firewall agent.
+
+        :param sc: mocked service controller object of process model framework
+        :param conf: mocked OSLO configuration file
+
+        Returns: object of firewall's RPC manager and service controller
+
+        """
+
         agent = fw.FWaasRpcManager(sc, conf)
         return agent, sc
 
     def _test_network_device_config(self, operation, method, batch=False):
+        """ Tests generic config APIs
+
+        :param operation: create/delete
+        :param method: CONFIGURE_ROUTES/CLEAR_ROUTES/
+        CONFIGURE_INTERFACES/CLEAR_INTERFACES
+        :param batch: True or False. Indicates if the
+        request is a batch request
+
+        Returns: none
+
+        """
+
         sc, conf, rpc_mgr = self._get_ConfiguratorRpcManager_object()
         agent, sc = self._get_GenericConfigRpcManager_object(conf, sc)
 
@@ -367,6 +417,14 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
             mock_sc_rpc_event.assert_called_with('foo')
 
     def _test_fw_event_creation(self, operation):
+        """ Tests firewall APIs
+
+        :param operation: CREATE_FIREWALL/UPDATE_FIREWALL/DELETE_FIREWALL
+
+        Returns: none
+
+        """
+
         sc, conf, rpc_mgr = self._get_ConfiguratorRpcManager_object()
         agent, sc = self._get_FWaasRpcManager_object(conf, sc)
         arg_dict = {'context': self.fo.context,
@@ -388,7 +446,13 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
                                              data=arg_dict, key=None)
             mock_sc_rpc_event.assert_called_with('foo')
 
-    def _test_notifications(self, bulk=False):
+    def _test_notifications(self):
+        """ Tests response path notification  APIs
+
+        Returns: none
+
+        """
+
         sc, conf, rpc_mgr = self._get_ConfiguratorRpcManager_object()
         agent = self._get_GenericConfigEventHandler_object(sc, rpc_mgr)
 
@@ -404,52 +468,115 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
                                               data=data)
             mock_poll_event.assert_called_with('foo')
 
-    def test_configure_routes(self):
+    def test_configure_routes_configurator_api(self):
+        """ Implements test case for configure routes API
+
+        Returns: none
+
+        """
+
         method = "CONFIGURE_ROUTES"
         operation = 'create'
         self._test_network_device_config(operation, method)
 
-    def test_clear_routes(self):
+    def test_clear_routes_configurator_api(self):
+        """ Implements test case for clear routes API
+
+        Returns: none
+
+        """
+
         method = "CLEAR_ROUTES"
         operation = 'delete'
         self._test_network_device_config(operation, method)
 
-    def test_configure_interfaces(self):
+    def test_configure_interfaces_configurator_api(self):
+        """ Implements test case for configure interfaces API
+
+        Returns: none
+
+        """
+
         method = "CONFIGURE_INTERFACES"
         operation = 'create'
         self._test_network_device_config(operation, method)
 
-    def test_clear_interfaces(self):
+    def test_clear_interfaces_configurator_api(self):
+        """ Implements test case for clear interfaces API
+
+        Returns: none
+
+        """
+
         method = "CLEAR_INTERFACES"
         operation = 'delete'
         self._test_network_device_config(operation, method)
 
-    def test_configure_bulk(self):
+    def test_configure_bulk_configurator_api(self):
+        """ Implements test case for bulk configure request API
+
+        Returns: none
+
+        """
+
         method = "PROCESS_BATCH"
         operation = 'create'
         self._test_network_device_config(operation, method, True)
 
-    def test_clear_bulk(self):
+    def test_clear_bulk_configurator_api(self):
+        """ Implements test case for bulk clear request API
+
+        Returns: none
+
+        """
+
         method = "PROCESS_BATCH"
         operation = 'delete'
         self._test_network_device_config(operation, method, True)
 
-    def test_create_firewall(self):
+    def test_create_firewall_configurator_api(self):
+        """ Implements test case for create firewall API
+
+        Returns: none
+
+        """
+
         self._test_fw_event_creation('CREATE_FIREWALL')
 
-    def test_update_firewall(self):
+    def test_update_firewall_configurator_api(self):
+        """ Implements test case for update firewall API
+
+        Returns: none
+
+        """
+
         self._test_fw_event_creation('UPDATE_FIREWALL')
 
-    def test_delete_firewall(self):
+    def test_delete_firewall_configurator_api(self):
+        """ Implements test case for delete firewall API
+
+        Returns: none
+
+        """
+
         self._test_fw_event_creation('DELETE_FIREWALL')
 
-    def test_get_notifications_generic(self):
+    def test_get_notifications_generic_configurator_api(self):
+        """ Implements test case for get notifications API
+        of configurator
+
+        Returns: none
+
+        """
+
         self._test_notifications()
+
+""" Implement test cases for RPC manager methods of firewall agent.
+
+"""
 
 
 class FWaasRpcManagerTestCase(unittest.TestCase):
-    ''' Fwaas RPC receiver for Firewall module '''
-
     def __init__(self, *args, **kwargs):
         super(FWaasRpcManagerTestCase, self).__init__(*args, **kwargs)
         self.fo = FakeObjects()
@@ -457,10 +584,26 @@ class FWaasRpcManagerTestCase(unittest.TestCase):
     @mock.patch(__name__ + '.FakeObjects.sc')
     @mock.patch(__name__ + '.FakeObjects.conf')
     def _get_FWaasRpcManager_object(self, conf, sc):
+        """ Retrieves RPC manager object of firewall agent.
+
+        :param sc: mocked service controller object of process model framework
+        :param conf: mocked OSLO configuration file
+
+        Returns: object of firewall's RPC manager and service controller
+
+        """
+
         agent = fw.FWaasRpcManager(sc, conf)
         return agent, sc
 
     def _test_event_creation(self, method):
+        """ Tests event creation and enqueueing for create/update/delete
+        operation of firewall agent's RPC manager.
+
+        Returns: none
+
+        """
+
         agent, sc = self._get_FWaasRpcManager_object()
         arg_dict = {'context': self.fo.context,
                     'firewall': self.fo.firewall,
@@ -476,16 +619,38 @@ class FWaasRpcManagerTestCase(unittest.TestCase):
             mock_sc_rpc_event.assert_called_with('foo')
 
     def test_create_firewall_fwaasrpcmanager(self):
-        ''' create_firewall method in RPC Receiver '''
+        """ Implements test case for create firewall method
+        of firewall agent's RPC manager.
+
+        Returns: none
+
+        """
+
         self._test_event_creation('CREATE_FIREWALL')
 
     def test_update_firewall_fwaasrpcmanager(self):
-        ''' update_firewall method in RPC Receiver '''
+        """ Implements test case for update firewall method
+        of firewall agent's RPC manager.
+
+        Returns: none
+
+        """
+
         self._test_event_creation('UPDATE_FIREWALL')
 
     def test_delete_firewall_fwaasrpcmanager(self):
-        ''' delete_firewall method in RPC Receiver '''
+        """ Implements test case for delete firewall method
+        of firewall agent's RPC manager.
+
+        Returns: none
+
+        """
+
         self._test_event_creation('DELETE_FIREWALL')
+
+""" Implement test cases for RPC manager methods of generic config agent.
+
+"""
 
 
 class GenericConfigRpcManagerTestCase(unittest.TestCase):
@@ -499,10 +664,30 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
     @mock.patch(__name__ + '.FakeObjects.sc')
     @mock.patch(__name__ + '.FakeObjects.conf')
     def _get_GenericConfigRpcManager_object(self, conf, sc):
+        """ Retrieves RPC manager object of generic config agent.
+
+        :param sc: mocked service controller object of process model framework
+        :param conf: mocked OSLO configuration file
+
+        Returns: object of generic config's RPC manager
+        and service controller.
+
+        """
+
         agent = gc.GenericConfigRpcManager(sc, conf)
         return agent, sc
 
     def _test_event_creation(self, method):
+        """ Tests event creation and enqueueing for create/delete
+        operation of generic config agent's RPC manager.
+
+        :param method: CONFIGURE_INTERFACES/CLEAR_INTERFACES/
+        CONFIGURE_ROUTES/CLEAR_ROUTES
+
+        Returns: none
+
+        """
+
         agent, sc = self._get_GenericConfigRpcManager_object()
         arg_dict = {'context': self.fo.context,
                     'kwargs': self.fo.kwargs}
@@ -523,28 +708,68 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
             mock_sc_rpc_event.assert_called_with('foo')
 
     def test_configure_interfaces_genericconfigrpcmanager(self):
-        ''' configure_interfaces method in RPC Receiver '''
+        """ Implements test case for configure interfaces method
+        of generic config agent RPCmanager.
+
+        Returns: none
+
+        """
+
         self._test_event_creation('CONFIGURE_INTERFACES')
 
     def test_clear_interfaces_genericconfigrpcmanager(self):
-        ''' clear_interfaces method in RPC Receiver '''
+        """ Implements test case for clear interfaces method
+        of generic config agent RPCmanager.
+
+        Returns: none
+
+        """
+
         self._test_event_creation('CLEAR_INTERFACES')
 
     def test_configure_routes_genericconfigrpcmanager(self):
-        ''' configure_routes method in RPC Receiver '''
+        """ Implements test case for configure routes method
+        of generic config agent RPCmanager.
+
+        Returns: none
+
+        """
+
         self._test_event_creation('CONFIGURE_ROUTES')
 
     def test_clear_routes_genericconfigrpcmanager(self):
-        ''' clear_routes method in RPC Receiver '''
+        """ Implements test case for clear routes method
+        of generic config agent RPCmanager.
+
+        Returns: none
+
+        """
+
         self._test_event_creation('CLEAR_ROUTES')
 
     def test_configure_hm_genericconfigrpcmanager(self):
-        ''' configure_hm method in RPC Receiver '''
+        """ Implements test case for configure healthmonitor method
+        of generic config agent RPCmanager.
+
+        Returns: none
+
+        """
+
         self._test_event_creation('CONFIGURE_HEALTHMONITOR')
 
     def test_clear_hm_genericconfigrpcmanager(self):
-        ''' clear_hm method in RPC Receiver '''
+        """ Implements test case for clear healthmonitor method
+        of generic config agent RPCmanager.
+
+        Returns: none
+
+        """
+
         self._test_event_creation('CLEAR_HEALTHMONITOR')
+
+""" Implements a fake event class for process framework to use
+
+"""
 
 
 class FakeEvent(object):
@@ -566,10 +791,13 @@ class FakeEvent(object):
                                         fo.provider_interface_position)}
         self.id = 'dummy'
 
+""" Implements test cases for event handler methods
+of generic config agent.
+
+"""
+
 
 class GenericConfigEventHandlerTestCase(unittest.TestCase):
-    ''' Generic Config Handler for Firewall module '''
-
     def __init__(self, *args, **kwargs):
         super(GenericConfigEventHandlerTestCase, self).__init__(
                                                         *args, **kwargs)
@@ -582,10 +810,30 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
     @mock.patch(__name__ + '.FakeObjects.drivers')
     @mock.patch(__name__ + '.FakeObjects.sc')
     def _get_GenericConfigEventHandler_object(self, sc, drivers, rpcmgr):
+        """ Retrieves event handler object of generic configuration.
+
+        :param sc: mocked service controller object of process model framework
+        :param rpcmgr: object of configurator's RPC manager
+        :param drivers: list of driver objects for firewall agent
+
+        Returns: object of generic config's event handler
+
+        """
+
         agent = gc.GenericConfigEventHandler(sc, drivers, rpcmgr)
         return agent, sc
 
     def _test_handle_event(self, ev):
+        """ Test handle event method of generic config agent for various
+        device configuration operations.
+
+        :param ev: fake event data which has to be actually sent by
+        process framewrok.
+
+        Returns: None
+
+        """
+
         agent, sc = self._get_GenericConfigEventHandler_object()
         driver = fw_dvr.FwaasDriver()
         with mock.patch.object(
@@ -632,6 +880,16 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
                 mock_hm_poll_event_done.assert_called_with(ev)
 
     def _test_handle_periodic_event(self, ev):
+        """ Test handle periodic event method of generic config agent
+        for healthmonitor configuration.
+
+        :param ev: fake event data which has to be actually sent by
+        process framewrok.
+
+        Returns: None
+
+        """
+
         agent, sc = self._get_GenericConfigEventHandler_object()
         driver = fw_dvr.FwaasDriver()
         with mock.patch.object(
@@ -647,50 +905,98 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
             mock_poll_event_done.assert_called_with(ev)
 
     def test_configure_interfaces_genericconfigeventhandler(self):
-        ''' Handle event for configure_interfaces '''
+        """ Implements test case for configure interfaces method
+        of generic config event handler.
+
+        Returns: none
+
+        """
+
         ev = FakeEvent()
         ev.id = 'CONFIGURE_INTERFACES'
         self._test_handle_event(ev)
 
     def test_clear_interfaces_genericconfigeventhandler(self):
-        ''' Handle event for clear_interfaces '''
+        """ Implements test case for clear interfaces method
+        of generic config event handler.
+
+        Returns: none
+
+        """
+
         ev = FakeEvent()
         ev.id = 'CLEAR_INTERFACES'
         self._test_handle_event(ev)
 
     def test_configure_routes_genericconfigeventhandler(self):
-        ''' Handle event for configure_routes '''
+        """ Implements test case for configure routes method
+        of generic config event handler.
+
+        Returns: none
+
+        """
+
         ev = FakeEvent()
         ev.id = 'CONFIGURE_ROUTES'
         self._test_handle_event(ev)
 
     def test_clear_routes_genericconfigeventhandler(self):
-        ''' Handle event for clear_routes '''
+        """ Implements test case for clear routes method
+        of generic config event handler.
+
+        Returns: none
+
+        """
+
         ev = FakeEvent()
         ev.id = 'CLEAR_ROUTES'
         self._test_handle_event(ev)
 
     def test_configure_hm_initial_genericconfigeventhandler(self):
-        ''' Handle event for configure_hm '''
+        """ Implements test case for configure health monitor method
+         with specified polling in generic config event handler.
+
+        Returns: none
+
+        """
+
         ev = FakeEvent()
         ev.id = 'CONFIGURE_HEALTHMONITOR initial'
         self._test_handle_event(ev)
 
     def test_configure_hm_forever_genericconfigeventhandler(self):
-        ''' Handle event for configure_hm '''
+        """ Implements test case for configure health monitor method
+        with forever polling in generic config event handler.
+
+        Returns: none
+
+        """
+
         ev = FakeEvent()
         ev.data['kwargs'].update({'periodicity': gen_cfg_const.FOREVER})
         ev.id = 'CONFIGURE_HEALTHMONITOR forever'
         self._test_handle_event(ev)
 
     def test_clear_hm_genericconfigeventhandler(self):
-        ''' Handle event for clear_hm '''
+        """ Implements test case for clear health monitor method
+        of generic config event handler.
+
+        Returns: none
+
+        """
+
         ev = FakeEvent()
         ev.id = 'CLEAR_HEALTHMONITOR'
         self._test_handle_event(ev)
 
     def test_handle_configure_healthmonitor_genericconfigeventhandler(self):
-        ''' Handle event for handle_configure_healthmonitor '''
+        """ Implements test case for handle configure health monitor
+         method of generic config event handler.
+
+        Returns: none
+
+        """
+
         ev = FakeEvent()
         ev.id = 'CONFIGURE_HEALTHMONITOR'
         self._test_handle_periodic_event(ev)
