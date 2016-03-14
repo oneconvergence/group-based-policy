@@ -573,7 +573,7 @@ class LifeCycleDriverBase(object):
                     'kwargs': {
                         'vmid': device_data['id'],
                         'mgmt_ip': device_data['mgmt_ip_address'],
-                        'type': 'ping'
+                        'periodicity': 'initial'
                     }
                 }
             ]
