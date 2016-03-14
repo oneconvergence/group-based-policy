@@ -117,12 +117,13 @@ def test_service_create(conf, sc):
     time.sleep(1)
     while True:
         data = sc.get_stash_event()
-        if data != None:
-            print "************ %s" %(data)
-            break;
+        if data is not None:
+            print "Data: %s" % (data)
+            break
         else:
             print "no event"
             time.sleep(1)
+
 
 class Collector(object):
 
@@ -151,6 +152,7 @@ class RpcManager(object):
     def service_deleted(self, context, **kwargs):
         pass
 
+
 class Agent(PollEventDesc):
 
     def __init__(self, sc):
@@ -176,11 +178,10 @@ class Agent(PollEventDesc):
 
     def _handle_dummy_event(self, ev):
         self._sc.poll_event(ev, max_times=2)
-    	event = self._sc.new_event(
+        event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data={})
-    	self._sc.stash_event(event)
-    	#print sc._pollhandler.get_stash_event()
-
+        self._sc.stash_event(event)
+        # print sc._pollhandler.get_stash_event()
 
     def _handle_delete_event(self, ev):
         """Driver logic here.
@@ -200,4 +201,3 @@ class Agent(PollEventDesc):
         """Driver logic here
         """
         LOG.debug("Poll event (%s)" % (str(ev)))
-

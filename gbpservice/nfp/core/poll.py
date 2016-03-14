@@ -341,10 +341,10 @@ class PollQueueHandler(object):
         log_debug(LOG, "Fill events from multi processing Q to internal cache")
         for i in range(0, 10):
             ev = self.s_get()
-           
+
             if ev:
                 log_error(LOG,
-                          "*****************Got new event %s from multi processing Q"
+                          "Got new event %s from multi processing Q"
                           % (ev.identify()))
                 self._stash_cache.put(ev)
 
