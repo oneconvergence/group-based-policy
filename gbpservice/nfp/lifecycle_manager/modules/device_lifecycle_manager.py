@@ -127,10 +127,6 @@ class RpcHandler(object):
             result = response.get('result')
             operation = request_info['operation']
 
-            if resource == 'healthmonitor':
-                LOG.info(_("healthmonitor not implemented yet, so ignoring for now."))
-                return None
-
             is_delete_request = True if operation == 'delete' else False
 
             if is_delete_request:
@@ -162,10 +158,9 @@ class DeviceLifeCycleManager(object):
             "CREATE_NETWORK_FUNCTION_DEVICE": (
                 device_lifecycle_handler.create_network_function_device),
             "DEVICE_SPAWNING": device_lifecycle_handler.check_device_is_up,
-            #"DEVICE_UP": device_lifecycle_handler.perform_health_check,
-            #"DEVICE_HEALTHY": (
-            #            device_lifecycle_handler.plug_interfaces),
-            "DEVICE_UP": device_lifecycle_handler.plug_interfaces,
+            "DEVICE_UP": device_lifecycle_handler.perform_health_check,
+            "DEVICE_HEALTHY": (
+                        device_lifecycle_handler.plug_interfaces),
             "CONFIGURE_DEVICE": (
                         device_lifecycle_handler.create_device_configuration),
             "DEVICE_CONFIGURED": (
@@ -566,6 +561,8 @@ class DeviceLifeCycleHandler(object):
         # Get event data, as configurator sends back only request_info, which
         # contains nf_id, nfi_id, nfd_id.
         device = self._prepare_device_data(device_info)
+        self._update_network_function_device_db(device,
+                                                'HEALTH_CHECK_COMPLETED')
         lifecycle_driver = self._get_lifecycle_driver(device['service_vendor'])
         _ifaces_plugged_in = (
             lifecycle_driver.plug_network_function_device_interfaces(device))
