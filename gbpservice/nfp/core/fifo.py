@@ -76,18 +76,10 @@ class Fifo(object):
         msgs = []
         try:
             self._sc.lock()
-            while True:
+            for i in range(0, limit):
                 msgs = self._pop(msgs)
         except Queue.Empty:
             pass
-
-        except Exception as e:
-            import sys
-            import traceback
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            print traceback.format_exception(exc_type,
-                                             exc_value, exc_traceback)
-
         finally:
             self._sc.unlock()
             return msgs
