@@ -11,8 +11,8 @@
 #    under the License.
 
 from neutron_fwaas.db.firewall import firewall_db
-from gbpservice.nfp.config_agent.common import *
-from gbpservice.nfp.config_agent import RestClientOverUnix as rc
+from gbpservice.nfp.agent.agent.common import *
+from gbpservice.nfp.agent.agent import RestClientOverUnix as rc
 from neutron import context as n_context
 
 LOG = logging.getLogger(__name__)

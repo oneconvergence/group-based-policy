@@ -9,12 +9,12 @@ from gbpservice.nfp.core.main import Controller
 from gbpservice.nfp.core.main import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 
-from gbpservice.nfp.config_agent import topics
-from gbpservice.nfp.config_agent.firewall import *
-from gbpservice.nfp.config_agent.loadbalancer import *
-from gbpservice.nfp.config_agent.vpn import *
-from gbpservice.nfp.config_agent.generic import *
-from gbpservice.nfp.config_agent.rpc_cb import *
+from gbpservice.nfp.agent.agent import topics
+from gbpservice.nfp.agent.agent.firewall import *
+from gbpservice.nfp.agent.agent.loadbalancer import *
+from gbpservice.nfp.agent.agent.vpn import *
+from gbpservice.nfp.agent.agent.generic import *
+from gbpservice.nfp.agent.agent.rpc_cb import *
 
 from oslo_config import cfg
 import oslo_messaging as messaging

@@ -12,8 +12,8 @@
 
 from neutron import context as n_context
 
-from gbpservice.nfp.config_agent.common import *
-from gbpservice.nfp.config_agent import RestClientOverUnix as rc
+from gbpservice.nfp.agent.agent.common import *
+from gbpservice.nfp.agent.agent import RestClientOverUnix as rc
 
 LOG = logging.getLogger(__name__)
 
