@@ -183,7 +183,8 @@ class Controller(object):
     def poll_handler_init(self):
         """Initialize poll handler, creates a poll queue. """
         pollq = mp_queue()
-        handler = PollQueueHandler(self, pollq, self._event_handlers)
+        stashq = mp_queue()
+        handler = PollQueueHandler(self, pollq, stashq, self._event_handlers)
         return handler
 
     def modules_init(self, modules):
@@ -346,6 +347,24 @@ class Controller(object):
                          "init_complete() method - skipping"
                          % (identify(module)))
 
+    def stash_event(self, event):
+        """API for NFP modules to generate a new stash event.
+
+            Adds event to stashq for the stasher to stash on it
+            periodically.
+            max_times - Defines the max number of times this event
+            can timeout, after that event is auto cancelled.
+        """
+        log_info(LOG, "Adding to stashq - event %s"
+                 % (event.identify()))
+        event.max_times = sys.maxint
+        self._pollhandler.add_stash_event(event)
+
+    def get_stash_event(self):
+        event = self._pollhandler.get_stash_event()
+        if event:
+            return event.data
+
     def get_notification(self):
         event = self._pollhandler.get_notification_event()
         if event:
@@ -385,7 +404,8 @@ def modules_import():
 
 def main():
     oslo_config.CONF.register_opts(nfp_config.OPTS)
-    oslo_config.CONF.register_opts(nfp_config.es_openstack_opts, "keystone_authtoken")
+    oslo_config.CONF.register_opts(
+        nfp_config.es_openstack_opts, "keystone_authtoken")
     n_config.register_interface_driver_opts_helper(oslo_config.CONF)
     n_config.register_agent_state_opts_helper(oslo_config.CONF)
     n_config.register_root_helper(oslo_config.CONF)
