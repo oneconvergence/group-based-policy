@@ -572,7 +572,8 @@ class LifeCycleDriverBase(object):
     def get_network_function_device_healthcheck_info(self, device_data):
         if any(key not in device_data
                for key in ['id',
-                           'mgmt_ip_address']):
+                           'mgmt_ip_address',
+                           'service_type']):
             raise exceptions.IncompleteData()
 
         return {
@@ -585,7 +586,8 @@ class LifeCycleDriverBase(object):
                     'kwargs': {
                         'vmid': device_data['id'],
                         'mgmt_ip': device_data['mgmt_ip_address'],
-                        'periodicity': 'initial'
+                        'periodicity': 'initial',
+                        'service_type': device_data['service_type'].lower()
                     }
                 }
             ]
