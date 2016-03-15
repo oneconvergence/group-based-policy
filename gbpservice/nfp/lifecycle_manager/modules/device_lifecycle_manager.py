@@ -531,7 +531,13 @@ class DeviceLifeCycleHandler(object):
         service_profile = self.gbpclient.get_service_profile(
             admin_token, service_profile_id)
         return service_profile['service_flavor']      # service_flovor
-        
+
+    def _get_service_type(self, service_profile_id):
+        admin_token = self.keystoneclient.get_admin_token()
+        service_profile = self.gbpclient.get_service_profile(
+            admin_token, service_profile_id)
+        return service_profile['service_type'].lower()
+
     def _prepare_device_data(self, device_info):
         network_function_id = device_info['network_function_id']
         network_function_device_id = device_info['network_function_device_id']
@@ -558,6 +564,8 @@ class DeviceLifeCycleHandler(object):
                     'network_function_instance': network_function_instance})
         device_info.update({'id': network_function_device_id})
         device_info.update({'service_vendor': service_vendor})
+        device_info.update({'service_type': self._get_service_type(
+                                network_function['service_profile_id'])})
 
         device = self._get_device_data(device_info)
         device = self._update_device_data(device, network_function_device)
@@ -628,7 +636,9 @@ class DeviceLifeCycleHandler(object):
                             delete_nfd_request['network_function_instance'])
         nfd_id = delete_nfd_request['network_function_device_id']
         nf_id = delete_nfd_request['network_function_id']
-
+        network_function = self._get_nsf_db_resource(
+                                'network_function',
+                                nf_id)
         LOG.info(_("Received delete network service device request for device "
                    "%(device)s"), {'device': delete_nfd_request})
         device = self.nsf_db.get_network_function_device(self.db_session,
@@ -640,7 +650,8 @@ class DeviceLifeCycleHandler(object):
         device['network_policy'] = mgmt_data_ports[0]['port_policy']
         device['network_function_instance_id'] = network_function_instance['id']
         device['network_function_id'] = nf_id
-        device['service_type'] = 'firewall'
+        device.update({'service_type': self._get_service_type(
+                                    network_function['service_profile_id'])})
         #self._update_device_data(device, event.data)
 
         data_port_ids = network_function_instance.pop('port_info')
