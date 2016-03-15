@@ -159,7 +159,7 @@ class EventQueueHandler(object):
         """
         # Check if any event can be pulled from serialize_map - this evs may be
         # waiting long enough
-        LOG.debug("Checking serialize Q for events long pending")
+        log_debug(LOG, "Checking serialize Q for events long pending")
         ev = self._sc.sequencer_get_event()
         if not ev:
             log_debug(LOG,
