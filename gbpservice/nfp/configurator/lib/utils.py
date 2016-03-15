@@ -7,14 +7,17 @@ class ConfiguratorUtils(object):
     def __init__(self):
         pass
 
-    def load_drivers(self, drivers_dir):
+    def load_drivers(self, pkg):
 
         """
-        @param drivers_dir : absolute path
-        e.g drivers_dir = '/usr/lib/python2.7/dist-packages/gbpservice/
-                           nfp/configurator/drivers/loadbalancer'
+        @param pkg : package
+        e.g pkg = 'gbpservice.neutron.nsf.configurator.drivers.firewall'
         """
         driver_objects = {}
+
+        base_driver = __import__(pkg,
+                                 globals(), locals(), ['drivers'], -1)
+        drivers_dir = base_driver.__path__[0]
         modules = []
         subdirectories = [x[0] for x in os.walk(drivers_dir)]
         for subd in subdirectories:
