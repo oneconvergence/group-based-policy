@@ -78,7 +78,8 @@ class AgentBaseRPCManager(object):
                 'sa_req_list': sa_req_list,
                 'notification_data': notification_data
             }
-            ev = self.sc.new_event(id='PROCESS_BATCH', data=args_dict, key=None)
+            ev = self.sc.new_event(id='PROCESS_BATCH', data=args_dict,
+                                   key=None)
             self.sc.post_event(ev)
         else:
             sa_req_list[0]['context'].update(
