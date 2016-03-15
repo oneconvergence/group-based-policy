@@ -309,7 +309,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
 
         msg = {'receiver': gen_cfg_const.ORCHESTRATOR,
                'resource': resource,
-               'method': ev.id.lower(),
+               'method': 'network_function_device_notification',
                'kwargs': [
                           {
                            'context': context,
