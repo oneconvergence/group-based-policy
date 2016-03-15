@@ -11,8 +11,7 @@
 # strictly forbidden unless prior written permission is obtained from
 # One Convergence, Inc., USA
 
-DRIVERS_DIR = '/usr/lib/python2.7/dist-packages/gbpservice/nfp/'\
-              'configurator/drivers/firewall'
+DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.firewall'
 SERVICE_TYPE = 'firewall'
 VYOS = 'vyos'
 NEUTRON = 'neutron'
