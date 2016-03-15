@@ -174,7 +174,7 @@ class Controller(object):
 
         for w in range(0, wc):
             evq = mp_queue()
-            evq_handler = EventQueueHandler(self, evq, self._event_handlers)
+            evq_handler = EventQueueHandler(self, self._conf, evq, self._event_handlers)
             worker = mp_process(target=evq_handler.run, args=(evq,))
             worker.daemon = True
             ev_workers[w] = ev_workers[w] + (worker, evq, evq_handler)
@@ -300,7 +300,10 @@ class Controller(object):
         self._pollhandler.add(event)
 
     def poll_event_timedout(self, eh, event):
-        self._pollhandler.event_timedout(eh, event)
+        if event.id == 'EVENT_LIFE_TIMEOUT':
+            self._pollhandler.event_life_timedout(eh, event)
+        else:
+            self._pollhandler.event_timedout(eh, event)
 
     def poll_event_done(self, event):
         """API for NFP modules to mark a poll event complete.
@@ -387,5 +390,5 @@ def main():
     sc = Controller(oslo_config.CONF, modules)
     sc.start()
     sc.init_complete()
-    # sc.unit_test()
+    #sc.unit_test()
     sc.wait()

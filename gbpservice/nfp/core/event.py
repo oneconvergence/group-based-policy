@@ -44,6 +44,7 @@ class Event(object):
         self.key = kwargs.get('key')
         self.data = kwargs.get('data') if 'data' in kwargs else None
         self.handler = kwargs.get('handler') if 'handler' in kwargs else None
+        self.lifetime = kwargs.get('lifetime') if 'lifetime' in kwargs else 0
         self.poll_event = None  # Not to be used by user
         self.worker_attached = None  # Not to be used by user
         self.last_run = None  # Not to be used by user
@@ -139,8 +140,9 @@ class EventSequencer(object):
 
 class EventQueueHandler(object):
 
-    def __init__(self, sc, qu, ehs):
+    def __init__(self, sc, conf, qu, ehs):
         # Pool of green threads per process
+        self._conf =conf
         self._tpool = nfp_tp.ThreadPool()
         self._evq = qu
         self._ehs = ehs
@@ -221,6 +223,21 @@ class EventQueueHandler(object):
                           "Got event %s" % (ev.identify()))
                 eh = self._ehs.get(ev)
                 if not ev.poll_event:
+                    # Creating the Timer Poll Event
+                    if ev.lifetime :
+                        log_info(LOG,"Got Event %s with Lifetime (%d) seconds :"
+                                 " Creating EVENT_LIFE_TIMEOUT Event"
+                                 % (ev.identify(),ev.lifetime))
+
+                        #convert event lifetime in to polling time
+                        max_times = int(ev.lifetime / self._conf.periodic_interval)
+                        if ev.lifetime % self._conf.periodic_interval :
+                            max_times += 1
+
+                        t_ev = self._sc.new_event(id='EVENT_LIFE_TIMEOUT', data=ev,
+                            binding_key=ev.binding_key, key=ev.key)
+                        self._sc.poll_event(t_ev, max_times=max_times)
+
                     t = self._tpool.dispatch(eh.handle_event, ev)
                     log_debug(LOG, "Event %s is not poll event - "
                               "disptaching handle_event() of handler %s"

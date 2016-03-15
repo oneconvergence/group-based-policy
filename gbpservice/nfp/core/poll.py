@@ -196,6 +196,14 @@ class PollQueueHandler(object):
             return self._pollq.get(timeout=0.1)
         except Queue.Empty:
             return None
+    
+    def event_life_timedout(self, eh, event):
+        try:
+            eh.event_cancelled(event.data)
+        except AttributeError:
+            log_info(LOG,
+                     "Handler %s does not implement"
+                     "event_cancelled method" % (identify(eh))) 
 
     def event_timedout(self, eh, event):
         if isinstance(eh, PollEventDesc):
@@ -226,7 +234,7 @@ class PollQueueHandler(object):
 
         self._event_dispatched(eh, event, ret)
 
-    def _event_cancelled(self, eh, event):
+    def _poll_event_cancelled(self, eh, event):
         try:
             log_info(LOG,
                      "Event %s cancelled"
@@ -256,7 +264,7 @@ class PollQueueHandler(object):
         uevent.max_times = event.max_times - 1
 
         if not uevent.max_times:
-            return self._event_cancelled(eh, event)
+            return self._poll_event_cancelled(eh, event)
 
         if poll:
             uevent.serialize = False
@@ -307,6 +315,11 @@ class PollQueueHandler(object):
         log_debug(LOG, "Processing poll event %s" % (ev.identify()))
         if ev.id == 'POLL_EVENT_DONE':
             return self._scheduled(ev)
+
+        if ev.id == 'EVENT_LIFE_TIMEOUT':
+            ev.max_times -= 1
+            if ev.max_times:
+                return
         ev.poll_event = 'POLL_EVENT'
         ev = self._schedule(ev)
         if ev:
