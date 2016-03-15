@@ -810,7 +810,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
     @mock.patch(__name__ + '.FakeObjects.drivers')
     @mock.patch(__name__ + '.FakeObjects.sc')
     def _get_GenericConfigEventHandler_object(self, sc, drivers, rpcmgr):
-        """ Retrieves event handler object of generic configuration.
+        """ Retrieves event handler object of generic config.
 
         :param sc: mocked service controller object of process model framework
         :param rpcmgr: object of configurator's RPC manager
@@ -828,7 +828,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         device configuration operations.
 
         :param ev: fake event data which has to be actually sent by
-        process framewrok.
+        process framework.
 
         Returns: None
 
@@ -1001,10 +1001,13 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         ev.id = 'CONFIGURE_HEALTHMONITOR'
         self._test_handle_periodic_event(ev)
 
+""" Implements test cases for event handler methods
+of firewall agent.
+
+"""
+
 
 class FwaasHandlerTestCase(unittest.TestCase):
-    ''' Generic Config Handler for Firewall module '''
-
     def __init__(self, *args, **kwargs):
         super(FwaasHandlerTestCase, self).__init__(*args, **kwargs)
         self.fo = FakeObjects()
@@ -1014,10 +1017,30 @@ class FwaasHandlerTestCase(unittest.TestCase):
     @mock.patch(__name__ + '.FakeObjects.drivers')
     @mock.patch(__name__ + '.FakeObjects.sc')
     def _get_FwHandler_objects(self, sc, drivers, rpcmgr):
+        """ Retrieves event handler object of firewall agent.
+
+        :param sc: mocked service controller object of process model framework
+        :param drivers: list of driver objects for firewall agent
+        :param rpcmgr: object of configurator's RPC manager
+
+        Returns: object of firewall agents's event handler
+
+        """
+
         agent = fw.FWaasEventHandler(sc, drivers, rpcmgr)
         return agent
 
     def _test_handle_event(self, rule_list_info=True):
+        """ Test handle event method of firewall agent for various
+        device configuration operations.
+
+        :param rule_list_info: an atrribute of firewall resource object
+        sent from plugin which contains the firewall rules.
+
+        Returns: None
+
+        """
+
         agent = self._get_FwHandler_objects()
         driver = fw_dvr.FwaasDriver()
 
@@ -1072,38 +1095,78 @@ class FwaasHandlerTestCase(unittest.TestCase):
                             firewall, self.fo.host)
 
     def test_create_firewall_with_rule_list_info_true(self):
-        ''' Handle event for create_firewall '''
+        """ Implements test case for create firewall method
+        of firewall agent's event handler with firewall rules.
+
+        Returns: none
+
+        """
+
         self.ev.id = 'CREATE_FIREWALL'
         self._test_handle_event()
 
     def test_update_firewall_with_rule_list_info_true(self):
-        ''' Handle event for update_firewall '''
+        """ Implements test case for update firewall method
+        of firewall agent's event handler with firewall rules.
+
+        Returns: none
+
+        """
+
         self.ev.id = 'UPDATE_FIREWALL'
         self._test_handle_event()
 
     def test_delete_firewall_with_rule_list_info_true(self):
-        ''' Handle event for delete_firewall '''
+        """ Implements test case for delete firewall method
+        of firewall agent's event handler with firewall rules.
+
+        Returns: none
+
+        """
+
         self.ev.id = 'DELETE_FIREWALL'
         self._test_handle_event()
 
     def test_create_firewall_with_rule_list_info_false(self):
-        ''' Handle event for create_firewall '''
+        """ Implements test case for create firewall method
+        of firewall agent's event handler without firewall rules.
+
+        Returns: none
+
+        """
+
         self.ev.id = 'CREATE_FIREWALL'
         self._test_handle_event(False)
 
     def test_update_firewall_with_rule_list_info_false(self):
-        ''' Handle event for update_firewall '''
+        """ Implements test case for update firewall method
+        of firewall agent's event handler without firewall rules.
+
+        Returns: none
+
+        """
+
         self.ev.id = 'UPDATE_FIREWALL'
         self._test_handle_event(False)
 
     def test_delete_firewall_with_rule_list_info_false(self):
-        ''' Handle event for delete_firewall '''
+        """ Implements test case for delete firewall method
+        of firewall agent's event handler without firewall rules.
+
+        Returns: none
+
+        """
+
         self.ev.id = 'DELETE_FIREWALL'
         self._test_handle_event(False)
 
+""" Implements test cases for driver methods
+of generic config.
+
+"""
+
 
 class FwGenericConfigDriverTestCase(unittest.TestCase):
-    ''' Generic Config Driver for Firewall module '''
 
     def __init__(self, *args, **kwargs):
         super(FwGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
@@ -1114,6 +1177,13 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
         self.kwargs = self.fo._fake_kwargs()
 
     def test_configure_interfaces(self):
+        """ Implements test case for configure interfaces method
+        of generic config driver.
+
+        Returns: none
+
+        """
+
         with mock.patch.object(
                 requests, 'post', return_value=self.resp) as mock_post, \
              mock.patch.object(
@@ -1125,6 +1195,13 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                                          timeout=self.fo.timeout)
 
     def test_clear_interfaces(self):
+        """ Implements test case for clear interfaces method
+        of generic config driver.
+
+        Returns: none
+
+        """
+
         self.resp = mock.Mock(status_code=200)
         with mock.patch.object(
                 requests, 'delete', return_value=self.resp) as mock_delete, \
@@ -1138,6 +1215,13 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                                 timeout=self.fo.timeout)
 
     def test_configure_source_routes(self):
+        """ Implements test case for configure routes method
+        of generic config driver.
+
+        Returns: none
+
+        """
+
         with mock.patch.object(
                 requests, 'post', return_value=self.resp) as mock_post, \
              mock.patch.object(
@@ -1150,6 +1234,13 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                                          timeout=60)
 
     def test_delete_source_routes(self):
+        """ Implements test case for clear routes method
+        of generic config driver.
+
+        Returns: none
+
+        """
+
         with mock.patch.object(
                 requests, 'delete', return_value=self.resp) as mock_delete, \
              mock.patch.object(
@@ -1162,9 +1253,13 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                                 data=self.fo.data_for_del_src_route,
                                 timeout=self.fo.timeout)
 
+""" Implements test cases for driver methods
+of firewall.
+
+"""
+
 
 class FwaasDriverTestCase(unittest.TestCase):
-    ''' Fwaas Driver for Firewall module '''
 
     def __init__(self, *args, **kwargs):
         super(FwaasDriverTestCase, self).__init__(*args, **kwargs)
@@ -1178,6 +1273,13 @@ class FwaasDriverTestCase(unittest.TestCase):
         self.firewall = json.dumps(self.fo.firewall)
 
     def test_create_firewall_fwaasdriver(self):
+        """ Implements test case for create firewall method
+        of firewall's drivers.
+
+        Returns: none
+
+        """
+
         with mock.patch.object(
                 requests, 'post', return_value=self.resp) as mock_post, \
              mock.patch.object(
@@ -1188,12 +1290,26 @@ class FwaasDriverTestCase(unittest.TestCase):
                                          self.firewall, timeout=30)
 
     def test_create_firewall_key_error_fwaasdriver(self):
+        """ Implements test case for catching key error in
+        create firewall method of firewall's drivers.
+
+        Returns: none
+
+        """
+
         self.fo.firewall.pop('description')
         with self.assertRaises(KeyError):
             self.driver.create_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
 
     def test_update_firewall_fwaasdriver(self):
+        """ Implements test case for update firewall method
+        of firewall's drivers.
+
+        Returns: none
+
+        """
+
         with mock.patch.object(
                 requests, 'put', return_value=self.resp) as mock_put, \
              mock.patch.object(
@@ -1204,12 +1320,26 @@ class FwaasDriverTestCase(unittest.TestCase):
                                         data=self.firewall, timeout=30)
 
     def test_update_firewall_key_error_fwaasdriver(self):
+        """ Implements test case for catching key error in
+        update firewall method of firewall's drivers.
+
+        Returns: none
+
+        """
+
         self.fo.firewall.pop('description')
         with self.assertRaises(KeyError):
             self.driver.update_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
 
     def test_delete_firewall_fwaasdriver(self):
+        """ Implements test case for delete firewall method
+        of firewall's drivers.
+
+        Returns: none
+
+        """
+
         with mock.patch.object(
                 requests, 'delete', return_value=self.resp) as mock_delete, \
              mock.patch.object(
@@ -1220,6 +1350,13 @@ class FwaasDriverTestCase(unittest.TestCase):
                                            data=self.firewall, timeout=30)
 
     def test_delete_firewall_key_error_fwaasdriver(self):
+        """ Implements test case for catching key error in
+        delete firewall method of firewall's drivers.
+
+        Returns: none
+
+        """
+
         self.fo.firewall.pop('description')
         with self.assertRaises(KeyError):
             self.driver.delete_firewall(self.fo.context,
