@@ -16,6 +16,7 @@ import oslo_messaging as messaging
 from gbpservice.nfp.core.main import Event
 from gbpservice.nfp.core.poll import poll_event_desc
 from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.db import nfp_db as nfp_db
 from gbpservice.nfp.db import api as nfp_db_api
@@ -229,7 +230,7 @@ class DeviceLifeCycleHandler(object):
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = DLCMConfiguratorRpcApi(neutron_context)
 
-        self.state_map = {
+        self.status_map = {
                 'INIT': 'Created Network Service Device with status INIT.',
                 'PENDING_CREATE': '',
                 'DEVICE_SPAWNING': 'Creating NSD, launched the new device, ' +
@@ -284,7 +285,10 @@ class DeviceLifeCycleHandler(object):
         if status_desc:
             device['status_description'] = status_desc
         else:
-            device['status_description'] = self.state_map.get(state)
+            device['status_description'] = self.status_map.get(state)
+
+    def _get_port(self, port_id):
+        return self.nsf_db.get_port_info(self.db_session, port_id)
 
     def _get_ports(self, port_ids):
         data_ports = []
@@ -301,13 +305,12 @@ class DeviceLifeCycleHandler(object):
         device_info['reference_count'] = 0
         #(ashu) driver is sending that info
         #device_info['interfaces_in_use'] = 0
-        #device_info['mgmt_data_ports']['id'] = device_id
+        #device_info['mgmt_port_id']['id'] = device_id
         device = self.nsf_db.create_network_function_device(self.db_session,
                                                             device_info)
-        # Fix me : handle device create failed, driver returns None
-        mgmt_port_ids = device.pop('mgmt_data_ports')
-        mgmt_data_ports = self._get_ports(mgmt_port_ids)
-        device['mgmt_data_ports'] = mgmt_data_ports
+        mgmt_port_id = device.pop('mgmt_port_id')
+        mgmt_port_id = self._get_port(mgmt_port_id)
+        device['mgmt_port_id'] = mgmt_port_id
         return device
 
     def _update_network_function_device_db(self, device, state,
@@ -323,9 +326,9 @@ class DeviceLifeCycleHandler(object):
         network_function_devices = self.nsf_db.get_network_function_devices(
                                                 self.db_session, filters)
         for device in network_function_devices:
-            mgmt_port_ids = device.pop('mgmt_data_ports')
-            mgmt_data_ports = self._get_ports(mgmt_port_ids)
-            device['mgmt_data_ports'] = mgmt_data_ports
+            mgmt_port_id = device.pop('mgmt_port_id')
+            mgmt_port_id = self._get_port(mgmt_port_id)
+            device['mgmt_port_id'] = mgmt_port_id
         return network_function_devices
 
     def _increment_device_ref_count(self, device):
@@ -474,10 +477,14 @@ class DeviceLifeCycleHandler(object):
 
             self._create_network_function_device_db(device,
                                                    'DEVICE_SPAWNING')
-            # TODO (ashu) - create an event to SLCM, to give device_id
-            #self._create_event(event_id='DEVICE_CREATED',
-            #                   event_data=device)
-
+            # Create an event to SLCM, to give device_id
+            device_created_data = {
+                'network_function_instance_id': (
+                    nfd_request['network_function_instance']['id']),
+                'network_function_device_id': device['id']
+            }
+            self._create_event(event_id='DEVICE_CREATED',
+                               event_data=device_created_data)
             self._create_event(event_id='DEVICE_SPAWNING',
                                event_data=device,
                                is_poll_event=True,
@@ -491,7 +498,7 @@ class DeviceLifeCycleHandler(object):
         # TODO (ashu) return value from driver, this should be true/false
         is_device_up = (
             lifecycle_driver.get_network_function_device_status(device))
-        if is_device_up == 'ACTIVE':
+        if is_device_up == nfp_constants.ACTIVE:
             self._controller.poll_event_done(event)
 
             # create event DEVICE_UP
@@ -499,7 +506,7 @@ class DeviceLifeCycleHandler(object):
                                event_data=device)
             self._update_network_function_device_db(device,
                                                    'DEVICE_UP')
-        elif is_device_up == 'ERROR':
+        elif is_device_up == nfp_constants.ERROR:
             self._controller.poll_event_done(event)
 
             # create event DEVICE_NOT_UP
@@ -570,9 +577,9 @@ class DeviceLifeCycleHandler(object):
         device = self._get_device_data(device_info)
         device = self._update_device_data(device, network_function_device)
 
-        mgmt_port_ids = network_function_device.pop('mgmt_data_ports')
-        mgmt_data_ports = self._get_ports(mgmt_port_ids)
-        device['mgmt_data_ports'] = mgmt_data_ports
+        mgmt_port_id = network_function_device.pop('mgmt_port_id')
+        mgmt_port_id = self._get_port(mgmt_port_id)
+        device['mgmt_port_id'] = mgmt_port_id
         device['network_function_id'] = network_function_id
         return device
 
@@ -611,7 +618,7 @@ class DeviceLifeCycleHandler(object):
         # Change status to active in DB and generate an event DEVICE_ACTIVE
         # to inform Service LCM
         self._increment_device_ref_count(device)
-        self._update_network_function_device_db(device, 'ACTIVE')
+        self._update_network_function_device_db(device, nfp_constants.ACTIVE)
         LOG.info(_("Device Configuration completed for device: %(device_id)s"
                    "Updated DB status to ACTIVE, Incremented device "
                    "reference count for %(device)s"),
@@ -643,11 +650,11 @@ class DeviceLifeCycleHandler(object):
                    "%(device)s"), {'device': delete_nfd_request})
         device = self.nsf_db.get_network_function_device(self.db_session,
                                                          nfd_id)
-        mgmt_port_ids = device.pop('mgmt_data_ports')
-        mgmt_data_ports = self._get_ports(mgmt_port_ids)
-        device['mgmt_data_ports'] = mgmt_data_ports
+        mgmt_port_id = device.pop('mgmt_port_id')
+        mgmt_port_id = self._get_port(mgmt_port_id)
+        device['mgmt_port_id'] = mgmt_port_id
         device['compute_policy'] = 'nova'
-        device['network_policy'] = mgmt_data_ports[0]['port_policy']
+        device['network_model'] = mgmt_port_id['port_model']
         device['network_function_instance_id'] = network_function_instance['id']
         device['network_function_id'] = nf_id
         device.update({'service_type': self._get_service_type(
@@ -681,9 +688,9 @@ class DeviceLifeCycleHandler(object):
         is_interface_unplugged = (
             lifecycle_driver.unplug_network_function_device_interfaces(device))
         if is_interface_unplugged:
-            mgmt_data_ports = device['mgmt_data_ports']
+            mgmt_port_id = device['mgmt_port_id']
             self._decrement_device_interface_count(device)
-            device['mgmt_data_ports'] = mgmt_data_ports
+            device['mgmt_port_id'] = mgmt_port_id
         else:
             # Ignore unplug error
             pass
@@ -713,7 +720,7 @@ class DeviceLifeCycleHandler(object):
     # Error Handling
     def handle_device_error(self, event):
         device = event.data
-        #status = 'ERROR'
+        #status = nfp_constants.ERROR
         #desc = 'Internal Server Error'
         #self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -722,7 +729,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_device_create_failed(self, event):
         device = event.data
-        status = 'ERROR'
+        status = nfp_constants.ERROR
         desc = device['status_description']
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -732,7 +739,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_device_not_up(self, event):
         device = event.data
-        status = 'ERROR'
+        status = nfp_constants.ERROR
         desc = 'Device not became ACTIVE'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -741,7 +748,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_device_not_reachable(self, event):
         device = event.data
-        status = 'ERROR'
+        status = nfp_constants.ERROR
         desc = 'Device not reachable, Health Check Failed'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -751,7 +758,7 @@ class DeviceLifeCycleHandler(object):
     def handle_device_config_failed(self, event):
         # change device status to error only in case of health check fail
         device = event.data
-        status = 'ERROR'
+        status = nfp_constants.ERROR
         desc = 'Configuring Device Failed.'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -763,7 +770,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_interfaces_setup_failed(self, event):
         device = event.data
-        status = 'ERROR'
+        status = nfp_constants.ERROR
         desc = 'Interfaces configuration failed'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -775,7 +782,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_routes_config_failed(self, event):
         device = event.data
-        status = 'ERROR'
+        status = nfp_constants.ERROR
         desc = 'Routes configuration Failed'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
@@ -787,7 +794,7 @@ class DeviceLifeCycleHandler(object):
 
     def handle_driver_error(self, event):
         device = event.data
-        status = 'ERROR'
+        status = nfp_constants.ERROR
         desc = 'driver returned None data'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']

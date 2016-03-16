@@ -24,14 +24,14 @@ class DummyEvent():
         self.data['network_function_instance_id'] = (
             'network_function_instance_id')
         self.data['ports'] = [{'id': 'myid1',
-                     'port_policy': 'neutron',
+                     'port_model': 'neutron',
                      'port_classification': 'management',
-                     'port_type': 'active'},]
-        self.data['mgmt_data_ports'] = [
+                     'port_role': 'active'},]
+        self.data['mgmt_port_id'] = [
                         {'id': 'myid1',
-                         'port_policy': 'neutron',
+                         'port_model': 'neutron',
                          'port_classification': 'management',
-                         'port_type': 'active'},
+                         'port_role': 'active'},
                         ]
         self.data['interfaces_in_use'] = 1
         self.data['reference_count'] = ref_count
@@ -301,15 +301,15 @@ class DeviceLifeCycleHandlerTestCase(unittest.TestCase):
         delete_event_req.data = {'network_function_device_id': 'device-id',
                 'network_function_instance': {'id': 'nfi-id', 'port_info': []}}
 
-        mgmt_data_ports = {'id': 'port-id', 'port_policy': 'port-policy'}
-        mock_get_port.return_value = mgmt_data_ports
+        mgmt_port_id = {'id': 'port-id', 'port_model': 'port-policy'}
+        mock_get_port.return_value = mgmt_port_id
         mock_get_nsd.return_value = {'id': 'device-id',
-                                     'mgmt_data_ports': ['mgmt-data-port-id']}
+                                     'mgmt_port_id': ['mgmt-data-port-id']}
 
         event_id = 'DELETE_CONFIGURATION'
-        event_data = {'id': 'device-id', 'mgmt_data_ports': [mgmt_data_ports],
+        event_data = {'id': 'device-id', 'mgmt_port_id': [mgmt_port_id],
                       'compute_policy': 'nova',
-                      'network_policy': 'port-policy',
+                      'network_model': 'port-policy',
                       'network_function_instance_id': 'nfi-id',
                       'ports': []}
         dlcm_handler._create_event = mock.MagicMock(return_value=True)

@@ -157,8 +157,11 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         openstack_driver.KeystoneClient, "get_admin_token")
     @mock.patch.object(
         openstack_driver.GBPClient, "get_service_profile")
-    def test_create_network_function(self, mock_get_service_profile,
-                                    mock_get_admin_token, mock_validate):
+    @mock.patch.object(
+        service_lcm.ServiceLifeCycleHandler, "_create_event")
+    def test_create_network_function(self, mock_create_event,
+                                     mock_get_service_profile,
+                                     mock_get_admin_token, mock_validate):
         network_function_info = {
             'tenant_id': 'tenant_id',
             'service_chain_id': 'sc_instance_id',
@@ -175,9 +178,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         db_network_function = self.nfp_db.get_network_function(
             self.session, network_function['id'])
         self.assertEqual(network_function, db_network_function)
-        self.controller.event.assert_called_once_with(
-            id='CREATE_NETWORK_FUNCTION_INSTANCE', data=mock.ANY)
-        self.controller.rpc_event.assert_called_once_with(mock.ANY)
+        mock_create_event.assert_called_once_with(
+            'CREATE_NETWORK_FUNCTION_INSTANCE',
+            event_data=mock.ANY)
 
     def test_validate_create_service_input(self):
         network_function = {}
@@ -230,6 +233,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
                 self.session, network_function_id)
             self.assertEqual('PENDING_DELETE', network_function['status'])
             request_data = {
+                'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': network_function['heat_stack_id'],
                 'network_function_id': network_function_id
             }
@@ -246,18 +250,18 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         network_function_port_info = [
             {
                 'id': 'provider_port_id',
-                'port_policy': mode,
+                'port_model': mode,
                 'port_classification': 'provider'
             },
             {
                 'id': 'consumer_port_id',
-                'port_policy': mode,
+                'port_model': mode,
                 'port_classification': 'consumer'
             }
         ]
         management_network_info = {
             'id': 'management_ptg_id',
-            'port_policy': mode
+            'port_model': mode
         }
 
         create_nfi_request = {
@@ -351,13 +355,14 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             # Verify return status IN_PROGRESS from config driver
             mock_is_config_complete.return_value = "IN_PROGRESS"
             request_data = {
+                'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
             self.service_lc_handler.check_for_user_config_complete(
                 test_event)
             mock_is_config_complete.assert_called_once_with(
-                request_data['heat_stack_id'])
+                request_data['heat_stack_id'], network_function['tenant_id'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual(network_function['status'], db_nf['status'])
@@ -366,13 +371,14 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             mock_is_config_complete.reset_mock()
             mock_is_config_complete.return_value = "ERROR"
             request_data = {
+                'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
             self.service_lc_handler.check_for_user_config_complete(
                 test_event)
             mock_is_config_complete.assert_called_once_with(
-                request_data['heat_stack_id'])
+                request_data['heat_stack_id'], network_function['tenant_id'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual('ERROR', db_nf['status'])
@@ -384,13 +390,14 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             mock_is_config_complete.reset_mock()
             mock_is_config_complete.return_value = "COMPLETED"
             request_data = {
+                'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
             self.service_lc_handler.check_for_user_config_complete(
                 test_event)
             mock_is_config_complete.assert_called_once_with(
-                request_data['heat_stack_id'])
+                request_data['heat_stack_id'], network_function['tenant_id'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual('ACTIVE', db_nf['status'])
@@ -431,13 +438,14 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             # Verify return status IN_PROGRESS from config driver
             mock_is_config_delete_complete.return_value = "IN_PROGRESS"
             request_data = {
+                'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
             self.service_lc_handler.check_for_user_config_deleted(
                 test_event)
             mock_is_config_delete_complete.assert_called_once_with(
-                request_data['heat_stack_id'])
+                request_data['heat_stack_id'], network_function['tenant_id'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual(network_function['status'], db_nf['status'])
@@ -448,13 +456,14 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             mock_is_config_delete_complete.reset_mock()
             mock_is_config_delete_complete.return_value = "ERROR"
             request_data = {
+                'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
             self.service_lc_handler.check_for_user_config_deleted(
                 test_event)
             mock_is_config_delete_complete.assert_called_once_with(
-                request_data['heat_stack_id'])
+                request_data['heat_stack_id'], network_function['tenant_id'])
             event_data = {
                 'network_function_id': network_function['id']
             }
@@ -469,13 +478,14 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             mock_create_event.reset_mock()
             mock_is_config_delete_complete.return_value = "COMPLETED"
             request_data = {
+                'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
             self.service_lc_handler.check_for_user_config_deleted(
                 test_event)
             mock_is_config_delete_complete.assert_called_once_with(
-                request_data['heat_stack_id'])
+                request_data['heat_stack_id'], network_function['tenant_id'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual(None, db_nf['heat_stack_id'])
@@ -535,6 +545,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
                 self.session, network_function['id'])
             self.assertEqual('PENDING_DELETE', db_nf['status'])
             event_data = {
+                'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': network_function['heat_stack_id'],
                 'network_function_id': network_function['id']
             }
@@ -558,6 +569,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             self.session, nfi['id'])
         self.assertEqual('PENDING_DELETE', db_nfi['status'])
         delete_event_data = {
+            'network_function_id': nfi['network_function_id'],
             'network_function_device_id': nfi['network_function_device_id'],
             'network_function_instance': db_nfi
         }

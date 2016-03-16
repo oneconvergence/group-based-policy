@@ -14,6 +14,7 @@ from oslo_log import log as logging
 
 from gbpservice.nfp._i18n import _
 from gbpservice.nfp.common import exceptions
+from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.lifecycle_manager.drivers.lifecycle_driver_base import (
     LifeCycleDriverBase
 )
@@ -36,6 +37,37 @@ class HaproxyLifeCycleDriver(LifeCycleDriverBase):
         self.service_vendor = 'Haproxy'
 
     def get_network_function_device_config_info(self, device_data):
+        """ Get the configuration information for NFD
+
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: None -- On Failure
+        :returns: dict -- It has the following scheme
+        {
+            'info': {
+                'version': <int>
+            },
+            'config': [
+                {
+                    'resource': 'interfaces',
+                    'kwargs': {
+                        'service_type': <str>,
+                        ...
+                    }
+                },
+                {
+                    'resource': 'routes',
+                    'kwargs': {
+                        'service_type': <str>,
+                        ...
+                    }
+                }
+            ]
+        }
+
+        :raises: exceptions.IncompleteData
+        """
         if (
             any(key not in device_data
                 for key in ['service_vendor',
@@ -46,7 +78,7 @@ class HaproxyLifeCycleDriver(LifeCycleDriverBase):
                 for port in device_data['ports']
                 for key in ['id',
                             'port_classification',
-                            'port_policy'])
+                            'port_model'])
         ):
             raise exceptions.IncompleteData()
 
@@ -69,7 +101,7 @@ class HaproxyLifeCycleDriver(LifeCycleDriverBase):
         consumer_gateway_ip = None
 
         for port in device_data['ports']:
-            if port['port_classification'] == 'provider':
+            if port['port_classification'] == nfp_constants.PROVIDER:
                 try:
                     port_id = self._get_port_id(port, token)
                     (provider_ip, provider_mac,
@@ -80,7 +112,7 @@ class HaproxyLifeCycleDriver(LifeCycleDriverBase):
                     LOG.error(_('Failed to get provider port details'
                                 ' for get device config info operation'))
                     return None
-            elif port['port_classification'] == 'consumer':
+            elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
                     port_id = self._get_port_id(port, token)
                     (consumer_ip, consumer_mac,
