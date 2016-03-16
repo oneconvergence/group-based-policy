@@ -36,6 +36,37 @@ class HaproxyLifeCycleDriver(LifeCycleDriverBase):
         self.service_vendor = 'Haproxy'
 
     def get_network_function_device_config_info(self, device_data):
+        """ Get the configuration information for NFD
+
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: None -- On Failure
+        :returns: dict -- It has the following scheme
+        {
+            'info': {
+                'version': <int>
+            },
+            'config': [
+                {
+                    'resource': 'interfaces',
+                    'kwargs': {
+                        'service_type': <str>,
+                        ...
+                    }
+                },
+                {
+                    'resource': 'routes',
+                    'kwargs': {
+                        'service_type': <str>,
+                        ...
+                    }
+                }
+            ]
+        }
+
+        :raises: exceptions.IncompleteData
+        """
         if (
             any(key not in device_data
                 for key in ['service_vendor',
