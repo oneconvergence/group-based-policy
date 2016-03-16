@@ -10,8 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.configurator.lib import (
-    generic_config_constants as const)
+from gbpservice.nfp.configurator.lib import constants as const
 from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
@@ -78,7 +77,7 @@ class AgentBaseRPCManager(object):
                 'sa_req_list': sa_req_list,
                 'notification_data': notification_data
             }
-            ev = self.sc.new_event(id='PROCESS_BATCH', data=args_dict,
+            ev = self.sc.new_event(id=const.PROCESS_BATCH, data=args_dict,
                                    key=None)
             self.sc.post_event(ev)
         else:
@@ -109,7 +108,7 @@ class AgentBaseNotification(object):
         """
 
         event = self.sc.new_event(
-            id='STASH_EVENT', key='STASH_EVENT', data=data)
+            id=const.STASH_EVENT, key=const.STASH_EVENT, data=data)
         self.sc.stash_event(event)
 
 
