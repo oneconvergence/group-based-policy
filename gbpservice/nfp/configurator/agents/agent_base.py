@@ -77,8 +77,8 @@ class AgentBaseRPCManager(object):
                 'sa_req_list': sa_req_list,
                 'notification_data': notification_data
             }
-            ev = self.sc.new_event(id=const.PROCESS_BATCH, data=args_dict,
-                                   key=None)
+            ev = self.sc.new_event(id=const.EVENT_PROCESS_BATCH,
+                                   data=args_dict, key=None)
             self.sc.post_event(ev)
         else:
             sa_req_list[0]['context'].update(
@@ -108,7 +108,7 @@ class AgentBaseNotification(object):
         """
 
         event = self.sc.new_event(
-            id=const.STASH_EVENT, key=const.STASH_EVENT, data=data)
+            id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
         self.sc.stash_event(event)
 
 
@@ -171,7 +171,7 @@ class AgentBaseEventHandler(object):
             msg = {
                 'receiver': const.ORCHESTRATOR,
                 'resource': const.ORCHESTRATOR,
-                'method': "network_function_device_notification",
+                'method': const.NFD_NOTIFICATION,
                 'kwargs': [
                     {
                         'context': context,
