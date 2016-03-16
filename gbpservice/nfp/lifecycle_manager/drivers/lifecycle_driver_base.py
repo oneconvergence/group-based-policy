@@ -13,6 +13,7 @@
 from oslo_log import log as logging
 
 from gbpservice.nfp._i18n import _
+from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.lifecycle_manager.openstack import (
     openstack_driver
@@ -101,7 +102,7 @@ class LifeCycleDriverBase(object):
             return None
 
         name = 'mgmt_interface'  # TODO[RPM]: Use proper name
-        if device_data['network_policy'].lower() == 'gbp':
+        if device_data['network_model'] == nfp_constants.GBP_NETWORK:
             mgmt_ptg_id = device_data['management_network_info']['id']
             mgmt_interface = self.network_handler_gbp.create_policy_target(
                                 token,
@@ -116,9 +117,9 @@ class LifeCycleDriverBase(object):
                                 mgmt_net_id)
 
         return {'id': mgmt_interface['id'],
-                'port_policy': device_data['network_policy'],
-                'port_classification': 'mgmt',
-                'port_type': 'NA'}
+                'port_model': device_data['port_model'],
+                'port_classification': nfp_constants.MANAGEMENT,
+                'port_role': None}
 
     def _delete_management_interface(self, device_data, interface):
         try:
@@ -131,7 +132,7 @@ class LifeCycleDriverBase(object):
                         ' deletion'))
             return None
 
-        if interface['port_policy'].lower() == 'gbp':
+        if interface['port_model'] == nfp_constants.GBP_PORT:
             self.network_handler_gbp.delete_policy_target(token,
                                                           interface['id'])
         else:
@@ -144,11 +145,11 @@ class LifeCycleDriverBase(object):
 
     def _delete_interfaces(self, device_data, interfaces):
         for interface in interfaces:
-            if interface['port_classification'].lower() == 'mgmt':
+            if interface['port_classification'] == nfp_constants.MANAGEMENT:
                 self._delete_management_interface(device_data, interface)
 
     def _get_port_id(self, interface, token):
-        if interface['port_policy'].lower() == 'gbp':
+        if interface['port_model'] == nfp_constants.GBP_PORT:
             pt = self.network_handler_gbp.get_policy_target(
                                 token,
                                 interface['id'])
@@ -227,7 +228,7 @@ class LifeCycleDriverBase(object):
                 for port in device_data['ports']
                 for key in ['id',
                             'port_classification',
-                            'port_policy']) or
+                            'port_model']) or
 
             type(devices) is not list or
 
@@ -238,7 +239,7 @@ class LifeCycleDriverBase(object):
             raise exceptions.IncompleteData()
 
         hotplug_ports_count = 1  # for provider interface (default)
-        if any(port['port_classification'].lower() == 'consumer'
+        if any(port['port_classification'] == nfp_constants.CONSUMER
                for port in device_data['ports']):
             hotplug_ports_count = 2
 
@@ -267,7 +268,7 @@ class LifeCycleDriverBase(object):
                 for key in ['tenant_id',
                             'service_vendor',
                             'compute_policy',
-                            'network_policy',
+                            'network_model',
                             'management_network_info',
                             'ports']) or
 
@@ -280,7 +281,7 @@ class LifeCycleDriverBase(object):
                 for port in device_data['ports']
                 for key in ['id',
                             'port_classification',
-                            'port_policy'])
+                            'port_model'])
         ):
             raise exceptions.IncompleteData()
 
@@ -291,7 +292,7 @@ class LifeCycleDriverBase(object):
         try:
             interfaces = self._get_interfaces_for_device_create(device_data)
         except Exception:
-            LOG.error(_('Failed to get interfaces for device creation'))
+            LOG.exception(_('Failed to get interfaces for device creation'))
             return None
         else:
             self._increment_stats_counter('management_interfaces',
@@ -334,11 +335,11 @@ class LifeCycleDriverBase(object):
 
             if not self.supports_hotplug:
                 for port in device_data['ports']:
-                    if port['port_classification'].lower() == 'provider':
+                    if port['port_classification'] == nfp_constants.PROVIDER:
                         port_id = self._get_port_id(port, token)
                         interfaces_to_attach.append({'port': port_id})
                 for port in device_data['ports']:
-                    if port['port_classification'].lower() == 'consumer':
+                    if port['port_classification'] == nfp_constants.CONSUMER:
                         port_id = self._get_port_id(port, token)
                         interfaces_to_attach.append({'port': port_id})
         except Exception:
@@ -370,7 +371,7 @@ class LifeCycleDriverBase(object):
         mgmt_ip_address = None
         try:
             for interface in interfaces:
-                if interface['port_classification'].lower() == 'mgmt':
+                if interface['port_classification'] == nfp_constants.MANAGEMENT:
                     port_id = self._get_port_id(interface, token)
                     port = self.network_handler_neutron.get_port(token,
                                                                  port_id)
@@ -398,7 +399,7 @@ class LifeCycleDriverBase(object):
         return {'id': instance_id,
                 'name': instance_name,
                 'mgmt_ip_address': mgmt_ip_address,
-                'mgmt_data_ports': interfaces,
+                'mgmt_port_id': interfaces[0],
                 'max_interfaces': self.maximum_interfaces,
                 'interfaces_in_use': len(interfaces_to_attach),
                 'description': ''}  # TODO[RPM]: what should be the description
@@ -419,15 +420,15 @@ class LifeCycleDriverBase(object):
                 for key in ['id',
                             'tenant_id',
                             'compute_policy',
-                            'mgmt_data_ports']) or
+                            'mgmt_port_id']) or
 
-            type(device_data['mgmt_data_ports']) is not list or
+            type(device_data['mgmt_port_id']) is not list or
 
             any(key not in port
-                for port in device_data['mgmt_data_ports']
+                for port in device_data['mgmt_port_id']
                 for key in ['id',
                             'port_classification',
-                            'port_policy'])
+                            'port_model'])
         ):
             raise exceptions.IncompleteData()
 
@@ -459,13 +460,13 @@ class LifeCycleDriverBase(object):
 
         try:
             self._delete_interfaces(device_data,
-                                    device_data['mgmt_data_ports'])
+                                    device_data['mgmt_port_id'])
         except Exception:
             LOG.error(_('Failed to delete the management data port(s)'))
         else:
             self._decrement_stats_counter(
                                     'management_interfaces',
-                                    by=len(device_data['mgmt_data_ports']))
+                                    by=len(device_data['mgmt_port_id']))
 
     def get_network_function_device_status(self, device_data):
         """ Get the status of NFD
@@ -539,7 +540,7 @@ class LifeCycleDriverBase(object):
                 for port in device_data['ports']
                 for key in ['id',
                             'port_classification',
-                            'port_policy'])
+                            'port_model'])
         ):
             raise exceptions.IncompleteData()
 
@@ -560,7 +561,7 @@ class LifeCycleDriverBase(object):
         allowed_address_pairs = [{"ip_address": "0.0.0.0/0"}]
         try:
             for port in device_data['ports']:
-                if port['port_classification'].lower() == 'provider':
+                if port['port_classification'] == nfp_constants.PROVIDER:
                     port_id = self._get_port_id(port, token)
                     self.network_handler_neutron.update_port(
                                 token, port_id,
@@ -572,7 +573,7 @@ class LifeCycleDriverBase(object):
                                 port_id)
                     break
             for port in device_data['ports']:
-                if port['port_classification'].lower() == 'consumer':
+                if port['port_classification'] == nfp_constants.CONSUMER:
                     port_id = self._get_port_id(port, token)
                     self.network_handler_neutron.update_port(
                                 token, port_id,
@@ -616,7 +617,7 @@ class LifeCycleDriverBase(object):
                 for port in device_data['ports']
                 for key in ['id',
                             'port_classification',
-                            'port_policy'])
+                            'port_model'])
         ):
             raise exceptions.IncompleteData()
 

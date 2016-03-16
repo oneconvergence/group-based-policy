@@ -108,6 +108,10 @@ class NetworkFunctionDeviceNotFound(NotFound):
                 "not be found")
 
 
+class NFPPortNotFound(NotFound):
+    message = _("NFP Port %(port_id)s could not be found")
+
+
 class IncompleteData(NFPException):
     message = _("Data passed is incomplete")
 

@@ -17,6 +17,7 @@ import fixtures
 from neutron import context
 from neutron.tests import base
 
+from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.db import api as db_api
 from gbpservice.nfp.db import nfp_db
@@ -193,15 +194,15 @@ class NFPDBTestCase(SqlTestCase):
                 'network_function_id': self.create_network_function()['id'],
                 'network_function_device_id': nfd,
                 'ha_state': "Active",
-                'data_ports': [
-                    {'id': 'myid1',
-                     'port_policy': 'neutron',
-                     'port_classification': 'provider',
-                     'port_type': 'active'},
-                    {'id': 'myid2',
-                     'port_policy': 'gbp',
-                     'port_classification': 'consumer',
-                     'port_type': 'master'}
+                'port_info': [
+                    {'id': 'myportid1',
+                     'port_model': nfp_constants.NEUTRON_PORT,
+                     'port_classification': nfp_constants.PROVIDER,
+                     'port_role': nfp_constants.ACTIVE_PORT},
+                    {'id': 'myportid2',
+                     'port_model': nfp_constants.GBP_PORT,
+                     'port_classification': nfp_constants.CONSUMER,
+                     'port_role': nfp_constants.MASTER_PORT}
                 ],
                 'status': 'status'
             }
@@ -220,13 +221,13 @@ class NFPDBTestCase(SqlTestCase):
             'ha_state': 'Active',
             'port_info': [
                 {'id': 'my_nfi_port_id1',
-                 'port_policy': 'neutron',
-                 'port_classification': 'provider',
-                 'port_type': 'active'},
+                 'port_model': nfp_constants.NEUTRON_PORT,
+                 'port_classification': nfp_constants.PROVIDER,
+                 'port_role': nfp_constants.ACTIVE_PORT},
                 {'id': 'my_nfi_port_id2',
-                 'port_policy': 'gbp',
-                 'port_classification': 'consumer',
-                 'port_type': 'master'}
+                 'port_model': nfp_constants.GBP_PORT,
+                 'port_classification': nfp_constants.CONSUMER,
+                 'port_role': nfp_constants.MASTER_PORT}
             ],
             'status': 'status'
         }
@@ -268,13 +269,13 @@ class NFPDBTestCase(SqlTestCase):
             'ha_state': 'Active',
             'port_info': [
                 {'id': 'my_nfi_port_id1',
-                 'port_policy': 'neutron',
+                 'port_model': 'neutron',
                  'port_classification': 'provider',
-                 'port_type': 'active'},
+                 'port_role': 'active'},
                 {'id': 'my_nfi_port_id2',
-                 'port_policy': 'gbp',
+                 'port_model': 'gbp',
                  'port_classification': 'consumer',
-                 'port_type': 'master'}
+                 'port_role': 'master'}
             ],
             'status': 'status'
         }
@@ -314,12 +315,18 @@ class NFPDBTestCase(SqlTestCase):
 
     def test_delete_network_function_instance(self):
         network_function_instance = self.create_network_function_instance()
+        port_info = network_function_instance['port_info']
         self.assertIsNotNone(network_function_instance['id'])
         self.nfp_db.delete_network_function_instance(
             self.session, network_function_instance['id'])
         self.assertRaises(nfp_exc.NetworkFunctionInstanceNotFound,
                           self.nfp_db.get_network_function_instance,
                           self.session, network_function_instance['id'])
+        for port_id in port_info:
+            self.assertRaises(nfp_exc.NFPPortNotFound,
+                              self.nfp_db.get_port_info,
+                              self.session,
+                              port_id)
 
     def create_network_function_device(self, attributes=None):
         if attributes is None:
@@ -328,30 +335,25 @@ class NFPDBTestCase(SqlTestCase):
                 'description': 'description',
                 'tenant_id': 'tenant_id',
                 'mgmt_ip_address': 'mgmt_ip_address',
-                'ha_monitoring_data_port': {
+                'monitoring_port_id': {
                     'id': 'myid1_ha_port',
-                    'port_policy': 'neutron',
+                    'port_model': 'neutron',
                     'port_classification': 'monitoring',
-                    'port_type': 'active'
+                    'port_role': 'active'
                 },
-                'ha_monitoring_data_network': {
+                'monitoring_port_network': {
                     'id': 'mynetwork_id',
-                    'network_policy': 'neutron'
+                    'network_model': 'neutron'
                 },
                 'service_vendor': 'service_vendor',
                 'max_interfaces': 3,
                 'reference_count': 2,
                 'interfaces_in_use': 1,
-                'mgmt_data_ports': [
-                    {'id': 'myid1',
-                     'port_policy': 'neutron',
-                     'port_classification': 'management',
-                     'port_type': 'active'},
-                    {'id': 'myid2',
-                     'port_policy': 'gbp',
-                     'port_classification': 'management',
-                     'port_type': 'master'}
-                ],
+                'mgmt_port_id': {
+                    'id': 'myid1',
+                    'port_model': 'neutron',
+                    'port_classification': 'management',
+                    'port_role': 'active'},
                 'status': 'status'
             }
         return self.nfp_db.create_network_function_device(
@@ -363,30 +365,25 @@ class NFPDBTestCase(SqlTestCase):
             'description': 'description',
             'tenant_id': 'tenant_id',
             'mgmt_ip_address': 'mgmt_ip_address',
-            'ha_monitoring_data_port': {
+            'monitoring_port_id': {
                 'id': 'myid1_ha_port',
-                'port_policy': 'neutron',
+                'port_model': 'neutron',
                 'port_classification': 'monitoring',
-                'port_type': 'active'
+                'port_role': 'active'
             },
-            'ha_monitoring_data_network': {
+            'monitoring_port_network': {
                 'id': 'mynetwork_id',
-                'network_policy': 'neutron'
+                'network_model': 'neutron'
             },
             'service_vendor': 'service_vendor',
             'max_interfaces': 3,
             'reference_count': 2,
             'interfaces_in_use': 1,
-            'mgmt_data_ports': [
-                {'id': 'myid1',
-                 'port_policy': 'neutron',
-                 'port_classification': 'management',
-                 'port_type': 'active'},
-                {'id': 'myid2',
-                 'port_policy': 'gbp',
-                 'port_classification': 'management',
-                 'port_type': 'master'}
-            ],
+            'mgmt_port_id': {
+                'id': 'myid1',
+                'port_model': 'neutron',
+                'port_classification': 'management',
+                'port_role': 'active'},
             'status': 'status'
         }
         network_function_device = self.nfp_db.create_network_function_device(
@@ -411,11 +408,11 @@ class NFPDBTestCase(SqlTestCase):
         for key in attrs_mandatory:
             self.assertEqual(attrs_mandatory[key], nf_device[key])
         self.assertIsNotNone(nf_device['id'])
-        non_mandatory_args = ['ha_monitoring_data_port',
-                              'ha_monitoring_data_network']
+        non_mandatory_args = ['monitoring_port_id',
+                              'monitoring_port_network']
         for arg in non_mandatory_args:
             self.assertIsNone(nf_device[arg])
-        self.assertEqual([], nf_device['mgmt_data_ports'])
+        self.assertEqual(None, nf_device['mgmt_port_id'])
 
     def test_get_network_function_device(self):
         attrs = {
@@ -423,30 +420,25 @@ class NFPDBTestCase(SqlTestCase):
             'description': 'description',
             'tenant_id': 'tenant_id',
             'mgmt_ip_address': 'mgmt_ip_address',
-            'ha_monitoring_data_port': {
+            'monitoring_port_id': {
                 'id': 'myid1_ha_port',
-                'port_policy': 'neutron',
+                'port_model': 'neutron',
                 'port_classification': 'monitoring',
-                'port_type': 'active'
+                'port_role': 'active'
             },
-            'ha_monitoring_data_network': {
+            'monitoring_port_network': {
                 'id': 'mynetwork_id',
-                'network_policy': 'neutron'
+                'network_model': 'neutron'
             },
             'service_vendor': 'service_vendor',
             'max_interfaces': 3,
             'reference_count': 2,
             'interfaces_in_use': 1,
-            'mgmt_data_ports': [
-                {'id': 'myid1',
-                 'port_policy': 'neutron',
-                 'port_classification': 'management',
-                 'port_type': 'active'},
-                {'id': 'myid2',
-                 'port_policy': 'gbp',
-                 'port_classification': 'management',
-                 'port_type': 'master'}
-            ],
+            'mgmt_port_id': {
+                'id': 'myid1',
+                'port_model': 'neutron',
+                'port_classification': 'management',
+                'port_role': 'active'},
             'status': 'status'
         }
         network_function_device = self.nfp_db.create_network_function_device(
@@ -479,30 +471,25 @@ class NFPDBTestCase(SqlTestCase):
             'description': 'description',
             'tenant_id': 'tenant_id',
             'mgmt_ip_address': 'mgmt_ip_address',
-            'ha_monitoring_data_port': {
+            'monitoring_port_id': {
                 'id': 'myid1_ha_port',
-                'port_policy': 'neutron',
+                'port_model': 'neutron',
                 'port_classification': 'monitoring',
-                'port_type': 'active'
+                'port_role': 'active'
             },
-            'ha_monitoring_data_network': {
+            'monitoring_port_network': {
                 'id': 'mynetwork_id',
-                'network_policy': 'neutron'
+                'network_model': 'neutron'
             },
             'service_vendor': 'service_vendor',
             'max_interfaces': 3,
             'reference_count': 2,
             'interfaces_in_use': 1,
-            'mgmt_data_ports': [
-                {'id': 'myid1',
-                 'port_policy': 'neutron',
-                 'port_classification': 'management',
-                 'port_type': 'active'},
-                {'id': 'myid2',
-                 'port_policy': 'gbp',
-                 'port_classification': 'management',
-                 'port_type': 'master'}
-            ],
+            'mgmt_port_id': {
+                'id': 'myid1',
+                'port_model': 'neutron',
+                'port_classification': 'management',
+                'port_role': 'active'},
             'status': 'status'
         }
         network_function_device = self.nfp_db.create_network_function_device(
@@ -525,36 +512,35 @@ class NFPDBTestCase(SqlTestCase):
             if key != 'name':
                 self.assertEqual(attrs[key], updated_nfd[key])
 
-        # Update mgmt ports
+        # Update mgmt port
         updated_network_function_device = {
-            'mgmt_data_ports': [
-                {'id': 'myid3',
-                 'port_policy': 'neutron',
-                 'port_classification': 'management',
-                 'port_type': 'active'},
-                {'id': 'myid4',
-                 'port_policy': 'gbp',
-                 'port_classification': 'management',
-                 'port_type': 'master'}
-            ],
+            'mgmt_port_id': {
+                'id': 'myid3',
+                'port_model': 'neutron',
+                'port_classification': 'management',
+                'port_role': 'active'},
             'name': 'name'
         }
         updated_nfd = self.nfp_db.update_network_function_device(
             self.session,
             network_function_device['id'],
             copy.deepcopy(updated_network_function_device))
-        self.assertEqual(updated_nfd['mgmt_data_ports'],
-                         ['myid3', 'myid4'])
-        del updated_nfd['mgmt_data_ports']
+        self.assertEqual(updated_nfd['mgmt_port_id'], 'myid3')
+        del updated_nfd['mgmt_port_id']
         for key in attrs:
-            if key != 'mgmt_data_ports':
+            if key != 'mgmt_port_id':
                 self.assertEqual(attrs[key], updated_nfd[key])
 
     def test_delete_network_function_device(self):
         network_function_device = self.create_network_function_device()
+        mgmt_port_id = network_function_device['mgmt_port_id']
         self.assertIsNotNone(network_function_device['id'])
         self.nfp_db.delete_network_function_device(
             self.session, network_function_device['id'])
         self.assertRaises(nfp_exc.NetworkFunctionDeviceNotFound,
                           self.nfp_db.get_network_function_device,
                           self.session, network_function_device['id'])
+        self.assertRaises(nfp_exc.NFPPortNotFound,
+                          self.nfp_db.get_port_info,
+                          self.session,
+                          mgmt_port_id)

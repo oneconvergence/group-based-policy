@@ -95,9 +95,9 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             for port in port_info:
                 port_info_db = nfp_db_model.PortInfo(
                     id=port['id'],
-                    port_policy=port['port_policy'],
+                    port_model=port['port_model'],
                     port_classification=port.get('port_classification'),
-                    port_type=port.get('port_type'))
+                    port_role=port.get('port_role'))
                 session.add(port_info_db)
                 session.flush()  # Any alternatives for flush ??
                 assoc = nfp_db_model.NSIPortAssociation(
@@ -160,6 +160,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         with session.begin(subtransactions=True):
             network_function_instance_db = self._get_network_function_instance(
                 session, network_function_instance_id)
+            for port in network_function_instance_db.port_info:
+                self.delete_port_info(session, port['data_port_id'])
             session.delete(network_function_instance_db)
 
     def get_network_function_instance(self, session,
@@ -181,71 +183,66 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             filters=filters, fields=fields, sorts=sorts, limit=limit,
             marker_obj=marker_obj, page_reverse=page_reverse)
 
-    def _set_mgmt_ports_for_nfd(self, session, network_function_device_db,
-                                network_function_device, is_update=False):
+    def _set_mgmt_port_for_nfd(self, session, network_function_device_db,
+                               network_function_device, is_update=False):
         nfd_db = network_function_device_db
-        mgmt_data_ports = network_function_device.get('mgmt_data_ports')
-        if not mgmt_data_ports:
-            nfd_db.mgmt_data_ports = []
-            return
-        with session.begin(subtransactions=True):
-            nfd_db.mgmt_data_ports = []
-            for port in mgmt_data_ports:
-                port_info_db = nfp_db_model.PortInfo(
-                    id=port['id'],
-                    port_policy=port['port_policy'],
-                    port_classification=port['port_classification'],
-                    port_type=port['port_type'])
-                if is_update:
-                    session.merge(port_info_db)
-                else:
-                    session.add(port_info_db)
-                assoc = nfp_db_model.NSDPortAssociation(
-                    network_function_device_id=network_function_device_db[
-                        'id'],
-                    data_port_id=port['id'])
-                nfd_db.mgmt_data_ports.append(assoc)
-            del network_function_device['mgmt_data_ports']
-
-    def _set_ha_monitoring_data_port_for_nfd(self, session,
-                                             network_function_device_db,
-                                             network_function_device):
-        nfd_db = network_function_device_db
-        ha_monitoring_data_port = network_function_device.get(
-            'ha_monitoring_data_port')
-        if not ha_monitoring_data_port:
-            nfd_db.ha_monitoring_data_port = None
+        mgmt_port_id = network_function_device.get('mgmt_port_id')
+        if not mgmt_port_id:
+            nfd_db.mgmt_port_id = None
             return
         with session.begin(subtransactions=True):
             port_info_db = nfp_db_model.PortInfo(
-                id=ha_monitoring_data_port['id'],
-                port_policy=ha_monitoring_data_port['port_policy'],
-                port_classification=ha_monitoring_data_port[
+                id=mgmt_port_id['id'],
+                port_model=mgmt_port_id['port_model'],
+                port_classification=mgmt_port_id['port_classification'],
+                port_role=mgmt_port_id['port_role'])
+            if is_update:
+                session.merge(port_info_db)
+            else:
+                session.add(port_info_db)
+            session.flush()
+            nfd_db.mgmt_port_id = port_info_db['id']
+            del network_function_device['mgmt_port_id']
+
+    def _set_monitoring_port_id_for_nfd(self, session,
+                                        network_function_device_db,
+                                        network_function_device):
+        nfd_db = network_function_device_db
+        monitoring_port_id = network_function_device.get(
+            'monitoring_port_id')
+        if not monitoring_port_id:
+            nfd_db.monitoring_port_id = None
+            return
+        with session.begin(subtransactions=True):
+            port_info_db = nfp_db_model.PortInfo(
+                id=monitoring_port_id['id'],
+                port_model=monitoring_port_id['port_model'],
+                port_classification=monitoring_port_id[
                     'port_classification'],
-                port_type=ha_monitoring_data_port['port_type'])
+                port_role=monitoring_port_id['port_role'])
             session.add(port_info_db)
             session.flush()
-            nfd_db.ha_monitoring_data_port = ha_monitoring_data_port['id']
-            del network_function_device['ha_monitoring_data_port']
+            nfd_db.monitoring_port_id = monitoring_port_id['id']
+            del network_function_device['monitoring_port_id']
 
-    def _set_ha_monitoring_data_network_for_nfd(self, session,
+    def _set_monitoring_port_network_for_nfd(self, session,
                                                 network_function_device_db,
                                                 network_function_device):
         nfd_db = network_function_device_db
-        ha_monitoring_data_network = network_function_device.get(
-            'ha_monitoring_data_network')
-        if not ha_monitoring_data_network:
-            nfd_db.ha_monitoring_data_network = None
+        monitoring_port_network = network_function_device.get(
+            'monitoring_port_network')
+        if not monitoring_port_network:
+            nfd_db.monitoring_port_network = None
             return
         with session.begin(subtransactions=True):
             network_info_db = nfp_db_model.NetworkInfo(
-                id=ha_monitoring_data_network['id'],
-                network_policy=ha_monitoring_data_network['network_policy'])
+                id=monitoring_port_network['id'],
+                network_model=monitoring_port_network['network_model'])
             session.add(network_info_db)
             session.flush()
-            nfd_db.ha_monitoring_data_network = (
-                ha_monitoring_data_network['id'])
-            del network_function_device['ha_monitoring_data_network']
+            nfd_db.monitoring_port_network = (
+                monitoring_port_network['id'])
+            del network_function_device['monitoring_port_network']
 
     def create_network_function_device(self, session, network_function_device):
         with session.begin(subtransactions=True):
@@ -255,7 +252,6 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                 name=network_function_device['name'],
                 description=network_function_device.get('description'),
                 tenant_id=network_function_device['tenant_id'],
-                cluster_id=network_function_device.get('cluster_id'),
                 mgmt_ip_address=network_function_device[
                     'mgmt_ip_address'],
                 service_vendor=network_function_device.get('service_vendor'),
@@ -264,11 +260,11 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                 interfaces_in_use=network_function_device['interfaces_in_use'],
                 status=network_function_device['status'])
             session.add(network_function_device_db)
-            self._set_mgmt_ports_for_nfd(
+            self._set_mgmt_port_for_nfd(
                 session, network_function_device_db, network_function_device)
-            self._set_ha_monitoring_data_port_for_nfd(
+            self._set_monitoring_port_id_for_nfd(
                 session, network_function_device_db, network_function_device)
-            self._set_ha_monitoring_data_network_for_nfd(
+            self._set_monitoring_port_network_for_nfd(
                 session, network_function_device_db, network_function_device)
             return self._make_network_function_device_dict(
                 network_function_device_db)
@@ -290,19 +286,19 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         with session.begin(subtransactions=True):
             network_function_device_db = self._get_network_function_device(
                 session, network_function_device_id)
-            if updated_network_function_device.get('mgmt_data_ports'):
-                self._set_mgmt_ports_for_nfd(
+            if updated_network_function_device.get('mgmt_port_id'):
+                self._set_mgmt_port_for_nfd(
                     session,
                     network_function_device_db,
                     updated_network_function_device,
                     is_update=True)
-            if 'ha_monitoring_data_port' in updated_network_function_device:
-                self._set_ha_monitoring_data_port_for_nfd(
+            if 'monitoring_port_id' in updated_network_function_device:
+                self._set_monitoring_port_id_for_nfd(
                     session,
                     network_function_device_db,
                     updated_network_function_device)
-            if 'ha_monitoring_data_network' in updated_network_function_device:
-                self._set_ha_monitoring_data_network_for_nfd(
+            if 'monitoring_port_network' in updated_network_function_device:
+                self._set_monitoring_port_network_for_nfd(
                     session,
                     network_function_device_db,
                     updated_network_function_device)
@@ -315,6 +311,17 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         with session.begin(subtransactions=True):
             network_function_device_db = self._get_network_function_device(
                 session, network_function_device_id)
+            if network_function_device_db.mgmt_port_id:
+                self.delete_port_info(session,
+                                      network_function_device_db.mgmt_port_id)
+            if network_function_device_db.monitoring_port_id:
+                self.delete_port_info(
+                    session,
+                    network_function_device_db.monitoring_port_id)
+            if network_function_device_db.monitoring_port_network:
+                self.delete_network_info(
+                    session,
+                    network_function_device_db.monitoring_port_network)
             session.delete(network_function_device_db)
 
     def get_network_function_device(self, session, network_function_device_id,
@@ -342,8 +349,21 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         return self._make_port_info_dict(port_info, fields)
 
     def _get_port_info(self, session, port_id):
-        return self._get_by_id(
-            session, nfp_db_model.PortInfo, port_id)
+        try:
+            return self._get_by_id(
+                session, nfp_db_model.PortInfo, port_id)
+        except exc.NoResultFound:
+            raise nfp_exc.NFPPortNotFound(port_id=port_id)
+
+    def delete_port_info(self, session, port_id):
+        with session.begin(subtransactions=True):
+            port_info_db = self._get_port_info(session, port_id)
+            session.delete(port_info_db)
+
+    def delete_network_info(self, session, network_id):
+        with session.begin(subtransactions=True):
+            network_info_db = self._get_network_info(session, network_id)
+            session.delete(network_info_db)
 
     def get_network_info(self, session, network_id, fields=None):
         network_info = self._get_network_info(session, network_id)
@@ -357,15 +377,15 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         res = {
             'id': port_info['id'],
             'port_classification': port_info['port_classification'],
-            'port_policy': port_info['port_policy'],
-            'port_type': port_info['port_type']
+            'port_model': port_info['port_model'],
+            'port_role': port_info['port_role']
         }
         return res
 
     def _make_network_info_dict(self, network_info, fields):
         res = {
             'id': network_info['id'],
-            'network_policy': network_info['network_policy'],
+            'network_model': network_info['network_model'],
         }
         return res
 
@@ -405,16 +425,14 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                'tenant_id': nfd['tenant_id'],
                'name': nfd['name'],
                'description': nfd['description'],
-               'cluster_id': nfd['cluster_id'],
                'mgmt_ip_address': nfd['mgmt_ip_address'],
-               'ha_monitoring_data_port': nfd['ha_monitoring_data_port'],
-               'ha_monitoring_data_network': nfd['ha_monitoring_data_network'],
+               'mgmt_port_id': nfd['mgmt_port_id'],
+               'monitoring_port_id': nfd['monitoring_port_id'],
+               'monitoring_port_network': nfd['monitoring_port_network'],
                'service_vendor': nfd['service_vendor'],
                'max_interfaces': nfd['max_interfaces'],
                'reference_count': nfd['reference_count'],
                'interfaces_in_use': nfd['interfaces_in_use'],
                'status': nfd['status']
                }
-        res['mgmt_data_ports'] = [
-            port['data_port_id'] for port in nfd['mgmt_data_ports']]
         return res
