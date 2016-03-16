@@ -111,9 +111,9 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
         """
 
         ev = self.sc.new_event(id=event_id, data=data)
-        # ev.key = key
-        # ev.serialize = serialize
-        # ev.binding_key = binding_key
+        ev.key = key
+        ev.serialize = serialize
+        ev.binding_key = binding_key
         self.sc.post_event(ev)
 
     def create_vip(self, context, vip):
@@ -395,7 +395,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         Returns: None
 
         """
-        LOG.info(" ###### Handling event=%s ########" % (ev.id))
+        LOG.info("###### Handling event=%s ########" % (ev.id))
         try:
             msg = ("Worker process with ID: %s starting "
                    "to handle task: %s of topic: %s. "
@@ -414,7 +414,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 """
                 pass
             else:
-                LOG.info(" ###### calling event done for ev=%s" % (ev.id))
+                LOG.info("###### Calling event done for ev=%s######" % (ev.id))
                 self.sc.event_done(ev)
 
     def _handle_event_vip(self, ev, operation):
