@@ -63,7 +63,7 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
                    ]
         device_data = {'ports': [{'id': '2',
                                   'port_classification': 'provider',
-                                  'port_policy': 'gbp'}]
+                                  'port_model': 'gbp'}]
                        }
         self.assertIsNotNone(driver.select_network_function_device(
                                                                 devices,
@@ -75,7 +75,7 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
         # test to get device when max interfaces is not permissible
         device_data['ports'].append({'id': '3',
                                      'port_classification': 'consumer',
-                                     'port_policy': 'gbp'})
+                                     'port_model': 'gbp'})
         self.assertIsNone(driver.select_network_function_device(devices,
                                                                 device_data),
                           msg=('Device sharing is broken with respect to'
@@ -118,15 +118,15 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
 
         # test for create device when interface hotplug is enabled
         device_data = {'tenant_id': '1',
-                       'network_policy': 'gbp',
+                       'network_model': 'gbp',
                        'service_vendor': 'vyos',
                        'management_network_info': {'id': '2'},
                        'compute_policy': 'xyz',
                        'ports': [{'id': '3',
-                                  'port_policy': 'gbp',
+                                  'port_model': 'gbp',
                                   'port_classification': 'provider'},
                                  {'id': '4',
-                                  'port_policy': 'gbp',
+                                  'port_model': 'gbp',
                                   'port_classification': 'consumer'}]}
         self.assertRaises(Exception,
                           driver.create_network_function_device,
@@ -171,8 +171,8 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
         device_data = {'id': '1',
                        'tenant_id': '2',
                        'compute_policy': 'xyz',
-                       'mgmt_data_ports': [{'id': '3',
-                                            'port_policy': 'gbp',
+                       'mgmt_port_id': [{'id': '3',
+                                            'port_model': 'gbp',
                                             'port_classification': 'mgmt'}]}
         driver.stats['instances'] = 1
         driver.stats['management_interfaces'] = 1
@@ -240,10 +240,10 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
                        'tenant_id': '2',
                        'compute_policy': 'xyz',
                        'ports': [{'id': '3',
-                                  'port_policy': 'gbp',
+                                  'port_model': 'gbp',
                                   'port_classification': 'provider'},
                                  {'id': '4',
-                                  'port_policy': 'neutron',
+                                  'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
         self.assertRaises(Exception,
                           driver.plug_network_function_device_interfaces,
@@ -285,10 +285,10 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
                        'tenant_id': '2',
                        'compute_policy': 'xyz',
                        'ports': [{'id': '3',
-                                  'port_policy': 'gbp',
+                                  'port_model': 'gbp',
                                   'port_classification': 'provider'},
                                  {'id': '4',
-                                  'port_policy': 'neutron',
+                                  'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
         self.assertRaises(Exception,
                           driver.unplug_network_function_device_interfaces,
@@ -343,7 +343,7 @@ class VyosLifecycleDriverTestCase(unittest.TestCase):
         device_data = {'service_vendor': 'vyos',
                        'mgmt_ip_address': 'a.b.c.d',
                        'ports': [{'id': '3',
-                                  'port_policy': 'gbp',
+                                  'port_model': 'gbp',
                                   'port_classification': 'provider'}],
                        'service_type': 'firewall',
                        'network_function_id': '4',
