@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.lifecycle_manager.compute.drivers import (
+from gbpservice.nfp.orchestrator.compute.drivers import (
     nova_driver)
 
 

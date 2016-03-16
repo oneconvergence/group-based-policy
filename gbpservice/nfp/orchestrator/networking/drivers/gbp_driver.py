@@ -12,12 +12,12 @@
 
 from oslo_log import log as logging
 
-from gbpservice.nfp.lifecycle_manager.networking.drivers import (
+from gbpservice.nfp.orchestrator.networking.drivers import (
     networking_driver_base)
 
 
 LOG = logging.getLogger(__name__)
 
 
-class NeutronDriver(networking_driver_base.NetworkDriverBase):
+class GBPDriver(networking_driver_base.NetworkDriverBase):
     pass

@@ -156,7 +156,7 @@ class NFPClientApi(object):
 
     def create_network_function(self, context, network_function):
         cctxt = self.client.prepare(
-            fanout=False, topic=nfp_rpc_topics.NFP_SERVICE_LCM_TOPIC)
+            fanout=False, topic=nfp_rpc_topics.NFP_NSO_TOPIC)
         return cctxt.call(
             context,
             'create_network_function',
@@ -282,7 +282,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         return self.conn.consume_in_threads()
 
     def _setup_rpc(self):
-        self.nfp_notifier = NFPClientApi(nfp_rpc_topics.NFP_SERVICE_LCM_TOPIC)
+        self.nfp_notifier = NFPClientApi(nfp_rpc_topics.NFP_NSO_TOPIC)
 
     def get_plumbing_info(self, context):
         context._plugin_context = self._get_resource_owner_context(
