@@ -1,3 +1,14 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
 import os
 import oslo_messaging as messaging
@@ -21,17 +32,6 @@ rest_timeout = [
         help=_("rest api timeout"))]
 cfg.CONF.register_opts(rest_timeout)
 
-OPTS = [
-    cfg.IntOpt('oc_periodic_interval', default=10, help='Define periodic '
-                                                        'interval for tasks'),
-    cfg.IntOpt('oc_report_interval', default=10,
-               help='Reporting interval from agent to firewall plugin')
-]
-GROUP_OPTS = cfg.OptGroup(name='ocfwaas', title='OC FW OPTIONS')
-cfg.CONF.register_group(GROUP_OPTS)
-cfg.CONF.register_opts(OPTS, group=GROUP_OPTS)
-
-
 """ Implements Fwaas response path to Neutron plugin.
 
 Methods of this class are invoked by the FwaasEventHandler class
@@ -40,19 +40,11 @@ for sending response from driver to the Fwaas Neutron plugin.
 """
 
 
-class FwaasRpcSender(object):
+class FwaasRpcSender(agent_base.AgentBaseEventHandler):
 
-    def __init__(self, sc, host):
-        self.sc = sc
+    def __init__(self, sc, host, drivers, rpcmgr):
+        super(FwaasRpcSender, self).__init__(sc, drivers, rpcmgr)
         self.host = host
-
-    def _notification(self, data):
-        msg = ("Sending notification data for firewall: %r" % data)
-        LOG.debug(msg)
-        event = self.sc.new_event(
-            id=const.NOTIFICATION_EVENT,
-            key=const.NOTIFICATION_EVENT, data=data)
-        self.sc.poll_event(event)
 
     def set_firewall_status(self, context, firewall_id, status):
         """ Enqueues the response from FwaaS operation to neutron plugin.
@@ -71,7 +63,7 @@ class FwaasRpcSender(object):
                           'firewall_id': firewall_id,
                           'status': status}
                }
-        self._notification(msg)
+        self.notify._notification(msg)
 
     def firewall_deleted(self, context, firewall_id):
         """ Enqueues the response from FwaaS operation to neutron plugin.
@@ -88,7 +80,7 @@ class FwaasRpcSender(object):
                           'host': self.host,
                           'firewall_id': firewall_id}
                }
-        self._notification(msg)
+        self.notify._notification(msg)
 
 """ Implements FWaasRpcManager class which receives requests
     from Configurator to Agent.
@@ -184,7 +176,8 @@ class FWaasEventHandler(object):
         self.drivers = drivers
         self.host = cfg.CONF.host
         self.rpcmgr = rpcmgr
-        self.plugin_rpc = FwaasRpcSender(sc, self.host)
+        self.plugin_rpc = FwaasRpcSender(sc, self.host,
+                                         self.drivers, self.rpcmgr)
 
     def _get_driver(self):
         """ Retrieves driver object given the service type

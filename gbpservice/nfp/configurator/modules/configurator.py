@@ -260,7 +260,9 @@ class ConfiguratorRpcManager(object):
 
         """
 
-        notifications = self.sc.get_notification()
+        notifications = self.sc.get_stash_event()
+        if notifications:
+            LOG.info("GET NOTIFICATIONS API SENDING DATA: %r" % notifications)
         return [notifications]
 
 """Implements configurator module APIs.
