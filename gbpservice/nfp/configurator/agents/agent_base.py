@@ -109,8 +109,8 @@ class AgentBaseNotification(object):
         """
 
         event = self.sc.new_event(
-            id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
-        self.sc.poll_event(event)
+            id='STASH_EVENT', key='STASH_EVENT', data=data)
+        self.sc.stash_event(event)
 
 
 class AgentBaseEventHandler(object):
