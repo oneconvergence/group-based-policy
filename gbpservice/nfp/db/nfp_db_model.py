@@ -20,6 +20,7 @@ from sqlalchemy.ext import declarative
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import orm
 
+from gbpservice.nfp.common import constants as nfp_constants
 
 TENANT_ID_MAX_LEN = 255
 DESCRIPTION_MAX_LEN = 255
@@ -52,7 +53,7 @@ class HasStatusDescription(HasStatus):
 
 
 # Do we need anything to be overridden from modelBase ??
-class ServiceManagerBase(models.ModelBase):
+class NetworkFunctionBase(models.ModelBase):
     """Base class for NFP Models."""
 
     __table_args__ = {'mysql_engine': 'InnoDB'}
@@ -80,74 +81,64 @@ class ServiceManagerBase(models.ModelBase):
         return cls.__name__.lower() + 's'
 
 
-BASE = declarative_base(cls=ServiceManagerBase)
+BASE = declarative_base(cls=NetworkFunctionBase)
 
 
 class PortInfo(BASE, HasId, HasTenant):
     """Represents the Port Information"""
-    __tablename__ = 'port_infos'
+    __tablename__ = 'nfp_port_infos'
 
-    port_policy = sa.Column(sa.String(36))  # neutron_port, gbp_policy_target
-    port_classification = sa.Column(sa.String(36))  # provider/consumer
-    port_type = sa.Column(sa.String(36))  # active/standby/master
+    port_model = sa.Column(sa.Enum(nfp_constants.NEUTRON_PORT,
+                                   nfp_constants.GBP_PORT,
+                                   name='port_model'))
+    port_classification = sa.Column(sa.Enum(nfp_constants.PROVIDER,
+                                            nfp_constants.CONSUMER,
+                                            nfp_constants.MANAGEMENT,
+                                            name='port_classification'))
+    port_role = sa.Column(sa.Enum(nfp_constants.ACTIVE_PORT,
+                                  nfp_constants.STANDBY_PORT,
+                                  nfp_constants.MASTER_PORT,
+                                  name='port_role'),
+                          nullable=True)
 
 
 class NetworkInfo(BASE, HasId, HasTenant):
     """Represents the Network Service Instance"""
-    __tablename__ = 'network_infos'
+    __tablename__ = 'nfp_network_infos'
 
-    network_policy = sa.Column(sa.String(36))  # neutron_network, gbp_group
+    network_model = sa.Column(sa.Enum(nfp_constants.NEUTRON_NETWORK,
+                                      nfp_constants.GBP_NETWORK,
+                                      name='network_model'),
+                              nullable=False)
 
 
 class NSIPortAssociation(BASE):
     """One to many relation between NSIs and DataPorts."""
-    __tablename__ = 'nfi_dataport_associations'
+    __tablename__ = 'nfp_nfi_dataport_associations'
 
     network_function_instance_id = sa.Column(
         sa.String(36),
-        sa.ForeignKey('network_function_instances.id'), primary_key=True)
+        sa.ForeignKey('nfp_network_function_instances.id'), primary_key=True)
     data_port_id = sa.Column(sa.String(36),
-                             sa.ForeignKey('port_infos.id'), primary_key=True)
-
-
-class NSDPortAssociation(BASE):
-    """One to many relation between NSDs and DataPorts."""
-    __tablename__ = 'nfd_dataport_associations'
-
-    network_function_device_id = sa.Column(
-        sa.String(36),
-        sa.ForeignKey('network_function_devices.id'), primary_key=True)
-    data_port_id = sa.Column(sa.String(36),
-                             sa.ForeignKey('port_infos.id'),
+                             sa.ForeignKey('nfp_port_infos.id',
+                                           ondelete='CASCADE'),
                              primary_key=True)
 
 
-class NSDNetworkAssociation(BASE):
-    """One to many relation between NSDs and DataNetworks."""
-    __tablename__ = 'nfd_datanetwork_associations'
-
-    network_function_device_id = sa.Column(
-        sa.String(36),
-        sa.ForeignKey('network_function_devices.id'), primary_key=True)
-    data_network_id = sa.Column(sa.String(36),
-                                sa.ForeignKey('network_infos.id'),
-                                primary_key=True)
-
-
 class NetworkFunctionInstance(BASE, HasId, HasTenant, HasStatusDescription):
-    """Represents the Network Service Instance"""
-    __tablename__ = 'network_function_instances'
+    """Represents the Network Function Instance"""
+    __tablename__ = 'nfp_network_function_instances'
 
     name = sa.Column(sa.String(255))
     description = sa.Column(sa.String(255))
     ha_state = sa.Column(sa.String(255))
     network_function_id = sa.Column(
         sa.String(36),
-        sa.ForeignKey('network_functions.id', ondelete="SET NULL"),
+        sa.ForeignKey('nfp_network_functions.id', ondelete="SET NULL"),
         nullable=True)
     network_function_device_id = sa.Column(
         sa.String(36),
-        sa.ForeignKey('network_function_devices.id', ondelete="SET NULL"),
+        sa.ForeignKey('nfp_network_function_devices.id', ondelete="SET NULL"),
         nullable=True)
     port_info = orm.relationship(
         NSIPortAssociation,
@@ -155,8 +146,8 @@ class NetworkFunctionInstance(BASE, HasId, HasTenant, HasStatusDescription):
 
 
 class NetworkFunction(BASE, HasId, HasTenant, HasStatusDescription):
-    """Represents the Network Service object"""
-    __tablename__ = 'network_functions'
+    """Represents the Network Function object"""
+    __tablename__ = 'nfp_network_functions'
 
     name = sa.Column(sa.String(255))
     description = sa.Column(sa.String(255))
@@ -167,27 +158,28 @@ class NetworkFunction(BASE, HasId, HasTenant, HasStatusDescription):
     heat_stack_id = sa.Column(sa.String(36), nullable=True)
     network_function_instances = orm.relationship(
         NetworkFunctionInstance,
-        backref='network_function_instance')
+        backref='network_function')
 
 
 class NetworkFunctionDevice(BASE, HasId, HasTenant, HasStatusDescription):
-    """Represents the Network Service Device"""
-    __tablename__ = 'network_function_devices'
+    """Represents the Network Function Device"""
+    __tablename__ = 'nfp_network_function_devices'
 
     name = sa.Column(sa.String(255))
     description = sa.Column(sa.String(255))
-    cluster_id = sa.Column(sa.String(36), nullable=True)
     mgmt_ip_address = sa.Column(sa.String(36), nullable=True)
-    mgmt_data_ports = orm.relationship(
-        NSDPortAssociation,
-        backref='network_function_device_mgmt_ports',
-        cascade='all, delete-orphan')
-    ha_monitoring_data_port = sa.Column(sa.String(36),
-                                        sa.ForeignKey('port_infos.id'),
+    mgmt_port_id = sa.Column(sa.String(36),
+                             sa.ForeignKey('nfp_port_infos.id',
+                                           ondelete= 'SET NULL'),
+                             nullable=True)
+    monitoring_port_id = sa.Column(sa.String(36),
+                                   sa.ForeignKey('nfp_port_infos.id',
+                                                 ondelete= 'SET NULL'),
+                                   nullable=True)
+    monitoring_port_network = sa.Column(sa.String(36),
+                                        sa.ForeignKey('nfp_network_infos.id',
+                                                      ondelete= 'SET NULL'),
                                         nullable=True)
-    ha_monitoring_data_network = sa.Column(sa.String(36),
-                                           sa.ForeignKey('network_infos.id'),
-                                           nullable=True)
     service_vendor = sa.Column(sa.String(36), nullable=False, index=True)
     max_interfaces = sa.Column(sa.Integer(), nullable=False)
     reference_count = sa.Column(sa.Integer(), nullable=False)

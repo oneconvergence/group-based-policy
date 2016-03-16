@@ -27,29 +27,49 @@ down_revision = '3791adbf0045'
 from alembic import op
 import sqlalchemy as sa
 
+from gbpservice.nfp.common import constants as nfp_constants
+
 
 def upgrade():
 
     op.create_table(
-        'port_infos',
+        'nfp_port_infos',
         sa.Column('tenant_id', sa.String(length=255), nullable=True),
         sa.Column('id', sa.String(length=36), nullable=False),
-        sa.Column('port_policy', sa.String(length=36), nullable=True),
-        sa.Column('port_classification', sa.String(length=36), nullable=True),
-        sa.Column('port_type', sa.String(length=36), nullable=True),
+        sa.Column('port_model',
+                  sa.Enum(nfp_constants.NEUTRON_PORT,
+                          nfp_constants.GBP_PORT,
+                          name='port_model'),
+                   nullable=False),
+        sa.Column('port_classification',
+                  sa.Enum(nfp_constants.PROVIDER,
+                          nfp_constants.CONSUMER,
+                          nfp_constants.MANAGEMENT,
+                          name='port_classification'),
+                  nullable=False),
+        sa.Column('port_role',
+                  sa.Enum(nfp_constants.ACTIVE_PORT,
+                          nfp_constants.STANDBY_PORT,
+                          nfp_constants.MASTER_PORT,
+                          name='port_role'),
+                  nullable=True),
         sa.PrimaryKeyConstraint('id')
     )
 
     op.create_table(
-        'network_infos',
+        'nfp_network_infos',
         sa.Column('tenant_id', sa.String(length=255), nullable=True),
         sa.Column('id', sa.String(length=36), nullable=False),
-        sa.Column('network_policy', sa.String(length=36), nullable=True),
+        sa.Column('network_model',
+                  sa.Enum(nfp_constants.NEUTRON_NETWORK,
+                          nfp_constants.GBP_NETWORK,
+                          name='network_model'),
+                  nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
 
     op.create_table(
-        'network_functions',
+        'nfp_network_functions',
         sa.Column('tenant_id', sa.String(length=255), nullable=True),
         sa.Column('id', sa.String(length=36), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=True),
@@ -65,34 +85,41 @@ def upgrade():
     )
 
     op.create_table(
-        'network_function_devices',
+        'nfp_network_function_devices',
         sa.Column('tenant_id', sa.String(length=255), nullable=True),
         sa.Column('id', sa.String(length=36), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=True),
         sa.Column('description', sa.String(length=255), nullable=True),
         sa.Column('status', sa.String(length=50), nullable=True),
         sa.Column('status_description', sa.String(length=255), nullable=True),
-        sa.Column('cluster_id', sa.String(length=36), nullable=True),
         sa.Column('mgmt_ip_address', sa.String(length=36), nullable=True),
-        sa.Column('ha_monitoring_data_port',
+        sa.Column('mgmt_port_id',
                   sa.String(length=36),
                   nullable=True),
-        sa.Column('ha_monitoring_data_network',
+        sa.Column('monitoring_port_id',
+                  sa.String(length=36),
+                  nullable=True),
+        sa.Column('monitoring_port_network',
                   sa.String(length=36),
                   nullable=True),
         sa.Column('service_vendor', sa.String(length=36), nullable=True),
         sa.Column('max_interfaces', sa.Integer(), nullable=True),
         sa.Column('reference_count', sa.Integer(), nullable=True),
         sa.Column('interfaces_in_use', sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(['ha_monitoring_data_network'],
-                                ['network_infos.id']),
-        sa.ForeignKeyConstraint(['ha_monitoring_data_port'],
-                                ['port_infos.id']),
+        sa.ForeignKeyConstraint(['mgmt_port_id'],
+                                ['nfp_port_infos.id'],
+                                ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['monitoring_port_network'],
+                                ['nfp_network_infos.id'],
+                                ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['monitoring_port_id'],
+                                ['nfp_port_infos.id'],
+                                ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id')
     )
 
     op.create_table(
-        'network_function_instances',
+        'nfp_network_function_instances',
         sa.Column('tenant_id', sa.String(length=255), nullable=True),
         sa.Column('id', sa.String(length=36), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=True),
@@ -105,49 +132,25 @@ def upgrade():
                   sa.String(length=36),
                   nullable=True),
         sa.ForeignKeyConstraint(['network_function_device_id'],
-                                ['network_function_devices.id'],
+                                ['nfp_network_function_devices.id'],
                                 ondelete='SET NULL'),
         sa.ForeignKeyConstraint(['network_function_id'],
-                                ['network_functions.id'],
+                                ['nfp_network_functions.id'],
                                 ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id')
     )
 
     op.create_table(
-        'nfi_dataport_associations',
+        'nfp_nfi_dataport_associations',
         sa.Column('network_function_instance_id',
                   sa.String(length=36),
                   nullable=True),
         sa.Column('data_port_id', sa.String(length=36), nullable=False),
         sa.ForeignKeyConstraint(['network_function_instance_id'],
-                                ['network_function_instances.id']),
-        sa.ForeignKeyConstraint(['data_port_id'], ['port_infos.id']),
+                                ['nfp_network_function_instances.id']),
+        sa.ForeignKeyConstraint(['data_port_id'], ['nfp_port_infos.id'],
+                                ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('network_function_instance_id', 'data_port_id')
-    )
-
-    op.create_table(
-        'nfd_dataport_associations',
-        sa.Column('network_function_device_id',
-                  sa.String(length=36),
-                  nullable=True),
-        sa.Column('data_port_id', sa.String(length=36), nullable=False),
-        sa.ForeignKeyConstraint(['network_function_device_id'],
-                                ['network_function_devices.id']),
-        sa.ForeignKeyConstraint(['data_port_id'], ['port_infos.id']),
-        sa.PrimaryKeyConstraint('network_function_device_id', 'data_port_id')
-    )
-
-    op.create_table(
-        'nfd_datanetwork_associations',
-        sa.Column('network_function_device_id',
-                  sa.String(length=36),
-                  nullable=True),
-        sa.Column('data_network_id', sa.String(length=36), nullable=False),
-        sa.ForeignKeyConstraint(['network_function_device_id'],
-                                ['network_function_devices.id']),
-        sa.ForeignKeyConstraint(['data_network_id'], ['network_infos.id']),
-        sa.PrimaryKeyConstraint('network_function_device_id',
-                                'data_network_id')
     )
 
 
