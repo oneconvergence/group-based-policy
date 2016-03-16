@@ -171,9 +171,9 @@ class HaproxyLifecycleDriverTestCase(unittest.TestCase):
         device_data = {'id': '1',
                        'tenant_id': '2',
                        'compute_policy': 'xyz',
-                       'mgmt_port_id': [{'id': '3',
-                                            'port_model': 'gbp',
-                                            'port_classification': 'mgmt'}]}
+                       'mgmt_port_id': {'id': '3',
+                                        'port_model': 'gbp',
+                                        'port_classification': 'mgmt'}}
         driver.stats['instances'] = 1
         driver.stats['management_interfaces'] = 1
         self.assertRaises(Exception,
