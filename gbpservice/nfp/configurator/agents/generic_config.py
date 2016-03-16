@@ -205,7 +205,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         # Process batch of request data blobs
         try:
             # Process batch of request data blobs
-            if ev.id == gen_cfg_const.EVENT_PROCESS_BATCH:
+            if ev.id == common_const.EVENT_PROCESS_BATCH:
                 self.process_batch(ev)
                 return
             # Process HM poll events
@@ -307,9 +307,9 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         resource = context.get('resource')
         del context['resource']
 
-        msg = {'receiver': gen_cfg_const.ORCHESTRATOR,
+        msg = {'receiver': common_const.ORCHESTRATOR,
                'resource': resource,
-               'method': 'network_function_device_notification',
+               'method': common_const.NFD_NOTIFICATION,
                'kwargs': [
                           {
                            'context': context,
@@ -394,7 +394,7 @@ def events_init(sc, drivers, rpcmgr):
         main.Event(id=gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_PROCESS_BATCH,
+        main.Event(id=common_const.EVENT_PROCESS_BATCH,
                    handler=GenericConfigEventHandler(
                                         sc, drivers, rpcmgr))
     ]
