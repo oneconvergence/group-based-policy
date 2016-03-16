@@ -197,7 +197,7 @@ class LifeCycleDriverBase(object):
                 'filters': {
                     'tenant_id': [device_data['tenant_id']],
                     'service_vendor': [device_data['service_vendor']],
-                    'status': ['ACTIVE']
+                    'status': [nfp_constants.ACTIVE]
                 }
         }
 
@@ -285,7 +285,7 @@ class LifeCycleDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != 'nova':
+        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=device_data['compute_policy'])
 
@@ -422,17 +422,16 @@ class LifeCycleDriverBase(object):
                             'compute_policy',
                             'mgmt_port_id']) or
 
-            type(device_data['mgmt_port_id']) is not list or
+            type(device_data['mgmt_port_id']) is not dict or
 
-            any(key not in port
-                for port in device_data['mgmt_port_id']
+            any(key not in device_data['mgmt_port_id']
                 for key in ['id',
                             'port_classification',
                             'port_model'])
         ):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != 'nova':
+        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=device_data['compute_policy'])
 
@@ -460,13 +459,11 @@ class LifeCycleDriverBase(object):
 
         try:
             self._delete_interfaces(device_data,
-                                    device_data['mgmt_port_id'])
+                                    [device_data['mgmt_port_id']])
         except Exception:
             LOG.error(_('Failed to delete the management data port(s)'))
         else:
-            self._decrement_stats_counter(
-                                    'management_interfaces',
-                                    by=len(device_data['mgmt_port_id']))
+            self._decrement_stats_counter('management_interfaces')
 
     def get_network_function_device_status(self, device_data):
         """ Get the status of NFD
@@ -486,7 +483,7 @@ class LifeCycleDriverBase(object):
                            'compute_policy']):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != 'nova':
+        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=device_data['compute_policy'])
 
@@ -544,7 +541,7 @@ class LifeCycleDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != 'nova':
+        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=device_data['compute_policy'])
 
@@ -621,7 +618,7 @@ class LifeCycleDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != 'nova':
+        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=device_data['compute_policy'])
 
