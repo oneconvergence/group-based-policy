@@ -198,14 +198,15 @@ class VPNaasEventHandler(object):
         for site_conn in svc_context['siteconns']:
             conn = site_conn['connection']
             keywords = {'resource': conn}
+            # whether it has to be the self.context or normal context?
             try:
-                self._get_driver().delete_ipsec_conn(self.context, **keywords)
+                self._get_driver().delete_ipsec_conn(context, **keywords)
             except Exception as err:
                 LOG.error("Delete ipsec-site-conn: %s failed"
                           " with Exception %s "
                           % (conn['id'], str(err).capitalize()))
 
-            self.plugin_rpc.ipsec_site_conn_deleted(self.context,
+            self.plugin_rpc.ipsec_site_conn_deleted(context,
                                                     resource_id=conn['id'])
 
 
