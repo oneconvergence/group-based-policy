@@ -40,9 +40,10 @@ class DummyEvent():
 param_req = {'param1': 'value1', 'param2': 'value2'}
 
 haproxy_driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver()
-ORCHESTRATOR_CLASS_PATH = ('gbpservice.nfp.orchestrator')
+NDO_CLASS_PATH = ('gbpservice.nfp.orchestrator'
+                  '.modules.device_orchestrator')
 ORCHESTRATION_DRIVER_CLASS_PATH = ('gbpservice.nfp.orchestrator'
-                                 '.drivers.orchestration_driver_base')
+                                   '.drivers.orchestration_driver_base')
 
 
 class NDOModuleTestCase(unittest.TestCase):
@@ -102,7 +103,7 @@ class NDORpcHandlerTestCase():
             "context", self.rpc_response)
 
 
-@patch(ORCHESTRATOR_CLASS_PATH + '.NDOConfiguratorRpcApi.__init__',
+@patch(NDO_CLASS_PATH + '.NDOConfiguratorRpcApi.__init__',
         mock.MagicMock(return_value=None))
 class NDORpcApiTestCase(unittest.TestCase):
 
@@ -140,12 +141,12 @@ class NDORpcApiTestCase(unittest.TestCase):
 
 
 
-@patch(ORCHESTRATOR_CLASS_PATH + '.DeviceOrchestrator._create_event',
+@patch(NDO_CLASS_PATH + '.DeviceOrchestrator._create_event',
         mock.MagicMock(return_value=True))
-@patch(ORCHESTRATOR_CLASS_PATH +
+@patch(NDO_CLASS_PATH +
         '.DeviceOrchestrator._get_vendor_orchestration_driver',
         mock.MagicMock(return_value=haproxy_driver))
-@patch(ORCHESTRATOR_CLASS_PATH + '.NDOConfiguratorRpcApi.__init__',
+@patch(NDO_CLASS_PATH + '.NDOConfiguratorRpcApi.__init__',
         mock.MagicMock(return_value=None))
 @patch(ORCHESTRATION_DRIVER_CLASS_PATH + '.OrchestrationDriverBase.__init__',
         mock.MagicMock(return_value=param_req))
@@ -160,8 +161,7 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
     @mock.patch.object(device_orchestrator.DeviceOrchestrator,
             'device_configuration_complete')
     def test_handle_event(self, mock_device_configuration_complete):
-        ndo_mgr = device_orchestrator.DeviceOrchestrator(object,
-                                                                   object)
+        ndo_mgr = device_orchestrator.NDOEventHandler(object, object)
         mock_device_configuration_complete.return_value = True
         self.event = DummyEvent(100, 'DEVICE_CONFIGURED')
         self.event.id = 'DEVICE_CONFIGURED'
