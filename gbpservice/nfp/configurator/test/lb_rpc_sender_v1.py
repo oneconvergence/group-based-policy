@@ -509,7 +509,8 @@ class LBRpcSenderV1(object):
                                 'kwargs': data}]
                        }
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'create_network_device_config',
+        return cctxt.call(self.context,
+                          'create_network_function_device_config',
                           request_data=request_data)
 
     def test_clear_interfaces(self):
@@ -524,7 +525,8 @@ class LBRpcSenderV1(object):
                                 'kwargs': data}]
                        }
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'delete_network_device_config',
+        return cctxt.call(self.context,
+                          'delete_network_function_device_config',
                           request_data=request_data)
 
     def test_configure_source_routes(self):
@@ -539,7 +541,8 @@ class LBRpcSenderV1(object):
                                 'kwargs': data}]
                        }
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'create_network_device_config',
+        return cctxt.call(self.context,
+                          'create_network_function_device_config',
                           request_data=request_data)
 
     def test_clear_source_routes(self):
@@ -554,7 +557,8 @@ class LBRpcSenderV1(object):
                                 'kwargs': data}]
                        }
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'delete_network_device_config',
+        return cctxt.call(self.context,
+                          'delete_network_function_device_config',
                           request_data=request_data)
 
     def test_configure_healthmonitor(self, periodicity):
@@ -573,7 +577,8 @@ class LBRpcSenderV1(object):
                                 'kwargs': data}]
                        }
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'create_network_device_config',
+        return cctxt.call(self.context,
+                          'create_network_function_device_config',
                           request_data=request_data)
 
     def test_clear_healthmonitor(self):
@@ -589,7 +594,8 @@ class LBRpcSenderV1(object):
                                 'kwargs': data}]
                        }
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'delete_network_device_config',
+        return cctxt.call(self.context,
+                          'delete_network_function_device_config',
                           request_data=request_data)
 
 # LBaaS rpc test cases
