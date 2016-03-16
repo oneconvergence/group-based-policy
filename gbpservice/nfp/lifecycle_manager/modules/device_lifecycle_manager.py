@@ -229,7 +229,7 @@ class DeviceLifeCycleHandler(object):
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = DLCMConfiguratorRpcApi(neutron_context)
 
-        self.state_map = {
+        self.status_map = {
                 'INIT': 'Created Network Service Device with status INIT.',
                 'PENDING_CREATE': '',
                 'DEVICE_SPAWNING': 'Creating NSD, launched the new device, ' +
@@ -284,7 +284,7 @@ class DeviceLifeCycleHandler(object):
         if status_desc:
             device['status_description'] = status_desc
         else:
-            device['status_description'] = self.state_map.get(state)
+            device['status_description'] = self.status_map.get(state)
 
     def _get_ports(self, port_ids):
         data_ports = []
