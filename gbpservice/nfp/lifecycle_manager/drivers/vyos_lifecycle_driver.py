@@ -14,6 +14,7 @@ from oslo_log import log as logging
 
 from gbpservice.nfp._i18n import _
 from gbpservice.nfp.common import exceptions
+from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.lifecycle_manager.drivers.lifecycle_driver_base import (
     LifeCycleDriverBase
 )
@@ -99,7 +100,7 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
         consumer_gateway_ip = None
 
         for port in device_data['ports']:
-            if port['port_classification'] == 'provider':
+            if port['port_classification'] == nfp_constants.PROVIDER:
                 try:
                     port_id = self._get_port_id(port, token)
                     (provider_ip, provider_mac,
@@ -110,7 +111,7 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
                     LOG.error(_('Failed to get provider port details'
                                 ' for get device config info operation'))
                     return None
-            elif port['port_classification'] == 'consumer':
+            elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
                     port_id = self._get_port_id(port, token)
                     (consumer_ip, consumer_mac,
