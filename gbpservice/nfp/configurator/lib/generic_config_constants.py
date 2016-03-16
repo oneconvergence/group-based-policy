@@ -11,8 +11,7 @@
 # strictly forbidden unless prior written permission is obtained from
 # One Convergence, Inc., USA
 
-DRIVERS_DIR = '/usr/lib/python2.7/dist-packages/gbpservice/nfp/'\
-              'configurator/drivers'
+DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers'
 SERVICE_TYPE = 'generic_config'
 ORCHESTRATOR = 'orchestrator'
 EVENT_CONFIGURE_INTERFACES = 'CONFIGURE_INTERFACES'

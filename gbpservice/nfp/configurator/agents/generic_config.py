@@ -62,8 +62,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         arg_dict = {'context': context,
                     'kwargs': kwargs}
-        ev = self._sc.new_event(id=event_id, data=arg_dict, key=event_key)
-        self._sc.post_event(ev)
+        ev = self.sc.new_event(id=event_id, data=arg_dict, key=event_key)
+        self.sc.post_event(ev)
 
     def configure_interfaces(self, context, kwargs):
         """Enqueues event for worker to process configure interfaces request.
@@ -213,12 +213,12 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                 kwargs = ev.data.get('kwargs')
                 periodicity = kwargs.get('periodicity')
                 if periodicity == gen_cfg_const.INITIAL:
-                    self._sc.poll_event(
+                    self.sc.poll_event(
                                     ev,
                                     max_times=gen_cfg_const.INITIAL_HM_RETRIES)
 
                 elif periodicity == gen_cfg_const.FOREVER:
-                    self._sc.poll_event(ev)
+                    self.sc.poll_event(ev)
             else:
                 self._process_event(ev)
         except Exception as err:
@@ -253,7 +253,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
             if (kwargs.get('periodicity') == gen_cfg_const.INITIAL and
                     result == common_const.SUCCESS):
                 notification_data = self._prepare_notification_data(ev, result)
-                self._sc.poll_event_done(ev)
+                self.sc.poll_event_done(ev)
                 self.notify._notification(notification_data)
             elif kwargs.get('periodicity') == gen_cfg_const.FOREVER:
                 if result == common_const.FAILED:
@@ -266,7 +266,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                         notification_data = self._prepare_notification_data(
                                                                     ev,
                                                                     result)
-                        self._sc.poll_event_done(ev)
+                        self.sc.poll_event_done(ev)
                         self.notify._notification(notification_data)
                 elif result == common_const.SUCCESS:
                     """set fail_count to 0 if it had failed earlier even once
@@ -277,7 +277,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                that particular service vm's health monitor
             """
             notification_data = self._prepare_notification_data(ev, result)
-            self._sc.poll_event_done(ev)
+            self.sc.poll_event_done(ev)
             self.notify._notification(notification_data)
         else:
             """For other events, irrespective of result send notification"""
@@ -309,7 +309,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
 
         msg = {'receiver': gen_cfg_const.ORCHESTRATOR,
                'resource': resource,
-               'method': ev.id.lower(),
+               'method': 'network_function_device_notification',
                'kwargs': [
                           {
                            'context': context,
