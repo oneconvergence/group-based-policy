@@ -296,7 +296,6 @@ class VpnGenericConfigDriver(object):
         msg = ("Route configuration status : %r "
                % (active_configured))
         LOG.info(msg)
-        LOG.error(msg)
 
     def clear_routes(self, context, kwargs):
 
@@ -385,7 +384,6 @@ class VpnGenericConfigDriver(object):
                " of tenant: %r" % (rule_info['service_id'],
                                    rule_info['tenant_id']))
         LOG.info(msg)
-        LOG.error(msg)
 
     def clear_interfaces(self, context, kwargs):
 
@@ -440,7 +438,6 @@ class VpnGenericConfigDriver(object):
                                     rule_info['tenant_id']))
 
         LOG.info(msg)
-        LOG.error(msg)
 
 
 class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
