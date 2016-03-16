@@ -12,7 +12,7 @@
 
 from oslo_log import log as logging
 
-from gbpservice.nfp.lifecycle_manager.compute.drivers import (
+from gbpservice.nfp.orchestrator.compute.drivers import (
     compute_driver_base)
 
 

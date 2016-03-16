@@ -15,15 +15,15 @@ from oslo_log import log as logging
 from gbpservice.nfp._i18n import _
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions
-from gbpservice.nfp.lifecycle_manager.openstack import (
+from gbpservice.nfp.orchestrator.openstack import (
     openstack_driver
 )
 
 LOG = logging.getLogger(__name__)
 
 
-class LifeCycleDriverBase(object):
-    """Generic Driver class for Lifecycle handling of virtual appliances
+class OrchestrationDriverBase(object):
+    """Generic Driver class for orchestration of virtual appliances
 
     Does not support sharing of virtual appliance for different chains
     Does not support hotplugging interface to devices
@@ -38,7 +38,7 @@ class LifeCycleDriverBase(object):
         self.maximum_interfaces = max_interfaces
 
         # TODO[Magesh]: Try to move the following handlers to
-        # Device LCM manager rather than having here in the driver
+        # NDO manager rather than having here in the driver
         self.identity_handler = openstack_driver.KeystoneClient()
         self.compute_handler_nova = openstack_driver.NovaClient()
         self.network_handler_gbp = openstack_driver.GBPClient()

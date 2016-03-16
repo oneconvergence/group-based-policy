@@ -18,8 +18,8 @@ from oslo_utils import uuidutils
 from sqlalchemy.orm import exc
 
 from gbpservice.nfp.common import exceptions as nfp_exc
-from gbpservice.nfp.db import common_db_mixin
-from gbpservice.nfp.db import nfp_db_model
+from gbpservice.nfp.orchestrator.db import common_db_mixin
+from gbpservice.nfp.orchestrator.db import nfp_db_model
 
 LOG = logging.getLogger(__name__)
 
