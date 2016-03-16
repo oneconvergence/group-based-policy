@@ -168,6 +168,22 @@ class LifeCycleDriverBase(object):
         return (ip, mac, cidr, gateway_ip)
 
     def get_network_function_device_sharing_info(self, device_data):
+        """ Get filters for NFD sharing
+
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: None -- when device sharing is not supported
+        :returns: dict -- It has the following scheme
+        {
+            'filters': {
+                'key': 'value',
+                ...
+            }
+        }
+
+        :raises: exceptions.IncompleteData
+        """
         if not self._is_device_sharing_supported():
             return None
 
@@ -185,6 +201,19 @@ class LifeCycleDriverBase(object):
         }
 
     def select_network_function_device(self, devices, device_data):
+        """ Select a NFD which is eligible for sharing
+
+        :param devices: NFDs
+        :type devices: list
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: None -- when device sharing is not supported, or
+                          when no device is eligible for sharing
+        :return: dict -- NFD device which is eligible for sharing
+
+        :raises: exceptions.IncompleteData
+        """
         if not self._is_device_sharing_supported():
             return None
 
@@ -222,6 +251,17 @@ class LifeCycleDriverBase(object):
         return None
 
     def create_network_function_device(self, device_data):
+        """ Create a NFD
+
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: None -- when there is a failure in creating NFD
+        :return: dict -- NFD device created
+
+        :raises: exceptions.IncompleteData,
+                 exceptions.ComputePolicyNotSupported
+        """
         if (
             any(key not in device_data
                 for key in ['tenant_id',
@@ -364,6 +404,16 @@ class LifeCycleDriverBase(object):
                 'description': ''}  # TODO[RPM]: what should be the description
 
     def delete_network_function_device(self, device_data):
+        """ Delete the NFD
+
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: None -- Both on success and Failure
+
+        :raises: exceptions.IncompleteData,
+                 exceptions.ComputePolicyNotSupported
+        """
         if (
             any(key not in device_data
                 for key in ['id',
@@ -418,11 +468,22 @@ class LifeCycleDriverBase(object):
                                     by=len(device_data['mgmt_data_ports']))
 
     def get_network_function_device_status(self, device_data):
+        """ Get the status of NFD
+
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: None -- On failure
+        :return: str -- status string
+
+        :raises: exceptions.IncompleteData,
+                 exceptions.ComputePolicyNotSupported
+        """
         if any(key not in device_data
                for key in ['id',
                            'tenant_id',
                            'compute_policy']):
-            raise Exception('Not enough required data is received')
+            raise exceptions.IncompleteData()
 
         if device_data['compute_policy'] != 'nova':
             raise exceptions.ComputePolicyNotSupported(
@@ -451,6 +512,17 @@ class LifeCycleDriverBase(object):
         return device['status']
 
     def plug_network_function_device_interfaces(self, device_data):
+        """ Attach the network interfaces for NFD
+
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: bool -- False on failure and True on Success
+
+        :raises: exceptions.IncompleteData,
+                 exceptions.ComputePolicyNotSupported,
+                 exceptions.HotplugNotSupported
+        """
         if not self.supports_hotplug:
             raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
 
@@ -519,6 +591,17 @@ class LifeCycleDriverBase(object):
             return True
 
     def unplug_network_function_device_interfaces(self, device_data):
+        """ Detach the network interfaces for NFD
+
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: bool -- False on failure and True on Success
+
+        :raises: exceptions.IncompleteData,
+                 exceptions.ComputePolicyNotSupported,
+                 exceptions.HotplugNotSupported
+        """
         if not self.supports_hotplug:
             raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
 
@@ -570,6 +653,29 @@ class LifeCycleDriverBase(object):
             return True
 
     def get_network_function_device_healthcheck_info(self, device_data):
+        """ Get the health check information for NFD
+
+        :param device_data: NFD device
+        :type device_data: dict
+
+        :returns: dict -- It has the following scheme
+        {
+            'info': {
+                'version': <int>
+            },
+            'config': [
+                {
+                    'resource': 'healthmonitor',
+                    'kwargs': {
+                        'service_type': <str>,
+                        ...
+                    }
+                }
+            ]
+        }
+
+        :raises: exceptions.IncompleteData
+        """
         if any(key not in device_data
                for key in ['id',
                            'mgmt_ip_address',
@@ -594,5 +700,8 @@ class LifeCycleDriverBase(object):
         }
 
     def get_network_function_device_config_info(self, device_data):
-        # Child class implements this
+        """ Get the configuration information for NFD
+
+        Child class should implement this
+        """
         pass
