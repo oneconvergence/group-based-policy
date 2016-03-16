@@ -29,15 +29,15 @@ from oslo_utils._i18n import _
 import yaml
 
 from gbpservice.nfp.common import constants as nfp_constants
-from gbpservice.nfp.db import api as nfp_db_api
-from gbpservice.nfp.db import nfp_db as nfp_db
-from gbpservice.nfp.lifecycle_manager.openstack.heat_client\
+from gbpservice.nfp.orchestrator.db import api as nfp_db_api
+from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
+from gbpservice.nfp.orchestrator.openstack.heat_client\
     import HeatClient
-from gbpservice.nfp.lifecycle_manager.openstack.openstack_driver\
+from gbpservice.nfp.orchestrator.openstack.openstack_driver\
     import GBPClient
-from gbpservice.nfp.lifecycle_manager.openstack.openstack_driver\
+from gbpservice.nfp.orchestrator.openstack.openstack_driver\
     import KeystoneClient
-from gbpservice.nfp.lifecycle_manager.openstack.openstack_driver\
+from gbpservice.nfp.orchestrator.openstack.openstack_driver\
     import NeutronClient
 from gbpservice.neutron.services.grouppolicy.common import constants as gconst
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base

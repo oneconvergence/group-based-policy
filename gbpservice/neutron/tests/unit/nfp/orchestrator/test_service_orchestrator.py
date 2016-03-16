@@ -17,70 +17,70 @@ import mock
 
 from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.core.main import Event
-from gbpservice.nfp.lifecycle_manager.modules import (
-    service_lifecycle_manager as service_lcm)
-from gbpservice.nfp.lifecycle_manager.openstack import openstack_driver
-from gbpservice.neutron.tests.unit.nfp import test_nfp_db
+from gbpservice.nfp.orchestrator.modules import (
+    service_orchestrator as nso)
+from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from gbpservice.neutron.tests.unit.nfp.orchestrator import test_nfp_db
 
 
-class ServiceLCModuleTestCase(test_nfp_db.NFPDBTestCase):
+class NSOoduleTestCase(test_nfp_db.NFPDBTestCase):
 
     def setUp(self):
-        super(ServiceLCModuleTestCase, self).setUp()
+        super(NSOoduleTestCase, self).setUp()
 
-    @mock.patch.object(service_lcm, 'events_init')
-    @mock.patch.object(service_lcm, 'rpc_init')
+    @mock.patch.object(nso, 'events_init')
+    @mock.patch.object(nso, 'rpc_init')
     def test_module_init(self, mock_rpc_init, mock_events_init):
         controller = mock.Mock()
         config = "testconfig"
-        service_lcm.module_init(controller, config)
+        nso.module_init(controller, config)
         mock_events_init.assert_called_once_with(controller, config, mock.ANY)
         call_args, call_kwargs = mock_events_init.call_args
         self.assertIsInstance(call_args[2],
-                              service_lcm.ServiceLifeCycleHandler)
+                              nso.ServiceOrchestrator)
         mock_rpc_init.assert_called_once_with(controller, config)
 
     def test_rpc_init(self):
         controller = mock.Mock()
         config = mock.Mock()
-        service_lcm.rpc_init(controller, config)
+        nso.rpc_init(controller, config)
         controller.register_rpc_agents.assert_called_once_with(mock.ANY)
         call_args, call_kwargs = controller.register_rpc_agents.call_args
         self.assertEqual(1, len(call_args[0]))
-        self.assertIsInstance(call_args[0][0], service_lcm.RpcAgent)
+        self.assertIsInstance(call_args[0][0], nso.RpcAgent)
 
     def test_events_init(self):
         controller = mock.Mock()
         config = mock.Mock()
-        service_lcm.events_init(
+        nso.events_init(
             controller, config,
-            service_lcm.ServiceLifeCycleHandler(controller))
+            nso.ServiceOrchestrator(controller))
         controller.register_events.assert_called_once_with(mock.ANY)
 
 
-class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
+class NSORpcHandlerTestCase(NSOoduleTestCase):
 
     def setUp(self):
-        super(ServiceLCMRpcHandlerTestCase, self).setUp()
+        super(NSORpcHandlerTestCase, self).setUp()
         self.controller = mock.Mock()
         self.config = mock.Mock()
-        self.rpc_handler = service_lcm.RpcHandler(self.config, self.controller)
+        self.rpc_handler = nso.RpcHandler(self.config, self.controller)
 
-    @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
+    @mock.patch.object(nso.ServiceOrchestrator,
                        "create_network_function")
     def test_rpc_create_network_function(self, mock_create_network_function):
         self.rpc_handler.create_network_function("context", "network_function")
         mock_create_network_function.assert_called_once_with(
             "context", "network_function")
 
-    @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
+    @mock.patch.object(nso.ServiceOrchestrator,
                        "get_network_function")
     def test_rpc_get_network_function(self, mock_get_network_function):
         self.rpc_handler.get_network_function("context", "network_function_id")
         mock_get_network_function.assert_called_once_with(
             "context", "network_function_id")
 
-    @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
+    @mock.patch.object(nso.ServiceOrchestrator,
                        "get_network_functions")
     def test_rpc_get_network_functions(self, mock_get_network_functions):
         filters = {'id': ['myuuid']}
@@ -88,7 +88,7 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
         mock_get_network_functions.assert_called_once_with(
             "context", filters)
 
-    @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
+    @mock.patch.object(nso.ServiceOrchestrator,
                        "delete_network_function")
     def test_rpc_delete_network_function(self, mock_delete_network_function):
         self.rpc_handler.delete_network_function(
@@ -96,7 +96,7 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
         mock_delete_network_function.assert_called_once_with(
             "context", "network_function_id")
 
-    @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
+    @mock.patch.object(nso.ServiceOrchestrator,
                        "update_network_function")
     def test_rpc_update_network_function(self, mock_update_network_function):
         self.rpc_handler.update_network_function(
@@ -104,7 +104,7 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
         mock_update_network_function.assert_called_once_with(
             "context", "network_function_id", "updated_network_function")
 
-    @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
+    @mock.patch.object(nso.ServiceOrchestrator,
                        "handle_policy_target_added")
     def test_rpc_policy_target_added_notification(
         self, mock_handle_policy_target_added):
@@ -113,7 +113,7 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
             mock_handle_policy_target_added.assert_called_once_with(
                 "context", "network_function_id", "policy_target")
 
-    @mock.patch.object(service_lcm.ServiceLifeCycleHandler,
+    @mock.patch.object(nso.ServiceOrchestrator,
                        "handle_policy_target_removed")
     def test_rpc_policy_target_removed_notification(
         self, mock_handle_policy_target_removed):
@@ -123,7 +123,7 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
                 "context", "network_function_id", "policy_target")
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "handle_consumer_ptg_added")
+        nso.ServiceOrchestrator, "handle_consumer_ptg_added")
     def test_rpc_consumer_ptg_added_notification(
         self, mock_handle_consumer_ptg_added):
             self.rpc_handler.consumer_ptg_added_notification(
@@ -132,7 +132,7 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
                 "context", "network_function_id", "policy_target_group")
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "handle_consumer_ptg_removed")
+        nso.ServiceOrchestrator, "handle_consumer_ptg_removed")
     def test_rpc_consumer_ptg_removed_notification(
         self, mock_handle_consumer_ptg_removed):
             self.rpc_handler.consumer_ptg_removed_notification(
@@ -141,24 +141,24 @@ class ServiceLCMRpcHandlerTestCase(ServiceLCModuleTestCase):
                 "context", "network_function_id", "policy_target_group")
 
 
-class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
+class ServiceOrchestratorTestCase(NSOoduleTestCase):
 
     def setUp(self):
-        super(ServiceLifeCycleHandlerTestCase, self).setUp()
+        super(ServiceOrchestratorTestCase, self).setUp()
         self.controller = mock.Mock()
         self.config = mock.Mock()
         self.context = mock.Mock()
-        self.service_lc_handler = service_lcm.ServiceLifeCycleHandler(
+        self.service_lc_handler = nso.ServiceOrchestrator(
             self.controller)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_validate_create_service_input")
+        nso.ServiceOrchestrator, "_validate_create_service_input")
     @mock.patch.object(
         openstack_driver.KeystoneClient, "get_admin_token")
     @mock.patch.object(
         openstack_driver.GBPClient, "get_service_profile")
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_create_network_function(self, mock_create_event,
                                      mock_get_service_profile,
                                      mock_get_admin_token, mock_validate):
@@ -211,9 +211,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         self.assertFalse(self.controller.rpc_event.called)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "get_service_details")
+        nso.ServiceOrchestrator, "get_service_details")
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_delete_network_function_with_nfi(self, mock_create_event,
                                               mock_get_service_details):
         service_details = mock.Mock()
@@ -243,7 +243,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
                 is_poll_event=True)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_event_create_network_function_instance(self, mock_create_event):
         network_function = self.create_network_function()
         mode = 'GBP'
@@ -299,9 +299,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             'CREATE_NETWORK_FUNCTION_DEVICE', event_data=mock.ANY)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "get_service_details")
+        nso.ServiceOrchestrator, "get_service_details")
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_event_handle_device_created(self, mock_create_event,
                                          mock_get_service_details):
         nfd = self.create_network_function_device()
@@ -429,7 +429,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         self.assertEqual('ERROR', db_nf['status'])
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_event_check_for_user_config_deleted(self, mock_create_event):
         network_function = self.create_network_function()
         with mock.patch.object(
@@ -498,7 +498,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
                 test_event)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_event_handle_user_config_deleted(self, mock_create_event):
         nfi = self.create_network_function_instance()
         request_data = {
@@ -521,9 +521,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
         self.assertEqual('ERROR', db_nf['status'])
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "get_service_details")
+        nso.ServiceOrchestrator, "get_service_details")
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_delete_network_function(self, mock_create_event,
                                      mock_get_service_details):
         service_details = mock.Mock()
@@ -555,7 +555,7 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
                 is_poll_event=True)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_event_delete_network_function_instance(self, mock_create_event):
         nfi = self.create_network_function_instance()
         network_function = self.nfp_db.get_network_function(
@@ -594,9 +594,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
                           ns_id)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "get_service_details")
+        nso.ServiceOrchestrator, "get_service_details")
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_handle_policy_target_added(self, mock_create_event,
                                         mock_get_service_details):
         nfi = self.create_network_function_instance()
@@ -619,9 +619,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             is_poll_event=True)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "get_service_details")
+        nso.ServiceOrchestrator, "get_service_details")
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_handle_policy_target_removed(self, mock_create_event,
                                           mock_get_service_details):
         nfi = self.create_network_function_instance()
@@ -644,9 +644,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             is_poll_event=True)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "get_service_details")
+        nso.ServiceOrchestrator, "get_service_details")
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_handle_consumer_ptg_added(self, mock_create_event,
                                        mock_get_service_details):
         nfi = self.create_network_function_instance()
@@ -669,9 +669,9 @@ class ServiceLifeCycleHandlerTestCase(ServiceLCModuleTestCase):
             is_poll_event=True)
 
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "get_service_details")
+        nso.ServiceOrchestrator, "get_service_details")
     @mock.patch.object(
-        service_lcm.ServiceLifeCycleHandler, "_create_event")
+        nso.ServiceOrchestrator, "_create_event")
     def test_handle_consumer_ptg_removed(self, mock_create_event,
                                          mock_get_service_details):
         nfi = self.create_network_function_instance()

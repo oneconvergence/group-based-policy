@@ -15,22 +15,26 @@ from oslo_log import log as logging
 from gbpservice.nfp._i18n import _
 from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.common import constants as nfp_constants
-from gbpservice.nfp.lifecycle_manager.drivers.lifecycle_driver_base import (
-    LifeCycleDriverBase
+from gbpservice.nfp.orchestrator.drivers.orchestration_driver_base import (
+    OrchestrationDriverBase
 )
 
 LOG = logging.getLogger(__name__)
 
 
-class VyosLifeCycleDriver(LifeCycleDriverBase):
+class HaproxyOrchestrationDriver(OrchestrationDriverBase):
+    """Haproxy Service VM Driver for orchestration of virtual appliances
 
+    Overrides methods from HotplugSupportedOrchestrationDriver class for performing
+    things specific to Haproxy service VM
+    """
     def __init__(self, supports_device_sharing=True, supports_hotplug=True,
                  max_interfaces=10):
-        super(VyosLifeCycleDriver, self).__init__(
+        super(HaproxyOrchestrationDriver, self).__init__(
             supports_device_sharing=supports_device_sharing,
             supports_hotplug=supports_hotplug,
             max_interfaces=max_interfaces)
-        self.service_vendor = 'Vyos'
+        self.service_vendor = 'Haproxy'
 
     def get_network_function_device_config_info(self, device_data):
         """ Get the configuration information for NFD
@@ -68,10 +72,7 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
             any(key not in device_data
                 for key in ['service_vendor',
                             'mgmt_ip_address',
-                            'ports',
-                            'service_type',
-                            'network_function_id',
-                            'tenant_id']) or
+                            'ports']) or
 
             any(key not in port
                 for port in device_data['ports']
@@ -132,38 +133,29 @@ class VyosLifeCycleDriver(LifeCycleDriverBase):
                 {
                     'resource': 'interfaces',
                     'kwargs': {
-                       'vm_mgmt_ip': device_data['mgmt_ip_address'],
-                       'service_vendor': device_data['service_vendor'],
-                       'provider_ip': provider_ip,
-                       'provider_cidr': provider_cidr,
-                       'provider_interface_position': 2,
-                       'stitching_ip': consumer_ip,
-                       'stitching_cidr': consumer_cidr,
-                       'stitching_interface_position': 3,
-                       'provider_mac': provider_mac,
-                       'stitching_mac': consumer_mac,
-                       'rule_info':{
-                           'active_provider_mac': provider_mac,
-                           'active_stitching_mac': consumer_mac,
-                           'active_fip': device_data['mgmt_ip_address'],
-                           'service_id': device_data['network_function_id'],
-                           'tenant_id': device_data['tenant_id']
-                        },
-                       'service_type': device_data['service_type'].lower()
+                        'mgmt_ip': device_data['mgmt_ip_address'],
+                        'service_vendor': device_data['service_vendor'],
+                        'provider_ip': provider_ip,
+                        'provider_cidr': provider_cidr,
+                        'provider_interface_position': 2,
+                        'stitching_ip': consumer_ip,
+                        'stitching_cidr': consumer_cidr,
+                        'stitching_interface_position': 3,
+                        'provider_mac': provider_mac,
+                        'stitching_mac': consumer_mac
                     }
                 },
                 {
                     'resource': 'routes',
                     'kwargs': {
-                        'vm_mgmt_ip': device_data['mgmt_ip_address'],
+                        'mgmt_ip': device_data['mgmt_ip_address'],
                         'service_vendor': device_data['service_vendor'],
                         'source_cidrs': ([provider_cidr, consumer_cidr]
                                          if consumer_cidr
                                          else [provider_cidr]),
                         'destination_cidr': consumer_cidr,
                         'gateway_ip': consumer_gateway_ip,
-                        'provider_interface_position': 2,
-                        'service_type': device_data['service_type'].lower(),
+                        'provider_interface_position': 2
                     }
                 }
             ]
