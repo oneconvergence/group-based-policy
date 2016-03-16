@@ -77,7 +77,7 @@ class HaproxyLifeCycleDriver(LifeCycleDriverBase):
                 for port in device_data['ports']
                 for key in ['id',
                             'port_classification',
-                            'port_policy'])
+                            'port_model'])
         ):
             raise exceptions.IncompleteData()
 

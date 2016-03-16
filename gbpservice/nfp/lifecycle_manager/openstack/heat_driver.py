@@ -28,6 +28,9 @@ from oslo_utils import excutils
 from oslo_utils._i18n import _
 import yaml
 
+from gbpservice.nfp.common import constants as nfp_constants
+from gbpservice.nfp.db import api as nfp_db_api
+from gbpservice.nfp.db import nfp_db as nfp_db
 from gbpservice.nfp.lifecycle_manager.openstack.heat_client\
     import HeatClient
 from gbpservice.nfp.lifecycle_manager.openstack.openstack_driver\
@@ -795,6 +798,77 @@ class HeatDriver():
                  {'stack_data': stack_template, 'params': stack_params})
         return (stack_template, stack_params)
 
+    def get_service_details(self, network_function_details):
+        db_handler = nfp_db.NFPDbBase()
+        db_session = nfp_db_api.get_session()
+        network_function = network_function_details['network_function']
+        network_function_instance = network_function_details[
+            'network_function_instance']
+        network_function_device = network_function_details[
+            'network_function_device']
+
+        heat_stack_id = network_function['heat_stack_id']
+        service_profile_id = network_function['service_profile_id']
+        admin_token = self.keystoneclient.get_admin_token()
+        service_profile = self.gbp_client.get_service_profile(admin_token,
+                service_profile_id)
+        service_id = network_function['service_id']
+        servicechain_node = self.gbp_client.get_servicechain_node(admin_token,
+                service_id)
+        service_chain_id = network_function['service_chain_id']
+        servicechain_instance = self.gbp_client.get_servicechain_instance(
+                admin_token,
+                service_chain_id)
+        mgmt_ip = network_function_device['mgmt_ip_address']
+        consumer_port = None
+        provider_port = None
+        consumer_policy_target_group = None
+        provider_policy_target_group = None
+        policy_target = None
+        for port in network_function_instance['port_info']:
+            port_info = db_handler.get_port_info(db_session, port)
+            port_classification = port_info['port_classification']
+            if port_info['port_model'] == nfp_constants.GBP_PORT:
+                policy_target_id = port_info['id']
+                port_id = self.gbp_client.get_policy_targets(
+                    admin_token,
+                    filters={'id': policy_target_id})[0]['port_id']
+                policy_target = self.gbp_client.get_policy_target(
+                    admin_token, policy_target_id)
+            else:
+                port_id = port_info['id']
+
+            if port_classification == nfp_constants.CONSUMER:
+                consumer_port = self.neutron_client.get_port(admin_token,
+                        port_id)['port']
+                if policy_target: 
+                    consumer_policy_target_group =\
+                        self.gbp_client.get_policy_target_group(
+                            admin_token,
+                            policy_target['policy_target_group_id'])
+            elif port_classification == nfp_constants.PROVIDER:
+                LOG.info(_("provider info: %s") % (port_id))
+                provider_port = self.neutron_client.get_port(admin_token,
+                        port_id)['port']
+                if policy_target:
+                    provider_policy_target_group =\
+                        self.gbp_client.get_policy_target_group(
+                            admin_token,
+                            policy_target['policy_target_group_id'])
+
+        service_details = {
+            'service_profile': service_profile,
+            'servicechain_node': servicechain_node,
+            'servicechain_instance': servicechain_instance,
+            'consumer_port': consumer_port,
+            'provider_port': provider_port,
+            'mgmt_ip': mgmt_ip,
+            'policy_target_group': provider_policy_target_group,
+            'heat_stack_id': heat_stack_id,
+        }
+
+        return service_details
+
     def _wait_for_stack_operation_complete(self, heatclient, stack_id, action,
                                            ignore_error=False):
         time_waited = 0
@@ -943,7 +1017,8 @@ class HeatDriver():
                           {'stack': stack_id})
             return failure_status
 
-    def apply_user_config(self, service_details):
+    def apply_user_config(self, network_function_details):
+        service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -985,15 +1060,13 @@ class HeatDriver():
 
         return stack_id
 
-    def delete(self, service_details, stack_id):
-        provider = service_details['policy_target_group']
+    def delete(self, stack_id, tenant_id):
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
 
-        provider_tenant_id = provider['tenant_id']
         try:
             heatclient = self._get_heat_client(resource_owner_tenant_id,
-                                               tenant_id=provider_tenant_id)
+                                               tenant_id=tenant_id)
             heatclient.delete(stack_id)
         except Exception:
             # Log the error and continue with VM delete in case of *aas
@@ -1116,7 +1189,8 @@ class HeatDriver():
 
         return stack_id
 
-    def update(self, service_details, stack_id):
+    def update(self, network_function_details, stack_id):
+        service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1135,7 +1209,8 @@ class HeatDriver():
 
         return stack_id
 
-    def handle_policy_target_added(self, service_details, policy_target):
+    def handle_policy_target_added(self, network_function_details, policy_target):
+        service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1158,7 +1233,8 @@ class HeatDriver():
 
         return stack_id
 
-    def handle_policy_target_removed(self, service_details, policy_target):
+    def handle_policy_target_removed(self, network_function_details, policy_target):
+        service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1183,11 +1259,12 @@ class HeatDriver():
             except Exception:
                 LOG.exception(_("Processing policy target delete failed"))
 
-    def notify_chain_parameters_updated(self, service_details):
+    def notify_chain_parameters_updated(self, network_function_details):
         pass  # We are not using the classifier specified in redirect Rule
 
-    def handle_consumer_ptg_added(self, service_details,
+    def handle_consumer_ptg_added(self, network_function_details,
                                   policy_target_group):
+        service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1208,8 +1285,9 @@ class HeatDriver():
 
             return stack_id
 
-    def handle_consumer_ptg_removed(self, service_details,
+    def handle_consumer_ptg_removed(self, network_function_details,
                                     policy_target_group):
+        service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
