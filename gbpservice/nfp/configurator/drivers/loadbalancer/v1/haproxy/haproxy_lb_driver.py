@@ -12,12 +12,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron import context
 from oslo_log import log as logging
-from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import haproxy_rest_client
+from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
+                                                    haproxy_rest_client)
 from gbpservice.nfp.configurator.lib import lb_constants
-from gbpservice.nfp.configurator.drivers.base.base_driver\
-                                                    import BaseDriver
+from gbpservice.nfp.configurator.drivers.base import base_driver
 
 DRIVER_NAME = 'loadbalancer'
 PROTOCOL_MAP = {
@@ -37,7 +36,7 @@ REQUEST_TIMEOUT = 10
 LOG = logging.getLogger(__name__)
 
 
-class HaproxyOnVmDriver(BaseDriver):
+class HaproxyOnVmDriver(base_driver.BaseDriver):
     service_type = 'loadbalancer'
     pool_to_device = {}
 

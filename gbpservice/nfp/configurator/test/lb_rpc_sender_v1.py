@@ -352,7 +352,7 @@ class LBRpcSenderV1(object):
 
         pool_data = self._prepare_request_data('pool', pool_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'create_network_service_config',
+        return cctxt.call(self.context, 'create_network_function_config',
                           request_data=pool_data)
 
     def test_update_pool(self):
@@ -365,7 +365,7 @@ class LBRpcSenderV1(object):
                      }
 
         pool_data = self._prepare_request_data('pool', pool_info)
-        return cctxt.cast(self.context, 'update_network_service_config',
+        return cctxt.cast(self.context, 'update_network_function_config',
                           request_data=pool_data)
 
     def test_delete_pool(self):
@@ -377,7 +377,7 @@ class LBRpcSenderV1(object):
 
         pool_data = self._prepare_request_data('pool', pool_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'delete_network_service_config',
+        return cctxt.call(self.context, 'delete_network_function_config',
                           request_data=pool_data)
 
     def test_create_vip(self):
@@ -389,7 +389,7 @@ class LBRpcSenderV1(object):
 
         vip_data = self._prepare_request_data('vip', vip_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'create_network_service_config',
+        return cctxt.call(self.context, 'create_network_function_config',
                           request_data=vip_data)
 
     def test_update_vip(self):
@@ -402,7 +402,7 @@ class LBRpcSenderV1(object):
 
         vip_data = self._prepare_request_data('vip', vip_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'update_network_service_config',
+        return cctxt.call(self.context, 'update_network_function_config',
                           request_data=vip_data)
 
     def test_delete_vip(self):
@@ -414,7 +414,7 @@ class LBRpcSenderV1(object):
 
         vip_data = self._prepare_request_data('vip', vip_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'delete_network_service_config',
+        return cctxt.call(self.context, 'delete_network_function_config',
                           request_data=vip_data)
 
     def test_create_member(self):
@@ -426,7 +426,7 @@ class LBRpcSenderV1(object):
 
         member_data = self._prepare_request_data('member', member_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'create_network_service_config',
+        return cctxt.call(self.context, 'create_network_function_config',
                           request_data=member_data)
 
     def test_update_member(self):
@@ -439,7 +439,7 @@ class LBRpcSenderV1(object):
 
         member_data = self._prepare_request_data('member', member_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'update_network_service_config',
+        return cctxt.call(self.context, 'update_network_function_config',
                           request_data=member_data)
 
     def test_delete_member(self):
@@ -451,7 +451,7 @@ class LBRpcSenderV1(object):
 
         member_data = self._prepare_request_data('member', member_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'delete_network_service_config',
+        return cctxt.call(self.context, 'delete_network_function_config',
                           request_data=member_data)
 
     def test_create_pool_health_monitor(self):
@@ -465,7 +465,7 @@ class LBRpcSenderV1(object):
         hm_data = self._prepare_request_data('pool_health_monitor',
                                              hm_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'create_network_service_config',
+        return cctxt.call(self.context, 'create_network_function_config',
                           request_data=hm_data)
 
     def test_update_pool_health_monitor(self):
@@ -480,7 +480,7 @@ class LBRpcSenderV1(object):
         hm_data = self._prepare_request_data('pool_health_monitor',
                                              hm_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'update_network_service_config',
+        return cctxt.call(self.context, 'update_network_function_config',
                           request_data=hm_data)
 
     def test_delete_pool_health_monitor(self):
@@ -494,7 +494,7 @@ class LBRpcSenderV1(object):
         hm_data = self._prepare_request_data('pool_health_monitor',
                                              hm_info)
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self.context, 'delete_network_service_config',
+        return cctxt.call(self.context, 'delete_network_function_config',
                           request_data=hm_data)
 
     def test_configure_interfaces(self):

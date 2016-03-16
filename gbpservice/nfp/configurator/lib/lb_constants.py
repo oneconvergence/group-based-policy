@@ -1,6 +1,5 @@
-# DRIVERS_DIR = '/usr/lib/python2.7/dist-packages/gbpservice/nfp/'\
-#              'configurator/drivers/loadbalancer/'
-DRIVERS_DIR = '/opt/stack/gbp/gbpservice/nfp/configurator/drivers/loadbalancer/'
+DRIVERS_DIR = '/usr/lib/python2.7/dist-packages/gbpservice/nfp/'\
+              'configurator/drivers/loadbalancer/'
 SERVICE_TYPE = 'loadbalancer'
 NEUTRON = 'neutron'
 
@@ -48,3 +47,23 @@ HEALTH_MONITOR_HTTP = 'HTTP'
 HEALTH_MONITOR_HTTPS = 'HTTPS'
 
 LBAAS = 'lbaas'
+
+""" Event ids """
+EVENT_CREATE_POOL = 'CREATE_POOL'
+EVENT_UPDATE_POOL = 'UPDATE_POOL'
+EVENT_DELETE_POOL = 'DELETE_POOL'
+
+EVENT_CREATE_VIP = 'CREATE_VIP'
+EVENT_UPDATE_VIP = 'UPDATE_VIP'
+EVENT_DELETE_VIP = 'DELETE_VIP'
+
+EVENT_CREATE_MEMBER = 'CREATE_MEMBER'
+EVENT_UPDATE_MEMBER = 'UPDATE_MEMBER'
+EVENT_DELETE_MEMBER = 'DELETE_MEMBER'
+
+EVENT_CREATE_POOL_HEALTH_MONITOR = 'CREATE_POOL_HEALTH_MONITOR'
+EVENT_UPDATE_POOL_HEALTH_MONITOR = 'UPDATE_POOL_HEALTH_MONITOR'
+EVENT_DELETE_POOL_HEALTH_MONITOR = 'DELETE_POOL_HEALTH_MONITOR'
+
+EVENT_AGENT_UPDATED = 'AGENT_UPDATED'
+EVENT_COLLECT_STATS = 'COLLECT_STATS'

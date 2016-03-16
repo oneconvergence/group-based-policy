@@ -3,37 +3,34 @@ import oslo_messaging as messaging
 
 from gbpservice.nfp.configurator.agents import agent_base
 from oslo_log import log as logging
-from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core import main
 from gbpservice.nfp.configurator.lib import utils
-from gbpservice.nfp.configurator.lib.filter import Filter
+from gbpservice.nfp.configurator.lib import filter
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.configurator.lib import lb_constants
 
 LOG = logging.getLogger(__name__)
 
+""" Implements LBaaS response path to Neutron plugin.
+Methods of this class are invoked by the LBaasEventHandler class and also
+by driver class for sending response from driver to the LBaaS Neutron plugin.
+"""
 
-class LBaasRpcSender(Filter):
-    """Agent side of the Agent to Plugin RPC API."""
 
-    API_VERSION = '2.0'
-    # history
-    #   1.0 Initial version
-    #   2.0 Generic API for agent based drivers
-    #       - get_logical_device() handling changed on plugin side;
-    #       - pool_deployed() and update_status() methods added;
+class LBaasRpcSender(filter.Filter):
 
-    def __init__(self, sc=None):
-        self.sc = sc
-        pass
+    def __init__(self, sc):
+        self.notify = agent_base.AgentBaseNotification(sc)
 
-    def _notification(self, data):
-        LOG.info("Sending notification: %s" % data)
-        event = self.sc.new_event(
-            id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
-        self.sc.poll_event(event)
+    def get_logical_device(self, pool_id, context):
+        """ Calls filter library to get logical device from pool_id.
 
-    def get_logical_device(self, pool_id, context=None):
-        # Call goes to filter library
+        :param pool_id: object type
+        :param context: context which has list of all pool related resources
+                        belonging to that tenant
+
+        Returns: logical_device
+        """
         return self.call(
             context,
             self.make_msg(
@@ -43,24 +40,38 @@ class LBaasRpcSender(Filter):
         )
 
     def update_status(self, obj_type, obj_id, status):
+        """ Enqueues the response from LBaaS operation to neutron plugin.
+
+        :param obj_type: object type
+        :param obj_id: object id
+        :param status: status of the object to be set
+
+        """
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_status',
-               'kwargs': [{'obj_type': obj_type,
-                           'obj_id': obj_id,
-                           'status': status}]
+               'kwargs': {'obj_type': obj_type,
+                          'obj_id': obj_id,
+                          'status': status}
                }
-        self._notification(msg)
+        LOG.info("sending update status notification %s " % (msg))
+        self.notify._notification(msg)
 
     def update_pool_stats(self, pool_id, stats):
-        LOG.info("[LbaaSRpcSender]: Update pool stats called")
+        """ Enqueues the response from LBaaS operation to neutron plugin.
+
+        :param pool_id: pool id
+        :param stats: statistics of that pool
+
+        """
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_pool_stats',
-               'kwargs': [{'pool_id': pool_id,
-                           'stats': stats}]
+               'kwargs': {'pool_id': pool_id,
+                          'stats': stats}
                }
-        self._notification(msg)
+        LOG.info("sending update pool stats notification %s " % (msg))
+        self.notify._notification(msg)
 
 
 """Implements APIs invoked by configurator for processing RPC messages.
@@ -78,10 +89,6 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
     def __init__(self, sc, conf):
         """Instantiates child and parent class objects.
 
-        Passes the instances of core service controller and oslo configuration
-        to parent instance inorder to provide event enqueue facility for batch
-        processing event.
-
         :param sc: Service Controller object that is used for interfacing
         with core service controller.
         :param conf: Configuration object that is used for configuration
@@ -91,137 +98,245 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
 
         super(LBaaSRpcManager, self).__init__(sc, conf)
 
-    def create_vip(self, context, vip):
+    def _send_event(self, event_id, data, serialize=False, binding_key=None,
+                    key=None):
+        """Posts an event to framework.
 
+        :param event_id: Unique identifier for the event
+        :param event_key: Event key for serialization
+        :param serialize: Serialize the event
+        :param binding_key: binding key to be used for serialization
+        :param key: event key
+
+        """
+
+        ev = self.sc.new_event(id=event_id, data=data)
+        # ev.key = key
+        # ev.serialize = serialize
+        # ev.binding_key = binding_key
+        self.sc.post_event(ev)
+
+    def create_vip(self, context, vip):
+        """Enqueues event for worker to process create vip request.
+
+        :param context: RPC context
+        :param vip: vip resource to be created
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'vip': vip,
-                    'serialize': True,
-                    'binding_key': vip['pool_id']
                     }
-        ev = self._sc.new_event(id='CREATE_VIP', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_CREATE_VIP, arg_dict,
+                         serialize=True, binding_key=vip['pool_id'],
+                         key=vip['id'])
 
     def update_vip(self, context, old_vip, vip):
+        """Enqueues event for worker to process update vip request.
+
+        :param context: RPC context
+        :param old_vip: old vip resource to be updated
+        :param vip: new vip resource
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'old_vip': old_vip,
                     'vip': vip,
-                    'serialize': True,
-                    'binding_key': vip['pool_id']
                     }
-        ev = self._sc.new_event(id='UPDATE_VIP', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_UPDATE_VIP, arg_dict,
+                         serialize=True, binding_key=vip['pool_id'],
+                         key=vip['id'])
 
     def delete_vip(self, context, vip):
+        """Enqueues event for worker to process delete vip request.
 
+        :param context: RPC context
+        :param vip: vip resource to be deleted
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'vip': vip,
-                    'serialize': True,
-                    'binding_key': vip['pool_id']
                     }
-        ev = self._sc.new_event(id='DELETE_VIP', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_DELETE_VIP, arg_dict,
+                         serialize=True, binding_key=vip['pool_id'],
+                         key=vip['id'])
 
     def create_pool(self, context, pool, driver_name):
+        """Enqueues event for worker to process create pool request.
 
+        :param context: RPC context
+        :param pool: pool resource to be created
+        :param driver_name: service vendor driver name
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'pool': pool,
                     'driver_name': driver_name,
-                    'serialize': True,
-                    'binding_key': pool['id']
                     }
-        ev = self._sc.new_event(id='CREATE_POOL', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_CREATE_POOL, arg_dict,
+                         serialize=True, binding_key=pool['id'],
+                         key=pool['id'])
 
     def update_pool(self, context, old_pool, pool):
+        """Enqueues event for worker to process update pool request.
+
+        :param context: RPC context
+        :param old_pool: old pool resource to be updated
+        :param pool: new pool resource
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'old_pool': old_pool,
                     'pool': pool,
-                    'serialize': True,
-                    'binding_key': pool['id']
                     }
-
-        ev = self._sc.new_event(id='UPDATE_POOL', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_UPDATE_POOL, arg_dict,
+                         serialize=True, binding_key=pool['id'],
+                         key=pool['id'])
 
     def delete_pool(self, context, pool):
+        """Enqueues event for worker to process delete pool request.
 
+        :param context: RPC context
+        :param pool: pool resource to be deleted
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'pool': pool,
-                    'serialize': True,
-                    'binding_key': pool['id']
                     }
-        ev = self._sc.new_event(id='DELETE_POOL', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_DELETE_POOL, arg_dict,
+                         serialize=True, binding_key=pool['id'],
+                         key=pool['id'])
 
     def create_member(self, context, member):
+        """Enqueues event for worker to process create member request.
 
+        :param context: RPC context
+        :param member: member resource to be created
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'member': member,
-                    'serialize': True,
-                    'binding_key': member['pool_id']
                     }
-        ev = self._sc.new_event(id='CREATE_MEMBER', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_CREATE_MEMBER, arg_dict,
+                         serialize=True, binding_key=member['pool_id'],
+                         key=member['id'])
 
     def update_member(self, context, old_member, member):
+        """Enqueues event for worker to process update member request.
+
+        :param context: RPC context
+        :param old_member: old member resource to be updated
+        :param member: new member resource
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'old_member': old_member,
                     'member': member,
-                    'serialize': True,
-                    'binding_key': member['pool_id']
                     }
-        ev = self._sc.new_event(id='UPDATE_MEMBER', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_UPDATE_MEMBER, arg_dict,
+                         serialize=True, binding_key=member['pool_id'],
+                         key=member['id'])
 
     def delete_member(self, context, member):
+        """Enqueues event for worker to process delete member request.
+
+        :param context: RPC context
+        :param member: member resource to be deleted
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'member': member,
-                    'serialize': True,
-                    'binding_key': member['pool_id']
                     }
-        ev = self._sc.new_event(id='DELETE_MEMBER', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_DELETE_MEMBER, arg_dict,
+                         serialize=True, binding_key=member['pool_id'],
+                         key=member['id'])
 
     def create_pool_health_monitor(self, context, health_monitor, pool_id):
+        """Enqueues event for worker to process create health monitor request.
 
+        :param context: RPC context
+        :param health_monitor: health_monitor resource to be created
+        :param pool_id: pool_id to which health monitor is associated
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'health_monitor': health_monitor,
                     'pool_id': pool_id,
-                    'serialize': True,
-                    'binding_key': pool_id
                     }
-        ev = self._sc.new_event(id='CREATE_POOL_HEALTH_MONITOR', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_CREATE_POOL_HEALTH_MONITOR,
+                         arg_dict, serialize=True, binding_key=pool_id,
+                         key=health_monitor['id'])
 
     def update_pool_health_monitor(self, context, old_health_monitor,
                                    health_monitor, pool_id):
+        """Enqueues event for worker to process update health monitor request.
+
+        :param context: RPC context
+        :param old_health_monitor: health_monitor resource to be updated
+        :param health_monitor: new health_monitor resource
+        :param pool_id: pool_id to which health monitor is associated
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'old_health_monitor': old_health_monitor,
                     'health_monitor': health_monitor,
                     'pool_id': pool_id,
-                    'serialize': True,
-                    'binding_key': pool_id
                     }
-        ev = self._sc.new_event(id='UPDATE_POOL_HEALTH_MONITOR', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_UPDATE_POOL_HEALTH_MONITOR,
+                         arg_dict, serialize=True, binding_key=pool_id,
+                         key=health_monitor['id'])
 
     def delete_pool_health_monitor(self, context, health_monitor, pool_id):
+        """Enqueues event for worker to process delete health monitor request.
 
+        :param context: RPC context
+        :param health_monitor: health_monitor resource to be deleted
+        :param pool_id: pool_id to which health monitor is associated
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'health_monitor': health_monitor,
                     'pool_id': pool_id,
-                    'serialize': True,
-                    'binding_key': pool_id
                     }
-        ev = self._sc.new_event(id='DELETE_POOL_HEALTH_MONITOR', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_DELETE_POOL_HEALTH_MONITOR,
+                         arg_dict, serialize=True, binding_key=pool_id,
+                         key=health_monitor['id'])
 
     def agent_updated(self, context, payload):
-        """Handle the agent_updated notification event."""
+        """Enqueues event for worker to process agent updated request.
+
+        :param context: RPC context
+        :param payload: payload
+
+        Returns: None
+
+        """
         arg_dict = {'context': context,
                     'payload': payload}
-        ev = self._sc.new_event(id='AGENT_UPDATED', data=arg_dict)
-        self._sc.post_event(ev)
+        self._send_event(lb_constants.EVENT_AGENT_UPDATED, arg_dict)
 
 
 """Implements event handlers and their helper methods.
@@ -233,17 +348,17 @@ invoked by core service controller.
 """
 
 
-class LBaaSEventHandler(nfp_poll.PollEventDesc):
+class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
+                        nfp_poll.PollEventDesc):
     instance_mapping = {}
 
-    def __init__(self, sc, drivers, rpcmgr, nqueue):
-        self._sc = sc
+    def __init__(self, sc, drivers, rpcmgr):
+        self.sc = sc
         self.drivers = drivers
-        self._rpcmgr = rpcmgr
-        self.nqueue = nqueue
+        self.rpcmgr = rpcmgr
         self.plugin_rpc = LBaasRpcSender(sc)
 
-    def _get_driver(self, service_type):
+    def _get_driver(self, driver_name=lb_constants.SERVICE_TYPE):
         """Retrieves service driver object based on service type input.
 
         Currently, service drivers are identified with service type. Support
@@ -256,8 +371,7 @@ class LBaaSEventHandler(nfp_poll.PollEventDesc):
         Returns: Service driver instance
 
         """
-        service_type = 'loadbalancer'
-        return self.drivers[service_type]
+        return self.drivers[driver_name]
 
     def handle_event(self, ev):
         """Processes the generated events in worker context.
@@ -281,8 +395,7 @@ class LBaaSEventHandler(nfp_poll.PollEventDesc):
         Returns: None
 
         """
-
-        # Process single request data blob
+        LOG.info(" ###### Handling event=%s ########" % (ev.id))
         try:
             msg = ("Worker process with ID: %s starting "
                    "to handle task: %s of topic: %s. "
@@ -294,214 +407,178 @@ class LBaaSEventHandler(nfp_poll.PollEventDesc):
         except Exception as err:
             LOG.error("Failed to perform the operation: %s. %s"
                       % (ev.id, str(err).capitalize()))
-            import traceback
-            traceback.print_exc()
-        """
         finally:
-            if ev.id == 'COLLECT_STATS':
-                '''Do not say event done for collect stats as it is
+            if ev.id == lb_constants.EVENT_COLLECT_STATS:
+                """Do not say event done for collect stats as it is
                    to be executed forever
-                '''
+                """
                 pass
             else:
-                self._sc.event_done(ev)
-        """
+                LOG.info(" ###### calling event done for ev=%s" % (ev.id))
+                self.sc.event_done(ev)
+
+    def _handle_event_vip(self, ev, operation):
+        data = ev.data
+        context = data['context']
+        vip = data['vip']
+        driver = self._get_driver()  # vip['pool_id'])
+
+        try:
+            if operation == 'create':
+                driver.create_vip(vip, context)
+            elif operation == 'update':
+                old_vip = data['old_vip']
+                driver.update_vip(old_vip, vip, context)
+            elif operation == 'delete':
+                driver.delete_vip(vip, context)
+                return  # Don't update object status for delete operation
+        except Exception:
+            if operation == 'delete':
+                LOG.warn("Failed to delete vip %s" % (vip['id']))
+            else:
+                self.plugin_rpc.update_status('vip', vip['id'],
+                                              lb_constants.ERROR)
+        else:
+            self.plugin_rpc.update_status('vip', vip['id'],
+                                          lb_constants.ACTIVE)
 
     def _create_vip(self, ev):
-        data = ev.data
-        context = data['context']
-        vip = data['vip']
-        driver = self._get_driver(vip['pool_id'])
-        try:
-            driver.create_vip(vip, context)
-        except Exception:
-            self._handle_failed_driver_call('create', 'vip', vip['id'],
-                                            driver.get_name())
-        else:
-            self.plugin_rpc.update_status('vip', vip['id'],
-                                          lb_constants.ACTIVE)
+        self._handle_event_vip(ev, 'create')
 
     def _update_vip(self, ev):
-        data = ev.data
-        context = data['context']
-        old_vip = data['old_vip']
-        vip = data['vip']
-        driver = self._get_driver(vip['pool_id'])
-        try:
-            driver.update_vip(old_vip, vip, context)
-        except Exception:
-            self._handle_failed_driver_call('update', 'vip', vip['id'],
-                                            driver.get_name())
-        else:
-            self.plugin_rpc.update_status('vip', vip['id'],
-                                          lb_constants.ACTIVE)
+        self._handle_event_vip(ev, 'update')
 
     def _delete_vip(self, ev):
+        self._handle_event_vip(ev, 'delete')
+
+    def _handle_event_pool(self, ev, operation):
         data = ev.data
         context = data['context']
-        vip = data['vip']
-        driver = self._get_driver(vip['pool_id'])
+        pool = data['pool']
+
         try:
-            driver.delete_vip(vip, context)
+            if operation == 'create':
+                driver_name = data['driver_name']
+                if driver_name not in self.drivers:
+                    LOG.error(_('No device driver on agent: %s.'), driver_name)
+                    self.plugin_rpc.update_status('pool', pool['id'],
+                                                  lb_constants.ERROR)
+                    return
+                driver = self.drivers[driver_name]
+                driver.create_pool(pool, context)
+                LBaaSEventHandler.instance_mapping[pool['id']] = driver_name
+            elif operation == 'update':
+                old_pool = data['old_pool']
+                driver = self._get_driver()  # pool['id'])
+                driver.update_pool(old_pool, pool, context)
+            elif operation == 'delete':
+                driver = self._get_driver()  # pool['id'])
+                driver.delete_pool(pool, context)
+                del LBaaSEventHandler.instance_mapping[pool['id']]
+                return  # Don't update object status for delete operation
         except Exception:
-            LOG.warn(_("Failed to delete vip %s"), vip['id'])
+            if operation == 'delete':
+                LOG.warn("Failed to delete pool %s" % (pool['id']))
+                del LBaaSEventHandler.instance_mapping[pool['id']]
+            else:
+                self.plugin_rpc.update_status('pool', pool['id'],
+                                              lb_constants.ERROR)
+        else:
+            self.plugin_rpc.update_status('pool', pool['id'],
+                                          lb_constants.ACTIVE)
 
     def _create_pool(self, ev):
-        data = ev.data
-        context = data['context']
-        pool = data['pool']
-        driver_name = data['driver_name']
-        if driver_name not in self.drivers:
-            LOG.error(_('No device driver on agent: %s.'), driver_name)
-            self.plugin_rpc.update_status('pool', pool['id'],
-                                          lb_constants.ERROR)
-            return
-        driver = self.drivers[driver_name]
-        try:
-            driver.create_pool(pool, context)
-        except Exception:
-            self._handle_failed_driver_call('create', 'pool',
-                                            pool['id'],
-                                            driver.get_name())
-        else:
-            LBaaSEventHandler.instance_mapping[pool['id']] = driver_name
-            self.plugin_rpc.update_status('pool', pool['id'],
-                                          lb_constants.ACTIVE)
+        self._handle_event_pool(ev, 'create')
 
     def _update_pool(self, ev):
-        data = ev.data
-        context = data['context']
-        old_pool = data['old_pool']
-        pool = data['pool']
-        driver = self._get_driver(pool['id'])
-        try:
-            driver.update_pool(old_pool, pool, context)
-        except Exception:
-            self._handle_failed_driver_call('update', 'pool',
-                                            pool['id'],
-                                            driver  # driver.get_name()
-                                            )
-        else:
-            self.plugin_rpc.update_status('pool', pool['id'],
-                                          lb_constants.ACTIVE)
+        self._handle_event_pool(ev, 'update')
 
     def _delete_pool(self, ev):
+        self._handle_event_pool(ev, 'delete')
+
+    def _handle_event_member(self, ev, operation):
         data = ev.data
         context = data['context']
-        pool = data['pool']
-        driver = self._get_driver(pool['id'])
+        member = data['member']
+        driver = self._get_driver()  # member['pool_id'])
         try:
-            driver.delete_pool(pool, context)
+            if operation == 'create':
+                driver.create_member(member, context)
+            elif operation == 'update':
+                old_member = data['old_member']
+                driver.update_member(old_member, member, context)
+            elif operation == 'delete':
+                driver.delete_member(member, context)
+                return  # Don't update object status for delete operation
         except Exception:
-            LOG.warn(_("Failed to delete pool %s"), pool['id'])
-        del LBaaSEventHandler.instance_mapping[pool['id']]
+            if operation == 'delete':
+                LOG.warn("Failed to delete member %s" % (member['id']))
+            else:
+                self.plugin_rpc.update_status('member', member['id'],
+                                              lb_constants.ERROR)
+        else:
+            self.plugin_rpc.update_status('member', member['id'],
+                                          lb_constants.ACTIVE)
 
     def _create_member(self, ev):
-        data = ev.data
-        context = data['context']
-        member = data['member']
-        driver = self._get_driver(member['pool_id'])
-        try:
-            driver.create_member(member, context)
-        except Exception:
-            self._handle_failed_driver_call('create', 'member',
-                                            member['id'],
-                                            driver.get_name())
-        else:
-            self.plugin_rpc.update_status('member', member['id'],
-                                          lb_constants.ACTIVE)
+        self._handle_event_member(ev, 'create')
 
     def _update_member(self, ev):
-        data = ev.data
-        context = data['context']
-        old_member = data['old_member']
-        member = data['member']
-        driver = self._get_driver(member['pool_id'])
-        try:
-            driver.update_member(old_member, member, context)
-        except Exception:
-            self._handle_failed_driver_call('update', 'member',
-                                            member['id'],
-                                            driver.get_name())
-        else:
-            self.plugin_rpc.update_status('member', member['id'],
-                                          lb_constants.ACTIVE)
+        self._handle_event_member(ev, 'update')
 
     def _delete_member(self, ev):
+        self._handle_event_member(ev, 'delete')
+
+    def _handle_event_pool_health_monitor(self, ev, operation):
         data = ev.data
         context = data['context']
-        member = data['member']
-        driver = self._get_driver(member['pool_id'])
+        health_monitor = data['health_monitor']
+        pool_id = data['pool_id']
+        driver = self._get_driver()  # (pool_id)
+        assoc_id = {'pool_id': pool_id,
+                    'monitor_id': health_monitor['id']}
         try:
-            driver.delete_member(member, context)
+            if operation == 'create':
+                driver.create_pool_health_monitor(health_monitor, pool_id,
+                                                  context)
+            elif operation == 'update':
+                old_health_monitor = data['old_health_monitor']
+                driver.update_pool_health_monitor(old_health_monitor,
+                                                  health_monitor, pool_id,
+                                                  context)
+            elif operation == 'delete':
+                driver.delete_pool_health_monitor(health_monitor, pool_id,
+                                                  context)
+                return  # Don't update object status for delete operation
         except Exception:
-            LOG.warn(_("Failed to delete member %s"), member['id'])
+            if operation == 'delete':
+                LOG.warn("Failed to delete pool health monitor."
+                         " assoc_id: %s" % (assoc_id))
+            else:
+                self.plugin_rpc.update_status(
+                    'health_monitor', assoc_id, lb_constants.ERROR)
+        else:
+            self.plugin_rpc.update_status(
+                'health_monitor', assoc_id, lb_constants.ACTIVE)
 
     def _create_pool_health_monitor(self, ev):
-        data = ev.data
-        context = data['context']
-        health_monitor = data['health_monitor']
-        pool_id = data['pool_id']
-        driver = self._get_driver(pool_id)
-        assoc_id = {'pool_id': pool_id,
-                    'monitor_id': health_monitor['id']}
-        try:
-            driver.create_pool_health_monitor(health_monitor, pool_id, context)
-        except Exception:
-            self._handle_failed_driver_call(
-             'create', 'health_monitor', assoc_id, driver.get_name())
-        else:
-            self.plugin_rpc.update_status(
-                'health_monitor', assoc_id, lb_constants.ACTIVE)
+        self._handle_event_pool_health_monitor(ev, 'create')
 
     def _update_pool_health_monitor(self, ev):
-        data = ev.data
-        context = data['context']
-        old_health_monitor = data['old_health_monitor']
-        health_monitor = data['health_monitor']
-        pool_id = data['pool_id']
-        driver = self._get_driver(pool_id)
-        assoc_id = {'pool_id': pool_id,
-                    'monitor_id': health_monitor['id']}
-        try:
-            driver.update_pool_health_monitor(old_health_monitor,
-                                              health_monitor,
-                                              pool_id,
-                                              context)
-        except Exception:
-            self._handle_failed_driver_call(
-             'update', 'health_monitor', assoc_id, driver.get_name())
-        else:
-            self.plugin_rpc.update_status(
-                'health_monitor', assoc_id, lb_constants.ACTIVE)
+        self._handle_event_pool_health_monitor(ev, 'update')
 
     def _delete_pool_health_monitor(self, ev):
-        data = ev.data
-        context = data['context']
-        health_monitor = data['health_monitor']
-        pool_id = data['pool_id']
-        driver = self._get_driver(pool_id)
-        assoc_id = {'pool_id': pool_id,
-                    'monitor_id': health_monitor['id']}
-        try:
-            driver.delete_pool_health_monitor(health_monitor, pool_id, context)
-        except Exception:
-            LOG.warn(_("Failed to delete pool health monitor."
-                       " assoc_id: %s"), assoc_id)
+        self._handle_event_pool_health_monitor(ev, 'delete')
 
     def _agent_updated(self, ev):
         """ TODO:(pritam): Support """
         return None
 
-    def _handle_failed_driver_call(self, operation, obj_type, obj_id, driver):
-        LOG.error("Failed operation=%s,for obj_type=%s,obj_id=%s,"
-                  "driver=%s " % (operation, obj_type, obj_id, driver))
-        self.plugin_rpc.update_status(obj_type, obj_id, lb_constants.ERROR)
-
     def _collect_stats(self, ev):
-        self._sc.poll_event(ev)
+        self.sc.poll_event(ev)
 
-    @nfp_poll.poll_event_desc(event='COLLECT_STATS', spacing=60)
+    @nfp_poll.poll_event_desc(event=lb_constants.EVENT_COLLECT_STATS,
+                              spacing=60)
     def collect_stats(self, ev):
         for pool_id, driver_name in LBaaSEventHandler.instance_mapping.items():
             driver = self.drivers[driver_name]
@@ -514,7 +591,7 @@ class LBaaSEventHandler(nfp_poll.PollEventDesc):
                               pool_id)
 
 
-def events_init(sc, drivers, rpcmgr, nqueue):
+def events_init(sc, drivers, rpcmgr):
     """Registers events with core service controller.
 
     All the events will come to handle_event method of class instance
@@ -527,44 +604,36 @@ def events_init(sc, drivers, rpcmgr, nqueue):
     Returns: None
 
     """
-    evs = [
-        # Events for LBaaS standard RPCs coming from LBaaS Plugin
-        Event(id='CREATE_POOL', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='UPDATE_POOL', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='DELETE_POOL', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='CREATE_VIP', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='UPDATE_VIP', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='DELETE_VIP', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='CREATE_MEMBER', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='UPDATE_MEMBER', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='DELETE_MEMBER', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='CREATE_POOL_HEALTH_MONITOR', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='UPDATE_POOL_HEALTH_MONITOR', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='DELETE_POOL_HEALTH_MONITOR', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='AGENT_UPDATED', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue)),
-        Event(id='COLLECT_STATS', handler=LBaaSEventHandler(
-                                                sc, drivers, rpcmgr, nqueue))
-        ]
+    ev_ids = [lb_constants.EVENT_CREATE_POOL, lb_constants.EVENT_UPDATE_POOL,
+              lb_constants.EVENT_DELETE_POOL,
+
+              lb_constants.EVENT_CREATE_VIP, lb_constants.EVENT_UPDATE_VIP,
+              lb_constants.EVENT_DELETE_VIP,
+
+              lb_constants.EVENT_CREATE_MEMBER,
+              lb_constants.EVENT_UPDATE_MEMBER,
+              lb_constants.EVENT_DELETE_MEMBER,
+
+              lb_constants.EVENT_CREATE_POOL_HEALTH_MONITOR,
+              lb_constants.EVENT_UPDATE_POOL_HEALTH_MONITOR,
+              lb_constants.EVENT_DELETE_POOL_HEALTH_MONITOR,
+
+              lb_constants.EVENT_AGENT_UPDATED,
+              lb_constants.EVENT_COLLECT_STATS
+              ]
+
+    evs = []
+    for ev_id in ev_ids:
+        ev = main.Event(id=ev_id, handler=LBaaSEventHandler(sc, drivers,
+                                                            rpcmgr))
+        evs.append(ev)
     sc.register_events(evs)
 
 
 def load_drivers(sc):
     """Imports all the driver files.
 
-    Returns: Dictionary of driver objects with a specified service type and
+    Returns: Dictionary of driver objects with a specified service type and/or
     vendor name
 
     """
@@ -596,7 +665,7 @@ def register_service_agent(cm, sc, conf, rpcmgr):
     cm.register_service_agent(service_type, rpcmgr)
 
 
-def init_agent(cm, sc, conf, nqueue):
+def init_agent(cm, sc, conf):
     """Initializes Loadbalaner agent.
 
     :param cm: Instance of configuration module
@@ -620,7 +689,7 @@ def init_agent(cm, sc, conf, nqueue):
     rpcmgr = LBaaSRpcManager(sc, conf)
 
     try:
-        events_init(sc, drivers, rpcmgr, nqueue)
+        events_init(sc, drivers, rpcmgr)
     except Exception as err:
         msg = ("Loadbalaner agent failed to initialize events. %s"
                % (str(err).capitalize()))
@@ -645,8 +714,13 @@ def init_agent(cm, sc, conf, nqueue):
 
 
 def _start_collect_stats(sc):
+    """Enqueues poll event for worker to collect pool stats periodically.
+       Agent keeps map of pool_id:driver. As part of handling this event,
+       stats for pool_id is requested from agent inside service vm
+    """
+
     arg_dict = {}
-    ev = sc.new_event(id='COLLECT_STATS', data=arg_dict)
+    ev = sc.new_event(id=lb_constants.EVENT_COLLECT_STATS, data=arg_dict)
     sc.post_event(ev)
 
 
