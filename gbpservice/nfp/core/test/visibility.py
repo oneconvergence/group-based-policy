@@ -186,11 +186,6 @@ class Agent(PollEventDesc):
         LOG.debug("In poll_event_cancel method of Handler for  Event %s " % (event))
 
 
-    @nfp_poll.poll_event_desc(event='EVENT_TIME_OUT', spacing=1)
-    def event_timout(self, ev):
-        LOG.debug("In  event timeout method")
-        return
-
     @nfp_poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
         poll = True
