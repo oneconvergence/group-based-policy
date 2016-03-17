@@ -375,30 +375,24 @@ def events_init(sc, drivers, rpcmgr):
 
     """
 
-    evs = [
-        main.Event(id=gen_cfg_const.EVENT_CONFIGURE_INTERFACES,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CLEAR_INTERFACES,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CONFIGURE_ROUTES,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CLEAR_ROUTES,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=common_const.EVENT_PROCESS_BATCH,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr))
-    ]
-    sc.register_events(evs)
+    event_id_list = [
+                        gen_cfg_const.EVENT_CONFIGURE_INTERFACES,
+                        gen_cfg_const.EVENT_CLEAR_INTERFACES,
+                        gen_cfg_const.EVENT_CONFIGURE_ROUTES,
+                        gen_cfg_const.EVENT_CLEAR_ROUTES,
+                        gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
+                        gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
+                        common_const.EVENT_PROCESS_BATCH
+                    ]
+    events = []
+
+    for event in event_id_list:
+        events.append(
+                main.Event(
+                    id=event,
+                    handler=GenericConfigEventHandler(sc, drivers, rpcmgr)))
+
+    sc.register_events(events)
 
 
 def load_drivers():
