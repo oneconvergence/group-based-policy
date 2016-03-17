@@ -15,6 +15,7 @@ from gbpservice.nfp.configurator.lib import demuxer
 from oslo_log import log
 from gbpservice.nfp.core import rpc
 from gbpservice.nfp.configurator.lib import utils
+from gbpservice.nfp.configurator.lib import schema_validator
 
 AGENTS_PKG = 'gbpservice.nfp.configurator.agents'
 CONFIGURATOR_RPC_TOPIC = 'configurator'
@@ -42,6 +43,7 @@ class ConfiguratorRpcManager(object):
         self.cm = cm
         self.conf = conf
         self.demuxer = demuxer
+        self.sv = schema_validator.SchemaValidator()
 
     def _get_service_agent_instance(self, service_type):
         """Provides service agent instance based on service type.
@@ -67,6 +69,9 @@ class ConfiguratorRpcManager(object):
         Returns: None
 
         """
+        if not self.sv.decode(request_data):
+            msg = ("Decode failed for request_data=%s" % (request_data))
+            raise Exception(msg)
 
         # Retrieves service type from RPC data
         service_type = self.demuxer.get_service_type(request_data)
