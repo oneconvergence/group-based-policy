@@ -62,8 +62,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         arg_dict = {'context': context,
                     'kwargs': kwargs}
-        ev = self._sc.new_event(id=event_id, data=arg_dict, key=event_key)
-        self._sc.post_event(ev)
+        ev = self.sc.new_event(id=event_id, data=arg_dict, key=event_key)
+        self.sc.post_event(ev)
 
     def configure_interfaces(self, context, kwargs):
         """Enqueues event for worker to process configure interfaces request.
@@ -205,7 +205,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         # Process batch of request data blobs
         try:
             # Process batch of request data blobs
-            if ev.id == gen_cfg_const.EVENT_PROCESS_BATCH:
+            if ev.id == common_const.EVENT_PROCESS_BATCH:
                 self.process_batch(ev)
                 return
             # Process HM poll events
@@ -213,12 +213,12 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                 kwargs = ev.data.get('kwargs')
                 periodicity = kwargs.get('periodicity')
                 if periodicity == gen_cfg_const.INITIAL:
-                    self._sc.poll_event(
+                    self.sc.poll_event(
                                     ev,
                                     max_times=gen_cfg_const.INITIAL_HM_RETRIES)
 
                 elif periodicity == gen_cfg_const.FOREVER:
-                    self._sc.poll_event(ev)
+                    self.sc.poll_event(ev)
             else:
                 self._process_event(ev)
         except Exception as err:
@@ -253,7 +253,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
             if (kwargs.get('periodicity') == gen_cfg_const.INITIAL and
                     result == common_const.SUCCESS):
                 notification_data = self._prepare_notification_data(ev, result)
-                self._sc.poll_event_done(ev)
+                self.sc.poll_event_done(ev)
                 self.notify._notification(notification_data)
             elif kwargs.get('periodicity') == gen_cfg_const.FOREVER:
                 if result == common_const.FAILED:
@@ -266,7 +266,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                         notification_data = self._prepare_notification_data(
                                                                     ev,
                                                                     result)
-                        self._sc.poll_event_done(ev)
+                        self.sc.poll_event_done(ev)
                         self.notify._notification(notification_data)
                 elif result == common_const.SUCCESS:
                     """set fail_count to 0 if it had failed earlier even once
@@ -277,7 +277,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                that particular service vm's health monitor
             """
             notification_data = self._prepare_notification_data(ev, result)
-            self._sc.poll_event_done(ev)
+            self.sc.poll_event_done(ev)
             self.notify._notification(notification_data)
         else:
             """For other events, irrespective of result send notification"""
@@ -307,9 +307,9 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         resource = context.get('resource')
         del context['resource']
 
-        msg = {'receiver': gen_cfg_const.ORCHESTRATOR,
+        msg = {'receiver': common_const.ORCHESTRATOR,
                'resource': resource,
-               'method': ev.id.lower(),
+               'method': common_const.NFD_NOTIFICATION,
                'kwargs': [
                           {
                            'context': context,
@@ -375,30 +375,24 @@ def events_init(sc, drivers, rpcmgr):
 
     """
 
-    evs = [
-        main.Event(id=gen_cfg_const.EVENT_CONFIGURE_INTERFACES,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CLEAR_INTERFACES,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CONFIGURE_ROUTES,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CLEAR_ROUTES,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr)),
-        main.Event(id=gen_cfg_const.EVENT_PROCESS_BATCH,
-                   handler=GenericConfigEventHandler(
-                                        sc, drivers, rpcmgr))
-    ]
-    sc.register_events(evs)
+    event_id_list = [
+                        gen_cfg_const.EVENT_CONFIGURE_INTERFACES,
+                        gen_cfg_const.EVENT_CLEAR_INTERFACES,
+                        gen_cfg_const.EVENT_CONFIGURE_ROUTES,
+                        gen_cfg_const.EVENT_CLEAR_ROUTES,
+                        gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
+                        gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
+                        common_const.EVENT_PROCESS_BATCH
+                    ]
+    events = []
+
+    for event in event_id_list:
+        events.append(
+                main.Event(
+                    id=event,
+                    handler=GenericConfigEventHandler(sc, drivers, rpcmgr)))
+
+    sc.register_events(events)
 
 
 def load_drivers():

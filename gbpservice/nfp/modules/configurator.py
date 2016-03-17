@@ -261,6 +261,9 @@ class ConfiguratorRpcManager(object):
         """
 
         notifications = self.sc.get_notification()
+        if notifications:
+            msg = ("Notification Data: %r" % notifications)
+            LOG.info(msg)
         return [notifications]
 
 """Implements configurator module APIs.

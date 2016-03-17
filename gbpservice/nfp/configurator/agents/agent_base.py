@@ -10,8 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.configurator.lib import (
-    generic_config_constants as const)
+from gbpservice.nfp.configurator.lib import constants as const
 from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
@@ -78,7 +77,8 @@ class AgentBaseRPCManager(object):
                 'sa_req_list': sa_req_list,
                 'notification_data': notification_data
             }
-            ev = self.sc.new_event(id='PROCESS_BATCH', data=args_dict)
+            ev = self.sc.new_event(id=const.EVENT_PROCESS_BATCH,
+                                   data=args_dict, key=None)
             self.sc.post_event(ev)
         else:
             sa_req_list[0]['context'].update(
@@ -108,8 +108,8 @@ class AgentBaseNotification(object):
         """
 
         event = self.sc.new_event(
-            id='NOTIFICATION_EVENT', key='NOTIFICATION_EVENT', data=data)
-        self.sc.poll_event(event)
+            id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
+        self.sc.stash_event(event)
 
 
 class AgentBaseEventHandler(object):
@@ -134,82 +134,76 @@ class AgentBaseEventHandler(object):
 
         """
 
-        try:
-            # Get service agent information list and notification data list
-            # from the event data
-            sa_req_list = ev.data.get('sa_req_list')
-            notification_data = ev.data.get('notification_data')
+        # Get service agent information list and notification data list
+        # from the event data
+        sa_req_list = ev.data.get('sa_req_list')
+        notification_data = ev.data.get('notification_data')
 
-            # Process the first data blob from the service information list.
-            # Get necessary parameters needed for driver method invocation.
-            method = sa_req_list[0]['method']
-            resource = sa_req_list[0]['resource']
-            kwargs = sa_req_list[0]['kwargs']
-            request_info = kwargs['kwargs']['request_info']
-            del kwargs['kwargs']['request_info']
-            context = sa_req_list[0]['context']
-            service_type = kwargs.get('kwargs').get('service_type')
+        for request in sa_req_list:
+            try:
+                # Process the first data blob from the request list.
+                # Get necessary parameters needed for driver method invocation.
+                method = request['method']
+                resource = request['resource']
+                kwargs = request['kwargs']
+                request_info = kwargs['kwargs']['request_info']
+                del kwargs['kwargs']['request_info']
+                context = request['context']
+                service_type = kwargs.get('kwargs').get('service_type')
 
-            # Get the service driver and invoke its method
-            driver = self._get_driver(service_type)
+                # Get the service driver and invoke its method
+                driver = self._get_driver(service_type)
 
-            # Service driver should return "success" on successful API
-            # processing. All other return values and exceptions are treated
-            # as failures.
-            result = getattr(driver, method)(context, **kwargs)
-            if result == 'SUCCESS':
-                success = True
-            else:
+                # Service driver should return "success" on successful API
+                # processing. All other return values and exceptions are
+                # treated as failures.
+                result = getattr(driver, method)(context, **kwargs)
+                if result == 'SUCCESS':
+                    success = True
+                else:
+                    success = False
+            except Exception as err:
+                result = ("Failed to process %s request. %s" %
+                          (method, str(err).capitalize()))
                 success = False
-        except Exception as err:
-            result = ("Failed to process %s request. %s" %
-                      (method, str(err).capitalize()))
+            finally:
+                # Prepare success notification and populate notification
+                # data list
+                msg = {
+                    'receiver': const.ORCHESTRATOR,
+                    'resource': const.ORCHESTRATOR,
+                    'method': const.NFD_NOTIFICATION,
+                    'kwargs': [
+                        {
+                            'context': context,
+                            'resource': resource,
+                            'request_info': request_info,
+                            'result': result
+                        }
+                    ]
+                }
 
-            success = False
-        finally:
-            # Prepare success notification and populate notification data list
-            msg = {
-                'receiver': const.ORCHESTRATOR,
-                'resource': const.ORCHESTRATOR,
-                'method': "network_function_device_notification",
-                'kwargs': [
-                    {
+                # If the data processed is first one, then prepare notification
+                # dict. Otherwise, append the notification to the kwargs list.
+                # Whether it is a data batch or single data blob request,
+                # notification generated will be single dictionary. In case of
+                # batch, multiple notifications are sent in the kwargs list.
+                if not notification_data:
+                    notification_data.update(msg)
+                else:
+                    data = {
                         'context': context,
                         'resource': resource,
                         'request_info': request_info,
-                        'result': result,
+                        'result': result
                     }
-                ]
-            }
+                    notification_data['kwargs'].append(data)
 
-            # If the data processed is first one, then prepare notification
-            # dict. Otherwise, append the notification to the kwargs list.
-            # Whether it is a data batch or single data blob request,
-            # notification generated will be single dictionary. In case of
-            # batch, multiple notifications are sent in the kwargs list.
-            if not notification_data:
-                notification_data.update(msg)
-            else:
-                data = {
-                    'context': context,
-                    'resource': resource,
-                    'request_info': request_info,
-                    'result': result
-                }
-                notification_data['kwargs'].append(data)
+            if not success:
+                self.notify._notification(notification_data)
+                raise Exception(msg)
 
-        if success:
-            # Remove the processed request data blob from the service
-            # information list. APIs will always process first data blob in
-            # the request.
-            sa_req_list.pop(0)
-
-            # Invoke base class method to process further data blobs in the
-            # request
-            self.rpcmgr.process_request(sa_req_list, notification_data)
-        else:
-            self.notify._notification(notification_data)
-            raise Exception(msg)
+        self.notify._notification(notification_data)
 
 
 def init_agent_complete(cm, sc, conf):
