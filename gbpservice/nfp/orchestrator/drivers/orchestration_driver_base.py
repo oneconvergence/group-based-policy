@@ -558,14 +558,14 @@ class OrchestrationDriverBase(object):
                         ' operation'))
             return False  # TODO[RPM]: should we raise an Exception here?
 
-        allowed_address_pairs = [{"ip_address": "0.0.0.0/0"}]
         try:
             for port in device_data['ports']:
                 if port['port_classification'] == nfp_constants.PROVIDER:
                     port_id = self._get_port_id(port, token)
                     self.network_handler_neutron.update_port(
                                 token, port_id,
-                                allowed_address_pairs=allowed_address_pairs)
+                                security_groups=[],
+                                port_security_enabled=False)
                     self.compute_handler_nova.attach_interface(
                                 token,
                                 self._get_admin_tenant_id(token=token),
@@ -577,7 +577,8 @@ class OrchestrationDriverBase(object):
                     port_id = self._get_port_id(port, token)
                     self.network_handler_neutron.update_port(
                                 token, port_id,
-                                allowed_address_pairs=allowed_address_pairs)
+                                security_groups=[],
+                                port_security_enabled=False)
                     self.compute_handler_nova.attach_interface(
                                 token,
                                 self._get_admin_tenant_id(token=token),
@@ -643,9 +644,6 @@ class OrchestrationDriverBase(object):
                             self._get_admin_tenant_id(token=token),
                             device_data['id'],
                             port_id)
-                self.network_handler_neutron.update_port(
-                            token, port_id,
-                            allowed_address_pairs=None)
         except Exception:
             self._increment_stats_counter('interface_unplug_failures')
             LOG.error(_('Failed to unplug interface(s) from the device'))
