@@ -164,9 +164,10 @@ class Controller(object):
         return ev_workers
 
     def poll_handler_init(self):
-        """Initialize poll handler, creates a poll queue. """
+        """Initialize poll handler, creates a poll & stash queue """
         pollq = mp_queue()
-        handler = PollQueueHandler(self, pollq, self._event_handlers)
+        stashq = mp_queue()
+        handler = PollQueueHandler(self, pollq, stashq, self._event_handlers)
         return handler
 
     def modules_init(self, modules):
@@ -237,6 +238,12 @@ class Controller(object):
         """
         worker = self._loadbalancer.get(event.binding_key)
         event.worker_attached = worker[0].pid
+        if not event.worker_attached:
+            for w in self._workers:
+                if w[0].pid == os.getpid():
+                    event.worker_attached = os.getpid()
+                    worker = w
+                    break
         log_info(LOG, "Scheduling internal event %s"
                  "to worker %d"
                  % (event.identify(), event.worker_attached))
@@ -328,6 +335,23 @@ class Controller(object):
                          "init_complete() method - skipping"
                          % (identify(module)))
 
+    def stash_event(self, event):
+        """API for NFP modules to generate a new stash event.
+
+            Adds event to stashq for the stasher to stash on it
+            periodically.
+        """
+        log_info(LOG, "Adding to stashq - event %s"
+                 % (event.identify()))
+        event.max_times = sys.maxint
+        self._pollhandler.add_stash_event(event)
+
+    def get_stash_event(self):
+        """Get stashed event from the cache. """
+        event = self._pollhandler.get_stash_event()
+        if event:
+            return event.data
+
     def unit_test(self):
         for module in self._modules:
             module.unit_test(self._conf, self)
@@ -362,6 +386,8 @@ def modules_import():
 
 def main():
     oslo_config.CONF.register_opts(nfp_config.OPTS)
+    oslo_config.CONF.register_opts(
+        nfp_config.es_openstack_opts, "keystone_authtoken")
     n_config.register_interface_driver_opts_helper(oslo_config.CONF)
     n_config.register_agent_state_opts_helper(oslo_config.CONF)
     n_config.register_root_helper(oslo_config.CONF)

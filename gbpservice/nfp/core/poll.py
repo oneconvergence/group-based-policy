@@ -178,14 +178,16 @@ class PollingTask(oslo_periodic_task.PeriodicTasks):
 
 class PollQueueHandler(object):
 
-    def __init__(self, sc, qu, ehs, batch=-1):
+    def __init__(self, sc, qu, squ, ehs, batch=-1):
         self._sc = sc
         self._ehs = ehs
         self._pollq = qu
+        self._stashq = squ
         self._procidx = 0
         self._procpending = 0
         self._batch = 10 if batch == -1 else batch
         self._cache = nfp_fifo.Fifo(sc)
+        self._stash_cache = nfp_fifo.Fifo(sc)
 
     def _get(self):
         """Internal method to get messages from pollQ.
@@ -196,14 +198,14 @@ class PollQueueHandler(object):
             return self._pollq.get(timeout=0.1)
         except Queue.Empty:
             return None
-    
+
     def event_life_timedout(self, eh, event):
         try:
             eh.event_cancelled(event.data)
         except AttributeError:
             log_info(LOG,
                      "Handler %s does not implement"
-                     "event_cancelled method" % (identify(eh))) 
+                     "event_cancelled method" % (identify(eh)))
 
     def event_timedout(self, eh, event):
         if isinstance(eh, PollEventDesc):
@@ -225,7 +227,7 @@ class PollQueueHandler(object):
                          % (identify(eh),
                             event.identify()))
         else:
-            ret = eh.handle_poll_event(ev)
+            ret = eh.handle_poll_event(event)
             log_info(LOG,
                      "Invoking handle_poll_event() of handler %s"
                      "for event %s "
@@ -334,6 +336,22 @@ class PollQueueHandler(object):
         log_debug(LOG, "Add event %s to the pollq" % (event.identify()))
         self._pollq.put(event)
 
+    def s_add(self, event):
+        """Adds an event to the pollq.
+
+            Invoked in context of worker process
+            to send event to polling task.
+        """
+        log_debug(LOG, "Add event %s to the pollq" % (event.identify()))
+        self._stashq.put(event)
+
+    def s_get(self):
+        """Get the event from stashq. """
+        try:
+            return self._stashq.get(timeout=0.1)
+        except Queue.Empty:
+            return None
+
     def fill(self):
         """Fill polling cache with events from poll queue.
 
@@ -352,6 +370,24 @@ class PollQueueHandler(object):
                           % (ev.identify()))
                 self._cache.put(ev)
 
+    def s_fill(self):
+        """Fill stashing cache with events from stash queue.
+
+            Fetch messages from stash queue which is
+            python mutiprocessing.queue and fill local cache.
+            Events need to persist and polled they are declated complete
+            or cancelled.
+        """
+        log_debug(LOG, "Fill events from multi processing Q to internal cache")
+        for i in range(0, 10):
+            ev = self.s_get()
+
+            if ev:
+                log_error(LOG,
+                          "Got new event %s from multi processing Q"
+                          % (ev.identify()))
+                self._stash_cache.put(ev)
+
     def peek(self, idx, count):
         """Peek for events instead of popping.
 
@@ -369,10 +405,22 @@ class PollQueueHandler(object):
         # return cache[idx:(idx + pull)], pull
         return cache, cache[0:pull], pull
 
+    def add_stash_event(self, ev):
+        """Add stash event in the cache. """
+        return self.s_add(ev)
+
+    def get_stash_event(self):
+        """Get the stach event from cache. """
+        copy = self._stash_cache.copy()
+        for ev in copy:
+            self._stash_cache.remove([ev])
+            return ev
+
     def run(self):
         """Invoked in loop of periodic task to check for timedout events. """
         # Fill the cache first
         self.fill()
+        self.s_fill()
         # Peek the events from cache
         cache, evs, count = self.peek(0, self._batch)
         for ev in evs:

@@ -118,6 +118,16 @@ def test_service_create(conf, sc):
     ev = sc.new_event(id='SERVICE_DUMMY_EVENT', key='dummy_event')
     sc.post_event(ev)
 
+    time.sleep(1)
+    while True:
+        data = sc.get_stash_event()
+        if data is not None:
+            print "Data: %s" % (data)
+            break
+        else:
+            print "no event"
+            time.sleep(1)
+
 
 class Collector(object):
 
@@ -174,7 +184,10 @@ class Agent(PollEventDesc):
         self._sc.poll_event(ev, max_times=2)
 
     def _handle_dummy_event(self, ev):
-        self._sc.poll_event(ev)
+        self._sc.poll_event(ev, max_times=2)
+        event = self._sc.new_event(
+            id='STASH_EVENT', key='STASH_EVENT', data={})
+        self._sc.stash_event(event)
 
     def _handle_delete_event(self, ev):
         """Driver logic here.
