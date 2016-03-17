@@ -73,12 +73,12 @@ def test_service_create(conf, sc):
                 'ip': '192.168.20.199'
                 }
     # Collector(service).create()
-    #Event with timer
+    # Event with timer
     ev = sc.new_event(id='SERVICE_CREATE', data=service1,
                       binding_key=service1['id'],
-                      key=service1['id'], lifetime=11,serialize=True)
+                      key=service1['id'], lifetime=11, serialize=True)
     sc.post_event(ev)
-    
+
     service2 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216272a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216562c',
@@ -88,12 +88,12 @@ def test_service_create(conf, sc):
                 'service_type': 'firewall',
                 'ip': '192.168.20.197'
                 }
-    #event Without Timer
+    # event Without Timer
     ev = sc.new_event(id='SERVICE_CREATE', data=service2,
                       binding_key=service2['id'],
                       key=service2['id'], serialize=True)
     sc.post_event(ev)
-    """
+
     service3 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216273a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216563c',
@@ -117,7 +117,7 @@ def test_service_create(conf, sc):
 
     ev = sc.new_event(id='SERVICE_DUMMY_EVENT', key='dummy_event')
     sc.post_event(ev)
-    """
+
 
 class Collector(object):
 
@@ -165,7 +165,7 @@ class Agent(PollEventDesc):
             self._handle_dummy_event(ev)
 
     def event_cancelled(self, ev):
-        LOG.debug("In event_cancel method of Handler for Event %s " %(ev))
+        LOG.debug("In event_cancel method of Handler for Event %s " % (ev))
 
     def _handle_create_event(self, ev):
         """Driver logic here.
@@ -180,11 +180,11 @@ class Agent(PollEventDesc):
         """Driver logic here.
         """
         self._sc.event_done(ev)
-        #self._sc.poll_event_done(ev)
+        # self._sc.poll_event_done(ev)
 
-    def poll_event_cancel(self,event):
-        LOG.debug("In poll_event_cancel method of Handler for  Event %s " % (event))
-
+    def poll_event_cancel(self, event):
+        LOG.debug("In poll_event_cancel method of Handler for  Event %s " %
+                  (event))
 
     @nfp_poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):

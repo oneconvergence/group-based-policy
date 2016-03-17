@@ -126,26 +126,8 @@ class Controller(object):
 
     def sequencer_get_event(self):
         """Get an event from the sequencer map.
-
-            Invoked by workers to get the first event in sequencer map.
-            Since it is a FIFO, first event could be waiting long to be
-            scheduled.
-            Loops over copy of sequencer map and returns the first waiting
-            event.
         """
-        seq_map = self._sequencer.copy()
-        for seq in seq_map.values():
-            for val in seq.values():
-                if val['in_use']:
-                    continue
-                else:
-                    if val['queue'] == []:
-                        continue
-                    event = val['queue'][0]
-                    log_debug(LOG, "Returing serialized event %s"
-                              % (event.identify()))
-                    return event
-        return None
+        return self._sequencer.get()
 
     def report_state(self):
         """Invoked by report_task to report states of all agents. """
@@ -174,7 +156,8 @@ class Controller(object):
 
         for w in range(0, wc):
             evq = mp_queue()
-            evq_handler = EventQueueHandler(self, self._conf, evq, self._event_handlers)
+            evq_handler = EventQueueHandler(
+                self, self._conf, evq, self._event_handlers)
             worker = mp_process(target=evq_handler.run, args=(evq,))
             worker.daemon = True
             ev_workers[w] = ev_workers[w] + (worker, evq, evq_handler)
@@ -280,8 +263,8 @@ class Controller(object):
         seq_q = seq_map[event.binding_key]['queue']
         for seq_event in seq_q:
             if seq_event.key == event.key:
-                log_debug(LOG, "Removing event %s from serialize Q"
-                          % (seq_event.identify()))
+                log_info(LOG, "Removing event %s from serialize Q"
+                         % (seq_event.identify()))
                 self._sequencer.remove(seq_event)
                 break
         self._sequencer.delete_eventmap(event)
@@ -390,5 +373,5 @@ def main():
     sc = Controller(oslo_config.CONF, modules)
     sc.start()
     sc.init_complete()
-    #sc.unit_test()
+    # sc.unit_test()
     sc.wait()

@@ -71,6 +71,35 @@ class EventSequencer(object):
         """
         self._sequencer_map = {}
 
+    def get(self):
+        """Get an event from the sequencer map.
+
+            Invoked by workers to get the first event in sequencer map.
+            Since it is a FIFO, first event could be waiting long to be
+            scheduled.
+            Loops over copy of sequencer map and returns the first waiting
+            event.
+        """
+        event = None
+        self._sc.lock()
+        seq_map = self._sequencer_map
+        for pid, seq in seq_map.iteritems():
+            for bkey, val in seq.iteritems():
+                if val['in_use']:
+                    continue
+                else:
+                    if val['queue'] == []:
+                        continue
+                    event = val['queue'][0]
+                    seq_map[pid][bkey]['in_use'] = True
+                    log_info(LOG, "Returing serialized event %s"
+                             % (event.identify()))
+                    break
+            if event:
+                break
+        self._sc.unlock()
+        return event
+
     def add(self, ev):
         """Add the event to the sequencer.
 
@@ -87,16 +116,16 @@ class EventSequencer(object):
         seq_map = self._sequencer_map[ev.worker_attached]
         if ev.binding_key in seq_map.keys():
             queued = True
-            log_debug(LOG,
-                      "There is already an event in progress"
-                      "Queueing event %s" % (ev.identify()))
+            log_info(LOG,
+                     "There is already an event in progress"
+                     "Queueing event %s" % (ev.identify()))
 
             seq_map[ev.binding_key]['queue'].append(ev)
         else:
-            log_debug(LOG,
-                      "Scheduling first event to exec"
-                      "Event %s" % (ev.identify()))
-            seq_map[ev.binding_key] = {'in_use': True, 'queue': []}
+            log_info(LOG,
+                     "Scheduling first event to exec"
+                     "Event %s" % (ev.identify()))
+            seq_map[ev.binding_key] = {'in_use': True, 'queue': [ev]}
         self._sc.unlock()
         return queued
 
@@ -116,6 +145,8 @@ class EventSequencer(object):
         self._sc.lock()
         self._sequencer_map[ev.worker_attached][
             ev.binding_key]['queue'].remove(ev)
+        self._sequencer_map[ev.worker_attached][
+            ev.binding_key]['in_use'] = False
         self._sc.unlock()
 
     def delete_eventmap(self, ev):
@@ -123,10 +154,10 @@ class EventSequencer(object):
         self._sc.lock()
         seq_map = self._sequencer_map[ev.worker_attached][ev.binding_key]
         if seq_map['queue'] == []:
-            log_debug(LOG,
-                      "No more events in the seq map -"
-                      "Deleting the entry (%d) (%s)"
-                      % (ev.worker_attached, ev.binding_key))
+            log_info(LOG,
+                     "No more events in the seq map -"
+                     "Deleting the entry (%d) (%s)"
+                     % (ev.worker_attached, ev.binding_key))
             del self._sequencer_map[ev.worker_attached][ev.binding_key]
         self._sc.unlock()
 
@@ -142,7 +173,7 @@ class EventQueueHandler(object):
 
     def __init__(self, sc, conf, qu, ehs):
         # Pool of green threads per process
-        self._conf =conf
+        self._conf = conf
         self._tpool = nfp_tp.ThreadPool()
         self._evq = qu
         self._ehs = ehs
@@ -224,17 +255,19 @@ class EventQueueHandler(object):
                 eh = self._ehs.get(ev)
                 if not ev.poll_event:
                     # Creating the Timer Poll Event
-                    if ev.lifetime :
-                        log_info(LOG,"Got Event %s with Lifetime (%d) seconds :"
-                                 " Creating EVENT_LIFE_TIMEOUT Event"
-                                 % (ev.identify(),ev.lifetime))
+                    if ev.lifetime:
+                        log_info(LOG, "Creating LIFE_TIMEOUT event (%s) "
+                                 " for lifetime (%d)"
+                                 % (ev.identify(), ev.lifetime))
 
-                        #convert event lifetime in to polling time
-                        max_times = int(ev.lifetime / self._conf.periodic_interval)
-                        if ev.lifetime % self._conf.periodic_interval :
+                        # convert event lifetime in to polling time
+                        max_times = int(
+                            ev.lifetime / self._conf.periodic_interval)
+                        if ev.lifetime % self._conf.periodic_interval:
                             max_times += 1
 
-                        t_ev = self._sc.new_event(id='EVENT_LIFE_TIMEOUT', data=ev,
+                        t_ev = self._sc.new_event(
+                            id='EVENT_LIFE_TIMEOUT', data=ev,
                             binding_key=ev.binding_key, key=ev.key)
                         self._sc.poll_event(t_ev, max_times=max_times)
 
