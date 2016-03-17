@@ -1,5 +1,5 @@
 import filter_base
-from gbpservice.nfp.configurator.lib import filter
+from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import filter_constants as constants
 import mock
 
@@ -10,7 +10,7 @@ class FilterTest(filter_base.BaseTestCase):
 
     def setUp(self):
         self.context = {}
-        self.filter_obj = filter.Filter(None, None)
+        self.filter_obj = data_filter.Filter(None, None)
 
     def tearDown(self):
         self.context = {}
