@@ -62,44 +62,6 @@ class ServiceAgentDemuxer(object):
     def __init__(self):
         pass
 
-    def validate_request(self, request_data):
-        """Validates request data and its parameter format.
-
-        :param request_data: API input data
-
-        Returns:
-        (1) "firewall"/"vpn"/"loadbalancer"
-        (2) "generic_config" if service_type field is absent in request_data
-        (3) "invalid" if any other service type is provided in request_data
-
-        """
-
-        # Type checks
-        if (isinstance(request_data, dict) and
-                isinstance(request_data['info'], dict) and
-                isinstance(request_data['config'], list)):
-            return True
-        else:
-            return False
-
-        # Validation for malformed request data
-        if not (request_data and
-                request_data['info'] and
-                request_data['config'] and
-                request_data['info']['version'] and
-                (len(request_data['config']) > 0)):
-            return False
-        else:
-            return True
-
-        # Validation for malformed configuration
-        for config in request_data['config']:
-            if not (config['resource'] and
-                    config['kwargs']):
-                return False
-            else:
-                return True
-
     def get_service_type(self, request_data):
         """Retrieves service type from request data.
 
@@ -111,9 +73,6 @@ class ServiceAgentDemuxer(object):
         (3) "invalid" if any other service type is provided in request_data
 
         """
-
-        if not self.validate_request(request_data):
-            return constants.invalid_service_type
 
         # Get service type based on the fact that for some request data
         # formats the 'type' key is absent. Check for invalid types
