@@ -10,11 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-supported_service_types = ['firewall', 'vpn', 'loadbalancer', None]
-invalid_service_type = 'invalid'
-SUCCESS = 'SUCCESS'
-FAILED = 'FAILED'
-ORCHESTRATOR = 'orchestrator'
-EVENT_STASH = 'STASH_EVENT'
-EVENT_PROCESS_BATCH = 'PROCESS_BATCH'
-NFD_NOTIFICATION = 'network_function_device_notification'
+ACTIVE = "ACTIVE"
+PENDING_CREATE = "PENDING_CREATE"
+PENDING_UPDATE = "PENDING_UPDATE"
+PENDING_DELETE = "PENDING_DELETE"
+INACTIVE = "INACTIVE"
+ACTIVE_PENDING_STATUSES = (
+    ACTIVE,
+    PENDING_CREATE,
+    PENDING_UPDATE
+)
