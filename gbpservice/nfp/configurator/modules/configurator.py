@@ -265,7 +265,7 @@ class ConfiguratorRpcManager(object):
 
         """
 
-        notifications = self.sc.get_notification()
+        notifications = self.sc.get_stash_event()
         if notifications:
             msg = ("Notification Data: %r" % notifications)
             LOG.info(msg)
