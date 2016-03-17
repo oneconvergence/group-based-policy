@@ -5,7 +5,7 @@ from gbpservice.nfp.configurator.agents import agent_base
 from oslo_log import log as logging
 from gbpservice.nfp.core import main
 from gbpservice.nfp.configurator.lib import utils
-from gbpservice.nfp.configurator.lib import filter
+from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.configurator.lib import lb_constants
 
@@ -17,13 +17,13 @@ by driver class for sending response from driver to the LBaaS Neutron plugin.
 """
 
 
-class LBaasRpcSender(filter.Filter):
+class LBaasRpcSender(data_filter.Filter):
 
     def __init__(self, sc):
         self.notify = agent_base.AgentBaseNotification(sc)
 
     def get_logical_device(self, pool_id, context):
-        """ Calls filter library to get logical device from pool_id.
+        """ Calls data filter library to get logical device from pool_id.
 
         :param pool_id: object type
         :param context: context which has list of all pool related resources
