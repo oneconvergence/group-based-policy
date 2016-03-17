@@ -17,10 +17,10 @@ from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.nfp.core.main import Event
 from gbpservice.nfp.core.rpc import RpcAgent
-from gbpservice.nfp.db import api as nfp_db_api
-from gbpservice.nfp.db import nfp_db as nfp_db
-from gbpservice.nfp.lifecycle_manager.openstack import heat_driver
-from gbpservice.nfp.lifecycle_manager.openstack import openstack_driver
+from gbpservice.nfp.orchestrator.db import api as nfp_db_api
+from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
+from gbpservice.nfp.orchestrator.openstack import heat_driver
+from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 
 LOG = logging.getLogger(__name__)
@@ -30,12 +30,12 @@ def rpc_init(controller, config):
     rpcmgr = RpcHandler(config, controller)
     agent = RpcAgent(controller,
                      host=config.host,
-                     topic=nfp_rpc_topics.NFP_SERVICE_LCM_TOPIC,
+                     topic=nfp_rpc_topics.NFP_NSO_TOPIC,
                      manager=rpcmgr)
     controller.register_rpc_agents([agent])
 
 
-def events_init(controller, config, service_lifecycle_handler):
+def events_init(controller, config, service_orchestrator):
     events = ['DELETE_NETWORK_FUNCTION', 'CREATE_NETWORK_FUNCTION_INSTANCE',
               'DELETE_NETWORK_FUNCTION_INSTANCE', 'DEVICE_CREATED',
               'DEVICE_ACTIVE', 'DEVICE_DELETED',
@@ -46,12 +46,12 @@ def events_init(controller, config, service_lifecycle_handler):
     events_to_register = []
     for event in events:
         events_to_register.append(
-            Event(id=event, handler=service_lifecycle_handler))
+            Event(id=event, handler=service_orchestrator))
     controller.register_events(events_to_register)
 
 
 def module_init(controller, config):
-    events_init(controller, config, ServiceLifeCycleHandler(controller))
+    events_init(controller, config, ServiceOrchestrator(controller))
     rpc_init(controller, config)
 
 
@@ -65,60 +65,60 @@ class RpcHandler(object):
         self._controller = controller
 
     def create_network_function(self, context, network_function):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.create_network_function(
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return service_orchestrator.create_network_function(
             context, network_function)
 
     def get_network_function(self, context, network_function_id):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.get_network_function(
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return service_orchestrator.get_network_function(
             context, network_function_id)
 
     def get_network_functions(self, context, filters={}):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.get_network_functions(
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return service_orchestrator.get_network_functions(
             context, filters)
 
     def update_network_function(self, context, network_function_id,
                                updated_network_function):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.update_network_function(
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return service_orchestrator.update_network_function(
             context, network_function_id, updated_network_function)
 
     def delete_network_function(self, context, network_function_id):
         LOG.info(_("RPC call delete_network_function for "
                    "%(network_function_id)s"),
                  {'network_function_id': network_function_id})
-        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.delete_network_function(
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return service_orchestrator.delete_network_function(
             context, network_function_id)
 
     def policy_target_added_notification(self, context, network_function_id,
                                          policy_target):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.handle_policy_target_added(
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return service_orchestrator.handle_policy_target_added(
             context, network_function_id, policy_target)
 
     def policy_target_removed_notification(self, context, network_function_id,
                                            policy_target):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.handle_policy_target_removed(
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return service_orchestrator.handle_policy_target_removed(
             context, network_function_id, policy_target)
 
     def consumer_ptg_added_notification(self, context, network_function_id,
                                         policy_target_group):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.handle_consumer_ptg_added(
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return service_orchestrator.handle_consumer_ptg_added(
             context, network_function_id, policy_target_group)
 
     def consumer_ptg_removed_notification(self, context, network_function_id,
                                           policy_target_group):
-        service_lifecycle_handler = ServiceLifeCycleHandler(self._controller)
-        return service_lifecycle_handler.handle_consumer_ptg_removed(
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return service_orchestrator.handle_consumer_ptg_removed(
             context, network_function_id, policy_target_group)
 
 
-class ServiceLifeCycleHandler(object):
+class ServiceOrchestrator(object):
 
     def __init__(self, controller):
         self._controller = controller
@@ -166,7 +166,7 @@ class ServiceLifeCycleHandler(object):
             LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event.id})
 
     def handle_poll_event(self, event):
-        LOG.info(_("Service LCM handle_poll_event, event ID %(id)s"), {'id': event.id})
+        LOG.info(_("NSO handle_poll_event, event ID %(id)s"), {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
@@ -464,7 +464,7 @@ class ServiceLifeCycleHandler(object):
             updated_network_function)
         # Trigger RPC to notify the Create_Service caller with status
 
-    # TODO: When Device LCM deletes Device DB, the Foreign key NSI will be nulled
+    # TODO: When NDO deletes Device DB, the Foreign key NSI will be nulled
     def handle_user_config_deleted(self, event):
         request_data = event.data
         network_function = self.db_handler.get_network_function(
@@ -487,8 +487,8 @@ class ServiceLifeCycleHandler(object):
             updated_network_function)
         # Trigger RPC to notify the Create_Service caller with status ??
 
-    # When Device LCM deletes Device DB, the Foreign key NSI will be nulled
-    # So we have to pass the NSI ID in delete event to device LCM and process
+    # When NDO deletes Device DB, the Foreign key NSI will be nulled
+    # So we have to pass the NSI ID in delete event to NDO and process
     # the result based on that
     def handle_device_deleted(self, event):
         request_data = event.data

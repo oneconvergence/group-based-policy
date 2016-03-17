@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-NFP_SERVICE_LCM_TOPIC = "nfp-service-lifecycle"
+NFP_NSO_TOPIC = "nfp-service-orchestrator"
 NFP_NODE_DRIVER_CALLBACK_TOPIC = "nfp-node-driver-callbacks"
-NFP_DLCM_CONFIGURATOR_TOPIC = "nfp-dlcm-configurator"
-NFP_CONFIGURATOR_DLCM_TOPIC = "nfp-configurator-dlcm"
+NFP_NDO_CONFIGURATOR_TOPIC = "nfp-ndo-configurator"
+NFP_CONFIGURATOR_NDO_TOPIC = "nfp-configurator-ndo"

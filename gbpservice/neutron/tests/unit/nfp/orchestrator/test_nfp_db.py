@@ -19,9 +19,9 @@ from neutron.tests import base
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
-from gbpservice.nfp.db import api as db_api
-from gbpservice.nfp.db import nfp_db
-from gbpservice.nfp.db import nfp_db_model
+from gbpservice.nfp.orchestrator.db import api as db_api
+from gbpservice.nfp.orchestrator.db import nfp_db
+from gbpservice.nfp.orchestrator.db import nfp_db_model
 
 
 class SqlFixture(fixtures.Fixture):
