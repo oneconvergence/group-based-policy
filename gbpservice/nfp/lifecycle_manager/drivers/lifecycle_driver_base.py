@@ -102,6 +102,7 @@ class LifeCycleDriverBase(object):
             return None
 
         name = 'mgmt_interface'  # TODO[RPM]: Use proper name
+        port_model = None
         if device_data['network_model'] == nfp_constants.GBP_NETWORK:
             mgmt_ptg_id = device_data['management_network_info']['id']
             mgmt_interface = self.network_handler_gbp.create_policy_target(
@@ -109,15 +110,17 @@ class LifeCycleDriverBase(object):
                                 self._get_admin_tenant_id(token=token),
                                 mgmt_ptg_id,
                                 name)
+            port_model = nfp_constants.GBP_PORT
         else:
             mgmt_net_id = device_data['management_network_info']['id']
             mgmt_interface = self.network_handler_neutron.create_port(
                                 token,
                                 self._get_admin_tenant_id(token=token),
                                 mgmt_net_id)
+            port_model = nfp_constants.NEUTRON_PORT
 
         return {'id': mgmt_interface['id'],
-                'port_model': device_data['port_model'],
+                'port_model': port_model,
                 'port_classification': nfp_constants.MANAGEMENT,
                 'port_role': None}
 
