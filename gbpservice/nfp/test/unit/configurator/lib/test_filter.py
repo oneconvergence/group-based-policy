@@ -1,7 +1,6 @@
 import filter_base
-from gbpservice.neutron.nsf.configurator.lib import filter
-from gbpservice.neutron.nsf.configurator.lib import (
-                        filter_constants as constants)
+from gbpservice.nfp.configurator.lib import filter
+from gbpservice.nfp.configurator.lib import filter_constants as constants
 import mock
 
 
