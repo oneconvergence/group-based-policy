@@ -18,6 +18,7 @@ class ConfiguratorUtils(object):
         base_driver = __import__(pkg,
                                  globals(), locals(), ['drivers'], -1)
         drivers_dir = base_driver.__path__[0]
+
         modules = []
         subdirectories = [x[0] for x in os.walk(drivers_dir)]
         for subd in subdirectories:
