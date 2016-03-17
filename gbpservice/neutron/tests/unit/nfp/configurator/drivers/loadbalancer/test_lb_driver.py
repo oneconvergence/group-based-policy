@@ -1,36 +1,39 @@
-import unittest
-import mock
 import json
+import mock
+import unittest
 
-from oslo_log import log as logging
+from gbpservice.nfp.configurator.agents import loadbalancer_v1 as lb
+from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
+    haproxy_lb_driver as lb_driver)
+from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
+    haproxy_rest_client)
+    
+from gbpservice.neutron.unit.nfp.configurator.test_data import (
+    lb_test_data as lb_test_data)
 
+""" Implement test cases for loadbalancer driver.
 
-import loadbalancer_v1 as lb
-from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy.haproxy_lb_driver import HaproxyOnVmDriver
-from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import haproxy_rest_client
-from test_input_data import FakeObjects
-
-LOG = logging.getLogger(__name__)
+"""
 
 
 class LbaasDriverTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(LbaasDriverTestCase, self).__init__(*args, **kwargs)
-        self.fo = FakeObjects()
-        self.driver = HaproxyOnVmDriver()
+        self.fo = lb_test_data.FakeObjects()
+        self.driver = lb_driver.HaproxyOnVmDriver()
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,
                                'config_success': True,
                                'delete_success': True}
-        self.fo.vip = self.fo._fake_vip_obj()
-        self.fo.old_vip = self.fo._fake_vip_obj()
-        self.fo.pool = self.fo._fake_pool_obj()
-        self.fo.old_pool = self.fo._fake_pool_obj()
-        self.fo.hm = self.fo._fake_hm_obj()
-        self.fo.old_hm = self.fo._fake_hm_obj()
-        self.fo.member = self.fo._fake_member_obj()
-        self.fo.old_member = self.fo._fake_member_obj()
+        self.fo.vip = self.fo._get_vip_object()[0]
+        self.fo.old_vip = self.fo._get_vip_object()[0]
+        self.fo.pool = self.fo._get_pool_object()[0]
+        self.fo.old_pool = self.fo._get_pool_object()[0]
+        self.fo.hm = self.fo._get_hm_object()
+        self.fo.old_hm = self.fo._get_hm_object()
+        self.fo.member = self.fo._get_member_object()
+        self.fo.old_member = self.fo._get_member_object()
         self.vip = json.dumps(self.fo.vip)
         self.pool_id = '6350c0fd-07f8-46ff-b797-62acd23760de'
         self.resp = mock.Mock()
@@ -42,17 +45,33 @@ class LbaasDriverTestCase(unittest.TestCase):
                 'srvr:4910851f-4af7-4592-ad04-08b508c6fa21': []},
             'timeout': {}}
 
-    @mock.patch(__name__ + '.FakeObjects.nqueue')
-    @mock.patch(__name__ + '.FakeObjects.rpcmgr')
-    @mock.patch(__name__ + '.FakeObjects.drivers')
-    @mock.patch(__name__ + '.FakeObjects.sc')
-    def _get_lb_handler_objects(self, sc, drivers, rpcmgr, nqueue):
-        agent = lb.LBaaSEventHandler(sc, drivers, rpcmgr, nqueue)
+    #@mock.patch(__name__ + '.lb_test_data.FakeObjects.nqueue')
+    @mock.patch(__name__ + '.lb_test_data.FakeObjects.rpcmgr')
+    @mock.patch(__name__ + '.lb_test_data.FakeObjects.drivers')
+    @mock.patch(__name__ + '.lb_test_data.FakeObjects.sc')
+    def _get_lb_handler_objects(self, sc, drivers, rpcmgr):
+        """ Retrieves EventHandler object of loadbalancer agent.
+
+        :param sc: mocked service controller object of process model framework
+        :param drivers: mocked drivers object of loadbalancer object
+        :param rpcmgr: mocked RPC manager object loadbalancer object
+        :param nqueue: mocked nqueue object of process model framework
+
+        Returns: objects of LBaaSEventHandler of loadbalancer agent
+
+        """
+
+        agent = lb.LBaaSEventHandler(sc, drivers, rpcmgr)
         return agent
 
     def _test_lbaasdriver(self, method_name):
+        """ Tests all create/update/delete operation of loadbalancer driver.
+
+        Returns: none
+
+        """
         agent = self._get_lb_handler_objects()
-        driver = HaproxyOnVmDriver(agent.plugin_rpc)
+        driver = lb_driver.HaproxyOnVmDriver(agent.plugin_rpc)
         rest_client = haproxy_rest_client.HttpRequests(
             '192.168.100.149', '1234')
         logical_device_return_value = {
@@ -182,53 +201,114 @@ class LbaasDriverTestCase(unittest.TestCase):
                     url='http://192.168.100.149:1234/backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
 
     def test_vip_create_lbaasdriver(self):
+        """Implements test case for create vip method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('CREATE_VIP')
-        pass
 
     def test_vip_delete_lbaasdriver(self):
+        """Implements test case for delete vip method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('DELETE_VIP')
-        pass
 
     def test_vip_update_lbaasdriver(self):
+        """Implements test case for update vip method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('UPDATE_VIP')
-        pass
 
     def test_pool_create_lbaasdriver(self):
+        """Implements test case for create pool method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('CREATE_POOL')
-        pass
 
     def test_pool_delete_lbaasdriver(self):
+        """Implements test case for delete vip method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('DELETE_POOL')
-        pass
 
     def test_pool_update_lbaasdriver(self):
+        """Implements test case for update vip method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('UPDATE_POOL')
-        pass
 
     def test_member_create_lbaasdriver(self):
+        """Implements test case for create member method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('CREATE_MEMBER')
-        pass
 
     def test_member_delete_lbaasdriver(self):
+        """Implements test case for delete member method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('DELETE_MEMBER')
-        pass
 
     def test_member_update_lbaasdriver(self):
+        """Implements test case for update member method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('UPDATE_MEMBER')
-        pass
 
     def test_pool_health_monitor_create_lbaasdriver(self):
+        """Implements test case for create pool_health_monitor method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('CREATE_POOL_HEALTH_MONITOR')
-        pass
 
     def test_pool_health_monitor_delete_lbaasdriver(self):
+        """Implements test case for delete pool_health_monitor method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('DELETE_POOL_HEALTH_MONITOR')
-        pass
 
     def test_pool_health_monitor_update_lbaasdriver(self):
+        """Implements test case for update pool_health_monitor method of loadbalancer driver.
+
+        Returns: none
+
+        """
+
         self._test_lbaasdriver('UPDATE_POOL_HEALTH_MONITOR')
-        pass
 
 
 if __name__ == '__main__':
     unittest.main()
+
