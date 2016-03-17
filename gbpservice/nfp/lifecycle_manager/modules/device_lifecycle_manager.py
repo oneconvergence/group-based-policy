@@ -414,10 +414,9 @@ class DeviceLifeCycleHandler(object):
         # TODO: Get these values from SLCM, it should be available in service
         # profile.
         device_data['compute_policy'] = 'nova'
-        if nsi_port_info[0]['port_model'] == nfp_constants.GBP_PORT:
-            device_data['network_model'] = nfp_constants.GBP_NETWORK
-        else:
-            device_data['network_model'] = nfp_constants.NEUTRON_NETWORK
+        # To get the network mode, fetch it from port_info
+        device_data['network_policy'] = nsi_port_info[0]['port_policy'].lower()
+
         return device_data
 
     def _get_nsf_db_resource(self, resource_name, resource_id):
