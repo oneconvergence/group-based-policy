@@ -1389,15 +1389,12 @@ fi
 if [[ -n "$DEPRECATED_TEXT" ]]; then
     echo_summary "WARNING: $DEPRECATED_TEXT"
 fi
-
+source $TOP_DIR/functions-common
 # Indicate how long this took to run (bash maintained variable ``SECONDS``)
 echo_summary "stack.sh completed in $SECONDS seconds."
-GBP_SCRIPT_DIR=/opt/stack/gbp/gbpservice/nfp/Automation-Scripts/GBP_SCRIPT
-sudo cp -r /opt/stack/gbp/gbpservice/nfp/Automation-Scripts/SC-GBP-SCRIPTS /home/stack/.
-sudo bash $GBP_SCRIPT_DIR/configure_oc_gbp_params.sh $GBP_SCRIPT_DIR $TOP_DIR $EXT_NET_NAME $EXT_NET_SUBNET_NAME $EXT_NET_GATEWAY $EXT_NET_ALLOCATION_POOL_START $EXT_NET_ALLOCATION_POOL_END $EXT_NET_CIDR $EXT_NET_MASK 
+NFP_SCRIPTS_DIR=/opt/stack/gbp/gbpservice/nfp/Automation-Scripts/NFP_SCRIPTS
 
-sudo bash $GBP_SCRIPT_DIR/wakeup_service.sh $ConfiguratorQcow2Image $VyosQcow2Image $GBP_SCRIPT_DIR $TOP_DIR
-
+bash $NFP_SCRIPTS_DIR/nfp_setup.sh $NFP_SCRIPTS_DIR $TOP_DIR $ConfiguratorQcow2Image $VyosQcow2Image
 # Restore/close logging file descriptors 
 exec 1>&3
 exec 2>&3
