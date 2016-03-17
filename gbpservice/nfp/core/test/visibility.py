@@ -122,10 +122,10 @@ def test_service_create(conf, sc):
     while True:
         data = sc.get_stash_event()
         if data is not None:
-            print "Data: %s" % (data)
+            LOG.debug("Stashed data received %s " % (data))
             break
         else:
-            print "no event"
+            LOG.debug("No Event in stashq..")
             time.sleep(1)
 
 

@@ -12,6 +12,7 @@
 
 from oslo_config import cfg as oslo_config
 
+
 def _is_class(obj):
     return 'class' in str(type(obj))
 
@@ -56,7 +57,7 @@ def log_info(log, msg):
 
 def log_debug(log, msg):
     conf = oslo_config.CONF
-    if conf.core_debug :
+    if conf.core_debug:
         log.debug(msg)
 
 
