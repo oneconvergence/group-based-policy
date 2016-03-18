@@ -72,7 +72,8 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
             any(key not in device_data
                 for key in ['service_vendor',
                             'mgmt_ip_address',
-                            'ports']) or
+                            'ports',
+                            'service_type']) or
 
             any(key not in port
                 for port in device_data['ports']
@@ -142,7 +143,8 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
                         'stitching_cidr': consumer_cidr,
                         'stitching_interface_position': 3,
                         'provider_mac': provider_mac,
-                        'stitching_mac': consumer_mac
+                        'stitching_mac': consumer_mac,
+                        'service_type': device_data['service_type'].lower()
                     }
                 },
                 {
@@ -155,7 +157,8 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
                                          else [provider_cidr]),
                         'destination_cidr': consumer_cidr,
                         'gateway_ip': consumer_gateway_ip,
-                        'provider_interface_position': 2
+                        'provider_interface_position': 2,
+                        'service_type': device_data['service_type'].lower()
                     }
                 }
             ]
