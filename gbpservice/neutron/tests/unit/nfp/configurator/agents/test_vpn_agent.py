@@ -17,6 +17,7 @@ class MakeDictionaries(object):
                                'resource': 'interfaces'}
         self.sc = 'sc'
         self.msg = 'msg'
+        self.drivers= 'drivers'
         self.svc = {' ': ' '}
         self.vm_mgmt_ip = '192.168.20.75'
         self.service_vendor = 'vyos'
@@ -24,9 +25,11 @@ class MakeDictionaries(object):
         self.destination_cidr = 'destination_cidr'
         self.gateway_ip = '11.0.0.254'
         self.url = 'http://192.168.20.75:8888'
-        self.vpnsvc_status = [{'status': 'ERROR',
+        self.vpn_vpnsvc_error = [{'status': 'ERROR',
                                'updated_pending_status': True,
-                               'id': '36cd27d5-8ad0-4ed7-8bbe-57c488a17835'}] 
+                               'id': '36cd27d5-8ad0-4ed7-8bbe-57c488a17835'}]
+        self.vpn_vpnsvc_active = [{'status': 'ACTIVE', 'updated_pending_status': True, 'id': '36cd27d5-8ad0-4ed7-8bbe-57c488a17835'}]
+        self.ipsec_vpnsvc_status = [{'status': 'ACTIVE', 'ipsec_site_connections': {'ac3a0e54-cdf2-4ea7-ac2f-7c0225ab9af6': {'status': 'INIT', 'updated_pending_status': True}}, 'updated_pending_status': False, 'id': '36cd27d5-8ad0-4ed7-8bbe-57c488a17835'}]
         self.url_for_add_inte = "%s/add_rule" % self.url
         self.url_for_del_inte = "%s/delete_rule" % self.url
         self.url_for_add_src_route = "%s/add-source-route" % self.url
@@ -41,10 +44,11 @@ class MakeDictionaries(object):
         self.data_for_add_src_route = '[{"source_cidr": "1.2.3.4/24", "gateway_ip": "1.2.3.4/24"}]'
         self.data_for_del_src_route = '[{"source_cidr": "1.2.3.4/24"}]'
         self.conn_id = 'ac3a0e54-cdf2-4ea7-ac2f-7c0225ab9af6'
-        self.data_={"local_cidr": "11.0.6.0/24", "peer_address": "1.103.2.2", "peer_cidrs": "[141.0.0.0/24]"}
+        self.data_='{"local_cidr": "11.0.6.0/24", "peer_address": "1.103.2.2", "peer_cidrs": "[141.0.0.0/24]"}'
         self.data__={"local_cidr": "11.0.6.0/24", "peer_address": "1.103.2.2", "peer_cidr": "141.0.0.0/24"}
         self.timeout = 30
 
+        self.ipsec_data = '{"service": {"router_id": "73c64bb0-eab9-4f37-85d0-7c8b0c15ed06", "status": "ACTIVE", "name": "VPNService", "admin_state_up": true, "subnet_id": "7f42e3e2-80a6-4212-9f49-48194ba58fd9", "tenant_id": "9f1663d116f74a01991ad66aaa8756c5", "cidr": "30.0.0.0/28", "id": "36cd27d5-8ad0-4ed7-8bbe-57c488a17835", "description": "fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254"}, "siteconns": [{"connection": {"status": "INIT", "psk": "secret", "initiator": "bi-directional", "access_ip": "1.103.2.172", "name": "IPsecSiteConnection", "admin_state_up": true, "stitching_fixed_ip": "192.168.0.3", "tenant_id": "9f1663d116f74a01991ad66aaa8756c5", "description": "fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254", "auth_mode": "psk", "peer_cidrs": ["141.0.0.0/24"], "mtu": 1500, "ikepolicy_id": "31b79141-3d21-473f-b104-b811bb3ac1fd", "dpd": {"action": "hold", "interval": 30, "timeout": 120}, "route_mode": "static", "vpnservice_id": "36cd27d5-8ad0-4ed7-8bbe-57c488a17835", "peer_address": "1.103.2.2", "peer_id": "192.168.104.228", "id": "ac3a0e54-cdf2-4ea7-ac2f-7c0225ab9af6", "tunnel_local_cidr": "11.0.6.0/24", "ipsecpolicy_id": "b45d99b8-c38b-44ce-9ec8-ba223a83fb46"}, "ipsecpolicy": {"encapsulation_mode": "tunnel", "encryption_algorithm": "3des", "pfs": "group5", "tenant_id": "9f1663d116f74a01991ad66aaa8756c5", "name": "IPsecPolicy", "transform_protocol": "esp", "lifetime": {"units": "seconds", "value": 3600}, "id": "b45d99b8-c38b-44ce-9ec8-ba223a83fb46", "auth_algorithm": "sha1", "description": "My new IPsec policy"}, "ikepolicy": {"encryption_algorithm": "3des", "pfs": "group5", "name": "IKEPolicy", "tenant_id": "9f1663d116f74a01991ad66aaa8756c5", "lifetime": {"units": "seconds", "value": 3600}, "description": "My new IKE policy", "ike_version": "v1", "id": "31b79141-3d21-473f-b104-b811bb3ac1fd", "auth_algorithm": "sha1", "phase1_negotiation_mode": "main"}}]}'
         self.svc_context = {'service': {
             'router_id': '73c64bb0-eab9-4f37-85d0-7c8b0c15ed06',
             'status': 'ACTIVE',
@@ -215,7 +219,7 @@ class MakeDictionaries(object):
             'resource_uuid': None,
             'is_admin': True,
             'user': u'19e278f3c3fa43e3964b057bc73cf7d7',
-            'tenant': '9f1663d116f74a01991ad66aaa8756c5',
+            'tenant_id': '9f1663d116f74a01991ad66aaa8756c5',
             'read_only': False,
             'project_id': 'b',
             'user_id': 'a',
@@ -426,6 +430,7 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
 
     
     def test_create_vpn_service(self):
+        # import pdb;pdb.set_trace()
         context = self.dict_objects._make_service_context(operation_type='vpn')
         
         kwargs = self.dict_objects._make_kwargs(operation='create',
@@ -436,11 +441,13 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
             self.driver.vpnservice_updated(context, kwargs)
             mock_update_status.assert_called_with(
                                         self.context,
-                                        self.dict_objects.vpnsvc_status)
+                                        self.dict_objects.vpn_vpnsvc_active)
      
 
     def test_create_ipsec_site_conn(self):
         self.resp = mock.Mock(status_code=200)
+        # import pdb;pdb.set_trace()
+        context = self.dict_objects._make_service_context()
         kwargs = self.dict_objects._make_kwargs(operation='create',
                                                 service_type='ipsec')
         with mock.patch.object(self.plugin_rpc, 'update_status') as (
@@ -450,15 +457,16 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
                                                 mock_post):
             mock_resp.return_value = self.fake_resp_dict
             mock_post.return_value = self.resp
-            self.driver.vpnservice_updated(self.context, kwargs)
+            self.driver.vpnservice_updated(context, kwargs)
+            mock_update_status.assert_called_with(context,
+                                                  self.dict_objects.ipsec_vpnsvc_status)
+
             mock_post.assert_called_with(
-                            self.dict_objects.url_create_ipsec_tunnel,
-                            data=json.dumps(self.dict_objects.data_),
+                            self.dict_objects.url_create_ipsec_conn,
+                            data=self.dict_objects.ipsec_data,
                             timeout=self.dict_objects.timeout)
 
-            mock_update_status.assert_called_with(self.context,
-                                                  self.dict_objects.vpnsvc_status)
-            
+                        
     def test_delete_ipsec_site_conn(self):
         self.resp = mock.Mock(status_code=200)
         kwargs = self.dict_objects._make_kwargs(operation='delete',
@@ -568,31 +576,33 @@ class VPNSvcValidatorTestCase(unittest.TestCase):
                                               self.dict_objects.sc)
         self.valid_obj = vyos_vpn_driver.VPNSvcValidator(self.plugin_rpc)
 
-    def validate_active(self):
+    def test_validate_active(self):
+        # import pdb;pdb.set_trace()
+        context = self.dict_objects._make_service_context()
         svc = self.dict_objects._create_vpnservice_obj()['resource']
         description = str(svc['description'])
         description = description.split(';')
         description[1] = 'tunnel_local_cidr=12.0.6.0/24'
+        # svc.pop('description')
         description = ";".join(description)
-        svc.update({'desciption': description})
+        svc.update({'description': description})
 
         with mock.patch.object(self.plugin_rpc, "update_status") as mock_valid:
-            self.valid_obj.validate(
-                        self.dict_objects._make_service_context(), svc)
-            self.dict_objects.vpnsvc_status[0].update({'status': 'ACTIVE'})
-            mock_valid.assert_called_with(
-                        self.dict_objects._make_service_context(),
-                        self.dict_objects.vpnsvc_status)
+            self.valid_obj.validate(context, svc)
+            # self.dict_objects.vpn_vpnsvc_error[0].update({'status': 'ACTIVE'})
+            mock_valid.assert_called_with(context, self.dict_objects.vpn_vpnsvc_active)
 
 
     def test_validate_error(self):
+        # import pdb;pdb.set_trace()
+        context = self.dict_objects._make_service_context()
         with mock.patch.object(self.plugin_rpc, "update_status") as mock_valid:
             self.valid_obj.validate(
-                    self.dict_objects._make_service_context(),
+                    context,
                     self.dict_objects._create_vpnservice_obj()['resource'])
             mock_valid.assert_called_with(
-                        self.dict_objects._make_service_context(),
-                        self.dict_objects.vpnsvc_status)
+                        context,
+                        self.dict_objects.vpn_vpnsvc_active)
 
 
 
@@ -621,33 +631,38 @@ class RestApiTestCase(unittest.TestCase):
                                     data=self.j_data,
                                     timeout=self.timeout)
 
-    def post_fail(self):
+    def test_post_fail(self):
         self.resp = mock.Mock(status_code=404)
         self.fake_resp_dict.update({'status': False})
         with mock.patch.object(requests, 'post', return_value=self.resp) as (
                                                                 mock_post),\
             mock.patch.object(json, 'loads', return_value=self.fake_resp_dict):
-            self.rest_obj.post('create_ipsec_site_conn', self.data)
-            mock_put.side_effect = Exception(mock.Mock(status=404), 'Not Found')
+            #self.assertRaises(Exception,
+            #        self.rest_obj.post('create_ipsec_site_conn', self.data))
+            try:
+                self.rest_obj.post('create-ipsec-site-conn', self.data)
+            except:
+               pass
             mock_post.assert_called_with(
                                     self.dict_objects.url_create_ipsec_conn,
                                     data=self.j_data,
                                     timeout=self.timeout)
 
-    def put_success(self):
+
+    def test_put_success(self):
         self.resp = mock.Mock(status_code=200)
         with mock.patch.object(requests, 'put', return_value=self.resp) as (
                                                                 mock_put):
-            self.rest_obj.put('create_ipsec_site_conn', self.data)
+            self.rest_obj.put('create-ipsec-site-conn', self.data)
             mock_put.assert_called_with(self.dict_objects.url_create_ipsec_conn, data=self.j_data, timeout=self.timeout)
 
-    def put_fail(self):
+    def test_put_fail(self):
         self.resp = mock.Mock(status_code=404)
         with mock.patch.object(requests, 'put', return_value=self.resp) as (
                                                                 mock_put):
 
-            self.rest_obj.put('create_ipsec_site_conn', self.data)
-            mock_put.assert_called_with(self.dict_objects.url_create_ipsec_conn, data=self.j_data, timeout=self.timeout)
+            self.rest_obj.put('create-ipsec-site-conn', self.data)
+            mock_put.assert_called_with(self.dict_objects.url_create_ipsec_conn, data=json.dumps(self.data), timeout=self.timeout)
 
     def test_delete_success(self):
         self.resp = mock.Mock(status_code=200)
@@ -660,18 +675,19 @@ class RestApiTestCase(unittest.TestCase):
                                     self.dict_objects.url_delete_ipsec_conn,
                                     timeout=self.timeout,
                                     data=self.j_data)
-    def exception_raised(self):
-        print "Working"
 
-    def delete_fail(self):
+    def test_delete_fail(self):
         self.resp = mock.Mock(status_code=404)
         self.fake_resp_dict.update({'status': False})
         with mock.patch.object(requests, 'delete', return_value=self.resp) as (
                                                                 mock_delete),\
             mock.patch.object(json, 'loads', return_value=self.fake_resp_dict):
-            self.rest_obj.delete('delete-ipsec-site-tunnel', self.args, self.data)
-            mock_delete.side_effect = Exception(mock.Mock(status=404), 'Not Found')
-            mock_delete.side_effect = self.exception_raised()
+            try:
+                self.rest_obj.delete('delete-ipsec-site-conn', self.args, self.data)
+            except:
+               pass
+            #mock_delete.side_effect = Exception(mock.Mock(status=404), 'Not Found')
+            #mock_delete.side_effect = self.exception_raised()
             mock_delete.assert_called_with(
                                     self.dict_objects.url_delete_ipsec_conn,
                                     timeout=self.timeout,
@@ -748,5 +764,4 @@ class VPNaasEventHandlerTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
 
