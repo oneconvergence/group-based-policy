@@ -130,10 +130,9 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         return db
 
     def _get_core_context(self, context, filters):
-        args = {'context': context, 'filters': filters}
-        core_plugin = self._core_plugin
-        return {'subnets': core_plugin.get_subnets(**args),
-                'ports': core_plugin.get_ports(**args)}
+        core_context_dict = get_core_context(context, filters, self._conf.host)
+        del core_context_dict['routers']
+        return core_context_dict
 
     def _get_lb_context(self, context, filters):
         args = {'context': context, 'filters': filters}

@@ -49,15 +49,6 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         self._sc = sc
         super(FwAgent, self).__init__()
 
-    @property
-    def l3_plugin(self):
-        try:
-            return self._l3_plugin
-        except AttributeError:
-            self._l3_plugin = manager.NeutronManager.get_service_plugins().get(
-                constants.L3_ROUTER_NAT)
-            return self._l3_plugin
-
     def create_firewall(self, context, firewall, host):
 
         db = self._context(context, firewall['tenant_id'])
@@ -105,9 +96,4 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                 'firewall_rules': db_data.get_firewall_rules(**args)}
 
     def _get_core_context(self, context, filters):
-        args = {'context': context, 'filters': filters}
-        core_plugin = self._core_plugin
-        l3_plugin = self.l3_plugin
-        return {'subnets': core_plugin.get_subnets(**args),
-                'routers': l3_plugin.get_routers(**args),
-                'ports': core_plugin.get_ports(**args)}
+        return get_core_context(context, filters, self._conf.host)

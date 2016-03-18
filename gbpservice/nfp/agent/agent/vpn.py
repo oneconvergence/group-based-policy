@@ -34,23 +34,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         self._sc = sc
         super(VpnAgent, self).__init__()
 
-    @property
-    def core_plugin(self):
-        try:
-            return self._core_plugin
-        except AttributeError:
-            self._core_plugin = manager.NeutronManager.get_plugin()
-            return self._core_plugin
-
-    @property
-    def l3_plugin(self):
-        try:
-            return self._l3_plugin
-        except AttributeError:
-            self._l3_plugin = manager.NeutronManager.get_service_plugins().get(
-                constants.L3_ROUTER_NAT)
-            return self._l3_plugin
-
     def _eval_rest_calls(self, reason, body):
         if reason == 'update':
             return rc.put('update_network_function_config', body=body)
@@ -92,8 +75,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'ipsec_site_conns': db_data.get_ipsec_site_connections(**args)}
 
     def _get_core_context(self, context, filters):
-        args = {'context': context, 'filters': filters}
-        core_plugin = self.core_plugin
-        l3_plugin = self.l3_plugin
-        return {'subnets': core_plugin.get_subnets(**args),
-                'routers': l3_plugin.get_routers(**args)}
+        core_context_dict = get_core_context(context, filters, self._conf.host)
+        del core_context_dict['ports']
+        return core_context_dict
