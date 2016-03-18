@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import copy
 import os
 import Queue
 import random
@@ -199,6 +198,14 @@ class PollQueueHandler(object):
         except Queue.Empty:
             return None
 
+    def event_life_timedout(self, eh, event):
+        try:
+            eh.event_cancelled(event.data)
+        except AttributeError:
+            log_info(LOG,
+                     "Handler %s does not implement"
+                     "event_cancelled method" % (identify(eh)))
+
     def event_timedout(self, eh, event):
         if isinstance(eh, PollEventDesc):
             # Check if this event has a decorated timeout method
@@ -228,7 +235,7 @@ class PollQueueHandler(object):
 
         self._event_dispatched(eh, event, ret)
 
-    def _event_cancelled(self, eh, event):
+    def _poll_event_cancelled(self, eh, event):
         try:
             log_info(LOG,
                      "Event %s cancelled"
@@ -258,7 +265,7 @@ class PollQueueHandler(object):
         uevent.max_times = event.max_times - 1
 
         if not uevent.max_times:
-            return self._event_cancelled(eh, event)
+            return self._poll_event_cancelled(eh, event)
 
         if poll:
             uevent.serialize = False
@@ -309,6 +316,11 @@ class PollQueueHandler(object):
         log_debug(LOG, "Processing poll event %s" % (ev.identify()))
         if ev.id == 'POLL_EVENT_DONE':
             return self._scheduled(ev)
+
+        if ev.id == 'EVENT_LIFE_TIMEOUT':
+            ev.max_times -= 1
+            if ev.max_times:
+                return
         ev.poll_event = 'POLL_EVENT'
         ev = self._schedule(ev)
         if ev:
@@ -322,6 +334,7 @@ class PollQueueHandler(object):
         """
         log_debug(LOG, "Add event %s to the pollq" % (event.identify()))
         self._pollq.put(event)
+
     def s_add(self, event):
         """Adds an event to the pollq.
 
@@ -332,6 +345,7 @@ class PollQueueHandler(object):
         self._stashq.put(event)
 
     def s_get(self):
+        """Get the event from stashq. """
         try:
             return self._stashq.get(timeout=0.1)
         except Queue.Empty:
@@ -391,9 +405,11 @@ class PollQueueHandler(object):
         return cache, cache[0:pull], pull
 
     def add_stash_event(self, ev):
+        """Add stash event in the cache. """
         return self.s_add(ev)
 
     def get_stash_event(self):
+        """Get the stach event from cache. """
         copy = self._stash_cache.copy()
         for ev in copy:
             self._stash_cache.remove([ev])

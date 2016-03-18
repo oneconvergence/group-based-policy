@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_config import cfg as oslo_config
+
 
 def _is_class(obj):
     return 'class' in str(type(obj))
@@ -50,13 +52,13 @@ def identify(obj):
 
 
 def log_info(log, msg):
-    return
     log.info(msg)
 
 
 def log_debug(log, msg):
-    return
-    log.debug(msg)
+    conf = oslo_config.CONF
+    if conf.core_debug:
+        log.debug(msg)
 
 
 def log_error(log, msg):

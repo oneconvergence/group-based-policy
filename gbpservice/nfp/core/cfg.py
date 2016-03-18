@@ -69,5 +69,10 @@ OPTS = [
         help='Interval for report state task in seconds.'
         'Reporting task will report neutron agents state'
         'to the plugins at this interval'
+    ),
+    cfg.BoolOpt(
+        'core_debug',
+        default=False,
+        help='Main debug'
     )
 ]

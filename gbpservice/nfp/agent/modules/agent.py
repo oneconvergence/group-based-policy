@@ -9,7 +9,7 @@ from gbpservice.nfp.core.main import Controller
 from gbpservice.nfp.core.main import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 
-from gbpservice.nfp.agent.agent import topics
+from gbpservice.nfp.agent.agent import topics as a_topics
 from gbpservice.nfp.agent.agent.firewall import *
 from gbpservice.nfp.agent.agent.loadbalancer import *
 from gbpservice.nfp.agent.agent.vpn import *
@@ -24,12 +24,11 @@ LOG = logging.getLogger(__name__)
 
 
 def rpc_init(sc, conf):
-
     fwrpcmgr = FwAgent(conf, sc)
     fwagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
-        topic=topics.FW_NFP_CONFIGAGENT_TOPIC,
+        topic=a_topics.FW_NFP_CONFIGAGENT_TOPIC,
         manager=fwrpcmgr
     )
 
@@ -37,7 +36,7 @@ def rpc_init(sc, conf):
     lbagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
-        topic=topics.LB_NFP_CONFIGAGENT_TOPIC,
+        topic=a_topics.LB_NFP_CONFIGAGENT_TOPIC,
         manager=lbrpcmgr
     )
 
@@ -45,32 +44,24 @@ def rpc_init(sc, conf):
     vpnagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
-        topic=topics.VPN_NFP_CONFIGAGENT_TOPIC,
+        topic=a_topics.VPN_NFP_CONFIGAGENT_TOPIC,
         manager=vpnrpcmgr
     )
 
-    gcrpcmgr = GcAgent(conf, sc)
-    gcagent = RpcAgent(
-        sc,
-        host=cfg.CONF.host,
-        topic=topics.GC_NFP_CONFIGAGENT_TOPIC,
-        manager=gcrpcmgr
-    )
-
-    sc.register_rpc_agents([fwagent, lbagent, vpnagent, gcagent])
+    sc.register_rpc_agents([fwagent, lbagent, vpnagent])
 
 
-def events_init(sc):
+def events_init(sc, conf):
     evs = [
-        Event(id='PULL_RPC_NOTIFICATIONS', handler=RpcCallback(sc))]
+        Event(id='PULL_RPC_NOTIFICATIONS', handler=RpcCallback(sc, conf))]
     sc.register_events(evs)
 
 
 def module_init(sc, conf):
     rpc_init(sc, conf)
-    events_init(sc)
+    events_init(sc, conf)
 
 
 def init_complete(sc, conf):
-    ev = sc.new_event(id='PULL_RPC_NOTIFICATIONS', key='PULL_RPC_NOTIFICATIONS',serialize=True)
+    ev = sc.new_event(id='PULL_RPC_NOTIFICATIONS', key='PULL_RPC_NOTIFICATIONS')
     sc.post_event(ev)

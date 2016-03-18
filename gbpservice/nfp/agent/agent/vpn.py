@@ -12,13 +12,14 @@
 
 from neutron_vpnaas.db.vpn import vpn_db
 from gbpservice.nfp.agent.agent.common import *
-from gbpservice.nfp.agent.agent import RestClientOverUnix as rc
+from gbpservice.nfp.agent.agent import topics as a_topics
+from gbpservice.nfp.lib.backend_lib import *
 
 LOG = logging.getLogger(__name__)
 
 
 def update_status(self, **kwargs):
-    rpcClient = RPCClient(topics.VPN_NFP_PLUGIN_TOPIC)
+    rpcClient = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
     context = kwargs.get('context')
     del kwargs['context']
     rpcClient.cctxt.cast(context, 'update_status',
@@ -34,32 +35,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         self._sc = sc
         super(VpnAgent, self).__init__()
 
-    @property
-    def core_plugin(self):
-        try:
-            return self._core_plugin
-        except AttributeError:
-            self._core_plugin = manager.NeutronManager.get_plugin()
-            return self._core_plugin
-
-    @property
-    def l3_plugin(self):
-        try:
-            return self._l3_plugin
-        except AttributeError:
-            self._l3_plugin = manager.NeutronManager.get_service_plugins().get(
-                constants.L3_ROUTER_NAT)
-            return self._l3_plugin
-
-    def _eval_rest_calls(self, reason, body):
-        if reason == 'update':
-            return rc.put('update_network_function_config', body=body)
-        elif reason == 'create':
-            return rc.post('create_network_function_config', body=body)
-        else:
-            return rc.post('delete_network_function_config', body=body,
-                           delete=True)
-
     def vpnservice_updated(self, context, **kwargs):
         resource_data = kwargs.get('resource')
         db = self._context(context, resource_data['tenant_id'])
@@ -69,11 +44,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         resource = resource_data['rsrc_type']
         reason = resource_data['reason']
         body = prepare_request_data(resource, kwargs, "vpn")
-        try:
-            resp, content = self._eval_rest_calls(reason, body)
-        except rc.RestClientException as rce:
-            LOG.error("vpnservice_updated -> request failed.Reason %s" % (
-                rce))
+        send_request_to_configurator(self._conf, context, body, reason)
 
     def _context(self, context, tenant_id):
         if context.is_admin:
@@ -92,8 +63,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'ipsec_site_conns': db_data.get_ipsec_site_connections(**args)}
 
     def _get_core_context(self, context, filters):
-        args = {'context': context, 'filters': filters}
-        core_plugin = self.core_plugin
-        l3_plugin = self.l3_plugin
-        return {'subnets': core_plugin.get_subnets(**args),
-                'routers': l3_plugin.get_routers(**args)}
+        core_context_dict = get_core_context(context, filters, self._conf.host)
+        del core_context_dict['ports']
+        return core_context_dict
