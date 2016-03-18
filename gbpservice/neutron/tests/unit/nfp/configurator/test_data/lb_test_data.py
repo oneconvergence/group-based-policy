@@ -10,13 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import mock
-
 """ This class provides data that is needed for calling methods of
 agent and driver.
 
 """
-
+import mock
 
 
 class Foo(object):
@@ -31,26 +29,12 @@ class FakeObjects(object):
     sc = 'sc'
     context = {'notification_data': {},
                'resource': 'context_resource'}
-
-    '''context_logical_device = {'notification_data': {},
-               'resource': 'context_resource',
-               'service_info':{'pools':[{'id':'6350c0fd-07f8-46ff-b797-62acd23760de',
-                                         'members':[{'members': '4910851f-4af7-4592-ad04-08b508c6fa21'}],
-                                         'health_monitors_status':[{'status':'status'}],
-                                        'provider':'provider'
-                                         }
-                                       ],
-                               'members':[{'id':{'members': '4910851f-4af7-4592-ad04-08b508c6fa21'},
-                                         'status':'status'
-                                         }
-                                       ]
-                               }
-                              }'''
-
+    context_pool = {'notification_data': {},
+                    'resource': 'vip'}
     conf = 'conf'
     rpcmgr = 'rpcmgr'
     nqueue = 'nqueue'
-    drivers = mock.Mock(return_value='abc')  # 'drivers'
+    drivers = ['haproxy']
     vip_context = {'notification_data': {}, 'resource': 'context_resource'}
     context_test = {'notification_data': {}, 'resource': 'context_resource'}
     method = {'CREATE_VIP': 'create_network_function_config',

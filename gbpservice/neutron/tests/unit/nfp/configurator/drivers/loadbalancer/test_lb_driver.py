@@ -19,8 +19,7 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_lb_driver as lb_driver)
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_rest_client)
-    
-from gbpservice.neutron.unit.nfp.configurator.test_data import (
+from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
     lb_test_data as lb_test_data)
 
 """ Implement test cases for loadbalancer driver.
@@ -28,10 +27,10 @@ from gbpservice.neutron.unit.nfp.configurator.test_data import (
 """
 
 
-class LbaasDriverTestCase(unittest.TestCase):
+class HaproxyOnVmDriverTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(LbaasDriverTestCase, self).__init__(*args, **kwargs)
+        super(HaproxyOnVmDriverTestCase, self).__init__(*args, **kwargs)
         self.fo = lb_test_data.FakeObjects()
         self.driver = lb_driver.HaproxyOnVmDriver()
         self.resp = mock.Mock()
@@ -57,7 +56,6 @@ class LbaasDriverTestCase(unittest.TestCase):
                 'srvr:4910851f-4af7-4592-ad04-08b508c6fa21': []},
             'timeout': {}}
 
-    #@mock.patch(__name__ + '.lb_test_data.FakeObjects.nqueue')
     @mock.patch(__name__ + '.lb_test_data.FakeObjects.rpcmgr')
     @mock.patch(__name__ + '.lb_test_data.FakeObjects.drivers')
     @mock.patch(__name__ + '.lb_test_data.FakeObjects.sc')
@@ -93,14 +91,21 @@ class LbaasDriverTestCase(unittest.TestCase):
             'healthmonitors': self.fo.hm,
             'members': self.fo.member}
         with mock.patch.object(
-                agent.plugin_rpc, 'get_logical_device', return_value=logical_device_return_value) as (
+                agent.plugin_rpc,
+                'get_logical_device',
+                return_value=logical_device_return_value) as (
                 mock_get_logical_device),\
-                mock.patch.object(
-                driver, '_get_rest_client', return_value=rest_client) as (mock_rest_client),\
-                mock.patch.object(
-            rest_client.pool, 'request', return_value=self.resp) as (mock_request),\
-                mock.patch.object(
-                rest_client, 'get_resource', return_value=self.get_resource) as (mock_get_resource):
+            mock.patch.object(
+                driver,
+                '_get_rest_client',
+                return_value=rest_client) as (mock_rest_client),\
+            mock.patch.object(
+                rest_client.pool,
+                'request', return_value=self.resp) as (mock_request),\
+            mock.patch.object(
+                rest_client,
+                'get_resource',
+                return_value=self.get_resource) as (mock_get_resource):
 
             mock_request.status_code = 200
             if method_name == 'DELETE_VIP':
@@ -111,7 +116,8 @@ class LbaasDriverTestCase(unittest.TestCase):
                     headers={
                         'Content-Type': 'application/json'},
                     timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+                    url='http://192.168.100.149:1234/backend/bck:\
+6350c0fd-07f8-46ff-b797-62acd23760de')
             elif method_name == 'CREATE_VIP':
                 driver.create_vip(self.fo.vip, self.fo.context)
                 mock_request.assert_called_with(
@@ -134,7 +140,8 @@ class LbaasDriverTestCase(unittest.TestCase):
                     headers={
                         'Content-Type': 'application/json'},
                     timeout=30,
-                    url='http://192.168.100.149:1234/frontend/frnt:7a755739-1bbb-4211-9130-b6c82d9169a5')
+                    url='http://192.168.100.149:1234/frontend/frnt:\
+7a755739-1bbb-4211-9130-b6c82d9169a5')
             elif method_name == 'CREATE_POOL':
                 driver.create_pool(self.fo.pool, self.fo.context)
             elif method_name == 'DELETE_POOL':
@@ -150,7 +157,8 @@ class LbaasDriverTestCase(unittest.TestCase):
                     headers={
                         'Content-Type': 'application/json'},
                     timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+                    url='http://192.168.100.149:1234/backend/bck:\
+6350c0fd-07f8-46ff-b797-62acd23760de')
             elif method_name == 'CREATE_MEMBER':
                 driver.create_member(self.fo.member[0], self.fo.context)
                 mock_request.assert_called_with(
@@ -159,7 +167,8 @@ class LbaasDriverTestCase(unittest.TestCase):
                     headers={
                         'Content-Type': 'application/json'},
                     timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+                    url='http://192.168.100.149:1234/backend/bck:\
+6350c0fd-07f8-46ff-b797-62acd23760de')
             elif method_name == 'DELETE_MEMBER':
                 driver.delete_member(self.fo.member[0], self.fo.context)
                 mock_request.assert_called_with(
@@ -168,7 +177,8 @@ class LbaasDriverTestCase(unittest.TestCase):
                     headers={
                         'Content-Type': 'application/json'},
                     timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+                    url='http://192.168.100.149:1234/backend/bck:\
+6350c0fd-07f8-46ff-b797-62acd23760de')
             elif method_name == 'UPDATE_MEMBER':
                 driver.update_member(
                     self.fo.old_member[0],
@@ -180,7 +190,8 @@ class LbaasDriverTestCase(unittest.TestCase):
                     headers={
                         'Content-Type': 'application/json'},
                     timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+                    url='http://192.168.100.149:1234/backend/bck:\
+6350c0fd-07f8-46ff-b797-62acd23760de')
             elif method_name == 'CREATE_POOL_HEALTH_MONITOR':
                 driver.create_pool_health_monitor(
                     self.fo.hm[0], self.pool_id, self.fo.context)
@@ -190,7 +201,8 @@ class LbaasDriverTestCase(unittest.TestCase):
                     headers={
                         'Content-Type': 'application/json'},
                     timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+                    url='http://192.168.100.149:1234/backend/bck:\
+6350c0fd-07f8-46ff-b797-62acd23760de')
             elif method_name == 'DELETE_POOL_HEALTH_MONITOR':
                 driver.delete_pool_health_monitor(
                     self.fo.hm[0], self.pool_id, self.fo.context)
@@ -200,17 +212,20 @@ class LbaasDriverTestCase(unittest.TestCase):
                     headers={
                         'Content-Type': 'application/json'},
                     timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+                    url='http://192.168.100.149:1234/backend/bck:\
+6350c0fd-07f8-46ff-b797-62acd23760de')
             elif method_name == 'UPDATE_POOL_HEALTH_MONITOR':
                 driver.update_pool_health_monitor(
-                    self.fo.old_hm[0], self.fo.hm[0], self.pool_id, self.fo.context)
+                    self.fo.old_hm[0],
+                    self.fo.hm[0], self.pool_id, self.fo.context)
                 mock_request.assert_called_with(
                     'PUT',
                     data='{"timeout": {"check": "10s"}, "server": {"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": [], "resource": []}}',
                     headers={
                         'Content-Type': 'application/json'},
                     timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+                    url='http://192.168.100.149:1234/backend/bck:\
+6350c0fd-07f8-46ff-b797-62acd23760de')
 
     def test_vip_create_lbaasdriver(self):
         """Implements test case for create vip method of loadbalancer driver.
@@ -294,7 +309,8 @@ class LbaasDriverTestCase(unittest.TestCase):
         self._test_lbaasdriver('UPDATE_MEMBER')
 
     def test_pool_health_monitor_create_lbaasdriver(self):
-        """Implements test case for create pool_health_monitor method of loadbalancer driver.
+        """Implements test case for create pool_health_monitor method of
+        loadbalancer driver.
 
         Returns: none
 
@@ -303,7 +319,8 @@ class LbaasDriverTestCase(unittest.TestCase):
         self._test_lbaasdriver('CREATE_POOL_HEALTH_MONITOR')
 
     def test_pool_health_monitor_delete_lbaasdriver(self):
-        """Implements test case for delete pool_health_monitor method of loadbalancer driver.
+        """Implements test case for delete pool_health_monitor method
+        of loadbalancer driver.
 
         Returns: none
 
@@ -312,7 +329,8 @@ class LbaasDriverTestCase(unittest.TestCase):
         self._test_lbaasdriver('DELETE_POOL_HEALTH_MONITOR')
 
     def test_pool_health_monitor_update_lbaasdriver(self):
-        """Implements test case for update pool_health_monitor method of loadbalancer driver.
+        """Implements test case for update pool_health_monitor method
+        of loadbalancer driver.
 
         Returns: none
 
