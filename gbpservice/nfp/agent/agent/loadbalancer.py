@@ -12,14 +12,15 @@
 
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
+from gbpservice.nfp.agent.agent import topics as a_topics
 from gbpservice.nfp.agent.agent.common import *
-from gbpservice.nfp.agent.agent import RestClientOverUnix as rc
+from gbpservice.nfp.lib.backend_lib import *
 
 LOG = logging.getLogger(__name__)
 
 
 def update_status(self, **kwargs):
-    rpcClient = RPCClient(topics.LB_NFP_PLUGIN_TOPIC)
+    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
     context = kwargs.get('context')
     del kwargs['context']
     rpcClient.cctxt.cast(context, 'update_status',
@@ -29,7 +30,7 @@ def update_status(self, **kwargs):
 
 
 def update_pool_stats(self, **kwargs):
-    rpcClient = RPCClient(topics.LB_NFP_PLUGIN_TOPIC)
+    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
     context = kwargs.get('context')
     del kwargs['context']
     rpcClient.cctxt.cast(context, 'update_pool_stats',
@@ -39,7 +40,7 @@ def update_pool_stats(self, **kwargs):
 
 
 def pool_destroyed(self, pool_id):
-    rpcClient = RPCClient(topics.LB_NFP_PLUGIN_TOPIC)
+    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
     context = kwargs.get('context')
     del kwargs['context']
     rpcClient.cctxt.cast(self.context, 'pool_destroyed',
@@ -47,7 +48,7 @@ def pool_destroyed(self, pool_id):
 
 
 def pool_deployed(self, **kwargs):
-    rpcClient = RPCClient(topics.LB_NFP_PLUGIN_TOPIC)
+    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
     context = kwargs.get('context')
     del kwargs['context']
     rpcClient.cctxt.cast(self.context, 'pool_deployed',
@@ -69,12 +70,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
         body = prepare_request_data(name, kwargs, "loadbalancer")
-        try:
-            resp, content = rc.post(
-                'create_network_function_config', body=body)
-        except rc.RestClientException as rce:
-            LOG.error("create_%s -> request failed. Reason %s" % (
-                name, rce))
+        send_request_to_configurator(self._conf, context, body, "CREATE")
 
     def _delete(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
@@ -82,12 +78,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
         body = prepare_request_data(name, kwargs, "loadbalancer")
-        try:
-            resp, content = rc.post('delete_network_function_config',
-                                    body=body, delete=True)
-        except rc.RestClientException as rce:
-            LOG.error("delete_%s -> request failed.Reason %s" % (
-                name, rce))
+        send_request_to_configurator(self._conf, context, body, "DELETE")
 
     def create_vip(self, context, vip):
         self._post(context, vip['tenant_id'], 'vip', vip=vip)
@@ -130,10 +121,9 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         return db
 
     def _get_core_context(self, context, filters):
-        args = {'context': context, 'filters': filters}
-        core_plugin = self._core_plugin
-        return {'subnets': core_plugin.get_subnets(**args),
-                'ports': core_plugin.get_ports(**args)}
+        core_context_dict = get_core_context(context, filters, self._conf.host)
+        del core_context_dict['routers']
+        return core_context_dict
 
     def _get_lb_context(self, context, filters):
         args = {'context': context, 'filters': filters}

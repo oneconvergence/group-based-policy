@@ -126,26 +126,8 @@ class Controller(object):
 
     def sequencer_get_event(self):
         """Get an event from the sequencer map.
-
-            Invoked by workers to get the first event in sequencer map.
-            Since it is a FIFO, first event could be waiting long to be
-            scheduled.
-            Loops over copy of sequencer map and returns the first waiting
-            event.
         """
-        seq_map = self._sequencer.copy()
-        for seq in seq_map.values():
-            for val in seq.values():
-                if val['in_use']:
-                    continue
-                else:
-                    if val['queue'] == []:
-                        continue
-                    event = val['queue'][0]
-                    log_debug(LOG, "Returing serialized event %s"
-                              % (event.identify()))
-                    return event
-        return None
+        return self._sequencer.get()
 
     def report_state(self):
         """Invoked by report_task to report states of all agents. """
@@ -174,14 +156,15 @@ class Controller(object):
 
         for w in range(0, wc):
             evq = mp_queue()
-            evq_handler = EventQueueHandler(self, evq, self._event_handlers)
+            evq_handler = EventQueueHandler(
+                self, self._conf, evq, self._event_handlers)
             worker = mp_process(target=evq_handler.run, args=(evq,))
             worker.daemon = True
             ev_workers[w] = ev_workers[w] + (worker, evq, evq_handler)
         return ev_workers
 
     def poll_handler_init(self):
-        """Initialize poll handler, creates a poll queue. """
+        """Initialize poll handler, creates a poll & stash queue """
         pollq = mp_queue()
         stashq = mp_queue()
         handler = PollQueueHandler(self, pollq, stashq, self._event_handlers)
@@ -287,8 +270,8 @@ class Controller(object):
         seq_q = seq_map[event.binding_key]['queue']
         for seq_event in seq_q:
             if seq_event.key == event.key:
-                log_debug(LOG, "Removing event %s from serialize Q"
-                          % (seq_event.identify()))
+                log_info(LOG, "Removing event %s from serialize Q"
+                         % (seq_event.identify()))
                 self._sequencer.remove(seq_event)
                 break
         self._sequencer.delete_eventmap(event)
@@ -307,7 +290,10 @@ class Controller(object):
         self._pollhandler.add(event)
 
     def poll_event_timedout(self, eh, event):
-        self._pollhandler.event_timedout(eh, event)
+        if event.id == 'EVENT_LIFE_TIMEOUT':
+            self._pollhandler.event_life_timedout(eh, event)
+        else:
+            self._pollhandler.event_timedout(eh, event)
 
     def poll_event_done(self, event):
         """API for NFP modules to mark a poll event complete.
@@ -354,8 +340,6 @@ class Controller(object):
 
             Adds event to stashq for the stasher to stash on it
             periodically.
-            max_times - Defines the max number of times this event
-            can timeout, after that event is auto cancelled.
         """
         log_info(LOG, "Adding to stashq - event %s"
                  % (event.identify()))
@@ -363,6 +347,7 @@ class Controller(object):
         self._pollhandler.add_stash_event(event)
 
     def get_stash_event(self):
+        """Get stashed event from the cache. """
         event = self._pollhandler.get_stash_event()
         if event:
             return event.data

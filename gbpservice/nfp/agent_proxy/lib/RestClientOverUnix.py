@@ -17,12 +17,13 @@ import exceptions
 from oslo_config import cfg
 import six.moves.urllib.parse as urlparse
 import json
-from gbpservice.nfp.agent.agent.common import *
+from gbpservice.nfp.agent_proxy.lib.common import *
 
 LOG = logging.getLogger(__name__)
 
 
 class RestClientException(exceptions.Exception):
+
     """ RestClient Exception """
 
 
@@ -77,12 +78,12 @@ class UnixRestClient():
             path,
             None,
             ''))
-        LOG.info("Rest Request is triggerd for %s with body : %s"%(method_type,body))
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
-            LOG.info("Response Recieved : %s : %s"%(resp, content))
+            LOG.info("%s:%s" % (resp, content))
         except RestClientException as rce:
+            LOG.info("ERROR : %s" % (rce))
             raise rce
 
         success_code = [200, 201, 202, 204]
@@ -96,12 +97,12 @@ class UnixRestClient():
             raise RestClientException("HTTPForbidden: %s" % resp.reason)
         elif resp.status == 404:
             raise RestClientException("HttpNotFound: %s" % resp.reason)
-        elif resp.status == 405:
+        elif resp_code.status == 405:
             raise RestClientException(
                 "HTTPMethodNotAllowed: %s" % resp.reason)
-        elif resp.status == 406:
+        elif resp_code.status == 406:
             raise RestClientException("HTTPNotAcceptable: %s" % resp.reason)
-        elif resp.status == 408:
+        elif resp_code.status == 408:
             raise RestClientException("HTTPRequestTimeout: %s" % resp.reason)
         elif resp.status == 409:
             raise RestClientException("HTTPConflict: %s" % resp.reason)

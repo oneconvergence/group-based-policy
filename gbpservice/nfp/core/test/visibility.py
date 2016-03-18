@@ -45,7 +45,8 @@ def events_init(sc):
     evs = [
         Event(id='SERVICE_CREATE', handler=Agent(sc)),
         Event(id='SERVICE_DELETE', handler=Agent(sc)),
-        Event(id='SERVICE_DUMMY_EVENT', handler=Agent(sc))]
+        Event(id='SERVICE_DUMMY_EVENT', handler=Agent(sc)),
+        Event(id='EVENT_LIFE_TIMEOUT', handler=Agent(sc))]
     sc.register_events(evs)
 
 
@@ -72,10 +73,12 @@ def test_service_create(conf, sc):
                 'ip': '192.168.20.199'
                 }
     # Collector(service).create()
+    # Event with timer
     ev = sc.new_event(id='SERVICE_CREATE', data=service1,
                       binding_key=service1['id'],
-                      key=service1['id'], serialize=True)
+                      key=service1['id'], lifetime=11, serialize=True)
     sc.post_event(ev)
+
     service2 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216272a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216562c',
@@ -85,10 +88,12 @@ def test_service_create(conf, sc):
                 'service_type': 'firewall',
                 'ip': '192.168.20.197'
                 }
+    # event Without Timer
     ev = sc.new_event(id='SERVICE_CREATE', data=service2,
                       binding_key=service2['id'],
                       key=service2['id'], serialize=True)
     sc.post_event(ev)
+
     service3 = {'id': 'sc2f2b13-e284-44b1-9d9a-2597e216273a',
                 'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
                 'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216563c',
@@ -117,10 +122,10 @@ def test_service_create(conf, sc):
     while True:
         data = sc.get_stash_event()
         if data is not None:
-            print "Data: %s" % (data)
+            LOG.debug("Stashed data received %s " % (data))
             break
         else:
-            print "no event"
+            LOG.debug("No Event in stashq..")
             time.sleep(1)
 
 
@@ -169,6 +174,9 @@ class Agent(PollEventDesc):
         elif ev.id == 'SERVICE_DUMMY_EVENT':
             self._handle_dummy_event(ev)
 
+    def event_cancelled(self, ev):
+        LOG.debug("In event_cancel method of Handler for Event %s " % (ev))
+
     def _handle_create_event(self, ev):
         """Driver logic here.
         """
@@ -180,17 +188,16 @@ class Agent(PollEventDesc):
         event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data={})
         self._sc.stash_event(event)
-        # print sc._pollhandler.get_stash_event()
 
     def _handle_delete_event(self, ev):
         """Driver logic here.
         """
         self._sc.event_done(ev)
-        self._sc.poll_event_done(ev)
+        # self._sc.poll_event_done(ev)
 
-    def poll_event_cancel(self,event):
-        print "In Poll_Event_Cancle method of Event Handler"
-
+    def poll_event_cancel(self, event):
+        LOG.debug("In poll_event_cancel method of Handler for  Event %s " %
+                  (event))
 
     @nfp_poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
