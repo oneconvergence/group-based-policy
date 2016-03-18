@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ~/keystonerc_neutron
+source /home/stack/devstack/openrc neutron service
 
 gbp group-delete fw-provider
 gbp group-delete fw-consumer

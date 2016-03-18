@@ -1394,7 +1394,7 @@ source $TOP_DIR/functions-common
 echo_summary "stack.sh completed in $SECONDS seconds."
 NFP_SCRIPTS_DIR=/opt/stack/gbp/gbpservice/nfp/Automation-Scripts/NFP_SCRIPTS
 
-bash $NFP_SCRIPTS_DIR/nfp_setup.sh $NFP_SCRIPTS_DIR $TOP_DIR $ConfiguratorQcow2Image $VyosQcow2Image $HaproxyQcow2Image
+bash $NFP_SCRIPTS_DIR/nfp_setup.sh $NFP_SCRIPTS_DIR $TOP_DIR $ConfiguratorQcow2Image $VyosQcow2Image
 # Restore/close logging file descriptors 
 exec 1>&3
 exec 2>&3
