@@ -206,7 +206,7 @@ class VPNSvcValidator(object):
 
     def _active_state(self, context, vpnsvc):
         self.agent.update_status(
-            context, self._update_service_status(vpnsvc, const.STATE_ERROR))
+            context, self._update_service_status(vpnsvc, const.STATE_ACTIVE))
 
     def _get_local_cidr(self, vpn_svc):
         svc_desc = vpn_svc['description']
