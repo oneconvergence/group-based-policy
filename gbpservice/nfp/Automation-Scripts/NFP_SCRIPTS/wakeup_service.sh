@@ -74,6 +74,7 @@ sleep 1
 sudo chmod +x /usr/bin/nfp
 sudo cp -r  bin/nfp_config_agent.ini /etc/
 sudo cp -r  bin/nfp_orch_agent.ini /etc/
+sudo cp -r  bin/nfp_config_agent_proxy.ini /etc/
 sleep 1
 
 echo "Configuring proxy.ini .... with rest_server_address as $IpAddr"
@@ -86,8 +87,13 @@ ipnetns_router=`sudo ip netns |grep $RouterId`
 
 echo "Starting orchestrator  >>>> under screen named : config_agent"
 screen -dmS "orchestrator" /usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orch_agent.ini
+
+echo "Starting config_agent  >>>> under screen named : config_agent"
+screen -dmS "config_agent_proxy" /usr/bin/nfp  --config-file /etc/nfp_config_agent_proxy.ini
+sleep 1
+
 echo "Starting proxy server under Router : $RouterId namespace $ipnetns_router >>>> under screen named : proxy"
-ip netns exec $ipnetns_router screen -dmS "proxy" /usr/bin/python agent/proxy/proxy.py --config-file=agent/proxy/proxy.ini
+ip netns exec $ipnetns_router screen -dmS "proxy" /usr/bin/python agent_proxy/proxy/proxy.py --config-file=agent_proxy/proxy/proxy.ini
 sleep 1
 echo "Starting config_agent  >>>> under screen named : config_agent"
 screen -dmS "config_agent" /usr/bin/nfp  --config-file /etc/nfp_config_agent.ini --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
