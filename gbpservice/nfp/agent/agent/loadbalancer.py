@@ -14,6 +14,7 @@ from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from gbpservice.nfp.agent.agent.common import *
 from gbpservice.nfp.agent.agent import RestClientOverUnix as rc
+from gbpservice.nfp.lib.backend_lib import *
 
 LOG = logging.getLogger(__name__)
 
@@ -69,12 +70,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
         body = prepare_request_data(name, kwargs, "loadbalancer")
-        try:
-            resp, content = rc.post(
-                'create_network_function_config', body=body)
-        except rc.RestClientException as rce:
-            LOG.error("create_%s -> request failed. Reason %s" % (
-                name, rce))
+        send_request_to_configurator(context, body, "CREATE")
 
     def _delete(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
@@ -82,12 +78,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
         body = prepare_request_data(name, kwargs, "loadbalancer")
-        try:
-            resp, content = rc.post('delete_network_function_config',
-                                    body=body, delete=True)
-        except rc.RestClientException as rce:
-            LOG.error("delete_%s -> request failed.Reason %s" % (
-                name, rce))
+        send_request_to_configurator(context, body, "DELETE")
 
     def create_vip(self, context, vip):
         self._post(context, vip['tenant_id'], 'vip', vip=vip)

@@ -14,6 +14,7 @@ from neutron_fwaas.db.firewall import firewall_db
 from gbpservice.nfp.agent.agent.common import *
 from gbpservice.nfp.agent.agent import RestClientOverUnix as rc
 from neutron import context as n_context
+from gbpservice.nfp.lib.backend import *
 
 LOG = logging.getLogger(__name__)
 
@@ -59,12 +60,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                   'host': host,
                   'context': context_dict}
         body = prepare_request_data(resource, kwargs, "firewall")
-        try:
-            resp, content = rc.post(
-                'create_network_function_config', body=body)
-        except rc.RestClientException as rce:
-            LOG.error("create_firewall -> POST request failed.Reason: %s" % (
-                rce))
+        send_request_to_configurator(context, body, "CREATE")
 
     def delete_firewall(self, context, firewall, host):
         db = self._context(context, firewall['tenant_id'])
@@ -73,12 +69,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         resource = 'firewall'
         kwargs = {resource: firewall, 'host': host, 'context': context_dict}
         body = prepare_request_data(resource, kwargs, "firewall")
-        try:
-            resp, content = rc.post('delete_network_function_config',
-                                    body=body, delete=True)
-        except rc.RestClientException as rce:
-            LOG.error("delete_firewall -> DELETE request failed.Reason: %s" % (
-                rce))
+        send_request_to_configurator(context, body, "DELETE")
 
     def _context(self, context, tenant_id):
         if context.is_admin:

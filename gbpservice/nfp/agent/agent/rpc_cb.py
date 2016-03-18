@@ -18,6 +18,7 @@ from gbpservice.nfp.agent.agent import firewall as fw
 from gbpservice.nfp.agent.agent import vpn as vpn
 from gbpservice.nfp.agent.agent import generic as gc
 from gbpservice.nfp.agent.agent.common import *
+from gbpservice.nfp.backend_lib import *
 import json
 LOG = logging.getLogger(__name__)
 
@@ -47,39 +48,34 @@ class RpcCallback(core_pt.PollEventDesc):
 
     @core_pt.poll_event_desc(event='PULL_RPC_NOTIFICATIONS', spacing=1)
     def rpc_pull_event(self, ev):
-        try :
-            resp, rpc_cbs_data = rc.get('get_notifications')
-            rpc_cbs_data = json.loads(rpc_cbs_data)
-            '''
-            response_data = [
-                {'receiver': <neutron/orchestrator>,
-                 'resource': <firewall/vpn/loadbalancer/orchestrator>,
-                 'method': <notification method name>,
-                 'kwargs': <notification method arguments>
-            },
-            ]
-            '''
-            if not rpc_cbs_data :
-                LOG.info("get_notification -> GET request: Empty")
-            else :
-                rpc_cbs = rpc_cbs_data
-                for rpc_cb in rpc_cbs:
-                    if not rpc_cb :
-                        LOG.info("Receiver Response: Empty")
-                        continue
-                    try:
-                        self._method_handler(rpc_cb)
-                    except AttributeError:
-                        import sys
-                        import traceback
-                        exc_type, exc_value, exc_traceback = sys.exc_info()
-                        print traceback.format_exception(exc_type, exc_value, exc_traceback)
-
-                        LOG.error("AttributeError while handling message" % (
-                            rpc_cb))
-                    except Exception as e:
-                        LOG.error("Generic exception (%s) \
-                            while handling message (%s)" % (e, rpc_cb))
-        except rc.RestClientException as rce:
-            LOG.error("get_notification -> GET request failed. Reason : %s" % (
-                rce))
+       rpc_cbs_data = get_response_from_configurator() 
+       '''
+       response_data = [
+           {'receiver': <neutron/orchestrator>,
+            'resource': <firewall/vpn/loadbalancer/orchestrator>,
+            'method': <notification method name>,
+            'kwargs': <notification method arguments>
+       },
+       ]
+       '''
+       if not isinstance(rpc_cbs_data, list):
+           LOG.info("get_notification -> %s"%(rpc_cbs_data))
+           
+       else :
+           rpc_cbs = rpc_cbs_data
+           for rpc_cb in rpc_cbs:
+               if not rpc_cb :
+                   LOG.info("Receiver Response: Empty")
+                   continue
+               try:
+                   self._method_handler(rpc_cb)
+               except AttributeError:
+                   import sys
+                   import traceback
+                   exc_type, exc_value, exc_traceback = sys.exc_info()
+                   print traceback.format_exception(exc_type, exc_value, exc_traceback)
+                   LOG.error("AttributeError while handling message" % (
+                       rpc_cb))
+               except Exception as e:
+                   LOG.error("Generic exception (%s) \
+                       while handling message (%s)" % (e, rpc_cb))

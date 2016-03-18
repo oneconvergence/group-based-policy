@@ -13,6 +13,7 @@
 from neutron_vpnaas.db.vpn import vpn_db
 from gbpservice.nfp.agent.agent.common import *
 from gbpservice.nfp.agent.agent import RestClientOverUnix as rc
+from gbpservice.nfp.lib.backend_lib import *
 
 LOG = logging.getLogger(__name__)
 
@@ -34,15 +35,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         self._sc = sc
         super(VpnAgent, self).__init__()
 
-    def _eval_rest_calls(self, reason, body):
-        if reason == 'update':
-            return rc.put('update_network_function_config', body=body)
-        elif reason == 'create':
-            return rc.post('create_network_function_config', body=body)
-        else:
-            return rc.post('delete_network_function_config', body=body,
-                           delete=True)
-
     def vpnservice_updated(self, context, **kwargs):
         resource_data = kwargs.get('resource')
         db = self._context(context, resource_data['tenant_id'])
@@ -52,11 +44,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         resource = resource_data['rsrc_type']
         reason = resource_data['reason']
         body = prepare_request_data(resource, kwargs, "vpn")
-        try:
-            resp, content = self._eval_rest_calls(reason, body)
-        except rc.RestClientException as rce:
-            LOG.error("vpnservice_updated -> request failed.Reason %s" % (
-                rce))
+        send_request_to_configurator(context, body, reason)
 
     def _context(self, context, tenant_id):
         if context.is_admin:
