@@ -4,7 +4,7 @@ import oslo_messaging as messaging
 import requests
 
 from gbpservice.nfp.configurator.agents import agent_base
-from gbpservice.nfp.configurator.lib import filter as filters_lib
+from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 from gbpservice.nfp.core import main
@@ -18,7 +18,7 @@ from neutron import context as ctxt
 LOG = logging.getLogger(__name__)
 
 
-class VpnaasRpcSender(filters_lib.Filter):
+class VpnaasRpcSender(data_filter.Filter):
     """ RPC APIs to VPNaaS Plugin.
     """
     RPC_API_VERSION = '1.0'
