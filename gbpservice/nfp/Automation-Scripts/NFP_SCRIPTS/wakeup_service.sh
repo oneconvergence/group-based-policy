@@ -14,14 +14,16 @@ function upload_images_and_launch_configuratorVM {
 source $TOP_DIR/openrc neutron service
 ConfiguratorQcow2ImageName=$1
 VyosQcow2Image=$2
+HaproxyQcow2Image=$3
 ConfiguratorImageName=configurator
 VyosImageName=vyos
-
+HaproxyImageName=haproxy
 if [ ! -z "$1" -a "$1" != " " ]; then
     ImageName=$1
     echo "Uploading Image : $ConfiguratorImageName $VyosImageName"
     glance image-create --name $ConfiguratorImageName --disk-format qcow2  --container-format bare  --visibility public --file $ConfiguratorQcow2ImageName
     glance image-create --name $VyosImageName --disk-format qcow2  --container-format bare  --visibility public --file $VyosQcow2Image
+    glance image-create --name $HaproxyImageName --disk-format qcow2  --container-format bare  --visibility public --file $HaproxyQcow2Image
 else
     echo "ImageName not provided ..."
     exit
@@ -106,5 +108,5 @@ echo "Configuration success ... "
 
 }
 create_gbp_resources
-upload_images_and_launch_configuratorVM $1 $2
+upload_images_and_launch_configuratorVM $1 $2 $5
 copy_nfp_files_and_start_process
