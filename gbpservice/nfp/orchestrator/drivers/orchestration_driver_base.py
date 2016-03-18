@@ -74,6 +74,10 @@ class OrchestrationDriverBase(object):
             raise
 
     def _increment_stats_counter(self, metric, by=1):
+        # TODO: create path and delete path have different driver objects.
+        # This will not work in case of increment and decrement.
+        # So, its no-operation now
+        return
         try:
             self.stats.update({metric: self.stats.get(metric, 0) + by})
         except Exception:
@@ -81,6 +85,10 @@ class OrchestrationDriverBase(object):
                         % (metric, by)))
 
     def _decrement_stats_counter(self, metric, by=1):
+        # TODO: create path and delete path have different driver objects.
+        # This will not work in case of increment and decrement.
+        # So, its no-operation now
+        return
         try:
             self.stats.update({metric: self.stats[metric] - by})
         except Exception:
