@@ -22,11 +22,12 @@ class to start TCP server based on testcase needs
 
 
 class TcpServer(object):
+
     def __init__(self, server_address):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_address = server_address
         print >> sys.stderr, '[TCP]starting up the TCP server on %s port %s' % (
-                self.server_address)
+            self.server_address)
         self.sock.bind(self.server_address)
         self.count = 0
 
@@ -98,7 +99,7 @@ class TcpServer(object):
 
                 data = connection.recv(16)
                 print>> sys.stderr, '[TCP]Received "%s on %s "' % (
-                        data, client_address)
+                    data, client_address)
                 if data:
                     print >> sys.stderr, '[TCP]sending back to the Unix client'
                     connection.sendall(data)
@@ -114,6 +115,7 @@ Class to create Unix client based on test case
 
 
 class UnixClient(object):
+
     def __init__(self):
         pass
 
@@ -135,8 +137,8 @@ class UnixClient(object):
             while True:
                 count += 1
                 if count == 2:
-                    #send the second message after some time so
-                    #proxy can destroy the connection object
+                    # send the second message after some time so
+                    # proxy can destroy the connection object
                     time.sleep(40)
                 message = "Hi count " + str(count)
                 print "[Unix]Sending Message %s" % message
@@ -152,7 +154,7 @@ class UnixClient(object):
 
     def unix_client_msg_flooding(self):
         """
-        method to start single unix client and send multiple messages 
+        method to start single unix client and send multiple messages
         """
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         server_address = '/tmp/uds_socket'
@@ -163,9 +165,9 @@ class UnixClient(object):
             print >> sys.stderr, msg
             return 0
         try:
-            count =0
+            count = 0
             while True:
-                count +=1
+                count += 1
                 time.sleep(.1)
                 message = "Hi count " + str(count)
                 print "[Unix]Sending Message %s" % message
@@ -181,7 +183,7 @@ class UnixClient(object):
 
     def multiple_unix_connections(self):
         """
-        method to start the multiple unix clients 
+        method to start the multiple unix clients
         Each connection is started as separate thread
         """
         threadLock.acquire()
@@ -239,7 +241,7 @@ class UnixClient(object):
         threadLock.release()
         return
 
-""" 
+"""
 Descriptor class for Thread
 """
 
@@ -258,15 +260,16 @@ class TreadStart(threading.Thread):
 
 
 """
-Class to Initiate the Configurator Proxy 
+Class to Initiate the Configurator Proxy
 """
 
 
 class ProxyStart():
 
     def __init__(self):
-        #Need to change with absolute path
-        self.conf = proxy.Configuration('/home/rahul/oc_git/group-based-policy/gbpservice/nfp/proxy/proxy.ini')
+        # Need to change with absolute path
+        self.conf = proxy.Configuration(
+            '/home/rahul/oc_git/group-based-policy/gbpservice/nfp/proxy/proxy.ini')
 
     def run(self, server):
         """
@@ -284,7 +287,7 @@ Unit test class
 class TestConfProxy(unittest.TestCase):
 
     def test_ideal_max_timeout(self):
-        """    
+        """
         method to test the ideal_max_timeout is expired of connection
         """
         return_val = 0

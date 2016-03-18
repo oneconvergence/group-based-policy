@@ -158,7 +158,7 @@ class Connection(object):
 
 """
 ADT for Proxy Connection Object
-Each Connection Object is pair of Unix Socket and 
+Each Connection Object is pair of Unix Socket and
 TCP Client Socket
 """
 
@@ -195,7 +195,7 @@ class ProxyConnection(object):
 
 
 """
-ADT for proxy Worker 
+ADT for proxy Worker
 """
 
 
@@ -224,7 +224,7 @@ class Worker(object):
 ADT to  Run the configurator proxy,
         accept the Unix Client request,
         Check REST Server is reachable or not,
-        Try to establish TCP Client Connection to REST 
+        Try to establish TCP Client Connection to REST
 
 """
 
@@ -239,7 +239,7 @@ class Proxy(object):
 
     def start(self):
         """Run each worker in new thread"""
-        
+
         for i in range(self.conf.worker_threads):
             t = threading.Thread(target=Worker().run)
             t.daemon = True
