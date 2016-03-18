@@ -127,15 +127,6 @@ class FilterTest(filter_base.BaseTestCase):
                 peer_address=[self.ipsec_site_connections[0]['peer_address']])
         self.assertEqual(retval, self.ipsec_site_connections)
 
-    def test_get_ssl_vpn_conn(self):
-        """Test get_ssl_vpn_conns() of data_filter.py
-        """
-        retval = self._make_test(
-                    self._make_vpn_service_context(),
-                    'get_ssl_vpn_conns',
-                    tenant_id=[self.ssl_vpn_connections[0]['tenant_id']])
-        self.assertEqual(retval, self.ssl_vpn_connections)
-
     def test_get_logical_device(self):
         """Test get_logical_device() of data_filter.py
         """
@@ -160,7 +151,6 @@ class FilterTest(filter_base.BaseTestCase):
         self.context['service_info'] = service_info
         retval = self.filter_obj.get_vpn_servicecontext(
                     self.context,
-                    constants.SERVICE_TYPE_IPSEC,
                     {'tenant_id': self.vpnservices[0]['tenant_id'],
                      'vpnservice_id': self.vpnservices[0]['id'],
                      'ipsec_site_connections':
@@ -183,7 +173,6 @@ class FilterTest(filter_base.BaseTestCase):
         self.context['service_info'] = service_info
         retval = self.filter_obj.get_vpn_servicecontext(
                     self.context,
-                    constants.SERVICE_TYPE_IPSEC,
                     {'tenant_id': self.vpnservices[0]['tenant_id'],
                      })
 
@@ -196,75 +185,4 @@ class FilterTest(filter_base.BaseTestCase):
 
         self.assertEqual(retval, [expected])
 
-    def test_get_vpn_servicecontext_openvpn_service_type(self):
-        """Test get_vpn_servicecontext() of data_filter.py
-           based on openvpn service type
-        """
-        service_info = self._test_get_vpn_info()
-        self.context['service_info'] = service_info
-        retval = self.filter_obj.get_vpn_servicecontext(
-                        self.context,
-                        constants.SERVICE_TYPE_OPENVPN,
-                        {'tenant_id': self.vpnservices[0]['tenant_id'],
-                         'vpnservice_id': self.vpnservices[0]['id'],
-                         'ipsec_site_connections':
-                         self.ipsec_site_connections[0]['id']})
-        expected = {
-                     'sslvpnconns': [{
-                            'credential': None,
-                            'connection': self.ssl_vpn_connections[0]}],
-                     'service': self.vpnservices[0]}
-        self.assertEqual(retval, [expected])
-
-    def test_get_vpn_servicecontext_openvpn_service_type_with_tenantid(self):
-        """Test get_vpn_servicecontext() of data_filter.py
-           based on openvpn service type and tenant_id
-        """
-        service_info = self._test_get_vpn_info()
-        self.context['service_info'] = service_info
-        retval = self.filter_obj.get_vpn_servicecontext(
-                        self.context,
-                        constants.SERVICE_TYPE_OPENVPN,
-                        {'tenant_id': self.vpnservices[0]['tenant_id']})
-        expected = {
-                     'sslvpnconns': [{
-                            'credential': None,
-                            'connection': self.ssl_vpn_connections[0]}],
-                     'service': self.vpnservices[0]}
-        self.assertEqual(retval, [expected])
-
-    def test_get_vpn_servicecontext_openvpn_service_type_with_vpnsid(self):
-        """Test get_vpn_servicecontext() of data_filter.py
-           based on openvpn service type and vpn service id
-        """
-        service_info = self._test_get_vpn_info()
-        self.context['service_info'] = service_info
-        retval = self.filter_obj.get_vpn_servicecontext(
-                        self.context,
-                        constants.SERVICE_TYPE_OPENVPN,
-                        {'vpnservice_id': self.vpnservices[0]['id']})
-        expected = {
-                     'sslvpnconns': [{
-                            'credential': None,
-                            'connection': self.ssl_vpn_connections[0]}],
-                     'service': self.vpnservices[0]}
-        self.assertEqual(retval, [expected])
-
-    def test_get_vpn_servicecontext_openvpn_service_type_with_ipsec(self):
-
-        service_info = self._test_get_vpn_info()
-        self.context['service_info'] = service_info
-        retval = self.filter_obj.get_vpn_servicecontext(
-                        self.context,
-                        constants.SERVICE_TYPE_OPENVPN,
-                        {
-                         'ipsec_site_connections':
-                                    self.ipsec_site_connections[0]['id']
-                        })
-        expected = {
-                     'sslvpnconns': [{
-                            'credential': None,
-                            'connection': self.ssl_vpn_connections[0]}],
-                     'service': self.vpnservices[0]}
-        self.assertEqual(retval, [expected])
-
+  
