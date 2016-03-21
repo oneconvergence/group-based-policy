@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron._i18n import _LE
+from neutron._i18n import _LI
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 import oslo_messaging
@@ -167,26 +169,27 @@ class ServiceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        LOG.info(_("NSO handle_event, event ID %(id)s"), {'id': event.id})
+        LOG.info(_LI("NSO handle_event, event ID %(id)s"), {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
         except Exception:
-            LOG.exception(_("Error in handle event for event: %(event_id)s"),
+            LOG.exception(_LE("Error in handle event for event: %(event_id)s"),
                           {'event_id': event.id})
 
     def handle_poll_event(self, event):
-        LOG.info(_("NSO handle_poll_event, event ID %(id)s"), {'id': event.id})
+        LOG.info(_LI("NSO handle_poll_event, event ID %(id)s"),
+                 {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
         except Exception:
-            LOG.exception(_("Error in handle poll event for event: "
-                            "%(event_id)s"), {'event_id': event.id})
+            LOG.exception(_LE("Error in handle poll event for event: "
+                              "%(event_id)s"), {'event_id': event.id})
 
     def _log_event_created(self, event_id, event_data):
-        LOG.info(_("Created event %s(event_name)s with event "
-                   "data: %(event_data)s"),
+        LOG.info(_LI("Created event %s(event_name)s with event "
+                     "data: %(event_data)s"),
                  {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None, key=None,
@@ -432,8 +435,8 @@ class ServiceOrchestrator(object):
                 request_data['heat_stack_id'], request_data['tenant_id'])
         except Exception as err:
             # FIXME: May be we need a count before removing the poll event
-            LOG.error(_("Error: %(err)s while verifying configuration delete "
-                        "completion."), {'err': err})
+            LOG.error(_LE("Error: %(err)s while verifying configuration delete"
+                          " completion."), {'err': err})
             return
         if config_status == nfp_constants.ERROR:
             event_data = {
@@ -532,8 +535,8 @@ class ServiceOrchestrator(object):
                 self.db_session, network_function_id)
             return network_function
         except Exception:
-            LOG.exception(_("Failed to retrieve Network Function details for "
-                            "%(network_function)s"),
+            LOG.exception(_LE("Failed to retrieve Network Function details for "
+                              "%(network_function)s"),
                           {'network_function': network_function_id})
             return None
 
