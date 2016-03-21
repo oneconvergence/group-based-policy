@@ -7,6 +7,8 @@ setuptools>=19.2
 -e git+https://github.com/noironetworks/apic-ml2-driver.git@master#egg=apic_ml2
 -e git+https://git.openstack.org/openstack/python-heatclient@master#egg=heatclient
 -e git+https://git.openstack.org/openstack/python-keystoneclient@master#egg=keystoneclient
+-e git+https://github.com/openstack/python-neutronclient@stable/liberty#egg=neutronclient
+-e git+https://git.openstack.org/openstack/python-group-based-policy-client@stable/liberty#egg=gbpclient
 hacking<0.11,>=0.10.0
 
 cliff>=1.15.0 # Apache-2.0
