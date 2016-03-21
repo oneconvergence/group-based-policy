@@ -112,6 +112,11 @@ class NFPPortNotFound(NotFound):
     message = _("NFP Port %(port_id)s could not be found")
 
 
+class RequiredDataNotProvided(NFPException):
+    message = _("The required data %(required_data)s is missing in "
+                "%(request)s")
+
+
 class IncompleteData(NFPException):
     message = _("Data passed is incomplete")
 

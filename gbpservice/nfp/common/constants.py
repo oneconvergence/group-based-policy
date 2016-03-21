@@ -23,6 +23,7 @@ GBP_NETWORK = "gbp_group"
 PROVIDER = "provider"
 CONSUMER = "consumer"
 MANAGEMENT = "management"
+MONITOR = "monitoring"
 
 ACTIVE_PORT = "ACTIVE"
 STANDBY_PORT = "STANDBY"

@@ -29,13 +29,13 @@ import sqlalchemy as sa
 from sqlalchemy.orm.exc import NoResultFound
 
 from gbpservice.common import utils
-from gbpservice.nfp.common import constants as nfp_constants
-from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     exceptions as exc)
 from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base
 from gbpservice.neutron.services.servicechain.plugins.ncp import model
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
+from gbpservice.nfp.common import constants as nfp_constants
+from gbpservice.nfp.common import topics as nfp_rpc_topics
 
 
 NFP_NODE_DRIVER_OPTS = [
@@ -487,7 +487,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 time_waited = time_waited + 5
                 continue
             else:
-                LOG.info(_("Create network function result: %(network_function)s"), {'network_function': network_function})
+                LOG.info(_("Create network function result: "
+                           "%(network_function)s"),
+                         {'network_function': network_function})
             if (network_function['status'] == 'ACTIVE' or
                 network_function['status'] == 'ERROR'):
                 break
@@ -495,8 +497,10 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             time_waited = time_waited + 5
 
         if network_function['status'] != 'ACTIVE':
-            LOG.error(_("Create network function %(network_function)s failed. status: %(status)s"),
-                      {'network_function': network_function_id, 'status': network_function['status']})
+            LOG.error(_("Create network function %(network_function)s failed. "
+                        "Status: %(status)s"),
+                      {'network_function': network_function_id,
+                       'status': network_function['status']})
             raise NodeInstanceCreateFailed()
 
     def _is_service_target(self, policy_target):
@@ -543,27 +547,19 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 return
         self.nfp_notifier.update_service_config()
 
-    def _get_service_target_from_relations(self, context, relationship):
-        LOG.debug("Relation: %s instance_id: %s node_id: %s tenant_id: %s"
-                  % (relationship, context.instance['id'],
-                     context.current_node['id'],
-                     context._plugin_context.tenant_id))
-        service_targets = model.get_service_targets(
-            context.session,
-            servicechain_instance_id=context.instance['id'],
-            servicechain_node_id=context.current_node['id'],
-            relationship=relationship)
-        LOG.debug("service_type %s service_targets: %s"
-                  % (context.current_profile['service_type'],
-                     service_targets))
-        return service_targets
-
     def _get_service_targets(self, context):
         service_type = context.current_profile['service_type']
-        provider_service_targets = self._get_service_target_from_relations(
-            context, 'provider')
-        consumer_service_targets = self._get_service_target_from_relations(
-            context, 'consumer')
+        provider_service_targets = []
+        consumer_service_targets = []
+        service_targets = context.get_service_targets()
+        # Bug with NCP. For create, its not setting service targets in context
+        if not service_targets:
+            service_targets = context.get_service_targets(update=True)
+        for service_target in service_targets:
+            if service_target.relationship == 'consumer':
+                consumer_service_targets.append(service_target)
+            elif service_target.relationship == 'provider':
+                provider_service_targets.append(service_target)
         LOG.debug("provider targets: %s consumer targets %s" % (
             provider_service_targets, consumer_service_targets))
         if (not provider_service_targets or (service_type in
