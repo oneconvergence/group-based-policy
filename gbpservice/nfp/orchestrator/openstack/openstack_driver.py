@@ -17,40 +17,19 @@ from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 from keystoneclient.v2_0 import client as identity_client
 from keystoneclient.v3 import client as keyclientv3
+from keystonemiddleware import auth_token  # noqa
 from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
 
-es_openstack_opts = [
-    cfg.StrOpt('auth_host',
-               default='localhost',
-               help='Openstack controller IP Address'),
-    cfg.StrOpt('admin_user',
-               help='Admin user name to create service VMs'),
-    cfg.StrOpt('admin_password',
-               help='Admin password to create service VMs'),
-    cfg.StrOpt('admin_tenant_name',
-               help='Admin tenant name to create service VMs'),
-    cfg.StrOpt('admin_tenant_id',
-               help='Admin tenant ID to create service VMs'),
-    cfg.StrOpt('auth_protocol',
-               default='http', help='Auth protocol used.'),
-    cfg.IntOpt('auth_port',
-               default='5000', help='Auth protocol used.'),
-    cfg.IntOpt('bind_port',
-               default='9696', help='Auth protocol used.'),
-    cfg.StrOpt('auth_version',
-               default='v2.0', help='Auth protocol used.'),
-]
-cfg.CONF.register_opts(es_openstack_opts, "keystone_authtoken")
-
+cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
+cfg.CONF.import_opt("bind_port", 'neutron.common.config')
 
 class OpenstackApi(object):
     """Initializes common attributes for openstack client drivers."""
 
     def __init__(self, username=cfg.CONF.keystone_authtoken.admin_user,
                  password=cfg.CONF.keystone_authtoken.admin_password,
-                 tenant_id=cfg.CONF.keystone_authtoken.admin_tenant_id,
                  tenant_name=cfg.CONF.keystone_authtoken.admin_tenant_name):
         self.nova_version = '2'
         self.identity_service = ("%s://%s:%d/%s/" %
@@ -61,10 +40,9 @@ class OpenstackApi(object):
         self.network_service = ("%s://%s:%d/" %
                                 (cfg.CONF.keystone_authtoken.auth_protocol,
                                  cfg.CONF.keystone_authtoken.auth_host,
-                                 cfg.CONF.keystone_authtoken.bind_port))
+                                 cfg.CONF.bind_port))
         self.username = username
         self.password = password
-        self.tenant_id = tenant_id
         self.tenant_name = tenant_name
         self.token = None
 
