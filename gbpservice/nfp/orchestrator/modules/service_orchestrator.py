@@ -10,10 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 import oslo_messaging
 
 from gbpservice.nfp.common import constants as nfp_constants
+from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.nfp.core.main import Event
 from gbpservice.nfp.core.rpc import RpcAgent
@@ -64,53 +66,59 @@ class RpcHandler(object):
         self.conf = conf
         self._controller = controller
 
+    @log_helpers.log_method_call
     def create_network_function(self, context, network_function):
         service_orchestrator = ServiceOrchestrator(self._controller)
         return service_orchestrator.create_network_function(
             context, network_function)
 
+    @log_helpers.log_method_call
     def get_network_function(self, context, network_function_id):
         service_orchestrator = ServiceOrchestrator(self._controller)
         return service_orchestrator.get_network_function(
             context, network_function_id)
 
+    @log_helpers.log_method_call
     def get_network_functions(self, context, filters={}):
         service_orchestrator = ServiceOrchestrator(self._controller)
         return service_orchestrator.get_network_functions(
             context, filters)
 
+    @log_helpers.log_method_call
     def update_network_function(self, context, network_function_id,
                                updated_network_function):
         service_orchestrator = ServiceOrchestrator(self._controller)
         return service_orchestrator.update_network_function(
             context, network_function_id, updated_network_function)
 
+    @log_helpers.log_method_call
     def delete_network_function(self, context, network_function_id):
-        LOG.info(_("RPC call delete_network_function for "
-                   "%(network_function_id)s"),
-                 {'network_function_id': network_function_id})
         service_orchestrator = ServiceOrchestrator(self._controller)
         return service_orchestrator.delete_network_function(
             context, network_function_id)
 
+    @log_helpers.log_method_call
     def policy_target_added_notification(self, context, network_function_id,
                                          policy_target):
         service_orchestrator = ServiceOrchestrator(self._controller)
         return service_orchestrator.handle_policy_target_added(
             context, network_function_id, policy_target)
 
+    @log_helpers.log_method_call
     def policy_target_removed_notification(self, context, network_function_id,
                                            policy_target):
         service_orchestrator = ServiceOrchestrator(self._controller)
         return service_orchestrator.handle_policy_target_removed(
             context, network_function_id, policy_target)
 
+    @log_helpers.log_method_call
     def consumer_ptg_added_notification(self, context, network_function_id,
                                         policy_target_group):
         service_orchestrator = ServiceOrchestrator(self._controller)
         return service_orchestrator.handle_consumer_ptg_added(
             context, network_function_id, policy_target_group)
 
+    @log_helpers.log_method_call
     def consumer_ptg_removed_notification(self, context, network_function_id,
                                           policy_target_group):
         service_orchestrator = ServiceOrchestrator(self._controller)
@@ -159,11 +167,13 @@ class ServiceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
+        LOG.info(_("NSO handle_event, event ID %(id)s"), {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
         except Exception:
-            LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event.id})
+            LOG.exception(_("Error in handle event for event: %(event_id)s"),
+                          {'event_id': event.id})
 
     def handle_poll_event(self, event):
         LOG.info(_("NSO handle_poll_event, event ID %(id)s"), {'id': event.id})
@@ -171,12 +181,13 @@ class ServiceOrchestrator(object):
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
         except Exception:
-            LOG.exception(_("Unhandled exception in handle event for event: %(event_id)s"), {'event_id': event.id})
+            LOG.exception(_("Error in handle poll event for event: "
+                            "%(event_id)s"), {'event_id': event.id})
 
     def _log_event_created(self, event_id, event_data):
         LOG.info(_("Created event %s(event_name)s with event "
-                    "data: %(event_data)s"),
-                  {'event_name': event_id, 'event_data': event_data})
+                   "data: %(event_data)s"),
+                 {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None, key=None,
                       binding_key=None, serialize=False, is_poll_event=False):
@@ -218,14 +229,14 @@ class ServiceOrchestrator(object):
             management_network_info = {
                 'id': network_function_info['management_ptg_id'],
                 'port_model': nfp_constants.GBP_NETWORK
-        }
+            }
         create_network_function_instance_request = {
             'network_function': network_function,
             'network_function_port_info': network_function_info['port_info'],
             'management_network_info': management_network_info,
             'service_type': service_profile['service_type'],
             'service_vendor': service_profile['service_flavor'],
-            'share_existing_device': False # Extend service profile
+            'share_existing_device': False  # Extend service profile if needed
         }
 
         # Create and event to perform Network service instance
@@ -256,7 +267,7 @@ class ServiceOrchestrator(object):
             }
             self._create_event('USER_CONFIG_DELETED',
                                event_data=event_data)
-            return 
+            return
 
         self.config_driver.delete(network_function_info['heat_stack_id'],
                                   network_function['tenant_id'])
@@ -320,7 +331,8 @@ class ServiceOrchestrator(object):
         request_data['heat_stack_id'] = self.config_driver.apply_user_config(
                 network_function_details)  # Heat driver to launch stack
         request_data['tenant_id'] = nfi['tenant_id']
-        LOG.debug("handle_device_active heat_stack_id: %s" %(request_data['heat_stack_id']))
+        LOG.debug("handle_device_active heat_stack_id: %s"
+                  % (request_data['heat_stack_id']))
         self.db_handler.update_network_function(
             self.db_session, nfi['network_function_id'],
             {'heat_stack_id': request_data['heat_stack_id']})
@@ -331,7 +343,6 @@ class ServiceOrchestrator(object):
 
     def handle_device_create_failed(self, event):
         request_data = event.data
-        LOG.info(_("In handle_device_create_failed request data : %s"), request_data)
         nfi = {
             'status': nfp_constants.ERROR,
             'network_function_device_id': request_data.get(
@@ -368,21 +379,28 @@ class ServiceOrchestrator(object):
             self._create_event('DEVICE_DELETED',
                                event_data=device_deleted_event)
 
+    # FIXME: Add all possible validations here
     def _validate_create_service_input(self, context, create_service_request):
         required_attributes = ["tenant_id", "service_id", "service_chain_id",
                                "service_profile_id", "network_function_mode"]
         if (set(required_attributes) & set(create_service_request.keys()) !=
             set(required_attributes)):
-            raise Exception("Some mandatory arguments are missing in "
-                            "create service request")
+            missing_keys = (set(required_attributes) -
+                            set(create_service_request.keys()))
+            raise nfp_exc.RequiredDataNotProvided(
+                required_data=", ".join(missing_keys),
+                request="Create Network Function")
         if create_service_request['network_function_mode'].lower() == "gbp":
             gbp_required_attributes = ["port_info", "service_chain_id",
                                        "management_ptg_id"]
             if (set(gbp_required_attributes) &
                 set(create_service_request.keys()) !=
                 set(gbp_required_attributes)):
-                raise Exception("Some mandatory arguments for GBP mode are "
-                                "missing in create service request")
+                missing_keys = (set(gbp_required_attributes) -
+                                set(create_service_request.keys()))
+                raise nfp_exc.RequiredDataNotProvided(
+                    required_data=", ".join(missing_keys),
+                    request="Create Network Function")
 
     def check_for_user_config_complete(self, event):
         request_data = event.data
@@ -414,7 +432,8 @@ class ServiceOrchestrator(object):
                 request_data['heat_stack_id'], request_data['tenant_id'])
         except Exception as err:
             # FIXME: May be we need a count before removing the poll event
-            LOG.error(_("Checking is_config_delete_complete failed. Error: %(err)s"), {'err': err})
+            LOG.error(_("Error: %(err)s while verifying configuration delete "
+                        "completion."), {'err': err})
             return
         if config_status == nfp_constants.ERROR:
             event_data = {
@@ -464,7 +483,6 @@ class ServiceOrchestrator(object):
             updated_network_function)
         # Trigger RPC to notify the Create_Service caller with status
 
-    # TODO: When NDO deletes Device DB, the Foreign key NSI will be nulled
     def handle_user_config_deleted(self, event):
         request_data = event.data
         network_function = self.db_handler.get_network_function(
@@ -512,10 +530,11 @@ class ServiceOrchestrator(object):
         try:
             network_function = self.db_handler.get_network_function(
                 self.db_session, network_function_id)
-            LOG.info(_("In get_network_function, returning: %(network_function)s"), {'network_function': network_function['status']})
             return network_function
         except Exception:
-            LOG.exception(_("Error in get_network_function"))
+            LOG.exception(_("Failed to retrieve Network Function details for "
+                            "%(network_function)s"),
+                          {'network_function': network_function_id})
             return None
 
     def get_network_functions(self, context, filters):
@@ -653,14 +672,17 @@ class ServiceOrchestrator(object):
         network_function_details = {
             'network_function': network_function
         }
-        network_function_instances = network_function['network_function_instances']
+        network_function_instances = network_function[
+            'network_function_instances']
         if not network_function_instances:
             return network_function_details
         nfi = self.db_handler.get_network_function_instance(
             self.db_session, network_function_instances[0])
         network_function_details['network_function_instance'] = nfi
         if nfi['network_function_device_id']:
-            network_function_device = self.db_handler.get_network_function_device(
-                self.db_session, nfi['network_function_device_id'])
-            network_function_details['network_function_device'] = network_function_device
+            network_function_device = (
+                self.db_handler.get_network_function_device(
+                    self.db_session, nfi['network_function_device_id']))
+            network_function_details['network_function_device'] = (
+                network_function_device)
         return network_function_details

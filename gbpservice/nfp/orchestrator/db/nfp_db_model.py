@@ -94,6 +94,7 @@ class PortInfo(BASE, HasId, HasTenant):
     port_classification = sa.Column(sa.Enum(nfp_constants.PROVIDER,
                                             nfp_constants.CONSUMER,
                                             nfp_constants.MANAGEMENT,
+                                            nfp_constants.MONITOR,
                                             name='port_classification'))
     port_role = sa.Column(sa.Enum(nfp_constants.ACTIVE_PORT,
                                   nfp_constants.STANDBY_PORT,
@@ -142,7 +143,7 @@ class NetworkFunctionInstance(BASE, HasId, HasTenant, HasStatusDescription):
         nullable=True)
     port_info = orm.relationship(
         NSIPortAssociation,
-        backref='network_function_instance', cascade='all, delete-orphan')
+        cascade='all, delete-orphan')
 
 
 class NetworkFunction(BASE, HasId, HasTenant, HasStatusDescription):

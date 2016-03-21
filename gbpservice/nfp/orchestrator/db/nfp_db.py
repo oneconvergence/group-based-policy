@@ -54,7 +54,7 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                 network_function_id=network_function_id)
 
     def update_network_function(self, session, network_function_id,
-                               updated_network_function):
+                                updated_network_function):
         with session.begin(subtransactions=True):
             network_function_db = self._get_network_function(
                 session, network_function_id)
@@ -226,8 +226,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             del network_function_device['monitoring_port_id']
 
     def _set_monitoring_port_network_for_nfd(self, session,
-                                                network_function_device_db,
-                                                network_function_device):
+                                             network_function_device_db,
+                                             network_function_device):
         nfd_db = network_function_device_db
         monitoring_port_network = network_function_device.get(
             'monitoring_port_network')

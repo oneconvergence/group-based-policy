@@ -269,13 +269,13 @@ class NFPDBTestCase(SqlTestCase):
             'ha_state': 'Active',
             'port_info': [
                 {'id': 'my_nfi_port_id1',
-                 'port_model': 'neutron',
-                 'port_classification': 'provider',
-                 'port_role': 'active'},
+                 'port_model': nfp_constants.NEUTRON_PORT,
+                 'port_classification': nfp_constants.PROVIDER,
+                 'port_role': nfp_constants.ACTIVE_PORT},
                 {'id': 'my_nfi_port_id2',
-                 'port_model': 'gbp',
-                 'port_classification': 'consumer',
-                 'port_role': 'master'}
+                 'port_model': nfp_constants.GBP_PORT,
+                 'port_classification': nfp_constants.CONSUMER,
+                 'port_role': nfp_constants.MASTER_PORT}
             ],
             'status': 'status'
         }
@@ -337,13 +337,13 @@ class NFPDBTestCase(SqlTestCase):
                 'mgmt_ip_address': 'mgmt_ip_address',
                 'monitoring_port_id': {
                     'id': 'myid1_ha_port',
-                    'port_model': 'neutron',
-                    'port_classification': 'monitoring',
-                    'port_role': 'active'
+                    'port_model': nfp_constants.NEUTRON_PORT,
+                    'port_classification': nfp_constants.MONITOR,
+                    'port_role': nfp_constants.ACTIVE_PORT
                 },
                 'monitoring_port_network': {
                     'id': 'mynetwork_id',
-                    'network_model': 'neutron'
+                    'network_model': nfp_constants.NEUTRON_NETWORK
                 },
                 'service_vendor': 'service_vendor',
                 'max_interfaces': 3,
@@ -351,9 +351,9 @@ class NFPDBTestCase(SqlTestCase):
                 'interfaces_in_use': 1,
                 'mgmt_port_id': {
                     'id': 'myid1',
-                    'port_model': 'neutron',
-                    'port_classification': 'management',
-                    'port_role': 'active'},
+                    'port_model': nfp_constants.NEUTRON_PORT,
+                    'port_classification': nfp_constants.MANAGEMENT,
+                    'port_role': nfp_constants.ACTIVE_PORT},
                 'status': 'status'
             }
         return self.nfp_db.create_network_function_device(
@@ -367,13 +367,13 @@ class NFPDBTestCase(SqlTestCase):
             'mgmt_ip_address': 'mgmt_ip_address',
             'monitoring_port_id': {
                 'id': 'myid1_ha_port',
-                'port_model': 'neutron',
-                'port_classification': 'monitoring',
-                'port_role': 'active'
+                'port_model': nfp_constants.NEUTRON_PORT,
+                'port_classification': nfp_constants.MONITOR,
+                'port_role': nfp_constants.ACTIVE_PORT
             },
             'monitoring_port_network': {
                 'id': 'mynetwork_id',
-                'network_model': 'neutron'
+                'network_model': nfp_constants.NEUTRON_NETWORK
             },
             'service_vendor': 'service_vendor',
             'max_interfaces': 3,
@@ -381,9 +381,9 @@ class NFPDBTestCase(SqlTestCase):
             'interfaces_in_use': 1,
             'mgmt_port_id': {
                 'id': 'myid1',
-                'port_model': 'neutron',
-                'port_classification': 'management',
-                'port_role': 'active'},
+                'port_model': nfp_constants.NEUTRON_PORT,
+                'port_classification': nfp_constants.MANAGEMENT,
+                'port_role': nfp_constants.ACTIVE_PORT},
             'status': 'status'
         }
         network_function_device = self.nfp_db.create_network_function_device(
@@ -422,13 +422,13 @@ class NFPDBTestCase(SqlTestCase):
             'mgmt_ip_address': 'mgmt_ip_address',
             'monitoring_port_id': {
                 'id': 'myid1_ha_port',
-                'port_model': 'neutron',
-                'port_classification': 'monitoring',
-                'port_role': 'active'
+                'port_model': nfp_constants.NEUTRON_PORT,
+                'port_classification': nfp_constants.MONITOR,
+                'port_role': nfp_constants.ACTIVE_PORT
             },
             'monitoring_port_network': {
                 'id': 'mynetwork_id',
-                'network_model': 'neutron'
+                'network_model': nfp_constants.NEUTRON_NETWORK
             },
             'service_vendor': 'service_vendor',
             'max_interfaces': 3,
@@ -436,9 +436,9 @@ class NFPDBTestCase(SqlTestCase):
             'interfaces_in_use': 1,
             'mgmt_port_id': {
                 'id': 'myid1',
-                'port_model': 'neutron',
-                'port_classification': 'management',
-                'port_role': 'active'},
+                'port_model': nfp_constants.NEUTRON_PORT,
+                'port_classification': nfp_constants.MANAGEMENT,
+                'port_role': nfp_constants.ACTIVE_PORT},
             'status': 'status'
         }
         network_function_device = self.nfp_db.create_network_function_device(
@@ -473,13 +473,13 @@ class NFPDBTestCase(SqlTestCase):
             'mgmt_ip_address': 'mgmt_ip_address',
             'monitoring_port_id': {
                 'id': 'myid1_ha_port',
-                'port_model': 'neutron',
-                'port_classification': 'monitoring',
-                'port_role': 'active'
+                'port_model': nfp_constants.NEUTRON_PORT,
+                'port_classification': nfp_constants.MONITOR,
+                'port_role': nfp_constants.ACTIVE_PORT
             },
             'monitoring_port_network': {
                 'id': 'mynetwork_id',
-                'network_model': 'neutron'
+                'network_model': nfp_constants.NEUTRON_NETWORK
             },
             'service_vendor': 'service_vendor',
             'max_interfaces': 3,
@@ -487,9 +487,9 @@ class NFPDBTestCase(SqlTestCase):
             'interfaces_in_use': 1,
             'mgmt_port_id': {
                 'id': 'myid1',
-                'port_model': 'neutron',
-                'port_classification': 'management',
-                'port_role': 'active'},
+                'port_model': nfp_constants.NEUTRON_PORT,
+                'port_classification': nfp_constants.MANAGEMENT,
+                'port_role': nfp_constants.ACTIVE_PORT},
             'status': 'status'
         }
         network_function_device = self.nfp_db.create_network_function_device(
@@ -516,9 +516,9 @@ class NFPDBTestCase(SqlTestCase):
         updated_network_function_device = {
             'mgmt_port_id': {
                 'id': 'myid3',
-                'port_model': 'neutron',
-                'port_classification': 'management',
-                'port_role': 'active'},
+                'port_model': nfp_constants.NEUTRON_PORT,
+                'port_classification': nfp_constants.MANAGEMENT,
+                'port_role': nfp_constants.ACTIVE_PORT},
             'name': 'name'
         }
         updated_nfd = self.nfp_db.update_network_function_device(
