@@ -198,8 +198,9 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
             "service_profile_id": "test",
             "network_function_mode": "test"
         }
-        return_value = self.service_orchestrator._validate_create_service_input(
-            self.context, network_function)
+        return_value = (
+            self.service_orchestrator._validate_create_service_input(
+                self.context, network_function))
         self.assertIsNone(return_value)
 
     def test_delete_network_function_without_nfi(self):
@@ -613,7 +614,7 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
             self.session, nfi['network_function_id'])
         self.assertIsNotNone(db_nf['heat_stack_id'])
         mock_handle_policy_target_added.assert_called_once_with(
-            mock.ANY, policy_target) #TODO: Use proper data instead of mock.ANY
+            mock.ANY, policy_target)  # Use proper data instead of mock.ANY
         mock_create_event.assert_called_once_with(
             'APPLY_USER_CONFIG_IN_PROGRESS',
             event_data=mock.ANY,
