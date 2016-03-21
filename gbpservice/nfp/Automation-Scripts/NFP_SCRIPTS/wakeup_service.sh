@@ -78,8 +78,8 @@ sudo cp -r  bin/nfp_config_agent_proxy.ini /etc/
 sleep 1
 
 echo "Configuring proxy.ini .... with rest_server_address as $IpAddr"
-sudo sed -i '/rest_server_address/d' agent/proxy/proxy.ini
-echo "rest_server_address=$IpAddr" >> agent/proxy/proxy.ini
+sudo sed -i '/rest_server_address/d' agent_proxy/proxy/proxy.ini
+echo "rest_server_address=$IpAddr" >> agent_proxy/proxy/proxy.ini
 sleep 1
 ipnetns_router=`sudo ip netns |grep $RouterId`
 
