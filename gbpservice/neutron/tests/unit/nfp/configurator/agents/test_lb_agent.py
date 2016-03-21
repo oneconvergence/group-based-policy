@@ -16,10 +16,11 @@ import unittest
 from gbpservice.nfp.configurator.agents import loadbalancer_v1 as lb
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_lb_driver as lb_driver)
+from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.configurator.lib import demuxer
 from gbpservice.nfp.configurator.modules import configurator
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
-    lb_test_data as lb_test_data)
+    lb_test_data)
 
 """Implement test cases for LBaasRpcSender methods of loadbalancer agent.
 
@@ -58,13 +59,13 @@ class LBaasRpcSenderTest(unittest.TestCase):
         agent = lb.LBaasRpcSender(sc)
 
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
-                mock_new_event), \
-                mock.patch.object(sc, 'poll_event') as (mock_poll_event):
+                mock_new_event),\
+            mock.patch.object(sc, 'stash_event') as mock_stash_event:
             agent.update_status('object_type', 'object_id', 'object_status')
 
             mock_new_event.assert_called_with(
-                id='STASH_EVENT',
-                key='STASH_EVENT',
+                id=const.EVENT_STASH,
+                key=const.EVENT_STASH,
                 data={
                     'kwargs': {
                         'status': 'object_status',
@@ -73,6 +74,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
                     'resource': 'loadbalancer',
                     'method': 'update_status',
                     'receiver': 'neutron'})
+            mock_stash_event.assert_called_with('foo')
 
     def test_update_pool_stats(self):
         """Implements test case for update_pool_stats method
@@ -87,12 +89,13 @@ class LBaasRpcSenderTest(unittest.TestCase):
 
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
                 mock_new_event), \
-                mock.patch.object(sc, 'poll_event') as (mock_poll_event):
+                mock.patch.object(sc, 'stash_event') as (mock_stash_event):
+
             agent.update_pool_stats('pool_id', 'stats')
 
             mock_new_event.assert_called_with(
-                id='STASH_EVENT',
-                key='STASH_EVENT',
+                id=const.EVENT_STASH,
+                key=const.EVENT_STASH,
                 data={
                     'kwargs': {
                         'stats': 'stats',
@@ -100,6 +103,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
                     'resource': 'loadbalancer',
                     'method': 'update_pool_stats',
                     'receiver': 'neutron'})
+            mock_stash_event.assert_called_with('foo')
 
     def test_get_logical_device(self):
         """Implements test case for get_logical_device method
@@ -135,7 +139,7 @@ class LBaaSRpcManagerTest(unittest.TestCase):
             'vip': self.fo._get_vip_object()[0],
             'old_vip': self.fo._get_vip_object()[0],
         }
-        self.arg_dict_pool = {
+        self.arg_dict_pool_create = {
             'context': self.fo.context,
             'pool': self.fo._get_pool_object()[0],
             'driver_name': 'loadbalancer',
@@ -272,7 +276,7 @@ class LBaaSRpcManagerTest(unittest.TestCase):
         self._test_rpc_manager(
             'CREATE_POOL',
             self.fo.get_request_data_for_create_pool(),
-            self.arg_dict_pool)
+            self.arg_dict_pool_create)
 
     def test_delete_pool_rpc_manager(self):
         """Implements test case for delete pool method
@@ -310,7 +314,7 @@ class LBaaSRpcManagerTest(unittest.TestCase):
 
         self._test_rpc_manager(
             'CREATE_MEMBER',
-            self.fo.get_request_data_for_create_member(),
+            self.fo.get_request_data_for_member(),
             self.arg_dict_member)
 
     def test_delete_member_rpc_manager(self):
@@ -323,7 +327,7 @@ class LBaaSRpcManagerTest(unittest.TestCase):
 
         self._test_rpc_manager(
             'DELETE_MEMBER',
-            self.fo.get_request_data_for_create_member(),
+            self.fo.get_request_data_for_member(),
             self.arg_dict_member)
 
     def test_update_member_rpc_manager(self):
@@ -348,7 +352,7 @@ class LBaaSRpcManagerTest(unittest.TestCase):
 
         self._test_rpc_manager(
             'CREATE_POOL_HEALTH_MONITOR',
-            self.fo.get_request_data_for_create_pool_hm(),
+            self.fo.get_request_data_for_pool_hm(),
             self.arg_dict_health_monitor)
 
     def test_DELETE_POOL_HEALTH_MONITOR_rpc_manager(self):
@@ -361,7 +365,7 @@ class LBaaSRpcManagerTest(unittest.TestCase):
 
         self._test_rpc_manager(
             'DELETE_POOL_HEALTH_MONITOR',
-            self.fo.get_request_data_for_create_pool_hm(),
+            self.fo.get_request_data_for_pool_hm(),
             self.arg_dict_health_monitor)
 
     def test_UPDATE_POOL_HEALTH_MONITOR_rpc_manager(self):

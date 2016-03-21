@@ -20,7 +20,7 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_rest_client)
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
-    lb_test_data as lb_test_data)
+    lb_test_data)
 
 """ Implement test cases for loadbalancer driver.
 
@@ -32,6 +32,7 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(HaproxyOnVmDriverTestCase, self).__init__(*args, **kwargs)
         self.fo = lb_test_data.FakeObjects()
+        self.data = lb_test_data.AssertionData()
         self.driver = lb_driver.HaproxyOnVmDriver()
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,
@@ -46,10 +47,7 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
         self.fo.member = self.fo._get_member_object()
         self.fo.old_member = self.fo._get_member_object()
         self.vip = json.dumps(self.fo.vip)
-        self.pool_id = '6350c0fd-07f8-46ff-b797-62acd23760de'
-        self.resp = mock.Mock()
         self.resp.status_code = 200
-        self.resp_create = {'service': 'asc'}
         self.get_resource = {
             'server': {
                 'resource': [],
@@ -83,7 +81,7 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
         agent = self._get_lb_handler_objects()
         driver = lb_driver.HaproxyOnVmDriver(agent.plugin_rpc)
         rest_client = haproxy_rest_client.HttpRequests(
-            '192.168.100.149', '1234')
+            self.data.url, self.data.port)
         logical_device_return_value = {
             'vip': self.fo.vip,
             'old_vip': self.fo.old_vip,
@@ -113,22 +111,19 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                 mock_request.assert_called_with(
                     'DELETE',
                     data=None,
-                    headers={
-                        'Content-Type': 'application/json'},
-                    timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:\
-6350c0fd-07f8-46ff-b797-62acd23760de')
+                    headers=self.data.header,
+                    timeout=self.data.timeout,
+                    url=self.data.delete_vip_url)
             elif method_name == 'CREATE_VIP':
                 driver.create_vip(self.fo.vip, self.fo.context)
                 mock_request.assert_called_with(
                     'POST',
-                    data='{"frnt:7a755739-1bbb-4211-9130-b6c82d9169a5": {"provider_interface_mac": "aa:bb:cc:dd:ee:ff", "bind": "42.0.0.14:22", "default_backend": "bck:6350c0fd-07f8-46ff-b797-62acd23760de", "option": {"tcplog": true}, "mode": "tcp"}}',
-                    headers={
-                        'Content-Type': 'application/json'},
+                    data=self.data.create_vip_data,
+                    headers=self.data.header,
                     timeout=30,
-                    url='http://192.168.100.149:1234/frontend')
+                    url=self.data.create_vip_url)
                 mock_get_resource.assert_called_with(
-                    'backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+                    self.data.create_vip_resources)
             elif method_name == 'UPDATE_VIP':
                 driver.update_vip(
                     self.fo.old_vip,
@@ -136,12 +131,10 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                     self.fo.context)
                 mock_request.assert_called_with(
                     'PUT',
-                    data='{"provider_interface_mac": "aa:bb:cc:dd:ee:ff", "bind": "42.0.0.14:22", "default_backend": "bck:6350c0fd-07f8-46ff-b797-62acd23760de", "option": {"tcplog": true}, "mode": "tcp"}',
-                    headers={
-                        'Content-Type': 'application/json'},
-                    timeout=30,
-                    url='http://192.168.100.149:1234/frontend/frnt:\
-7a755739-1bbb-4211-9130-b6c82d9169a5')
+                    data=self.data.update_vip_data,
+                    headers=self.data.header,
+                    timeout=self.data.timeout,
+                    url=self.data.update_vip_url)
             elif method_name == 'CREATE_POOL':
                 driver.create_pool(self.fo.pool, self.fo.context)
             elif method_name == 'DELETE_POOL':
@@ -153,32 +146,27 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                     self.fo.context)
                 mock_request.assert_called_with(
                     'PUT',
-                    data='{"server": {"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": ["42.0.0.11:80", "weight 1", "check inter 10s fall 3"]}, "balance": "roundrobin", "mode": "tcp", "timeout": {"check": "10s"}, "option": {}}',
-                    headers={
-                        'Content-Type': 'application/json'},
-                    timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:\
-6350c0fd-07f8-46ff-b797-62acd23760de')
+                    data=self.data.update_pool_data,
+                    headers=self.data.header,
+                    timeout=self.data.timeout,
+                    url=self.data.update_pool_url)
             elif method_name == 'CREATE_MEMBER':
                 driver.create_member(self.fo.member[0], self.fo.context)
                 mock_request.assert_called_with(
                     'PUT',
-                    data='{"timeout": {}, "server": {"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": ["42.0.0.11:80", "weight 1", "check inter 10s fall 3"], "resource": []}}',
-                    headers={
-                        'Content-Type': 'application/json'},
-                    timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:\
-6350c0fd-07f8-46ff-b797-62acd23760de')
+                    data=self.data.create_member_data,
+                    headers=self.data.header,
+                    timeout=self.data.timeout,
+                    url=self.data.create_member_url)
             elif method_name == 'DELETE_MEMBER':
                 driver.delete_member(self.fo.member[0], self.fo.context)
                 mock_request.assert_called_with(
                     'PUT',
-                    data='{"timeout": {}, "server": {"resource": []}}',
-                    headers={
-                        'Content-Type': 'application/json'},
-                    timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:\
-6350c0fd-07f8-46ff-b797-62acd23760de')
+                    data=self.data.delete_member_data,
+                    headers=self.data.header,
+                    timeout=self.data.timeout,
+                    url=self.data.delete_member_url
+                    )
             elif method_name == 'UPDATE_MEMBER':
                 driver.update_member(
                     self.fo.old_member[0],
@@ -186,46 +174,41 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                     self.fo.context)
                 mock_request.assert_called_with(
                     'PUT',
-                    data='{"timeout": {}, "server": {"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": ["42.0.0.11:80", "weight 1", "check inter 10s fall 3"], "resource": []}}',
-                    headers={
-                        'Content-Type': 'application/json'},
-                    timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:\
-6350c0fd-07f8-46ff-b797-62acd23760de')
+                    data=self.data.update_member_data,
+                    headers=self.data.header,
+                    timeout=self.data.timeout,
+                    url=self.data.update_member_url)
             elif method_name == 'CREATE_POOL_HEALTH_MONITOR':
                 driver.create_pool_health_monitor(
-                    self.fo.hm[0], self.pool_id, self.fo.context)
+                    self.fo.hm[0], self.fo._get_pool_object()[0]['id'],
+                    self.fo.context)
                 mock_request.assert_called_with(
                     'PUT',
-                    data='{"timeout": {"check": "10s"}, "server": {"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": [], "resource": []}}',
-                    headers={
-                        'Content-Type': 'application/json'},
-                    timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:\
-6350c0fd-07f8-46ff-b797-62acd23760de')
+                    data=self.data.create_hm_data,
+                    headers=self.data.header,
+                    timeout=self.data.timeout,
+                    url=self.data.create_hm_url)
             elif method_name == 'DELETE_POOL_HEALTH_MONITOR':
                 driver.delete_pool_health_monitor(
-                    self.fo.hm[0], self.pool_id, self.fo.context)
+                    self.fo.hm[0], self.fo._get_pool_object()[0]['id'],
+                    self.fo.context)
                 mock_request.assert_called_with(
                     'PUT',
-                    data='{"timeout": {}, "server": {"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": [], "resource": []}}',
-                    headers={
-                        'Content-Type': 'application/json'},
-                    timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:\
-6350c0fd-07f8-46ff-b797-62acd23760de')
+                    data=self.data.delete_hm_data,
+                    headers=self.data.header,
+                    timeout=self.data.timeout,
+                    url=self.data.delete_hm_url)
             elif method_name == 'UPDATE_POOL_HEALTH_MONITOR':
                 driver.update_pool_health_monitor(
                     self.fo.old_hm[0],
-                    self.fo.hm[0], self.pool_id, self.fo.context)
+                    self.fo.hm[0], self.fo._get_pool_object()[0]['id'],
+                    self.fo.context)
                 mock_request.assert_called_with(
                     'PUT',
-                    data='{"timeout": {"check": "10s"}, "server": {"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": [], "resource": []}}',
-                    headers={
-                        'Content-Type': 'application/json'},
-                    timeout=30,
-                    url='http://192.168.100.149:1234/backend/bck:\
-6350c0fd-07f8-46ff-b797-62acd23760de')
+                    data=self.data.update_hm_data,
+                    headers=self.data.header,
+                    timeout=self.data.timeout,
+                    url=self.data.update_hm_url)
 
     def test_vip_create_lbaasdriver(self):
         """Implements test case for create vip method of loadbalancer driver.
