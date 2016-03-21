@@ -16,6 +16,8 @@
 import eventlet
 from keystoneclient import exceptions as k_exceptions
 from keystoneclient.v2_0 import client as keyclient
+from neutron._i18n import _LE
+from neutron._i18n import _LI
 from neutron.common import exceptions as n_exc
 from neutron.common import rpc as n_rpc
 from neutron.db import model_base
@@ -32,7 +34,6 @@ from gbpservice.common import utils
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     exceptions as exc)
 from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base
-from gbpservice.neutron.services.servicechain.plugins.ncp import model
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nfp_rpc_topics
@@ -300,7 +301,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             plumbing_request['consumer'] = []
             plumbing_request['plumbing_type'] = 'endpoint'
 
-        LOG.info(_("Requesting plumber for %(plumbing_request)s PTs for "
+        LOG.info(_LI("Requesting plumber for %(plumbing_request)s PTs for "
                    "service type %(service_type)s"),
                  {'plumbing_request': plumbing_request,
                   'service_type': service_type})
@@ -380,7 +381,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 context=context.plugin_context,
                 network_function_id=network_function_id)
         except Exception:
-            LOG.exception(_("Delete Network service Failed"))
+            LOG.exception(_LE("Delete Network service Failed"))
 
         self._wait_for_network_function_delete_completion(
             context, network_function_id)
@@ -470,7 +471,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             time_waited = time_waited + 5
 
         if network_function:
-            LOG.error(_("Delete network function %(network_function)s failed"),
+            LOG.error(_LE("Delete network function %(network_function)s "
+                          "failed"),
                       {'network_function': network_function_id})
             raise NodeInstanceDeleteFailed()
 
@@ -482,13 +484,13 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             network_function = self.nfp_notifier.get_network_function(
                 context.plugin_context, network_function_id)
             if not network_function:
-                LOG.error(_("Failed to retrieve network function"))
+                LOG.error(_LE("Failed to retrieve network function"))
                 eventlet.sleep(5)
                 time_waited = time_waited + 5
                 continue
             else:
-                LOG.info(_("Create network function result: "
-                           "%(network_function)s"),
+                LOG.info(_LI("Create network function result: "
+                             "%(network_function)s"),
                          {'network_function': network_function})
             if (network_function['status'] == 'ACTIVE' or
                 network_function['status'] == 'ERROR'):
@@ -497,8 +499,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             time_waited = time_waited + 5
 
         if network_function['status'] != 'ACTIVE':
-            LOG.error(_("Create network function %(network_function)s failed. "
-                        "Status: %(status)s"),
+            LOG.error(_LE("Create network function %(network_function)s "
+                          "failed. Status: %(status)s"),
                       {'network_function': network_function_id,
                        'status': network_function['status']})
             raise NodeInstanceCreateFailed()
@@ -521,10 +523,10 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             return tenant.id
         except k_exceptions.NotFound:
             with excutils.save_and_reraise_exception(reraise=True):
-                LOG.error(_('No tenant with name %s exists.'), tenant)
+                LOG.error(_LE('No tenant with name %s exists.'), tenant)
         except k_exceptions.NoUniqueMatch:
             with excutils.save_and_reraise_exception(reraise=True):
-                LOG.error(_('Multiple tenants matches found for %s'), tenant)
+                LOG.error(_LE('Multiple tenants matches found for %s'), tenant)
 
     def _get_resource_owner_context(self, plugin_context):
         if cfg.CONF.nfp_node_driver.is_service_admin_owned:
@@ -543,7 +545,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         if context.current_profile['service_type'] == pconst.LOADBALANCER:
             if (not context.original_node or
                 context.original_node == context.current_node):
-                LOG.info(_("No action to take on update"))
+                LOG.info(_LI("No action to take on update"))
                 return
         self.nfp_notifier.update_service_config()
 
@@ -564,7 +566,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             provider_service_targets, consumer_service_targets))
         if (not provider_service_targets or (service_type in
             [pconst.FIREWALL, pconst.VPN] and not consumer_service_targets)):
-                LOG.error(_("Service Targets are not created for the Node "
+                LOG.error(_LE("Service Targets are not created for the Node "
                             "of service_type %(service_type)s"),
                           {'service_type': service_type})
                 raise Exception("Service Targets are not created for the Node")
