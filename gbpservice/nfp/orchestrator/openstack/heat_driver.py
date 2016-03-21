@@ -19,13 +19,13 @@ from heatclient import exc as heat_exc
 from keystoneclient import exceptions as k_exceptions
 from keystoneclient.v3 import client as keyclientv3
 from neutron.common import exceptions as n_exc
+from neutron._i18n import _
 from neutron import manager
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
-from oslo_utils._i18n import _
 import yaml
 
 from gbpservice.nfp.common import constants as nfp_constants

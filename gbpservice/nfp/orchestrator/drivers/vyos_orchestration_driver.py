@@ -10,9 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron._i18n import _
 from oslo_log import log as logging
 
-from gbpservice.nfp._i18n import _
 from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.orchestrator.drivers.orchestration_driver_base import (

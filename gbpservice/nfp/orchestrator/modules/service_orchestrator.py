@@ -136,7 +136,6 @@ class ServiceOrchestrator(object):
         #self.db_session = nfp_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient()
         self.keystoneclient = openstack_driver.KeystoneClient()
-        self.neutronclient = openstack_driver.NeutronClient()
         self.config_driver = heat_driver.HeatDriver()
 
     @property
