@@ -742,6 +742,69 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
+    def update_router(self, token, router_id, **kwargs):
+        """
+        :param token:
+        :param router_id:
+        :param kwargs: name=<>, routes=[
+                                       {
+                                            "nexthop": "10.1.0.10",
+                                            "destination": "40.0.1.0/24"
+                                       },....
+                                    ]
+        :return:
+        """
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            router_info = dict(router={})
+            router_info['router'].update(kwargs)
+            return neutron.update_router(router_id, body=router_info)
+        except Exception as ex:
+            err = ("Failed to update router info"
+                   " Error :: %s" % (ex))
+            LOG.error(err)
+            raise Exception(err)
+
+    def get_router(self, token, router_id):
+        """ Get router details
+        :param token: A scoped_token
+        :param router_id: router UUID
+        :return: router details
+        """
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            return neutron.show_router(router_id)
+        except Exception as ex:
+            err = ("Failed to read router from"
+                   " Openstack Neutron service's response"
+                   " KeyError :: %s" % (ex))
+            LOG.error(err)
+            raise Exception(err)
+
+    def get_networks(self, token, filters=None):
+        """ List nets
+
+        :param token: A scoped_token
+        :param filters: Parameters for list filter
+        example for filter: ?tenant_id=%s&id=%s
+
+        :return: subnet List
+
+        """
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            subnets = neutron.list_subnets(**filters).get('networks', [])
+            return subnets
+        except Exception as ex:
+            err = ("Failed to read subnet list from"
+                   " Openstack Neutron service's response"
+                   " KeyError :: %s" % (ex))
+            LOG.error(err)
+            raise Exception(err)
+
 
 class GBPClient(OpenstackApi):
     """ GBP Client Api Driver. """
