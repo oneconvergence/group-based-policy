@@ -185,22 +185,23 @@ class ServiceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        LOG.info(_LI("NSO handle_event, event ID %(id)s"), {'id': event.id})
-        try:
-            event_handler = self.event_method_mapping(event.id)
-            event_handler(event)
-        except Exception:
-            LOG.exception(_LE("Error in handle event for event: %(event_id)s"),
-                          {'event_id': event.id})
-
-    def handle_poll_event(self, event):
-        LOG.info(_LI("NSO handle_poll_event, event ID %(id)s"),
+        LOG.info(_LI("Service Orchestrator received event %(id)s"),
                  {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
         except Exception:
-            LOG.exception(_LE("Error in handle poll event for event: "
+            LOG.exception(_LE("Error in processing event: %(event_id)s"),
+                          {'event_id': event.id})
+
+    def handle_poll_event(self, event):
+        LOG.info(_LI("Service Orchestrator received poll event %(id)s"),
+                 {'id': event.id})
+        try:
+            event_handler = self.event_method_mapping(event.id)
+            event_handler(event)
+        except Exception:
+            LOG.exception(_LE("Error in processing poll event: "
                               "%(event_id)s"), {'event_id': event.id})
 
     def _log_event_created(self, event_id, event_data):
