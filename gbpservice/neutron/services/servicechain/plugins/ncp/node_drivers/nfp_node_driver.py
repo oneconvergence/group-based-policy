@@ -632,13 +632,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             if not vip_ip:
                 raise VipNspNotSetonProvider()
 
-            for provider_port in service_targets['provider_ports']:
-                port = {
-                    'port': provider_port
-                }
-                context.core_plugin.update_port(
-                    context.plugin_context, provider_port['id'], port)
-
         port_info = [
             {
                 'id': service_targets['provider_pts'][0],
