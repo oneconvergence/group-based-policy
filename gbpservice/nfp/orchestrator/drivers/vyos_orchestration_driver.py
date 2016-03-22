@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron._i18n import _
+from neutron._i18n import _LE
 from oslo_log import log as logging
 
 from gbpservice.nfp.common import exceptions
@@ -87,8 +87,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_('Failed to get token'
-                        ' for get device config info operation'))
+            LOG.error(_LE('Failed to get token'
+                          ' for get device config info operation'))
             return None
 
         provider_ip = None
@@ -108,8 +108,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                                                                     port_id)
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
-                    LOG.error(_('Failed to get provider port details'
-                                ' for get device config info operation'))
+                    LOG.error(_LE('Failed to get provider port details'
+                                  ' for get device config info operation'))
                     return None
             elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
@@ -120,8 +120,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                                                                    port_id)
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
-                    LOG.error(_('Failed to get consumer port details'
-                                ' for get device config info operation'))
+                    LOG.error(_LE('Failed to get consumer port details'
+                                  ' for get device config info operation'))
                     return None
 
         return {

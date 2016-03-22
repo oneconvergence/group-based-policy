@@ -46,36 +46,24 @@ def rpc_init(controller, config):
     controller.register_rpc_agents([agent])
 
 
-def events_init(controller, config):
-    ndo_event_hndlr_obj = NDOEventHandler(controller, config)
-    evs = [
-        Event(id='CREATE_NETWORK_FUNCTION_DEVICE',
-              handler=ndo_event_hndlr_obj),
-        Event(id='DEVICE_SPAWNING', handler=ndo_event_hndlr_obj),
-        Event(id='DEVICE_UP', handler=ndo_event_hndlr_obj),
-        Event(id='DEVICE_HEALTHY', handler=ndo_event_hndlr_obj),
-        Event(id='CONFIGURE_DEVICE', handler=ndo_event_hndlr_obj),
-        Event(id='DEVICE_CONFIGURED', handler=ndo_event_hndlr_obj),
-
-        Event(id='DELETE_NETWORK_FUNCTION_DEVICE',
-              handler=ndo_event_hndlr_obj),
-        Event(id='DELETE_CONFIGURATION', handler=ndo_event_hndlr_obj),
-        Event(id='DELETE_CONFIGURATION_COMPLETED',
-              handler=ndo_event_hndlr_obj),
-        Event(id='DELETE_DEVICE', handler=ndo_event_hndlr_obj),
-
-        Event(id='DEVICE_NOT_UP', handler=ndo_event_hndlr_obj),
-        Event(id='DEVICE_NOT_REACHABLE', handler=ndo_event_hndlr_obj),
-        Event(id='DEVICE_CONFIGURATION_FAILED',
-              handler=ndo_event_hndlr_obj),
-        Event(id='DRIVER_ERROR', handler=ndo_event_hndlr_obj),
-        Event(id='DEVICE_ERROR', handler=ndo_event_hndlr_obj),
-        ]
-    controller.register_events(evs)
+def events_init(controller, config, device_orchestrator):
+    events = ['CREATE_NETWORK_FUNCTION_DEVICE', 'DEVICE_SPAWNING',
+              'DEVICE_UP', 'DEVICE_HEALTHY',
+              'CONFIGURE_DEVICE', 'DEVICE_CONFIGURED',
+              'DELETE_NETWORK_FUNCTION_DEVICE',
+              'DELETE_CONFIGURATION', 'DELETE_CONFIGURATION_COMPLETED',
+              'DELETE_DEVICE', 'DEVICE_NOT_UP',
+              'DEVICE_NOT_REACHABLE', 'DEVICE_CONFIGURATION_FAILED',
+              'DRIVER_ERROR', 'DEVICE_ERROR']
+    events_to_register = []
+    for event in events:
+        events_to_register.append(
+            Event(id=event, handler=device_orchestrator))
+    controller.register_events(events_to_register)
 
 
 def module_init(controller, config):
-    events_init(controller, config)
+    events_init(controller, config, DeviceOrchestrator(controller, config))
     rpc_init(controller, config)
     LOG.info(_("NDO: module_init"))
 
@@ -151,63 +139,6 @@ class RpcHandler(object):
                            event_data=event_data)
 
 
-class NDOEventHandler(object):
-    def __init__(self, controller, config):
-        self._controller = controller
-        self.config = config
-
-    def event_method_mapping(self, state, device_orchestrator):
-        state_machine = {
-            "CREATE_NETWORK_FUNCTION_DEVICE": (
-                device_orchestrator.create_network_function_device),
-            "DEVICE_SPAWNING": device_orchestrator.check_device_is_up,
-            "DEVICE_UP": device_orchestrator.perform_health_check,
-            "DEVICE_HEALTHY": (
-                        device_orchestrator.plug_interfaces),
-            "CONFIGURE_DEVICE": (
-                        device_orchestrator.create_device_configuration),
-            "DEVICE_CONFIGURED": (
-                device_orchestrator.device_configuration_complete),
-
-            "DELETE_NETWORK_FUNCTION_DEVICE": (
-                device_orchestrator.delete_network_function_device),
-            "DELETE_CONFIGURATION": (
-                device_orchestrator.delete_device_configuration),
-            "DELETE_CONFIGURATION_COMPLETED": (
-                device_orchestrator.unplug_interfaces),
-            #"DELETE_HEALTH_MONITOR": (
-            #    device_orchestrator.delete_device_health_monitor),
-            #"HEALTH_MONITOR_DELETED": (
-            #    device_orchestrator.delete_device), # should we wait for
-                                                # this, or simply delete device
-            "DELETE_DEVICE": device_orchestrator.delete_device,
-            "DEVICE_NOT_REACHABLE": (
-                device_orchestrator.handle_device_not_reachable),
-            "DEVICE_CONFIGURATION_FAILED": (
-                device_orchestrator.handle_device_config_failed),
-            "DEVICE_ERROR": device_orchestrator.handle_device_error,
-            "DEVICE_NOT_UP": device_orchestrator.handle_device_not_up,
-            "DRIVER_ERROR": device_orchestrator.handle_driver_error
-        }
-        if state not in state_machine:
-            raise Exception("Invalid state")
-        else:
-            return state_machine[state]
-
-    def handle_event(self, ev):
-        device_orchestrator = DeviceOrchestrator(self._controller,
-                                                          self.config)
-        self.event_method_mapping(ev.id, device_orchestrator)(
-            ev)
-
-    def handle_poll_event(self, ev):
-        LOG.info(_("NDO: handle_poll_event: %s" % (ev.id)))
-        device_orchestrator = DeviceOrchestrator(self._controller,
-                                                         self.config)
-        self.event_method_mapping(ev.id, device_orchestrator)(
-            ev)
-
-
 class DeviceOrchestrator(object):
     def __init__(self, controller, config, request=None,
                  state="INIT", _id=None):
@@ -247,6 +178,55 @@ class DeviceOrchestrator(object):
                 'ACTIVE': 'Device is Active.',
                 'DEVICE_NOT_UP': 'Device not became UP/ACTIVE',
         }
+
+    def event_method_mapping(self, event_id):
+        event_handler_mapping = {
+            "CREATE_NETWORK_FUNCTION_DEVICE": (
+                self.create_network_function_device),
+            "DEVICE_SPAWNING": self.check_device_is_up,
+            "DEVICE_UP": self.perform_health_check,
+            "DEVICE_HEALTHY": self.plug_interfaces,
+            "CONFIGURE_DEVICE": self.create_device_configuration,
+            "DEVICE_CONFIGURED": self.device_configuration_complete,
+
+            "DELETE_NETWORK_FUNCTION_DEVICE": (
+                self.delete_network_function_device),
+            "DELETE_CONFIGURATION": (
+                self.delete_device_configuration),
+            "DELETE_CONFIGURATION_COMPLETED": self.unplug_interfaces,
+            #"DELETE_HEALTH_MONITOR": (
+            #    self.delete_device_health_monitor),
+            #"HEALTH_MONITOR_DELETED": (
+            #    self.delete_device), # should we wait for
+                                                # this, or simply delete device
+            "DELETE_DEVICE": self.delete_device,
+            "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
+            "DEVICE_CONFIGURATION_FAILED": self.handle_device_config_failed,
+            "DEVICE_ERROR": self.handle_device_error,
+            "DEVICE_NOT_UP": self.handle_device_not_up,
+            "DRIVER_ERROR": self.handle_driver_error
+        }
+        if event_id not in event_handler_mapping:
+            raise Exception("Invalid event ID")
+        else:
+            return event_handler_mapping[event_id]
+
+    def handle_event(self, event):
+        try:
+            event_handler = self.event_method_mapping(event.id)
+            event_handler(event)
+        except Exception:
+            LOG.exception(_("Unhandled exception in handle event for event: "
+                            "%(event_id)s"), {'event_id': event.id})
+
+    def handle_poll_event(self, event):
+        LOG.info(_("NSO handle_poll_event, event ID %(id)s"), {'id': event.id})
+        try:
+            event_handler = self.event_method_mapping(event.id)
+            event_handler(event)
+        except Exception:
+            LOG.exception(_("Unhandled exception in handle event for event: "
+                            "%(event_id)s"), {'event_id': event.id})
 
     # Helper functions
     def _log_event_created(self, event_id, event_data):
@@ -355,7 +335,7 @@ class DeviceOrchestrator(object):
         # or there is an interface in driver to get that information
         #vendor_name = data['service_vendor']
         return self.drivers[vendor_name.lower()]
- 
+
     def _get_compute_driver(self, drvr_name):
         # Replace with an autoload and auto choose mechanism
         # Each driver either registers the service type and vendor it supports
@@ -375,7 +355,6 @@ class DeviceOrchestrator(object):
         orchestration_driver = self._get_orchestration_driver(
                                         device_data['service_vendor'])
 
-        # TODO (ashu) should NDO return whole dict, or selective fields.
         devices = self._get_network_function_devices(device_filters)
 
         device = orchestration_driver.select_network_function_device(devices,
@@ -498,7 +477,6 @@ class DeviceOrchestrator(object):
         device = event.data
 
         orchestration_driver = self._get_orchestration_driver(device['service_vendor'])
-        # TODO (ashu) return value from driver, this should be true/false
         is_device_up = (
             orchestration_driver.get_network_function_device_status(device))
         if is_device_up == nfp_constants.ACTIVE:
@@ -708,7 +686,6 @@ class DeviceOrchestrator(object):
         self._decrement_device_ref_count(device)
         device_ref_count = device['reference_count']
         if device_ref_count == 0:
-            #(TODO) (ashu) - delete health monitor
             orchestration_driver.delete_network_function_device(device)
             self._delete_network_function_device_db(device['id'])
         else:
@@ -841,8 +818,8 @@ class NDOConfiguratorRpcApi(object):
 
         return backend_lib.send_request_to_configurator(self.conf,
                                                         self.context,
-                                                        config_params, 
-                                                        'CREATE', 
+                                                        config_params,
+                                                        'CREATE',
                                                         True)
         '''
         return self.rpc_api.cast(
@@ -859,8 +836,8 @@ class NDOConfiguratorRpcApi(object):
 
         return backend_lib.send_request_to_configurator(self.conf,
                                                         self.context,
-                                                        config_params, 
-                                                        'DELETE', 
+                                                        config_params,
+                                                        'DELETE',
                                                         True)
         '''
         return self.rpc_api.cast(
