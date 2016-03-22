@@ -51,7 +51,7 @@ class LBaasRpcSender(data_filter.Filter):
             )
         )
 
-    def update_status(self, obj_type, obj_id, status):
+    def update_status(self, obj_type, obj_id, status, context):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
         :param obj_type: object type
@@ -62,14 +62,15 @@ class LBaasRpcSender(data_filter.Filter):
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_status',
-               'kwargs': {'obj_type': obj_type,
+               'kwargs': {'context': context,
+                          'obj_type': obj_type,
                           'obj_id': obj_id,
                           'status': status}
                }
         LOG.info("sending update status notification %s " % (msg))
         self.notify._notification(msg)
 
-    def update_pool_stats(self, pool_id, stats, context):
+    def update_pool_stats(self, pool_id, stats):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
         :param pool_id: pool id
@@ -79,8 +80,7 @@ class LBaasRpcSender(data_filter.Filter):
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_pool_stats',
-               'kwargs': {'context': context,
-                          'pool_id': pool_id,
+               'kwargs': {'pool_id': pool_id,
                           'stats': stats}
                }
         LOG.info("sending update pool stats notification %s " % (msg))

@@ -59,7 +59,6 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
         if vip is None:
             return None
         else:
-            #  vip_desc = json.loads(vip['description'])
             vip_desc = ast.literal_eval(vip['description'])
             device = vip_desc['floating_ip']
             if device:
@@ -67,7 +66,6 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
                 return device
 
     def _get_interface_mac(self, vip):
-        # vip_desc = json.loads(vip['description'])
         vip_desc = ast.literal_eval(vip['description'])
         return vip_desc['provider_interface_mac']
 
