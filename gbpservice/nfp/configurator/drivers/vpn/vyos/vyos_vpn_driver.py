@@ -2,7 +2,6 @@ import copy
 import json
 import requests
 
-from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 
@@ -12,44 +11,6 @@ from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 
-auth_server_opts = [
-    cfg.StrOpt(
-        'auth_uri',
-        default="",
-        help=_("Keystone auth URI")),
-    cfg.StrOpt(
-        'admin_user',
-        default="cloud_admin",
-        help=_("Cloud admin user name")),
-    cfg.StrOpt(
-        'admin_password',
-        default="",
-        help=_("Cloud admin user password")),
-    cfg.StrOpt(
-        'admin_tenant_name',
-        default="admin",
-        help=_("Cloud admin tenant name")),
-    cfg.StrOpt(
-        'remote_vpn_role_name',
-        default="vpn",
-        help=_("Name of kv3 role for remote vpn users")),
-]
-cfg.CONF.register_opts(auth_server_opts, 'keystone_authtoken')
-
-OPTS = [
-    cfg.StrOpt('driver', required=True,
-               help='driver to be used for vyos configuration'),
-]
-
-cfg.CONF.register_opts(OPTS, "VYOS_CONFIG")
-
-vpn_agent_opts = [
-    cfg.MultiStrOpt(
-        'vpn_device_driver',
-        default=[],
-        help=_("The vpn device drivers Neutron will use")),
-]
-cfg.CONF.register_opts(vpn_agent_opts, 'vpnagent')
 rest_timeout = [
     cfg.IntOpt(
         'rest_timeout',
@@ -175,8 +136,12 @@ class RestApi(object):
 
         return output
 
+"""
 
-class VPNSvcValidator(object):
+"""
+
+
+class ServiceValidator(object):
     def __init__(self, agent):
         self.agent = agent
 
@@ -320,7 +285,7 @@ class VpnGenericConfigDriver(object):
         except requests.exceptions.RequestException, err:
             msg = ("Unexpected ERROR happened  while deleting "
                    " route of service at: %r ERROR: %r"
-                   % (kwargs['vm_mgmt_ip'],  err))
+                   % (kwargs['vm_mgmt_ip'], err))
             LOG.error(msg)
             raise Exception(err)
 
@@ -330,7 +295,6 @@ class VpnGenericConfigDriver(object):
         msg = ("Route deletion status : %r "
                % (active_configured))
         LOG.info(msg)
-        LOG.error(msg)
 
     def configure_interfaces(self, context, kwargs):
 
@@ -732,7 +696,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
         svc = kwargs.get('resource')
         LOG.info("Validating VPN service %s " % svc)
-        validator = VPNSvcValidator(self.agent)
+        validator = ServiceValidator(self.agent)
         validator.validate(context, svc)
 
     def create_ipsec_conn(self, context, kwargs):
@@ -754,10 +718,10 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         """
         t_lcidr = self._get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
         if t_lcidr in conn['peer_cidrs']:
-            message = ("IPSec: Tunnel remote cidr %s conflicts "
-                        "with local cidr." % t_lcidr)
-            LOG.error( message)
-            self._error_state(context, conn, message)
+            msg = ("IPSec: Tunnel remote cidr %s conflicts "
+                   "with local cidr." % t_lcidr)
+            LOG.error(msg)
+            self._error_state(context, conn, msg)
         if len(conn['peer_cidrs']) != 1:
             msg = ("IPSec: Invalid number of peer CIDR. Should not be"
                    " less than 1.")
@@ -794,7 +758,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             LOG.error(msg)
             self._error_state(context, conn, msg)
 
-    def update_ipsec_conn(self,  context, kwargs):
+    def update_ipsec_conn(self, context, kwargs):
         pass
         # svc_contexts = self.agent.get_ipsec_contexts(
         #    context, conn_id=kwargs.get('id'))
@@ -833,7 +797,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             LOG.error(msg)
             self._error_state(context, conn, msg)
 
-    def check_status(self,  context, svc_context):
+    def check_status(self, context, svc_context):
         fip = self._get_fip(svc_context)
         sconns = svc_context['siteconns']
         for sconn in sconns:
@@ -870,5 +834,3 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             self.handlers[rsrc][reason](context, kwargs)
 
         return _vpnservice_updated(context, kwargs)
-
-
