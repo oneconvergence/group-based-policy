@@ -185,7 +185,8 @@ class ServiceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        LOG.info(_LI("Service Orchestrator received event %(id)s"), {'id': event.id})
+        LOG.info(_LI("Service Orchestrator received event %(id)s"),
+                 {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
