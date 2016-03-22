@@ -672,6 +672,29 @@ class NeutronClient(OpenstackApi):
         LOG.debug("Successfully associated floatingip %s"
                   % floatingip_id)
 
+    def create_floatingip(self, token, floating_net_id, port_id):
+        """
+        {
+            "floatingip": {
+            "floating_network_id": "376da547-b977-4cfe-9cba-275c80debf57",
+            "port_id": "ce705c24-c1ef-408a-bda3-7bbd946164ab"
+            }
+        }
+        """
+        attrs = {"floatingip": {
+                    "floating_network_id": floating_net_id,
+                    "port_id": port_id
+                    }
+                 }
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            return neutron.create_floatingip(body=attrs)
+        except Exception as ex:
+            err = ("Failed to create floatingip %s" % ex)
+            LOG.error(err)
+            raise Exception(err)
+
     def list_ports(self, token, port_ids=[], **kwargs):
         """
         :param token:
@@ -766,6 +789,74 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
+    def add_router_interface(self, token, router_id, interface_info):
+        """
+        :param token:
+        :param router_id:
+        :param interface_info: interface_info = {'subnet_id': <>}
+                            or interface_info = {'port_id': <>}
+        """
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            return neutron.add_interface_router(router_id, body=interface_info)
+        except Exception as ex:
+            err = ("Failed to add router interface, router: %s, interface: %s"
+                   " Error :: %s" % (router_id, interface_info, ex))
+            LOG.error(err)
+            raise Exception(err)
+
+    def remove_router_interface(self, token, router_id, subnet_id,
+                                interface_info):
+        """
+        :param token:
+        :param router_id:
+        :param interface_info: interface_info = {'subnet_id': <>}
+                            or interface_info = {'port_id': <>}
+        """
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            return neutron.remove_interface_router(router_id,
+                                                   body=interface_info)
+        except Exception as ex:
+            err = ("Failed to remove router interface, router: %s, interface: "
+                   "%s Error :: %s" % (router_id, interface_info, ex))
+            LOG.error(err)
+            raise Exception(err)
+
+    def add_router_gateway(self, token, router_id, ext_net_id):
+        """
+        :param token:
+        :param router_id:
+        :param ext_net_id:
+        """
+        gw_info = {'network_id': ext_net_id}
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            return neutron.add_gateway_router(router_id, body=gw_info)
+        except Exception as ex:
+            err = ("Failed to set router gateway, router: %s, gw_info: %s"
+                   " Error :: %s" % (router_id, gw_info, ex))
+            LOG.error(err)
+            raise Exception(err)
+
+    def remove_router_gateway(self, token, router_id):
+        """
+        :param token:
+        :param router_id:
+        """
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            return neutron.remove_gateway_router(router_id)
+        except Exception as ex:
+            err = ("Failed to remove router gateway, router: %s,"
+                   " Error :: %s" % (router_id, ex))
+            LOG.error(err)
+            raise Exception(err)
+
     def get_router(self, token, router_id):
         """ Get router details
         :param token: A scoped_token
@@ -783,6 +874,24 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
+    def create_network(self, token, tenant_id, attrs=None):
+
+        attr = {
+            'network': {
+                'tenant_id': tenant_id,
+            }
+        }
+        if attrs:
+            attr['network'].update(attrs)
+
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            return neutron.create_network(body=attr)['network']
+        except Exception as ex:
+            raise Exception("network creation failed in network: %r of tenant: %r"
+                            " Error: %s" % (tenant_id, ex))
+
     def get_networks(self, token, filters=None):
         """ List nets
 
@@ -790,21 +899,38 @@ class NeutronClient(OpenstackApi):
         :param filters: Parameters for list filter
         example for filter: ?tenant_id=%s&id=%s
 
-        :return: subnet List
+        :return: network List
 
         """
         try:
             neutron = neutron_client.Client(token=token,
                                             endpoint_url=self.network_service)
-            subnets = neutron.list_subnets(**filters).get('networks', [])
-            return subnets
+            nets = neutron.list_networks(**filters).get('networks', [])
+            return nets
         except Exception as ex:
-            err = ("Failed to read subnet list from"
+            err = ("Failed to read network list from"
                    " Openstack Neutron service's response"
                    " KeyError :: %s" % (ex))
             LOG.error(err)
             raise Exception(err)
 
+    def create_subnet(self, token, tenant_id, attrs=None):
+
+        attr = {
+            'subnet': {
+                'tenant_id': tenant_id,
+            }
+        }
+        if attrs:
+            attr['subnet'].update(attrs)
+
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            return neutron.create_subnet(body=attr)['subnet']
+        except Exception as ex:
+            raise Exception("subnet creation failed for tenant: %r"
+                            " Error: %s" % (tenant_id, ex))
 
 class GBPClient(OpenstackApi):
     """ GBP Client Api Driver. """
