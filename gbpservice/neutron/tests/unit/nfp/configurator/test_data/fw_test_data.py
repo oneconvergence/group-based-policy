@@ -40,9 +40,12 @@ class FakeObjects(object):
     url_for_config_fw = "%s/configure-firewall-rule" % url
     url_for_update_fw = "%s/update-firewall-rule" % url
     url_for_delete_fw = "%s/delete-firewall-rule" % url
-    data = '{"stitching_mac": "00:0a:95:9d:68:25", "provider_mac": "00:0a:95:9d:68:16"}'
-    data_for_interface = '{"stitching_mac": "00:0a:95:9d:68:25", "provider_mac": "00:0a:95:9d:68:16"}'
-    data_for_add_src_route = '[{"source_cidr": "1.2.3.4/24", "gateway_ip": "1.2.3.4"}]'
+    data = ('{"stitching_mac": "00:0a:95:9d:68:16",'
+            '"provider_mac": "00:0a:95:9d:68:16"}')
+    data_for_interface = ('{"stitching_mac": "00:0a:95:9d:68:16",'
+                          ' "provider_mac": "00:0a:95:9d:68:16"}')
+    data_for_add_src_route = ('[{"source_cidr": "1.2.3.4/24", '
+                              '"gateway_ip": "1.2.3.4"}]')
     data_for_del_src_route = '[{"source_cidr": "1.2.3.4/24"}]'
     timeout = 30
 
@@ -64,13 +67,13 @@ class FakeObjects(object):
                     "stitching_mac": None,
                     "context": {
                         "domain": None},
-                    "mgmt_ip": "120.0.0.15",
+                    "vm_mgmt_ip": "120.0.0.15",
                     "service_vendor": "vyos",
                     "request_info": {
                         "network_function_id": (
-                                    "5084bb63-459f-4edd-a090-97168764e632"),
+                                    "940dcdf3-77c8-4119-9f95-ec1e16a50fa8"),
                         "network_function_device_id": (
-                                    "9b7f6b15-3e67-4f26-8463-b4efb36cbb08"),
+                                    "940dcdf3-77c8-4119-9f95-ec1e16a50fa8"),
                         "network_function_instance_id": (
                                     "940dcdf3-77c8-4119-9f95-ec1e16a50fa8")
                     },
@@ -79,34 +82,42 @@ class FakeObjects(object):
                     "stitching_cidr": None,
                     "provider_ip": "11.0.0.1",
                     "stitching_interface_position": 3,
+                    "rule_info": {
+                        'service_id': 'a124581d-e722-42e1-a720-2e437b75f3ee',
+                        'active_stitching_mac': 'fa:16:3e:33:05:2b',
+                        'active_fip': '11.0.0.6',
+                        'active_provider_mac': 'fa: 16: 3e: 17: fe: de ',
+                        'tenant_id': 'fa1caba059946dfa7839101a93bac7c '},
                     "provider_cidr": "11.0.0.0/24",
-                    "stitching_ip": None
+                    "stitching_ip": None,
+                    "service_type": 'firewall'
                 }
             }, {
                 "resource": "routes",
                 "kwargs": {
-                    "mgmt_ip": "120.0.0.15",
+                    "vm_mgmt_ip": "120.0.0.15",
                     "service_vendor": "vyos",
                     "request_info": {
                         "network_function_id": (
-                                    "5084bb63-459f-4edd-a090-97168764e632"),
+                                    "940dcdf3-77c8-4119-9f95-ec1e16a50fa8"),
                         "network_function_device_id": (
-                                    "9b7f6b15-3e67-4f26-8463-b4efb36cbb08"),
+                                    "940dcdf3-77c8-4119-9f95-ec1e16a50fa8"),
                         "network_function_instance_id": (
                                     "940dcdf3-77c8-4119-9f95-ec1e16a50fa8")
                     },
                     "provider_interface_position": 2,
                     "gateway_ip": None,
                     "destination_cidr": None,
+                    "service_type": 'firewall',
                     "context": {
                         "domain": None},
-                    "source_cidrs": ["11.0.0.0/24"]
+                    "source_cidrs": ["11.0.0.1/24"]
                 }
             }]
         }
         return request_data
 
-    def fake_request_data_generic_single(self):
+    def fake_request_data_generic_single(self, routes=False):
         """ A sample single request data for generic APIs
 
         Returns: data which is the input for generic configuration
@@ -115,7 +126,9 @@ class FakeObjects(object):
         """
 
         request_data = self.fake_request_data_generic_bulk()
-        request_data['config'].pop()
+        request_data['config'].pop(0) if routes else (
+                                            request_data['config'].pop(1))
+
         return request_data
 
     def fake_request_data_fw(self):
@@ -136,8 +149,8 @@ class FakeObjects(object):
                 "kwargs": {
                     "context": self.context,
                     "firewall": self._fake_firewall_obj(),
-                    "host": self.host
-                    }}]}
+                    "host": self.host}}]
+                        }
         return request_data
 
     def fake_sa_req_list(self):
@@ -160,20 +173,28 @@ class FakeObjects(object):
                     'stitching_mac': None,
                     'service_vendor': 'vyos',
                     'provider_interface_position': 2,
+                    'rule_info': {
+                        'service_id': 'a124581d-e722-42e1-a720-2e437b75f3ee',
+                        'active_stitching_mac': 'fa:16:3e:33:05:2b',
+                        'tenant_id': 'fa1caba059946dfa7839101a93bac7c ',
+                        'active_fip': '11.0.0.6',
+                        'active_provider_mac': 'fa: 16: 3e: 17: fe: de '
+                    },
                     'provider_ip': '11.0.0.1',
                     'stitching_interface_position': 3,
                     'stitching_ip': None,
-                    'mgmt_ip': '120.0.0.15',
+                    'vm_mgmt_ip': '120.0.0.15',
                     'stitching_cidr': None,
                     'request_info': {
                         'network_function_id': (
-                                    '5084bb63-459f-4edd-a090-97168764e632'),
+                                    '940dcdf3-77c8-4119-9f95-ec1e16a50fa8'),
                         'network_function_device_id': (
-                                    '9b7f6b15-3e67-4f26-8463-b4efb36cbb08'),
+                                    '940dcdf3-77c8-4119-9f95-ec1e16a50fa8'),
                         'network_function_instance_id': (
                                     '940dcdf3-77c8-4119-9f95-ec1e16a50fa8')
                     },
                     'provider_mac': 'fa:16:3e:0f:0f:06',
+                    'service_type': 'firewall',
                     'provider_cidr': '11.0.0.0/24'
                 }
             }
@@ -187,19 +208,20 @@ class FakeObjects(object):
             'kwargs': {
                 'kwargs': {
                     'provider_interface_position': 2,
+                    'service_type': 'firewall',
                     'gateway_ip': None,
-                    'destination_cidr': None,
-                    'mgmt_ip': '120.0.0.15',
-                    'source_cidrs': ['11.0.0.0/24'],
+                    'vm_mgmt_ip': '120.0.0.15',
+                    'source_cidrs': ['11.0.0.1/24'],
                     'service_vendor': 'vyos',
                     'request_info': {
                         'network_function_id': (
-                                    '5084bb63-459f-4edd-a090-97168764e632'),
+                                '940dcdf3-77c8-4119-9f95-ec1e16a50fa8'),
                         'network_function_device_id': (
-                                    '9b7f6b15-3e67-4f26-8463-b4efb36cbb08'),
+                                '940dcdf3-77c8-4119-9f95-ec1e16a50fa8'),
                         'network_function_instance_id': (
-                                    '940dcdf3-77c8-4119-9f95-ec1e16a50fa8')
-                    }
+                                '940dcdf3-77c8-4119-9f95-ec1e16a50fa8')
+                    },
+                    'destination_cidr': None
                 }
             }
         }]
@@ -224,8 +246,8 @@ class FakeObjects(object):
                   'rule_info': {
                         'active_provider_mac': '00:0a:95:9d:68:16',
                         'provider_mac': '00:0a:95:9d:68:16',
-                        'active_stitching_mac': '00:0a:95:9d:68:25',
-                        'stitching_mac': '00:0a:95:9d:68:25',
+                        'active_stitching_mac': '00:0a:95:9d:68:16',
+                        'stitching_mac': '00:0a:95:9d:68:16',
                         'active_fip': '172.24.4.5',
                         'fip': '172.24.4.5',
                         'service_id': '1df1cd7a-d82e-4bbd-8b26-a1f106075a6b',
