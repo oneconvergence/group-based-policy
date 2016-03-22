@@ -34,9 +34,7 @@ class RpcCallback(core_pt.PollEventDesc):
         self._conf = conf
 
     def handle_event(self, ev):
-	print "$$$$$ POSTING POLL EVENT - %s" %(ev.identify())
         self._sc.poll_event(ev)
-	print "$$$$$ POSTED POLL EVENT - %s" %(ev.identify())
 
     def _method_handler(self, rpc_cb):
         if rpc_cb['receiver'] == 'orchestrator':
@@ -50,9 +48,9 @@ class RpcCallback(core_pt.PollEventDesc):
 
     @core_pt.poll_event_desc(event='PULL_RPC_NOTIFICATIONS', spacing=1)
     def rpc_pull_event(self, ev):
-       LOG.error("Sending Notification Request")
-       rpc_cbs_data = get_response_from_configurator(self._conf)
-       '''
+        LOG.error("Sending Notification Request")
+        rpc_cbs_data = get_response_from_configurator(self._conf)
+        '''
        response_data = [
            {'receiver': <neutron/orchestrator>,
             'resource': <firewall/vpn/loadbalancer/orchestrator>,
@@ -61,24 +59,25 @@ class RpcCallback(core_pt.PollEventDesc):
        },
        ]
        '''
-       if not isinstance(rpc_cbs_data, list):
-           LOG.info("get_notification -> %s"%(rpc_cbs_data))
-           
-       else :
-           rpc_cbs = rpc_cbs_data
-           for rpc_cb in rpc_cbs:
-               if not rpc_cb :
-                   LOG.info("Receiver Response: Empty")
-                   continue
-               try:
-                   self._method_handler(rpc_cb)
-               except AttributeError:
-                   import sys
-                   import traceback
-                   exc_type, exc_value, exc_traceback = sys.exc_info()
-                   print traceback.format_exception(exc_type, exc_value, exc_traceback)
-                   LOG.error("AttributeError while handling message" % (
-                       rpc_cb))
-               except Exception as e:
-                   LOG.error("Generic exception (%s) \
+        if not isinstance(rpc_cbs_data, list):
+            LOG.info("get_notification -> %s" % (rpc_cbs_data))
+
+        else:
+            rpc_cbs = rpc_cbs_data
+            for rpc_cb in rpc_cbs:
+                if not rpc_cb:
+                    LOG.info("Receiver Response: Empty")
+                    continue
+                try:
+                    self._method_handler(rpc_cb)
+                except AttributeError:
+                    import sys
+                    import traceback
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    print traceback.format_exception(exc_type, exc_value,
+                                                     exc_traceback)
+                    LOG.error("AttributeError while handling message" % (
+                        rpc_cb))
+                except Exception as e:
+                    LOG.error("Generic exception (%s) \
                        while handling message (%s)" % (e, rpc_cb))

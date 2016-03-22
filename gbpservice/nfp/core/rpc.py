@@ -50,7 +50,7 @@ class RpcAgent(n_rpc.Service):
 
         # Check if the agent needs to report state
         if report_state:
-            self._report_state = ReportState(self._report_state)
+            self._report_state = ReportState(report_state)
 
     def start(self):
         log_debug(LOG, "RPCAgent listening on %s" % (self.identify))

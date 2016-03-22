@@ -12,7 +12,7 @@
 
 from oslo_log import log as logging
 
-from gbpservice.nfp._i18n import _
+from gbpservice.nfp._i18n import _LE
 from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.orchestrator.drivers.orchestration_driver_base import (
@@ -25,8 +25,8 @@ LOG = logging.getLogger(__name__)
 class HaproxyOrchestrationDriver(OrchestrationDriverBase):
     """Haproxy Service VM Driver for orchestration of virtual appliances
 
-    Overrides methods from HotplugSupportedOrchestrationDriver class for performing
-    things specific to Haproxy service VM
+    Overrides methods from HotplugSupportedOrchestrationDriver class for
+    performing things specific to Haproxy service VM
     """
     def __init__(self, supports_device_sharing=True, supports_hotplug=True,
                  max_interfaces=10):
@@ -89,8 +89,8 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_('Failed to get token'
-                        ' for get device config info operation'))
+            LOG.error(_LE('Failed to get token'
+                          ' for get device config info operation'))
             return None
 
         provider_ip = None
@@ -110,8 +110,8 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
                                                                     port_id)
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
-                    LOG.error(_('Failed to get provider port details'
-                                ' for get device config info operation'))
+                    LOG.error(_LE('Failed to get provider port details'
+                                  ' for get device config info operation'))
                     return None
             elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
@@ -122,8 +122,8 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
                                                                    port_id)
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
-                    LOG.error(_('Failed to get consumer port details'
-                                ' for get device config info operation'))
+                    LOG.error(_LE('Failed to get consumer port details'
+                                  ' for get device config info operation'))
                     return None
 
         return {

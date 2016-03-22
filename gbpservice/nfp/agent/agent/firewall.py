@@ -20,7 +20,7 @@ LOG = logging.getLogger(__name__)
 
 
 def set_firewall_status(**kwargs):
-    rpcClient = RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)    
+    rpcClient = RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
     context = kwargs.get('context')
     rpc_ctx = n_context.Context.from_dict(context)
     del kwargs['context']

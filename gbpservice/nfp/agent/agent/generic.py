@@ -16,6 +16,7 @@ from gbpservice.nfp.agent.agent.common import *
 from gbpservice.nfp.lib.backend_lib import *
 LOG = logging.getLogger(__name__)
 
+
 def network_function_device_notification(resource, kwargs_list):
     context = get_dummy_context()
     rpcClient = RPCClient(a_topics.GC_NFP_PLUGIN_TOPIC)

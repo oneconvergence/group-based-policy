@@ -32,20 +32,42 @@ def rpc_init(sc, conf):
         manager=fwrpcmgr
     )
 
+    lb_report_state = {
+        'binary': 'oc-lb-agent',
+        'host': cfg.CONF.host,
+        'topic': a_topics.LB_NFP_CONFIGAGENT_TOPIC,
+        'plugin_topic': a_topics.LB_NFP_PLUGIN_TOPIC,
+        'agent_type': 'NFP Loadbalancer agent',
+        'configurations': {'device_drivers': ['loadbalancer']},
+        'start_flag': True,
+        'report_interval': conf.reportstate_interval
+    }
     lbrpcmgr = LbAgent(conf, sc)
     lbagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=a_topics.LB_NFP_CONFIGAGENT_TOPIC,
-        manager=lbrpcmgr
+        manager=lbrpcmgr,
+        report_state=lb_report_state
     )
 
+    vpn_report_state = {
+        'binary': 'oc-vpn-agent',
+        'host': cfg.CONF.host,
+        'topic': a_topics.VPN_NFP_CONFIGAGENT_TOPIC,
+        'plugin_topic': a_topics.VPN_NFP_PLUGIN_TOPIC,
+        'agent_type': 'NFP Vpn agent',
+        'configurations': {'device_drivers': ['vpn']},
+        'start_flag': True,
+        'report_interval': conf.reportstate_interval
+    }
     vpnrpcmgr = VpnAgent(conf, sc)
     vpnagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=a_topics.VPN_NFP_CONFIGAGENT_TOPIC,
-        manager=vpnrpcmgr
+        manager=vpnrpcmgr,
+        report_state=vpn_report_state
     )
 
     sc.register_rpc_agents([fwagent, lbagent, vpnagent])
@@ -63,5 +85,6 @@ def module_init(sc, conf):
 
 
 def init_complete(sc, conf):
-    ev = sc.new_event(id='PULL_RPC_NOTIFICATIONS', key='PULL_RPC_NOTIFICATIONS')
+    ev = sc.new_event(id='PULL_RPC_NOTIFICATIONS',
+                      key='PULL_RPC_NOTIFICATIONS')
     sc.post_event(ev)
