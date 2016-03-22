@@ -298,5 +298,3 @@ class Filter(object):
 
         retval['driver'] = pool['provider']
         return retval
-
-
