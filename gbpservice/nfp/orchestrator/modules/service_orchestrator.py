@@ -60,6 +60,12 @@ def module_init(controller, config):
 
 
 class RpcHandler(object):
+    """RPC Handler for Node Driver to NFP.
+
+    Create and Get Network Function methods are invoked in an RPC Call and data
+    has to be returned. The rest of the methods are RPC casts.
+    """
+
     RPC_API_VERSION = '1.0'
     target = oslo_messaging.Target(version=RPC_API_VERSION)
 
@@ -129,6 +135,17 @@ class RpcHandler(object):
 
 
 class ServiceOrchestrator(object):
+    """Orchestrator For Network Services
+
+    This class handles the orchestration of Network Function lifecycle.
+    It deals with logical service resources - Network Functions and Network
+    Function Instances. There is a one-to-many mapping between Network
+    Functions and Network Function instances. For eg. a Network Function in
+    HA mode might have two Network Function Instances - Active, Standby
+    whereas a Network Function in Cluster mode might have more than 2 Network
+    Function Instances. This module interacts with Device Orchestrator and
+    Config driver.
+    """
 
     def __init__(self, controller):
         self._controller = controller
@@ -523,10 +540,6 @@ class ServiceOrchestrator(object):
             self.db_handler.delete_network_function(
                 self.db_session, nfi['network_function_id'])
             # Inform delete service caller with delete completed RPC
-
-    # But how do you get hold of the first event ??
-    def _request_completed(self, event):
-        self._controller.event_done(event)
 
     def get_network_function(self, context, network_function_id):
         try:
