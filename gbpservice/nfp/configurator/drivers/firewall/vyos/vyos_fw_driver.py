@@ -11,12 +11,12 @@
 #    under the License.
 
 import ast
-import json
 import requests
 
 from neutron import context
 from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_serialization import jsonutils
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import fw_constants as const
@@ -65,27 +65,27 @@ class FwGenericConfigDriver(object):
         url = const.request_url % (active_fip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'add_static_ip')
-        data = json.dumps(static_ips_info)
+        data = jsonutils.dumps(static_ips_info)
 
         msg = ("Initiating POST request to add static IPs for primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" % (
-                rule_info['service_id'], rule_info['tenant_id'],
+               "service with SERVICE ID: %r of tenant: %r at: %r" %
+               (rule_info['service_id'], rule_info['tenant_id'],
                 active_fip))
         LOG.info(msg)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
+                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             return msg
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while adding "
                    "static IPs for primary service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             return msg
@@ -108,7 +108,7 @@ class FwGenericConfigDriver(object):
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
-    def configure_interfaces(self,  context, kwargs):
+    def configure_interfaces(self, context, kwargs):
         """ Configure interfaces for the service VM.
 
         Calls static IP configuration function and implements
@@ -146,7 +146,7 @@ class FwGenericConfigDriver(object):
 
         url = const.request_url % (active_fip,
                                    const.CONFIGURATION_SERVER_PORT, 'add_rule')
-        data = json.dumps(active_rule_info)
+        data = jsonutils.dumps(active_rule_info)
         msg = ("Initiating POST request to add persistent rule to primary "
                "service with SERVICE ID: %r of tenant: %r at: %r" % (
                     rule_info['service_id'], rule_info['tenant_id'],
@@ -154,18 +154,18 @@ class FwGenericConfigDriver(object):
         LOG.info(msg)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
+                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             return msg
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while adding "
                    "persistent rule of primary service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             return msg
@@ -214,27 +214,27 @@ class FwGenericConfigDriver(object):
         url = const.request_url % (active_fip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'del_static_ip')
-        data = json.dumps(static_ips_info)
+        data = jsonutils.dumps(static_ips_info)
 
         msg = ("Initiating POST request to remove static IPs for primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" % (
-                rule_info['service_id'], rule_info['tenant_id'],
+               "service with SERVICE ID: %r of tenant: %r at: %r" %
+               (rule_info['service_id'], rule_info['tenant_id'],
                 active_fip))
         LOG.info(msg)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
+                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             return msg
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while removing "
                    "static IPs for primary service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             return msg
@@ -303,20 +303,20 @@ class FwGenericConfigDriver(object):
                                    'delete_rule')
 
         try:
-            data = json.dumps(active_rule_info)
+            data = jsonutils.dumps(active_rule_info)
             resp = requests.delete(url, data=data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while deleting "
                    "persistent rule of service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
@@ -365,26 +365,26 @@ class FwGenericConfigDriver(object):
         for source_cidr in source_cidrs:
             route_info.append({'source_cidr': source_cidr,
                                'gateway_ip': gateway_ip})
-        data = json.dumps(route_info)
+        data = jsonutils.dumps(route_info)
         msg = ("Initiating POST request to configure route of "
                "primary service at: %r" % vm_mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.post(url, data=data, timeout=60)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
                    "%r. ERROR: %r" % (vm_mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while configuring "
-                   "route of service at: %r ERROR: %r" % (
-                    vm_mgmt_ip, str(err).capitalize()))
+                   "route of service at: %r ERROR: %r" %
+                   (vm_mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
 
         if resp.status_code in const.SUCCESS_CODES:
-            message = json.loads(resp.text)
+            message = jsonutils.loads(resp.text)
             if message.get("status", False):
                 msg = ("Route configured successfully for VYOS"
                        " service at: %r" % vm_mgmt_ip)
@@ -430,21 +430,21 @@ class FwGenericConfigDriver(object):
         route_info = []
         for source_cidr in source_cidrs:
             route_info.append({'source_cidr': source_cidr})
-        data = json.dumps(route_info)
+        data = jsonutils.dumps(route_info)
         msg = ("Initiating DELETE route request to primary service at: %r"
                % vm_mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
                    " %r. ERROR: %r" % (vm_mgmt_ip, err))
             LOG.error(msg)
             return msg
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while deleting "
                    " route of service at: %r ERROR: %r"
-                   % (vm_mgmt_ip,  err))
+                   % (vm_mgmt_ip, err))
             LOG.error(msg)
             return msg
 
@@ -565,7 +565,7 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         msg = ("Initiating POST request for FIREWALL ID: %r Tenant ID:"
                " %r. URL: %s" % (firewall['id'], firewall['tenant_id'], url))
         LOG.info(msg)
-        data = json.dumps(firewall)
+        data = jsonutils.dumps(firewall)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
@@ -622,7 +622,7 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
                                    'update-firewall-rule')
         msg = ("Initiating UPDATE request. URL: %s" % url)
         LOG.info(msg)
-        data = json.dumps(firewall)
+        data = jsonutils.dumps(firewall)
         try:
             resp = requests.put(url, data=data, timeout=self.timeout)
         except Exception as err:
@@ -656,7 +656,7 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
                                    'delete-firewall-rule')
         msg = ("Initiating DELETE request. URL: %s" % url)
         LOG.info(msg)
-        data = json.dumps(firewall)
+        data = jsonutils.dumps(firewall)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:

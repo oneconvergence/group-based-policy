@@ -10,15 +10,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import os
+
+from oslo_log import log as logging
+
 from gbpservice.nfp.configurator.agents import agent_base
-from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import (
                             generic_config_constants as gen_cfg_const)
-from oslo_log import log as logging
-from gbpservice.nfp.core import main
-import os
-from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import utils
+from gbpservice.nfp.core import main
+from gbpservice.nfp.core import poll as nfp_poll
 
 LOG = logging.getLogger(__name__)
 
@@ -200,7 +202,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         Returns: None
 
         """
-        LOG.info(" handling event ev.id %s" % (ev.id))
+        msg = ("Handling event ev.id %s" % (ev.id))
+        LOG.info(msg)
 
         # Process batch of request data blobs
         try:
@@ -244,9 +247,9 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
             # Invoke service driver methods based on event type received
             result = getattr(driver, "%s" % ev.id.lower())(context, kwargs)
         except Exception as err:
-            LOG.error("Failed to process ev.id=%s, ev=%s reason=%s" % (ev.id,
-                                                                       ev.data,
-                                                                       err))
+            msg = ("Failed to process ev.id=%s, ev=%s reason=%s" %
+                   (ev.id, ev.data, err))
+            LOG.error(msg)
             result = common_const.FAILED
 
         if ev.id == gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR:
@@ -310,14 +313,12 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         msg = {'receiver': common_const.ORCHESTRATOR,
                'resource': resource,
                'method': common_const.NFD_NOTIFICATION,
-               'kwargs': [
-                          {
+               'kwargs': [{
                            'context': context,
                            'resource': resource,
                            'request_info': request_info,
                            'result': result
-                          }
-                        ]
+                          }]
                }
         if not notification_data:
             notification_data.update(msg)
@@ -341,7 +342,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         Returns: None
 
         """
-        LOG.error('Cancelled poll event. Event Data: %s ' % (ev.data))
+        msg = ('Cancelled poll event. Event Data: %s ' % (ev.data))
+        LOG.error(msg)
         result = common_const.FAILED
         notification_data = self._prepare_notification_data(ev, result)
         self.notify._notification(notification_data)
@@ -471,4 +473,5 @@ def init_agent(cm, sc, conf):
 
 
 def init_agent_complete(cm, sc, conf):
-    LOG.info("Initialization of generic configuration agent completed.")
+    msg = ("Initialization of generic configuration agent completed.")
+    LOG.info(msg)

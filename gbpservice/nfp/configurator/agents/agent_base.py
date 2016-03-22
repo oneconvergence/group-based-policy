@@ -67,7 +67,7 @@ class AgentBaseRPCManager(object):
 
         # In case of malformed input, send failure notification
         if not self.validate_request(sa_req_list, notification_data):
-            # TODO: Need to send failure notification
+            # TODO(JAGADISH): Need to send failure notification
             return
 
         # Multiple request data blobs needs batch processing. Send batch
