@@ -395,11 +395,12 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 return
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
-            network_function_id = self._get_node_instance_network_function_map(
+            network_function_map = self._get_node_instance_network_function_map(
                 context.plugin_session,
                 context.current_node['id'],
                 context.instance['id'])
-            if network_function_id:
+            if network_function_map:
+                network_function_id = network_function_map.network_function_id
                 self.nfp_notifier.policy_target_added_notification(
                     context.plugin_context, network_function_id, policy_target)
 
@@ -634,8 +635,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 raise VipNspNotSetonProvider()
 
             for provider_port in service_targets['provider_ports']:
-                provider_port['allowed_address_pairs'] = [
-                    {'ip_address': vip_ip}]
                 port = {
                     'port': provider_port
                 }
