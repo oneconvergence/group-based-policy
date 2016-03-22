@@ -65,7 +65,7 @@ class Filter(object):
         Returns: data after applying filter on it
 
         """
-        
+
         for fk, fv in filters.items():
             for d in data[:]:
                 if d.get(fk) is None:
