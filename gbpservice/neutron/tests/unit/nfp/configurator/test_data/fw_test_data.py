@@ -149,8 +149,8 @@ class FakeObjects(object):
                 "kwargs": {
                     "context": self.context,
                     "firewall": self._fake_firewall_obj(),
-                    "host": self.host
-                    }}]}
+                    "host": self.host}}]
+                        }
         return request_data
 
     def fake_sa_req_list(self):
