@@ -173,7 +173,6 @@ class VPNaasEventHandler(object):
         """
         self._sc = sc
         self._drivers = drivers
-        self._needs_sync = True
         self._plugin_rpc = VpnaasRpcSender(self._sc)
 
     def _get_driver(self):
