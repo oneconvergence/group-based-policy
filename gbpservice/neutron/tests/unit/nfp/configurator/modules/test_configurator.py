@@ -17,10 +17,10 @@ from oslo_log import log as logging
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
                                                         fw_test_data as fo)
-from gbpservice.nfp.configurator.modules import configurator as cfgr
 from gbpservice.nfp.configurator.agents import firewall as fw
 from gbpservice.nfp.configurator.agents import generic_config as gc
 from gbpservice.nfp.configurator.lib import demuxer as demuxer_lib
+from gbpservice.nfp.configurator.modules import configurator as cfgr
 
 LOG = logging.getLogger(__name__)
 
