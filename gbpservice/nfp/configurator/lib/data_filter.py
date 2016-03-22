@@ -13,6 +13,11 @@
 from gbpservice.nfp.configurator.lib import (
     filter_constants as constants)
 
+"""Filter class which provides data asked in a specific format.
+   This class mocks all rpc calls going from *aaS agent/driver to respective
+   *aaS plugin.
+"""
+
 
 class Filter(object):
 
@@ -20,10 +25,13 @@ class Filter(object):
         pass
 
     def call(self, context, msg):
-        """
+        """Returns data in specific format after applying filter on context
+
         :param context
         :param msg e.g  {'args': {'key': value,..},'method': 'function_name'}}
-        :returns data after applying filter on it
+
+        Returns: data after applying filter on it
+
         """
         try:
             if msg['args']['filters'] is not None:
@@ -37,15 +45,25 @@ class Filter(object):
             raise e
 
     def make_msg(self, method, **kwargs):
+        """ Helper function needed to invoke Filter.call()
+        :param method - method name
+        :kwargs kwargs - filters to be used
+
+        Returns: dict
+        """
         return {'method': method,
                 'args': kwargs}
 
     def apply_filter(self, data, filters):
-        """
-        :param filter e.g  {k:[v],k:[v]}
+        """ Apply filters on data
+
+        :param filters e.g  {k:[v],k:[v]}
         :param data e.g [{k:v,k:v,k:v},
                       {k:v,k:v,k:v},
                       {k:v,k:v}]
+
+        Returns: data after applying filter on it
+
         """
         
         for fk, fv in filters.items():
@@ -58,19 +76,36 @@ class Filter(object):
 
     def get_record(self, data, key, value):
         """Get single record based on key and value
+
         :param data
         :praam key
         :param value
+
+        Returns: record
         """
         for d in data:
             if key in d and d[key] == value:
                 return d
 
     def _get_vpn_services(self, context, filters):
-        """
-        :param filters e.g { 'ids' : [list vpn service ids],
-                              'filters': filters
-                            }
+        """ Get vpn service from context after applying filter
+
+        :param context - vpn related resources
+        e.g context = {'service_info':{'vpnservices': [vpnservices],
+                                       'ikepolicies': [ikepolicies],
+                                       'ipsecpolicies':[ipsecpolicies],
+                                       'ipsec_site_conns':
+                                                [ipsec_site_connections],
+                                        'routers': [routers],
+                                        'subnets': [subnets]
+                                      }
+                      }
+        :param filters
+        e.g { 'ids' : [vpn service ids],
+              'filters': filters }
+
+        Returns: [vpn services]
+
         """
         vpn_ids = None
         if 'ids' in filters and filters['ids']:
@@ -87,30 +122,52 @@ class Filter(object):
             return self.apply_filter(vpnservices, filters)
 
     def _get_ipsec_conns(self, context, filters):
-        """
+        """ Get ipsec site conns from context after applying filter
+
+        :param context - vpn related resources
+        e.g context = {'service_info':{'vpnservices': [vpnservices],
+                                       'ikepolicies': [ikepolicies],
+                                       'ipsecpolicies':[ipsecpolicies],
+                                       'ipsec_site_conns':
+                                                [ipsec_site_connections],
+                                        'routers': [routers],
+                                        'subnets': [subnets]
+                                      }
+                      }
         :param filters e.g { 'tenant_id': [tenant_id],
                              'peer_address': [conn['peer_address']]
                            }
+
+        Returns: [ipsec site conns]
+
         """
         service_info = context['service_info']
         ipsec_conns = service_info['ipsec_site_conns']
 
         return self.apply_filter(ipsec_conns, filters)
 
-
     def _get_vpn_servicecontext(self, context, filters):
+        """Get vpnservice context
+
+        :param context
+        :param filters
+
+        Returns IPSec site conns
+        """
         return self._get_ipsec_site2site_contexts(context, filters)
 
     def _get_ipsec_site2site_contexts(self, context, filters=None):
-        """
-        :param filters e.g   {   'tenant_id': <value>,
-                               'vpnservice_id': <value>,
-                               'siteconn_id': <value>
-                            }
+        """ Get ipsec site to site context
+        :param filters
+        e.g {'tenant_id': <value>,
+             'vpnservice_id': <value>,
+             'siteconn_id': <value>
+            }
         'tenant_id' - To get s2s conns of that tenant
         'vpnservice_id' - To get s2s conns of that vpn service
         'siteconn_id' - To get a specific s2s conn
-        :returns vpnservices
+
+        Returns: vpnservices
             e.g { 'vpnserviceid':
                     { 'service': <VPNService>,
                   'siteconns':[ {
@@ -180,8 +237,23 @@ class Filter(object):
         return vpnservices.values()
 
     def _get_logical_device(self, context, filters):
-        """
+        """ Get logical device from context after applying filter.
+            Logical device here means pool and its related resources like vip,
+            member,hm etc
+
+        :param context
+        e.g context = {'service_info': { 'pools': [pools],
+                                         'members': [members],
+                                         'vips': [vips],
+                                         'health_monitors': [health_monitors],
+                                         'ports': [ports],
+                                         'subnets': [subnets],
+                                       }
+                      }
         :param filters e.g {'pool_id': pool_id}
+
+        Returns: logical divice
+
         """
         service_info = context['service_info']
         pool_id = filters.get('pool_id')
