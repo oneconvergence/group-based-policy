@@ -19,8 +19,14 @@ rest_timeout = [
 
 cfg.CONF.register_opts(rest_timeout)
 
+"""
+Provides different methods to make ReST calls to the service VM,
+to update the configurations
+"""
+
 
 class RestApi(object):
+
     def __init__(self, vm_mgmt_ip):
         self.vm_mgmt_ip = vm_mgmt_ip
         self.timeout = cfg.CONF.rest_timeout
@@ -29,6 +35,15 @@ class RestApi(object):
         return '&'.join([str(k) + '=' + str(v) for k, v in args.iteritems()])
 
     def post(self, api, args):
+        """
+        Makes ReST call to the service VM to post the configurations.
+
+        :param api: method that need to called inside the service VM to
+        update the configurations.
+        :prarm args: data that is need to be configured in service VM
+
+        Returns: None
+        """
         url = const.request_url % (
             self.vm_mgmt_ip,
             const.CONFIGURATION_SERVER_PORT, api)
@@ -55,6 +70,15 @@ class RestApi(object):
             raise Exception(msg)
 
     def put(self, api, args):
+        """
+        Makes ReST call to the service VM to put the configurations.
+
+        :param api: method that need to called inside the service VM to
+        update the configurations.
+        :prarm args: data that is need to be configured in service VM
+
+        Returns: None
+        """
         url = const.request_url % (
             self.vm_mgmt_ip,
             const.CONFIGURATION_SERVER_PORT, api)
@@ -77,6 +101,16 @@ class RestApi(object):
             LOG.error(msg)
 
     def delete(self, api, args, data=None):
+        """
+        Makes ReST call to the service VM to delete the configurations.
+
+        :param api: method that need to called inside the service VM to
+        update the configurations.
+        :param args: fixed ip of the service VM to make frame the query string.
+        :data args: data that is need to be configured in service VM
+
+        Returns: None
+        """
         url = const.request_url % (
             self.vm_mgmt_ip,
             const.CONFIGURATION_SERVER_PORT, api)
@@ -106,6 +140,15 @@ class RestApi(object):
             raise Exception(msg)
 
     def get(self, api, args):
+        """
+        Makes ReST call to the service VM to put the configurations.
+
+        :param api: method that need to called inside the service VM to
+        update the configurations.
+        :prarm args: data that is need to be configured in service VM
+
+        Returns: None
+        """
         output = ''
 
         url = const.request_url % (
@@ -137,11 +180,12 @@ class RestApi(object):
         return output
 
 """
-
+Provides the methods to validate the vpn service which is about to
+be created in order to avoid any conflicts if they exists.
 """
 
 
-class ServiceValidator(object):
+class VPNServiceValidator(object):
     def __init__(self, agent):
         self.agent = agent
 
@@ -160,16 +204,33 @@ class ServiceValidator(object):
         return vpnsvc_status
 
     def _error_state(self, context, vpnsvc, message=''):
+        """
+        Enqueues the status of the service to ERROR.
 
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param vpnsvc: vpn service dictionary.
+        :param message: the cause for the error.
+
+        Returns: None
+        """
         self.agent.update_status(
             context, self._update_service_status(vpnsvc, const.STATE_ERROR))
 
-        '''
-        raise exc.ResourceErrorState(name='vpn_service', id=vpnsvc['id'],
-                                     message=message)
-        '''
+        msg = "Resource '%(name)s' : '%(id)s' went to error state, \
+               %(message)" % ('vpn_service', vpnsvc['id'], message)
+        raise Exception(msg)
 
     def _active_state(self, context, vpnsvc):
+        """
+        Enqueues the status of the service to ACTIVE.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param vpnsvc: vpn service dictionary.
+
+        Returns: None
+        """
         self.agent.update_status(
             context, self._update_service_status(vpnsvc, const.STATE_ACTIVE))
 
@@ -180,11 +241,17 @@ class ServiceValidator(object):
         return local_cidr
 
     def validate(self, context, vpnsvc):
-        lcidr = self._get_local_cidr(vpnsvc)
         """
         Get the vpn services for this tenant
-        Check for overlapping lcidr - not allowed
+        Check for overlapping lcidr - (not allowed)
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param vpnsvc: vpn service dictionary.
+
+        Returns: None
         """
+        lcidr = self._get_local_cidr(vpnsvc)
         filters = {'tenant_id': [context['tenant_id']]}
         t_vpnsvcs = self.agent.get_vpn_services(
             context, filters=filters)
@@ -205,6 +272,10 @@ class ServiceValidator(object):
                     vpnsvc, msg)
         self._active_state(context, vpnsvc)
 
+"""
+VPN generic config driver for handling device configurations requests
+"""
+
 
 class VpnGenericConfigDriver(object):
     """
@@ -216,6 +287,16 @@ class VpnGenericConfigDriver(object):
         self.timeout = cfg.CONF.rest_timeout
 
     def configure_routes(self, context, kwargs):
+        """
+        Configure routes for the service VM.
+
+        Makes a ReST call to the service VM to configure the routes
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
 
         url = const.request_url % (kwargs['vm_mgmt_ip'],
                                    const.CONFIGURATION_SERVER_PORT,
@@ -263,6 +344,16 @@ class VpnGenericConfigDriver(object):
         LOG.info(msg)
 
     def clear_routes(self, context, kwargs):
+        """
+        Clear routes for the service VM.
+
+        Makes a ReST call to the service VM to clear the routes
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
 
         active_configured = False
         url = const.request_url % (kwargs['vm_mgmt_ip'],
@@ -297,6 +388,16 @@ class VpnGenericConfigDriver(object):
         LOG.info(msg)
 
     def configure_interfaces(self, context, kwargs):
+        """
+        Configure interfaces for the service VM.
+
+        Makes a ReST call to the service VM to configure the interfaces
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
 
         rule_info = kwargs['rule_info']
 
@@ -350,6 +451,16 @@ class VpnGenericConfigDriver(object):
         LOG.info(msg)
 
     def clear_interfaces(self, context, kwargs):
+        """
+        Clear interfaces for the service VM.
+
+        Makes a ReST call to the service VM to clear the interfaces
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
 
         rule_info = kwargs['rule_info']
 
@@ -403,12 +514,14 @@ class VpnGenericConfigDriver(object):
 
         LOG.info(msg)
 
+"""
+Driver class for implementing VPN IPSEC configuration
+requests from VPNaas Plugin.
+"""
+
 
 class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
-    """
-    Driver class for implementing VPN IPSEC configuration
-    requests from VPNaas Plugin.
-    """
+
     service_type = const.SERVICE_TYPE
 
     def __init__(self, agent_context):
@@ -421,16 +534,15 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 'update': self.update_ipsec_conn,
                 'delete': self.delete_ipsec_conn}}
         super(VpnaasIpsecDriver, self).__init__()
-    '''
-    @property
-    def service_type(self):
-        return "%s-%s" % (const.VYOS, const.SERVICE_TYPE)
-    '''
 
     def _update_conn_status(self, conn, status):
         """
         Driver will call this API to report
         status of a connection - only if there is any change.
+        :param conn: ipsec conn dicitonary
+        :param status: status of the service.
+
+        Returns: updated status dictionary
         """
         msg = ("Driver informing connection status "
                "changed to %s" % status)
@@ -446,17 +558,35 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         return vpnsvc_status
 
     def _error_state(self, context, conn, message=''):
+        """
+        Enqueues the status of the service to ERROR.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param conn: ipsec conn dicitonary.
+        :param message: the cause for the error.
+
+        Returns: None
+        """
+
         self.agent.update_status(
             context, self._update_conn_status(conn,
                                               const.STATE_ERROR))
-
-        '''
-        raise exc.ResourceErrorState(
-            name='ipsec-site-conn',
-            id=conn['id'], message=message)
-        '''
+        msg = "Resource '%(name)s' : '%(id)s' went to error state, \
+              %(message)" % (conn['id'], message)
+        raise Exception(msg)
 
     def _init_state(self, context, conn):
+        """
+        Enqueues the status of the service to ACTVIE.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param conn: ipsec conn dicitonary.
+
+        Returns: None
+        """
+
         LOG.info("IPSec: Configured successfully- %s " % conn['id'])
         self.agent.update_status(
             context, self._update_conn_status(conn,
@@ -529,9 +659,15 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     def _ipsec_create_conn(self, context, mgmt_fip, conn):
         """
-        Get the context for this conn
-        Issue POST to the vyos agenet
+        Get the context for this ipsec conn and make POST to the service VM.
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: None
         """
+
         svc_context = self.agent.get_vpn_servicecontext(
             context, self._get_filers(conn_id=conn['id']))[0]
         tunnel_local_cidr = self.\
@@ -548,6 +684,16 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         self._init_state(context, conn)
 
     def _ipsec_create_tunnel(self, context, mgmt_fip, conn):
+        """
+        Get the context for this ipsec conn and make POST to the service VM.
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: None
+        """
+
         svc_context = self.agent.get_vpn_servicecontext(
             context, self._get_filers(conn_id=conn['id']))[0]
 
@@ -564,6 +710,17 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     def _ipsec_get_tenant_conns(self, context, mgmt_fip, conn,
                                 on_delete=False):
+        """
+        Get the context for this ipsec conn and vpn services.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: list of ipsec conns
+        """
+
         filters = {
             'tenant_id': [context['tenant_id']],
             'peer_address': [conn['peer_address']]}
@@ -635,6 +792,17 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     def _ipsec_delete_tunnel(self, context, mgmt_fip,
                              conn):
+        """
+        Make DELETE to the service VM to delete the tunnel.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: None
+        """
+
         lcidr = self.\
             _get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
 
@@ -652,6 +820,17 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     def _ipsec_delete_connection(self, context, mgmt_fip,
                                  conn):
+        """
+        Make DELETE to the service VM to delete the ipsec conn.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: None
+        """
+
         try:
             RestApi(mgmt_fip).delete(
                 "delete-ipsec-site-conn",
@@ -662,6 +841,16 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             LOG.error(msg)
 
     def _ipsec_is_state_changed(self, svc_context, conn, fip):
+        """
+        Make GET request to the service VM to get the status of the site conn.
+
+        :param svc_context: list of ipsec conn dictionaries
+        :paraM conn: ipsec conn dictionary
+        :param fip: floting ip of the service VM
+
+        Returns: None
+        """
+
         c_state = None
         lcidr = self.\
             _get_ipsec_tunnel_local_cidr(svc_context)
@@ -696,10 +885,20 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
         svc = kwargs.get('resource')
         LOG.info("Validating VPN service %s " % svc)
-        validator = ServiceValidator(self.agent)
+        validator = VPNServiceValidator(self.agent)
         validator.validate(context, svc)
 
     def create_ipsec_conn(self, context, kwargs):
+        """
+        Implements functions to make update ipsec configuration in service VM.
+
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
+
         conn = kwargs.get('resource')
         mgmt_fip = self._get_vm_mgmt_ip_from_desc(conn)
         LOG.info("IPsec: create siteconnection %s" % conn)
@@ -749,16 +948,22 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 self._ipsec_check_overlapping_peer(
                     context, tenant_conns, conn)
                 self._ipsec_create_tunnel(context, mgmt_fip, conn)
-            '''
-            except exc.ResourceErrorState as rex:
-                raise rex
-            '''
+
         except Exception as ex:
             msg = "IPSec: Exception in creating ipsec conn: %s" % ex
             LOG.error(msg)
             self._error_state(context, conn, msg)
 
     def update_ipsec_conn(self, context, kwargs):
+        """
+        Implements functions to make update ipsec configuration in service VM.
+
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
         pass
         # svc_contexts = self.agent.get_ipsec_contexts(
         #    context, conn_id=kwargs.get('id'))
@@ -777,6 +982,15 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         # Maintain this resource ? will be useful in case of update ?
 
     def delete_ipsec_conn(self, context, kwargs):
+        """
+        Implements functions to make delete ipsec configuration in service VM.
+
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
 
         conn = kwargs.get('resource')
         msg = "IPsec: delete siteconnection %s" % conn
@@ -798,6 +1012,14 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             self._error_state(context, conn, msg)
 
     def check_status(self, context, svc_context):
+        """
+        Implements functions to get the status of the site to site conn.
+
+        :param context: context dictionary of vpn service type
+        :param svc_contex: list of ipsec conn dictionaries
+
+        Returns: None
+        """
         fip = self._get_fip(svc_context)
         sconns = svc_context['siteconns']
         for sconn in sconns:
@@ -816,7 +1038,16 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                                                       state))
 
     def vpnservice_updated(self, context, kwargs):
-        """Handle VPNaaS service driver change notifications."""
+        """
+        Demultiplexes the different methods to update the configurations
+
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
+
         LOG.info("Handling VPN service update notification '%s'",
                  kwargs.get('reason', ''))
 
@@ -830,6 +1061,15 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
             reason = kwargs.get('reason')
             rsrc = kwargs.get('rsrc_type')
+
+            if rsrc not in self.handlers.keys():
+                msg = "Unsupported resource '%(resource)s' from plugin " % (
+                                                                        rsrc)
+                raise Exception(msg)
+            if reason not in self.handlers[rsrc].keys():
+                msg = "Unsupported rpcreason '%(reason)s' from plugin " % (
+                                                                        reason)
+                raise Exception(msg)
 
             self.handlers[rsrc][reason](context, kwargs)
 
