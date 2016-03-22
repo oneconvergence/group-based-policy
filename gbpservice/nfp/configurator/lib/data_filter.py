@@ -26,7 +26,11 @@ class Filter(object):
         :returns data after applying filter on it
         """
         try:
-            filters = msg['args']
+            if msg['args']['filters'] is not None:
+                filters = msg['args']['filters']
+            else:
+                filters = {'ids': msg['args']['ids']}
+
             method = getattr(self, '_%s' % (msg['method']))
             return method(context, filters)
         except Exception as e:
@@ -43,6 +47,7 @@ class Filter(object):
                       {k:v,k:v,k:v},
                       {k:v,k:v}]
         """
+        
         for fk, fv in filters.items():
             for d in data[:]:
                 if d.get(fk) is None:
@@ -79,7 +84,7 @@ class Filter(object):
                     self.get_record(vpnservices, 'id', vpn_id))
             return filtered_vpns
         else:
-            return self.apply_filter(vpnservices, filters['filters'])
+            return self.apply_filter(vpnservices, filters)
 
     def _get_ipsec_conns(self, context, filters):
         """
@@ -90,7 +95,7 @@ class Filter(object):
         service_info = context['service_info']
         ipsec_conns = service_info['ipsec_site_conns']
 
-        return self.apply_filter(ipsec_conns, filters['filters'])
+        return self.apply_filter(ipsec_conns, filters)
 
 
     def _get_vpn_servicecontext(self, context, filters):
@@ -221,4 +226,5 @@ class Filter(object):
 
         retval['driver'] = pool['provider']
         return retval
+
 
