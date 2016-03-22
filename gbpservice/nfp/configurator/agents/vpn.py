@@ -188,7 +188,7 @@ class VPNaasEventHandler(object):
 
         Returns: None
         """
-        if ev.id == 'SYNC_UPDATE':
+        if ev.id == 'VYOS_VPN_SYNC':
             self._sc.poll_event(ev)
 
         if ev.id == 'VPNSERVICE_UPDATED':
@@ -209,6 +209,14 @@ class VPNaasEventHandler(object):
                 self._sc.event_done(ev)
 
     def _vpnservice_updated(self, ev, driver):
+        """
+        Makes call to the respective operation method of vpn driver.
+
+        :param ev: event object sent from the process model.
+        :param driver: vpn driver class object.
+
+        Returns: None.
+        """
         context = ev.data.get('context')
         kwargs = ev.data.get('kwargs')
         msg = "Vpn service updated from server side"
@@ -229,12 +237,28 @@ class VPNaasEventHandler(object):
                                                      resource_id=resource_id)
 
     def _get_service_vendor(self, vpn_svc):
+        """
+        Extracts the vendor from the description.
+        :param vpn_svc: vpn service operation type dictionary,
+        which it gets from filter library
+
+        Returns: None
+        """
         svc_desc = vpn_svc['description']
         tokens = svc_desc.split(';')
         vendor = tokens[5].split('=')[1]
         return vendor
 
     def _sync_ipsec_conns(self, context, vendor, svc_context):
+        """
+        Gets the status of the vpn service.
+        :param context: Dictionary of the vpn service type.
+        :param vendor: vendor name
+        :param svc_context: vpn service operation type dictionary,
+        which it gets filter library
+
+        Returns: None
+        """
         try:
             self._get_driver().check_status(context, svc_context)
         except Exception as err:
@@ -242,7 +266,7 @@ class VPNaasEventHandler(object):
                    % str(err).capitalize())
             LOG.error(msg)
 
-    @core_pt.poll_event_desc(event='SYNC_UPDATE', spacing=10)
+    @core_pt.poll_event_desc(event='VYOS_VPN_SYNC', spacing=10)
     def sync(self, context):
         """Periodically updates the status of vpn service, whether the
         tunnel is UP or DOWN.
@@ -255,6 +279,7 @@ class VPNaasEventHandler(object):
         for svc_context in s2s_contexts:
             svc_vendor = self._get_service_vendor(svc_context['service'])
             self._sync_ipsec_conns(context, svc_vendor, svc_context)
+
 
 def events_init(sc, drivers):
     """Registers events with core service controller.
@@ -271,7 +296,7 @@ def events_init(sc, drivers):
     evs = [
         main.Event(id='VPNSERVICE_UPDATED',
                    handler=VPNaasEventHandler(sc, drivers)),
-        main.Event(id='SYNC_UPDATE',
+        main.Event(id='VYOS_VPN_SYNC',
                    handler=VPNaasEventHandler(sc, drivers))]
 
     sc.register_events(evs)
@@ -368,8 +393,8 @@ def init_agent_complete(cm, sc, conf):
     """
     Initializes periodic tasks.
     """
-    ev = sc.new_event(id='SYNC_UPDATE',
-                      key='SYNC_UPDATE')
+    ev = sc.new_event(id='VYOS_VPN_SYNC',
+                      key='VYOS_VPN_SYNC')
     sc.post_event(ev)
     msg = " vpn agent init complete"
     LOG.info(msg)
