@@ -211,15 +211,11 @@ class VPNaasEventHandler(object):
 
     def _vpnservice_updated(self, ev, driver):
         context = ev.data.get('context')
-        self.resync(context)
-        # I still don't know from where to call this method
         kwargs = ev.data.get('kwargs')
         msg = "Vpn service updated from server side"
         LOG.debug(msg)
 
         try:
-            # in future if the vpnservice service function changes
-            # then one should get the below function with getattr function
             driver.vpnservice_updated(context, kwargs)
         except Exception as err:
             msg = ("Failed to update VPN service. %s" % str(err).capitalize())
@@ -260,43 +256,6 @@ class VPNaasEventHandler(object):
         for svc_context in s2s_contexts:
             svc_vendor = self._get_service_vendor(svc_context['service'])
             self._sync_ipsec_conns(context, svc_vendor, svc_context)
-
-    def resync(self, context):
-        """
-        Gets invoked when the agents gets started or restarted, deleted if
-        any services which are in PENDING_DELETE state.
-        :param context: Dictionary of the vpn service type.
-
-        Returns: None
-        """
-        try:
-            s2s_contexts = self.plugin_rpc.get_vpn_servicecontext(
-                context, filters={'status': ['PENDING_DELETE']})
-        except MessagingTimeout as e:
-            LOG.error("Failed in get_vpn_servicecontext for"
-                      " IPSEC connections. Error: %s" % (e))
-        else:
-            for svc_context in s2s_contexts:
-                svc_vendor = self._get_service_vendor(svc_context['service'])
-                self._resync_ipsec_conns(context, svc_vendor, svc_context)
-
-    def _resync_ipsec_conns(self, context, vendor, svc_context):
-        """
-        """
-        for site_conn in svc_context['siteconns']:
-            conn = site_conn['connection']
-            keywords = {'resource': conn}
-            try:
-                self._get_driver().delete_ipsec_conn(context, **keywords)
-            except Exception as err:
-                msg = ("Delete ipsec-site-conn: %s failed"
-                       " with Exception %s "
-                       % (conn['id'], str(err).capitalize()))
-                LOG.error(msg)
-
-            self._plugin_rpc.ipsec_site_conn_deleted(context,
-                                                     resource_id=conn['id'])
-
 
 def events_init(sc, drivers):
     """Registers events with core service controller.
