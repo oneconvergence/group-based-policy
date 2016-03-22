@@ -65,7 +65,7 @@ class Filter(object):
         Returns: data after applying filter on it
 
         """
-
+        
         for fk, fv in filters.items():
             for d in data[:]:
                 if d.get(fk) is None:
@@ -292,9 +292,11 @@ class Filter(object):
         for phm in pool_health_monitors:
             if phm['status'] in constants.ACTIVE_PENDING_STATUSES:
                 health_monitor = self.get_record(
-                    service_info['health_monitor'],
+                    service_info['health_monitors'],
                     'id', phm['monitor_id'])
                 retval['healthmonitors'].append(health_monitor)
 
         retval['driver'] = pool['provider']
         return retval
+
+
