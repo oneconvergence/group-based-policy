@@ -3,7 +3,6 @@
 TOP_DIR=$4
 NFP_SCRIPTS_DIR=$3
 source $TOP_DIR/openrc neutron service
-echo "wakeup_service.sh ImageName"
 function create_gbp_resources {
 #sudo bash $NFP_SCRIPTS_DIR/nfp_gbp_basic.sh $NFP_SCRIPTS_DIR $TOP_DIR
 sudo bash $NFP_SCRIPTS_DIR/nfp_gbp_script.sh $NFP_SCRIPTS_DIR $TOP_DIR
@@ -26,7 +25,7 @@ else
     exit
 fi
 
-InstanceName="demo_configurator_instance"
+InstanceName="configurator_instance"
 
 GROUP="svc_management_ptg"
 echo "GroupName: $GROUP"
@@ -85,10 +84,10 @@ ipnetns_router=`sudo ip netns |grep $RouterId`
 
 
 
-echo "Starting orchestrator  >>>> under screen named : config_agent"
+echo "Starting orchestrator  >>>> under screen named : orchestrator"
 screen -dmS "orchestrator" /usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orch_agent.ini
 
-echo "Starting config_agent  >>>> under screen named : config_agent"
+echo "Starting config_agent_proxy  >>>> under screen named : config_agent_proxy"
 screen -dmS "config_agent_proxy" /usr/bin/nfp  --config-file /etc/nfp_config_agent_proxy.ini
 sleep 1
 
