@@ -58,7 +58,7 @@ OPTS = [
     ),
     cfg.IntOpt(
         'periodic_interval',
-        default=10,
+        default=2,
         help='Interval for event polling task in seconds.'
         'Polling task wakesup with this interval and'
         'checks for timedout events.'

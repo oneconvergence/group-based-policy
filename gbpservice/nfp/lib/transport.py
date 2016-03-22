@@ -99,8 +99,8 @@ class RestApi(object):
 
     def post(self, path, body, method_type):
         url = self.url % (
-            self.controller_ip,
-            self.controller_port, path)
+            self.rest_server_ip,
+            self.rest_server_port, path)
         data = json.dumps(body)
         try:
             headers = {"content-type": "application/json",
@@ -114,8 +114,8 @@ class RestApi(object):
 
     def get(self, path):
         url = self.url % (
-            self.controller_ip,
-            self.controller_port, path)
+            self.rest_server_ip,
+            self.rest_server_port, path)
         try:
             headers = {"content-type": "application/json"}
             resp = requests.get(url,

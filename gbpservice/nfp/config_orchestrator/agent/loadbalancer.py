@@ -12,10 +12,10 @@
 
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from gbpservice.nfp.agent.agent import topics as a_topics
-from gbpservice.nfp.agent.agent.common import *
-from gbpservice.nfp.lib.backend_lib import *
-from neutron import context as n_context
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.agent.common import *
+from gbpservice.nfp.lib.transport import *
+
 LOG = logging.getLogger(__name__)
 
 
@@ -108,12 +108,12 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     def create_pool_health_monitor(self, context, health_monitor, pool_id):
         self._post(context, health_monitor[
-            'tenant_id'], 'pool_health_monitor',
+            'tenant_id'], 'health_monitor',
             health_monitor=health_monitor, pool_id=pool_id)
 
     def delete_pool_health_monitor(self, context, health_monitor, pool_id):
         self._delete(
-            context, health_monitor['tenant_id'], 'pool_health_monitor',
+            context, health_monitor['tenant_id'], 'health_monitor',
             health_monitor=health_monitor, pool_id=pool_id)
 
     def _context(self, context, tenant_id):
