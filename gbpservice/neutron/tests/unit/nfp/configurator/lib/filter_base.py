@@ -1,4 +1,20 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+
 import unittest
+
+""" Defines all the dummy resources needed for test_filter.py
+"""
 
 
 class BaseTestCase(unittest.TestCase):
@@ -356,7 +372,10 @@ class BaseTestCase(unittest.TestCase):
         self.firewall_rules = []
 
     def _test_get_lb_info(self):
+        """Prepares LB service_info needed for LB context
 
+        Returns: LB service info
+        """
         self.service_info['pools'] = self.pools
         self.service_info['members'] = self.members
         self.service_info['vips'] = self.vips
@@ -366,7 +385,10 @@ class BaseTestCase(unittest.TestCase):
         return self.service_info
 
     def _test_get_vpn_info(self):
+        """Prepares VPN service_info needed for VPN context
 
+        Returns: VPN service info
+        """
         self.service_info['vpnservices'] = self.vpnservices
         self.service_info['ikepolicies'] = self.ikepolicies
         self.service_info['ipsecpolicies'] = self.ipsecpolicies
@@ -377,7 +399,10 @@ class BaseTestCase(unittest.TestCase):
         return self.service_info
 
     def _test_get_fw_info(self):
+        """Prepares FW service_info needed for FW context
 
+        Returns: FW service info
+        """
         self.service_info['firewalls'] = self.firewalls
         self.service_info['firewall_policies'] = self.firewall_policies
         self.service_info['firewall_rules'] = self.firewall_rules
