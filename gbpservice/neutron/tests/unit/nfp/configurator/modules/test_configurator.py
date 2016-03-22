@@ -119,9 +119,15 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
                             self.fo.fake_request_data_generic_bulk())},
                         'single': {
                 'request_data_actual': (
-                            self.fo.fake_request_data_generic_single()),
+                            (self.fo.fake_request_data_generic_single(
+                                                                routes=True)
+                             if 'ROUTES' in method
+                             else self.fo.fake_request_data_generic_single())),
                 'request_data_expected': (
-                            self.fo.fake_request_data_generic_single())}
+                            (self.fo.fake_request_data_generic_single(
+                                                                routes=True)
+                             if 'ROUTES' in method
+                             else self.fo.fake_request_data_generic_single()))}
                         }
         if batch:
             request_data_actual, request_data_expected = (
@@ -129,10 +135,6 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
         else:
             request_data_actual, request_data_expected = (
                                             request_data['single'].values())
-
-        if 'ROUTES' in method:
-            request_data_expected['config'][0]['resource'] = 'routes'
-            request_data_actual['config'][0]['resource'] = 'routes'
 
         with mock.patch.object(
                     sc, 'new_event', return_value='foo') as mock_sc_event, \
@@ -214,12 +216,12 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
         data = "PUT ME IN THE QUEUE!"
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
                                                             mock_new_event), \
-            mock.patch.object(sc, 'poll_event') as mock_poll_event:
+            mock.patch.object(sc, 'stash_event') as mock_poll_event:
 
             agent.notify._notification(data)
 
-            mock_new_event.assert_called_with(id='NOTIFICATION_EVENT',
-                                              key='NOTIFICATION_EVENT',
+            mock_new_event.assert_called_with(id='STASH_EVENT',
+                                              key='STASH_EVENT',
                                               data=data)
             mock_poll_event.assert_called_with('foo')
 
