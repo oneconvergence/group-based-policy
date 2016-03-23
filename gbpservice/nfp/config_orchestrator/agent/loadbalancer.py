@@ -108,12 +108,12 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     def create_pool_health_monitor(self, context, health_monitor, pool_id):
         self._post(context, health_monitor[
-            'tenant_id'], 'health_monitor',
+            'tenant_id'], 'pool_health_monitor',
             health_monitor=health_monitor, pool_id=pool_id)
 
     def delete_pool_health_monitor(self, context, health_monitor, pool_id):
         self._delete(
-            context, health_monitor['tenant_id'], 'health_monitor',
+            context, health_monitor['tenant_id'], 'pool_health_monitor',
             health_monitor=health_monitor, pool_id=pool_id)
 
     def _context(self, context, tenant_id):
