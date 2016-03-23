@@ -10,17 +10,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import json
 import mock
 import unittest
 
+from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
+    lb_test_data as test_data)
 from gbpservice.nfp.configurator.agents import loadbalancer_v1 as lb
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_lb_driver as lb_driver)
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
-    haproxy_rest_client)
-from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
-    lb_test_data)
+    haproxy_rest_client as _rest_client)
+
 
 """ Implement test cases for loadbalancer driver.
 
@@ -31,8 +31,8 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(HaproxyOnVmDriverTestCase, self).__init__(*args, **kwargs)
-        self.fo = lb_test_data.FakeObjects()
-        self.data = lb_test_data.AssertionData()
+        self.fo = test_data.FakeObjects()
+        self.data = test_data.AssertionData()
         self.driver = lb_driver.HaproxyOnVmDriver()
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,
@@ -46,7 +46,7 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
         self.fo.old_hm = self.fo._get_hm_object()
         self.fo.member = self.fo._get_member_object()
         self.fo.old_member = self.fo._get_member_object()
-        self.vip = json.dumps(self.fo.vip)
+        self.vip = self.fo.vip
         self.resp.status_code = 200
         self.get_resource = {
             'server': {
@@ -54,9 +54,9 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                 'srvr:4910851f-4af7-4592-ad04-08b508c6fa21': []},
             'timeout': {}}
 
-    @mock.patch(__name__ + '.lb_test_data.FakeObjects.rpcmgr')
-    @mock.patch(__name__ + '.lb_test_data.FakeObjects.drivers')
-    @mock.patch(__name__ + '.lb_test_data.FakeObjects.sc')
+    @mock.patch(__name__ + '.test_data.FakeObjects.rpcmgr')
+    @mock.patch(__name__ + '.test_data.FakeObjects.drivers')
+    @mock.patch(__name__ + '.test_data.FakeObjects.sc')
     def _get_lb_handler_objects(self, sc, drivers, rpcmgr):
         """ Retrieves EventHandler object of loadbalancer agent.
 
@@ -80,7 +80,7 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
         """
         agent = self._get_lb_handler_objects()
         driver = lb_driver.HaproxyOnVmDriver(agent.plugin_rpc)
-        rest_client = haproxy_rest_client.HttpRequests(
+        rest_client = _rest_client.HttpRequests(
             self.data.url, self.data.port)
         logical_device_return_value = {
             'vip': self.fo.vip,
@@ -91,12 +91,11 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
         with mock.patch.object(
                 agent.plugin_rpc,
                 'get_logical_device',
-                return_value=logical_device_return_value) as (
-                mock_get_logical_device),\
+                return_value=logical_device_return_value),\
             mock.patch.object(
                 driver,
                 '_get_rest_client',
-                return_value=rest_client) as (mock_rest_client),\
+                return_value=rest_client),\
             mock.patch.object(
                 rest_client.pool,
                 'request', return_value=self.resp) as (mock_request),\
@@ -165,8 +164,7 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                     data=self.data.delete_member_data,
                     headers=self.data.header,
                     timeout=self.data.timeout,
-                    url=self.data.delete_member_url
-                    )
+                    url=self.data.delete_member_url)
             elif method_name == 'UPDATE_MEMBER':
                 driver.update_member(
                     self.fo.old_member[0],
@@ -324,4 +322,3 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
