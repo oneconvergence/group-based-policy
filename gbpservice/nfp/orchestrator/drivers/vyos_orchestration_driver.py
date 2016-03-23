@@ -13,8 +13,8 @@
 from neutron._i18n import _LE
 from oslo_log import log as logging
 
-from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.common import constants as nfp_constants
+from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.orchestrator.drivers.orchestration_driver_base import (
     OrchestrationDriverBase
 )
@@ -132,24 +132,24 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                 {
                     'resource': 'interfaces',
                     'kwargs': {
-                       'vm_mgmt_ip': device_data['mgmt_ip_address'],
-                       'service_vendor': device_data['service_vendor'],
-                       'provider_ip': provider_ip,
-                       'provider_cidr': provider_cidr,
-                       'provider_interface_position': 2,
-                       'stitching_ip': consumer_ip,
-                       'stitching_cidr': consumer_cidr,
-                       'stitching_interface_position': 3,
-                       'provider_mac': provider_mac,
-                       'stitching_mac': consumer_mac,
-                       'rule_info':{
-                           'active_provider_mac': provider_mac,
-                           'active_stitching_mac': consumer_mac,
-                           'active_fip': device_data['mgmt_ip_address'],
-                           'service_id': device_data['network_function_id'],
-                           'tenant_id': device_data['tenant_id']
+                        'vm_mgmt_ip': device_data['mgmt_ip_address'],
+                        'service_vendor': device_data['service_vendor'],
+                        'provider_ip': provider_ip,
+                        'provider_cidr': provider_cidr,
+                        'provider_interface_position': 2,
+                        'stitching_ip': consumer_ip,
+                        'stitching_cidr': consumer_cidr,
+                        'stitching_interface_position': 3,
+                        'provider_mac': provider_mac,
+                        'stitching_mac': consumer_mac,
+                        'rule_info':{
+                            'active_provider_mac': provider_mac,
+                            'active_stitching_mac': consumer_mac,
+                            'active_fip': device_data['mgmt_ip_address'],
+                            'service_id': device_data['network_function_id'],
+                            'tenant_id': device_data['tenant_id']
                         },
-                       'service_type': device_data['service_type'].lower()
+                        'service_type': device_data['service_type'].lower()
                     }
                 },
                 {
