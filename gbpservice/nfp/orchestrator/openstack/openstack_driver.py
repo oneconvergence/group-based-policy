@@ -17,12 +17,10 @@ from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 from keystoneclient.v2_0 import client as identity_client
 from keystoneclient.v3 import client as keyclientv3
-from keystonemiddleware import auth_token  # noqa
 from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
 
-cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
 cfg.CONF.import_opt("bind_port", 'neutron.common.config')
 
 class OpenstackApi(object):
@@ -720,6 +718,46 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
+    def get_pools(self, token, filters=None):
+        """ List Pools
+
+        :param token: A scoped_token
+        :param filters: Parameters for list filter
+        example for filter: ?tenant_id=%s&id=%s
+
+        :return: Pool List
+
+        """
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            pools = neutron.list_pools(**filters).get('pools', [])
+            return pools
+        except Exception as ex:
+            err = ("Failed to read pool list from"
+                   " Openstack Neutron service's response"
+                   " KeyError :: %s" % (ex))
+            LOG.error(err)
+            raise Exception(err)
+
+    def get_vip(self, token, vip_id):
+        """ Get vip details
+
+        :param token: A scoped_token
+        :param vip_id: Port UUID
+
+        :return: VIP details
+
+        """
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            return neutron.show_vip(vip_id)
+        except Exception as ex:
+            err = ("Failed to read vip information"
+                   " Exception :: %s" % (ex))
+            LOG.error(err)
+            raise Exception(err)
 
 class GBPClient(OpenstackApi):
     """ GBP Client Api Driver. """
