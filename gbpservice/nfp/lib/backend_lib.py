@@ -49,7 +49,7 @@ OPTS = [
 oslo_config.CONF.register_opts(OPTS)
 oslo_config.CONF.register_opts(rest_opts, "REST")
 oslo_config.CONF.register_opts(rpc_opts, "RPC")
-
+n_rpc.init(cfg.CONF)
 
 class RestClientException(exceptions.Exception):
 
@@ -133,7 +133,6 @@ class RPCClient(object):
         self.topic = topic
         _target = target.Target(topic=self.topic,
                                 version=self.API_VERSION)
-        n_rpc.init(cfg.CONF)
         self.client = n_rpc.get_client(_target)
         self.cctxt = self.client.prepare(version=self.API_VERSION,
                                          topic=self.topic)
