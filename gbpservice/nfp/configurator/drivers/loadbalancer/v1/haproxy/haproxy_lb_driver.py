@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
 from oslo_log import log as logging
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
                                                     haproxy_rest_client)
@@ -58,16 +59,14 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
         if vip is None:
             return None
         else:
-            #  vip_desc = json.loads(vip['description'])
-            vip_desc = vip['description']
+            vip_desc = ast.literal_eval(vip['description'])
             device = vip_desc['floating_ip']
             if device:
                 HaproxyOnVmDriver.pool_to_device[pool_id] = device
                 return device
 
     def _get_interface_mac(self, vip):
-        # vip_desc = json.loads(vip['description'])
-        vip_desc = vip['description']
+        vip_desc = ast.literal_eval(vip['description'])
         return vip_desc['provider_interface_mac']
 
     def _expand_expected_codes(self, codes):

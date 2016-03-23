@@ -324,15 +324,15 @@ class HeatDriver():
                 provider_subnet = subnet
                 break
         if provider_subnet:
-            lb_pool_ids = self.lbaas_plugin.get_pools(
-                auth_token, provider_tenant_id,
+            lb_pool_ids = self.neutron_client.get_pools(
+                auth_token,
                 filters={'subnet_id': [provider_subnet['id']]})
             if lb_pool_ids and lb_pool_ids[0]['vip_id']:
-                lb_vip = self.lbaas_plugin.get_vip(
-                    auth_token, provider_tenant_id, lb_pool_ids[0]['vip_id'])
+                lb_vip = self.neutron_client.get_vip(
+                    auth_token, lb_pool_ids[0]['vip_id'])
                 self._create_pt(auth_token, provider_tenant_id, provider['id'],
                                 "service_target_vip_pt",
-                                port_id=lb_vip['port_id'])
+                                port_id=lb_vip['vip']['port_id'])
 
     def _is_service_target(self, policy_target):
         if policy_target['name'] and (policy_target['name'].startswith(
@@ -964,10 +964,11 @@ class HeatDriver():
 
         try:
             stack = heatclient.get(stack_id)
-	    LOG.info(_("Stack %(stack)s status is %(status)s"), {'stack': stack_id, 'status': stack.stack_status})
             if stack.stack_status == 'DELETE_FAILED':
                 return failure_status
             elif stack.stack_status == 'CREATE_COMPLETE':
+                return success_status
+            elif stack.stack_status == 'UPDATE_COMPLETE':
                 return success_status
             elif stack.stack_status == 'DELETE_COMPLETE':
                 LOG.info(_("Stack %(stack)s is deleted"),

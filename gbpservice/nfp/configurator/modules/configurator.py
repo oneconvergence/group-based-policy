@@ -10,12 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_log import log
+
 from gbpservice.nfp.configurator.lib import constants
 from gbpservice.nfp.configurator.lib import demuxer
-from oslo_log import log
-from gbpservice.nfp.core import rpc
-from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import schema_validator
+from gbpservice.nfp.configurator.lib import utils
+from gbpservice.nfp.core import rpc
 
 AGENTS_PKG = 'gbpservice.nfp.configurator.agents'
 CONFIGURATOR_RPC_TOPIC = 'configurator'
@@ -424,7 +425,8 @@ def module_init(sc, conf):
         LOG.error(msg)
         raise Exception(err)
     else:
-        LOG.info("Initialized configurator de-multiplexer.")
+        msg = ("Initialized configurator de-multiplexer.")
+        LOG.info(msg)
 
     # Initialize all the pre-loaded service agents
     try:
@@ -435,7 +437,8 @@ def module_init(sc, conf):
         LOG.error(msg)
         raise Exception(err)
     else:
-        LOG.info("Initialized configurator agents.")
+        msg = ("Initialized configurator agents.")
+        LOG.info(msg)
 
     # Initialize RPC client for receiving messages from REST server
     try:
@@ -446,8 +449,9 @@ def module_init(sc, conf):
         LOG.error(msg)
         raise Exception(err)
     else:
-        LOG.debug("Initialized configurator RPC with topic %s."
-                  % CONFIGURATOR_RPC_TOPIC)
+        msg = ("Initialized configurator RPC with topic %s."
+               % CONFIGURATOR_RPC_TOPIC)
+        LOG.debug(msg)
 
 
 def init_complete(sc, conf):
@@ -472,4 +476,5 @@ def init_complete(sc, conf):
         LOG.error(msg)
         raise Exception(err)
     else:
-        LOG.info("Initialization of configurator agent modules completed.")
+        msg = ("Initialization of configurator agent modules completed.")
+        LOG.info(msg)
