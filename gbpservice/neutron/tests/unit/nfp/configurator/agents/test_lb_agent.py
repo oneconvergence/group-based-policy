@@ -108,7 +108,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
                     'receiver': 'neutron'})
             mock_stash_event.assert_called_with('foo')
 
-    '''def test_get_logical_device(self):
+    def test_get_logical_device(self):
         """Implements test case for get_logical_device method
         of loadbalancer agent's LBaasRpcSender class.
 
@@ -120,7 +120,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
         agent = lb.LBaasRpcSender(sc)
         agent.get_logical_device(
             '6350c0fd-07f8-46ff-b797-62acd23760de',
-            test_data.FakeObjects()._get_context_logical_device())'''
+            test_data.FakeObjects()._get_context_logical_device())
 
 """Implement test cases for RPC manager methods of loadbalancer agent.
 
