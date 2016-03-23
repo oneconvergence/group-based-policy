@@ -954,7 +954,7 @@ class HeatDriver():
                             time=wait_timeout,
                             stack_owner=stack.stack_owner)
 
-    def is_config_complete(self, stack_id, tenant_id):
+    def is_config_applied(self, stack_id, tenant_id):
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
@@ -986,7 +986,7 @@ class HeatDriver():
                           {'stack': stack_id})
             return failure_status
 
-    def is_config_delete_complete(self, stack_id, tenant_id):
+    def is_config_deleted(self, stack_id, tenant_id):
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
@@ -1017,7 +1017,7 @@ class HeatDriver():
                           {'stack': stack_id})
             return failure_status
 
-    def apply_user_config(self, network_function_details):
+    def apply_configuration(self, network_function_details):
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
@@ -1060,7 +1060,7 @@ class HeatDriver():
 
         return stack_id
 
-    def delete(self, stack_id, tenant_id):
+    def delete_configuration(self, stack_id, tenant_id):
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
 

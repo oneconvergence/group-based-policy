@@ -23,7 +23,7 @@ from gbpservice.nfp.core.main import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
-from gbpservice.nfp.orchestrator.openstack import heat_driver
+from gbpservice.nfp.orchestrator.drivers import heat_config_driver
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 
@@ -153,7 +153,7 @@ class ServiceOrchestrator(object):
         #self.db_session = nfp_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient()
         self.keystoneclient = openstack_driver.KeystoneClient()
-        self.config_driver = heat_driver.HeatDriver()
+        self.config_driver = heat_config_driver.HeatDriver()
 
     @property
     def db_session(self):
@@ -289,8 +289,9 @@ class ServiceOrchestrator(object):
                                event_data=event_data)
             return
 
-        self.config_driver.delete(network_function_info['heat_stack_id'],
-                                  network_function['tenant_id'])
+        self.config_driver.delete_configuration(
+            network_function_info['heat_stack_id'],
+            network_function['tenant_id'])
         request_data = {
             'heat_stack_id': network_function_info['heat_stack_id'],
             'tenant_id': network_function['tenant_id'],
@@ -348,7 +349,7 @@ class ServiceOrchestrator(object):
             self.db_session, request_data['network_function_instance_id'], nfi)
         network_function_details = self.get_network_function_details(
             nfi['network_function_id'])
-        request_data['heat_stack_id'] = self.config_driver.apply_user_config(
+        request_data['heat_stack_id'] = self.config_driver.apply_configuration(
                 network_function_details)  # Heat driver to launch stack
         request_data['tenant_id'] = nfi['tenant_id']
         LOG.debug("handle_device_active heat_stack_id: %s"
@@ -424,7 +425,7 @@ class ServiceOrchestrator(object):
 
     def check_for_user_config_complete(self, event):
         request_data = event.data
-        config_status = self.config_driver.is_config_complete(
+        config_status = self.config_driver.is_config_applied(
             request_data['heat_stack_id'], request_data['tenant_id'])
         if config_status == nfp_constants.ERROR:
             updated_network_function = {'status': nfp_constants.ERROR}
@@ -448,7 +449,7 @@ class ServiceOrchestrator(object):
     def check_for_user_config_deleted(self, event):
         request_data = event.data
         try:
-            config_status = self.config_driver.is_config_delete_complete(
+            config_status = self.config_driver.is_config_deleted(
                 request_data['heat_stack_id'], request_data['tenant_id'])
         except Exception as err:
             # FIXME: May be we need a count before removing the poll event
