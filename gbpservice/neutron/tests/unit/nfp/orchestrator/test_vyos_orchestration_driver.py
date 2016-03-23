@@ -14,12 +14,15 @@ import mock
 from mock import patch
 import unittest
 
+from oslo_config import cfg
+
 from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.orchestrator.drivers import (
     vyos_orchestration_driver
 )
 
 
+cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
 OPENSTACK_DRIVER_CLASS_PATH = ('gbpservice.nfp.orchestrator'
                                '.openstack.openstack_driver')
 
@@ -36,12 +39,13 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_nfd_sharing_info_when_device_sharing_unsupported(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
-                        supports_device_sharing=False)
+                        cfg.CONF, supports_device_sharing=False)
         self.assertIsNone(driver.get_network_function_device_sharing_info(
                                                                         None))
 
     def test_get_network_function_device_sharing_info(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
+			cfg.CONF,
                         supports_device_sharing=True,
                         supports_hotplug=True)
         device_data = {'tenant_id': 'tenant_id',
@@ -60,11 +64,12 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
     def test_select_network_function_device_when_device_sharing_unsupported(
                                                                         self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
-                        supports_device_sharing=False)
+                        cfg.CONF, supports_device_sharing=False)
         self.assertIsNone(driver.select_network_function_device(None, None))
 
     def test_select_network_function_device(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
+			cfg.CONF,
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -97,6 +102,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_create_network_function_device(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
+			cfg.CONF,
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -163,6 +169,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_delete_network_function_device(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
+			cfg.CONF,
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -197,6 +204,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_network_function_device_status(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
+			cfg.CONF,
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -226,6 +234,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_plug_network_function_device_interfaces(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
+		cfg.CONF,
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -270,6 +279,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_unplug_network_function_device_interfaces(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
+		cfg.CONF,
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -315,6 +325,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_network_function_device_healthcheck_info(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
+		cfg.CONF,
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -328,6 +339,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_network_function_device_config_info(self):
         driver = vyos_orchestration_driver.VyosOrchestrationDriver(
+		cfg.CONF,
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)

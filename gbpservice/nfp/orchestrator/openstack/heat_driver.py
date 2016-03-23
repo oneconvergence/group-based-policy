@@ -139,11 +139,11 @@ class HeatDriver():
 
     initialized = False
 
-    def __init__(self):
+    def __init__(self, config):
         self._lbaas_plugin = None
-        self.keystoneclient = KeystoneClient()
-        self.gbp_client = GBPClient()
-        self.neutron_client = NeutronClient()
+        self.keystoneclient = KeystoneClient(config)
+        self.gbp_client = GBPClient(config)
+        self.neutron_client = NeutronClient(config)
         self.initialized = True
         #self._name = name
         self.resource_owner_tenant_id = None

@@ -55,7 +55,7 @@ def events_init(controller, config, service_orchestrator):
 
 
 def module_init(controller, config):
-    events_init(controller, config, ServiceOrchestrator(controller))
+    events_init(controller, config, ServiceOrchestrator(controller, config))
     rpc_init(controller, config)
 
 
@@ -76,60 +76,60 @@ class RpcHandler(object):
 
     @log_helpers.log_method_call
     def create_network_function(self, context, network_function):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.create_network_function(
             context, network_function)
 
     @log_helpers.log_method_call
     def get_network_function(self, context, network_function_id):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.get_network_function(
             context, network_function_id)
 
     @log_helpers.log_method_call
     def get_network_functions(self, context, filters={}):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.get_network_functions(
             context, filters)
 
     @log_helpers.log_method_call
     def update_network_function(self, context, network_function_id,
                                updated_network_function):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.update_network_function(
             context, network_function_id, updated_network_function)
 
     @log_helpers.log_method_call
     def delete_network_function(self, context, network_function_id):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.delete_network_function(
             context, network_function_id)
 
     @log_helpers.log_method_call
     def policy_target_added_notification(self, context, network_function_id,
                                          policy_target):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.handle_policy_target_added(
             context, network_function_id, policy_target)
 
     @log_helpers.log_method_call
     def policy_target_removed_notification(self, context, network_function_id,
                                            policy_target):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.handle_policy_target_removed(
             context, network_function_id, policy_target)
 
     @log_helpers.log_method_call
     def consumer_ptg_added_notification(self, context, network_function_id,
                                         policy_target_group):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.handle_consumer_ptg_added(
             context, network_function_id, policy_target_group)
 
     @log_helpers.log_method_call
     def consumer_ptg_removed_notification(self, context, network_function_id,
                                           policy_target_group):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.handle_consumer_ptg_removed(
             context, network_function_id, policy_target_group)
 
@@ -147,13 +147,13 @@ class ServiceOrchestrator(object):
     Config driver.
     """
 
-    def __init__(self, controller):
+    def __init__(self, controller, config):
         self._controller = controller
         self.db_handler = nfp_db.NFPDbBase()
         #self.db_session = nfp_db_api.get_session()
-        self.gbpclient = openstack_driver.GBPClient()
-        self.keystoneclient = openstack_driver.KeystoneClient()
-        self.config_driver = heat_driver.HeatDriver()
+        self.gbpclient = openstack_driver.GBPClient(config)
+        self.keystoneclient = openstack_driver.KeystoneClient(config)
+        self.config_driver = heat_driver.HeatDriver(config)
 
     @property
     def db_session(self):

@@ -7,6 +7,8 @@ from gbpclient.v2_0 import client as gbp_client
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from novaclient import client as nova_client
 
+cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
+
 
 class SampleData(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -28,7 +30,7 @@ class SampleData(unittest.TestCase):
 class TestKeystoneClient(SampleData):
     def __init__(self, *args, **kwargs):
         super(TestKeystoneClient, self).__init__(*args, **kwargs)
-        self.keystone_obj = openstack_driver.KeystoneClient()
+        self.keystone_obj = openstack_driver.KeystoneClient(cfg.CONF)
 
     def setUp(self):
         cfg.CONF.set_override('admin_user',
@@ -91,7 +93,7 @@ class TestKeystoneClient(SampleData):
 class TestNovaClient(SampleData):
     def __init__(self, *args, **kwargs):
         super(TestNovaClient, self).__init__(*args, **kwargs)
-        self.nova_obj = openstack_driver.NovaClient()
+        self.nova_obj = openstack_driver.NovaClient(cfg.CONF)
 
     @mock.patch.object(identity_client, "Client")
     def test_get_image_id(self, key_obj, mock_obj):
@@ -220,7 +222,7 @@ class TestNovaClient(SampleData):
 class TestNeutronClient(SampleData):
     def __init__(self, *args, **kwargs):
         super(TestNeutronClient, self).__init__(*args, **kwargs)
-        self.neutron_obj = openstack_driver.NeutronClient()
+        self.neutron_obj = openstack_driver.NeutronClient(cfg.CONF)
 
     def test_get_floating_ip(self, mock_obj):
         instance = mock_obj.return_value
@@ -383,7 +385,7 @@ class TestNeutronClient(SampleData):
 class TestGBPClient(SampleData):
     def __init__(self, *args, **kwargs):
         super(TestGBPClient, self).__init__(*args, **kwargs)
-        self.gbp_obj = openstack_driver.GBPClient()
+        self.gbp_obj = openstack_driver.GBPClient(cfg.CONF)
 
     def test_get_policy_target_groups(self, mock_obj):
         instance = mock_obj.return_value
