@@ -370,7 +370,7 @@ class FwGenericConfigDriver(object):
                "primary service at: %r" % vm_mgmt_ip)
         LOG.info(msg)
         try:
-            resp = requests.post(url, data=data, timeout=60)
+            resp = requests.post(url, data=data, timeout=360)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
                    "%r. ERROR: %r" % (vm_mgmt_ip, str(err).capitalize()))
