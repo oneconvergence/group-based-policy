@@ -259,7 +259,12 @@ class Controller(object):
         """
         log_info(LOG, "Event %s done" % (event.identify()))
         seq_map = self._sequencer.copy()
-        seq_map = seq_map[event.worker_attached]
+
+        try:
+            seq_map = seq_map[event.worker_attached]
+        except KeyError as err:
+            # Event was not serialized
+            return
 
         # If there are no events sequenced - nothing to do
         if event.binding_key not in seq_map:
