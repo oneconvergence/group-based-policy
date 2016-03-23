@@ -54,7 +54,7 @@ class TestContext:
     def get_test_context(self):
         variables = {}
         variables['context'] = self.get_context()
-        variables['body'] = 'body'
+        variables['body'] = {'config':[{'kwargs':{} }]}
         variables['method_type'] = 'CREATE'
         variables['device_config'] = True
         return variables
@@ -107,7 +107,7 @@ class CommonLibarayTest(unittest.TestCase):
     
 
     
-    def test_est_send_request_to_configurator(self):
+    def test_rest_send_request_to_configurator(self):
         
         with mock.patch.object(common.RestApi, 'post') as mock_post:
             mock_post.side_effect = self._post
