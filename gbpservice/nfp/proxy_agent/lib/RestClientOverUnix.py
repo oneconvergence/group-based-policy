@@ -17,7 +17,7 @@ import exceptions
 from oslo_config import cfg
 import six.moves.urllib.parse as urlparse
 import json
-from gbpservice.nfp.agent_proxy.lib.common import *
+from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 

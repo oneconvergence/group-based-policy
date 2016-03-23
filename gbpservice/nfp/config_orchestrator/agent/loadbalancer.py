@@ -12,10 +12,10 @@
 
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from gbpservice.nfp.agent.agent import topics as a_topics
-from gbpservice.nfp.agent.agent.common import *
-from gbpservice.nfp.lib.backend_lib import *
-from neutron import context as n_context
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.agent.common import *
+from gbpservice.nfp.lib.transport import *
+
 LOG = logging.getLogger(__name__)
 
 
