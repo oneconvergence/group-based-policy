@@ -10,11 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-supported_service_types = ['firewall', 'vpn', 'loadbalancer', None]
+supported_service_types = ['firewall', 'vpn', 'loadbalancer', 'heat', None]
 invalid_service_type = 'invalid'
 SUCCESS = 'SUCCESS'
 FAILED = 'FAILED'
-ORCHESTRATOR = 'orchestrator'
+DEVICE_ORCHESTRATOR = 'orchestrator'
+SERVICE_ORCHESTRATOR = 'service_orchestrator'
+RESOURCE_HEAT = 'heat'
 EVENT_STASH = 'STASH_EVENT'
 EVENT_PROCESS_BATCH = 'PROCESS_BATCH'
 NFD_NOTIFICATION = 'network_function_device_notification'
