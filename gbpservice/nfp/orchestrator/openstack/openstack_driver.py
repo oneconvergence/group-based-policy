@@ -17,12 +17,10 @@ from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 from keystoneclient.v2_0 import client as identity_client
 from keystoneclient.v3 import client as keyclientv3
-from keystonemiddleware import auth_token  # noqa
 from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
 
-cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
 cfg.CONF.import_opt("bind_port", 'neutron.common.config')
 
 class OpenstackApi(object):
