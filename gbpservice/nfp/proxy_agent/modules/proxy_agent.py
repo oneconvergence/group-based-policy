@@ -24,9 +24,8 @@ from gbpservice.nfp.core.rpc import RpcAgent
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 
-from gbpservice.nfp.agent_proxy.lib.common import *
-from gbpservice.nfp.agent_proxy.lib import topics
-from gbpservice.nfp.agent_proxy.lib import RestClientOverUnix as rc
+from gbpservice.nfp.proxy_agent.lib import topics
+from gbpservice.nfp.proxy_agent.lib import RestClientOverUnix as rc
 
 from neutron import context as ctx
 
@@ -46,7 +45,6 @@ def rpc_init(config, sc):
 
 def module_init(sc, conf):
     rpc_init(conf, sc)
-    # events_init(conf, sc)
 
 
 class RpcHandler(object):

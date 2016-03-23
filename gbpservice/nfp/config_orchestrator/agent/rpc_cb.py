@@ -12,12 +12,12 @@
 
 import importlib
 from gbpservice.nfp.core import poll as core_pt
-from gbpservice.nfp.agent.agent import loadbalancer as lb
-from gbpservice.nfp.agent.agent import firewall as fw
-from gbpservice.nfp.agent.agent import vpn as vpn
-from gbpservice.nfp.agent.agent import generic as gc
-from gbpservice.nfp.agent.agent.common import *
-from gbpservice.nfp.lib.backend_lib import *
+from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
+from gbpservice.nfp.config_orchestrator.agent import firewall as fw
+from gbpservice.nfp.config_orchestrator.agent import vpn as vpn
+from gbpservice.nfp.config_orchestrator.agent import generic as gc
+from gbpservice.nfp.config_orchestrator.agent.common import *
+from gbpservice.nfp.lib.transport import *
 import json
 LOG = logging.getLogger(__name__)
 

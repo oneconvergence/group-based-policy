@@ -157,7 +157,7 @@ class PollingTask(oslo_periodic_task.PeriodicTasks):
         pulse.start(
             interval=oslo_config.CONF.periodic_interval, initial_delay=None)
 
-    @oslo_periodic_task.periodic_task(spacing=1)
+    @oslo_periodic_task.periodic_task(spacing=2)
     def periodic_sync_task(self, context):
         log_debug(LOG, "Periodic sync task invoked !")
         # invoke the common class to handle event timeouts
@@ -322,6 +322,7 @@ class PollQueueHandler(object):
             if ev.max_times:
                 return
         ev.poll_event = 'POLL_EVENT'
+        ev.serialize  = False
         ev = self._schedule(ev)
         if ev:
             self._scheduled(ev)
