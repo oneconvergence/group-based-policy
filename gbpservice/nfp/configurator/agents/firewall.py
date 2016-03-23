@@ -12,10 +12,10 @@
 
 import os
 import oslo_messaging as messaging
+import requests
 
 from oslo_config import cfg
 from oslo_log import log as logging
-from requests import ConnectionError
 
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import fw_constants as const
@@ -263,7 +263,7 @@ class FWaasEventHandler(object):
                                                         firewall['id'])
             try:
                 status = self.method(context, firewall, host)
-            except ConnectionError:
+            except requests.ConnectionError:
                 # FIXME It can't be correct everytime
                 msg = ("There is a connection error for firewall %r of "
                        "tenant %r. Assuming either there is serious "
@@ -274,7 +274,7 @@ class FWaasEventHandler(object):
                 self.plugin_rpc.firewall_deleted(context, firewall['id'])
 
             except Exception as err:
-                # TODO Is it correct to raise ? As the subsequent
+                # TODO(VIKASH) Is it correct to raise ? As the subsequent
                 # attempt to clean will only re-raise the last one.And it
                 # can go on and on and may not be ever recovered.
                 self.plugin_rpc.set_firewall_status(

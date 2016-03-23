@@ -50,7 +50,7 @@ class BaseDriver(object):
            if they want to support other types.
         """
         ip = kwargs.get('mgmt_ip')
-        COMMAND = 'ping -c5 '+ip
+        COMMAND = 'nc '+ip+' 8888 -z'
         try:
             subprocess.check_output(COMMAND, stderr=subprocess.STDOUT,
                                     shell=True)
