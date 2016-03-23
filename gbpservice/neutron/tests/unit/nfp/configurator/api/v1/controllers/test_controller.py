@@ -1,314 +1,326 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+#import json
 import mock
 import unittest
-import subprocess
 
+import oslo_serialization.jsonutils as jsonutils
+import pecan
 from pecan import rest
-from pecan import set_config
-from pecan.testing import load_test_app
+import webtest
 
-mock_request = mock.Mock()
+from gbpservice.nfp.configurator.api import root_controller
+from gbpservice.nfp.configurator.api.v1.controllers import controller
 
-from gbpservice.neutron.nfp.configurator.api.v1.controllers import controller
+"""This class contains all the unittest cases for REST server of configurator.
+
+This class tests success and failure cases for all the HTTP requests which
+are implemented in REST server. run_tests.sh file is used for running all
+the tests in this class. All the methods of this class started with test
+prefix called and on success it will print ok and on failure it will
+print the error trace.
+
+"""
 
 
 class ControllerTestCase(unittest.TestCase, rest.RestController):
 
     def setUp(self):
-        self.app = load_test_app('/home/hitesh/Desktop/\
-group-based-policy/gbpservice/neutron/nfp/\
-configurator/api/config.py')
+        """Standard method of TestCase to setup environment before each test.
 
-    def tearDown(self):
-        set_config({}, overwrite=True)
+        This method set the value of required variables that is used in
+        test cases before execution of each test case.
 
-    def test_get(self):
-        controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object, '_get_notifications')\
-            as rpc_mock:
-            rpc_mock.return_value = True
-            value = controller_object.get()
-            rpc_mock.assert_called_once_with()
-        self.assertEqual(value, True)
 
-    def test_post(self):
-        response = self.app.post(
-            '/v1/nfp/create_network_function_device_config',
-            content_type='application/json')
-
-        self.assertEqual(response.status_code, 200)
-
-    def test_put(self):
-        response = self.app.put(
-            '/v1/nfp/update_network_function_device_config',
-            content_type='application/json')
-
-        self.assertEqual(response.status_code, 200)
-
-    def test_get_notifications_(self):
-        self.host = subprocess.check_output('hostname', shell=True).rstrip()
-        controller_object = controller.Controller("module_name")
-        rpcclient = controller.RPCClient("topic", "host")
-        with mock.patch.object(controller_object.rpcclient.client, 'call')\
-            as rpc_mock,\
-            mock.patch.object(controller_object.rpcclient.client, 'prepare')\
-                as prepare_mock:
-            prepare_mock.return_value = controller_object.rpcclient.client
-            rpc_mock.return_value = True
-            value = controller_object._get_notifications()
-        prepare_mock.assert_called_once_with(server=self.host)
-        rpc_mock.assert_called_once_with(
-            controller_object.rpcclient, 'get_notifications')
-        self.assertEqual(value, 'true')
+        """
+        RootController = root_controller.RootController()
+        self.app = webtest.TestApp(pecan.make_app(RootController))
+        self.data = {'request_data': {'info': {}, 'config': [
+            {'resource': 'Res', 'kwargs': {'context': 'context'}}]}}
 
     def test_get_notifications(self):
-        controller_object = controller.Controller("module_name")
+        """Tests HTTP get request get_notifications.
+
+        Returns: none
+
+        """
+
         with mock.patch.object(
-            controller_object.rpcclient, 'get_notifications')\
-            as rpc_mock:
-            rpc_mock.return_value = True
-            value = controller_object._get_notifications()
-            rpc_mock.assert_called_once_with()
-        self.assertEqual(value, 'true')
+                controller.RPCClient, 'call') as rpc_mock:
+            rpc_mock.return_value = jsonutils.dumps(self.data)
+            response = self.app.get(
+                '/v1/nfp/get_notifications',
+            )
+        rpc_mock.assert_called_with()
+        self.assertEqual(response.status_code, 200)
 
-    def test_create_network_function_device_config(self):
-        controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object.rpcclient,
-             'create_network_function_device_config') as rpc_mock:
-            rpc_mock.return_value = True
-            value = controller_object._create_network_function_device_config(
-                body=({"request_data":
-                       {"info": {},
-                        "config": [{"resource": "Res", "kwargs":
-                                    {"context": "context"}}]}}))
-            rpc_mock.assert_called_once_with({'request_data':
-                                          {"info": {},
-                                           "config":
-                                           [{"resource": "Res",
-                                            "kwargs":
-                                             {"context": "context"}}]}})
-        self.assertEqual(value, 'true')
+    def test_post_create_network_function_device_config(self):
+        """Tests HTTP post request create_network_function_device_config.
 
-    def test_create_network_function_config(self):
-        controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object.rpcclient,
-            'create_network_function_config') as rpc_mock:
-            rpc_mock.return_value = True
-            value = controller_object._create_network_function_config(
-                body=({"request_data":
-                       {"info": {},
-                        "config": [{"resource": "Res", "kwargs":
-                                    {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with({'request_data':
-                                          {"info": {},
-                                           "config":
-                                           [{"resource": "Res",
-                                            "kwargs":
-                                             {"context": "context"}}]}})
-        self.assertEqual(value, 'true')
+        Returns: none
 
-    def test_update_network_function_device_config(self):
-        controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object.rpcclient,
-            'update_network_function_device_config') as rpc_mock:
-            rpc_mock.return_value = True
-            value = controller_object.\
-                _update_network_function_device_config(
-                    body=({"request_data":
-                          {"info": {},
-                           "config": [{"resource": "Res", "kwargs":
-                                      {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with({'request_data':
-                                          {"info": {},
-                                           "config":
-                                           [{"resource": "Res",
-                                            "kwargs":
-                                             {"context": "context"}}]}})
-        self.assertEqual(value, 'true')
+        """
 
-    def test_update_network_function_config(self):
-        controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object.rpcclient,
-            'update_network_function_config') as rpc_mock:
-            rpc_mock.return_value = True
-            value = controller_object._update_network_function_config(
-                body=({"request_data":
-                       {"info": {},
-                        "config": [{"resource": "Res", "kwargs":
-                                    {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with({'request_data':
-                                          {"info": {},
-                                           "config":
-                                           [{"resource": "Res",
-                                            "kwargs":
-                                             {"context": "context"}}]}})
-        self.assertEqual(value, 'true')
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            response = self.app.post(
+                '/v1/nfp/create_network_function_device_config',
+                jsonutils.dumps(self.data))
+        rpc_mock.assert_called_with(
+            'create_network_function_device_config', self.data)
+        self.assertEqual(response.status_code, 204)
 
-    def test_delete_network_function_device_config(self):
-        controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object.rpcclient,
-            'delete_network_function_device_config') as rpc_mock:
-            rpc_mock.return_value = True
-            value = controller_object._delete_network_function_device_config(
-                body=({"request_data":
-                       {"info": {},
-                        "config": [{"resource": "Res", "kwargs":
-                                    {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with({'request_data':
-                                          {"info": {},
-                                           "config":
-                                           [{"resource": "Res",
-                                            "kwargs":
-                                             {"context": "context"}}]}})
-        self.assertEqual(value, 'true')
+    def test_post_create_network_function_device_config(self):
+        """Tests HTTP post request create_network_function_device_config.
 
-    def test_delete_network_function_config(self):
-        controller_object = controller.Controller("module_name")
-        with mock.patch.object(controller_object.rpcclient,
-            'delete_network_function_config') as rpc_mock:
-            rpc_mock.return_value = True
-            value = controller_object._delete_network_function_config(
-                body=({"request_data":
-                       {"info": {},
-                        "config": [{"resource": "Res", "kwargs":
-                                    {"context": "context"}}]}}))
-        rpc_mock.assert_called_once_with({'request_data':
-                                          {"info": {},
-                                           "config":
-                                           [{"resource": "Res",
-                                            "kwargs":
-                                             {"context": "context"}}]}})
-        self.assertEqual(value, 'true')
+        Returns: none
 
-    def test_get_notifications_rpcclient(self):
-        rpcclient = controller.RPCClient("topic", "host")
-        with mock.patch.object(rpcclient.client, 'call') as rpc_mock,\
-                mock.patch.object(rpcclient.client, 'prepare') as prepare_mock:
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            response = self.app.post(
+                '/v1/nfp/create_network_function_device_config',
+                jsonutils.dumps(self.data))
+        rpc_mock.assert_called_with(
+            'create_network_function_device_config', self.data)
+        self.assertEqual(response.status_code, 204)
+
+    def test_post_create_network_function_config(self):
+        """Tests HTTP post request create_network_function_config.
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            response = self.app.post(
+                '/v1/nfp/create_network_function_config',
+                jsonutils.dumps(self.data))
+        rpc_mock.assert_called_with(
+            'create_network_function_config', self.data)
+        self.assertEqual(response.status_code, 204)
+
+    def test_post_delete_network_function_device_config(self):
+        """Tests HTTP post request delete_network_function_device_config.
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            response = self.app.post(
+                '/v1/nfp/delete_network_function_device_config',
+                jsonutils.dumps(self.data))
+        rpc_mock.assert_called_with(
+            'delete_network_function_device_config', self.data)
+        self.assertEqual(response.status_code, 204)
+
+    def test_post_delete_network_function_config(self):
+        """Tests HTTP post request delete_network_function_config.
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            response = self.app.post(
+                '/v1/nfp/delete_network_function_config',
+                jsonutils.dumps(self.data))
+        rpc_mock.assert_called_with(
+            'delete_network_function_config', self.data)
+        self.assertEqual(response.status_code, 204)
+
+    def test_put_update_network_function_device_config(self):
+        """Tests HTTP put request update_network_function_device_config.
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            response = self.app.put(
+                '/v1/nfp/update_network_function_device_config',
+                jsonutils.dumps(self.data))
+        rpc_mock.assert_called_with(
+            'update_network_function_device_config', self.data)
+        self.assertEqual(response.status_code, 204)
+
+    def test_put_update_network_function_config(self):
+        """Tests HTTP put request update_network_function_config.
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            response = self.app.put(
+                '/v1/nfp/update_network_function_config',
+                jsonutils.dumps(self.data))
+        rpc_mock.assert_called_with(
+            'update_network_function_config', self.data)
+        self.assertEqual(response.status_code, 204)
+
+    def test_call(self):
+        """Tests call function of RPCClient.
+
+        Returns: none
+
+        """
+        rpcclient = controller.RPCClient('topic_name', 'host_name')
+        with mock.patch.object(
+            rpcclient.client, 'call') as rpc_mock,\
+            mock.patch.object(
+                rpcclient.client, 'prepare') as (
+                    prepare_mock):
             prepare_mock.return_value = rpcclient.client
             rpc_mock.return_value = True
-            value = rpcclient.get_notifications()
-        prepare_mock.assert_called_once_with(server="host")
-        rpc_mock.assert_called_once_with(rpcclient, 'get_notifications')
+            value = rpcclient.call()
         self.assertEqual(value, True)
 
-    def test_create_network_function_device_config_rpcclient(self):
-        rpcclient = controller.RPCClient("topic", "host")
-        with mock.patch.object(rpcclient.client, 'cast') as rpc_mock,\
-                mock.patch.object(rpcclient.client, 'prepare') as prepare_mock:
+    def test_cast(self):
+        """Tests cast function of RPCClient.
+
+        Returns: none
+
+        """
+        rpcclient = controller.RPCClient('topic_name', 'host_name')
+        with mock.patch.object(
+            rpcclient.client, 'cast') as rpc_mock,\
+            mock.patch.object(
+                rpcclient.client, 'prepare') as (
+                    prepare_mock):
             prepare_mock.return_value = rpcclient.client
             rpc_mock.return_value = True
-            value = rpcclient.create_network_function_device_config(
-                {"info": {},
-                 "config": [{"resource": "Res",
-                             "kwargs": {"context": "context"}}]})
-        prepare_mock.assert_called_once_with(server="host")
-        rpc_mock.assert_called_once_with(
-            rpcclient,
-            'create_network_function_device_config',
-            request_data={'info': {},
-                          'config':
-                          [{'resource': 'Res',
-                            'kwargs': {'context': 'context'}}]})
+            value = rpcclient.cast('rpc_method_name',
+                                   jsonutils.dumps(self.data))
         self.assertEqual(value, True)
 
-    def test_create_network_function_config_rpcclient(self):
-        rpcclient = controller.RPCClient("topic", "host")
-        with mock.patch.object(rpcclient.client, 'cast') as rpc_mock,\
-                mock.patch.object(rpcclient.client, 'prepare') as prepare_mock:
-            prepare_mock.return_value = rpcclient.client
-            rpc_mock.return_value = True
-            value = rpcclient.create_network_function_config(
-                {"info": {},
-                 "config": [{"resource": "Res",
-                             "kwargs": {"context": "context"}}]})
-        prepare_mock.assert_called_once_with(server="host")
-        rpc_mock.assert_called_once_with(
-            rpcclient,
-            'create_network_function_config',
-            request_data={'info': {},
-                          'config':
-                          [{'resource': 'Res',
-                            'kwargs': {'context': 'context'}}]})
-        self.assertEqual(value, True)
+    def test_get_notifications_fail(self):
+        """Tests failure case of HTTP get request get_notifications.
 
-    def test_update_network_function_device_config_rpcclient(self):
-        rpcclient = controller.RPCClient("topic", "host")
-        with mock.patch.object(rpcclient.client, 'cast') as rpc_mock,\
-                mock.patch.object(rpcclient.client, 'prepare') as prepare_mock:
-            prepare_mock.return_value = rpcclient.client
-            rpc_mock.return_value = True
-            value = rpcclient.update_network_function_device_config(
-                {"info": {},
-                 "config": [{"resource": "Res",
-                             "kwargs": {"context": "context"}}]})
-        prepare_mock.assert_called_once_with(server="host")
-        rpc_mock.assert_called_once_with(
-             rpcclient,
-             'update_network_function_device_config',
-             request_data={'info': {},
-                           'config':
-                           [{'resource': 'Res',
-                             'kwargs': {'context': 'context'}}]})
-        self.assertEqual(value, True)
+        Returns: none
 
-    def test_update_network_function_config_rpcclient(self):
-        rpcclient = controller.RPCClient("topic", "host")
-        with mock.patch.object(rpcclient.client, 'cast') as rpc_mock,\
-                mock.patch.object(rpcclient.client, 'prepare') as prepare_mock:
-            prepare_mock.return_value = rpcclient.client
-            rpc_mock.return_value = True
-            value = rpcclient.update_network_function_config(
-                {"info": {},
-                 "config": [{"resource": "Res",
-                             "kwargs": {"context": "context"}}]})
-        prepare_mock.assert_called_once_with(server="host")
-        rpc_mock.assert_called_once_with(
-            rpcclient,
-            'update_network_function_config',
-            request_data={'info': {},
-                          'config':
-                          [{'resource': 'Res',
-                            'kwargs': {'context': 'context'}}]})
-        self.assertEqual(value, True)
+        """
 
-    def test_delete_network_function_device_config_rpcclient(self):
-        rpcclient = controller.RPCClient("topic", "host")
-        with mock.patch.object(rpcclient.client, 'cast') as rpc_mock,\
-                mock.patch.object(rpcclient.client, 'prepare') as prepare_mock:
-            prepare_mock.return_value = rpcclient.client
-            rpc_mock.return_value = True
-            value = rpcclient.delete_network_function_device_config(
-                {"info": {},
-                 "config": [{"resource": "Res",
-                             "kwargs": {"context": "context"}}]})
-        prepare_mock.assert_called_once_with(server="host")
-        rpc_mock.assert_called_once_with(
-            rpcclient,
-            'delete_network_function_device_config',
-            request_data={'info': {},
-                          'config':
-                          [{'resource': 'Res',
-                            'kwargs': {'context': 'context'}}]})
-        self.assertEqual(value, True)
+        with mock.patch.object(
+                controller.RPCClient, 'call') as rpc_mock:
+            rpc_mock.return_value = Exception
+            response = self.app.get(
+                '/v1/nfp/get_notifications',
+                expect_errors=True)
+            self.assertEqual(response.status_code, 400)
 
-    def test_delete_network_function_config_rpcclient(self):
-        rpcclient = controller.RPCClient("topic", "host")
-        with mock.patch.object(rpcclient.client, 'cast') as rpc_mock,\
-                mock.patch.object(rpcclient.client, 'prepare') as prepare_mock:
-            prepare_mock.return_value = rpcclient.client
-            rpc_mock.return_value = True
-            value = rpcclient.delete_network_function_config(
-                {"info": {},
-                 "config": [{"resource": "Res",
-                             "kwargs": {"context": "context"}}]})
-        prepare_mock.assert_called_once_with(server="host")
-        rpc_mock.assert_called_once_with(
-            rpcclient,
-            'delete_network_function_config',
-            request_data={'info': {},
-                          'config':
-                          [{'resource': 'Res',
-                            'kwargs': {'context': 'context'}}]})
-        self.assertEqual(value, True)
+    def test_post_create_network_function_device_config_fail(self):
+        """Tests failure case of HTTP post request
+        create_network_function_device_config
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            rpc_mock.return_value = Exception
+            response = self.app.post(
+                '/v1/nfp/create_network_function_device_config',
+                expect_errors=True)
+            self.assertEqual(response.status_code, 400)
+
+    def test_post_create_network_function_config_fail(self):
+        """Tests failure case of HTTP post request
+        create_network_function_config
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            rpc_mock.return_value = Exception
+            response = self.app.post(
+                '/v1/nfp/create_network_function_config',
+                expect_errors=True)
+            self.assertEqual(response.status_code, 400)
+
+    def test_post_delete_network_function_device_config_fail(self):
+        """Tests failure case of HTTP post request
+        delete_network_function_device_config
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            rpc_mock.return_value = Exception
+            response = self.app.post(
+                '/v1/nfp/delete_network_function_device_config',
+                expect_errors=True)
+            self.assertEqual(response.status_code, 400)
+
+    def test_post_delete_network_function_config_fail(self):
+        """Tests failure case of HTTP post request
+        delete_network_function_config
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            rpc_mock.return_value = Exception
+            response = self.app.post(
+                '/v1/nfp/delete_network_function_config',
+                expect_errors=True)
+            self.assertEqual(response.status_code, 400)
+
+    def test_put_update_network_function_device_config_fail(self):
+        """Tests failure case of HTTP put request
+        update_network_function_device_config
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            rpc_mock.return_value = Exception
+            response = self.app.post(
+                '/v1/nfp/update_network_function_device_config',
+                expect_errors=True)
+            self.assertEqual(response.status_code, 400)
+
+    def test_put_update_network_function_config_fail(self):
+        """Tests failure case of HTTP put request
+        update_network_function_config
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                controller.RPCClient, 'cast') as rpc_mock:
+            rpc_mock.return_value = Exception
+            response = self.app.post(
+                '/v1/nfp/update_network_function_config',
+                expect_errors=True)
+            self.assertEqual(response.status_code, 400)
 
 
 if __name__ == '__main__':

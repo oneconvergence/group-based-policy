@@ -16,7 +16,6 @@ agent and driver.
 """
 
 
-
 class Foo(object):
 
     key = 'key'
@@ -257,9 +256,9 @@ class FakeObjects(object):
 
         vip = [{"status": "ACTIVE",
                 "protocol": "TCP",
-                "description": {"floating_ip": "192.168.100.149",
-                                "provider_interface_mac":
-                                "aa:bb:cc:dd:ee:ff"},
+                "description": '{"floating_ip": "192.168.100.149",'
+                               '"provider_interface_mac":'
+                               '"aa:bb:cc:dd:ee:ff"}',
                 "address": "42.0.0.14",
                 "protocol_port": 22,
                 "port_id": "cfd9fcc0-c27b-478b-985e-8dd73f2c16e8",

@@ -13,14 +13,15 @@
 import mock
 import unittest
 
+from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
+    lb_test_data as test_data)
 from gbpservice.nfp.configurator.agents import loadbalancer_v1 as lb
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_lb_driver as lb_driver)
 from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.configurator.lib import demuxer
 from gbpservice.nfp.configurator.modules import configurator
-from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
-    lb_test_data)
+
 
 """Implement test cases for LBaasRpcSender methods of loadbalancer agent.
 
@@ -29,8 +30,8 @@ from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
 
 class LBaasRpcSenderTest(unittest.TestCase):
 
-    @mock.patch(__name__ + '.lb_test_data.FakeObjects.conf')
-    @mock.patch(__name__ + '.lb_test_data.FakeObjects.sc')
+    @mock.patch(__name__ + '.test_data.FakeObjects.conf')
+    @mock.patch(__name__ + '.test_data.FakeObjects.sc')
     def _get_configurator_rpc_manager_object(self, sc, conf):
         """ Retrieves RPC manager object of configurator.
 
@@ -61,7 +62,8 @@ class LBaasRpcSenderTest(unittest.TestCase):
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
                 mock_new_event),\
             mock.patch.object(sc, 'stash_event') as mock_stash_event:
-            agent.update_status('object_type', 'object_id', 'object_status')
+            agent.update_status('object_type', 'object_id',
+                                'object_status', 'context')
 
             mock_new_event.assert_called_with(
                 id=const.EVENT_STASH,
@@ -70,6 +72,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
                     'kwargs': {
                         'status': 'object_status',
                         'obj_type': 'object_type',
+                        'context': 'context',
                         'obj_id': 'object_id'},
                     'resource': 'loadbalancer',
                     'method': 'update_status',
@@ -117,7 +120,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
         agent = lb.LBaasRpcSender(sc)
         agent.get_logical_device(
             '6350c0fd-07f8-46ff-b797-62acd23760de',
-            lb_test_data.FakeObjects()._get_context_logical_device())
+            test_data.FakeObjects()._get_context_logical_device())
 
 """Implement test cases for RPC manager methods of loadbalancer agent.
 
@@ -128,8 +131,8 @@ class LBaaSRpcManagerTest(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(LBaaSRpcManagerTest, self).__init__(*args, **kwargs)
-        self.fo = lb_test_data.FakeObjects()
-        self.foo = lb_test_data.Foo()
+        self.fo = test_data.FakeObjects()
+        self.foo = test_data.Foo()
         self.arg_dict_vip = {
             'context': self.fo.context,
             'vip': self.fo._get_vip_object()[0],
@@ -173,8 +176,8 @@ class LBaaSRpcManagerTest(unittest.TestCase):
             'pool_id': self.fo._get_pool_object()[0]['id'],
         }
 
-    @mock.patch(__name__ + '.lb_test_data.FakeObjects.conf')
-    @mock.patch(__name__ + '.lb_test_data.FakeObjects.sc')
+    @mock.patch(__name__ + '.test_data.FakeObjects.conf')
+    @mock.patch(__name__ + '.test_data.FakeObjects.sc')
     def _get_configurator_rpc_manager_object(self, sc, conf):
         """ Retrieves RPC manager object of configurator.
 
@@ -389,8 +392,8 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(LBaasEventHandlerTestCase, self).__init__(*args, **kwargs)
-        self.fo = lb_test_data.FakeObjects()
-        self.ev = lb_test_data.FakeEvent()
+        self.fo = test_data.FakeObjects()
+        self.ev = test_data.FakeEvent()
         self.drivers = {'loadbalancer': lb_driver.HaproxyOnVmDriver()}
 
     def _get_lb_handler_objects(self, sc, drivers, rpcmgr):
@@ -404,11 +407,12 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
         Returns: objects of LBaaSEventHandler of loadbalancer agent
 
         """
+
         agent = lb.LBaaSEventHandler(sc, drivers, rpcmgr)
         return agent
 
-    @mock.patch(__name__ + '.lb_test_data.FakeObjects.rpcmgr')
-    @mock.patch(__name__ + '.lb_test_data.FakeObjects.sc')
+    @mock.patch(__name__ + '.test_data.FakeObjects.rpcmgr')
+    @mock.patch(__name__ + '.test_data.FakeObjects.sc')
     def _test_handle_event(self, sc, rpcmgr):
         """ Tests all create/update/delete operation of LBaaSEventHandler of
         loadbalancer agent.
@@ -499,6 +503,7 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
         Returns: none
 
         """
+
         self.ev.id = 'CREATE_VIP'
         self._test_handle_event()
 
@@ -625,4 +630,3 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
