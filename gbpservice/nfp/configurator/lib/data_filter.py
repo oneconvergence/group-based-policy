@@ -34,7 +34,7 @@ class Filter(object):
 
         """
         try:
-            for fk, fv in item['args'].items():
+            for fk, fv in msg['args'].items():
                 if dict == type(fv):
                     filters = fv
                     break
