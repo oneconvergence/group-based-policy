@@ -62,30 +62,6 @@ class VPNaasEventHandlerTestCase(unittest.TestCase):
             mock_update_status.assert_called_with(context,
                                                   self.dict_obj.svc_context)
 
-    def test_resync_ipsec_conns(self):
-        '''
-        Implements a testcase methos for vpns resync method
-        '''
-
-        context = self.dict_obj._make_service_context()
-        with mock.patch.object(self.handler,
-                               '_get_driver',
-                               return_value=self.driver) as mock_drivers,\
-            mock.patch.object(self.driver, 'delete_ipsec_conn') as (
-                                                    mock_delete_ipsec_conn),\
-            mock.patch.object(self.handler.plugin_rpc,
-                              'ipsec_site_conn_deleted') as (
-                                                mock_ipsec_site_conn_deleted):
-            self.handler._resync_ipsec_conns(context,
-                                             self.dict_obj.service_vendor,
-                                             self.dict_obj.svc_context)
-
-            mock_delete_ipsec_conn.assert_called_with(context,
-                                                      **self.dict_obj.keywords)
-            mock_ipsec_site_conn_deleted.assert_called_with(
-                                            context,
-                                            resource_id=self.dict_obj.conn_id)
-
 
 if __name__ == '__main__':
     unittest.main()

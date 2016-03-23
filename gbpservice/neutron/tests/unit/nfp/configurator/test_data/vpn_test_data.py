@@ -128,8 +128,6 @@ class MakeDictionaries(object):
                 'auth_algorithm': 'sha1',
                 'phase1_negotiation_mode': 'main',
                 }}]}
-        self.keywords = {'resource':
-                         self.svc_context['siteconns'][0]['connection']}
 
         self.subnet = [{
             'name': 'apic_owned_res_2b0f246b-b0fc-4731-9245-1bd9ac2bd373',

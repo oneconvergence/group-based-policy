@@ -988,21 +988,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         Returns: None
         """
         pass
-        # svc_contexts = self.agent.get_ipsec_contexts(
-        #    context, conn_id=kwargs.get('id'))
-        # svc_context = svc_contexts[0]
-
-        # self.pending_q.push(Resource(svc_context,  **kwargs))
-
-        # Talk to service manager and get floating ip
-        # (with tenant_id & svc_type as criteria)
-        # Might have to send some commands to
-        # update ipsec_conn params
-        # Can IPSEC policy params / IKE policy params
-        # be changed with connection intact ?
-        # Need to figure out which all params can be
-        # changed based on what vyos vm will support
-        # Maintain this resource ? will be useful in case of update ?
 
     def delete_ipsec_conn(self, context, kwargs):
         """
