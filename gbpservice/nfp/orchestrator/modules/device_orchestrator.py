@@ -151,8 +151,8 @@ class DeviceOrchestrator(object):
         self.request = request
         self.nsf_db = nfp_db.NFPDbBase()
         self.db_session = nfp_db_api.get_session()
-        self.gbpclient = openstack_driver.GBPClient()
-        self.keystoneclient = openstack_driver.KeystoneClient()
+        self.gbpclient = openstack_driver.GBPClient(config)
+        self.keystoneclient = openstack_driver.KeystoneClient(config)
 
         self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
         self.drivers = self.ext_mgr.drivers

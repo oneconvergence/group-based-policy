@@ -30,8 +30,8 @@ class OrchestrationDriverBase(object):
     Launches the VM with all the management and data ports and a new VM
     is launched for each Network Service Instance
     """
-    def __init__(self, supports_device_sharing=False, supports_hotplug=False,
-                 max_interfaces=5):
+    def __init__(self, config, supports_device_sharing=False,
+	         supports_hotplug=False, max_interfaces=5):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
         self.supports_hotplug = supports_hotplug
@@ -39,10 +39,10 @@ class OrchestrationDriverBase(object):
 
         # TODO(MAGESH): Try to move the following handlers to
         # NDO manager rather than having here in the driver
-        self.identity_handler = openstack_driver.KeystoneClient()
-        self.compute_handler_nova = openstack_driver.NovaClient()
-        self.network_handler_gbp = openstack_driver.GBPClient()
-        self.network_handler_neutron = openstack_driver.NeutronClient()
+        self.identity_handler = openstack_driver.KeystoneClient(config)
+        self.compute_handler_nova = openstack_driver.NovaClient(config)
+        self.network_handler_gbp = openstack_driver.GBPClient(config)
+        self.network_handler_neutron = openstack_driver.NeutronClient(config)
 
         # statistics available
         # - instances

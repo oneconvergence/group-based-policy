@@ -17,31 +17,29 @@ from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 from keystoneclient.v2_0 import client as identity_client
 from keystoneclient.v3 import client as keyclientv3
-from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
 
-cfg.CONF.import_opt("bind_port", 'neutron.common.config')
 
 class OpenstackApi(object):
     """Initializes common attributes for openstack client drivers."""
 
-    def __init__(self, username=cfg.CONF.keystone_authtoken.admin_user,
-                 password=cfg.CONF.keystone_authtoken.admin_password,
-                 tenant_name=cfg.CONF.keystone_authtoken.admin_tenant_name):
+    def __init__(self, config, username=None,
+                 password=None, tenant_name=None):
         self.nova_version = '2'
+	self.config = config
         self.identity_service = ("%s://%s:%d/%s/" %
-                                 (cfg.CONF.keystone_authtoken.auth_protocol,
-                                  cfg.CONF.keystone_authtoken.auth_host,
-                                  cfg.CONF.keystone_authtoken.auth_port,
-                                  cfg.CONF.keystone_authtoken.auth_version))
+                                 (config.keystone_authtoken.auth_protocol,
+                                  config.keystone_authtoken.auth_host,
+                                  config.keystone_authtoken.auth_port,
+                                  config.keystone_authtoken.auth_version))
         self.network_service = ("%s://%s:%d/" %
-                                (cfg.CONF.keystone_authtoken.auth_protocol,
-                                 cfg.CONF.keystone_authtoken.auth_host,
-                                 cfg.CONF.bind_port))
-        self.username = username
-        self.password = password
-        self.tenant_name = tenant_name
+                                (config.keystone_authtoken.auth_protocol,
+                                 config.keystone_authtoken.auth_host,
+                                 config.bind_port))
+        self.username = username or config.keystone_authtoken.admin_user
+        self.password = password or config.keystone_authtoken.admin_password
+        self.tenant_name = tenant_name or config.keystone_authtoken.admin_tenant_name
         self.token = None
 
 
@@ -49,7 +47,7 @@ class KeystoneClient(OpenstackApi):
     """ Keystone Client Apis for orchestrator. """
 
     def get_keystone_creds(self):
-        keystone_conf = cfg.CONF.keystone_authtoken
+        keystone_conf = self.config.keystone_authtoken
         user = keystone_conf.admin_user
         pw = keystone_conf.admin_password
         tenant = keystone_conf.admin_tenant_name
@@ -60,9 +58,9 @@ class KeystoneClient(OpenstackApi):
     def get_admin_token(self):
         try:
             admin_token = self.get_scoped_keystone_token(
-                cfg.CONF.keystone_authtoken.admin_user,
-                cfg.CONF.keystone_authtoken.admin_password,
-                cfg.CONF.keystone_authtoken.admin_tenant_name)
+                self.config.keystone_authtoken.admin_user,
+                self.config.keystone_authtoken.admin_password,
+                self.config.keystone_authtoken.admin_tenant_name)
         except Exception as ex:
             err = ("Failed to obtain user token. Error: %s" % ex)
             LOG.error(err)
@@ -99,7 +97,7 @@ class KeystoneClient(OpenstackApi):
             err = ("Failed to get scoped token from"
                    " Openstack Keystone service"
                    " KeyError :: %s" % (err))
-            cfg.CONF.keystone_authtoken.auth_port,
+            self.config.keystone_authtoken.auth_port,
             LOG.error(err)
             raise Exception(err)
         else:
@@ -133,7 +131,7 @@ class KeystoneClient(OpenstackApi):
             Using this client one can perform CRUD operations over
             keystone resources.
         """
-        keystone_conf = cfg.CONF.keystone_authtoken
+        keystone_conf = self.config.keystone_authtoken
         keystone_conf.admin_user = 'neutron'
         keystone_conf.admin_password = 'admin_pass'
         keystone_conf.admin_tenant_name = 'service'
@@ -152,14 +150,14 @@ class KeystoneClient(OpenstackApi):
             Using this client one can perform CRUD operations over
             keystone resources.
         """
-        keystone_conf = cfg.CONF.keystone_authtoken
+        keystone_conf = self.config.keystone_authtoken
         v3_auth_url = ('%s://%s:%s/%s/' % (
             keystone_conf.auth_protocol, keystone_conf.auth_host,
-            keystone_conf.auth_port, cfg.CONF.heat_driver.keystone_version))
+            keystone_conf.auth_port, self.config.heat_driver.keystone_version))
         v3client = keyclientv3.Client(
             username=keystone_conf.admin_user,
             password=keystone_conf.admin_password,
-            domain_name="default",  # FIXME(Magesh): Make this config driven
+            domain_name="default",
             auth_url=v3_auth_url)
         return v3client
 

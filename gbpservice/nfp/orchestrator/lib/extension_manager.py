@@ -19,7 +19,7 @@ class ExtensionManager(stevedore.named.NamedExtensionManager):
             'gbpservice.nfp.orchestrator.drivers',
             cfg.CONF.oneconvergence_orchestration_drivers.drivers,
             invoke_on_load=True,
-            invoke_args=(sc_context, conf))
+            invoke_args=(conf))
         self.drivers = dict()
         LOG.debug(_("Loaded extension driver names: %s"), self.names())
         self._register_drivers()

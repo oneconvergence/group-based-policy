@@ -4,6 +4,8 @@ import mock
 import copy
 from mock import patch
 
+from oslo_config import cfg
+
 from gbpservice.nfp.orchestrator.modules import (
     device_orchestrator)
 from gbpservice.nfp.orchestrator.drivers import (
@@ -42,7 +44,8 @@ class DummyEvent():
 
 param_req = {'param1': 'value1', 'param2': 'value2'}
 
-orchestration_driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver()
+cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
+orchestration_driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(cfg.CONF)
 NDO_CLASS_PATH = ('gbpservice.nfp.orchestrator'
                   '.modules.device_orchestrator')
 ORCHESTRATION_DRIVER_CLASS_PATH = ('gbpservice.nfp.orchestrator'
@@ -176,14 +179,14 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
 
     def _initialize_ndo_handler(self):
         ndo_handler = device_orchestrator.DeviceOrchestrator(
-                object, object)
+                object, cfg.CONF)
         self.event = DummyEvent(100, 'PENDING_CREATE')
         return ndo_handler
 
     @mock.patch.object(device_orchestrator.DeviceOrchestrator,
             'device_configuration_complete')
     def test_handle_event(self, mock_device_configuration_complete):
-        ndo_mgr = device_orchestrator.DeviceOrchestrator(object, object)
+        ndo_mgr = device_orchestrator.DeviceOrchestrator(object, cfg.CONF)
         mock_device_configuration_complete.return_value = True
         self.event = DummyEvent(100, 'DEVICE_CONFIGURED')
         self.event.id = 'DEVICE_CONFIGURED'
