@@ -16,6 +16,7 @@ from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 from gbpservice.nfp.core import main
+from gbpservice.nfp.core import poll as core_pt
 
 import os
 import oslo_messaging as messaging
@@ -161,7 +162,7 @@ to make a call to the driver methods.
 """
 
 
-class VPNaasEventHandler(object):
+class VPNaasEventHandler(core_pt.PollEventDesc):
 
     def __init__(self, sc, drivers):
         """ Instantiates class object.
