@@ -10,21 +10,22 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
-from oslo_messaging import target
-from oslo_log import log as logging
-from neutron import manager
-from gbpservice.nfp.common import topics
-from neutron.common import rpc as n_rpc
-from neutron.plugins.common import constants
-from neutron import context as n_context
-from oslo_config import cfg as oslo_config
-import requests
-import json
 import exceptions
+from gbpservice.nfp.lib import log_wrapper as wp
+import json
+from neutron.common import rpc as n_rpc
+from neutron import context as n_context
+from oslo_config import cfg
+from oslo_config import cfg as oslo_config
+from oslo_log import log as logging
+from oslo_messaging import target
+import requests
 
 LOG = logging.getLogger(__name__)
 Version = 'v1'  # v1/v2/v3#
+
+log_info = wp.log_info
+log_error = wp.log_error
 
 rest_opts = [
     cfg.StrOpt('rest_server_address',
@@ -75,12 +76,12 @@ class RestApi(object):
             raise RestClientException("HTTPForbidden: %s" % resp.reason)
         elif resp.status_code == 404:
             raise RestClientException("HttpNotFound: %s" % resp.reason)
-        elif resp_code.status == 405:
+        elif resp.status_code == 405:
             raise RestClientException(
                 "HTTPMethodNotAllowed: %s" % resp.reason)
-        elif resp_code.status == 406:
+        elif resp.status_code == 406:
             raise RestClientException("HTTPNotAcceptable: %s" % resp.reason)
-        elif resp_code.status == 408:
+        elif resp.status_code == 408:
             raise RestClientException("HTTPRequestTimeout: %s" % resp.reason)
         elif resp.status_code == 409:
             raise RestClientException("HTTPConflict: %s" % resp.reason)
@@ -107,10 +108,10 @@ class RestApi(object):
                        "method-type": method_type}
             resp = requests.post(url, data,
                                  headers=headers)
-            LOG.info("POST url %s %d" % (url, resp.status_code))
+            log_info(LOG, "POST url %s %d" % (url, resp.status_code))
             return self._response(resp, url)
         except RestClientException as rce:
-            LOG.error("Rest API %s - Failed. Reason: %s" % (url, rce))
+            log_error(LOG, "Rest API %s - Failed. Reason: %s" % (url, rce))
 
     def get(self, path):
         url = self.url % (
@@ -120,10 +121,10 @@ class RestApi(object):
             headers = {"content-type": "application/json"}
             resp = requests.get(url,
                                 headers=headers)
-            LOG.info("GET url %s %d" % (url, resp.status_code))
+            log_info(LOG, "GET url %s %d" % (url, resp.status_code))
             return self._response(resp, url)
         except RestClientException as rce:
-            LOG.error("Rest API %s - Failed. Reason: %s" % (url, rce))
+            log_error(LOG, "Rest API %s - Failed. Reason: %s" % (url, rce))
 
 
 class RPCClient(object):
@@ -152,13 +153,13 @@ def send_request_to_configurator(conf, context, body,
         try:
             rc = RestApi(conf.REST.rest_server_ip, conf.REST.rest_server_port)
             resp = rc.post(method_name, body, method_type.upper())
-            LOG.info(
+            log_info(LOG,
                 "%s -> POST response: (%s)" % (method_name, resp))
         except RestClientException as rce:
-            LOG.error("%s -> POST request failed.Reason: %s" % (
+            log_error(LOG, "%s -> POST request failed.Reason: %s" % (
                 method_name, rce))
     else:
-        LOG.info(
+        log_info(LOG,
             "%s -> RPC request sent !" % (method_name))
         rpcClient = RPCClient(conf.RPC.topic)
         rpcClient.cctxt.cast(context, method_name,
@@ -173,7 +174,8 @@ def get_response_from_configurator(conf):
             rpc_cbs_data = json.loads(resp.content)
             return rpc_cbs_data
         except RestClientException as rce:
-            LOG.error("get_notification -> GET request failed. Reason : %s" % (
+            log_error(LOG, "get_notification -> GET request failed.\
+Reason : %s" % (
                 rce))
             return rce
     else:
@@ -185,5 +187,5 @@ def get_response_from_configurator(conf):
             rpc_cbs_data = rpcClient.cctxt.call(context,
                                                 'get_notifications')
         except Exception as e:
-            LOG.error("Exception while processing %s", e)
+            log_error(LOG, "Exception while processing %s " % (e))
         return rpc_cbs_data
