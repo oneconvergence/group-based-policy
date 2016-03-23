@@ -19,6 +19,23 @@ rest_timeout = [
 
 cfg.CONF.register_opts(rest_timeout)
 
+class UnknownReasonException(Exception):
+    message = "Unsupported rpcreason '%(reason)s' from plugin "
+
+
+class UnknownResourceException(Exception):
+    message = "Unsupported resource '%(resource)s' from plugin "
+
+
+class InvalidRsrcType(Exception):
+    message = "Unsupported rsrctype '%(rsrc_type)s' from agent"
+
+
+class ResourceErrorState(Exception):
+    message = "Resource '%(name)s' : '%(id)s' \
+        went to error state, %(message)"
+
+
 """
 Provides different methods to make ReST calls to the service VM,
 to update the configurations
@@ -216,10 +233,13 @@ class VPNServiceValidator(object):
         """
         self.agent.update_status(
             context, self._update_service_status(vpnsvc, const.STATE_ERROR))
-
+        raise ResourceErrorState(name='vpn_service', id=vpnsvc['id'],
+                                message=message)
+        '''
         msg = "Resource '%(name)s' : '%(id)s' went to error state, \
                %(message)" % ('vpn_service', vpnsvc['id'], message)
         raise Exception(msg)
+        '''
 
     def _active_state(self, context, vpnsvc):
         """
@@ -572,9 +592,12 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         self.agent.update_status(
             context, self._update_conn_status(conn,
                                               const.STATE_ERROR))
+        raise ResourceErrorState(id=conn['id'], message=message)
+        '''
         msg = "Resource '%(name)s' : '%(id)s' went to error state, \
               %(message)" % (conn['id'], message)
         raise Exception(msg)
+        '''
 
     def _init_state(self, context, conn):
         """
@@ -1063,13 +1086,19 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             rsrc = kwargs.get('rsrc_type')
 
             if rsrc not in self.handlers.keys():
+                raise UnknownResourceException(rsrc=rsrc)
+                '''
                 msg = "Unsupported resource '%(resource)s' from plugin " % (
                                                                         rsrc)
                 raise Exception(msg)
+                '''
             if reason not in self.handlers[rsrc].keys():
+                raise UnknownReasonException(reason=reason)
+                '''
                 msg = "Unsupported rpcreason '%(reason)s' from plugin " % (
                                                                         reason)
                 raise Exception(msg)
+                '''
 
             self.handlers[rsrc][reason](context, kwargs)
 
