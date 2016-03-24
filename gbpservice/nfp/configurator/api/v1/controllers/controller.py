@@ -39,6 +39,7 @@ call/cast to configurator and return response to config-agent
 
 """
 
+notifications = []
 
 class Controller(rest.RestController):
 
@@ -51,7 +52,6 @@ class Controller(rest.RestController):
             super(Controller, self).__init__()
             self._demuxer = demuxer.ServiceAgentDemuxer()
             self._schema_validator = schema_validator.SchemaValidator()
-            self.notifications = []
 
         except Exception as err:
             msg = (
@@ -74,7 +74,7 @@ class Controller(rest.RestController):
             ]
         }
 
-        self.notifications.append(response)
+        notifications.append(response)
 
     @pecan.expose(method='GET', content_type='application/json')
     def get(self):
@@ -87,12 +87,13 @@ class Controller(rest.RestController):
 
         """
 
+        global notifications
         try:
-            notification_data = json.dumps(self.notifications)
+            notification_data = json.dumps(notifications)
             msg = ("NOTIFICATION_DATA sent to config_agent %s"
                    % notification_data)
             LOG.info(msg)
-            self.notifications = []
+            notifications = []
             return notification_data
         except Exception as err:
             pecan.response.status = 400
@@ -126,7 +127,7 @@ class Controller(rest.RestController):
                        (body))
                 raise Exception(msg)
 
-            service_type = self.demuxer.get_service_type(body)
+            service_type = self._demuxer.get_service_type(body)
             if (constants.invalid_service_type == service_type):
                 msg = ("Configurator received invalid service type %s." %
                        service_type)
