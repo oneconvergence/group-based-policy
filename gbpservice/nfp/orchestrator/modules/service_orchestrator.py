@@ -21,6 +21,7 @@ from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.nfp.core.main import Event
 from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.lib import backend_lib
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import heat_driver
@@ -229,8 +230,11 @@ class ServiceOrchestrator(object):
         service_profile = self.gbpclient.get_service_profile(
             admin_token, service_profile_id)
         service_chain_id = network_function_info.get('service_chain_id')
+        service_details = backend_lib.parse_service_flavor_string(
+                                        service_profile['service_flavor'])
+        service_vendor = service_details['service_vendor']
         name = "%s.%s.%s" % (service_profile['service_type'],
-                             service_profile['service_flavor'],
+                             service_vendor,    
                              service_chain_id or service_id)
         network_function = {
             'name': name,
@@ -245,17 +249,33 @@ class ServiceOrchestrator(object):
         network_function = self.db_handler.create_network_function(
             self.db_session, network_function)
 
+        if (not service_details.get('service_vendor') or 
+                not service_details.get('device_type')):
+            LOG.error(_LE("service_vendor or device_type not provided in "
+                          "service profile's service flavor field. Setting "
+                          "network function to ERROR, Provided service "
+                          "profile: %s" % service_profile))
+            network_function_status = {'status': nfp_constants.ERROR}
+            self.db_handler.update_network_function(
+            self.db_session, network_function['id'], network_function_status)
+            return None
+
+        if service_details['device_type'] == None:
+            print "invoke heat api directly"
+            return None
+
         if mode == nfp_constants.GBP_MODE:
             management_network_info = {
                 'id': network_function_info['management_ptg_id'],
                 'port_model': nfp_constants.GBP_NETWORK
             }
+
         create_network_function_instance_request = {
             'network_function': network_function,
             'network_function_port_info': network_function_info['port_info'],
             'management_network_info': management_network_info,
             'service_type': service_profile['service_type'],
-            'service_vendor': service_profile['service_flavor'],
+            'service_details': service_details,
             'share_existing_device': False  # Extend service profile if needed
         }
 
@@ -309,19 +329,21 @@ class ServiceOrchestrator(object):
             'status': nfp_constants.PENDING_CREATE,
             'network_function_id': request_data['network_function']['id'],
             'service_type': request_data['service_type'],
-            'service_vendor': request_data['service_vendor'],
+            'service_vendor': request_data['service_details']['service_vendor'],
             'share_existing_device': request_data['share_existing_device'],
             'port_info': request_data['network_function_port_info'],
         }
         nfi_db = self.db_handler.create_network_function_instance(
             self.db_session, create_nfi_request)
 
+        request_data['service_details'].update(
+                                service_type=request_data['service_type'])
         create_nfd_request = {
             'network_function': request_data['network_function'],
             'network_function_instance': nfi_db,
             'management_network_info': request_data['management_network_info'],
-            'service_type': request_data['service_type'],
-            'service_vendor': request_data['service_vendor'],
+            'service_vendor': request_data['service_details']['service_vendor'],
+            'service_details': request_data['service_details'],
             'share_existing_device': request_data['share_existing_device'],
         }
         self._create_event('CREATE_NETWORK_FUNCTION_DEVICE',

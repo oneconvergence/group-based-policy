@@ -187,3 +187,10 @@ def get_response_from_configurator(conf):
         except Exception as e:
             LOG.error("Exception while processing %s", e)
         return rpc_cbs_data
+
+def parse_service_flavor_string(service_flavor_str):
+    service_flavor_dict = dict(item.split('=') for item 
+                               in service_flavor_str.split(','))
+    service_details = {key.strip():value.strip() for key, value 
+                                in service_flavor_dict.iteritems()}
+    return service_details
