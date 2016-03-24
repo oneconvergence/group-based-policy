@@ -15,10 +15,7 @@ import oslo_serialization.jsonutils as jsonutils
 import subprocess
 
 from neutron.agent.common import config
-from gbpservice.nfp.configurator.lib import constants
-from gbpservice.nfp.configurator.lib import demuxer
 from neutron.common import rpc as n_rpc
-from gbpservice.nfp.configurator.lib import schema_validator
 from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
@@ -39,7 +36,6 @@ call/cast to configurator and return response to config-agent
 
 """
 
-notifications = []
 
 class Controller(rest.RestController):
 
@@ -50,31 +46,11 @@ class Controller(rest.RestController):
             self.rpcclient = RPCClient(topic=TOPIC, host=self.host)
             self.method_name = method_name
             super(Controller, self).__init__()
-            self._demuxer = demuxer.ServiceAgentDemuxer()
-            self._schema_validator = schema_validator.SchemaValidator()
-
         except Exception as err:
             msg = (
                 "Failed to initialize Controller class  %s." %
                 str(err).capitalize())
             LOG.error(msg)
-
-    def _push_notification(self, context, request_info, result):
-        response = {
-            'receiver': constants.SERVICE_ORCHESTRATOR,
-            'resource': constants.RESOURCE_HEAT,
-            'method': constants.NFD_NOTIFICATION,
-            'kwargs': [
-                {
-                    'context': context,
-                    'resource': constants.RESOURCE_HEAT,
-                    'request_info': request_info,
-                    'result': result
-                }
-            ]
-        }
-
-        notifications.append(response)
 
     @pecan.expose(method='GET', content_type='application/json')
     def get(self):
@@ -87,13 +63,11 @@ class Controller(rest.RestController):
 
         """
 
-        global notifications
         try:
-            notification_data = json.dumps(notifications)
+            notification_data = json.dumps(self.rpcclient.call())
             msg = ("NOTIFICATION_DATA sent to config_agent %s"
                    % notification_data)
             LOG.info(msg)
-            notifications = []
             return notification_data
         except Exception as err:
             pecan.response.status = 400
@@ -122,29 +96,9 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            if not self._schema_validator.decode(body):
-                msg = ("Decode failed for request data=%s" %
-                       (body))
-                raise Exception(msg)
-
-            service_type = self._demuxer.get_service_type(body)
-            if (constants.invalid_service_type == service_type):
-                msg = ("Configurator received invalid service type %s." %
-                       service_type)
-                raise Exception(msg)
-
-            # Assuming config list will have only one element
-            config_data = body['config'][0]
-            context = config_data['kwargs']['context']
-            request_info = config_data['kwargs']['request_info']
-
-            # Only heat is supported presently
-            if (service_type == "heat"):
-                result = "unhandled"
-                self._push_notification(context, request_info, result)
-            else:
-                result = "error"
-                self._push_notification(context, request_info, result)
+            self.rpcclient.cast(self.method_name, body)
+            msg = ("Successfully served HTTP request %s" % self.method_name)
+            LOG.info(msg)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."

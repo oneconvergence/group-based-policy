@@ -34,7 +34,7 @@
 """
 
 
-skip_kwargs_validation_for = ['firewall', 'vpn', 'loadbalancer', 'heat']
+skip_kwargs_validation_for = ['firewall', 'vpn', 'loadbalancer']
 
 
 """ Request data schema.
