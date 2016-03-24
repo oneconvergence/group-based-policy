@@ -173,9 +173,8 @@ class VPNaasEventHandler(object):
                                                     resource_id=resource_id)
 
     def _get_service_vendor(self, vpn_svc):
-        svc_desc = vpn_svc['description']
-        tokens = svc_desc.split(';')
-        vendor = tokens[5].split('=')[1]
+        svc_desc = json.loads(vpn_svc['description'])
+        vendor = svc_desc.get("service_vendor")
         return vendor
 
     def _sync_ipsec_conns(self, context, vendor, svc_context):

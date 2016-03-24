@@ -18,3 +18,6 @@ FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
 LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'
 VPN_NFP_PLUGIN_TOPIC = 'vpn_plugin'
 GC_NFP_PLUGIN_TOPIC = 'nfp-configurator-ndo'
+
+NFP_NSO_TOPIC = "nfp-service-orchestrator"
+

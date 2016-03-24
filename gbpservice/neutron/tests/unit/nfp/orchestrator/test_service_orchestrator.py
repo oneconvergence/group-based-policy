@@ -21,6 +21,7 @@ from gbpservice.nfp.orchestrator.modules import (
     service_orchestrator as nso)
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from gbpservice.neutron.tests.unit.nfp.orchestrator import test_nfp_db
+from gbpservice.nfp.orchestrator.openstack.plumber import SCPlumber
 
 
 class NSOoduleTestCase(test_nfp_db.NFPDBTestCase):
@@ -139,6 +140,27 @@ class NSORpcHandlerTestCase(NSOoduleTestCase):
                 "context", "network_function_id", "policy_target_group")
             mock_handle_consumer_ptg_removed.assert_called_once_with(
                 "context", "network_function_id", "policy_target_group")
+
+    @mock.patch.object(
+        nso.SOHelper, "process_update_network_function_request"
+    )
+    def test_neutron_vpn_service_creation(
+            self, mock_process_update_network_function_request):
+        self.rpc_handler.neutron_update_nw_function_config(
+            "context", {"name": "vikash"})
+        mock_process_update_network_function_request.assert_called_once_with(
+            "context", mock.ANY, {"name": "vikash"})
+
+    @mock.patch.object(
+        nso.SOHelper, "process_delete_network_function_request"
+    )
+    def test_neutron_vpn_service_creation(
+            self, mock_process_delete_network_function_request):
+        self.rpc_handler.neutron_delete_nw_function_config(
+            "context", {"name": "vikash"})
+        mock_process_delete_network_function_request.assert_called_once_with(
+            "context", mock.ANY, {"name": "vikash"}
+        )
 
 
 class ServiceOrchestratorTestCase(NSOoduleTestCase):
@@ -692,3 +714,73 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
             'APPLY_USER_CONFIG_IN_PROGRESS',
             event_data=mock.ANY,
             is_poll_event=True)
+
+
+class SOHelperTestCase(NSOoduleTestCase):
+    def setUp(self):
+        super(SOHelperTestCase, self).setUp()
+        self.controller = mock.Mock()
+        self.config = mock.Mock()
+        self.context = mock.Mock()
+        self.so_helper_obj = nso.SOHelper()
+        self.so_obj = nso.ServiceOrchestrator(self.controller)
+
+    @mock.patch.object(SCPlumber, "update_router_service_gateway")
+    @mock.patch.object(
+        openstack_driver.NeutronClient, "get_port")
+    @mock.patch.object(
+        nso.ServiceOrchestrator, "get_network_functions")
+    @mock.patch.object(
+        openstack_driver.GBPClient, "get_service_profile")
+    @mock.patch.object(
+        nso.ServiceOrchestrator, "_create_event")
+    @mock.patch.object(
+        openstack_driver.NeutronClient, "get_subnet")
+    @mock.patch.object(
+        openstack_driver.KeystoneClient, "get_admin_token")
+    @mock.patch.object(SCPlumber, "get_stitching_port")
+    def test_process_update_network_function_request(
+            self, mock_get_stitching_port, mock_get_admin_token,
+            mock_get_subnet, mock_get_service_profile, mock__create_event,
+            mock_get_network_functions,
+            mock_get_port, mock_update_router_service_gateway):
+        nw_function_info = {'network_function_model': 'neutron',
+                            'tenant_id': "services",
+                            'service_profile_id': "oc",
+                            'service_type':
+                            'ipsec_site_connection',
+                            'service_info': [{'router_id':'rtr1', 'port':
+                                'port1','subnet': 'subnet1'}],
+                            'resource_data': {'resource_id': 'rsrc1',
+                                              'vpnservice_id': 'vpnid',
+                                              'peer_cidr': 'cidr1'}
+                            }
+
+        mock_get_port.return_value = {"port":
+                                          {"fixed_ips": [{"ip_address" :
+                                                              "ip1"}]}}
+        with mock.patch.object(self.so_obj.db_handler,
+                               "get_network_functions") as so_nf_db:
+            so_nf_db.return_value = [{'id': 'vpnid', 'service_config':
+                                      'router1'}]
+            with mock.patch.object(self.so_obj.db_handler,
+                                   "get_port_info") as so_db_nfo:
+                so_db_nfo.return_value = {'port_classification':
+                                                       'consumer'}
+                with mock.patch.object(self.so_obj.db_handler,
+                                  "get_network_function_instances") as so_db:
+                    so_db.return_value = [{'port_info': ['port1']}]
+                # mock_get_network_function_instances.return_value = {
+                #     [{'port_info': {'port_classification':
+                #                                        'consumer'}}]}
+                    mock_get_stitching_port.return_value = {"floatingip": "fip1",
+                        "port": {"fixed_ips": [{"ip_address" : "ip1"}]},
+                        "cidr": "cidr1", "gateway": "gateway"}
+                    mock_get_subnet.return_value = {"subnet": {"cidr": "cidr1"}}
+                    nw_fun = self.so_helper_obj\
+                        .process_update_network_function_request(
+                        self.context, self.so_obj, nw_function_info)
+        self.assertIsNotNone(nw_fun)
+        # db_network_function = self.nfp_db.get_network_function(
+        #     self.session, nw_fun['id'])
+        # self.assertEqual(nw_fun, db_network_function)
