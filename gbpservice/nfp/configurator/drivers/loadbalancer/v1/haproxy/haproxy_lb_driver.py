@@ -11,10 +11,12 @@
 #    under the License.
 
 import ast
+import subprocess
 from oslo_log import log as logging
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
                                                     haproxy_rest_client)
 from gbpservice.nfp.configurator.lib import lb_constants
+from gbpservice.nfp.configurator.lib import constants
 from gbpservice.nfp.configurator.drivers.base import base_driver
 
 DRIVER_NAME = 'loadbalancer'
@@ -786,3 +788,24 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             msg = ("Deleted pool health monitor: %s with pool ID: %s"
                    % (str(health_monitor), pool_id))
             LOG.info(msg)
+
+    def configure_healthmonitor(self, context, kwargs):
+        return self._check_vm_health(kwargs)
+
+    def _check_vm_health(self, kwargs):
+        """netcat to port HAPROXY_AGENT_LISTEN_PORT.
+        """
+        ip = kwargs.get('mgmt_ip')
+        port = str(lb_constants.HAPROXY_AGENT_LISTEN_PORT)
+        COMMAND = 'nc '+ip+' '+port+' -z'
+        LOG.debug("Executing command %s for VM health check" % (COMMAND))
+        try:
+            subprocess.check_output(COMMAND, stderr=subprocess.STDOUT,
+                                    shell=True)
+        except Exception as e:
+            LOG.warn("VM Health check failed for [vmid=%s, ip=%s, port=%s]"
+                     " reason=%s" % (kwargs.get('vmid'), ip, port, e))
+            return constants.FAILED
+        LOG.info("VM Health check successful for [vmid=%s, ip=%s, port=%s]" % (
+                                           kwargs.get('vmid'), ip, port))
+        return constants.SUCCESS

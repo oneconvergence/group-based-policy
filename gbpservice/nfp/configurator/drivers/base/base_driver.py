@@ -51,11 +51,14 @@ class BaseDriver(object):
         """
         ip = kwargs.get('mgmt_ip')
         COMMAND = 'nc '+ip+' 8888 -z'
+        LOG.debug("Executing command %s for VM health check" % (COMMAND))
         try:
             subprocess.check_output(COMMAND, stderr=subprocess.STDOUT,
                                     shell=True)
-        except Exception:
-            # LOG.error("Health check failed for vm=%s, ip=%s," % (
-            #                                        kwargs.get('vmid'), ip))
+        except Exception as e:
+            LOG.warn("VM Health check failed for [vmid=%s,ip=%s] reason=%s" % (
+                                              kwargs.get('vmid'), ip, e))
             return FAILED
+        LOG.info("VM Health check successful for [vmid=%s, ip=%s]" % (
+                                           kwargs.get('vmid'), ip))
         return SUCCESS
