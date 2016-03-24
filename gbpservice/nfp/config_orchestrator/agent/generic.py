@@ -10,16 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron import context as n_context
+from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
-from gbpservice.nfp.config_orchestrator.agent.common import *
-from gbpservice.nfp.lib.transport import *
-LOG = logging.getLogger(__name__)
+from gbpservice.nfp.lib import transport
+from neutron import context as n_context
 
 
 def network_function_device_notification(resource, kwargs_list):
-    context = get_dummy_context()
-    rpcClient = RPCClient(a_topics.GC_NFP_PLUGIN_TOPIC)
+    context = common.get_dummy_context()
+    rpcClient = transport.RPCClient(a_topics.GC_NFP_PLUGIN_TOPIC)
     for ele in kwargs_list:
         if 'context' in ele:
             context = ele['context']

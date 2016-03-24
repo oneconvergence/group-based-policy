@@ -1,58 +1,57 @@
-import unittest
-import os
-import sys
-import json
-import mock
-from mock import patch
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 from gbpservice.nfp.config_orchestrator.agent import firewall
 from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
-from gbpservice.nfp.config_orchestrator.agent import vpn
-from gbpservice.nfp.config_orchestrator.agent import generic as gc
 from gbpservice.nfp.config_orchestrator.agent import rpc_cb
-from gbpservice.nfp.config_orchestrator.agent import topics
-from gbpservice.nfp.core import main as controller
-from gbpservice.nfp.core import cfg as core_cfg
-from neutron import manager
-from oslo_messaging import target
-import threading
-from neutron.common import rpc as n_rpc
-from neutron.agent.common import config
+from gbpservice.nfp.config_orchestrator.agent import vpn
+from mock import patch
 from neutron import context as ctx
-from neutron.common import config as common_config
-from oslo_config import cfg
-import time
-from multiprocessing import Process
-import httplib
+import unittest
 
-n_count = 0
 
 class TestContext:
 
     def get_context(self):
         try:
             return ctx.Context('some_user', 'some_tenant')
-        except:
+        except Exception:
             return ctx.Context('some_user', 'some_tenant')
 
+
 class Conf:
+
     class Test_RPC:
+
         def __init__(self):
             self.topic = 'xyz_topic'
+
     def __init__(self):
         self.host = 'dummy_host'
         self.backend = 'rpc'
         self.RPC = self.Test_RPC()
 
+
 class RpcMethods:
+
     def cast(self, context, method, **kwargs):
-        #print("cast method:Success")
         return
+
     def call(self, context, method, **kwargs):
-        #print("call method:Success")
         return {}
 
 
 class GeneralConfigStructure:
+
     def _check_general_structure(self, request_data, rsrc_name, resource=None):
         flag = 0
         if all(key in request_data for key in ["info", "config"]):
@@ -61,7 +60,9 @@ class GeneralConfigStructure:
                 data = request_data['config']
                 for ele in data:
                     if all(key in ele for key in ["resource", "kwargs"]):
-                        if self._check_resource_structure(rsrc_name, ele['kwargs'], resource):
+                        if self._check_resource_structure(rsrc_name,
+                                                          ele['kwargs'],
+                                                          resource):
                             flag = 1
                         else:
                             flag = 0
@@ -120,7 +121,7 @@ class GeneralConfigStructure:
 
     def _check_resource_structure(self, rsrc_name, data, resource=None):
         mod = self
-        mod_method = getattr(mod, "verify_%s_structure"%rsrc_name)
+        mod_method = getattr(mod, "verify_%s_structure" % rsrc_name)
         return mod_method(data, resource)
 
 
@@ -130,8 +131,7 @@ class FirewallTestCase(unittest.TestCase):
         g_cnfg = GeneralConfigStructure()
         request_data = kwargs.get('body')
         if method == 'delete_network_function_config' and \
-            g_cnfg._check_general_structure(request_data, 'firewall') :
-            #print ("delete method for firewall:SUCCESS")
+                g_cnfg._check_general_structure(request_data, 'firewall'):
             return
 
         print("delete method for firewall:FAIL")
@@ -141,8 +141,7 @@ class FirewallTestCase(unittest.TestCase):
         g_cnfg = GeneralConfigStructure()
         request_data = kwargs.get('body')
         if method == 'create_network_function_config' and \
-            g_cnfg._check_general_structure(request_data, 'firewall') :
-            #print ("create method for firewall:SUCCESS")
+                g_cnfg._check_general_structure(request_data, 'firewall'):
             return
 
         print("create method for firewall:FAIL")
@@ -160,7 +159,6 @@ class FirewallTestCase(unittest.TestCase):
     def test_create_firewall(self):
         import_db = 'neutron_fwaas.db.firewall.firewall_db.\
 Firewall_db_mixin.'
-        import_ca = 'gbpservice.nfp.config_orchestrator.'
 
         with patch(import_db + 'get_firewalls') as gfw,\
                 patch(import_db + 'get_firewall_policies') as gfwp,\
@@ -197,31 +195,31 @@ class LoadBalanceTestCase(unittest.TestCase):
     def _cast_delete(self, context, method, **kwargs):
         g_cnfg = GeneralConfigStructure()
         request_data = kwargs.get('body')
-        try :
+        try:
             resource = request_data['config'][0]['resource']
             if method == 'delete_network_function_config' and \
-                    g_cnfg._check_general_structure(request_data, 'loadbalancer', resource) :
-                #print ("delete method for %s:SUCCESS"%(resource))
+                    g_cnfg._check_general_structure(request_data,
+                                                    'loadbalancer',
+                                                    resource):
                 return
-            #print("delete method for %s:FAIL"%(resource))
             return
-        except :
-            #print("delete method for %s:FAIL"%(resource))
+        except:
             return
 
     def _cast_create(self, context, method, **kwargs):
         g_cnfg = GeneralConfigStructure()
         request_data = kwargs.get('body')
-        try :
+        try:
             resource = request_data['config'][0]['resource']
             if method == 'create_network_function_config' and \
-                g_cnfg._check_general_structure(request_data, 'loadbalancer', resource) :
-                #print ("create method for %s:SUCCESS"%(resource))
+                    g_cnfg._check_general_structure(request_data,
+                                                    'loadbalancer',
+                                                    resource):
                 return
-            print("create method for %s:FAIL"%(resource))
+            print("create method for %s:FAIL" % (resource))
             return
-        except :
-            print("create method for %s:FAIL"%(resource))
+        except Except:
+            print("create method for %s:FAIL" % (resource))
             return
 
     def _prepare_request_data(self):
@@ -397,22 +395,21 @@ class VPNTestCase(unittest.TestCase):
     def _cast(self, context, method, **kwargs):
         g_cnfg = GeneralConfigStructure()
         request_data = kwargs.get('body')
-        try :
+        try:
             resource = request_data['config'][0]['resource']
-            if (method == 'delete_network_function_config' \
-                   or method == 'create_network_function_config') \
-                       and g_cnfg._check_general_structure(request_data, 'vpn', resource) :
-                #print ("method for %s:SUCCESS"%(resource))
+            if (method == 'delete_network_function_config' or
+                    method == 'create_network_function_config') \
+                    and g_cnfg._check_general_structure(request_data,
+                                                        'vpn', resource):
                 return
-            print("method for %s:FAIL"%(resource))
+            print("method for %s:FAIL" % (resource))
             return
-        except :
-            print("method for %s:FAIL"%(resource))
+        except:
+            print("method for %s:FAIL" % (resource))
             return
 
     def test_update_vpnservice(self):
         import_db = 'neutron_vpnaas.db.vpn.vpn_db.VPNPluginDb.'
-        import_ca = 'gbpservice.nfp.config_orchestrator.'
         with patch(import_db + 'get_vpnservices') as gvs,\
                 patch(import_db + 'get_ikepolicies') as gikp,\
                 patch(import_db + 'get_ipsecpolicies') as gipp,\
@@ -436,6 +433,7 @@ class VPNTestCase(unittest.TestCase):
                         vpn_handler.vpnservice_updated(context,
                                                        resource=resource)
 
+
 class NotificationTestCase(unittest.TestCase):
 
     def _get_context(self):
@@ -458,7 +456,7 @@ class NotificationTestCase(unittest.TestCase):
         return response_data
 
     def _prepare_request_data_orchestrator(self, receiver, resource,
-                              method, kwargs):
+                                           method, kwargs):
         response_data = [
             {'receiver': receiver,  # <neutron/orchestrator>,
              'resource': resource,  # <firewall/vpn/loadbalancer/generic>,
@@ -467,7 +465,7 @@ class NotificationTestCase(unittest.TestCase):
              }
         ]
         for ele in response_data:
-            for e in ele['kwargs'] :
+            for e in ele['kwargs']:
                 e.update({'context': self._get_context()})
         return response_data
 
@@ -489,9 +487,7 @@ class NotificationTestCase(unittest.TestCase):
                                               'set_firewall_status',
                                               kwargs)
 
-
     def test_rpc_pull_event_orchestrator(self):
-        import_ca = 'gbpservice.nfp.config_orchestrator.'
         with patch('oslo_messaging.rpc.client._CallContext.call') as call,\
                 patch('oslo_messaging.rpc.client._CallContext.cast') as cast:
             call.side_effect = self._call_orchestrator
@@ -503,7 +499,6 @@ class NotificationTestCase(unittest.TestCase):
             rpc_cb_handler.rpc_pull_event(ev)
 
     def test_rpc_pull_event_neutron(self):
-        import_ca = 'gbpservice.nfp.config_orchestrator.'
         with patch('oslo_messaging.rpc.client._CallContext.call') as call,\
                 patch('oslo_messaging.rpc.client._CallContext.cast') as cast:
             call.side_effect = self._call_neutron_firewall_status

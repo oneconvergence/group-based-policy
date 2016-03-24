@@ -10,15 +10,20 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import importlib
-from gbpservice.nfp.core import poll as core_pt
-from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
 from gbpservice.nfp.config_orchestrator.agent import firewall as fw
-from gbpservice.nfp.config_orchestrator.agent import vpn as vpn
 from gbpservice.nfp.config_orchestrator.agent import generic as gc
-from gbpservice.nfp.config_orchestrator.agent.common import *
-from gbpservice.nfp.lib.transport import *
-import json
+from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
+from gbpservice.nfp.config_orchestrator.agent import vpn as vpn
+from gbpservice.nfp.core import poll as core_pt
+from gbpservice.nfp.lib import log_wrapper as wp
+from gbpservice.nfp.lib import transport
+from oslo_log import log as logging
+
+
+log_info = wp.log_info
+log_error = wp.log_error
+
+
 LOG = logging.getLogger(__name__)
 
 CONFIG_AGENT_MODULES = {'loadbalancer': lb,
@@ -48,8 +53,8 @@ class RpcCallback(core_pt.PollEventDesc):
 
     @core_pt.poll_event_desc(event='PULL_RPC_NOTIFICATIONS', spacing=1)
     def rpc_pull_event(self, ev):
-        LOG.error("Sending Notification Request")
-        rpc_cbs_data = get_response_from_configurator(self._conf)
+        log_error(LOG, "Sending Notification Request")
+        rpc_cbs_data = transport.get_response_from_configurator(self._conf)
         '''
        response_data = [
            {'receiver': <neutron/orchestrator>,
@@ -60,13 +65,13 @@ class RpcCallback(core_pt.PollEventDesc):
        ]
        '''
         if not isinstance(rpc_cbs_data, list):
-            LOG.info("get_notification -> %s" % (rpc_cbs_data))
+            log_info(LOG, "get_notification -> %s" % (rpc_cbs_data))
 
         else:
             rpc_cbs = rpc_cbs_data
             for rpc_cb in rpc_cbs:
                 if not rpc_cb:
-                    LOG.info("Receiver Response: Empty")
+                    log_info(LOG, "Receiver Response: Empty")
                     continue
                 try:
                     self._method_handler(rpc_cb)
@@ -74,10 +79,10 @@ class RpcCallback(core_pt.PollEventDesc):
                     import sys
                     import traceback
                     exc_type, exc_value, exc_traceback = sys.exc_info()
-                    print traceback.format_exception(exc_type, exc_value,
-                                                     exc_traceback)
-                    LOG.error("AttributeError while handling message" % (
+                    print(traceback.format_exception(exc_type, exc_value,
+                                                     exc_traceback))
+                    log_error(LOG, "AttributeError while handling message" % (
                         rpc_cb))
                 except Exception as e:
-                    LOG.error("Generic exception (%s) \
+                    log_error(LOG, "Generic exception (%s) \
                        while handling message (%s)" % (e, rpc_cb))

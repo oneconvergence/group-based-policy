@@ -10,14 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
-from oslo_messaging import target
-from oslo_log import log as logging
-from neutron import manager
-from neutron.common import rpc as n_rpc
-from neutron.plugins.common import constants
-from neutron.common import topics as n_topics
 from neutron.common import constants as n_constants
+from neutron.common import rpc as n_rpc
+from neutron.common import topics as n_topics
+from oslo_log import log as logging
+from oslo_messaging import target
+
 LOG = logging.getLogger(__name__)
 Version = 'v1'  # v1/v2/v3#
 

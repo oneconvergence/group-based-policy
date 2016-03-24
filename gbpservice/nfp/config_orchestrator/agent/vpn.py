@@ -10,16 +10,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron_vpnaas.db.vpn import vpn_db
-from gbpservice.nfp.config_orchestrator.agent.common import *
+from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
-from gbpservice.nfp.lib.transport import *
-
-LOG = logging.getLogger(__name__)
+from gbpservice.nfp.lib import transport
+from neutron import context as n_context
+from neutron_vpnaas.db.vpn import vpn_db
+from oslo_messaging import target
 
 
 def update_status(**kwargs):
-    rpcClient = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+    rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
     context = kwargs.get('context')
     rpc_ctx = n_context.Context.from_dict(context)
     del kwargs['context']
@@ -44,8 +44,10 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         kwargs.update({'context': context_dict})
         resource = resource_data['rsrc_type']
         reason = resource_data['reason']
-        body = prepare_request_data(resource, kwargs, "vpn")
-        send_request_to_configurator(self._conf, context, body, reason)
+        body = common. prepare_request_data(resource, kwargs, "vpn")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               reason)
 
     def _context(self, context, tenant_id):
         if context.is_admin:
@@ -64,6 +66,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'ipsec_site_conns': db_data.get_ipsec_site_connections(**args)}
 
     def _get_core_context(self, context, filters):
-        core_context_dict = get_core_context(context, filters, self._conf.host)
+        core_context_dict = common.get_core_context(context,
+                                                    filters,
+                                                    self._conf.host)
         del core_context_dict['ports']
         return core_context_dict
