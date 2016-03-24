@@ -34,10 +34,13 @@ class Filter(object):
 
         """
         try:
-            if msg['args']['filters'] is not None:
-                filters = msg['args']['filters']
-            else:
-                filters = {'ids': msg['args']['ids']}
+            for fk, fv in msg['args'].items():
+                if dict == type(fv):
+                    filters = fv
+                    break
+                if fv:
+                    filters = {fk: fv}
+                    break
 
             method = getattr(self, '_%s' % (msg['method']))
             return method(context, filters)
@@ -292,7 +295,7 @@ class Filter(object):
         for phm in pool_health_monitors:
             if phm['status'] in constants.ACTIVE_PENDING_STATUSES:
                 health_monitor = self.get_record(
-                    service_info['health_monitor'],
+                    service_info['health_monitors'],
                     'id', phm['monitor_id'])
                 retval['healthmonitors'].append(health_monitor)
 
