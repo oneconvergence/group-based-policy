@@ -97,12 +97,12 @@ class UnixRestClient():
             raise RestClientException("HTTPForbidden: %s" % resp.reason)
         elif resp.status == 404:
             raise RestClientException("HttpNotFound: %s" % resp.reason)
-        elif resp_code.status == 405:
+        elif resp.status == 405:
             raise RestClientException(
                 "HTTPMethodNotAllowed: %s" % resp.reason)
-        elif resp_code.status == 406:
+        elif resp.status == 406:
             raise RestClientException("HTTPNotAcceptable: %s" % resp.reason)
-        elif resp_code.status == 408:
+        elif resp.status == 408:
             raise RestClientException("HTTPRequestTimeout: %s" % resp.reason)
         elif resp.status == 409:
             raise RestClientException("HTTPConflict: %s" % resp.reason)

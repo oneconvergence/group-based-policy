@@ -75,12 +75,12 @@ class RestApi(object):
             raise RestClientException("HTTPForbidden: %s" % resp.reason)
         elif resp.status_code == 404:
             raise RestClientException("HttpNotFound: %s" % resp.reason)
-        elif resp_code.status == 405:
+        elif resp.status_code == 405:
             raise RestClientException(
                 "HTTPMethodNotAllowed: %s" % resp.reason)
-        elif resp_code.status == 406:
+        elif resp.status_code == 406:
             raise RestClientException("HTTPNotAcceptable: %s" % resp.reason)
-        elif resp_code.status == 408:
+        elif resp.status_code == 408:
             raise RestClientException("HTTPRequestTimeout: %s" % resp.reason)
         elif resp.status_code == 409:
             raise RestClientException("HTTPConflict: %s" % resp.reason)
