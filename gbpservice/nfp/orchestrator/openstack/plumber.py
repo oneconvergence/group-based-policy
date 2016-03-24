@@ -23,11 +23,12 @@ class SCPlumber():
             tenant_id, router_id, fip_required)
         return stitching_port_info
 
+    def delete_stitching(self):
     def update_router_service_gateway(self, router_id, peer_cidrs,
                                       stitching_interface_ip, delete=False):
         if not delete:
             self.plumber.add_extra_route(router_id, peer_cidrs,
-                                          stitching_interface_ip)
+                                         stitching_interface_ip)
         else:
             self.plumber.delete_extra_route(router_id, peer_cidrs)
 
@@ -38,7 +39,7 @@ class NeutronPlumber():
         self.neutron = NeutronClient()
 
     def add_extra_route(self, router_id, peer_cidrs,
-                         stitching_interface_ip):
+                        stitching_interface_ip):
         routes_to_add = []
         for peer_cidr in peer_cidrs:
             routes_to_add.append({"nexthop": stitching_interface_ip,

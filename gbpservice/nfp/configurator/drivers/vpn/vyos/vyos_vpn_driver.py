@@ -209,9 +209,8 @@ class VPNSvcValidator(object):
             context, self._update_service_status(vpnsvc, const.STATE_ERROR))
 
     def _get_local_cidr(self, vpn_svc):
-        svc_desc = vpn_svc['description']
-        tokens = svc_desc.split(';')
-        local_cidr = tokens[1].split('=')[1]
+        svc_desc = json.loads(vpn_svc['description'])
+        local_cidr = svc_desc.get("tunnel_local_cidr")
         return local_cidr
 
     def validate(self, context, vpnsvc):
@@ -499,18 +498,14 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                                               const.STATE_INIT))
 
     def _get_fip_from_vpnsvc(self, vpn_svc):
-        svc_desc = vpn_svc['description']
-        tokens = svc_desc.split(';')
-        fip = tokens[0].split('=')[1]
-        return fip
+        return self._get_vm_mgmt_ip_from_desc(vpn_svc)
 
     def _get_fip(self, svc_context):
         return self._get_fip_from_vpnsvc(svc_context['service'])
 
     def _get_ipsec_tunnel_local_cidr_from_vpnsvc(self, vpn_svc):
-        svc_desc = vpn_svc['description']
-        tokens = svc_desc.split(';')
-        tunnel_local_cidr = tokens[1].split('=')[1]
+        svc_desc = json.loads(vpn_svc['description'])
+        tunnel_local_cidr = svc_desc.get("tunnel_local_cidr")
         return tunnel_local_cidr
 
     def _get_ipsec_tunnel_local_cidr(self, svc_context):
@@ -521,15 +516,13 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 svc_context['service'])
 
     def _get_stitching_fixed_ip(self, conn):
-        desc = conn['description']
-        tokens = desc.split(';')
-        fixed_ip = tokens[3].split('=')[1]
+        svc_desc = json.loads(conn['description'])
+        fixed_ip = svc_desc.get("fixed_ip")
         return fixed_ip
 
     def _get_user_access_ip(self, conn):
-        desc = conn['description']
-        tokens = desc.split(';')
-        access_ip = tokens[2].split('=')[1]
+        svc_desc = json.loads(conn['description'])
+        access_ip = svc_desc.get("user_access_ip")
         return access_ip
 
     def _ipsec_conn_correct_enc_algo(self, conn):
@@ -723,10 +716,9 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         return c_state, False
 
     def _get_vm_mgmt_ip_from_desc(self, desc):
-        svc_desc = desc['description']
-        tokens = svc_desc.split(';')
-        vm_mgmt_ip = tokens[0].split('=')[1]
-        return vm_mgmt_ip
+        svc_desc = json.loads(desc['description'])
+        fip = svc_desc.get("fip")
+        return fip
 
     def create_vpn_service(self, context, kwargs):
 

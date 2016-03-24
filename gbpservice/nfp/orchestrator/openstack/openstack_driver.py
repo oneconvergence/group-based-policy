@@ -187,6 +187,7 @@ class KeystoneClient(OpenstackApi):
             auth_url=v3_auth_url)
         return v3client
 
+
 class NovaClient(OpenstackApi):
     """ Nova Client Api driver. """
 
@@ -350,11 +351,8 @@ class NovaClient(OpenstackApi):
         :return: instance List
 
         """
-        if (
-                        not filters or
-                            type(filters) != dict or
-                        'tenant_id' not in filters
-        ):
+        if (not filters or type(filters) != dict or
+                'tenant_id' not in filters):
             err = ("Failed to process get_instances,"
                    " filters(type: dict) with tenant_id is mandatory")
             LOG.error(err)
@@ -889,8 +887,8 @@ class NeutronClient(OpenstackApi):
                                             endpoint_url=self.network_service)
             return neutron.create_network(body=attr)['network']
         except Exception as ex:
-            raise Exception("network creation failed in network: %r of tenant: %r"
-                            " Error: %s" % (tenant_id, ex))
+            raise Exception("network creation failed in network: %r of tenant:"
+                            " %r Error: %s" % (tenant_id, ex))
 
     def get_networks(self, token, filters=None):
         """ List nets
@@ -931,6 +929,7 @@ class NeutronClient(OpenstackApi):
         except Exception as ex:
             raise Exception("subnet creation failed for tenant: %r"
                             " Error: %s" % (tenant_id, ex))
+
 
 class GBPClient(OpenstackApi):
     """ GBP Client Api Driver. """
@@ -976,7 +975,8 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def update_policy_target_group(self, token, ptg_id, policy_target_group_info):
+    def update_policy_target_group(self, token, ptg_id,
+                                   policy_target_group_info):
         """ Updates a GBP Policy Target Group
 
         :param token: A scoped token
@@ -987,7 +987,8 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
-            return gbp.update_policy_target_group(body=policy_target_group_info)['policy_target_group']
+            return gbp.update_policy_target_group(
+                body=policy_target_group_info)['policy_target_group']
         except Exception as ex:
             err = ("Failed to update policy target group. Error :: %s" % (ex))
             LOG.error(err)
@@ -1196,12 +1197,14 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def create_network_service_policy(self, token, network_service_policy_info):
+    def create_network_service_policy(self, token,
+                                      network_service_policy_info):
 
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
-            return gbp.create_network_service_policy(body=network_service_policy_info)['network_service_policy']
+            return gbp.create_network_service_policy(
+                body=network_service_policy_info)['network_service_policy']
         except Exception as ex:
             err = ("Failed to create network service policy "
                    "Error :: %s" % (ex))
@@ -1221,7 +1224,8 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
-            return gbp.list_network_service_policies(**filters)['network_service_policies']
+            return gbp.list_network_service_policies(
+                **filters)['network_service_policies']
         except Exception as ex:
             err = ("Failed to list network service policies. Reason %s" % ex)
             LOG.error(err)
@@ -1311,7 +1315,8 @@ class GBPClient(OpenstackApi):
             return gbp.create_l3_policy(body=l3_policy_info)['l3_policy']
         except Exception as ex:
             err = ("Failed to create l3 policy under tenant"
-                   " %s. Error :: %s" % (l3_policy_info['l3_policy']['tenant_id'], ex))
+                   " %s. Error :: %s" % (
+                        l3_policy_info['l3_policy']['tenant_id'], ex))
             LOG.error(err)
             raise Exception(err)
 
