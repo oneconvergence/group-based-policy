@@ -30,6 +30,9 @@ from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 LOG = logging.getLogger(__name__)
 
+STOP_POLLING = {'poll': False}
+CONTINUE_POLLING = {'poll': True}
+
 
 def rpc_init(controller, config):
     rpcmgr = RpcHandler(config, controller)
@@ -56,7 +59,7 @@ def events_init(controller, config, service_orchestrator):
 
 
 def module_init(controller, config):
-    events_init(controller, config, ServiceOrchestrator(controller))
+    events_init(controller, config, ServiceOrchestrator(controller, config))
     rpc_init(controller, config)
 
 
@@ -77,61 +80,102 @@ class RpcHandler(object):
 
     @log_helpers.log_method_call
     def create_network_function(self, context, network_function):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        '''Create Network Function.
+
+        Invoked in an RPC Call. Return the Network function DB object
+        created. Results in an Event for async processing of Network
+        Function Instance
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.create_network_function(
             context, network_function)
 
     @log_helpers.log_method_call
     def get_network_function(self, context, network_function_id):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        '''Invoked in an RPC Call. Return the Network function DB object'''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.get_network_function(
             context, network_function_id)
 
     @log_helpers.log_method_call
-    def get_network_functions(self, context, filters={}):
-        service_orchestrator = ServiceOrchestrator(self._controller)
+    def get_network_functions(self, context, filters=None):
+        '''Invoked in an RPC Call.
+
+        Returns the Network functions from DB
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.get_network_functions(
             context, filters)
 
     @log_helpers.log_method_call
     def update_network_function(self, context, network_function_id,
-                               updated_network_function):
-        service_orchestrator = ServiceOrchestrator(self._controller)
-        return service_orchestrator.update_network_function(
+                                updated_network_function):
+        '''Update Network Function Configuration.
+
+        Invoked in an RPC cast. A notification has to be sent back once the
+        operation is completed, and GBP has the status update support
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator.update_network_function(
             context, network_function_id, updated_network_function)
 
     @log_helpers.log_method_call
     def delete_network_function(self, context, network_function_id):
-        service_orchestrator = ServiceOrchestrator(self._controller)
-        return service_orchestrator.delete_network_function(
+        '''Delete the network Function.
+
+        Invoked in an RPC cast. A notification has to be sent back once the
+        operation is completed, and GBP has the status update support
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator.delete_network_function(
             context, network_function_id)
 
     @log_helpers.log_method_call
     def policy_target_added_notification(self, context, network_function_id,
                                          policy_target):
-        service_orchestrator = ServiceOrchestrator(self._controller)
-        return service_orchestrator.handle_policy_target_added(
+        '''Update Configuration to react to member addition.
+
+        Invoked in an RPC cast. A notification has to be sent back once the
+        operation is completed, and GBP has the status update support
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator.handle_policy_target_added(
             context, network_function_id, policy_target)
 
     @log_helpers.log_method_call
     def policy_target_removed_notification(self, context, network_function_id,
                                            policy_target):
-        service_orchestrator = ServiceOrchestrator(self._controller)
-        return service_orchestrator.handle_policy_target_removed(
+        '''Update Configuration to react to member deletion.
+
+        Invoked in an RPC cast. A notification has to be sent back once the
+        operation is completed, and GBP has the status update support
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator.handle_policy_target_removed(
             context, network_function_id, policy_target)
 
     @log_helpers.log_method_call
     def consumer_ptg_added_notification(self, context, network_function_id,
                                         policy_target_group):
-        service_orchestrator = ServiceOrchestrator(self._controller)
-        return service_orchestrator.handle_consumer_ptg_added(
+        '''Update Configuration to react to consumer PTG creation.
+
+        Invoked in an RPC cast. A notification has to be sent back once the
+        operation is completed, and GBP has the status update support
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator.handle_consumer_ptg_added(
             context, network_function_id, policy_target_group)
 
     @log_helpers.log_method_call
     def consumer_ptg_removed_notification(self, context, network_function_id,
                                           policy_target_group):
-        service_orchestrator = ServiceOrchestrator(self._controller)
-        return service_orchestrator.handle_consumer_ptg_removed(
+        '''Update Configuration to react to consumer PTG deletion.
+
+        Invoked in an RPC cast. A notification has to be sent back once the
+        operation is completed, and GBP has the status update support
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator.handle_consumer_ptg_removed(
             context, network_function_id, policy_target_group)
 
 
@@ -146,15 +190,38 @@ class ServiceOrchestrator(object):
     whereas a Network Function in Cluster mode might have more than 2 Network
     Function Instances. This module interacts with Device Orchestrator and
     Config driver.
+
+    Workflow for create:
+    1) create_network_function is called in the context of an RPC call. This
+    method generates and event CREATE_NETWORK_FUNCTION_INSTANCE
+    2) Event handler for CREATE_NETWORK_FUNCTION_INSTANCE. Here a DB entry is
+    created and generates and event CREATE_NETWORK_FUNCTION_DEVICE.
+    3) The Device Orchestrator module handles this event and generates an event
+    DEVICE_CREATED or DEVICE_CREATE_FAILED
+    4) Event handler for DEVICE_CREATED event updates the Network Function
+    Instance DB object with the created Network Function Device ID
+    5) Event handler for DEVICE_CREATE_FAILED event updates the Network
+    Function Instance and Network Function DB with status ERROR
+    6) Device orchestrator could then generate DEVICE_ACTIVE or
+    DEVICE_CREATE_FAILED based on the device being healthy or it being not
+    reachable
+    7) Event handler for DEVICE_ACTIVE updates Network Function Instance to
+    Active, invokes config driver (heat) to apply user provided service config.
+    A poll event APPLY_USER_CONFIG_IN_PROGRESS is then created.
+    8) Event handler for poll event APPLY_USER_CONFIG_IN_PROGRESS checks
+    whether the configuration is applied successfully
+    9) If the config driver returns COMPLETED or ERROR, the poll event is
+    stopped and the Network Function is updated to Active or Error. If it
+    returns IN_PROGRESS, the poll event is continued.
     """
 
-    def __init__(self, controller):
+    def __init__(self, controller, config):
         self._controller = controller
         self.db_handler = nfp_db.NFPDbBase()
         #self.db_session = nfp_db_api.get_session()
-        self.gbpclient = openstack_driver.GBPClient()
-        self.keystoneclient = openstack_driver.KeystoneClient()
-        self.config_driver = heat_driver.HeatDriver()
+        self.gbpclient = openstack_driver.GBPClient(config)
+        self.keystoneclient = openstack_driver.KeystoneClient(config)
+        self.config_driver = heat_driver.HeatDriver(config)
 
     @property
     def db_session(self):
@@ -200,7 +267,7 @@ class ServiceOrchestrator(object):
                  {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
-            event_handler(event)
+            return event_handler(event)
         except Exception:
             LOG.exception(_LE("Error in processing poll event: "
                               "%(event_id)s"), {'event_id': event.id})
@@ -454,7 +521,7 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            self._controller.poll_event_done(event)
+            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "COMPLETED":
             updated_network_function = {'status': nfp_constants.ACTIVE}
@@ -462,10 +529,10 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            self._controller.poll_event_done(event)
+            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "IN_PROGRESS":
-            return
+            return CONTINUE_POLLING
 
     def check_for_user_config_deleted(self, event):
         request_data = event.data
@@ -483,7 +550,7 @@ class ServiceOrchestrator(object):
             }
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data)
-            self._controller.poll_event_done(event)
+            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "COMPLETED":
             updated_network_function = {'heat_stack_id': None}
@@ -496,10 +563,10 @@ class ServiceOrchestrator(object):
             }
             self._create_event('USER_CONFIG_DELETED',
                                event_data=event_data)
-            self._controller.poll_event_done(event)
+            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == "IN_PROGRESS":
-            return
+            return CONTINUE_POLLING
 
     def handle_user_config_applied(self, event):
         request_data = event.data
@@ -570,8 +637,8 @@ class ServiceOrchestrator(object):
                 self.db_session, network_function_id)
             return network_function
         except Exception:
-            LOG.exception(_LE("Failed to retrieve Network Function details for "
-                              "%(network_function)s"),
+            LOG.exception(_LE("Failed to retrieve Network Function details for"
+                              " %(network_function)s"),
                           {'network_function': network_function_id})
             return None
 

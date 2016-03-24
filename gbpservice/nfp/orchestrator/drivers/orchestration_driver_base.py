@@ -30,19 +30,19 @@ class OrchestrationDriverBase(object):
     Launches the VM with all the management and data ports and a new VM
     is launched for each Network Service Instance
     """
-    def __init__(self, supports_device_sharing=False, supports_hotplug=False,
-                 max_interfaces=5):
+    def __init__(self, config, supports_device_sharing=False,
+	         supports_hotplug=False, max_interfaces=5):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
         self.supports_hotplug = supports_hotplug
         self.maximum_interfaces = max_interfaces
 
-        # TODO[Magesh]: Try to move the following handlers to
+        # TODO(MAGESH): Try to move the following handlers to
         # NDO manager rather than having here in the driver
-        self.identity_handler = openstack_driver.KeystoneClient()
-        self.compute_handler_nova = openstack_driver.NovaClient()
-        self.network_handler_gbp = openstack_driver.GBPClient()
-        self.network_handler_neutron = openstack_driver.NeutronClient()
+        self.identity_handler = openstack_driver.KeystoneClient(config)
+        self.compute_handler_nova = openstack_driver.NovaClient(config)
+        self.network_handler_gbp = openstack_driver.GBPClient(config)
+        self.network_handler_neutron = openstack_driver.NeutronClient(config)
 
         # statistics available
         # - instances
@@ -74,26 +74,28 @@ class OrchestrationDriverBase(object):
             raise
 
     def _increment_stats_counter(self, metric, by=1):
-        # TODO: create path and delete path have different driver objects.
+        # TODO(RPM): create path and delete path have different driver objects.
         # This will not work in case of increment and decrement.
         # So, its no-operation now
         return
         try:
             self.stats.update({metric: self.stats.get(metric, 0) + by})
         except Exception:
-            LOG.error(_LE("Statistics failure. Failed to increment '%s' by %d"
-                          % (metric, by)))
+            LOG.error(_LE("Statistics failure. Failed to increment"
+                          " '%(metric)s' by %(by)d")
+                      % {'metric': metric, 'by': by})
 
     def _decrement_stats_counter(self, metric, by=1):
-        # TODO: create path and delete path have different driver objects.
+        # TODO(RPM): create path and delete path have different driver objects.
         # This will not work in case of increment and decrement.
         # So, its no-operation now
         return
         try:
             self.stats.update({metric: self.stats[metric] - by})
         except Exception:
-            LOG.error(_LE("Statistics failure. Failed to decrement '%s' by %d"
-                          % (metric, by)))
+            LOG.error(_LE("Statistics failure. Failed to decrement"
+                          " '%(metric)s' by %(by)d")
+                      % {'metric': metric, 'by': by})
 
     def _is_device_sharing_supported(self):
         return self.supports_device_sharing and self.supports_hotplug
@@ -109,7 +111,7 @@ class OrchestrationDriverBase(object):
                           ' creation'))
             return None
 
-        name = 'mgmt_interface'  # TODO[RPM]: Use proper name
+        name = 'mgmt_interface'  # TODO(RPM): Use proper name
         port_model = None
         if device_data['network_model'] == nfp_constants.GBP_NETWORK:
             mgmt_ptg_id = device_data['management_network_info']['id']
@@ -296,7 +298,7 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type'] 
+        if (device_data['service_details']['device_type']
                 != nfp_constants.NOVA_MODE):
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=
@@ -340,8 +342,8 @@ class OrchestrationDriverBase(object):
         except Exception:
             self._increment_stats_counter('image_details_get_failures')
             LOG.error(_LE('Failed to get image id for device creation.'
-                          ' image name: %s'
-                          % (image_name)))
+                          ' image name: %s')
+                      % (image_name))
             self._delete_interfaces(device_data, interfaces)
             self._decrement_stats_counter('management_interfaces',
                                           by=len(interfaces))
@@ -378,7 +380,7 @@ class OrchestrationDriverBase(object):
                                           by=len(interfaces))
             return None
 
-        instance_name = 'instance'  # TODO[RPM]:use proper name
+        instance_name = 'instance'  # TODO(RPM):use proper name
         try:
             instance_id = self.compute_handler_nova.create_instance(
                     token, self._get_admin_tenant_id(token=token),
@@ -430,7 +432,7 @@ class OrchestrationDriverBase(object):
                 'mgmt_port_id': interfaces[0],
                 'max_interfaces': self.maximum_interfaces,
                 'interfaces_in_use': len(interfaces_to_attach),
-                'description': ''}  # TODO[RPM]: what should be the description
+                'description': ''}  # TODO(RPM): what should be the description
 
     def delete_network_function_device(self, device_data):
         """ Delete the NFD
@@ -459,7 +461,7 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type'] 
+        if (device_data['service_details']['device_type']
             != nfp_constants.NOVA_MODE):
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=
@@ -513,7 +515,7 @@ class OrchestrationDriverBase(object):
                            'service_details']):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type'] 
+        if (device_data['service_details']['device_type']
                 != nfp_constants.NOVA_MODE):
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=
@@ -574,7 +576,7 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type'] 
+        if (device_data['service_details']['device_type']
             != nfp_constants.NOVA_MODE):
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=
@@ -588,7 +590,7 @@ class OrchestrationDriverBase(object):
             self._increment_stats_counter('keystone_token_get_failures')
             LOG.error(_LE('Failed to get token for plug interface to device'
                           ' operation'))
-            return False  # TODO[RPM]: should we raise an Exception here?
+            return False  # TODO(RPM): should we raise an Exception here?
 
         try:
             for port in device_data['ports']:
@@ -620,7 +622,7 @@ class OrchestrationDriverBase(object):
         except Exception:
             self._increment_stats_counter('interface_plug_failures')
             LOG.error(_LE('Failed to plug interface(s) to the device'))
-            return False  # TODO[RPM]: should we raise an Exception here?
+            return False  # TODO(RPM): should we raise an Exception here?
         else:
             return True
 
@@ -654,7 +656,7 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type'] 
+        if (device_data['service_details']['device_type']
             != nfp_constants.NOVA_MODE):
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=
@@ -668,7 +670,7 @@ class OrchestrationDriverBase(object):
             self._increment_stats_counter('keystone_token_get_failures')
             LOG.error(_LE('Failed to get token for unplug interface from'
                           ' device operation'))
-            return False  # TODO[RPM]: should we raise an Exception here?
+            return False  # TODO(RPM): should we raise an Exception here?
 
         try:
             for port in device_data['ports']:
@@ -681,7 +683,7 @@ class OrchestrationDriverBase(object):
         except Exception:
             self._increment_stats_counter('interface_unplug_failures')
             LOG.error(_LE('Failed to unplug interface(s) from the device'))
-            return False  # TODO[RPM]: should we raise an Exception here?
+            return False  # TODO(RPM): should we raise an Exception here?
         else:
             return True
 

@@ -15,9 +15,12 @@
 
 import mock
 
+from oslo_config import cfg
+
 from gbpservice.neutron.tests.unit.nfp.orchestrator import test_nfp_db
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
+from gbpservice.nfp.core import main  # noqa
 from gbpservice.nfp.core.main import Event
 from gbpservice.nfp.orchestrator.modules import (
     service_orchestrator as nso)
@@ -33,18 +36,17 @@ class NSOoduleTestCase(test_nfp_db.NFPDBTestCase):
     @mock.patch.object(nso, 'rpc_init')
     def test_module_init(self, mock_rpc_init, mock_events_init):
         controller = mock.Mock()
-        config = "testconfig"
-        nso.module_init(controller, config)
-        mock_events_init.assert_called_once_with(controller, config, mock.ANY)
+        nso.module_init(controller, cfg.CONF)
+        mock_events_init.assert_called_once_with(
+            controller, cfg.CONF, mock.ANY)
         call_args, call_kwargs = mock_events_init.call_args
         self.assertIsInstance(call_args[2],
                               nso.ServiceOrchestrator)
-        mock_rpc_init.assert_called_once_with(controller, config)
+        mock_rpc_init.assert_called_once_with(controller, cfg.CONF)
 
     def test_rpc_init(self):
         controller = mock.Mock()
-        config = mock.Mock()
-        nso.rpc_init(controller, config)
+        nso.rpc_init(controller, cfg.CONF)
         controller.register_rpc_agents.assert_called_once_with(mock.ANY)
         call_args, call_kwargs = controller.register_rpc_agents.call_args
         self.assertEqual(1, len(call_args[0]))
@@ -52,10 +54,9 @@ class NSOoduleTestCase(test_nfp_db.NFPDBTestCase):
 
     def test_events_init(self):
         controller = mock.Mock()
-        config = mock.Mock()
         nso.events_init(
-            controller, config,
-            nso.ServiceOrchestrator(controller))
+            controller, cfg.CONF,
+            nso.ServiceOrchestrator(controller, cfg.CONF))
         controller.register_events.assert_called_once_with(mock.ANY)
 
 
@@ -64,8 +65,7 @@ class NSORpcHandlerTestCase(NSOoduleTestCase):
     def setUp(self):
         super(NSORpcHandlerTestCase, self).setUp()
         self.controller = mock.Mock()
-        self.config = mock.Mock()
-        self.rpc_handler = nso.RpcHandler(self.config, self.controller)
+        self.rpc_handler = nso.RpcHandler(cfg.CONF, self.controller)
 
     @mock.patch.object(nso.ServiceOrchestrator,
                        "create_network_function")
@@ -147,9 +147,10 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
     def setUp(self):
         super(ServiceOrchestratorTestCase, self).setUp()
         self.controller = mock.Mock()
-        self.config = mock.Mock()
         self.context = mock.Mock()
-        self.service_orchestrator = nso.ServiceOrchestrator(self.controller)
+        cfg.CONF.set_override("auth_version", "v1", group="keystone_authtoken")
+        self.service_orchestrator = nso.ServiceOrchestrator(self.controller,
+                                                            cfg.CONF)
 
     @mock.patch.object(
         openstack_driver.KeystoneClient, "get_admin_token")
@@ -166,7 +167,7 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
             'service_id': 'sc_node_id',
             'service_profile_id': 'service_profile_id',
             'management_ptg_id': 'mgmt_ptg_id',
-            'service_config': '',
+            'service_cfg.CONF': '',
             'port_info': {
                 'id': 'provider_port_id',
                 'port_model': nfp_constants.GBP_PORT,
@@ -362,22 +363,23 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
         with mock.patch.object(
             self.service_orchestrator.config_driver,
             "is_config_complete") as mock_is_config_complete:
-            # Verify return status IN_PROGRESS from config driver
+            # Verify return status IN_PROGRESS from cfg.CONF driver
             mock_is_config_complete.return_value = "IN_PROGRESS"
             request_data = {
                 'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
-            self.service_orchestrator.check_for_user_config_complete(
+            status = self.service_orchestrator.check_for_user_config_complete(
                 test_event)
             mock_is_config_complete.assert_called_once_with(
                 request_data['heat_stack_id'], network_function['tenant_id'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual(network_function['status'], db_nf['status'])
+            self.assertEqual(status, nso.CONTINUE_POLLING)
 
-            # Verify return status ERROR from config driver
+            # Verify return status ERROR from cfg.CONF driver
             mock_is_config_complete.reset_mock()
             mock_is_config_complete.return_value = "ERROR"
             request_data = {
@@ -385,17 +387,16 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
-            self.service_orchestrator.check_for_user_config_complete(
+            status = self.service_orchestrator.check_for_user_config_complete(
                 test_event)
             mock_is_config_complete.assert_called_once_with(
                 request_data['heat_stack_id'], network_function['tenant_id'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual('ERROR', db_nf['status'])
-            self.controller.poll_event_done.assert_called_once_with(
-                test_event)
+            self.assertEqual(status, nso.STOP_POLLING)
 
-            # Verify return status COMPLETED from config driver
+            # Verify return status COMPLETED from cfg.CONF driver
             self.controller.poll_event_done.reset_mock()
             mock_is_config_complete.reset_mock()
             mock_is_config_complete.return_value = "COMPLETED"
@@ -404,15 +405,14 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
-            self.service_orchestrator.check_for_user_config_complete(
+            status = self.service_orchestrator.check_for_user_config_complete(
                 test_event)
             mock_is_config_complete.assert_called_once_with(
                 request_data['heat_stack_id'], network_function['tenant_id'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual('ACTIVE', db_nf['status'])
-            self.controller.poll_event_done.assert_called_once_with(
-                test_event)
+            self.assertEqual(status, nso.STOP_POLLING)
 
     def test_event_handle_user_config_applied(self):
         network_function = self.create_network_function()
@@ -445,14 +445,14 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
         with mock.patch.object(
             self.service_orchestrator.config_driver,
             "is_config_delete_complete") as mock_is_config_delete_complete:
-            # Verify return status IN_PROGRESS from config driver
+            # Verify return status IN_PROGRESS from cfg.CONF driver
             mock_is_config_delete_complete.return_value = "IN_PROGRESS"
             request_data = {
                 'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
-            self.service_orchestrator.check_for_user_config_deleted(
+            status = self.service_orchestrator.check_for_user_config_deleted(
                 test_event)
             mock_is_config_delete_complete.assert_called_once_with(
                 request_data['heat_stack_id'], network_function['tenant_id'])
@@ -461,8 +461,9 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
             self.assertEqual(network_function['status'], db_nf['status'])
             self.assertEqual(network_function['heat_stack_id'],
                              db_nf['heat_stack_id'])
+            self.assertEqual(status, nso.CONTINUE_POLLING)
 
-            # Verify return status ERROR from config driver
+            # Verify return status ERROR from cfg.CONF driver
             mock_is_config_delete_complete.reset_mock()
             mock_is_config_delete_complete.return_value = "ERROR"
             request_data = {
@@ -470,7 +471,7 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
-            self.service_orchestrator.check_for_user_config_deleted(
+            status = self.service_orchestrator.check_for_user_config_deleted(
                 test_event)
             mock_is_config_delete_complete.assert_called_once_with(
                 request_data['heat_stack_id'], network_function['tenant_id'])
@@ -479,10 +480,9 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
             }
             mock_create_event.assert_called_once_with(
                 'USER_CONFIG_DELETE_FAILED', event_data=event_data)
-            self.controller.poll_event_done.assert_called_once_with(
-                test_event)
+            self.assertEqual(status, nso.STOP_POLLING)
 
-            # Verify return status COMPLETED from config driver
+            # Verify return status COMPLETED from cfg.CONF driver
             self.controller.poll_event_done.reset_mock()
             mock_is_config_delete_complete.reset_mock()
             mock_create_event.reset_mock()
@@ -492,7 +492,7 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
                 'heat_stack_id': 'heat_stack_id',
                 'network_function_id': network_function['id']}
             test_event = Event(data=request_data)
-            self.service_orchestrator.check_for_user_config_deleted(
+            status = self.service_orchestrator.check_for_user_config_deleted(
                 test_event)
             mock_is_config_delete_complete.assert_called_once_with(
                 request_data['heat_stack_id'], network_function['tenant_id'])
@@ -504,8 +504,7 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
             }
             mock_create_event.assert_called_once_with(
                 'USER_CONFIG_DELETED', event_data=event_data)
-            self.controller.poll_event_done.assert_called_once_with(
-                test_event)
+            self.assertEqual(status, nso.STOP_POLLING)
 
     @mock.patch.object(
         nso.ServiceOrchestrator, "_create_event")

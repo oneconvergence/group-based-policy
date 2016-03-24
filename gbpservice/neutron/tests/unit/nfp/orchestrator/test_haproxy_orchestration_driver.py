@@ -1,7 +1,21 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import mock
 from mock import patch
 import unittest
 
+from oslo_config import cfg
+from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.orchestrator.drivers import (
     haproxy_orchestration_driver
 )
@@ -23,12 +37,13 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_nfd_sharing_info_when_device_sharing_unsupported(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
-                        supports_device_sharing=False)
+                        cfg.CONF, supports_device_sharing=False)
         self.assertIsNone(driver.get_network_function_device_sharing_info(
                                                                         None))
 
     def test_get_network_function_device_sharing_info(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+			cfg.CONF,
                         supports_device_sharing=True,
                         supports_hotplug=True)
         device_data = {'tenant_id': 'tenant_id',
@@ -47,11 +62,12 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
     def test_select_network_function_device_when_device_sharing_unsupported(
                                                                         self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
-                        supports_device_sharing=False)
+                        cfg.CONF, supports_device_sharing=False)
         self.assertIsNone(driver.select_network_function_device(None, None))
 
     def test_select_network_function_device(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+		        cfg.CONF,	
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -60,7 +76,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         devices = [
                    {'id': '1',
                     'interfaces_in_use': 9}
-                   ]
+        ]
         device_data = {'ports': [{'id': '2',
                                   'port_classification': 'provider',
                                   'port_model': 'gbp'}]
@@ -84,6 +100,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_create_network_function_device(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+			cfg.CONF,
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -128,7 +145,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                                  {'id': '4',
                                   'port_model': 'gbp',
                                   'port_classification': 'consumer'}]}
-        self.assertRaises(Exception,
+        self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.create_network_function_device,
                           device_data)
         device_data['compute_policy'] = 'nova'
@@ -150,6 +167,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_delete_network_function_device(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+			cfg.CONF,
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -176,7 +194,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                                         'port_classification': 'mgmt'}}
         driver.stats['instances'] = 1
         driver.stats['management_interfaces'] = 1
-        self.assertRaises(Exception,
+        self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.delete_network_function_device,
                           device_data)
         device_data['compute_policy'] = 'nova'
@@ -184,6 +202,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_network_function_device_status(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+			cfg.CONF,
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
@@ -201,7 +220,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         device_data = {'id': '1',
                        'tenant_id': '2',
                        'compute_policy': 'xyz'}
-        self.assertRaises(Exception,
+        self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.get_network_function_device_status,
                           device_data)
         device_data['compute_policy'] = 'nova'
@@ -213,6 +232,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_plug_network_function_device_interfaces(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+		cfg.CONF,
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -231,7 +251,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         driver.network_handler_gbp.get_policy_target = mock.MagicMock(
                                                 return_value={'port_id': '7'})
 
-        self.assertRaises(Exception,
+        self.assertRaises(exceptions.HotplugNotSupported,
                           driver.plug_network_function_device_interfaces, None)
 
         driver.supports_hotplug = True
@@ -245,7 +265,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                                  {'id': '4',
                                   'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
-        self.assertRaises(Exception,
+        self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.plug_network_function_device_interfaces,
                           device_data)
 
@@ -257,6 +277,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_unplug_network_function_device_interfaces(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+		cfg.CONF,
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -275,7 +296,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         driver.network_handler_gbp.get_policy_target = mock.MagicMock(
                                                 return_value={'port_id': '7'})
 
-        self.assertRaises(Exception,
+        self.assertRaises(exceptions.HotplugNotSupported,
                           driver.unplug_network_function_device_interfaces,
                           None)
 
@@ -290,7 +311,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                                  {'id': '4',
                                   'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
-        self.assertRaises(Exception,
+        self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.unplug_network_function_device_interfaces,
                           device_data)
 
@@ -302,6 +323,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_network_function_device_healthcheck_info(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+		cfg.CONF,
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
@@ -315,6 +337,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_network_function_device_config_info(self):
         driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+		cfg.CONF,
                 supports_device_sharing=True,
                 supports_hotplug=False,
                 max_interfaces=10)
