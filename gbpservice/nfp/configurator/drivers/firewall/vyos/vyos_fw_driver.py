@@ -12,7 +12,7 @@
 
 import ast
 import requests
-
+import subprocess
 from neutron import context
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -20,7 +20,7 @@ from oslo_serialization import jsonutils
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import fw_constants as const
-
+from gbpservice.nfp.configurator.lib import constants
 LOG = logging.getLogger(__name__)
 
 
@@ -701,3 +701,24 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
             self._print_exception('Failure', resp.status_code, url,
                                   'create', resp.content)
             return const.STATUS_ERROR
+
+    def configure_healthmonitor(self, context, kwargs):
+        return self._check_vm_health(kwargs)
+
+    def _check_vm_health(self, kwargs):
+        """netcat to port CONFIGURATION_SERVER_PORT.
+        """
+        ip = kwargs.get('mgmt_ip')
+        port = str(const.CONFIGURATION_SERVER_PORT)
+        COMMAND = 'nc '+ip+' '+port+' -z'
+        LOG.debug("Executing command %s for VM health check" % (COMMAND))
+        try:
+            subprocess.check_output(COMMAND, stderr=subprocess.STDOUT,
+                                    shell=True)
+        except Exception as e:
+            LOG.warn("VM Health check failed for [vmid=%s, ip=%s, port=%s]"
+                     " reason=%s" % (kwargs.get('vmid'), ip, port, e))
+            return constants.FAILED
+        LOG.info("VM Health check successful for [vmid=%s, ip=%s, port=%s]" % (
+                                           kwargs.get('vmid'), ip, port))
+        return constants.SUCCESS
