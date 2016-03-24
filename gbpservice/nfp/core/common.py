@@ -10,8 +10,37 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
+import Queue
+import sys
+
 from oslo_config import cfg as oslo_config
 
+conf = oslo_config.CONF
+deque = collections.deque
+
+
+log_info = lambda x, y: x.info(y)
+log_debug = lambda x, y: x.debug(y) if conf.core_debug is True else ''
+log_error = lambda x, y: x.error(y)
+log_warn = lambda x, y: x.warn(y)
+log_exception = lambda x, y: x.exception(y)
+
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
+
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = file('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
 
 def _is_class(obj):
     return 'class' in str(type(obj))
@@ -51,23 +80,86 @@ def identify(obj):
         return ""
 
 
-def log_info(log, msg):
-    log.info(msg)
+def load_nfp_symbols(namespace):
+    namespace['identify'] = identify
+    namespace['log_info'] = log_info
+    namespace['log_debug'] = log_debug
+    namespace['log_error'] = log_error
+    namespace['log_exception'] = log_exception
 
 
-def log_debug(log, msg):
-    conf = oslo_config.CONF
-    if conf.core_debug:
-        log.debug(msg)
+"""Wrapper class over python deque.
+
+    Implements firsinfirsout logic.
+    New methods to support 'get' more than one element,
+    'copy' the queue, 'remove' multiple messages are added.
+"""
 
 
-def log_error(log, msg):
-    log.error(msg)
+class NfpFifo(object):
 
+    class Empty(Exception):
 
-def log_warn(log, msg):
-    log.warn(msg)
+        """Exception raised when queue is empty and dequeue is attempted.
+        """
+        pass
 
+    class Full(Exception):
 
-def log_exception(log, msg):
-    log.exception(msg)
+        """Exception raised when queue is full and enqueue is attempted.
+        """
+        pass
+
+    def __init__(self, sc, maxsize=-1):
+        self._sc = sc
+        self._size = sys.maxint if maxsize == -1 else maxsize
+        self._queue = deque()
+
+    def _qsize(self):
+        return len(self._queue)
+
+    def _is_empty(self):
+        if not self._qsize():
+            raise Queue.Empty()
+
+    def _is_full(self):
+        if self._size == self._qsize():
+            raise Queue.Full()
+
+    def _pop(self, out):
+        self._is_empty()
+        out.append(self._queue.popleft())
+        return out
+
+    def put(self, msg):
+        """Puts a message in queue. """
+        self._is_full()
+        self._queue.append(msg)
+
+    def get(self, limit=sys.maxint):
+        """Get max requested number of messages.
+
+            If there are less messages in the queue than requested,
+            then available number of messages are returned.
+        """
+        msgs = []
+        try:
+            for i in range(0, limit):
+                msgs = self._pop(msgs)
+        except Queue.Empty:
+            pass
+        finally:
+            return msgs
+
+    def copy(self):
+        """Return the copy of queue. """
+        qu = list(self._queue)
+        return qu
+
+    def remove(self, msgs):
+        """Remove list of messages from the fifo """
+        try:
+            for msg in msgs:
+                self._queue.remove(msg)
+        except ValueError as err:
+            pass

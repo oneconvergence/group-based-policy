@@ -13,7 +13,7 @@
 from oslo_log import log as logging
 import oslo_messaging as messaging
 
-from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.poll import poll_event_desc
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.common import constants as nfp_constants
@@ -62,7 +62,7 @@ def events_init(controller, config, device_orchestrator):
     controller.register_events(events_to_register)
 
 
-def module_init(controller, config):
+def nfp_module_init(controller, config):
     events_init(controller, config, DeviceOrchestrator(controller, config))
     rpc_init(controller, config)
     LOG.info(_("NDO: module_init"))

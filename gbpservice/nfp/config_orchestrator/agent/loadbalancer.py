@@ -11,53 +11,10 @@
 #    under the License.
 
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.config_orchestrator.agent.common import *
 from gbpservice.nfp.lib.transport import *
 
 LOG = logging.getLogger(__name__)
-
-
-def update_status(**kwargs):
-    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    rpc_ctx = n_context.Context.from_dict(context)
-    del kwargs['context']
-    rpcClient.cctxt.cast(rpc_ctx, 'update_status',
-                         obj_type=kwargs['obj_type'],
-                         obj_id=kwargs['obj_id'],
-                         status=kwargs['status'])
-
-
-def update_pool_stats(**kwargs):
-    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    rpc_ctx = n_context.Context.from_dict(context)
-    del kwargs['context']
-    rpcClient.cctxt.cast(rpc_ctx, 'update_pool_stats',
-                         pool_id=kwargs['pool_id'],
-                         stats=kwargs['stats'],
-                         host=kwargs['host'])
-
-
-def pool_destroyed(**kwargs):
-    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    rpc_ctx = n_context.Context.from_dict(context)
-    del kwargs['context']
-    rpcClient.cctxt.cast(rpc_ctx, 'pool_destroyed',
-                         pool_id=kwargs['pool_id'])
-
-
-def pool_deployed(**kwargs):
-    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    rpc_ctx = n_context.Context.from_dict(context)
-    del kwargs['context']
-    rpcClient.cctxt.cast(rpc_ctx, 'pool_deployed',
-                         pool_id=kwargs['pool_id'])
-
 
 class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
     RPC_API_VERSION = '1.0'

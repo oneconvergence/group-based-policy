@@ -25,13 +25,6 @@ from gbpservice.nfp.core import common as nfp_common
 
 LOG = oslo_logging.getLogger(__name__)
 
-log_warn = nfp_common.log_warn
-log_info = nfp_common.log_info
-log_debug = nfp_common.log_debug
-log_error = nfp_common.log_error
-log_exception = nfp_common.log_exception
-
-
 """Wrapper class for Neutron RpcAgent definition.
 
     NFP modules will use this class for the agent definition.
@@ -45,7 +38,8 @@ class RpcAgent(n_rpc.Service):
     def __init__(
             self, sc, host=None,
             topic=None, manager=None, report_state=None):
-
+        # report_state =
+        #   {<agent_state_keys>, 'plugin_topic': '', 'report_interval': ''}
         super(RpcAgent, self).__init__(host=host, topic=topic, manager=manager)
 
         # Check if the agent needs to report state
@@ -77,8 +71,8 @@ class ReportState(object):
     def __init__(self, data):
         self._n_context = n_context.get_admin_context_without_session()
         self._data = data
-        self._topic = data['plugin_topic']
-        self._interval = data['report_interval']
+        self._topic = data.pop('plugin_topic', None)
+        self._interval = data.pop('report_interval', 0)
         self._state_rpc = n_agent_rpc.PluginReportStateAPI(
             self._topic)
 
@@ -116,6 +110,11 @@ class ReportStateTask(oslo_periodic_task.PeriodicTasks):
 
     @oslo_periodic_task.periodic_task(spacing=5)
     def report_state(self, context):
-        log_debug(LOG, "Report state task invoked !")
         # trigger the state reporting
         self._sc.report_state()
+
+
+def load_nfp_symbols(namespace):
+    nfp_common.load_nfp_symbols(namespace)
+
+load_nfp_symbols(globals())

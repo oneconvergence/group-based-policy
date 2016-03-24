@@ -20,7 +20,7 @@ from oslo_log import log as logging
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import fw_constants as const
 from gbpservice.nfp.configurator.lib import utils as load_driver
-from gbpservice.nfp.core import main
+from gbpservice.nfp.core import event as nfp_event
 
 
 LOG = logging.getLogger(__name__)
@@ -335,7 +335,7 @@ def events_init(sc, drivers, rpcmgr):
                      const.FIREWALL_DELETE_EVENT]
     evs = []
     for event in event_id_list:
-        evs.append(main.Event(id=event, handler=FWaasEventHandler(
+        evs.append(nfp_event.Event(id=event, handler=FWaasEventHandler(
                               sc, drivers, rpcmgr)))
     sc.register_events(evs)
 

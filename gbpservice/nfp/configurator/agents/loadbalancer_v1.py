@@ -15,7 +15,7 @@ import oslo_messaging as messaging
 
 from gbpservice.nfp.configurator.agents import agent_base
 from oslo_log import log as logging
-from gbpservice.nfp.core import main
+from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.core import poll as nfp_poll
@@ -637,8 +637,8 @@ def events_init(sc, drivers, rpcmgr):
 
     evs = []
     for ev_id in ev_ids:
-        ev = main.Event(id=ev_id, handler=LBaaSEventHandler(sc, drivers,
-                                                            rpcmgr))
+        ev = nfp_event.Event(id=ev_id, handler=LBaaSEventHandler(sc, drivers,
+                                                                 rpcmgr))
         evs.append(ev)
     sc.register_events(evs)
 

@@ -22,31 +22,6 @@ LOG = logging.getLogger(__name__)
 Version = 'v1'  # v1/v2/v3#
 
 
-def get_dummy_context():
-    context = {
-        u'read_only': False,
-        u'domain': None,
-        u'project_name': None,
-        u'user_id': None,
-        u'show_deleted': False,
-        u'roles': [],
-        u'user_identity': u'',
-        u'project_domain': None,
-        u'tenant_name': None,
-        u'auth_token': None,
-        u'resource_uuid': None,
-        u'project_id': None,
-        u'tenant_id': None,
-        u'is_admin': True,
-        u'user': None,
-        u'request_id': u'',
-        u'user_domain': None,
-        u'timestamp': u'',
-        u'tenant': None,
-        u'user_name': None}
-    return context
-
-
 def prepare_request_data(resource, kwargs, service_type):
 
     request_data = {'info': {

@@ -22,6 +22,7 @@ from oslo_config import cfg as oslo_config
 import requests
 import json
 import exceptions
+from gbpservice.nfp.proxy_agent.lib import RestClientOverUnix as unix_rc
 
 LOG = logging.getLogger(__name__)
 Version = 'v1'  # v1/v2/v3#
@@ -147,7 +148,7 @@ def send_request_to_configurator(conf, context, body,
     else:
         method_name = method_type.lower() + '_network_function_config'
 
-    if conf.backend == 'rest':
+    if conf.backend == 'tcp_rest':
         try:
             rc = RestApi(conf.REST.rest_server_ip, conf.REST.rest_server_port)
             resp = rc.post(method_name, body, method_type.upper())
@@ -165,7 +166,7 @@ def send_request_to_configurator(conf, context, body,
 
 
 def get_response_from_configurator(conf):
-    if conf.backend == 'rest':
+    if conf.backend == 'tcp_rest':
         try:
             rc = RestApi(conf.REST.rest_server_ip, conf.REST.rest_server_port)
             resp = rc.get('get_notifications')
@@ -175,6 +176,19 @@ def get_response_from_configurator(conf):
             LOG.error("get_notification -> GET request failed. Reason : %s" % (
                 rce))
             return rce
+
+    elif  conf.backend == 'unix_rest':
+        try:
+            resp, content = unix_rc.get('get_notifications')
+            content = json.loads(content)
+            LOG.info("get_notification -> GET response: (%s)" % (content))
+            return content
+        except unix_rc.RestClientException as rce:
+            LOG.error("get_notification -> GET request failed. Reason : %s" % (
+                rce))
+            return "get_notification -> GET request failed. Reason : %s" % (
+                rce)
+
     else:
         rpc_cbs_data = []
         try:

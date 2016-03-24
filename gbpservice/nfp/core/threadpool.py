@@ -24,9 +24,7 @@ LOG = logging.getLogger(__name__)
 
 eventlet.monkey_patch()
 
-log_info = nfp_common.log_info
-log_debug = nfp_common.log_debug
-log_error = nfp_common.log_error
+nfp_common.load_nfp_symbols(globals())
 
 
 def _thread_done(gt, *args, **kwargs):

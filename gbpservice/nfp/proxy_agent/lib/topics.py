@@ -11,3 +11,9 @@
 #    under the License.
 
 CONFIG_AGENT_PROXY = 'nfp-config-agent-proxy'
+FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
+LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'
+VPN_NFP_PLUGIN_TOPIC = 'vpn_plugin'
+DEVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-ndo'
+SERVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-nso'
+
