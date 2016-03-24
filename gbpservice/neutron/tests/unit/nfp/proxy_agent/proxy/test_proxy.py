@@ -1,14 +1,26 @@
-import unittest
-import socket
-import sys
-from multiprocessing import Process
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may 
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+from gbpservice.nfp.proxy_agent.proxy import proxy
 import multiprocessing as multiprocessing
-import time
+import multiprocessing.Process as Process
 import os
-import threading
-import signal
-from gbpservice.nfp.proxy_agent.proxy import proxy as proxy
 from oslo_log import log as logging
+import signal
+import socket
+import unittest
+import sys
+import threading
+import time
 
 LOG = logging.getLogger(__name__)
 
@@ -29,8 +41,8 @@ class TcpServer(object):
     def __init__(self, server_address):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_address = server_address
-        print >> sys.stderr, '[TCP]starting up the TCP server on %s port %s' % (
-            self.server_address)
+        print >> sys.stderr, '[TCP]starting up the TCP \
+server on %s port %s' % (self.server_address)
         self.sock.bind(self.server_address)
         self.count = 0
 
@@ -50,7 +62,8 @@ class TcpServer(object):
                 print>> sys.stderr, '[TCP] Received %s from %s"' % (
                     data, client_address)
                 if data:
-                    print >> sys.stderr, '[TCP] sending back to the Unix client'
+                    print >> sys.stderr, '[TCP] sending back \
+to the Unix client'
                     connection.sendall(data)
                 else:
                     time.sleep(30)
@@ -80,7 +93,8 @@ class TcpServer(object):
                 print>> sys.stderr, '[TCP] Received %s from %s"' % (
                     data, client_address)
                 if data:
-                    print >> sys.stderr, '[TCP] sending back to the Unix client'
+                    print >> sys.stderr, '[TCP] sending back \
+to the Unix client'
                     connection.sendall(data)
             except socket.error, msg:
                 print>> sys.stderr, msg
@@ -104,7 +118,8 @@ class TcpServer(object):
                 print>> sys.stderr, '[TCP]Received "%s on %s "' % (
                     data, client_address)
                 if data:
-                    print >> sys.stderr, '[TCP]sending back to the Unix client'
+                    print >> sys.stderr, '[TCP]sending back \
+to the Unix client'
                     connection.sendall(data)
             except socket.error, msg:
                 print>> sys.stderr, msg
@@ -157,7 +172,8 @@ class UnixClient(object):
 
     def unix_client_msg_flooding(self):
         """
-        method to start single unix client and send multiple messages
+        method to start single unix client and
+        send multiple messages
         """
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         server_address = '/tmp/uds_socket'
@@ -276,7 +292,8 @@ class ProxyStart():
 
     def run(self, server):
         """
-        method to run the proxy server with configurations paramter
+        method to run the proxy server with configurations
+        paramter
         :param server: port address
         """
         self.conf.rest_server_address = server[0]
@@ -290,10 +307,11 @@ Unit test class
 
 
 class TestConfProxy(unittest.TestCase):
-    
+
     def test_ideal_max_timeout(self):
         """
-        method to test the ideal_max_timeout is expired of connection
+        method to test the ideal_max_timeout is
+        expired of connection
         """
         return_val = 0
         server_address = ('0.0.0.0', 5674)
@@ -312,12 +330,12 @@ class TestConfProxy(unittest.TestCase):
         os.kill(proxy_obj.pid, signal.SIGKILL)
 
         self.assertEqual(return_val, 1)
-    
-    
+
     def test_connection_broken(self):
         """
-        method to test single connection keep sending messages and
-        tcp server is down after recivin some messages
+        method to test single connection keep sending
+        messages and tcp server is down after recivin
+        some messages
         """
 
         return_val = 0
@@ -338,9 +356,8 @@ class TestConfProxy(unittest.TestCase):
 
         self.assertEqual(return_val, 1)
 
-    
     def test_multiple_connections(self):
-        """   
+        """
         method to test multiple proxy connections
         """
         try:
@@ -372,7 +389,7 @@ class TestConfProxy(unittest.TestCase):
         os.kill(proxy_obj.pid, signal.SIGKILL)
 
         self.assertEqual(connection_count, 0)
-    
-    
+
+
 if __name__ == '__main__':
     unittest.main()

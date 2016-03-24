@@ -10,16 +10,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import httplib2
-import httplib
-import socket
 import exceptions
-from oslo_config import cfg
-import six.moves.urllib.parse as urlparse
+from gbpservice.nfp.lib import log_wrapper as wp
+import httplib
+import httplib2
 import json
 from oslo_log import log as logging
+import six.moves.urllib.parse as urlparse
+import socket
 
 LOG = logging.getLogger(__name__)
+log_info = wp.log_info
 
 
 class RestClientException(exceptions.Exception):
@@ -43,7 +44,7 @@ class UnixHTTPConnection(httplib.HTTPConnection):
             self.sock.settimeout(self.timeout)
         try:
             self.sock.connect(self.socket_path)
-        except socket.error, exc:
+        except socket.error as exc:
             raise RestClientException(
                 "Caught exception socket.error : %s" % exc)
 
@@ -81,9 +82,9 @@ class UnixRestClient():
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
-            LOG.info("%s:%s" % (resp, content))
+            log_info(LOG, "%s:%s" % (resp, content))
         except RestClientException as rce:
-            LOG.info("ERROR : %s" % (rce))
+            log_info(LOG, "ERROR : %s" % (rce))
             raise rce
 
         success_code = [200, 201, 202, 204]
@@ -97,12 +98,12 @@ class UnixRestClient():
             raise RestClientException("HTTPForbidden: %s" % resp.reason)
         elif resp.status == 404:
             raise RestClientException("HttpNotFound: %s" % resp.reason)
-        elif resp_code.status == 405:
+        elif resp.status_code == 405:
             raise RestClientException(
                 "HTTPMethodNotAllowed: %s" % resp.reason)
-        elif resp_code.status == 406:
+        elif resp.status_code == 406:
             raise RestClientException("HTTPNotAcceptable: %s" % resp.reason)
-        elif resp_code.status == 408:
+        elif resp.status_code == 408:
             raise RestClientException("HTTPRequestTimeout: %s" % resp.reason)
         elif resp.status == 409:
             raise RestClientException("HTTPConflict: %s" % resp.reason)
