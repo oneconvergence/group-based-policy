@@ -50,7 +50,7 @@ class BaseDriver(object):
            if they want to support other types.
         """
         ip = kwargs.get('mgmt_ip')
-        COMMAND = 'nc '+ip+' 8888 -z'
+        COMMAND = 'ping -c5 '+ip
         LOG.debug("Executing command %s for VM health check" % (COMMAND))
         try:
             subprocess.check_output(COMMAND, stderr=subprocess.STDOUT,
