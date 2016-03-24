@@ -514,6 +514,9 @@ class ServiceOrchestrator(object):
 
     def check_for_user_config_deleted(self, event):
         request_data = event.data
+        event_data = {
+            'network_function_id': request_data['network_function_id']
+        }
         try:
             config_status = self.config_driver.is_config_delete_complete(
                 request_data['heat_stack_id'], request_data['tenant_id'])
@@ -521,11 +524,10 @@ class ServiceOrchestrator(object):
             # FIXME: May be we need a count before removing the poll event
             LOG.error(_LE("Error: %(err)s while verifying configuration delete"
                           " completion."), {'err': err})
-            return
+            self._create_event('USER_CONFIG_DELETE_FAILED',
+                               event_data=event_data)
+            return STOP_POLLING
         if config_status == nfp_constants.ERROR:
-            event_data = {
-                'network_function_id': request_data['network_function_id']
-            }
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data)
             return STOP_POLLING
