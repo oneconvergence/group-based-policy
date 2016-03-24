@@ -10,9 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.proxy_agent.proxy import proxy
+from gbpservice.nfp.proxy_agent.proxy import *
 import multiprocessing as multiprocessing
-import multiprocessing.Process as Process
+from  multiprocessing import Process
 import os
 from oslo_log import log as logging
 import signal
