@@ -1,6 +1,7 @@
 
 from openstack_driver import KeystoneClient
 from openstack_driver import NeutronClient
+from oslo_config import cfg
 from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
@@ -96,7 +97,7 @@ class NeutronPlumber():
         response = self.neutron.update_router(token, router_id,
                                               routes=new_routes)
         try:
-            resp_router = response['router']['routes']
+            _ = response['router']['routes']
         except KeyError, err:
             err = ("Failed to update routes on the router: %s"
                    " Openstack Neutron service's response :: %s."
@@ -110,18 +111,18 @@ class NeutronPlumber():
     def _create_stitching_network(self, token, tenant_id):
         name = "stitching_net-%s" % tenant_id
         attrs = {"name": name}
-        stitching_net = self.neutron.create_network(token, tenant_id,
-                                                    attrs=attrs)
+        stitching_net = self.neutron.create_network(
+            token, cfg.CONF.keystone_authtoken.admin_tenant_id, attrs=attrs)
         cidr = "192.168.0.0/26"  # TODO:kedar - get it from config
         attrs = {"network_id": stitching_net['id'], "cidr": cidr,
                  "ip_version": 4}
-        stitching_subnet = self.neutron.create_subnet(token, tenant_id,
-                                                      attrs=attrs)
+        stitching_subnet = self.neutron.create_subnet(
+            token, cfg.CONF.keystone_authtoken.admin_tenant_id, attrs=attrs)
         return [stitching_net], stitching_subnet
 
     def _check_stitching_network(self, token, tenant_id, router_id):
         stitching_nw_name = "stitching_net-%s" % tenant_id
-        filters = {'tenant_id': tenant_id, 'name': stitching_nw_name}
+        filters = {'name': stitching_nw_name}
         stitching_net = self.neutron.get_networks(token, filters=filters)
         if not stitching_net:
             stitching_net, stitching_subnet = self._create_stitching_network(

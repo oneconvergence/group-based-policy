@@ -790,45 +790,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def get_router(self, token, router_id):
-        """ Get router details
-        :param token: A scoped_token
-        :param router_id: router UUID
-        :return: router details
-        """
-        try:
-            neutron = neutron_client.Client(token=token,
-                                            endpoint_url=self.network_service)
-            return neutron.show_router(router_id)
-        except Exception as ex:
-            err = ("Failed to read router from"
-                   " Openstack Neutron service's response"
-                   " KeyError :: %s" % (ex))
-            LOG.error(err)
-            raise Exception(err)
-
-    def get_networks(self, token, filters=None):
-        """ List nets
-
-        :param token: A scoped_token
-        :param filters: Parameters for list filter
-        example for filter: ?tenant_id=%s&id=%s
-
-        :return: subnet List
-
-        """
-        try:
-            neutron = neutron_client.Client(token=token,
-                                            endpoint_url=self.network_service)
-            subnets = neutron.list_subnets(**filters).get('networks', [])
-            return subnets
-        except Exception as ex:
-            err = ("Failed to read subnet list from"
-                   " Openstack Neutron service's response"
-                   " KeyError :: %s" % (ex))
-            LOG.error(err)
-            raise Exception(err)
-
     def get_pools(self, token, filters=None):
         """ List Pools
 
