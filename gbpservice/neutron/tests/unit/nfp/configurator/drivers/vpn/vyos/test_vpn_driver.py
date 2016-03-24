@@ -65,13 +65,13 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
                                                 service_type='ipsec')
         with mock.patch.object(self.plugin_rpc, 'update_status') as (
                                                 mock_update_status),\
-            mock.patch.object(json, 'loads') as  mock_resp,\
+            mock.patch.object(json, 'loads') as mock_resp,\
             mock.patch.object(requests, 'post') as (
                                                 mock_post):
             mock_resp.return_value = self.fake_resp_dict
             mock_post.return_value = self.resp
             self.driver.vpnservice_updated(context, kwargs)
-            
+
             mock_post.assert_called_with(
                             self.dict_objects.url_create_ipsec_conn,
                             data=self.dict_objects.ipsec_data,
@@ -79,7 +79,6 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
             mock_update_status.assert_called_with(
                                         context,
                                         self.dict_objects.ipsec_vpnsvc_status)
-
 
     def test_delete_ipsec_site_conn(self):
         '''
@@ -89,9 +88,8 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
         self.resp = mock.Mock(status_code=200)
         kwargs = self.dict_objects._make_kwargs(operation='delete',
                                                 service_type='ipsec')
-        with mock.patch.object(self.plugin_rpc, 'update_status') as (
-                                                mock_update_status),\
-            mock.patch.object(json, 'loads') as  mock_resp,\
+        with mock.patch.object(self.plugin_rpc, 'update_status'),\
+            mock.patch.object(json, 'loads') as mock_resp,\
             mock.patch.object(requests, 'delete') as (
                                                 mock_delete):
             mock_resp.return_value = self.fake_resp_dict
@@ -109,11 +107,10 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
 
         self.resp = mock.Mock(status_code=200)
         svc_context = self.dict_objects.svc_context
-        with mock.patch.object(self.plugin_rpc, 'update_status') as (
-                                                mock_update_status),\
+        with mock.patch.object(self.plugin_rpc, 'update_status'),\
             mock.patch.object(self.resp, 'json') as mock_json,\
             mock.patch.object(requests, 'get') as mock_get:
-            mock_get.return_value=self.resp
+            mock_get.return_value = self.resp
             mock_json.return_value = {'state': 'UP'}
             self.driver.check_status(self.context, svc_context)
             mock_get.assert_called_with(
@@ -150,15 +147,16 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
     def test_configure_interfaces(self):
         """ Implements test case for configure interfaces method
         of generic config driver.
-            
+
         Returns: none
-        
+
         """
 
         with mock.patch.object(
                 requests, 'post', return_value=self.resp) as mock_post, \
-             mock.patch.object(
-                self.resp, 'json', return_value=self.fake_resp_dict):
+            mock.patch.object(self.resp,
+                              'json',
+                              return_value=self.fake_resp_dict):
             self.driver.configure_interfaces(self.dict_objects.context_device,
                                              self.kwargs)
 
@@ -170,7 +168,7 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
     def test_clear_interfaces(self):
         """ Implements test case for clear interfaces method
         of generic config driver.
-    
+
         Returns: none
 
         """
@@ -193,15 +191,15 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
         of generic config driver.
 
         Returns: none
-        
+
         """
 
         with mock.patch.object(
                 requests, 'post', return_value=self.resp) as mock_post, \
-             mock.patch.object(
-                json, 'loads',return_value=self.fake_resp_dict):
-            self.driver.configure_routes(
-                self.dict_objects.context_device, self.kwargs)
+            mock.patch.object(json, 'loads',
+                              return_value=self.fake_resp_dict):
+            self.driver.configure_routes(self.dict_objects.context_device,
+                                         self.kwargs)
 
             mock_post.assert_called_with(
                     self.dict_objects.url_for_add_src_route,
@@ -211,10 +209,10 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
     def test_delete_source_routes(self):
         """ Implements test case for clear routes method
         of generic config driver.
-                
+
         Returns: none
 
-        """ 
+        """
 
         with mock.patch.object(
                 requests, 'delete', return_value=self.resp) as mock_delete:
@@ -424,4 +422,3 @@ class RestApiTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

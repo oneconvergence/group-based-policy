@@ -15,10 +15,12 @@ from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
                                                                 test_vpn_data)
-import json
 import unittest
 import mock
-import requests
+
+"""
+Implements test cases for RPC manager methods of vpn agent
+"""
 
 
 class VPNaasEventHandlerTestCase(unittest.TestCase):
@@ -33,14 +35,13 @@ class VPNaasEventHandlerTestCase(unittest.TestCase):
 
     def test_handle_event(self):
         '''
-        Test to handle the vpn agent's vpnservice_updated method to 
+        Test to handle the vpn agent's vpnservice_updated method to
         handle various vpn operations
 
         '''
         with mock.patch.object(self.handler,
                                '_get_driver',
-                               return_value=self.dict_obj.drivers) as (
-                                                                mock_drivers),\
+                               return_value=self.dict_obj.drivers),\
             mock.patch.object(self.driver, 'vpnservice_updated') as (
                                                     mock_vpnservice_updated):
             self.handler.vpnservice_updated(self.ev, self.driver)
@@ -55,7 +56,7 @@ class VPNaasEventHandlerTestCase(unittest.TestCase):
         context = self.dict_obj._make_service_context()
         with mock.patch.object(self.handler,
                                '_get_driver',
-                               return_value=self.driver) as mock_drivers,\
+                               return_value=self.driver),\
             mock.patch.object(self.driver, 'check_status') as (
                                                 mock_update_status):
             self.handler.sync(context)
@@ -65,4 +66,3 @@ class VPNaasEventHandlerTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
