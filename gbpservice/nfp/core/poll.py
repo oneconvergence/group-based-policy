@@ -345,7 +345,12 @@ class PollQueueHandler(object):
             Executor: distributor-process
         """
 
-        log_debug(LOG, "Processing poll event %s" % (ev.identify()))
+        log_debug(LOG, "%s - processing - from worker:%d" % (ev.identify(), os.getpid()))
+
+        if ev.desc.poll_event != 'POLL_EVENT':
+            self._cache.remove([ev]) 
+            return self._sc.post_event(ev)
+
         if ev.id == 'POLL_EVENT_CANCEL':
             return self._poll_event_scheduled(ev)
 

@@ -16,9 +16,9 @@ from neutron import context as n_context
 from gbpservice.nfp.lib.transport import RPCClient
 
 
-class NotificationHandler:
+class NotificationHandler(object):
 
-    def _get_dummy_context():
+    def _get_dummy_context(self):
         context = {
             u'read_only': False,
 			u'domain': None,

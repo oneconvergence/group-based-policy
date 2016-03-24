@@ -98,7 +98,7 @@ class RpcHandler(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.key)
+                key=original_event.desc.uid)
             LOG.debug(_("_create_event - poll event %s" % ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
@@ -241,7 +241,7 @@ class DeviceOrchestrator(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.key)
+                key=original_event.desc.uid)
             LOG.debug(_("_create_event - poll event %s" % ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:

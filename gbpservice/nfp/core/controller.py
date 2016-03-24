@@ -206,19 +206,22 @@ class Controller(object):
             if not event.desc.worker_attached:
                 log_error(LOG, "%s - poll event -  "
                           "no worker is associated" % (event.identify()))
-            else:
-                log_debug(LOG, "%s - poll event - "
+                #Get some worker from the pool.
+                worker = self._loadbalancer.get(None)
+                event.desc.worker_attached = worker[0].pid
+            log_debug(LOG, "%s - poll event - "
                           "distributor - adding to poller" % (
                               event.identify()))
-                event.desc.poll_event = 'POLL_EVENT'
-                event.max_times = max_times
-                self._pollhandler.add_event(event)
+            event.desc.poll_event = 'POLL_EVENT'
+            event.max_times = max_times
+            self._pollhandler.add_event(event)
         else:
             log_debug(LOG, "%s - poll event - "
                       "worker:%d >> distributor"
                       % (event.identify(), os.getpid()))
             event.desc.poll_event = 'POLL_EVENT'
             event.max_times = max_times
+            event.desc.worker_attached = os.getpid()
             pipe = self._worker_pipe_map[os.getpid()]
             self._pipe_send(pipe, event)
 

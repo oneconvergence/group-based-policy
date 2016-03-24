@@ -31,15 +31,15 @@ class PullNotification(core_pt.PollEventDesc):
     def _method_handler(self, notification):
         mod = nh.NotificationHandler()
         mod_method = getattr(mod, notification['method'])
-        if notification['receiver'] == 'device_orchestrator':
+        reciever = notification['receiver']
+        if reciever == 'device_orchestrator' or reciever == 'orchestrator':
             mod_method(notification['resource'],
                        notification['kwargs'])
 
-        elif notification['receiver'] == 'service_orchestrator':
+        elif reciever == 'service_orchestrator':
             mod_method(notification['resource'],
                        notification['kwargs'],
                        device=False)
-
         else:
             mod_method(**notification['kwargs'])
 
@@ -56,7 +56,7 @@ class PullNotification(core_pt.PollEventDesc):
         ]
         '''
         if not isinstance(notifications, list):
-            LOG.info("%s" % (notifications))
+            LOG.error("Notfications not list, %s" % (notifications))
 
         else:
             for notification in notifications:

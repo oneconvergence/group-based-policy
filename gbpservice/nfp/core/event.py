@@ -219,7 +219,9 @@ class EventQueueHandler(object):
             (or) invoke the default 'handle_poll_event' method of registered
             handler.
             """
-        t = self._tpool.dispatch(self._sc.poll_event_timedout, eh, ev)
+        #t = self._tpool.dispatch(self._sc.poll_event_timedout, eh, ev)
+        self._sc.poll_event_timedout(eh, ev)
+        t = ev
         log_debug(LOG,
                   "%s - dispatch poll event - "
                   "to event handler: %s - "
@@ -260,7 +262,9 @@ class EventQueueHandler(object):
                           "%s - worker - got new event" % (event.identify()))
                 eh = self._ehs.get(event)
                 if not event.desc.poll_event:
-                    t = self._tpool.dispatch(eh.handle_event, event)
+                    #t = self._tpool.dispatch(eh.handle_event, event)
+                    t = event
+                    eh.handle_event(event)
                     log_debug(LOG, "%s - dispatch internal event -"
                               "to event handler:%s - "
                               "in thread:%s" % (

@@ -13,7 +13,6 @@ from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.config_orchestrator.agent.firewall import *
 from gbpservice.nfp.config_orchestrator.agent.loadbalancer import *
 from gbpservice.nfp.config_orchestrator.agent.vpn import *
-from gbpservice.nfp.config_orchestrator.agent.generic import *
 
 from oslo_config import cfg
 import oslo_messaging as messaging

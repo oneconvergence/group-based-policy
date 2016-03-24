@@ -268,6 +268,3 @@ def main(argv):
     args = parser.parse_args(sys.argv[1:])
     conf = Configuration(args.config_file)
     Proxy(conf).start()
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
