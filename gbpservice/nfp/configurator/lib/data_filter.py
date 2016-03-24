@@ -34,10 +34,13 @@ class Filter(object):
 
         """
         try:
-            if msg['args']['filters'] is not None:
-                filters = msg['args']['filters']
-            else:
-                filters = {'ids': msg['args']['ids']}
+            for fk, fv in msg['args'].items():
+                if dict == type(fv):
+                    filters = fv
+                    break
+                if fv:
+                    filters = {fk: fv}
+                    break
 
             method = getattr(self, '_%s' % (msg['method']))
             return method(context, filters)

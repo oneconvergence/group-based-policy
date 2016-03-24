@@ -85,7 +85,7 @@ ipnetns_router=`sudo ip netns |grep $RouterId`
 
 
 echo "Starting orchestrator  >>>> under screen named : orchestrator"
-screen -dmS "orchestrator" /usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orch_agent.ini
+screen -dmS "orchestrator" /usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orch_agent.ini --log-file /opt/stack/logs/nfp_orchestrator.log
 
 echo "Starting config_agent_proxy  >>>> under screen named : config_agent_proxy"
 screen -dmS "config_agent_proxy" /usr/bin/nfp  --config-file /etc/nfp_config_agent_proxy.ini

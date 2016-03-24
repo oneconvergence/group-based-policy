@@ -22,7 +22,7 @@ from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
-from gbpservice.nfp.lib import backend_lib
+from gbpservice.nfp.lib import transport
 #from gbpservice.nfp.orchestrator.compute.drivers import (
 #    nova_driver)
 '''from gbpservice.nfp.orchestrator.drivers import (
@@ -816,7 +816,7 @@ class NDOConfiguratorRpcApi(object):
         self._update_params(device_data, config_params, operation='create')
         LOG.info(_("create_network_function_device_config - config_params = %s" % config_params))
 
-        return backend_lib.send_request_to_configurator(self.conf,
+        return transport.send_request_to_configurator(self.conf,
                                                         self.context,
                                                         config_params,
                                                         'CREATE',
@@ -834,7 +834,7 @@ class NDOConfiguratorRpcApi(object):
         self._update_params(device_data, config_params, operation='delete')
         LOG.info(_("delete_network_function_device_config - config_params = %s" % config_params))
 
-        return backend_lib.send_request_to_configurator(self.conf,
+        return transport.send_request_to_configurator(self.conf,
                                                         self.context,
                                                         config_params,
                                                         'DELETE',

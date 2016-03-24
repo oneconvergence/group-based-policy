@@ -7,7 +7,10 @@ import time
 import os
 import threading
 import signal
-import proxy
+from gbpservice.nfp.proxy_agent.proxy import proxy as proxy
+from oslo_log import log as logging
+
+LOG = logging.getLogger(__name__)
 
 count = 0
 rxcount = 0
@@ -268,16 +271,18 @@ class ProxyStart():
 
     def __init__(self):
         # Need to change with absolute path
-        self.conf = proxy.Configuration(
-            '/home/rahul/oc_git/group-based-policy/gbpservice/nfp/proxy/proxy.ini')
+        self.path = os.getcwd() + '/proxy.ini'
+        self.conf = proxy.Configuration(self.path)
 
     def run(self, server):
         """
         method to run the proxy server with configurations paramter
         :param server: port address
         """
-        self.conf.rest_server_port = server
+        self.conf.rest_server_address = server[0]
+        self.conf.rest_server_port = server[1]
         proxy.Proxy(self.conf).start()
+
 
 """
 Unit test class
@@ -285,7 +290,7 @@ Unit test class
 
 
 class TestConfProxy(unittest.TestCase):
-
+    
     def test_ideal_max_timeout(self):
         """
         method to test the ideal_max_timeout is expired of connection
@@ -297,7 +302,7 @@ class TestConfProxy(unittest.TestCase):
         tcp_process.start()
         time.sleep(2)
 
-        proxy_obj = Process(target=ProxyStart().run, args=(server_address[1],))
+        proxy_obj = Process(target=ProxyStart().run, args=(server_address,))
         proxy_obj.start()
         time.sleep(5)
 
@@ -307,7 +312,8 @@ class TestConfProxy(unittest.TestCase):
         os.kill(proxy_obj.pid, signal.SIGKILL)
 
         self.assertEqual(return_val, 1)
-
+    
+    
     def test_connection_broken(self):
         """
         method to test single connection keep sending messages and
@@ -321,7 +327,7 @@ class TestConfProxy(unittest.TestCase):
         tcp_process.start()
         time.sleep(2)
 
-        proxy_obj = Process(target=ProxyStart().run, args=(server_address[1],))
+        proxy_obj = Process(target=ProxyStart().run, args=(server_address,))
         proxy_obj.start()
         time.sleep(5)
 
@@ -332,8 +338,9 @@ class TestConfProxy(unittest.TestCase):
 
         self.assertEqual(return_val, 1)
 
+    
     def test_multiple_connections(self):
-        """
+        """   
         method to test multiple proxy connections
         """
         try:
@@ -345,13 +352,13 @@ class TestConfProxy(unittest.TestCase):
             time.sleep(5)
 
             proxy_obj = Process(target=ProxyStart().run,
-                                args=(server_address[1],))
+                                args=(server_address,))
             proxy_obj.start()
             time.sleep(5)
         except multiprocessing.ProcessError, msg:
             print>> sys.stderr, msg
 
-        for i in range(5):
+        for i in range(2):
             t = TreadStart(i)
             threads.append(t)
         for t in threads:
@@ -365,7 +372,7 @@ class TestConfProxy(unittest.TestCase):
         os.kill(proxy_obj.pid, signal.SIGKILL)
 
         self.assertEqual(connection_count, 0)
-
-
+    
+    
 if __name__ == '__main__':
     unittest.main()

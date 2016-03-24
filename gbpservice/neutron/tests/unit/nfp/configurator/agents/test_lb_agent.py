@@ -62,7 +62,8 @@ class LBaasRpcSenderTest(unittest.TestCase):
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
                 mock_new_event),\
             mock.patch.object(sc, 'stash_event') as mock_stash_event:
-            agent.update_status('object_type', 'object_id', 'object_status')
+            agent.update_status('object_type', 'object_id',
+                                'object_status', 'context')
 
             mock_new_event.assert_called_with(
                 id=const.EVENT_STASH,
@@ -71,6 +72,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
                     'kwargs': {
                         'status': 'object_status',
                         'obj_type': 'object_type',
+                        'context': 'context',
                         'obj_id': 'object_id'},
                     'resource': 'loadbalancer',
                     'method': 'update_status',
@@ -106,7 +108,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
                     'receiver': 'neutron'})
             mock_stash_event.assert_called_with('foo')
 
-    '''def test_get_logical_device(self):
+    def test_get_logical_device(self):
         """Implements test case for get_logical_device method
         of loadbalancer agent's LBaasRpcSender class.
 
@@ -118,7 +120,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
         agent = lb.LBaasRpcSender(sc)
         agent.get_logical_device(
             '6350c0fd-07f8-46ff-b797-62acd23760de',
-            test_data.FakeObjects()._get_context_logical_device())'''
+            test_data.FakeObjects()._get_context_logical_device())
 
 """Implement test cases for RPC manager methods of loadbalancer agent.
 
