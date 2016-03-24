@@ -99,7 +99,7 @@ class VpnaasRpcSender(data_filter.Filter):
                'data': {'context': context,
                         'status': status}
                }
-        self.notify._notification(msg)
+        self._notify._notification(msg)
 
     def ipsec_site_conn_deleted(self, context, resource_id):
         """ Notify VPNaaS plugin about delete of ipsec-site-conn """
@@ -110,7 +110,7 @@ class VpnaasRpcSender(data_filter.Filter):
                'data': {'context': context,
                         'resource_id': resource_id}
                }
-        self.notify._notification(msg)
+        self._notify._notification(msg)
 
 """ Implements VPNaasRpcManager class which receives requests
     from Configurator to Agent.
@@ -152,8 +152,8 @@ class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
         """
         arg_dict = {'context': context,
                     'kwargs': kwargs}
-        ev = self._sc.new_event(id='VPNSERVICE_UPDATED', data=arg_dict)
-        self._sc.post_event(ev)
+        ev = self.sc.new_event(id='VPNSERVICE_UPDATED', data=arg_dict)
+        self.sc.post_event(ev)
 
 """
 Handler class to invoke the vpn driver methods.

@@ -68,11 +68,31 @@ class MakeDictionaries(object):
                                         "gateway_ip": "1.2.3.4/24"}]
         self.data_for_del_src_route = [{"source_cidr": "1.2.3.4/24"}]
         self.conn_id = 'ac3a0e54-cdf2-4ea7-ac2f-7c0225ab9af6'
-        # self.data_='{"local_cidr": "11.0.6.0/24", "peer_address": "1.103.2.2", "peer_cidrs": "[141.0.0.0/24]"}'
+        # self.data_='{"local_cidr": "11.0.6.0/24", "peer_address": \
+        # "1.103.2.2", "peer_cidrs": "[141.0.0.0/24]"}'
         self.data__ = {"local_cidr": "11.0.6.0/24",
-                     "peer_address": "1.103.2.2",
-                     "peer_cidr": "141.0.0.0/24"}
+                       "peer_address": "1.103.2.2",
+                       "peer_cidr": "141.0.0.0/24"}
         self.timeout = 30
+
+        self.ipsec_vpn_create = ['fip=192.168.20.75',
+                                 'tunnel_local_cidr=11.0.6.0/24',
+                                 'user_access_ip=1.103.2.172',
+                                 'fixed_ip=192.168.0.3',
+                                 'standby_fip=1.103.1.21',
+                                 'service_vendor=vyos',
+                                 'stitching_cidr=192.168.0.0/28',
+                                 'stitching_gateway=192.168.0.1',
+                                 'mgmt_gw_ip=30.0.0.254']
+
+        self.ipsec_delete = ['fip=192.168.20.75',
+                             'tunnel_local_cidr=11.0.2.0/24',
+                             'user_access_ip=1.103.2.178',
+                             'fixed_ip=192.168.0.2',
+                             'standby_fip=', 'service_vendor=vyos',
+                             'stitching_cidr=192.168.0.0/28',
+                             'stitching_gateway=192.168.0.1',
+                             'mgmt_gw_ip=30.0.0.254']
 
         self.ipsec_data = '{"service": {"router_id": "73c64bb0-eab9-4f37-85d0-7c8b0c15ed06", "status": "ACTIVE", "name": "VPNService", "admin_state_up": true, "subnet_id": "7f42e3e2-80a6-4212-9f49-48194ba58fd9", "tenant_id": "9f1663d116f74a01991ad66aaa8756c5", "cidr": "30.0.0.0/28", "id": "36cd27d5-8ad0-4ed7-8bbe-57c488a17835", "description": "fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254"}, "siteconns": [{"connection": {"status": "INIT", "psk": "secret", "initiator": "bi-directional", "access_ip": "1.103.2.172", "name": "IPsecSiteConnection", "admin_state_up": true, "stitching_fixed_ip": "192.168.0.3", "tenant_id": "9f1663d116f74a01991ad66aaa8756c5", "description": "fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254", "auth_mode": "psk", "peer_cidrs": ["141.0.0.0/24"], "mtu": 1500, "ikepolicy_id": "31b79141-3d21-473f-b104-b811bb3ac1fd", "dpd": {"action": "hold", "interval": 30, "timeout": 120}, "route_mode": "static", "vpnservice_id": "36cd27d5-8ad0-4ed7-8bbe-57c488a17835", "peer_address": "1.103.2.2", "peer_id": "192.168.104.228", "id": "ac3a0e54-cdf2-4ea7-ac2f-7c0225ab9af6", "tunnel_local_cidr": "11.0.6.0/24", "ipsecpolicy_id": "b45d99b8-c38b-44ce-9ec8-ba223a83fb46"}, "ipsecpolicy": {"encapsulation_mode": "tunnel", "encryption_algorithm": "3des", "pfs": "group5", "tenant_id": "9f1663d116f74a01991ad66aaa8756c5", "name": "IPsecPolicy", "transform_protocol": "esp", "lifetime": {"units": "seconds", "value": 3600}, "id": "b45d99b8-c38b-44ce-9ec8-ba223a83fb46", "auth_algorithm": "sha1", "description": "My new IPsec policy"}, "ikepolicy": {"encryption_algorithm": "3des", "pfs": "group5", "name": "IKEPolicy", "tenant_id": "9f1663d116f74a01991ad66aaa8756c5", "lifetime": {"units": "seconds", "value": 3600}, "description": "My new IKE policy", "ike_version": "v1", "id": "31b79141-3d21-473f-b104-b811bb3ac1fd", "auth_algorithm": "sha1", "phase1_negotiation_mode": "main"}}]}'
         self.svc_context = {
@@ -85,7 +105,7 @@ class MakeDictionaries(object):
                 'tenant_id': '9f1663d116f74a01991ad66aaa8756c5',
                 'cidr': '30.0.0.0/28',
                 'id': '36cd27d5-8ad0-4ed7-8bbe-57c488a17835',
-                'description': 'fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254',
+                'description': ";".join(self.ipsec_vpn_create),
                          },
                 'siteconns': [
                     {'connection': {
@@ -95,7 +115,7 @@ class MakeDictionaries(object):
                         'name': 'IPsecSiteConnection',
                         'admin_state_up': True,
                         'tenant_id': '9f1663d116f74a01991ad66aaa8756c5',
-                        'description': 'fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254',
+                        'description': ";".join(self.ipsec_vpn_create),
                         'auth_mode': 'psk',
                         'peer_cidrs': ['141.0.0.0/24'],
                         'mtu': 1500,
@@ -163,7 +183,7 @@ class MakeDictionaries(object):
              'subnet_id': '7f42e3e2-80a6-4212-9f49-48194ba58fd9',
              'tenant_id': '9f1663d116f74a01991ad66aaa8756c5',
              'id': '36cd27d5-8ad0-4ed7-8bbe-57c488a17835',
-             'description': 'fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254',
+             'description': ";".join(self.ipsec_vpn_create),
                              }]
         self.ipsec_site_connection = [{
                         'status': 'INIT',
@@ -187,7 +207,7 @@ class MakeDictionaries(object):
                         'peer_address': '1.103.2.2',
                         'peer_id': '192.168.104.228',
                         'id': 'ac3a0e54-cdf2-4ea7-ac2f-7c0225ab9af6',
-                        'description': 'fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254',
+                        'description': ";".join(self.ipsec_vpn_create),
                                         }]
 
         self.ipsec_site_connection_delete = [{
@@ -213,7 +233,7 @@ class MakeDictionaries(object):
                         u'peer_address': u'1.103.2.2',
                         u'peer_id': u'1.103.2.2',
                         u'id': u'4dae3c91-0d0a-4ba5-9269-d0deab653316',
-                        u'description': u'fip=192.168.20.75;tunnel_local_cidr=11.0.2.0/24;user_access_ip=1.103.2.178;fixed_ip=192.168.0.2;standby_fip=;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254',
+                        u'description': ";".join(self.ipsec_delete),
                                                 }]
 
         self.ikepolicies = [{
@@ -301,7 +321,7 @@ class MakeDictionaries(object):
                     'subnet_id': '7f42e3e2-80a6-4212-9f49-48194ba58fd9',
                     'tenant_id': '9f1663d116f74a01991ad66aaa8756c5',
                     'id': '36cd27d5-8ad0-4ed7-8bbe-57c488a17835',
-                    'description': 'fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254',
+                    'description': ";".join(self.ipsec_vpn_create),
                              },
                 'svc_type': 'ipsec',
                 'service_vendor': 'vyos',
@@ -338,7 +358,7 @@ class MakeDictionaries(object):
                 'peer_address': '1.103.2.2',
                 'peer_id': '141.0.0.2',
                 'id': 'ac3a0e54-cdf2-4ea7-ac2f-7c0225ab9af9',
-                'description': 'fip=192.168.20.75;tunnel_local_cidr=11.0.6.0/24;user_access_ip=1.103.2.172;fixed_ip=192.168.0.3;standby_fip=1.103.1.21;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254',
+                'description': ";".join(self.ipsec_vpn_create),
                          },
             'svc_type': 'ipsec',
             'service_vendor': 'vyos',
@@ -376,7 +396,7 @@ class MakeDictionaries(object):
                     u'peer_address': u'1.103.2.2',
                     u'peer_id': u'1.103.2.2',
                     u'id': u'4dae3c91-0d0a-4ba5-9269-d0deab653315',
-                    u'description': u'fip=192.168.20.75;tunnel_local_cidr=11.0.2.0/24;user_access_ip=1.103.2.178;fixed_ip=192.168.0.2;standby_fip=;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254',
+                    u'description': ";".join(self.ipsec_delete),
                              },
                 u'svc_type': u'ipsec',
                 u'service_vendor': u'vyos',
@@ -414,7 +434,7 @@ class MakeDictionaries(object):
                     u'peer_address': u'1.103.2.2',
                     u'peer_id': u'1.103.2.2',
                     u'id': u'4dae3c91-0d0a-4ba5-9269-d0deab653315',
-                    u'description': u'fip=192.168.20.75;tunnel_local_cidr=11.0.2.0/24;user_access_ip=1.103.2.178;fixed_ip=192.168.0.2;standby_fip=;service_vendor=vyos;stitching_cidr=192.168.0.0/28;stitching_gateway=192.168.0.1;mgmt_gw_ip=30.0.0.254',
+                    u'description': ";".join(self.ipsec_vpn_create),
                              },
                 u'svc_type': u'ipsec',
                 u'service_vendor': u'vyos',
