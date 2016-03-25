@@ -702,6 +702,7 @@ class HeatDriver():
                 auth_token, stack_template, config_param_values,
                 provider, is_template_aws_version)
             config_param_values['Subnet'] = provider_subnet['id']
+            config_param_values['service_chain_metadata'] = ""
             if not base_mode_support:
                 config_param_values['service_chain_metadata'] = (
                     SC_METADATA % (service_chain_instance['id'],
