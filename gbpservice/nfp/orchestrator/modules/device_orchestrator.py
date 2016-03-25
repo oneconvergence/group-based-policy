@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+#from neutron._i18n import _
+#from neutron._i18n import _
 from oslo_log import log as logging
 import oslo_messaging as messaging
 
@@ -23,6 +25,7 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from gbpservice.nfp.lib import backend_lib
+
 #from gbpservice.nfp.orchestrator.compute.drivers import (
 #    nova_driver)
 '''from gbpservice.nfp.orchestrator.drivers import (
@@ -65,7 +68,7 @@ def events_init(controller, config, device_orchestrator):
 def module_init(controller, config):
     events_init(controller, config, DeviceOrchestrator(controller, config))
     rpc_init(controller, config)
-    LOG.info(_("NDO: module_init"))
+    LOG.debug("Device Orchestrator: module_init")
 
 
 class RpcHandler(object):
@@ -87,8 +90,8 @@ class RpcHandler(object):
                                   }
 
     def _log_event_created(self, event_id, event_data):
-        LOG.info(_("Created event %s(event_name)s with event "
-                    "data: %(event_data)s"),
+        LOG.info(_("Device Orchestrator, RPC Handler, Created event "
+                     "%s(event_name)s with event data: %(event_data)s"),
                   {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None,
@@ -99,7 +102,7 @@ class RpcHandler(object):
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
                 key=original_event.key)
-            LOG.debug(_("_create_event - poll event %s" % ev.id))
+            LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
             ev = self._controller.new_event(id=event_id, data=event_data)
@@ -154,7 +157,7 @@ class DeviceOrchestrator(object):
 
         self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
         self.drivers = self.ext_mgr.drivers
-        LOG.info(_("self.drivers = %s" % self.drivers))
+        LOG.debug("Loaded extension drivers: %s" % (self.drivers))
 
         self.compute_driver = self._get_compute_driver(
             'compute')
@@ -215,23 +218,25 @@ class DeviceOrchestrator(object):
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
-        except Exception:
+        except Exception as e:
             LOG.exception(_("Unhandled exception in handle event for event: "
-                            "%(event_id)s"), {'event_id': event.id})
+                            "%(event_id)s %(error)s"), {'event_id': event.id,
+                                                        'error': e})
 
     def handle_poll_event(self, event):
-        LOG.info(_("NSO handle_poll_event, event ID %(id)s"), {'id': event.id})
+        LOG.debug("NSO handle_poll_event called for event ID: %s" % (event.id))
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
-        except Exception:
+        except Exception as e:
             LOG.exception(_("Unhandled exception in handle event for event: "
-                            "%(event_id)s"), {'event_id': event.id})
+                            "%(event_id)s %(error)s"), {'event_id': event.id,
+                                                        'error': e})
 
     # Helper functions
     def _log_event_created(self, event_id, event_data):
-        LOG.info(_("Created event %s(event_name)s with event "
-                    "data: %(event_data)s"),
+        LOG.info(_("Device Orchestrator created event %s(event_name)s "
+                     "with event data: %(event_data)s"),
                   {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None,
@@ -242,7 +247,7 @@ class DeviceOrchestrator(object):
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
                 key=original_event.key)
-            LOG.debug(_("_create_event - poll event %s" % ev.id))
+            LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
             ev = self._controller.new_event(id=event_id, data=event_data)
@@ -365,8 +370,9 @@ class DeviceOrchestrator(object):
         device_data = {}
         network_function = nfd_request.get('network_function')
         network_function_instance = nfd_request['network_function_instance']
-        service_type = nfd_request.get('service_type')
-        service_vendor = nfd_request.get('service_vendor')
+        #service_type = nfd_request['service_details'].get('service_type')
+        service_vendor = nfd_request['service_details'].get('service_vendor')
+        service_details = nfd_request['service_details']
         device_data['share_existing_device'] = (
                                     nfd_request.get('share_existing_device'))
         device_data['management_network_info'] = (
@@ -389,11 +395,13 @@ class DeviceOrchestrator(object):
 
         if service_vendor:
             device_data['service_vendor'] = service_vendor
-        if service_type:
-            device_data['service_type'] = service_type
+        #if service_type:
+        #    device_data['service_type'] = service_type
+        if service_details:
+            device_data['service_details'] = service_details
         # TODO: Get these values from NSO, it should be available in service
         # profile.
-        device_data['compute_policy'] = 'nova'
+        #device_data['compute_policy'] = 'nova'
         # To get the network mode, fetch it from port_info
         if nsi_port_info[0]['port_model'] == nfp_constants.GBP_PORT:
             device_data['network_model'] = nfp_constants.GBP_NETWORK
@@ -419,8 +427,9 @@ class DeviceOrchestrator(object):
         nfd_request = event.data
         device = None
 
-        LOG.info(_("Received create network service device request with data"
-                   "%(data)s"), {'data': nfd_request})
+        LOG.info(_("Device Orchestrator received create network service "
+                     "device request with data %(data)s"),
+                 {'data': nfd_request})
 
         device_data = self._get_device_data(nfd_request)
         orchestration_driver = self._get_orchestration_driver(
@@ -508,9 +517,9 @@ class DeviceOrchestrator(object):
                                event_data=device)
         self.configurator_rpc.create_network_function_device_config(device,
                                                                     hm_req)
-        LOG.debug(_("Health Check RPC sent to configurator for device: "
-                    "%(device_id)s with health check parameters: %(hm_req)s"),
-                  {'device_id': device['id'], 'hm_req': hm_req})
+        LOG.debug("Health Check RPC sent to configurator for device: "
+                    "%s with health check parameters: %s" % (
+                    device['id'], hm_req))
         self._update_network_function_device_db(device,
                                                'HEALTH_CHECK_PENDING')
 
@@ -545,15 +554,27 @@ class DeviceOrchestrator(object):
                                 network_function_instance_id)
 
         # either keep service vendor in request_info or get it from gbpclient
-        service_vendor = self._get_service_vendor(
-                                    network_function['service_profile_id'])
+        #service_vendor = self._get_service_vendor(
+        #                            network_function['service_profile_id'])
+
+
+        admin_token = self.keystoneclient.get_admin_token()
+        service_profile = self.gbpclient.get_service_profile(
+            admin_token, network_function['service_profile_id'])
+        service_details = backend_lib.parse_service_flavor_string(
+                                        service_profile['service_flavor'])
+        service_vendor = service_details['service_vendor']
+
 
         device_info.update({
                     'network_function_instance': network_function_instance})
         device_info.update({'id': network_function_device_id})
         device_info.update({'service_vendor': service_vendor})
-        device_info.update({'service_type': self._get_service_type(
-                                network_function['service_profile_id'])})
+        #device_info.update({'service_type': self._get_service_type(
+        #                        network_function['service_profile_id'])})
+        service_details.update({'service_type': self._get_service_type(
+                                 network_function['service_profile_id'])})
+        device_info.update({'service_details': service_details})
 
         device = self._get_device_data(device_info)
         device = self._update_device_data(device, network_function_device)
@@ -621,30 +642,12 @@ class DeviceOrchestrator(object):
     def delete_network_function_device(self, event):
         delete_nfd_request = event.data
         network_function_instance = (
-                            delete_nfd_request['network_function_instance'])
-        nfd_id = delete_nfd_request['network_function_device_id']
-        nf_id = delete_nfd_request['network_function_id']
-        network_function = self._get_nsf_db_resource(
-                                'network_function',
-                                nf_id)
-        LOG.info(_("Received delete network service device request for device "
-                   "%(device)s"), {'device': delete_nfd_request})
-        device = self.nsf_db.get_network_function_device(self.db_session,
-                                                         nfd_id)
-        mgmt_port_id = device.pop('mgmt_port_id')
-        mgmt_port_id = self._get_port(mgmt_port_id)
-        device['mgmt_port_id'] = mgmt_port_id
-        device['compute_policy'] = 'nova'
-        device['network_model'] = mgmt_port_id['port_model']
-        device['network_function_instance_id'] = network_function_instance['id']
-        device['network_function_id'] = nf_id
-        device.update({'service_type': self._get_service_type(
-                                    network_function['service_profile_id'])})
-        #self._update_device_data(device, event.data)
-
-        data_port_ids = network_function_instance.pop('port_info')
-        data_ports = self._get_ports(data_port_ids)
-        device['ports'] = data_ports
+                            delete_nfd_request.pop('network_function_instance'))
+        delete_nfd_request['network_function_instance_id'] = network_function_instance['id']
+        device = self._prepare_device_data(delete_nfd_request)
+        LOG.info(_("Device Orchestrator received delete network service "
+                     "device request for device %(device)s"),
+                 {'device': delete_nfd_request})
 
         self._create_event(event_id='DELETE_CONFIGURATION',
                            event_data=device)
@@ -685,7 +688,7 @@ class DeviceOrchestrator(object):
 
         self._decrement_device_ref_count(device)
         device_ref_count = device['reference_count']
-        if device_ref_count == 0:
+        if device_ref_count <= 0:
             orchestration_driver.delete_network_function_device(device)
             self._delete_network_function_device_db(device['id'])
         else:
@@ -700,9 +703,6 @@ class DeviceOrchestrator(object):
     # Error Handling
     def handle_device_error(self, event):
         device = event.data
-        #status = nfp_constants.ERROR
-        #desc = 'Internal Server Error'
-        #self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
@@ -744,9 +744,8 @@ class DeviceOrchestrator(object):
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
-        LOG.debug(_("Device create failed for device: %(device_id)s, "
-                    "data = %(device_data)s"),
-                  {'device_id': device['id'], 'device_data': device})
+        LOG.debug("Device create failed for device: %s, with "
+                    "data: %s" % ( device['id'], device))
 
     def handle_interfaces_setup_failed(self, event):
         device = event.data
@@ -756,9 +755,8 @@ class DeviceOrchestrator(object):
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
-        LOG.debug(_("Interface configuration failed for device: %(device_id)s,"
-                    "with config: %(routes_config)s"),
-                  {'device_id': device['id'], 'routes_config': device})
+        LOG.debug("Interface configuration failed for device: %s,"
+                    "with config: %s" % (device['id'], device))
 
     def handle_routes_config_failed(self, event):
         device = event.data
@@ -768,9 +766,8 @@ class DeviceOrchestrator(object):
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
-        LOG.debug(_("Routes configuration failed for device: %(device_id)s,"
-                    "with config: %(routes_config)s"),
-                  {'device_id': device['id'], 'routes_config': device})
+        LOG.debug("Routes configuration failed for device: %s,"
+                    "with config: %s" % (device['id'], device))
 
     def handle_driver_error(self, event):
         device = event.data
@@ -807,6 +804,8 @@ class NDOConfiguratorRpcApi(object):
 
     def _update_params(self, device_data, config_params, operation):
         request_info = self._get_request_info(device_data, operation)
+        if not config_params:
+            return None
         for config in config_params.get('config'):
             #config['kwargs'] = request_info
             config['kwargs']['request_info'] = request_info
@@ -814,7 +813,8 @@ class NDOConfiguratorRpcApi(object):
     def create_network_function_device_config(self, device_data,
                                               config_params):
         self._update_params(device_data, config_params, operation='create')
-        LOG.info(_("create_network_function_device_config - config_params = %s" % config_params))
+        LOG.info(_("Sending create NFD config request to configurator "
+                     "with config_params = %s" % config_params))
 
         return backend_lib.send_request_to_configurator(self.conf,
                                                         self.context,
@@ -832,7 +832,8 @@ class NDOConfiguratorRpcApi(object):
     def delete_network_function_device_config(self, device_data,
                                               config_params):
         self._update_params(device_data, config_params, operation='delete')
-        LOG.info(_("delete_network_function_device_config - config_params = %s" % config_params))
+        LOG.info(_("Sending delete NFD config request to configurator "
+                     "with config_params = %s" % config_params))
 
         return backend_lib.send_request_to_configurator(self.conf,
                                                         self.context,

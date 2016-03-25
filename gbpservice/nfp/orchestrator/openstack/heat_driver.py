@@ -41,6 +41,7 @@ from gbpservice.nfp.orchestrator.openstack.openstack_driver\
     import NeutronClient
 from gbpservice.neutron.services.grouppolicy.common import constants as gconst
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
+from gbpservice.nfp.lib import backend_lib
 
 
 HEAT_DRIVER_OPTS = [
@@ -324,15 +325,15 @@ class HeatDriver():
                 provider_subnet = subnet
                 break
         if provider_subnet:
-            lb_pool_ids = self.neutron_client.get_pools(
-                auth_token,
+            lb_pool_ids = self.lbaas_plugin.get_pools(
+                auth_token, provider_tenant_id,
                 filters={'subnet_id': [provider_subnet['id']]})
             if lb_pool_ids and lb_pool_ids[0]['vip_id']:
-                lb_vip = self.neutron_client.get_vip(
-                    auth_token, lb_pool_ids[0]['vip_id'])
+                lb_vip = self.lbaas_plugin.get_vip(
+                    auth_token, provider_tenant_id, lb_pool_ids[0]['vip_id'])
                 self._create_pt(auth_token, provider_tenant_id, provider['id'],
                                 "service_target_vip_pt",
-                                port_id=lb_vip['vip']['port_id'])
+                                port_id=lb_vip['port_id'])
 
     def _is_service_target(self, policy_target):
         if policy_target['name'] and (policy_target['name'].startswith(
@@ -648,7 +649,8 @@ class HeatDriver():
     def _update_node_config(self, auth_token, tenant_id, service_profile,
                             service_chain_node, service_chain_instance,
                             provider, consumer_port,
-                            provider_port, update=False, mgmt_ip=None):
+                            provider_port, update=False, mgmt_ip=None,
+                            consumer=None):
         provider_cidr = provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
@@ -661,6 +663,10 @@ class HeatDriver():
             raise  # Raise proper exception object
         service_type = service_profile['service_type']
         service_vendor = service_profile['service_flavor']
+        service_details = backend_lib.parse_service_flavor_string(
+                                        service_profile['service_flavor'])
+        base_mode_support = (True if service_details['device_type'] == None 
+                             else False)
 
         stack_template = service_chain_node.get('config')
         stack_template = (jsonutils.loads(stack_template) if
@@ -680,20 +686,25 @@ class HeatDriver():
         properties_key = ('Properties' if is_template_aws_version
                           else 'properties')
 
-        provider_port_mac = provider_port['mac_address']
-        standby_provider_port_mac = None
-
-        provider_cidr = self.neutron_client.get_subnet(
+        if not base_mode_support:
+            provider_port_mac = provider_port['mac_address']
+            provider_cidr = self.neutron_client.get_subnet(
             auth_token, provider_port['fixed_ips'][0][
                 'subnet_id'])['subnet']['cidr']
+        else:
+            provider_port_mac = ''
+            provider_cidr = ''
+        standby_provider_port_mac = None
+
         service_vendor = service_profile['service_flavor']
         if service_type == pconst.LOADBALANCER:
             self._generate_pool_members(
                 auth_token, stack_template, config_param_values,
                 provider, is_template_aws_version)
             config_param_values['Subnet'] = provider_subnet['id']
-            config_param_values['service_chain_metadata'] = (
-                SC_METADATA % (service_chain_instance['id'],
+            if not base_mode_support:
+                config_param_values['service_chain_metadata'] = (
+                    SC_METADATA % (service_chain_instance['id'],
                                mgmt_ip,
                                provider_port_mac,
                                standby_provider_port_mac))
@@ -702,21 +713,19 @@ class HeatDriver():
                 auth_token, provider, stack_template)
             self._modify_fw_resources_name(
                 stack_template, provider, is_template_aws_version)
-            firewall_desc = {'vm_management_ip': mgmt_ip,
-                             'provider_ptg_info': [provider_port_mac],
-                             'provider_cidr': provider_cidr,
-                             'service_vendor': service_vendor}
+            if not base_mode_support:
+                firewall_desc = {'vm_management_ip': mgmt_ip,
+                                 'provider_ptg_info': [provider_port_mac],
+                                 'provider_cidr': provider_cidr,
+                                 'service_vendor': service_vendor}
 
-            fw_key = self._get_heat_resource_key(
-                stack_template[resources_key],
-                is_template_aws_version,
-                'OS::Neutron::Firewall')
-            stack_template[resources_key][fw_key][properties_key][
-                'description'] = str(firewall_desc)
+                fw_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Firewall')
+                stack_template[resources_key][fw_key][properties_key][
+                    'description'] = str(firewall_desc)
         elif service_type == pconst.VPN:
-            rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token, update)
-            config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
-                'ip_pool']
             config_param_values['Subnet'] = (
                 consumer_port['fixed_ips'][0]['subnet_id']
                 if consumer_port else None)
@@ -727,7 +736,7 @@ class HeatDriver():
             config_param_values['RouterId'] = l3p['routers'][0]
             stitching_subnet = self.neutron_client.get_subnet(
                 auth_token,
-                consumer_port['fixed_ips'][0]['subnet_id'])['subnet']
+                consumer['subnets'][0])['subnet']
             stitching_cidr = stitching_subnet['cidr']
             mgmt_gw_ip = self._get_management_gw_ip(auth_token)
 
@@ -751,14 +760,17 @@ class HeatDriver():
                         auth_token, fip_nsp)
                 else:
                     nsp = services_nsp[0]
-                stitching_pts = self.gbp_client.get_policy_targets(
-                    auth_token,
-                    filters={'port_id': [consumer_port['id']]})
-                if not stitching_pts:
-                    LOG.error(_("Policy target is not created for the "
-                                "stitching port"))
-                    raise Exception()
-                stitching_ptg_id = stitching_pts[0]['policy_target_group_id']
+                if not base_mode_support:
+                    stitching_pts = self.gbp_client.get_policy_targets(
+                        auth_token,
+                        filters={'port_id': [consumer_port['id']]})
+                    if not stitching_pts:
+                        LOG.error(_("Policy target is not created for the "
+                                    "stitching port"))
+                        raise Exception()
+                    stitching_ptg_id = stitching_pts[0]['policy_target_group_id']
+                else:
+                    stitching_ptg_id = consumer['id']
                 self.gbp_client.update_policy_target_group(
                     auth_token, stitching_ptg_id,
                     {'policy_target_group': {
@@ -766,28 +778,29 @@ class HeatDriver():
             #filters = {'port_id': [consumer_port['id']]}
             # floatingips = self.neutron_client.get_floating_ips(
             #    auth_token, filters=filters)
-            floatingips = self.neutron_client.get_floating_ips(
-                auth_token, consumer_port['id'])  # Need to test
-            if not floatingips:
-                raise FloatingIPForVPNRemovedManually()
-            stitching_port_fip = floatingips[0]['floating_ip_address']
-            desc = ('fip=' + mgmt_ip +
-                    ";tunnel_local_cidr=" +
-                    provider_cidr + ";user_access_ip=" +
-                    stitching_port_fip + ";fixed_ip=" +
-                    consumer_port['fixed_ips'][0]['ip_address'] +
-                    ';service_vendor=' + service_vendor +
-                    ';stitching_cidr=' + stitching_cidr +
-                    ';stitching_gateway=' + stitching_subnet['gateway_ip'] +
-                    ';mgmt_gw_ip=' + mgmt_gw_ip)
-            stack_params['ServiceDescription'] = desc
-            siteconn_keys = self._get_site_conn_keys(
-                stack_template[resources_key],
-                is_template_aws_version,
-                'OS::Neutron::IPsecSiteConnection')
-            for siteconn_key in siteconn_keys:
-                stack_template[resources_key][siteconn_key][properties_key][
-                    'description'] = desc
+            if not base_mode_support:
+                floatingips = self.neutron_client.get_floating_ips(
+                    auth_token, consumer_port['id'])  # Need to test
+                if not floatingips:
+                    raise FloatingIPForVPNRemovedManually()
+                stitching_port_fip = floatingips[0]['floating_ip_address']
+                desc = ('fip=' + mgmt_ip +
+                        ";tunnel_local_cidr=" +
+                        provider_cidr + ";user_access_ip=" +
+                        stitching_port_fip + ";fixed_ip=" +
+                        consumer_port['fixed_ips'][0]['ip_address'] +
+                        ';service_vendor=' + service_vendor +
+                        ';stitching_cidr=' + stitching_cidr +
+                        ';stitching_gateway=' + stitching_subnet['gateway_ip'] +
+                        ';mgmt_gw_ip=' + mgmt_gw_ip)
+                stack_params['ServiceDescription'] = desc
+                siteconn_keys = self._get_site_conn_keys(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::IPsecSiteConnection')
+                for siteconn_key in siteconn_keys:
+                    stack_template[resources_key][siteconn_key][properties_key][
+                        'description'] = desc
 
         for parameter in stack_template.get(parameters_key) or []:
             if parameter in config_param_values:
@@ -804,14 +817,21 @@ class HeatDriver():
         network_function = network_function_details['network_function']
         network_function_instance = network_function_details[
             'network_function_instance']
-        network_function_device = network_function_details[
-            'network_function_device']
-
-        heat_stack_id = network_function['heat_stack_id']
         service_profile_id = network_function['service_profile_id']
         admin_token = self.keystoneclient.get_admin_token()
         service_profile = self.gbp_client.get_service_profile(admin_token,
                 service_profile_id)
+
+        service_details = backend_lib.parse_service_flavor_string(
+                                        service_profile['service_flavor'])
+        if service_details['device_type'] != None:
+            network_function_device = network_function_details[
+                'network_function_device']
+            mgmt_ip = network_function_device['mgmt_ip_address']
+        else:
+            mgmt_ip = None
+
+        heat_stack_id = network_function['heat_stack_id']
         service_id = network_function['service_id']
         servicechain_node = self.gbp_client.get_servicechain_node(admin_token,
                 service_id)
@@ -819,13 +839,21 @@ class HeatDriver():
         servicechain_instance = self.gbp_client.get_servicechain_instance(
                 admin_token,
                 service_chain_id)
-        mgmt_ip = network_function_device['mgmt_ip_address']
+        provider_ptg_id = servicechain_instance['provider_ptg_id']
+        consumer_ptg_id = servicechain_instance['consumer_ptg_id']
+        provider_ptg = self.gbp_client.get_policy_target_group(
+                            admin_token,
+                            provider_ptg_id)
+        consumer_ptg = self.gbp_client.get_policy_target_group(
+                            admin_token,
+                            consumer_ptg_id)
+
         consumer_port = None
         provider_port = None
         consumer_policy_target_group = None
         provider_policy_target_group = None
         policy_target = None
-        for port in network_function_instance['port_info']:
+        for port in network_function_instance.get('port_info'):
             port_info = db_handler.get_port_info(db_session, port)
             port_classification = port_info['port_classification']
             if port_info['port_model'] == nfp_constants.GBP_PORT:
@@ -865,6 +893,8 @@ class HeatDriver():
             'mgmt_ip': mgmt_ip,
             'policy_target_group': provider_policy_target_group,
             'heat_stack_id': heat_stack_id,
+            'provider_ptg': provider_ptg,
+            'consumer_ptg': consumer_ptg
         }
 
         return service_details
@@ -964,11 +994,10 @@ class HeatDriver():
 
         try:
             stack = heatclient.get(stack_id)
+	    LOG.info(_("Stack %(stack)s status is %(status)s"), {'stack': stack_id, 'status': stack.stack_status})
             if stack.stack_status == 'DELETE_FAILED':
                 return failure_status
             elif stack.stack_status == 'CREATE_COMPLETE':
-                return success_status
-            elif stack.stack_status == 'UPDATE_COMPLETE':
                 return success_status
             elif stack.stack_status == 'DELETE_COMPLETE':
                 LOG.info(_("Stack %(stack)s is deleted"),
@@ -1024,9 +1053,14 @@ class HeatDriver():
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
         provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
+        consumer = service_details['consumer_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
+
+        service_details = backend_lib.parse_service_flavor_string(
+                                        service_profile['service_flavor'])
 
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
@@ -1043,7 +1077,7 @@ class HeatDriver():
         stack_template, stack_params = self._update_node_config(
             auth_token, provider_tenant_id, service_profile,
             service_chain_node, service_chain_instance, provider,
-            consumer_port, provider_port, mgmt_ip=mgmt_ip)
+            consumer_port, provider_port, mgmt_ip=mgmt_ip, consumer=consumer)
 
         stack = heatclient.create(stack_name, stack_template, stack_params)
         stack_id = stack['stack']['id']

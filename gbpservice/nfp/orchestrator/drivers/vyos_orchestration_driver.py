@@ -12,7 +12,7 @@
 
 from oslo_log import log as logging
 
-from gbpservice.nfp._i18n import _LE
+from gbpservice.nfp._i18n import _
 from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.orchestrator.drivers.orchestration_driver_base import (
@@ -69,7 +69,7 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                 for key in ['service_vendor',
                             'mgmt_ip_address',
                             'ports',
-                            'service_type',
+                            'service_details',
                             'network_function_id',
                             'tenant_id']) or
 
@@ -87,8 +87,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token'
-                          ' for get device config info operation'))
+            LOG.error(_('Failed to get token'
+                        ' for get device config info operation'))
             return None
 
         provider_ip = None
@@ -108,8 +108,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                                                                     port_id)
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
-                    LOG.error(_LE('Failed to get provider port details'
-                                  ' for get device config info operation'))
+                    LOG.error(_('Failed to get provider port details'
+                                ' for get device config info operation'))
                     return None
             elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
@@ -120,8 +120,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                                                                    port_id)
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
-                    LOG.error(_LE('Failed to get consumer port details'
-                                  ' for get device config info operation'))
+                    LOG.error(_('Failed to get consumer port details'
+                                ' for get device config info operation'))
                     return None
 
         return {
@@ -149,7 +149,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                            'service_id': device_data['network_function_id'],
                            'tenant_id': device_data['tenant_id']
                         },
-                       'service_type': device_data['service_type'].lower()
+                       'service_type': (device_data['service_details'][
+                               'service_type'].lower())
                     }
                 },
                 {
@@ -163,7 +164,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                         'destination_cidr': consumer_cidr,
                         'gateway_ip': consumer_gateway_ip,
                         'provider_interface_position': 2,
-                        'service_type': device_data['service_type'].lower(),
+                        'service_type': (device_data['service_details'][
+                            'service_type'].lower()),
                     }
                 }
             ]
