@@ -39,26 +39,30 @@ class BaseDriver(object):
         return SUCCESS
 
     def configure_healthmonitor(self, context, kwargs):
-        return self._check_vm_health(kwargs)
+        ip = kwargs.get('mgmt_ip')
+        COMMAND = 'ping -c5 '+ip
+        return self._check_vm_health(COMMAND, kwargs)
 
     def clear_healthmonitor(self, context, kwargs):
         return SUCCESS
 
-    def _check_vm_health(self, kwargs):
+    def _check_vm_health(self, COMMAND):
         """Ping based basic HM support provided by BaseDriver.
            Service provider can override the method implementation
            if they want to support other types.
+
+           :param COMMAND - command to execute
+
+           Returns: SUCCESS/FAILED
         """
-        ip = kwargs.get('mgmt_ip')
-        COMMAND = 'ping -c5 '+ip
         LOG.debug("Executing command %s for VM health check" % (COMMAND))
         try:
             subprocess.check_output(COMMAND, stderr=subprocess.STDOUT,
                                     shell=True)
         except Exception as e:
-            LOG.warn("VM Health check failed for [vmid=%s,ip=%s] reason=%s" % (
-                                              kwargs.get('vmid'), ip, e))
+            LOG.warn("VM health check failed. Command '%s' execution failed."
+                     " Reason=%s" % (COMMAND, e))
             return FAILED
-        LOG.info("VM Health check successful for [vmid=%s, ip=%s]" % (
-                                           kwargs.get('vmid'), ip))
+        LOG.debug("VM Health check successful. Command '%s' executed"
+                  " successfully" % (COMMAND))
         return SUCCESS

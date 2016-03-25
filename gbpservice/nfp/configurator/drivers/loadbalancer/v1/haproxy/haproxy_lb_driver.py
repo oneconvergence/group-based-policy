@@ -790,22 +790,18 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             LOG.info(msg)
 
     def configure_healthmonitor(self, context, kwargs):
-        return self._check_vm_health(kwargs)
+        """Overriding BaseDriver's configure_healthmonitor().
+           It does netcat to HAPROXY_AGENT_LISTEN_PORT 1234.
+           HaProxy agent runs inside service vm..Once agent is up and
+           reachable, service vm is assumed to be active.
 
-    def _check_vm_health(self, kwargs):
-        """netcat to port HAPROXY_AGENT_LISTEN_PORT.
+           :param context - context
+           :param kwargs - kwargs coming from orchestrator
+
+           Returns: SUCCESS/FAILED
+
         """
         ip = kwargs.get('mgmt_ip')
         port = str(lb_constants.HAPROXY_AGENT_LISTEN_PORT)
         COMMAND = 'nc '+ip+' '+port+' -z'
-        LOG.debug("Executing command %s for VM health check" % (COMMAND))
-        try:
-            subprocess.check_output(COMMAND, stderr=subprocess.STDOUT,
-                                    shell=True)
-        except Exception as e:
-            LOG.warn("VM Health check failed for [vmid=%s, ip=%s, port=%s]"
-                     " reason=%s" % (kwargs.get('vmid'), ip, port, e))
-            return constants.FAILED
-        LOG.info("VM Health check successful for [vmid=%s, ip=%s, port=%s]" % (
-                                           kwargs.get('vmid'), ip, port))
-        return constants.SUCCESS
+        return self._check_vm_health(COMMAND)

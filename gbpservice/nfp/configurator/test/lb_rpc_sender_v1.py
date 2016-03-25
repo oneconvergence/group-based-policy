@@ -586,6 +586,8 @@ class LBRpcSenderV1(object):
         data = {'context': {},
                 'service_type': 'loadbalancer',
                 'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
+                'mgmt_ip': '127.0.0.1',
+                'periodicity': 'forever',
                 'request_info': {}
                 }
         request_data = {
