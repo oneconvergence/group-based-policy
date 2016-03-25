@@ -560,7 +560,7 @@ class DeviceOrchestrator(object):
         admin_token = self.keystoneclient.get_admin_token()
         service_profile = self.gbpclient.get_service_profile(
             admin_token, network_function['service_profile_id'])
-        service_details = backend_lib.parse_service_flavor_string(
+        service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
         service_vendor = service_details['service_vendor']
 

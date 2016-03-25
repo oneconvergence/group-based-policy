@@ -41,7 +41,7 @@ from gbpservice.nfp.orchestrator.openstack.openstack_driver\
     import NeutronClient
 from gbpservice.neutron.services.grouppolicy.common import constants as gconst
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
-from gbpservice.nfp.lib import backend_lib
+from gbpservice.nfp.lib import transport
 
 
 HEAT_DRIVER_OPTS = [
@@ -663,9 +663,9 @@ class HeatDriver():
             raise  # Raise proper exception object
         service_type = service_profile['service_type']
         service_vendor = service_profile['service_flavor']
-        service_details = backend_lib.parse_service_flavor_string(
+        service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
-        base_mode_support = (True if service_details['device_type'] == None 
+        base_mode_support = (True if service_details['device_type'] == None
                              else False)
 
         stack_template = service_chain_node.get('config')
@@ -822,7 +822,7 @@ class HeatDriver():
         service_profile = self.gbp_client.get_service_profile(admin_token,
                 service_profile_id)
 
-        service_details = backend_lib.parse_service_flavor_string(
+        service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
         if service_details['device_type'] != None:
             network_function_device = network_function_details[
@@ -869,7 +869,7 @@ class HeatDriver():
             if port_classification == nfp_constants.CONSUMER:
                 consumer_port = self.neutron_client.get_port(admin_token,
                         port_id)['port']
-                if policy_target: 
+                if policy_target:
                     consumer_policy_target_group =\
                         self.gbp_client.get_policy_target_group(
                             admin_token,
@@ -1059,7 +1059,7 @@ class HeatDriver():
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
 
-        service_details = backend_lib.parse_service_flavor_string(
+        service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
 
         auth_token, resource_owner_tenant_id =\

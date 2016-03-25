@@ -21,7 +21,7 @@ from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
-from gbpservice.nfp.lib import backend_lib
+from gbpservice.nfp.lib import transport
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import heat_driver
@@ -230,7 +230,7 @@ class ServiceOrchestrator(object):
         service_profile = self.gbpclient.get_service_profile(
             admin_token, service_profile_id)
         service_chain_id = network_function_info.get('service_chain_id')
-        service_details = backend_lib.parse_service_flavor_string(
+        service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
@@ -547,7 +547,7 @@ class ServiceOrchestrator(object):
         service_profile_id = network_function['service_profile_id']
         service_profile = self.gbpclient.get_service_profile(
             admin_token, service_profile_id)
-        service_details = backend_lib.parse_service_flavor_string(
+        service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
         base_mode_support = service_details['device_type']
         if base_mode_support == None:
