@@ -19,7 +19,7 @@ import oslo_messaging
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.common import topics as nfp_rpc_topics
-from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import backend_lib
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
@@ -55,7 +55,7 @@ def events_init(controller, config, service_orchestrator):
     controller.register_events(events_to_register)
 
 
-def module_init(controller, config):
+def nfp_module_init(controller, config):
     events_init(controller, config, ServiceOrchestrator(controller))
     rpc_init(controller, config)
 

@@ -13,7 +13,7 @@ from gbpservice.nfp.orchestrator.drivers import (
 from gbpservice.nfp.orchestrator.db import api as db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfpdb
 
-from gbpservice.nfp.lib import backend_lib
+from gbpservice.nfp.lib import transport
 
 class DummyEvent():
     def __init__(self, data, status, ref_count=0):

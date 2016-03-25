@@ -15,7 +15,7 @@
 from oslo_log import log as logging
 import oslo_messaging as messaging
 
-from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.poll import poll_event_desc
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.common import constants as nfp_constants
@@ -24,8 +24,7 @@ from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
-from gbpservice.nfp.lib import backend_lib
-
+from gbpservice.nfp.lib import transport
 #from gbpservice.nfp.orchestrator.compute.drivers import (
 #    nova_driver)
 '''from gbpservice.nfp.orchestrator.drivers import (
@@ -65,7 +64,7 @@ def events_init(controller, config, device_orchestrator):
     controller.register_events(events_to_register)
 
 
-def module_init(controller, config):
+def nfp_module_init(controller, config):
     events_init(controller, config, DeviceOrchestrator(controller, config))
     rpc_init(controller, config)
     LOG.debug("Device Orchestrator: module_init")
@@ -816,7 +815,7 @@ class NDOConfiguratorRpcApi(object):
         LOG.info(_("Sending create NFD config request to configurator "
                      "with config_params = %s" % config_params))
 
-        return backend_lib.send_request_to_configurator(self.conf,
+        return transport.send_request_to_configurator(self.conf,
                                                         self.context,
                                                         config_params,
                                                         'CREATE',
@@ -835,7 +834,7 @@ class NDOConfiguratorRpcApi(object):
         LOG.info(_("Sending delete NFD config request to configurator "
                      "with config_params = %s" % config_params))
 
-        return backend_lib.send_request_to_configurator(self.conf,
+        return transport.send_request_to_configurator(self.conf,
                                                         self.context,
                                                         config_params,
                                                         'DELETE',
