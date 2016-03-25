@@ -253,7 +253,7 @@ class PollQueueHandler(object):
         try:
             if pipe.poll(timeout):
                 return pipe.recv()
-        except Queue.Empty:
+        except multiprocessing.TimeoutError as err:
             return None
 
     def _poll_event_cancelled(self, eh, event):

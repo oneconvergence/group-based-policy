@@ -120,6 +120,8 @@ class FWaasRpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     'firewall': firewall,
                     'host': host}
+        context['service_info'] = {}
+        #ev = self.sc.new_event(id=method, data={}, key=None)
         ev = self.sc.new_event(id=method, data=arg_dict, key=None)
         self.sc.post_event(ev)
 

@@ -22,7 +22,6 @@ from gbpservice.nfp.core import common as nfp_common
 
 LOG = logging.getLogger(__name__)
 
-eventlet.monkey_patch()
 
 nfp_common.load_nfp_symbols(globals())
 

@@ -24,6 +24,7 @@ from pecan import rest
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
+n_rpc.init(cfg.CONF)
 
 """Implements all the APIs Invoked by HTTP requests.
 
@@ -170,7 +171,6 @@ class RPCClient(object):
         target = oslo_messaging.Target(
             topic=self.topic,
             version=self.API_VERSION)
-        n_rpc.init(cfg.CONF)
         self.client = n_rpc.get_client(target)
 
     def call(self):

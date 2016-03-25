@@ -38,6 +38,9 @@ class EventDesc(object):
         # When this event was last run
         self.last_run = None
 
+        if not self.uid:
+            self.uid = pyuuid.uuid4()
+
 """Definition of an 'EVENT' in NFP framework.
 
     NFP modules instantiates object of this class to define and
@@ -254,7 +257,7 @@ class EventQueueHandler(object):
         # forked workers get the copy of such contexts, and module
         # logic end up using stale contexts.
         # Better to initialize again and ignore re registrations.
-        self._sc.modules_init(self._nfp_modules)
+        #self._sc.modules_init(self._nfp_modules)
         while True:
             event = self._get()
             if event:
