@@ -15,10 +15,10 @@ import oslo_serialization.jsonutils as jsonutils
 import subprocess
 
 from neutron.agent.common import config
-from gbpservice.nfp.configurator.lib import constants
-from gbpservice.nfp.configurator.lib import demuxer
+from gbpservice.nfp.base_configurator.lib import constants
+from gbpservice.nfp.base_configurator.lib import demuxer
 from neutron.common import rpc as n_rpc
-from gbpservice.nfp.configurator.lib import schema_validator
+from gbpservice.nfp.base_configurator.lib import schema_validator
 from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
