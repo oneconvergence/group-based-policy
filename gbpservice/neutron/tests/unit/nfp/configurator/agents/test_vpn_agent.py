@@ -14,7 +14,7 @@
 from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
-                                                                test_vpn_data)
+                                                                vpn_test_data)
 import unittest
 import mock
 
@@ -26,12 +26,12 @@ Implements test cases for RPC manager methods of vpn agent
 class VPNaasEventHandlerTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(VPNaasEventHandlerTestCase, self).__init__(*args, **kwargs)
-        self.dict_obj = test_vpn_data.VPNTestData()
+        self.dict_obj = vpn_test_data.MakeDictionaries()
         self.handler = vpn.VPNaasEventHandler(self.dict_obj.sc,
                                               self.dict_obj.drivers)
-        self.ev = test_vpn_data.FakeEvent()
+        self.ev = vpn_test_data.FakeEvent()
         self.driver = vyos_vpn_driver.VpnaasIpsecDriver(
-                                                self.handler.plugin_rpc)
+                                                self.handler._plugin_rpc)
 
     def test_handle_event(self):
         '''

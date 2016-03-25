@@ -14,7 +14,7 @@
 from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
-                                                                test_vpn_data)
+                                                                vpn_test_data)
 import json
 import unittest
 import mock
@@ -30,12 +30,11 @@ of vpn.
 class VpnaasIpsecDriverTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(VpnaasIpsecDriverTestCase, self).__init__(*args, **kwargs)
-        self.dict_objects = test_vpn_data.VPNTestData()
+        self.dict_objects = vpn_test_data.MakeDictionaries()
         self.context = self.dict_objects._make_service_context()
-        self.plugin_rpc = vpn.VpnaasRpcSender(self.context,
-                                              self.dict_objects.sc)
+        self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.sc)
         self.driver = vyos_vpn_driver.VpnaasIpsecDriver(self.plugin_rpc)
-        self.svc_validate = vyos_vpn_driver.VPNSvcValidator(self.plugin_rpc)
+        self.svc_validate = vyos_vpn_driver.VPNServiceValidator(self.plugin_rpc)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True}
 
@@ -47,7 +46,7 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
         context = self.dict_objects._make_service_context(operation_type='vpn')
 
         kwargs = self.dict_objects._make_kwargs(operation='create',
-                                                resource_type='vpn')
+                                                service_type='vpn')
         with mock.patch.object(self.plugin_rpc, 'update_status') as (
                                                 mock_update_status):
             self.driver.vpnservice_updated(context, kwargs)
@@ -128,10 +127,9 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(VpnGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
 
-        self.dict_objects = test_vpn_data.VPNTestData()
+        self.dict_objects = vpn_test_data.MakeDictionaries()
         self.context = self.dict_objects._make_service_context()
-        self.plugin_rpc = vpn.VpnaasRpcSender(self.context,
-                                              self.dict_objects.sc)
+        self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.sc)
         self.rest_apt = vyos_vpn_driver.RestApi(self.dict_objects.vm_mgmt_ip)
         self.driver = vyos_vpn_driver.VpnGenericConfigDriver()
         self.resp = mock.Mock()
@@ -228,10 +226,9 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
 class VPNSvcValidatorTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(VPNSvcValidatorTestCase, self).__init__(*args, **kwargs)
-        self.dict_objects = test_vpn_data.VPNTestData()
-        self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.context,
-                                              self.dict_objects.sc)
-        self.valid_obj = vyos_vpn_driver.VPNSvcValidator(self.plugin_rpc)
+        self.dict_objects = vpn_test_data.MakeDictionaries()
+        self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.sc)
+        self.valid_obj = vyos_vpn_driver.VPNServiceValidator(self.plugin_rpc)
 
     def test_validate_active(self):
         '''
@@ -275,10 +272,10 @@ class RestApiTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(RestApiTestCase, self).__init__(*args, **kwargs)
         self.rest_obj = vyos_vpn_driver.RestApi((
-                            test_vpn_data.VPNTestData().vm_mgmt_ip))
+                            vpn_test_data.MakeDictionaries().vm_mgmt_ip))
         self.resp = mock.Mock()
         self.resp = mock.Mock(status_code=200)
-        self.dict_objects = test_vpn_data.VPNTestData()
+        self.dict_objects = vpn_test_data.MakeDictionaries()
         self.args = {'peer_address': '1.103.2.2'}
         self.fake_resp_dict = {'status': None}
         self.timeout = 30
