@@ -26,7 +26,7 @@ Implements test cases for RPC manager methods of vpn agent
 class VPNaasEventHandlerTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(VPNaasEventHandlerTestCase, self).__init__(*args, **kwargs)
-        self.dict_obj = test_vpn_data.MakeDictionaries()
+        self.dict_obj = test_vpn_data.VPNTestData()
         self.handler = vpn.VPNaasEventHandler(self.dict_obj.sc,
                                               self.dict_obj.drivers)
         self.ev = test_vpn_data.FakeEvent()

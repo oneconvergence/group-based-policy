@@ -15,7 +15,7 @@
 """
 
 
-class MakeDictionaries(object):
+class VPNTestData(object):
     '''
     Class which contains the required dictionaries to perform
     vpn ipsec site conn
@@ -490,7 +490,7 @@ class FakeEvent(object):
     the fake event object.
     '''
     def __init__(self):
-        self.dict_obj = MakeDictionaries()
+        self.dict_obj = VPNTestData()
         self.data = {
                     'context': self.dict_obj._make_service_context(),
                     'kwargs': self.dict_obj._create_ipsec_site_conn_obj()
