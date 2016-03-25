@@ -13,7 +13,6 @@
 
 import filter_base
 from gbpservice.nfp.configurator.lib import data_filter
-from gbpservice.nfp.configurator.lib import filter_constants as constants
 import mock
 
 """Test class to test data_filter.py using unittest framework
@@ -149,7 +148,7 @@ class FilterTest(filter_base.BaseTestCase):
         """
         service_info = self._test_get_vpn_info()
         self.context['service_info'] = service_info
-        retval = self.filter_obj.get_vpn_servicecontext(
+        retval = self.filter_obj._get_vpn_servicecontext(
                     self.context,
                     {'tenant_id': self.vpnservices[0]['tenant_id'],
                      'vpnservice_id': self.vpnservices[0]['id'],
@@ -171,7 +170,7 @@ class FilterTest(filter_base.BaseTestCase):
         """
         service_info = self._test_get_vpn_info()
         self.context['service_info'] = service_info
-        retval = self.filter_obj.get_vpn_servicecontext(
+        retval = self.filter_obj._get_vpn_servicecontext(
                     self.context,
                     {'tenant_id': self.vpnservices[0]['tenant_id'],
                      })
@@ -184,5 +183,3 @@ class FilterTest(filter_base.BaseTestCase):
                                    }]}
 
         self.assertEqual(retval, [expected])
-
-  
