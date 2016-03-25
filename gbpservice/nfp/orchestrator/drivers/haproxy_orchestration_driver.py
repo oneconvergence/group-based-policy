@@ -28,9 +28,10 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
     Overrides methods from HotplugSupportedOrchestrationDriver class for performing
     things specific to Haproxy service VM
     """
-    def __init__(self, supports_device_sharing=True, supports_hotplug=True,
+    def __init__(self, config, supports_device_sharing=True, supports_hotplug=True,
                  max_interfaces=10):
         super(HaproxyOrchestrationDriver, self).__init__(
+	    config,
             supports_device_sharing=supports_device_sharing,
             supports_hotplug=supports_hotplug,
             max_interfaces=max_interfaces)

@@ -151,8 +151,8 @@ class DeviceOrchestrator(object):
         self.request = request
         self.nsf_db = nfp_db.NFPDbBase()
         self.db_session = nfp_db_api.get_session()
-        self.gbpclient = openstack_driver.GBPClient()
-        self.keystoneclient = openstack_driver.KeystoneClient()
+        self.gbpclient = openstack_driver.GBPClient(config)
+        self.keystoneclient = openstack_driver.KeystoneClient(config)
 
         self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
         self.drivers = self.ext_mgr.drivers
@@ -553,9 +553,6 @@ class DeviceOrchestrator(object):
                                 network_function_instance_id)
 
         # either keep service vendor in request_info or get it from gbpclient
-        #service_vendor = self._get_service_vendor(
-        #                            network_function['service_profile_id'])
-
 
         admin_token = self.keystoneclient.get_admin_token()
         service_profile = self.gbpclient.get_service_profile(
@@ -569,8 +566,6 @@ class DeviceOrchestrator(object):
                     'network_function_instance': network_function_instance})
         device_info.update({'id': network_function_device_id})
         device_info.update({'service_vendor': service_vendor})
-        #device_info.update({'service_type': self._get_service_type(
-        #                        network_function['service_profile_id'])})
         service_details.update({'service_type': self._get_service_type(
                                  network_function['service_profile_id'])})
         device_info.update({'service_details': service_details})

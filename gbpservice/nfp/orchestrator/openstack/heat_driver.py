@@ -140,11 +140,11 @@ class HeatDriver():
 
     initialized = False
 
-    def __init__(self):
+    def __init__(self, config):
         self._lbaas_plugin = None
-        self.keystoneclient = KeystoneClient()
-        self.gbp_client = GBPClient()
-        self.neutron_client = NeutronClient()
+        self.keystoneclient = KeystoneClient(config)
+        self.gbp_client = GBPClient(config)
+        self.neutron_client = NeutronClient(config)
         self.initialized = True
         #self._name = name
         self.resource_owner_tenant_id = None
@@ -325,15 +325,15 @@ class HeatDriver():
                 provider_subnet = subnet
                 break
         if provider_subnet:
-            lb_pool_ids = self.lbaas_plugin.get_pools(
-                auth_token, provider_tenant_id,
+            lb_pool_ids = self.neutron_client.get_pools(
+                auth_token,
                 filters={'subnet_id': [provider_subnet['id']]})
             if lb_pool_ids and lb_pool_ids[0]['vip_id']:
-                lb_vip = self.lbaas_plugin.get_vip(
-                    auth_token, provider_tenant_id, lb_pool_ids[0]['vip_id'])
+                lb_vip = self.neutron_client.get_vip(
+                    auth_token, lb_pool_ids[0]['vip_id'])
                 self._create_pt(auth_token, provider_tenant_id, provider['id'],
                                 "service_target_vip_pt",
-                                port_id=lb_vip['port_id'])
+                                port_id=lb_vip['vip']['port_id'])
 
     def _is_service_target(self, policy_target):
         if policy_target['name'] and (policy_target['name'].startswith(
@@ -665,7 +665,7 @@ class HeatDriver():
         service_vendor = service_profile['service_flavor']
         service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
-        base_mode_support = (True if service_details['device_type'] == None
+        base_mode_support = (True if service_details['device_type'] == 'None' 
                              else False)
 
         stack_template = service_chain_node.get('config')
@@ -815,8 +815,8 @@ class HeatDriver():
         db_handler = nfp_db.NFPDbBase()
         db_session = nfp_db_api.get_session()
         network_function = network_function_details['network_function']
-        network_function_instance = network_function_details[
-            'network_function_instance']
+        network_function_instance = network_function_details.get(
+            'network_function_instance')
         service_profile_id = network_function['service_profile_id']
         admin_token = self.keystoneclient.get_admin_token()
         service_profile = self.gbp_client.get_service_profile(admin_token,
@@ -824,7 +824,7 @@ class HeatDriver():
 
         service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
-        if service_details['device_type'] != None:
+        if service_details['device_type'] != 'None':
             network_function_device = network_function_details[
                 'network_function_device']
             mgmt_ip = network_function_device['mgmt_ip_address']
@@ -844,7 +844,9 @@ class HeatDriver():
         provider_ptg = self.gbp_client.get_policy_target_group(
                             admin_token,
                             provider_ptg_id)
-        consumer_ptg = self.gbp_client.get_policy_target_group(
+	consumer_ptg = None
+	if consumer_ptg_id and consumer_ptg_id != 'N/A':
+            consumer_ptg = self.gbp_client.get_policy_target_group(
                             admin_token,
                             consumer_ptg_id)
 
@@ -853,36 +855,37 @@ class HeatDriver():
         consumer_policy_target_group = None
         provider_policy_target_group = None
         policy_target = None
-        for port in network_function_instance.get('port_info'):
-            port_info = db_handler.get_port_info(db_session, port)
-            port_classification = port_info['port_classification']
-            if port_info['port_model'] == nfp_constants.GBP_PORT:
-                policy_target_id = port_info['id']
-                port_id = self.gbp_client.get_policy_targets(
-                    admin_token,
-                    filters={'id': policy_target_id})[0]['port_id']
-                policy_target = self.gbp_client.get_policy_target(
-                    admin_token, policy_target_id)
-            else:
-                port_id = port_info['id']
+        if network_function_instance:
+           for port in network_function_instance.get('port_info'):
+               port_info = db_handler.get_port_info(db_session, port)
+               port_classification = port_info['port_classification']
+               if port_info['port_model'] == nfp_constants.GBP_PORT:
+                   policy_target_id = port_info['id']
+                   port_id = self.gbp_client.get_policy_targets(
+                       admin_token,
+                       filters={'id': policy_target_id})[0]['port_id']
+                   policy_target = self.gbp_client.get_policy_target(
+                       admin_token, policy_target_id)
+               else:
+                   port_id = port_info['id']
 
-            if port_classification == nfp_constants.CONSUMER:
-                consumer_port = self.neutron_client.get_port(admin_token,
-                        port_id)['port']
-                if policy_target:
-                    consumer_policy_target_group =\
-                        self.gbp_client.get_policy_target_group(
-                            admin_token,
-                            policy_target['policy_target_group_id'])
-            elif port_classification == nfp_constants.PROVIDER:
-                LOG.info(_("provider info: %s") % (port_id))
-                provider_port = self.neutron_client.get_port(admin_token,
-                        port_id)['port']
-                if policy_target:
-                    provider_policy_target_group =\
-                        self.gbp_client.get_policy_target_group(
-                            admin_token,
-                            policy_target['policy_target_group_id'])
+               if port_classification == nfp_constants.CONSUMER:
+                   consumer_port = self.neutron_client.get_port(admin_token,
+                           port_id)['port']
+                   if policy_target: 
+                       consumer_policy_target_group =\
+                           self.gbp_client.get_policy_target_group(
+                               admin_token,
+                               policy_target['policy_target_group_id'])
+               elif port_classification == nfp_constants.PROVIDER:
+                   LOG.info(_("provider info: %s") % (port_id))
+                   provider_port = self.neutron_client.get_port(admin_token,
+                           port_id)['port']
+                   if policy_target:
+                       provider_policy_target_group =\
+                           self.gbp_client.get_policy_target_group(
+                               admin_token,
+                               policy_target['policy_target_group_id'])
 
         service_details = {
             'service_profile': service_profile,

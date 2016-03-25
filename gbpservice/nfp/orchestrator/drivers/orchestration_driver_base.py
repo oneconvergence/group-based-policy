@@ -30,19 +30,19 @@ class OrchestrationDriverBase(object):
     Launches the VM with all the management and data ports and a new VM
     is launched for each Network Service Instance
     """
-    def __init__(self, supports_device_sharing=False, supports_hotplug=False,
-                 max_interfaces=5):
+    def __init__(self, config, supports_device_sharing=False,
+	         supports_hotplug=False, max_interfaces=5):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
         self.supports_hotplug = supports_hotplug
         self.maximum_interfaces = max_interfaces
 
-        # TODO[Magesh]: Try to move the following handlers to
+        # TODO(MAGESH): Try to move the following handlers to
         # NDO manager rather than having here in the driver
-        self.identity_handler = openstack_driver.KeystoneClient()
-        self.compute_handler_nova = openstack_driver.NovaClient()
-        self.network_handler_gbp = openstack_driver.GBPClient()
-        self.network_handler_neutron = openstack_driver.NeutronClient()
+        self.identity_handler = openstack_driver.KeystoneClient(config)
+        self.compute_handler_nova = openstack_driver.NovaClient(config)
+        self.network_handler_gbp = openstack_driver.GBPClient(config)
+        self.network_handler_neutron = openstack_driver.NeutronClient(config)
 
         # statistics available
         # - instances
@@ -74,7 +74,7 @@ class OrchestrationDriverBase(object):
             raise
 
     def _increment_stats_counter(self, metric, by=1):
-        # TODO: create path and delete path have different driver objects.
+        # TODO(RPM): create path and delete path have different driver objects.
         # This will not work in case of increment and decrement.
         # So, its no-operation now
         return
@@ -85,7 +85,7 @@ class OrchestrationDriverBase(object):
                           % (metric, by)))
 
     def _decrement_stats_counter(self, metric, by=1):
-        # TODO: create path and delete path have different driver objects.
+        # TODO(RPM): create path and delete path have different driver objects.
         # This will not work in case of increment and decrement.
         # So, its no-operation now
         return
@@ -109,7 +109,7 @@ class OrchestrationDriverBase(object):
                           ' creation'))
             return None
 
-        name = 'mgmt_interface'  # TODO[RPM]: Use proper name
+        name = 'mgmt_interface'  # TODO(RPM): Use proper name
         port_model = None
         if device_data['network_model'] == nfp_constants.GBP_NETWORK:
             mgmt_ptg_id = device_data['management_network_info']['id']
@@ -378,7 +378,7 @@ class OrchestrationDriverBase(object):
                                           by=len(interfaces))
             return None
 
-        instance_name = 'instance'  # TODO[RPM]:use proper name
+        instance_name = 'instance'  # TODO(RPM):use proper name
         try:
             instance_id = self.compute_handler_nova.create_instance(
                     token, self._get_admin_tenant_id(token=token),
@@ -430,7 +430,7 @@ class OrchestrationDriverBase(object):
                 'mgmt_port_id': interfaces[0],
                 'max_interfaces': self.maximum_interfaces,
                 'interfaces_in_use': len(interfaces_to_attach),
-                'description': ''}  # TODO[RPM]: what should be the description
+                'description': ''}  # TODO(RPM): what should be the description
 
     def delete_network_function_device(self, device_data):
         """ Delete the NFD

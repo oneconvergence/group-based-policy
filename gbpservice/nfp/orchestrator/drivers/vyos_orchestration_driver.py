@@ -24,9 +24,10 @@ LOG = logging.getLogger(__name__)
 
 class VyosOrchestrationDriver(OrchestrationDriverBase):
 
-    def __init__(self, supports_device_sharing=True, supports_hotplug=True,
-                 max_interfaces=10):
+    def __init__(self, config, supports_device_sharing=True,
+		 supports_hotplug=True, max_interfaces=10):
         super(VyosOrchestrationDriver, self).__init__(
+	    config,
             supports_device_sharing=supports_device_sharing,
             supports_hotplug=supports_hotplug,
             max_interfaces=max_interfaces)
