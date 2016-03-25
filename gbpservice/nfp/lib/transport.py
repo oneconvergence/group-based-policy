@@ -146,6 +146,8 @@ def send_request_to_configurator(conf, context, body,
         for ele in body['config']:
             ele['kwargs'].update({'context': context.to_dict()})
     else:
+        if (body['config'][0]['resource'] == 'heat'):
+            body['config'][0]['kwargs'].update({'context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
 
     if conf.backend == 'tcp_rest':
