@@ -299,10 +299,13 @@ class ServiceOrchestrator(object):
         service_chain_id = network_function_info.get('service_chain_id')
         service_details = backend_lib.parse_service_flavor_string(
                                         service_profile['service_flavor'])
+        base_mode_support = (True if service_details['device_type'] == None 
+                             else False)
         service_vendor = service_details['service_vendor']
         name = "%s.%s.%s" % (service_profile['service_type'],
                              service_vendor,    
                              service_chain_id or service_id)
+        service_config = network_function_info.get('service_config')
         network_function = {
             'name': name,
             'description': '',
@@ -310,7 +313,7 @@ class ServiceOrchestrator(object):
             'service_id': service_id,  # GBP Service Node or Neutron Service ID
             'service_chain_id': service_chain_id,  # GBP SC instance ID
             'service_profile_id': service_profile_id,
-            'service_config': network_function_info.get('service_config'),
+            'service_config': service_config,
             'status': nfp_constants.PENDING_CREATE
         }
         network_function = self.db_handler.create_network_function(
@@ -324,11 +327,21 @@ class ServiceOrchestrator(object):
                           "profile: %s" % service_profile))
             network_function_status = {'status': nfp_constants.ERROR}
             self.db_handler.update_network_function(
-            self.db_session, network_function['id'], network_function_status)
+                    self.db_session, network_function['id'],
+                    network_function_status)
             return None
 
-        if service_details['device_type'] == None:
+        if base_mode_support:
             print "invoke heat api directly"
+
+            '''#(TODO) make changes for config_init and ansible too
+            template = service_config.split('heat_config:')[1]
+            network_function = {
+                'service_config': template
+            }
+            network_function = self.db_handler.update_network_function(
+                self.db_session, network_function_id, network_function)
+            '''
             return None
 
         if mode == nfp_constants.GBP_MODE:
@@ -594,9 +607,20 @@ class ServiceOrchestrator(object):
 
     def handle_user_config_deleted(self, event):
         request_data = event.data
+        admin_token = self.keystoneclient.get_admin_token()
         network_function = self.db_handler.get_network_function(
             self.db_session,
             request_data['network_function_id'])
+        service_profile_id = network_function['service_profile_id']
+        service_profile = self.gbpclient.get_service_profile(
+            admin_token, service_profile_id)
+        service_details = backend_lib.parse_service_flavor_string(
+                                        service_profile['service_flavor'])
+        base_mode_support = service_details['device_type']
+        if base_mode_support == None:
+            self.db_handler.delete_network_function(
+                self.db_session, network_function['id'])
+            return
         for nfi_id in network_function['network_function_instances']:
             self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
                                event_data=nfi_id)

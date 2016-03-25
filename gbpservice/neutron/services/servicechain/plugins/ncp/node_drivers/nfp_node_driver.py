@@ -285,11 +285,22 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
     def _setup_rpc(self):
         self.nfp_notifier = NFPClientApi(nfp_rpc_topics.NFP_NSO_TOPIC)
 
+    def _parse_service_flavor_string(self, service_flavor_str):
+        service_flavor_dict = dict(item.split('=') for item 
+                                   in service_flavor_str.split(','))
+        service_details = {key.strip():value.strip() for key, value 
+                                    in service_flavor_dict.iteritems()}
+        return service_details
+
     def get_plumbing_info(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
         service_type = context.current_profile['service_type']
 
+        service_flavor_str = context.current_profile['service_flavor']
+        service_details = self._parse_service_flavor_string(service_flavor_str)
+        if service_details['device_type'] == None:
+            return {}
         # Management PTs are managed by NFP since it supports hosting multiple
         # logical services in a single device
         plumbing_request = {'management': [], 'provider': [{}],
@@ -322,7 +333,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         if context.current_profile['service_type'] not in (
             self.SUPPORTED_SERVICE_TYPES):
             raise InvalidServiceType()
-        if (context.current_profile['service_flavor'].lower() not in
+        service_vendor = self._parse_service_flavor_string(context.current_profile['service_flavor'])['service_vendor']
+        #if (context.current_profile['service_flavor'].lower() not in
+        if (service_vendor.lower() not in
             self.SUPPORTED_SERVICE_VENDOR_MAPPING[
                 context.current_profile['service_type']]):
             raise UnSupportedServiceProfile(
@@ -555,6 +568,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         provider_service_targets = []
         consumer_service_targets = []
         service_targets = context.get_service_targets()
+        service_flavor_str = context.current_profile['service_flavor']
+        service_details = self._parse_service_flavor_string(service_flavor_str)
         # Bug with NCP. For create, its not setting service targets in context
         if not service_targets:
             service_targets = context.get_service_targets(update=True)
@@ -565,8 +580,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 provider_service_targets.append(service_target)
         LOG.debug("provider targets: %s consumer targets %s" % (
             provider_service_targets, consumer_service_targets))
-        if (not provider_service_targets or (service_type in
-            [pconst.FIREWALL, pconst.VPN] and not consumer_service_targets)):
+        if (service_details['device_type'] != None and (
+            not provider_service_targets or (service_type in
+            [pconst.FIREWALL, pconst.VPN] and not consumer_service_targets))):
                 LOG.error(_LE("Service Targets are not created for the Node "
                             "of service_type %(service_type)s"),
                           {'service_type': service_type})
@@ -632,13 +648,16 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             if not vip_ip:
                 raise VipNspNotSetonProvider()
 
-        port_info = [
-            {
-                'id': service_targets['provider_pts'][0],
-                'port_model': nfp_constants.GBP_PORT,
-                'port_classification': nfp_constants.PROVIDER,
-            }
-        ]
+        port_info = []
+        if service_targets.get('provider_pts'):
+            # Device case, for Base mode ports won't be available.
+            port_info = [
+                {
+                    'id': service_targets['provider_pts'][0],
+                    'port_model': nfp_constants.GBP_PORT,
+                    'port_classification': nfp_constants.PROVIDER,
+                }
+            ]
         if service_targets.get('consumer_ports'):
             port_info.append({
                 'id': service_targets['consumer_pts'][0],
