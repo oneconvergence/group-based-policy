@@ -100,7 +100,7 @@ class RpcHandler(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.key)
+                key=original_event.desc.uid)
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
@@ -150,7 +150,7 @@ class DeviceOrchestrator(object):
         self.state = state
         self.request = request
         self.nsf_db = nfp_db.NFPDbBase()
-        self.db_session = nfp_db_api.get_session()
+        # self.db_session = nfp_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient(config)
         self.keystoneclient = openstack_driver.KeystoneClient(config)
 
@@ -180,6 +180,10 @@ class DeviceOrchestrator(object):
                 'ACTIVE': 'Device is Active.',
                 'DEVICE_NOT_UP': 'Device not became UP/ACTIVE',
         }
+
+    @property
+    def db_session(self):
+        return nfp_db_api.get_session()
 
     def event_method_mapping(self, event_id):
         event_handler_mapping = {
@@ -245,7 +249,7 @@ class DeviceOrchestrator(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.key)
+                key=original_event.desc.uid)
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:

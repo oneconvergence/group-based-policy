@@ -253,7 +253,7 @@ class PollQueueHandler(object):
         try:
             if pipe.poll(timeout):
                 return pipe.recv()
-        except Queue.Empty:
+        except multiprocessing.TimeoutError as err:
             return None
 
     def _poll_event_cancelled(self, eh, event):
@@ -345,10 +345,11 @@ class PollQueueHandler(object):
             Executor: distributor-process
         """
 
-        log_debug(LOG, "%s - processing - from worker:%d" % (ev.identify(), os.getpid()))
+        log_debug(LOG, "%s - processing - from worker:%d" %
+                  (ev.identify(), os.getpid()))
 
         if ev.desc.poll_event != 'POLL_EVENT':
-            self._cache.remove([ev]) 
+            self._cache.remove([ev])
             return self._sc.post_event(ev)
 
         if ev.id == 'POLL_EVENT_CANCEL':
