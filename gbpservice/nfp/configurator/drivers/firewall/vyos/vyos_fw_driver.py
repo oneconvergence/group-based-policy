@@ -20,7 +20,6 @@ from oslo_serialization import jsonutils
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import fw_constants as const
-
 LOG = logging.getLogger(__name__)
 
 
@@ -701,3 +700,19 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
             self._print_exception('Failure', resp.status_code, url,
                                   'create', resp.content)
             return const.STATUS_ERROR
+
+    def configure_healthmonitor(self, context, kwargs):
+        """Overriding BaseDriver's configure_healthmonitor().
+           It does netcat to CONFIGURATION_SERVER_PORT  8888.
+           Configuration agent runs inside service vm.Once agent is up and
+           reachable, service vm is assumed to be active.
+           :param context - context
+           :param kwargs - kwargs coming from orchestrator
+
+           Returns: SUCCESS/FAILED
+
+        """
+        ip = kwargs.get('mgmt_ip')
+        port = str(const.CONFIGURATION_SERVER_PORT)
+        command = 'nc ' + ip + ' ' + port + ' -z'
+        return self._check_vm_health(command)
