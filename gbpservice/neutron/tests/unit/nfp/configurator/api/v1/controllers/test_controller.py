@@ -211,21 +211,6 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                                    jsonutils.dumps(self.data))
         self.assertEqual(value, True)
 
-    def test_get_notifications_fail(self):
-        """Tests failure case of HTTP get request get_notifications.
-
-        Returns: none
-
-        """
-
-        with mock.patch.object(
-                controller.RPCClient, 'call') as rpc_mock:
-            rpc_mock.return_value = Exception
-            response = self.app.get(
-                '/v1/nfp/get_notifications',
-                expect_errors=True)
-            self.assertEqual(response.status_code, 400)
-
     def test_post_create_network_function_device_config_fail(self):
         """Tests failure case of HTTP post request
         create_network_function_device_config
