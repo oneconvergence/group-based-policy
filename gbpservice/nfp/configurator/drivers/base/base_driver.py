@@ -51,7 +51,7 @@ class BaseDriver(object):
            Service provider can override the method implementation
            if they want to support other types.
 
-           :param COMMAND - command to execute
+           :param command - command to execute
 
            Returns: SUCCESS/FAILED
         """
