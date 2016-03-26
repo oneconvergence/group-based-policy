@@ -786,3 +786,20 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             msg = ("Deleted pool health monitor: %s with pool ID: %s"
                    % (str(health_monitor), pool_id))
             LOG.info(msg)
+
+    def configure_healthmonitor(self, context, kwargs):
+        """Overriding BaseDriver's configure_healthmonitor().
+           It does netcat to HAPROXY_AGENT_LISTEN_PORT 1234.
+           HaProxy agent runs inside service vm..Once agent is up and
+           reachable, service vm is assumed to be active.
+
+           :param context - context
+           :param kwargs - kwargs coming from orchestrator
+
+           Returns: SUCCESS/FAILED
+
+        """
+        ip = kwargs.get('mgmt_ip')
+        port = str(lb_constants.HAPROXY_AGENT_LISTEN_PORT)
+        command = 'nc ' + ip + ' ' + port + ' -z'
+        return self._check_vm_health(command)

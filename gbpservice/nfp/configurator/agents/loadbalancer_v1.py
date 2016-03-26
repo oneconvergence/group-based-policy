@@ -20,6 +20,7 @@ from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.configurator.lib import lb_constants
+from neutron import context
 
 LOG = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class LBaasRpcSender(data_filter.Filter):
         LOG.info("sending update status notification %s " % (msg))
         self.notify._notification(msg)
 
-    def update_pool_stats(self, pool_id, stats):
+    def update_pool_stats(self, pool_id, stats, context):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
         :param pool_id: pool id
@@ -80,7 +81,8 @@ class LBaasRpcSender(data_filter.Filter):
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_pool_stats',
-               'kwargs': {'pool_id': pool_id,
+               'kwargs': {'context': context,
+                          'pool_id': pool_id,
                           'stats': stats}
                }
         LOG.info("sending update pool stats notification %s " % (msg))
@@ -371,6 +373,13 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         self.rpcmgr = rpcmgr
         self.plugin_rpc = LBaasRpcSender(sc)
 
+        """TODO(pritam): Remove neutron context dependency. As of now because
+           config agent needs context in notification, and internal poll event
+           like collect_stats() does not have context, creating context here,
+           but should get rid of this in future.
+        """
+        self.context = context.get_admin_context_without_session()
+
     def _get_driver(self, driver_name=lb_constants.SERVICE_TYPE):
         """Retrieves service driver object based on service type input.
 
@@ -598,10 +607,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
             try:
                 stats = driver.get_stats(pool_id)
                 if stats:
-                    self.plugin_rpc.update_pool_stats(pool_id, stats)
+                    self.plugin_rpc.update_pool_stats(pool_id, stats,
+                                                      self.context)
             except Exception:
-                LOG.exception(_('Error updating statistics on pool %s'),
-                              pool_id)
+                LOG.error('Error updating statistics on pool %s' % (pool_id))
 
 
 def events_init(sc, drivers, rpcmgr):
@@ -738,5 +747,5 @@ def _start_collect_stats(sc):
 
 
 def init_agent_complete(cm, sc, conf):
-    # _start_collect_stats(sc)
+    _start_collect_stats(sc)
     LOG.info("Initialization of loadbalancer agent completed.")
