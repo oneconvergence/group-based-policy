@@ -372,6 +372,12 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         self.drivers = drivers
         self.rpcmgr = rpcmgr
         self.plugin_rpc = LBaasRpcSender(sc)
+
+        """TODO(pritam): Remove neutron context dependency. As of now because
+           config agent needs context in notification, and internal poll event
+           like collect_stats() does not have context, creating context here,
+           but should get rid of this in future.
+        """
         self.context = context.get_admin_context_without_session()
 
     def _get_driver(self, driver_name=lb_constants.SERVICE_TYPE):
