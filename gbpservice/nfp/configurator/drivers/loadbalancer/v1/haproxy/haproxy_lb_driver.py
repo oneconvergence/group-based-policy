@@ -11,12 +11,10 @@
 #    under the License.
 
 import ast
-import subprocess
 from oslo_log import log as logging
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
                                                     haproxy_rest_client)
 from gbpservice.nfp.configurator.lib import lb_constants
-from gbpservice.nfp.configurator.lib import constants
 from gbpservice.nfp.configurator.drivers.base import base_driver
 
 DRIVER_NAME = 'loadbalancer'
@@ -803,5 +801,5 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
         """
         ip = kwargs.get('mgmt_ip')
         port = str(lb_constants.HAPROXY_AGENT_LISTEN_PORT)
-        COMMAND = 'nc '+ip+' '+port+' -z'
-        return self._check_vm_health(COMMAND)
+        command = 'nc ' + ip + ' ' + port + ' -z'
+        return self._check_vm_health(command)

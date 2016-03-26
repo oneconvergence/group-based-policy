@@ -12,7 +12,7 @@
 
 import ast
 import requests
-import subprocess
+
 from neutron import context
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -20,7 +20,6 @@ from oslo_serialization import jsonutils
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import fw_constants as const
-from gbpservice.nfp.configurator.lib import constants
 LOG = logging.getLogger(__name__)
 
 
@@ -715,5 +714,5 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         """
         ip = kwargs.get('mgmt_ip')
         port = str(const.CONFIGURATION_SERVER_PORT)
-        COMMAND = 'nc '+ip+' '+port+' -z'
-        return self._check_vm_health(COMMAND)
+        command = 'nc ' + ip + ' ' + port + ' -z'
+        return self._check_vm_health(command)
