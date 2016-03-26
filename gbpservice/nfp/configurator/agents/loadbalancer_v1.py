@@ -15,7 +15,7 @@ import oslo_messaging as messaging
 
 from gbpservice.nfp.configurator.agents import agent_base
 from oslo_log import log as logging
-from gbpservice.nfp.core import main
+from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.core import poll as nfp_poll
@@ -51,7 +51,7 @@ class LBaasRpcSender(data_filter.Filter):
             )
         )
 
-    def update_status(self, obj_type, obj_id, status):
+    def update_status(self, obj_type, obj_id, status, context):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
         :param obj_type: object type
@@ -62,7 +62,8 @@ class LBaasRpcSender(data_filter.Filter):
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_status',
-               'kwargs': {'obj_type': obj_type,
+               'kwargs': {'context': context,
+                          'obj_type': obj_type,
                           'obj_id': obj_id,
                           'status': status}
                }
@@ -449,10 +450,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 LOG.warn("Failed to delete vip %s" % (vip['id']))
             else:
                 self.plugin_rpc.update_status('vip', vip['id'],
-                                              lb_constants.ERROR)
+                                              lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status('vip', vip['id'],
-                                          lb_constants.ACTIVE)
+                                          lb_constants.ACTIVE, context)
 
     def _create_vip(self, ev):
         self._handle_event_vip(ev, 'create')
@@ -474,7 +475,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 if driver_name not in self.drivers:
                     LOG.error(_('No device driver on agent: %s.'), driver_name)
                     self.plugin_rpc.update_status('pool', pool['id'],
-                                                  lb_constants.ERROR)
+                                                  lb_constants.ERROR, context)
                     return
                 driver = self.drivers[driver_name]
                 driver.create_pool(pool, context)
@@ -494,10 +495,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 del LBaaSEventHandler.instance_mapping[pool['id']]
             else:
                 self.plugin_rpc.update_status('pool', pool['id'],
-                                              lb_constants.ERROR)
+                                              lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status('pool', pool['id'],
-                                          lb_constants.ACTIVE)
+                                          lb_constants.ACTIVE, context)
 
     def _create_pool(self, ev):
         self._handle_event_pool(ev, 'create')
@@ -527,10 +528,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 LOG.warn("Failed to delete member %s" % (member['id']))
             else:
                 self.plugin_rpc.update_status('member', member['id'],
-                                              lb_constants.ERROR)
+                                              lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status('member', member['id'],
-                                          lb_constants.ACTIVE)
+                                          lb_constants.ACTIVE, context)
 
     def _create_member(self, ev):
         self._handle_event_member(ev, 'create')
@@ -568,10 +569,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                          " assoc_id: %s" % (assoc_id))
             else:
                 self.plugin_rpc.update_status(
-                    'health_monitor', assoc_id, lb_constants.ERROR)
+                    'health_monitor', assoc_id, lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status(
-                'health_monitor', assoc_id, lb_constants.ACTIVE)
+                'health_monitor', assoc_id, lb_constants.ACTIVE, context)
 
     def _create_pool_health_monitor(self, ev):
         self._handle_event_pool_health_monitor(ev, 'create')
@@ -636,8 +637,8 @@ def events_init(sc, drivers, rpcmgr):
 
     evs = []
     for ev_id in ev_ids:
-        ev = main.Event(id=ev_id, handler=LBaaSEventHandler(sc, drivers,
-                                                            rpcmgr))
+        ev = nfp_event.Event(id=ev_id, handler=LBaaSEventHandler(sc, drivers,
+                                                                 rpcmgr))
         evs.append(ev)
     sc.register_events(evs)
 
@@ -737,5 +738,5 @@ def _start_collect_stats(sc):
 
 
 def init_agent_complete(cm, sc, conf):
-    _start_collect_stats(sc)
+    # _start_collect_stats(sc)
     LOG.info("Initialization of loadbalancer agent completed.")

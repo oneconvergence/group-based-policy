@@ -11,7 +11,7 @@
 #    under the License.
 
 from oslo_log import log
-import gbpservice.nfp.configurator.lib.schema as schema
+import gbpservice.nfp.base_configurator.lib.schema as schema
 
 LOG = log.getLogger(__name__)
 
