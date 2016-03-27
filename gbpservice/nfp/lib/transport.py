@@ -22,6 +22,7 @@ from oslo_config import cfg as oslo_config
 import requests
 import json
 import exceptions
+from gbpservice.nfp.proxy_agent.lib import RestClientOverUnix as unix_rc
 
 LOG = logging.getLogger(__name__)
 Version = 'v1'  # v1/v2/v3#
@@ -49,6 +50,7 @@ OPTS = [
 oslo_config.CONF.register_opts(OPTS)
 oslo_config.CONF.register_opts(rest_opts, "REST")
 oslo_config.CONF.register_opts(rpc_opts, "RPC")
+n_rpc.init(cfg.CONF)
 
 
 class RestClientException(exceptions.Exception):
@@ -75,12 +77,12 @@ class RestApi(object):
             raise RestClientException("HTTPForbidden: %s" % resp.reason)
         elif resp.status_code == 404:
             raise RestClientException("HttpNotFound: %s" % resp.reason)
-        elif resp_code.status == 405:
+        elif resp.status_code == 405:
             raise RestClientException(
                 "HTTPMethodNotAllowed: %s" % resp.reason)
-        elif resp_code.status == 406:
+        elif resp.status_code == 406:
             raise RestClientException("HTTPNotAcceptable: %s" % resp.reason)
-        elif resp_code.status == 408:
+        elif resp.status_code == 408:
             raise RestClientException("HTTPRequestTimeout: %s" % resp.reason)
         elif resp.status_code == 409:
             raise RestClientException("HTTPConflict: %s" % resp.reason)
@@ -99,8 +101,8 @@ class RestApi(object):
 
     def post(self, path, body, method_type):
         url = self.url % (
-            self.controller_ip,
-            self.controller_port, path)
+            self.rest_server_ip,
+            self.rest_server_port, path)
         data = json.dumps(body)
         try:
             headers = {"content-type": "application/json",
@@ -114,8 +116,8 @@ class RestApi(object):
 
     def get(self, path):
         url = self.url % (
-            self.controller_ip,
-            self.controller_port, path)
+            self.rest_server_ip,
+            self.rest_server_port, path)
         try:
             headers = {"content-type": "application/json"}
             resp = requests.get(url,
@@ -133,7 +135,6 @@ class RPCClient(object):
         self.topic = topic
         _target = target.Target(topic=self.topic,
                                 version=self.API_VERSION)
-        n_rpc.init(cfg.CONF)
         self.client = n_rpc.get_client(_target)
         self.cctxt = self.client.prepare(version=self.API_VERSION,
                                          topic=self.topic)
@@ -146,9 +147,11 @@ def send_request_to_configurator(conf, context, body,
         for ele in body['config']:
             ele['kwargs'].update({'context': context.to_dict()})
     else:
+        if (body['config'][0]['resource'] == 'heat'):
+            body['config'][0]['kwargs'].update({'context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
 
-    if conf.backend == 'rest':
+    if conf.backend == 'tcp_rest':
         try:
             rc = RestApi(conf.REST.rest_server_ip, conf.REST.rest_server_port)
             resp = rc.post(method_name, body, method_type.upper())
@@ -166,7 +169,7 @@ def send_request_to_configurator(conf, context, body,
 
 
 def get_response_from_configurator(conf):
-    if conf.backend == 'rest':
+    if conf.backend == 'tcp_rest':
         try:
             rc = RestApi(conf.REST.rest_server_ip, conf.REST.rest_server_port)
             resp = rc.get('get_notifications')
@@ -176,6 +179,19 @@ def get_response_from_configurator(conf):
             LOG.error("get_notification -> GET request failed. Reason : %s" % (
                 rce))
             return rce
+
+    elif conf.backend == 'unix_rest':
+        try:
+            resp, content = unix_rc.get('get_notifications')
+            content = json.loads(content)
+            LOG.info("get_notification -> GET response: (%s)" % (content))
+            return content
+        except unix_rc.RestClientException as rce:
+            LOG.error("get_notification -> GET request failed. Reason : %s" % (
+                rce))
+            return "get_notification -> GET request failed. Reason : %s" % (
+                rce)
+
     else:
         rpc_cbs_data = []
         try:
@@ -187,3 +203,11 @@ def get_response_from_configurator(conf):
         except Exception as e:
             LOG.error("Exception while processing %s", e)
         return rpc_cbs_data
+
+
+def parse_service_flavor_string(service_flavor_str):
+    service_flavor_dict = dict(item.split('=') for item
+                               in service_flavor_str.split(','))
+    service_details = {key.strip(): value.strip() for key, value
+                       in service_flavor_dict.iteritems()}
+    return service_details

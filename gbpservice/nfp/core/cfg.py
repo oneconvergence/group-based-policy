@@ -43,14 +43,6 @@ OPTS = [
         help='Number of event worker process to be created.'
     ),
     cfg.StrOpt(
-        'rpc_loadbalancer',
-        default='StickyRoundRobin',
-        choices=['RoundRobin', 'StickyRoundRobin'],
-        help='Select one of the available loadbalancers for'
-        'rpc loadbalancing, Check sc / core / lb.py'
-        'for supported rpc lb algos'
-    ),
-    cfg.StrOpt(
         'modules_dir',
         default='gbpservice.nfp.core.test',
         help='Path for NFP modules.'
@@ -58,7 +50,7 @@ OPTS = [
     ),
     cfg.IntOpt(
         'periodic_interval',
-        default=10,
+        default=2,
         help='Interval for event polling task in seconds.'
         'Polling task wakesup with this interval and'
         'checks for timedout events.'

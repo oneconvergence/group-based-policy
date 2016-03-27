@@ -15,7 +15,7 @@ from neutron._i18n import _LI
 from oslo_log import log as logging
 import oslo_messaging as messaging
 
-from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.poll import poll_event_desc
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.common import constants as nfp_constants
@@ -24,7 +24,7 @@ from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
-from gbpservice.nfp.lib import backend_lib
+from gbpservice.nfp.lib import transport
 #from gbpservice.nfp.orchestrator.compute.drivers import (
 #    nova_driver)
 '''from gbpservice.nfp.orchestrator.drivers import (
@@ -64,7 +64,7 @@ def events_init(controller, config, device_orchestrator):
     controller.register_events(events_to_register)
 
 
-def module_init(controller, config):
+def nfp_module_init(controller, config):
     events_init(controller, config, DeviceOrchestrator(controller, config))
     rpc_init(controller, config)
     LOG.debug("Device Orchestrator: module_init")
@@ -100,7 +100,7 @@ class RpcHandler(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.key)
+                key=original_event.desc.uid)
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
@@ -150,7 +150,7 @@ class DeviceOrchestrator(object):
         self.state = state
         self.request = request
         self.nsf_db = nfp_db.NFPDbBase()
-        self.db_session = nfp_db_api.get_session()
+        # self.db_session = nfp_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient(config)
         self.keystoneclient = openstack_driver.KeystoneClient(config)
 
@@ -180,6 +180,10 @@ class DeviceOrchestrator(object):
                 'ACTIVE': 'Device is Active.',
                 'DEVICE_NOT_UP': 'Device not became UP/ACTIVE',
         }
+
+    @property
+    def db_session(self):
+        return nfp_db_api.get_session()
 
     def event_method_mapping(self, event_id):
         event_handler_mapping = {
@@ -243,7 +247,7 @@ class DeviceOrchestrator(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.key)
+                key=original_event.desc.uid)
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
@@ -818,7 +822,7 @@ class NDOConfiguratorRpcApi(object):
         LOG.info(_LI("Sending create NFD config request to configurator "
                      "with config_params = %s" % config_params))
 
-        return backend_lib.send_request_to_configurator(self.conf,
+        return transport.send_request_to_configurator(self.conf,
                                                         self.context,
                                                         config_params,
                                                         'CREATE',
@@ -837,7 +841,7 @@ class NDOConfiguratorRpcApi(object):
         LOG.info(_LI("Sending delete NFD config request to configurator "
                      "with config_params = %s" % config_params))
 
-        return backend_lib.send_request_to_configurator(self.conf,
+        return transport.send_request_to_configurator(self.conf,
                                                         self.context,
                                                         config_params,
                                                         'DELETE',

@@ -1,7 +1,7 @@
 #!/usr/bin/python2
 
 import sys
-from gbpservice.nfp.core.main import main
+from gbpservice.nfp.core.controller import main
 
 if __name__ == "__main__":
    sys.exit(main())

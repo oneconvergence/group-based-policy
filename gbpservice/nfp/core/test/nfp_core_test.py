@@ -17,13 +17,13 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging as messaging
 
-from gbpservice.nfp.core import main as nfp_main
+from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.core import rpc as nfp_rpc
 
 
 LOG = logging.getLogger(__name__)
-Event = nfp_main.Event
+Event = nfp_event.Event
 PollEventDesc = nfp_poll.PollEventDesc
 RpcAgent = nfp_rpc.RpcAgent
 
@@ -46,13 +46,17 @@ def events_init(sc):
         Event(id='SERVICE_CREATE', handler=Agent(sc)),
         Event(id='SERVICE_DELETE', handler=Agent(sc)),
         Event(id='SERVICE_DUMMY_EVENT', handler=Agent(sc)),
-        Event(id='EVENT_LIFE_TIMEOUT', handler=Agent(sc))]
+        Event(id='EVENT_EXPIRED', handler=Agent(sc))]
     sc.register_events(evs)
 
 
-def module_init(sc, conf):
+def nfp_module_init(sc, conf):
     events_init(sc)
     rpc_init(sc, conf)
+
+
+def nfp_module_post_init(sc, conf):
+    unit_test(conf, sc)
 
 
 def unit_test(conf, sc):
@@ -76,6 +80,7 @@ def test_service_create(conf, sc):
     # Event with timer
     ev = sc.new_event(id='SERVICE_CREATE', data=service1,
                       binding_key=service1['id'],
+                      #binding_key='SERIALIZE',
                       key=service1['id'], lifetime=11, serialize=True)
     sc.post_event(ev)
 
@@ -91,6 +96,7 @@ def test_service_create(conf, sc):
     # event Without Timer
     ev = sc.new_event(id='SERVICE_CREATE', data=service2,
                       binding_key=service2['id'],
+                      #binding_key='SERIALIZE',
                       key=service2['id'], serialize=True)
     sc.post_event(ev)
 
@@ -106,6 +112,7 @@ def test_service_create(conf, sc):
 
     ev = sc.new_event(id='SERVICE_CREATE', data=service3,
                       binding_key=service3['id'],
+                      #binding_key='SERIALIZE',
                       key=service3['id'], serialize=True)
     sc.post_event(ev)
 
@@ -117,16 +124,14 @@ def test_service_create(conf, sc):
 
     ev = sc.new_event(id='SERVICE_DUMMY_EVENT', key='dummy_event')
     sc.post_event(ev)
-
+    
     time.sleep(1)
     while True:
-        data = sc.get_stash_event()
-        if data is not None:
-            LOG.debug("Stashed data received %s " % (data))
-            break
-        else:
-            LOG.debug("No Event in stashq..")
-            time.sleep(1)
+        events = sc.get_stashed_events()
+        for event in events:
+            LOG.info("Stashed event %s " % (event.identify()))
+        time.sleep(1)
+    
 
 
 class Collector(object):
@@ -166,7 +171,8 @@ class Agent(PollEventDesc):
         self._handle_poll_event(ev)
 
     def handle_event(self, ev):
-        LOG.debug("Process ID :%d" % (os.getpid()))
+        LOG.info("Handle event :%s, Process ID :%d" %
+                 (ev.identify(), os.getpid()))
         if ev.id == 'SERVICE_CREATE':
             self._handle_create_event(ev)
         elif ev.id == 'SERVICE_DELETE':
@@ -174,14 +180,15 @@ class Agent(PollEventDesc):
         elif ev.id == 'SERVICE_DUMMY_EVENT':
             self._handle_dummy_event(ev)
 
-    def event_cancelled(self, ev):
-        LOG.debug("In event_cancel method of Handler for Event %s " % (ev))
+    def event_cancelled(self, ev, reason=''):
+        LOG.info("In event_cancel method of Handler for Event %s - reason %s " %
+                 (ev.identify(), reason))
 
     def _handle_create_event(self, ev):
         """Driver logic here.
         """
         self._sc.event_done(ev)
-        self._sc.poll_event(ev, max_times=2)
+        self._sc.poll_event(ev)
 
     def _handle_dummy_event(self, ev):
         self._sc.poll_event(ev, max_times=2)
@@ -196,11 +203,12 @@ class Agent(PollEventDesc):
         # self._sc.poll_event_done(ev)
 
     def poll_event_cancel(self, event):
-        LOG.debug("In poll_event_cancel method of Handler for  Event %s " %
-                  (event))
+        LOG.info("In poll_event_cancel method of Handler for  Event %s " %
+                 (event))
 
     @nfp_poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
+        self._sc.stash_event(ev)
         poll = True
 
         if not ev.data.get('count'):
@@ -210,15 +218,16 @@ class Agent(PollEventDesc):
         if not ev.data['count']:
             poll = False
 
-        LOG.debug("Poll event (%s)" % (str(ev)))
+        LOG.info("Poll event (%s)" % (ev.identify()))
         return {'poll': poll, 'event': ev}
 
     @nfp_poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=1)
     def service_dummy_poll_event(self, ev):
-        LOG.debug("Poll event (%s)" % (str(ev)))
+        self._sc.stash_event(ev)
+        LOG.info("Poll event (%s)" % (ev.identify()))
         self._sc.poll_event_done(ev)
 
     def _handle_poll_event(self, ev):
         """Driver logic here
         """
-        LOG.debug("Poll event (%s)" % (str(ev)))
+        LOG.info("Poll event (%s)" % (ev.identify()))

@@ -17,16 +17,15 @@ import time
 
 from oslo_log import log as logging
 import oslo_messaging as messaging
-from gbpservice.nfp.core.main import Controller
-from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core.controller import Controller
+from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 
-from gbpservice.nfp.agent_proxy.lib.common import *
-from gbpservice.nfp.agent_proxy.lib import topics
-from gbpservice.nfp.agent_proxy.lib import RestClientOverUnix as rc
+from gbpservice.nfp.proxy_agent.lib import topics
+from gbpservice.nfp.proxy_agent.lib import RestClientOverUnix as rc
 
 from neutron import context as ctx
 
@@ -44,9 +43,8 @@ def rpc_init(config, sc):
     sc.register_rpc_agents([agent])
 
 
-def module_init(sc, conf):
+def nfp_module_init(sc, conf):
     rpc_init(conf, sc)
-    # events_init(conf, sc)
 
 
 class RpcHandler(object):
@@ -105,16 +103,3 @@ class RpcHandler(object):
             LOG.error(
                 "delete_network_function_device_config -> request failed\
 .Reason %s " % (rce))
-
-    # Notification RPC by call() method
-    def get_notifications(self, context):
-        try:
-            resp, content = rc.get('get_notifications')
-            content = json.loads(content)
-            LOG.info("get_notification -> GET response: (%s)" % (content))
-            return content
-        except rc.RestClientException as rce:
-            LOG.error("get_notification -> GET request failed. Reason : %s" % (
-                rce))
-            return "get_notification -> GET request failed. Reason : %s" % (
-                rce)

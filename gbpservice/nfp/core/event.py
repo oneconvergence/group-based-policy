@@ -10,9 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import multiprocessing
 import os
 import Queue
 import time
+import uuid as pyuuid
 
 from oslo_log import log as oslo_logging
 
@@ -20,10 +22,24 @@ from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import threadpool as nfp_tp
 
 LOG = oslo_logging.getLogger(__name__)
-PID = os.getpid()
-identify = nfp_common.identify
-log_info = nfp_common.log_info
-log_debug = nfp_common.log_debug
+
+"""Descriptor of event. """
+
+
+class EventDesc(object):
+
+    def __init__(self, **kwargs):
+        # Unique id of the event, generated if not passed.
+        self.uid = kwargs.get('key', pyuuid.uuid4())
+        # Poll descriptor of the event.
+        self.poll_event = None
+        # Worker handling this event.
+        self.worker_attached = None
+        # When this event was last run
+        self.last_run = None
+
+        if not self.uid:
+            self.uid = pyuuid.uuid4()
 
 """Definition of an 'EVENT' in NFP framework.
 
@@ -35,22 +51,27 @@ log_debug = nfp_common.log_debug
 class Event(object):
 
     def __init__(self, **kwargs):
-        self.serialize = kwargs.get(
-            'serialize') if 'serialize' in kwargs else False
-        self.binding_key = kwargs.get(
-            'binding_key') if 'binding_key' in kwargs else None
+        # ID of the event, can be same for multiple events
         self.id = kwargs.get('id')
-        self.key = kwargs.get('key')
-        self.data = kwargs.get('data') if 'data' in kwargs else None
-        self.handler = kwargs.get('handler') if 'handler' in kwargs else None
-        self.lifetime = kwargs.get('lifetime') if 'lifetime' in kwargs else 0
-        self.poll_event = None  # Not to be used by user
-        self.worker_attached = None  # Not to be used by user
-        self.last_run = None  # Not to be used by user
-        self.max_times = -1  # Not to be used by user
+        # Module context, not decoded by core
+        self.data = kwargs.get('data', None)
+        # Handler used only @the time of registration
+        self.handler = kwargs.get('handler', None)
+        # To serialize this event.
+        self.serialize = kwargs.get('serialize', False)
+        # Events with same binding_key are related.
+        self.binding_key = kwargs.get('binding_key', None)
+        # Lifetime of event in seconds
+        self.lifetime = kwargs.get('lifetime', 0)
+        # Max number of times this event can be polled.
+        # Default, till stopped or forever.
+        self.max_times = -1
 
     def identify(self):
-        return "(id=%s,key=%s)" % (self.id, self.key)
+        if hasattr(self, 'desc'):
+            return "(Event -> id=%s,key=%s)" % (self.id, self.desc.uid)
+        else:
+            return "(Event -> id=%s,key=%s)" % (self.id, '')
 
 """Handles the sequencing of related events.
 
@@ -66,7 +87,7 @@ class EventSequencer(object):
         self._sc = sc
         """
         sequenced events are stored in following format :
-        {'pid':{'binding_key':{'in_use':True, 'queue':[]}}}
+        {'binding_key':{'in_use':True, 'queue':[]}}
         """
         self._sequencer_map = {}
 
@@ -79,27 +100,21 @@ class EventSequencer(object):
             Loops over copy of sequencer map and returns the first waiting
             event.
         """
-        event = None
-        self._sc.lock()
         seq_map = self._sequencer_map
-        for pid, seq in seq_map.iteritems():
-            for bkey, val in seq.iteritems():
-                if val['in_use']:
-                    continue
-                else:
-                    if val['queue'] == []:
-                        continue
-                    event = val['queue'][0]
-                    seq_map[pid][bkey]['in_use'] = True
-                    log_info(LOG, "Returing serialized event %s"
-                             % (event.identify()))
-                    break
-            if event:
-                break
-        self._sc.unlock()
-        return event
+        for bkey, val in seq_map.iteritems():
+            in_use = val['in_use']
+            if not in_use and val['queue']:
+                # Return the first element of the
+                # queue in first free sequencer.
+                # should not pop here, event done will
+                # remove it. useful in restart cases later.
+                event = val['queue'][0]
+                val['in_use'] = True
+                log_debug(LOG, "%s - sequencer_get - returning"
+                          % (event.identify()))
+                return event
 
-    def add(self, ev):
+    def add(self, event):
         """Add the event to the sequencer.
 
             Checks if there is already a related event scheduled,
@@ -108,57 +123,50 @@ class EventSequencer(object):
             Returns True(queued)/False(not queued).
         """
         queued = False
-        log_debug(LOG, "Sequence event %s" % (ev.identify()))
-        self._sc.lock()
-        if ev.worker_attached not in self._sequencer_map:
-            self._sequencer_map[ev.worker_attached] = {}
-        seq_map = self._sequencer_map[ev.worker_attached]
-        if ev.binding_key in seq_map.keys():
+        try:
+            seq_map = self._sequencer_map[event.binding_key]
+            seq_map['queue'].append(event)
             queued = True
-            log_info(LOG,
-                     "There is already an event in progress"
-                     "Queueing event %s" % (ev.identify()))
-
-            seq_map[ev.binding_key]['queue'].append(ev)
-        else:
-            log_info(LOG,
-                     "Scheduling first event to exec"
-                     "Event %s" % (ev.identify()))
-            seq_map[ev.binding_key] = {'in_use': True, 'queue': [ev]}
-        self._sc.unlock()
+            log_debug(LOG, "%s - sequencer_add - an event"
+                      "already in progress, queueing" % (event.identify()))
+        except KeyError as err:
+            self._sequencer_map[event.binding_key] = {
+                'in_use': True, 'queue': [event]}
+            log_debug(LOG,
+                      "%s - sequencer_add - first event "
+                      "in sequence, scheduling it" % (event.identify()))
         return queued
 
     def copy(self):
-        """Returns the copy of sequencer_map to caller. """
-        self._sc.lock()
+        """Returns the copy of sequencer_map to caller.
+
+            Used by the caller to iterate over the sequencer /
+            read operations.
+        """
         copy = dict(self._sequencer_map)
-        self._sc.unlock()
         return copy
 
-    def remove(self, ev):
+    def remove(self, event):
         """Removes an event from sequencer map.
 
             If this is the last related event in the map, then
             the complete entry is deleted from sequencer map.
         """
-        self._sc.lock()
-        self._sequencer_map[ev.worker_attached][
-            ev.binding_key]['queue'].remove(ev)
-        self._sequencer_map[ev.worker_attached][
-            ev.binding_key]['in_use'] = False
-        self._sc.unlock()
+        bkey = event.binding_key
+        self._sequencer_map[bkey]['queue'].remove(ev)
+        self._sequencer_map[bkey]['in_use'] = False
+        log_debug(LOG, "%s - sequencer - removed" % (
+            event.identify()))
 
-    def delete_eventmap(self, ev):
+    def delete_eventmap(self, event):
         """Internal method to delete event map, if it is empty. """
-        self._sc.lock()
-        seq_map = self._sequencer_map[ev.worker_attached][ev.binding_key]
+        seq_map = self._sequencer_map[event.binding_key]
         if seq_map['queue'] == []:
-            log_info(LOG,
-                     "No more events in the seq map -"
-                     "Deleting the entry (%d) (%s)"
-                     % (ev.worker_attached, ev.binding_key))
-            del self._sequencer_map[ev.worker_attached][ev.binding_key]
-        self._sc.unlock()
+            log_debug(LOG,
+                      "sequencer - no events -"
+                      "deleting entry - %s"
+                      % (ev.binding_key))
+            del self._sequencer_map[ev.desc.worker_attached][ev.binding_key]
 
 """Handles the processing of evens in event queue.
 
@@ -170,12 +178,13 @@ class EventSequencer(object):
 
 class EventQueueHandler(object):
 
-    def __init__(self, sc, conf, qu, ehs):
+    def __init__(self, sc, conf, pipe, ehs, modules):
         # Pool of green threads per process
         self._conf = conf
         self._tpool = nfp_tp.ThreadPool()
-        self._evq = qu
+        self._pipe = pipe
         self._ehs = ehs
+        self._nfp_modules = modules
         self._sc = sc
 
     def _get(self):
@@ -189,28 +198,20 @@ class EventQueueHandler(object):
         """
         # Check if any event can be pulled from serialize_map - this evs may be
         # waiting long enough
-        log_debug(LOG, "Checking serialize Q for events long pending")
-        ev = self._sc.sequencer_get_event()
-        if not ev:
-            log_debug(LOG,
-                      "No event pending in sequencer Q - "
-                      "checking the event Q")
+        event = self._sc.sequencer_get_event()
+        if not event:
             try:
-                ev = self._evq.get(timeout=0.1)
-            except Queue.Empty:
+                if self._pipe.poll(0.1):
+                    event = self._pipe.recv()
+            except multiprocessing.TimeoutError as err:
                 pass
-            if ev:
-                log_debug(LOG,
-                          "Checking if the ev %s to be serialized"
-                          % (ev.identify()))
-                """
-                If this event needs to be serialized and is first event
-                then the same is returned back, otherwise None is
-                returned. If event need not be serialized then it is
-                returned.
-                """
-                ev = self._sc.sequencer_put_event(ev)
-        return ev
+            if event:
+                # If this event needs to be serialized and is first event
+                # then the same is returned back, otherwise None is
+                # returned. If event need not be serialized then it is
+                # returned.
+                event = self._sc.sequencer_put_event(event)
+        return event
 
     def _dispatch_poll_event(self, eh, ev):
         """Internal function to handle the poll event.
@@ -221,16 +222,14 @@ class EventQueueHandler(object):
             (or) invoke the default 'handle_poll_event' method of registered
             handler.
             """
-        log_debug(LOG,
-                  "Event %s to be scheduled to handler %s"
-                  % (ev.identify(), identify(eh)))
-
         t = self._tpool.dispatch(self._sc.poll_event_timedout, eh, ev)
-        log_info(LOG,
-                 "Invoking event_timedout method in thread %s"
-                 % (t.identify()))
+        log_debug(LOG,
+                  "%s - dispatch poll event - "
+                  "to event handler: %s - "
+                  "in thread: %s"
+                  % (ev.identify(), identify(eh), t.identify()))
 
-    def run(self, qu):
+    def run(self, pipe):
         """Worker process loop to fetch & process events from event queue.
 
             Gets the events from event queue which is
@@ -245,38 +244,37 @@ class EventQueueHandler(object):
             c) EVENT - Internal event added by listener process.
         """
         log_info(LOG,
-                 "Started worker process - %s" % (PID))
+                 "%d - worker started" % (os.getpid()))
+        # Update my identity on my copy of controller
+        self._sc._process_name = 'worker-process'
+        # Update my pid in worker map
+        self._sc._worker_pipe_map[os.getpid()] = pipe
+        # Initialize the nfp modules again from worker.
+        # This is because modules are initializing some contexts
+        # in module_init which is invoked before starting workers,
+        # forked workers get the copy of such contexts, and module
+        # logic end up using stale contexts.
+        # Better to initialize again and ignore re registrations.
+        self._sc.modules_init(self._nfp_modules)
         while True:
-            ev = self._get()
-            if ev:
+            event = self._get()
+            if event:
                 log_debug(LOG,
-                          "Got event %s" % (ev.identify()))
-                eh = self._ehs.get(ev)
-                if not ev.poll_event:
-                    # Creating the Timer Poll Event
-                    if ev.lifetime:
-                        log_info(LOG, "Creating LIFE_TIMEOUT event (%s) "
-                                 " for lifetime (%d)"
-                                 % (ev.identify(), ev.lifetime))
-
-                        # convert event lifetime in to polling time
-                        max_times = int(
-                            ev.lifetime / self._conf.periodic_interval)
-                        if ev.lifetime % self._conf.periodic_interval:
-                            max_times += 1
-
-                        t_ev = self._sc.new_event(
-                            id='EVENT_LIFE_TIMEOUT', data=ev,
-                            binding_key=ev.binding_key, key=ev.key)
-                        self._sc.poll_event(t_ev, max_times=max_times)
-
-                    t = self._tpool.dispatch(eh.handle_event, ev)
-                    log_debug(LOG, "Event %s is not poll event - "
-                              "disptaching handle_event() of handler %s"
-                              "to thread %s"
-                              % (ev.identify(), identify(eh), t.identify()))
+                          "%s - worker - got new event" % (event.identify()))
+                eh = self._ehs.get(event)
+                if not event.desc.poll_event:
+                    t = self._tpool.dispatch(eh.handle_event, event)
+                    log_debug(LOG, "%s - dispatch internal event -"
+                              "to event handler:%s - "
+                              "in thread:%s" % (
+                                  event.identify(),
+                                  identify(eh), t.identify()))
                 else:
-                    self._dispatch_poll_event(eh, ev)
-                    log_info(LOG, "Got POLL Event %s scheduling"
-                             % (ev.identify()))
+                    self._dispatch_poll_event(eh, event)
             time.sleep(0)  # Yield the CPU
+
+
+def load_nfp_symbols(namespace):
+    nfp_common.load_nfp_symbols(namespace)
+
+load_nfp_symbols(globals())

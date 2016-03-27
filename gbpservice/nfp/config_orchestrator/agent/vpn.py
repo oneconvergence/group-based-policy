@@ -11,19 +11,10 @@
 #    under the License.
 
 from neutron_vpnaas.db.vpn import vpn_db
-from gbpservice.nfp.agent.agent.common import *
-from gbpservice.nfp.agent.agent import topics as a_topics
-from gbpservice.nfp.lib.backend_lib import *
+from gbpservice.nfp.config_orchestrator.agent.common import *
+from gbpservice.nfp.lib.transport import *
 
 LOG = logging.getLogger(__name__)
-
-
-def update_status(self, **kwargs):
-    rpcClient = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    del kwargs['context']
-    rpcClient.cctxt.cast(context, 'update_status',
-                         status=kwargs['status'])
 
 
 class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):

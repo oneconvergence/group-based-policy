@@ -120,6 +120,10 @@ class FWaasRpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     'firewall': firewall,
                     'host': host}
+        # REVISIT(mak): How to send large data ?
+        # New API required to send over unix sockert ?
+        context['service_info'] = {}
+        # ev = self.sc.new_event(id=method, data={}, key=None)
         ev = self.sc.new_event(id=method, data=arg_dict, key=None)
         self.sc.post_event(ev)
 

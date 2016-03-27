@@ -11,49 +11,10 @@
 #    under the License.
 
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from gbpservice.nfp.agent.agent import topics as a_topics
-from gbpservice.nfp.agent.agent.common import *
-from gbpservice.nfp.lib.backend_lib import *
+from gbpservice.nfp.config_orchestrator.agent.common import *
+from gbpservice.nfp.lib.transport import *
 
 LOG = logging.getLogger(__name__)
-
-
-def update_status(self, **kwargs):
-    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    del kwargs['context']
-    rpcClient.cctxt.cast(context, 'update_status',
-                         obj_type=kwargs['obj_type'],
-                         obj_id=kwargs['obj_id'],
-                         status=kwargs['status'])
-
-
-def update_pool_stats(self, **kwargs):
-    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    del kwargs['context']
-    rpcClient.cctxt.cast(context, 'update_pool_stats',
-                         pool_id=kwargs['pool_id'],
-                         stats=kwargs['stats'],
-                         host=kwargs['host'])
-
-
-def pool_destroyed(self, pool_id):
-    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    del kwargs['context']
-    rpcClient.cctxt.cast(self.context, 'pool_destroyed',
-                         pool_id=kwargs['pool_id'])
-
-
-def pool_deployed(self, **kwargs):
-    rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    del kwargs['context']
-    rpcClient.cctxt.cast(self.context, 'pool_deployed',
-                         pool_id=kwargs['pool_id'])
-
 
 class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
     RPC_API_VERSION = '1.0'
@@ -104,12 +65,12 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     def create_pool_health_monitor(self, context, health_monitor, pool_id):
         self._post(context, health_monitor[
-            'tenant_id'], 'health_monitor',
+            'tenant_id'], 'pool_health_monitor',
             health_monitor=health_monitor, pool_id=pool_id)
 
     def delete_pool_health_monitor(self, context, health_monitor, pool_id):
         self._delete(
-            context, health_monitor['tenant_id'], 'health_monitor',
+            context, health_monitor['tenant_id'], 'pool_health_monitor',
             health_monitor=health_monitor, pool_id=pool_id)
 
     def _context(self, context, tenant_id):
