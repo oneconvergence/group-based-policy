@@ -70,7 +70,7 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                 for key in ['service_vendor',
                             'mgmt_ip_address',
                             'ports',
-                            'service_type',
+                            'service_details',
                             'network_function_id',
                             'tenant_id']) or
 
@@ -150,7 +150,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                             'service_id': device_data['network_function_id'],
                             'tenant_id': device_data['tenant_id']
                         },
-                        'service_type': device_data['service_type'].lower()
+                       'service_type': (device_data['service_details'][
+                               'service_type'].lower())
                     }
                 },
                 {
@@ -164,7 +165,8 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                         'destination_cidr': consumer_cidr,
                         'gateway_ip': consumer_gateway_ip,
                         'provider_interface_position': 2,
-                        'service_type': device_data['service_type'].lower(),
+                        'service_type': (device_data['service_details'][
+                            'service_type'].lower()),
                     }
                 }
             ]
