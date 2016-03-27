@@ -253,7 +253,9 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         agent, sc = self._get_GenericConfigEventHandler_object()
-        driver = fw_dvr.FwaasDriver()
+        with mock.patch.object(cfg, 'CONF') as mock_cfg:
+            mock_cfg.configure_mock(rest_timeout='30', host='foo')
+            driver = fw_dvr.FwaasDriver()
         with mock.patch.object(
                 agent, '_get_driver', return_value=driver), \
             mock.patch.object(

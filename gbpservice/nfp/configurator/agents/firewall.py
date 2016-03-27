@@ -29,7 +29,7 @@ rest_timeout = [
     cfg.IntOpt(
         'rest_timeout',
         default=360,
-        help=_("rest api timeout"))]
+        help=("rest api timeout"))]
 cfg.CONF.register_opts(rest_timeout)
 
 """ Implements Fwaas response path to Neutron plugin.
