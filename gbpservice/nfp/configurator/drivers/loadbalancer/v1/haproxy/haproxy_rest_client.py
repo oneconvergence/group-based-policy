@@ -11,9 +11,10 @@
 #    under the License.
 
 import httplib
+import json as jsonutils
 import requests
 import urlparse
-import json as jsonutils
+
 from oslo_log import log as logging
 
 
