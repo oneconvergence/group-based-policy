@@ -26,7 +26,7 @@ LOG = logging.getLogger(__name__)
 
 STATUS_ACTIVE = "ACTIVE"
 
-""" Implement test cases for RPC manager methods of firewall agent.
+""" Implements test cases for RPC manager methods of firewall agent.
 
 """
 
