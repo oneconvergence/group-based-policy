@@ -93,7 +93,7 @@ class FilterTest(filter_base.BaseTestCase):
             retval = self._make_test(self._make_lb_service_context(),
                                      'get_logical_device',
                                      pool_id=[self.pools[0]['id']])
-            self.assertTrue(retval, True)
+            self.assertTrue(retval)
 
     def test_get_vpn_service_with_tenantid(self):
         """Test get_vpn_services() of data_filter.py by passing
