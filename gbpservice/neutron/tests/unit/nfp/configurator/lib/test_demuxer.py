@@ -43,9 +43,9 @@ class ServiceAgentDemuxerTestCase(unittest.TestCase):
 
         self.assertEqual(actual_val, expected_val)
 
-    def test_get_service_agent_info(self):
+    def test_get_service_agent_info_generic_config(self):
         """ Tests that demuxer extracts and prepares a list of configurations
-        for each request inside the request_data.
+        of generic config for each request inside the request_data.
 
         Returns: none
 
@@ -56,5 +56,21 @@ class ServiceAgentDemuxerTestCase(unittest.TestCase):
         request_data = self.fo.fake_request_data_generic_bulk()
         actual_val = self.demuxer.get_service_agent_info(
                                 'create', 'generic_config', request_data)
+
+        self.assertEqual(actual_val, expected_val)
+
+    def test_get_service_agent_info_firewall(self):
+        """ Tests that demuxer extracts and prepares a list of configuration
+        of firewall for each request inside the request_data.
+
+        Returns: none
+
+        """
+
+        expected_val = self.fo.fake_sa_req_list_fw()
+
+        request_data = self.fo.fake_request_data_fw()
+        actual_val = self.demuxer.get_service_agent_info(
+                                'create', 'firewall', request_data)
 
         self.assertEqual(actual_val, expected_val)

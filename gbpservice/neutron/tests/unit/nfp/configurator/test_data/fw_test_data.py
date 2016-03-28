@@ -153,11 +153,48 @@ class FakeObjects(object):
                         }
         return request_data
 
-    def fake_sa_req_list(self):
-        """ A sample data for agent handlers
+    def fake_sa_req_list_fw(self):
+        """ A sample data for firewall agent handlers
 
         Returns: data which is the input for event handler
-        functions of agents.
+        functions of firewall agent.
+
+        """
+
+        request_data = [{
+            'service_type': 'firewall',
+            'resource': 'firewall',
+            'method': 'create_firewall',
+            'context': {
+                'notification_data': {},
+                'resource': 'firewall'
+            },
+            'kwargs': {
+                'firewall': {
+                    'status': 'PENDING_CREATE',
+                    'router_ids': ['650bfd2f-7766-4a0d-839f-218f33e16998'],
+                    'description': '{\
+                                    "vm_management_ip": "172.24.4.5",\
+                                    "service_vendor": "vyos"}',
+                    'name': '',
+                    'admin_state_up': True,
+                    'tenant_id': '45977fa2dbd7482098dd68d0d8970117',
+                    'id': '3b0ef8f4-82c7-44d4-a4fb-6177f9a21977',
+                    'firewall_rule_list': True,
+                    'firewall_policy_id': (
+                                'c69933c1-b472-44f9-8226-30dc4ffd454c')
+                },
+                'host': 'host'
+            }
+        }]
+
+        return request_data
+
+    def fake_sa_req_list(self):
+        """ A sample data for generic config agent handlers
+
+        Returns: data which is the input for generic config event
+        handler functions of agents.
 
         """
 
