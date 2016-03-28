@@ -20,7 +20,7 @@ import unittest
 """
 
 
-class SchemaResources():
+class SchemaResources(object):
     resource_healthmonitor = 'healthmonitor'
     resource_interfaces = 'interfaces'
     resource_routes = 'routes'
@@ -199,6 +199,14 @@ class TestSchemaValidator(unittest.TestCase):
         result = self.sv.decode(request_data)
         self.assertTrue(result)
 
+    def test_decode_for_neutron_apis(self):
+        """Test case to test decode() of schema_validator.py for *aaS apis
+        """
+        request_data = self.make_request_data('firewall',
+                                              {})
+        request_data['info']['service_type'] = 'firewall'
+        result = self.sv.decode(request_data)
+        self.assertTrue(result)
 
 if __name__ == '__main__':
     unittest.main()

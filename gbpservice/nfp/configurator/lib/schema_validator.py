@@ -11,8 +11,8 @@
 #    under the License.
 
 from oslo_log import log
-import gbpservice.nfp.configurator.lib.schema as schema
 
+import gbpservice.nfp.configurator.lib.schema as schema
 LOG = log.getLogger(__name__)
 
 """ Validates request data against standard resource schemas given in schema.py
@@ -22,7 +22,7 @@ LOG = log.getLogger(__name__)
 """
 
 
-class SchemaValidator():
+class SchemaValidator(object):
 
     def decode(self, request_data):
         """ Validate request data against resource schema.
@@ -80,8 +80,6 @@ class SchemaValidator():
             LOG.error(e)
             return False
 
-        LOG.debug("Schema validation successful for"
-                  " request_data=%s" % (request_data))
         return True
 
     def validate_schema(self, resource, resource_schema):
@@ -97,14 +95,16 @@ class SchemaValidator():
         # If resource has unexpected extra keywords
         if len(resource.keys()) > len(resource_schema.keys()):
             diff = set(resource.keys()) - set(resource_schema.keys())
-            LOG.error("FAILED: resource=%s has unexpected extra keys=%s,"
-                      " expected keys are= %s " % (resource, list(diff),
-                                                   resource_schema.keys()))
+            msg = ("FAILED: resource=%s has unexpected extra keys=%s,"
+                   " expected keys are= %s " % (resource, list(diff),
+                                                resource_schema.keys()))
+            LOG.error(msg)
             return False
         elif len(diff) == 0:
             return True
         else:
-            LOG.error("FAILED: resource=%s does not contain keys=%s,"
-                      " expected keys are= %s " % (resource, list(diff),
-                                                   resource_schema.keys()))
+            msg = ("FAILED: resource=%s does not contain keys=%s,"
+                   " expected keys are= %s " % (resource, list(diff),
+                                                resource_schema.keys()))
+            LOG.error(msg)
             return False
