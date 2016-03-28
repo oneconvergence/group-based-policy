@@ -15,7 +15,10 @@
 import copy
 import time
 
+from gbpservice.neutron.services.grouppolicy.common import constants as gconst
+from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.common import constants as nfp_constants
+from gbpservice.nfp.lib import transport
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack.heat_client\
@@ -26,14 +29,11 @@ from gbpservice.nfp.orchestrator.openstack.openstack_driver\
     import KeystoneClient
 from gbpservice.nfp.orchestrator.openstack.openstack_driver\
     import NeutronClient
-from gbpservice.neutron.services.grouppolicy.common import constants as gconst
-from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
-from gbpservice.nfp.lib import transport
 
 from heatclient import exc as heat_exc
 from keystoneclient import exceptions as k_exceptions
-from neutron import manager
-from neutron._i18n import _LE, _LI
+from neutron._i18n import _LE
+from neutron._i18n import _LI
 from neutron.common import exceptions as n_exc
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
@@ -41,7 +41,6 @@ from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
 import yaml
-
 
 
 HEAT_DRIVER_OPTS = [
@@ -180,8 +179,8 @@ class HeatDriver():
             tenant_id = self.resource_owner_tenant_id
             user, pwd, tenant_name, auth_url =\
                 self.keystoneclient.get_keystone_creds()
-            auth_token = self.keystoneclient.get_scoped_keystone_token(user,
-                pwd, tenant_name, self.resource_owner_tenant_id)
+            auth_token = self.keystoneclient.get_scoped_keystone_token(
+                user, pwd, tenant_name, self.resource_owner_tenant_id)
         return auth_token, tenant_id
 
     def _get_role_by_name(self, keystone_client, name, keystone_version):
@@ -212,35 +211,35 @@ class HeatDriver():
             v2client = self.keystoneclient._get_v2_keystone_admin_client()
             admin_id = v2client.users.find(name=keystone_conf.admin_user).id
             admin_role = self._get_role_by_name(v2client, "admin",
-                             keystone_version)
-            allocated_role_names = self.get_allocated_roles(v2client,
-                                        admin_id, project_id)
+                                                keystone_version)
+            allocated_role_names = self.get_allocated_roles(
+                v2client, admin_id, project_id)
 
             if admin_role:
                 if admin_role.name not in allocated_role_names:
-                    v2client.roles.add_user_role(admin_id,
-                                   admin_role.id, tenant=project_id)
+                    v2client.roles.add_user_role(
+                        admin_id, admin_role.id, tenant=project_id)
 
             heat_role = self._get_role_by_name(v2client, "heat_stack_owner",
-                             keystone_version)
+                                               keystone_version)
             if heat_role:
                 if heat_role.name not in allocated_role_names:
                     LOG.info(_LI("Trying add to heat_role"))
                     v2client.roles.add_user_role(admin_id, heat_role.id,
-                        tenant=project_id)
+                                                 tenant=project_id)
         else:
             v3client = self.keystoneclient._get_v3_keystone_admin_client()
             admin_id = v3client.users.find(name=keystone_conf.admin_user).id
             admin_role = self._get_role_by_name(v3client, "admin",
-                             keystone_version)
+                                                keystone_version)
             if admin_role:
                 v3client.roles.grant(admin_role.id, user=admin_id,
-                                 project=project_id)
+                                     project=project_id)
             heat_role = self._get_role_by_name(v3client, "heat_stack_owner",
-                             keystone_version)
+                                               keystone_version)
             if heat_role:
                 v3client.roles.grant(heat_role.id, user=admin_id,
-                                 project=project_id)
+                                     project=project_id)
 
     def keystone(self, user, pwd, tenant_name, tenant_id=None):
         if tenant_id:
@@ -638,7 +637,7 @@ class HeatDriver():
         service_type = service_profile['service_type']
         service_vendor = service_profile['service_flavor']
         service_details = transport.parse_service_flavor_string(
-                                        service_profile['service_flavor'])
+            service_profile['service_flavor'])
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
 
@@ -663,8 +662,8 @@ class HeatDriver():
         if not base_mode_support:
             provider_port_mac = provider_port['mac_address']
             provider_cidr = self.neutron_client.get_subnet(
-            auth_token, provider_port['fixed_ips'][0][
-                'subnet_id'])['subnet']['cidr']
+                auth_token, provider_port['fixed_ips'][0][
+                    'subnet_id'])['subnet']['cidr']
         else:
             provider_port_mac = ''
             provider_cidr = ''
@@ -680,9 +679,9 @@ class HeatDriver():
             if not base_mode_support:
                 config_param_values['service_chain_metadata'] = (
                     SC_METADATA % (service_chain_instance['id'],
-                               mgmt_ip,
-                               provider_port_mac,
-                               standby_provider_port_mac))
+                                   mgmt_ip,
+                                   provider_port_mac,
+                                   standby_provider_port_mac))
         elif service_type == pconst.FIREWALL:
             stack_template = self._update_firewall_template(
                 auth_token, provider, stack_template)
@@ -741,7 +740,7 @@ class HeatDriver():
                         filters={'port_id': [consumer_port['id']]})
                     if not stitching_pts:
                         LOG.error(_LE("Policy target is not created for the "
-                                    "stitching port"))
+                                      "stitching port"))
                         raise Exception()
                     stitching_ptg_id = (
                         stitching_pts[0]['policy_target_group_id'])
@@ -764,7 +763,8 @@ class HeatDriver():
                         consumer_port['fixed_ips'][0]['ip_address'] +
                         ';service_vendor=' + service_vendor +
                         ';stitching_cidr=' + stitching_cidr +
-                        ';stitching_gateway=' + stitching_subnet['gateway_ip']+
+                        ';stitching_gateway=' + stitching_subnet[
+                            'gateway_ip'] +
                         ';mgmt_gw_ip=' + mgmt_gw_ip)
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
@@ -780,7 +780,7 @@ class HeatDriver():
                 stack_params[parameter] = config_param_values[parameter]
 
         LOG.info(_LI('Final stack_template : %(stack_data)s, '
-                 'stack_params : %(params)s') %
+                     'stack_params : %(params)s') %
                  {'stack_data': stack_template, 'params': stack_params})
         return (stack_template, stack_params)
 
@@ -792,11 +792,11 @@ class HeatDriver():
             'network_function_instance')
         service_profile_id = network_function['service_profile_id']
         admin_token = self.keystoneclient.get_admin_token()
-        service_profile = self.gbp_client.get_service_profile(admin_token,
-                service_profile_id)
+        service_profile = self.gbp_client.get_service_profile(
+            admin_token, service_profile_id)
 
         service_details = transport.parse_service_flavor_string(
-                                        service_profile['service_flavor'])
+            service_profile['service_flavor'])
         if service_details['device_type'] != 'None':
             network_function_device = network_function_details[
                 'network_function_device']
@@ -807,21 +807,21 @@ class HeatDriver():
         heat_stack_id = network_function['heat_stack_id']
         service_id = network_function['service_id']
         servicechain_node = self.gbp_client.get_servicechain_node(admin_token,
-                service_id)
+                                                                  service_id)
         service_chain_id = network_function['service_chain_id']
         servicechain_instance = self.gbp_client.get_servicechain_instance(
-                admin_token,
-                service_chain_id)
+            admin_token,
+            service_chain_id)
         provider_ptg_id = servicechain_instance['provider_ptg_id']
         consumer_ptg_id = servicechain_instance['consumer_ptg_id']
         provider_ptg = self.gbp_client.get_policy_target_group(
-                            admin_token,
-                            provider_ptg_id)
+            admin_token,
+            provider_ptg_id)
         consumer_ptg = None
         if consumer_ptg_id and consumer_ptg_id != 'N/A':
             consumer_ptg = self.gbp_client.get_policy_target_group(
-                            admin_token,
-                            consumer_ptg_id)
+                admin_token,
+                consumer_ptg_id)
 
         consumer_port = None
         provider_port = None
@@ -829,36 +829,36 @@ class HeatDriver():
         provider_policy_target_group = None
         policy_target = None
         if network_function_instance:
-           for port in network_function_instance.get('port_info'):
-               port_info = db_handler.get_port_info(db_session, port)
-               port_classification = port_info['port_classification']
-               if port_info['port_model'] == nfp_constants.GBP_PORT:
-                   policy_target_id = port_info['id']
-                   port_id = self.gbp_client.get_policy_targets(
-                       admin_token,
-                       filters={'id': policy_target_id})[0]['port_id']
-                   policy_target = self.gbp_client.get_policy_target(
-                       admin_token, policy_target_id)
-               else:
-                   port_id = port_info['id']
+            for port in network_function_instance.get('port_info'):
+                port_info = db_handler.get_port_info(db_session, port)
+                port_classification = port_info['port_classification']
+                if port_info['port_model'] == nfp_constants.GBP_PORT:
+                    policy_target_id = port_info['id']
+                    port_id = self.gbp_client.get_policy_targets(
+                        admin_token,
+                        filters={'id': policy_target_id})[0]['port_id']
+                    policy_target = self.gbp_client.get_policy_target(
+                        admin_token, policy_target_id)
+                else:
+                    port_id = port_info['id']
 
-               if port_classification == nfp_constants.CONSUMER:
-                   consumer_port = self.neutron_client.get_port(admin_token,
-                           port_id)['port']
-                   if policy_target:
-                       consumer_policy_target_group =\
-                           self.gbp_client.get_policy_target_group(
-                               admin_token,
-                               policy_target['policy_target_group_id'])
-               elif port_classification == nfp_constants.PROVIDER:
-                   LOG.info(_LI("provider info: %s") % (port_id))
-                   provider_port = self.neutron_client.get_port(admin_token,
-                           port_id)['port']
-                   if policy_target:
-                       provider_policy_target_group =\
-                           self.gbp_client.get_policy_target_group(
-                               admin_token,
-                               policy_target['policy_target_group_id'])
+                if port_classification == nfp_constants.CONSUMER:
+                    consumer_port = self.neutron_client.get_port(
+                        admin_token, port_id)['port']
+                    if policy_target:
+                        consumer_policy_target_group =\
+                            self.gbp_client.get_policy_target_group(
+                                admin_token,
+                                policy_target['policy_target_group_id'])
+                elif port_classification == nfp_constants.PROVIDER:
+                    LOG.info(_LI("provider info: %s") % (port_id))
+                    provider_port = self.neutron_client.get_port(
+                        admin_token, port_id)['port']
+                    if policy_target:
+                        provider_policy_target_group =\
+                            self.gbp_client.get_policy_target_group(
+                                admin_token,
+                                policy_target['policy_target_group_id'])
 
         service_details = {
             'service_profile': service_profile,
@@ -870,7 +870,7 @@ class HeatDriver():
             'policy_target_group': provider_policy_target_group,
             'heat_stack_id': heat_stack_id,
             'provider_ptg': provider_ptg,
-            'consumer_ptg': consumer_ptg
+            'consumer_ptg': consumer_ptg or consumer_policy_target_group
         }
 
         return service_details
@@ -929,7 +929,7 @@ class HeatDriver():
                     return
                 else:
                     LOG.error(_LE("Stack %(stack_name)s %(action)s failed for "
-                                "tenant %(stack_owner)s"),
+                                  "tenant %(stack_owner)s"),
                               {'stack_name': stack.stack_name,
                                'stack_owner': stack.stack_owner,
                                'action': action})
@@ -941,7 +941,7 @@ class HeatDriver():
                 time_waited = time_waited + STACK_ACTION_RETRY_WAIT
                 if time_waited >= wait_timeout:
                     LOG.error(_LE("Stack %(action)s not completed within "
-                                "%(wait)s seconds"),
+                                  "%(wait)s seconds"),
                               {'action': action,
                                'wait': wait_timeout,
                                'stack': stack_id})
@@ -1039,7 +1039,7 @@ class HeatDriver():
         mgmt_ip = service_details['mgmt_ip']
 
         service_details = transport.parse_service_flavor_string(
-                                        service_profile['service_flavor'])
+            service_profile['service_flavor'])
 
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
@@ -1068,7 +1068,7 @@ class HeatDriver():
             auth_token, provider_tenant_id = self._get_tenant_context(
                 provider_tenant_id)
             self._create_policy_target_for_vip(auth_token,
-                provider_tenant_id, provider)
+                                               provider_tenant_id, provider)
 
         return stack_id
 
@@ -1092,9 +1092,9 @@ class HeatDriver():
         # If it is not a Node config update or PT change for LB, no op
         service_type = service_profile['service_type']
         service_details = transport.parse_service_flavor_string(
-                service_profile['service_flavor'])
+            service_profile['service_flavor'])
         base_mode_support = (True if service_details['device_type'] == 'None'
-                                  else False)
+                             else False)
         provider_tenant_id = provider['tenant_id']
         heatclient = self._get_heat_client(resource_owner_tenant_id,
                                            tenant_id=provider_tenant_id)
@@ -1115,11 +1115,11 @@ class HeatDriver():
                                                             'delete')
                 except Exception as err:
                     LOG.error(_LE("Stack deletion failed for STACK ID - "
-                              "%(stack_id)s for Tenant - %(tenant_id)s . "
-                              "ERROR - %(err)") %
+                                  "%(stack_id)s for Tenant - %(tenant_id)s . "
+                                  "ERROR - %(err)") %
                               {'stack_id': stack_id,
-                              'tenant_id': provider_tenant_id,
-                              'err': str(err)})
+                               'tenant_id': provider_tenant_id,
+                               'err': str(err)})
 
                 stack_name = ("stack_" + service_chain_instance['name'] +
                               service_chain_node['name'] +
@@ -1146,9 +1146,9 @@ class HeatDriver():
                            'with the ADMIN for issue of failure and '
                            're-initiate the update node once again.')
                     LOG.exception(_LE('%(msg) NODE-ID: %(node_id)s '
-                                  'INSTANCE-ID: %(instance_id)s '
-                                  'TenantID: %(tenant_id)s . '
-                                  'ERROR: %(err)s') %
+                                      'INSTANCE-ID: %(instance_id)s '
+                                      'TenantID: %(tenant_id)s . '
+                                      'ERROR: %(err)s') %
                                   {'msg': msg,
                                    'node_id': service_chain_node['id'],
                                    'instance_id': service_chain_instance['id'],
@@ -1190,8 +1190,8 @@ class HeatDriver():
                        'with the ADMIN for issue of failure and '
                        're-initiate the update node once again.')
                 LOG.exception(_LE('%(msg) NODE-ID: %(node_id)  INSTANCE-ID: '
-                              '%(instance_id) TenantID: %(tenant_id) . '
-                              'ERROR: %(err)') %
+                                  '%(instance_id) TenantID: %(tenant_id) . '
+                                  'ERROR: %(err)') %
                               {'msg': msg, 'node_id': service_chain_node['id'],
                                'instance_id': service_chain_instance['id'],
                                'tenant_id': provider_tenant_id,
