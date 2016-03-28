@@ -10,9 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_log import log
+
+import inspect
 import os
 import sys
-import inspect
+
+LOG = log.getLogger(__name__)
 
 """Utility class which provides common library functions for configurator.
    New common library functions, if needed, should be added in this class.
@@ -49,7 +53,8 @@ class ConfiguratorUtils(object):
             try:
                 files = os.listdir(subd)
             except OSError:
-                print "Failed to read files"
+                msg = ("Failed to read files from dir %s" % (subd))
+                LOG.error(msg)
                 files = []
 
             for fname in files:
@@ -88,7 +93,8 @@ class ConfiguratorUtils(object):
         try:
             files = os.listdir(agents_dir)
         except OSError:
-            print "Failed to read files"
+            msg = ("Failed to read files from dir %s" % (agents_dir))
+            LOG.error(msg)
             files = []
 
         for fname in files:

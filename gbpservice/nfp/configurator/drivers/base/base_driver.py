@@ -10,8 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import subprocess
 from oslo_log import log as logging
+
+import subprocess
+
 LOG = logging.getLogger(__name__)
 SUCCESS = 'SUCCESS'
 FAILED = 'FAILED'
@@ -55,14 +57,17 @@ class BaseDriver(object):
 
            Returns: SUCCESS/FAILED
         """
-        LOG.debug("Executing command %s for VM health check" % (command))
+        msg = ("Executing command %s for VM health check" % (command))
+        LOG.debug(msg)
         try:
             subprocess.check_output(command, stderr=subprocess.STDOUT,
                                     shell=True)
         except Exception as e:
-            LOG.warn("VM health check failed. Command '%s' execution failed."
-                     " Reason=%s" % (command, e))
+            msg = ("VM health check failed. Command '%s' execution failed."
+                   " Reason=%s" % (command, e))
+            LOG.warn(msg)
             return FAILED
-        LOG.debug("VM Health check successful. Command '%s' executed"
-                  " successfully" % (command))
+        msg = ("VM Health check successful. Command '%s' executed"
+               " successfully" % (command))
+        LOG.debug(msg)
         return SUCCESS
