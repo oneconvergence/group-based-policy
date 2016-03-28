@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
 import unittest
 
 import oslo_serialization.jsonutils as jsonutils
@@ -49,7 +50,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
             {'resource': 'Res', 'kwargs': {'context': 'context',
                                            'request_info': 'request_info'}}]}
 
-    def test_post_create_network_function_config(self):
+    def post_create_network_function_config(self):
         """Tests HTTP post request create_network_function_device_config.
 
         Returns: none
@@ -61,7 +62,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 jsonutils.dumps(self.data_error))
         self.assertEqual(response.status_code, 204)
 
-    def test_post_delete_network_function_config(self):
+    def post_delete_network_function_config(self):
         """Tests HTTP post request delete_network_function_device_config.
 
         Returns: none
@@ -79,8 +80,41 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         Returns: none
 
         """
+        context = self.data.get('config')[0]['kwargs']['context']
+        request_info = self.data.get('config')[0]['kwargs']['request_info']
+        response_unhandled = {
+            'receiver': 'service_orchestrator',
+            'resource': 'heat',
+            'method': 'network_function_device_notification',
+            'kwargs': [
+                {
+                    'context': context,
+                    'resource': 'heat',
+                    'request_info': request_info,
+                    'result': 'unhandled'
+                }
+            ]
+        }
+        response_error = {
+            'receiver': 'service_orchestrator',
+            'resource': 'heat',
+            'method': 'network_function_device_notification',
+            'kwargs': [
+                {
+                    'context': context,
+                    'resource': 'heat',
+                    'request_info': request_info,
+                    'result': 'error'
+                }
+            ]
+        }
+        self.post_create_network_function_config()
+        self.post_delete_network_function_config()
         response = self.app.get(
                 '/v1/nfp/get_notifications')
+        response_expected = ast.literal_eval(response.text)
+        self.assertEqual(response_expected[0], response_error)
+        self.assertEqual(response_expected[1], response_unhandled)
         self.assertEqual(response.status_code, 200)
 
 if __name__ == '__main__':
