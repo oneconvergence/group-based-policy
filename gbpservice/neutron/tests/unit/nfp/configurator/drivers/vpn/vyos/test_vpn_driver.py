@@ -30,7 +30,7 @@ of vpn.
 class VpnaasIpsecDriverTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(VpnaasIpsecDriverTestCase, self).__init__(*args, **kwargs)
-        self.dict_objects = vpn_test_data.MakeDictionaries()
+        self.dict_objects = vpn_test_data.VPNTestData()
         self.context = self.dict_objects._make_service_context()
         self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.sc)
         self.driver = vyos_vpn_driver.VpnaasIpsecDriver(self.plugin_rpc)
@@ -65,6 +65,7 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
         with mock.patch.object(self.plugin_rpc, 'update_status') as (
                                                 mock_update_status),\
             mock.patch.object(json, 'loads') as mock_resp,\
+            mock.patch.object(self.driver.agent, 'get_vpn_servicecontext', return_value = [self.dict_objects.svc_context]),\
             mock.patch.object(requests, 'post') as (
                                                 mock_post):
             mock_resp.return_value = self.fake_resp_dict
@@ -72,14 +73,14 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
             self.driver.vpnservice_updated(context, kwargs)
 
             mock_post.assert_called_with(
-                            self.dict_objects.url_create_ipsec_conn,
-                            data=self.dict_objects.ipsec_data,
+                            self.dict_objects.url_create_ipsec_tunnel,
+                            data=json.dumps(self.dict_objects.data_),
                             timeout=self.dict_objects.timeout)
             mock_update_status.assert_called_with(
                                         context,
                                         self.dict_objects.ipsec_vpnsvc_status)
 
-    def test_delete_ipsec_site_conn(self):
+    def delete_ipsec_site_conn(self):
         '''
         Implements method to test the vpn driver's create ipsec site conn
         '''
@@ -127,7 +128,7 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(VpnGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
 
-        self.dict_objects = vpn_test_data.MakeDictionaries()
+        self.dict_objects = vpn_test_data.VPNTestData()
         self.context = self.dict_objects._make_service_context()
         self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.sc)
         self.rest_apt = vyos_vpn_driver.RestApi(self.dict_objects.vm_mgmt_ip)
@@ -226,7 +227,7 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
 class VPNSvcValidatorTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(VPNSvcValidatorTestCase, self).__init__(*args, **kwargs)
-        self.dict_objects = vpn_test_data.MakeDictionaries()
+        self.dict_objects = vpn_test_data.VPNTestData()
         self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.sc)
         self.valid_obj = vyos_vpn_driver.VPNServiceValidator(self.plugin_rpc)
 
@@ -272,10 +273,10 @@ class RestApiTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(RestApiTestCase, self).__init__(*args, **kwargs)
         self.rest_obj = vyos_vpn_driver.RestApi((
-                            vpn_test_data.MakeDictionaries().vm_mgmt_ip))
+                            vpn_test_data.VPNTestData().vm_mgmt_ip))
         self.resp = mock.Mock()
         self.resp = mock.Mock(status_code=200)
-        self.dict_objects = vpn_test_data.MakeDictionaries()
+        self.dict_objects = vpn_test_data.VPNTestData()
         self.args = {'peer_address': '1.103.2.2'}
         self.fake_resp_dict = {'status': None}
         self.timeout = 30
