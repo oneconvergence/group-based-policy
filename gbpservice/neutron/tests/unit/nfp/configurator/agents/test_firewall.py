@@ -13,6 +13,7 @@
 import mock
 import unittest
 
+from oslo_config import cfg
 from oslo_log import log as logging
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
@@ -129,7 +130,9 @@ class FwaasHandlerTestCase(unittest.TestCase):
 
         """
 
-        agent = fw.FWaasEventHandler(sc, drivers, rpcmgr)
+        with mock.patch.object(cfg, 'CONF') as mock_cfg:
+            mock_cfg.configure_mock(host='foo')
+            agent = fw.FWaasEventHandler(sc, drivers, rpcmgr)
         return agent
 
     def _test_handle_event(self, rule_list_info=True):
@@ -144,7 +147,9 @@ class FwaasHandlerTestCase(unittest.TestCase):
         """
 
         agent = self._get_FwHandler_objects()
-        driver = fw_dvr.FwaasDriver()
+        with mock.patch.object(cfg, 'CONF') as mock_cfg:
+            mock_cfg.configure_mock(rest_timeout='30', host='foo')
+            driver = fw_dvr.FwaasDriver()
 
         with mock.patch.object(
              agent.plugin_rpc, 'set_firewall_status') as (
@@ -170,6 +175,8 @@ class FwaasHandlerTestCase(unittest.TestCase):
                                             {'firewall_rule_list': True})
 
             agent.handle_event(self.ev)
+            if 'service_info' in self.fo.context:
+                self.fo.context.pop('service_info')
             if not rule_list_info:
                 if self.ev.id == 'CREATE_FIREWALL':
                     mock_set_fw_status.assert_called_with(
