@@ -666,7 +666,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         conn['ikepolicy']['encryption_algorithm'] = ike_enc_algo
         conn['ipsecpolicy']['encryption_algorithm'] = ipsec_enc_algo
 
-    def _get_filers(self, tenant_id=None,
+    def _get_filters(self, tenant_id=None,
                     vpnservice_id=None,
                     conn_id=None, peer_address=None):
         filters = {}
@@ -692,7 +692,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         """
 
         svc_context = self.agent.get_vpn_servicecontext(
-            context, self._get_filers(conn_id=conn['id']))[0]
+            context, self._get_filters(conn_id=conn['id']))[0]
         tunnel_local_cidr = self.\
             _get_ipsec_tunnel_local_cidr(svc_context)
         conn = svc_context['siteconns'][0]['connection']
@@ -718,7 +718,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         """
 
         svc_context = self.agent.get_vpn_servicecontext(
-            context, self._get_filers(conn_id=conn['id']))[0]
+            context, self._get_filters(conn_id=conn['id']))[0]
 
         tunnel_local_cidr = self.\
             _get_ipsec_tunnel_local_cidr(svc_context)
