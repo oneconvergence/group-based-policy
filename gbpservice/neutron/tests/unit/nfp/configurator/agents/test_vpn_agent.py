@@ -11,12 +11,13 @@
 #    under the License.
 
 
+from gbpservice.neutron.tests.unit.nfp.configurator.test_data import \
+                                                                vpn_test_data
 from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
-from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
-                                                                vpn_test_data)
-import unittest
+
 import mock
+import unittest
 
 """
 Implements test cases for RPC manager methods of vpn agent
