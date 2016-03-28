@@ -65,7 +65,8 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
         with mock.patch.object(self.plugin_rpc, 'update_status') as (
                                                 mock_update_status),\
             mock.patch.object(json, 'loads') as mock_resp,\
-            mock.patch.object(self.driver.agent, 'get_vpn_servicecontext', return_value = [self.dict_objects.svc_context]),\
+            mock.patch.object(self.driver.agent, 'get_vpn_servicecontext',
+                              return_value=[self.dict_objects.svc_context]),\
             mock.patch.object(requests, 'post') as (
                                                 mock_post):
             mock_resp.return_value = self.fake_resp_dict
