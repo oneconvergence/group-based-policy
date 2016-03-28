@@ -482,7 +482,8 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
             if operation == 'create':
                 driver_name = data['driver_name']
                 if driver_name not in self.drivers:
-                    LOG.error(_('No device driver on agent: %s.'), driver_name)
+                    msg = ('No device driver on agent: %s.' % (driver_name))
+                    LOG.error(msg)
                     self.plugin_rpc.update_status('pool', pool['id'],
                                                   lb_constants.ERROR, context)
                     return
