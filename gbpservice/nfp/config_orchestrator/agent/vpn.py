@@ -164,7 +164,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     def wait_for_device_ready(context, nw_function_info_data):
         rpcc = RPCClient(a_topics.NFP_NSO_TOPIC)
         nw_func = rpcc.cctxt.call(context, 'neutron_update_nw_function_config',
-                                  nw_function_info_data)
+                                  network_function=nw_function_info_data)
         try:
             nw_func
         except NameError:

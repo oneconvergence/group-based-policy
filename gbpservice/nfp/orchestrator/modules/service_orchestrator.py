@@ -763,8 +763,11 @@ class SOHelper(object):
             # This should return
             # {'port': <port details>, 'floating_ip': <fip>, 'gateway':
             # <gateway_ip>, 'cidr': <cidr>}
+            router_id = nw_function_info['service_info'][0].get('router_id',
+                                                                None)
             stitching_port = self.sc_plumber.get_stitching_port(
-                nw_function_info['tenant_id'], fip_required=fip_required)
+                nw_function_info['tenant_id'],
+                router_id=router_id, fip_required=fip_required)
             stitching_port.update(
                 port_model=orchestrator_constants.NEUTRON_PORT,
                 port_classification=orchestrator_constants.CONSUMER)
@@ -796,7 +799,7 @@ class SOHelper(object):
             nw_function_info['port_info'] = [stitching_port]
             nw_function_info['service_chain_id'] = None
             nw_function_info['service_config'] = nw_function_info[
-                'service_info'][0]['router_id']
+                'service_info'][0].get('router_id', None)
             nw_function_info['service_id'] = nw_function_info[
                 'resource_data']['id']
             nw_function_info['share_existing_device'] = False
