@@ -46,11 +46,23 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         self.data = {'info': {'service_type': 'heat'}, 'config': [
             {'resource': 'Res', 'kwargs': {'context': 'context',
                                            'request_info': 'request_info'}}]}
-        self.data_error = {'info': {'service_type': 'not_heat'}, 'config': [
+        self.data_error = {'info': {'service_type': 'others'}, 'config': [
             {'resource': 'Res', 'kwargs': {'context': 'context',
                                            'request_info': 'request_info'}}]}
 
-    def post_create_network_function_config(self):
+    def post_create_network_function_config_with_heat(self):
+        """Tests HTTP post request create_network_function_device_config.
+
+        Returns: none
+
+        """
+
+        response = self.app.post(
+                '/v1/nfp/create_network_function_config',
+                jsonutils.dumps(self.data))
+        self.assertEqual(response.status_code, 204)
+
+    def post_create_network_function_config_with_others(self):
         """Tests HTTP post request create_network_function_device_config.
 
         Returns: none
@@ -62,7 +74,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 jsonutils.dumps(self.data_error))
         self.assertEqual(response.status_code, 204)
 
-    def post_delete_network_function_config(self):
+    def post_delete_network_function_config_with_heat(self):
         """Tests HTTP post request delete_network_function_device_config.
 
         Returns: none
@@ -72,6 +84,18 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         response = self.app.post(
                 '/v1/nfp/delete_network_function_config',
                 jsonutils.dumps(self.data))
+        self.assertEqual(response.status_code, 204)
+
+    def post_delete_network_function_config_with_others(self):
+        """Tests HTTP post request delete_network_function_device_config.
+
+        Returns: none
+
+        """
+
+        response = self.app.post(
+                '/v1/nfp/delete_network_function_config',
+                jsonutils.dumps(self.data_error))
         self.assertEqual(response.status_code, 204)
 
     def test_get_notifications(self):
@@ -108,13 +132,17 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 }
             ]
         }
-        self.post_create_network_function_config()
-        self.post_delete_network_function_config()
+        self.post_create_network_function_config_with_heat()
+        self.post_delete_network_function_config_with_heat()
+        self.post_create_network_function_config_with_others()
+        self.post_delete_network_function_config_with_others()
         response = self.app.get(
                 '/v1/nfp/get_notifications')
         response_expected = ast.literal_eval(response.text)
-        self.assertEqual(response_expected[0], response_error)
+        self.assertEqual(response_expected[0], response_unhandled)
         self.assertEqual(response_expected[1], response_unhandled)
+        self.assertEqual(response_expected[2], response_error)
+        self.assertEqual(response_expected[3], response_error)
         self.assertEqual(response.status_code, 200)
 
 if __name__ == '__main__':
