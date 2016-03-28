@@ -38,8 +38,8 @@ class TcpServer(object):
     def __init__(self, server_address):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_address = server_address
-        # print >> sys.stderr, '[TCP]starting up the TCP \
-# server on %s port %s' % (self.server_address)
+        print('[TCP]starting up the TCP server on %s port %s' %
+              (self.server_address))
         self.sock.bind(self.server_address)
         self.count = 0
 
@@ -48,7 +48,7 @@ class TcpServer(object):
         TCP server for ideal_max_timeout check
         """
         self.sock.listen(1)
-        # print >> sys.stderr, '[TCP] Waiting for a connection'
+        print('[TCP] Waiting for a connection')
         self.count = 0
         timer = 0
         connection, client_address = self.sock.accept()
@@ -56,11 +56,10 @@ class TcpServer(object):
             try:
                 self.count += 1
                 data = connection.recv(16)
-                # print>> sys.stderr, '[TCP] Received %s from %s"' % (
-                #    data, client_address)
+                print('[TCP] Received %s from %s"' % (
+                    data, client_address))
                 if data:
-                    # print >> sys.stderr, '[TCP] sending back \
-                    # to the Unix client'
+                    print('[TCP] sending back to the Unix client')
                     connection.sendall(data)
                 else:
                     time.sleep(30)
@@ -69,10 +68,10 @@ class TcpServer(object):
                     connection.shutdown(socket.SHUT_RDWR)
                     connection.close()
                     sys.exit(0)
-            except socket.error:
+            except socket.error as err:
                 connection.close()
                 sys.exit(0)
-                # print>> sys.stderr, msg
+                print(err)
         connection.close()
 
     def test_two_start(self):
@@ -81,7 +80,7 @@ class TcpServer(object):
         Server is down after receiving 20 messages
         """
         self.sock.listen(1)
-        # print >> sys.stderr, '[TCP] Waiting for a connection'
+        print('[TCP] Waiting for a connection')
         self.count = 0
         connection, client_address = self.sock.accept()
 
@@ -89,14 +88,13 @@ class TcpServer(object):
             try:
                 self.count += 1
                 data = connection.recv(16)
-                # print>> sys.stderr, '[TCP] Received %s from %s"' % (
-                #    data, client_address)
+                print('[TCP] Received %s from %s"' % (
+                    data, client_address))
                 if data:
-                    # print >> sys.stderr, '[TCP] sending back \
-                    # to the Unix client'
+                    print('[TCP] sending back to the Unix client')
                     connection.sendall(data)
-            except socket.error:
-                # print>> sys.stderr, msg
+            except socket.error as err:
+                print(err)
                 connection.close()
                 sys.exit(0)
         connection.close()
@@ -106,7 +104,7 @@ class TcpServer(object):
         TCP server for multiple connections check
         """
         self.sock.listen(100)
-        # print >>sys.stderr, '[TCP]waiting for a connection'
+        print('[TCP]waiting for a connection')
 
         while True:
             connection, client_address = self.sock.accept()
@@ -114,14 +112,13 @@ class TcpServer(object):
             try:
 
                 data = connection.recv(16)
-                # print>> sys.stderr, '[TCP]Received "%s on %s "' % (
-                #    data, client_address)
+                print('[TCP]Received "%s on %s "' % (
+                      data, client_address))
                 if data:
-                    # print >> sys.stderr, '[TCP]sending back \
-                    # to the Unix client'
+                    print('[TCP]sending back to the Unix client')
                     connection.sendall(data)
-            except socket.error:
-                # print>> sys.stderr, msg
+            except socket.error as err:
+                print(err)
                 connection.close()
         connection.close()
 
@@ -145,9 +142,9 @@ class UnixClient(object):
         server_address = '/tmp/uds_socket'
         try:
             sock.connect(server_address)
-            # print'Connected to proxy'
-        except socket.error:
-            # print >> sys.stderr, msg
+            print('Connected to proxy')
+        except socket.error as err:
+            print(err)
             return 0
         try:
             count = 0
@@ -158,15 +155,15 @@ class UnixClient(object):
                     # proxy can destroy the connection object
                     time.sleep(40)
                 message = "Hi count " + str(count)
-                # print "[Unix]Sending Message %s" % message
+                print('[Unix]Sending Message %s' % message)
                 sock.sendall(message)
-                # data = sock.recv(100)
-                # print"[Unix] Received message from TCP : %s" % data
-        except socket.error:
-            # print>> sys.stderr, msg
+                data = sock.recv(100)
+                print('[Unix] Received message from TCP : %s') % data
+        except socket.error as err:
+            print(err)
             return 1
         finally:
-            # print "[Unix]closing %s socket" % sock
+            print("[Unix]closing %s socket" % sock)
             sock.close()
 
     def unix_client_msg_flooding(self):
@@ -178,9 +175,9 @@ class UnixClient(object):
         server_address = '/tmp/uds_socket'
         try:
             sock.connect(server_address)
-            # print'[Unix]Connected to proxy'
-        except socket.error:
-            # print >> sys.stderr, msg
+            print('[Unix]Connected to proxy')
+        except socket.error as err:
+            print(err)
             return 0
         try:
             count = 0
@@ -188,15 +185,15 @@ class UnixClient(object):
                 count += 1
                 time.sleep(.1)
                 message = "Hi count " + str(count)
-                # print "[Unix]Sending Message %s" % message
+                print('[Unix]Sending Message %s' % message)
                 sock.sendall(message)
-                # data = sock.recv(100)
-                # print"[Unix] Received message from TCP : %s" % data
-        except socket.error:
-            # print>> sys.stderr, msg
+                data = sock.recv(100)
+                print('[Unix] Received message from TCP : %s' % data)
+        except socket.error as err:
+            print(err)
             return 1
         finally:
-            # print "[Unix]closing %s socket" % sock
+            print('[Unix]closing %s socket' % sock)
             sock.close()
 
     def multiple_unix_connections(self):
@@ -212,41 +209,39 @@ class UnixClient(object):
         server_address = '/tmp/uds_socket'
         try:
             sock.connect(server_address)
-            # print '[Unix]Connected to proxy'
+            print('[Unix]Connected to proxy')
             connection_count += 1
-        except socket.error:
-            # print >> sys.stderr, msg
-            # print'[Unix] closing Connection'
+        except socket.error as err:
+            print(err)
+            print('[Unix] closing Connection')
             connection_count -= 1
             sock.close()
             threadLock.release()
             return
 
-        count = 0
         while True:
             global txcount
             txcount += 1
             message = 'Hi'
-            # print '[Unix]Sending message: %s' % message
+            print('[Unix]Sending message: %s' % message)
             try:
-                count = +1
                 sock.sendall(message)
-            except socket.error:
-                # print >> sys.stderr, msg
-                # print'[Unix] closing Connection'
+            except socket.error as err:
+                print(err)
+                print('[Unix] closing Connection')
                 connection_count -= 1
                 sock.close()
                 threadLock.release()
                 return
 
             try:
-                # data = sock.recv(50)
+                data = sock.recv(50)
                 global rxcount
                 rxcount += 1
-                # print '[Unix] Received message %s' % data
-            except socket.error:
-                # print >> sys.stderr, msg
-                # print'[Unix] closing Connection'
+                print('[Unix] Received message %s' % data)
+            except socket.error as err:
+                print(err)
+                print('[Unix] closing Connection')
                 connection_count -= 1
                 sock.close()
                 threadLock.release()
@@ -254,7 +249,7 @@ class UnixClient(object):
                 threadLock.release()
                 time.sleep(.2)
 
-        # print"[Thread %d] Closing " % self.t_id
+        print("[Thread %d] Closing " % self.t_id)
         connection_count -= 1
         threadLock.release()
         return

@@ -12,7 +12,7 @@
 
 import exceptions
 
-from gbpservice.nfp.core import common as core_common
+from gbpservice.nfp.core import common as nfp_common
 
 import httplib
 import httplib2
@@ -23,10 +23,8 @@ from oslo_serialization import jsonutils
 import six.moves.urllib.parse as urlparse
 import socket
 
-log_info = core_common.log_info
-log_error = core_common.log_error
-
-LOG = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+LOG = nfp_common.log
 
 
 class RestClientException(exceptions.Exception):
@@ -88,9 +86,9 @@ class UnixRestClient(object):
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
-            log_info(LOG, "%s:%s" % (resp, content))
+            LOG(LOGGER, 'INFO', "%s:%s" % (resp, content))
         except RestClientException as rce:
-            log_error(LOG, "ERROR : %s" % (rce))
+            LOG(LOGGER, 'ERROR', "ERROR : %s" % (rce))
             raise rce
 
         success_code = [200, 201, 202, 204]

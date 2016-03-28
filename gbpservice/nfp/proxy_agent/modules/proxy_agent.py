@@ -10,18 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core import common as core_common
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.proxy_agent.lib import RestClientOverUnix as rc
 from gbpservice.nfp.proxy_agent.lib import topics
 
 from oslo_log import log as logging
 
-log_info = core_common.log_info
-log_error = core_common.log_error
-
-
-LOG = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+LOG = nfp_common.log
 
 
 def rpc_init(config, sc):
@@ -51,50 +48,50 @@ class RpcHandler(object):
         try:
             resp, content = rc.post(
                 'create_network_function_config', body=body)
-            log_info(LOG,
-                     "create_network_function_config -> POST response: (%s)\
-" % (content))
+            LOG(LOGGER, 'INFO',
+                "create_network_function_config ->"
+                "POST response: (%s)" % (content))
 
         except rc.RestClientException as rce:
-            log_error(LOG,
-                      "create_firewall -> POST request failed.Reason: %s" % (
-                          rce))
+            LOG(LOGGER, 'ERROR',
+                "create_firewall -> POST request failed.Reason: %s" % (
+                    rce))
 
     def delete_network_function_config(self, context, body):
         try:
             resp, content = rc.post('delete_network_function_config',
                                     body=body, delete=True)
-            log_info(LOG,
-                     "delete_network_function_config -> POST response: (%s)\
-" % (content))
+            LOG(LOGGER, 'INFO',
+                "delete_network_function_config -> POST response: (%s)"
+                % (content))
 
         except rc.RestClientException as rce:
-            log_error(LOG,
-                      "delete_firewall -> DELETE request failed.Reason: %s" % (
-                          rce))
+            LOG(LOGGER, 'ERROR',
+                "delete_firewall -> DELETE request failed.Reason: %s" % (
+                    rce))
 
     def create_network_function_device_config(self, context, body):
         try:
             resp, content = rc.post('create_network_function_device_config',
                                     body=body)
-            log_info(LOG,
-                     "create_network_function_device_config -> POST response: (%s)\
-" % (content))
+            LOG(LOGGER, 'INFO',
+                "create_network_function_device_config ->"
+                "POST response: (%s)" % (content))
 
         except rc.RestClientException as rce:
-            log_error(
-                LOG, "create_network_function_device_config -> request failed .\
-Reason %s " % (rce))
+            LOG(LOGGER, 'ERROR',
+                "create_network_function_device_config ->"
+                "request failed . Reason %s " % (rce))
 
     def delete_network_function_device_config(self, context, body):
         try:
             resp, content = rc.post('delete_network_function_device_config',
                                     body=body, delete=True)
-            log_info(LOG,
-                     "delete_network_function_device_config -> POST response: (%s)\
-" % (content))
+            LOG(LOGGER, 'INFO',
+                "delete_network_function_device_config ->"
+                "POST response: (%s)" % (content))
 
         except rc.RestClientException as rce:
-            log_error(LOG,
-                      "delete_network_function_device_config -> request failed\
-.Reason %s " % (rce))
+            LOG(LOGGER, 'ERROR',
+                "delete_network_function_device_config ->"
+                "request failed.Reason %s " % (rce))

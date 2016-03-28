@@ -12,7 +12,7 @@
 
 import argparse
 import ConfigParser
-from gbpservice.nfp.core import common as core_common
+from gbpservice.nfp.core import common as nfp_common
 import os
 import Queue
 from Queue import Empty
@@ -23,10 +23,8 @@ import time
 
 from oslo_log import log as logging
 
-log_info = core_common.log_info
-log_error = core_common.log_error
-
-LOG = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+LOG = nfp_common.log
 
 # Queue of proxy connections which workers will handle
 ConnQ = Queue.Queue(maxsize=0)
@@ -89,8 +87,8 @@ class UnixServer(object):
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         # Bind the socket to the port
-        log_info(LOG, (sys.stderr,
-                       'starting up on %s' % self.bind_path))
+        LOG(LOGGER, 'INFO', (sys.stderr,
+                             'starting up on %s' % self.bind_path))
         # print >>sys.stderr, 'starting up on %s' % self.bind_path
         self.socket.bind(self.bind_path)
         self.socket.listen(self.max_connections)
@@ -118,14 +116,14 @@ class TcpClient(object):
 
     def connect(self):
         sock = socket.socket()
-        log_info(LOG, (sys.stderr,
-                       'connecting to %s port %s' % self.server))
+        LOG(LOGGER, 'INFO', (sys.stderr,
+                             'connecting to %s port %s' % self.server))
         # print >>sys.stderr, 'connecting to %s port %s' % self.server
         sock.settimeout(self.conf.connect_max_wait_timeout)
         try:
             sock.connect(self.server)
         except socket.error as exc:
-            log_error(LOG, "Caught exception socket.error : %s" % exc)
+            LOG(LOGGER, 'ERROR', "Caught exception socket.error : %s" % exc)
             return sock, False
         return sock, True
 
@@ -277,7 +275,7 @@ class Proxy(object):
 
         tcpsocket, connected = self.client.connect()
         if not connected:
-            log_error(LOG, "Proxy -> Could not connect with tcp server")
+            LOG(LOGGER, 'ERROR', "Proxy -> Could not connect with tcp server")
             # print "Proxy -> Could not connect with tcp server"
             unixsocket.close()
             tcpsocket.close()

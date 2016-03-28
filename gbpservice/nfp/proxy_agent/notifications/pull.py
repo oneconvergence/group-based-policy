@@ -10,17 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core import common as core_common
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import poll as core_pt
 import gbpservice.nfp.lib.transport as transport
 from gbpservice.nfp.proxy_agent.notifications import handler as nh
 
 from oslo_log import log as logging
 
-log_info = core_common.log_info
-log_error = core_common.log_error
-
-LOG = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+LOG = nfp_common.log
 
 
 class PullNotification(core_pt.PollEventDesc):
@@ -60,18 +58,19 @@ class PullNotification(core_pt.PollEventDesc):
         ]
         '''
         if not isinstance(notifications, list):
-            log_error(LOG, "Notfications not list, %s" % (notifications))
+            LOG(LOGGER, 'ERROR', "Notfications not list, %s" % (notifications))
 
         else:
             for notification in notifications:
                 if not notification:
-                    log_info(LOG, "Receiver Response: Empty")
+                    LOG(LOGGER, 'INFO', "Receiver Response: Empty")
                     continue
                 try:
                     self._method_handler(notification)
                 except AttributeError:
-                    log_error(LOG, "AttributeError while handling message" % (
-                        notification))
+                    LOG(LOGGER, 'ERROR',
+                        "AttributeError while handling message" % (
+                            notification))
                 except Exception as e:
-                    log_error(LOG, "Generic exception (%s) \
+                    LOG(LOGGER, 'ERROR', "Generic exception (%s) \
                        while handling message (%s)" % (e, notification))
