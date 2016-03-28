@@ -21,10 +21,10 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import heat_driver
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
-from neutron import context as n_context
 from neutron._i18n import _LE
 from neutron._i18n import _LI
 from neutron.common import rpc as n_rpc
+from neutron import context as n_context
 
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
@@ -822,7 +822,7 @@ class ServiceOrchestrator(object):
             required_attributes = ["network_function"]
         if (set(required_attributes) & set(network_function_details.keys()) !=
             set(required_attributes)):
-                self.db_handler.update_network_function(
+            self.db_handler.update_network_function(
                 self.db_session,
                 network_function['id'],
                 {'status': nfp_constants.ERROR,
@@ -872,7 +872,7 @@ class ServiceOrchestrator(object):
             required_attributes = ["network_function"]
         if (set(required_attributes) & set(network_function_details.keys()) !=
             set(required_attributes)):
-                self.db_handler.update_network_function(
+            self.db_handler.update_network_function(
                 self.db_session,
                 network_function['id'],
                 {'status': nfp_constants.ERROR,

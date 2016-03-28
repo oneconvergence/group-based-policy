@@ -161,15 +161,15 @@ class DeviceOrchestrator(object):
         self.status_map = {
                 'INIT': 'Created Network Service Device with status INIT.',
                 'PENDING_CREATE': '',
-                'DEVICE_SPAWNING': 'Creating NSD, launched the new device, ' +
-                                    'polling on its status',
+                'DEVICE_SPAWNING': ('Creating NSD, launched the new device, ' +
+                                    'polling on its status'),
                 'DEVICE_UP': 'Device is UP/ACTIVE',
-                'HEALTH_CHECK_PENDING': 'Device health check is going on ' +
-                                        ' through configurator',
+                'HEALTH_CHECK_PENDING': ('Device health check is going on ' +
+                                        ' through configurator'),
                 'HEALTH_CHECK_COMPLETED': 'Health check succesfull for device',
                 'INTERFACES_PLUGGED': 'Interfaces Plugging successfull',
-                'PENDING_CONFIGURATION_CREATE': 'Started configuring device ' +
-                                                'for routes, license, etc',
+                'PENDING_CONFIGURATION_CREATE': ('Started configuring device '
+                                                 + 'for routes, license, etc'),
                 'DEVICE_READY': 'Device is ready to use',
                 'ACTIVE': 'Device is Active.',
                 'DEVICE_NOT_UP': 'Device not became UP/ACTIVE',
@@ -198,7 +198,7 @@ class DeviceOrchestrator(object):
             #    self.delete_device_health_monitor),
             #"HEALTH_MONITOR_DELETED": (
             #    self.delete_device), # should we wait for
-                                                # this, or simply delete device
+            # this, or simply delete device
             "DELETE_DEVICE": self.delete_device,
             "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
             "DEVICE_CONFIGURATION_FAILED": self.handle_device_config_failed,
@@ -233,8 +233,8 @@ class DeviceOrchestrator(object):
     # Helper functions
     def _log_event_created(self, event_id, event_data):
         LOG.info(_LI("Device Orchestrator created event %s(event_name)s "
-                     "with event data: %(event_data)s"),
-                  {'event_name': event_id, 'event_data': event_data})
+                     "with event data: %(event_data)s"), {
+                         'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None,
                       is_poll_event=False, original_event=False):
@@ -517,8 +517,8 @@ class DeviceOrchestrator(object):
         self.configurator_rpc.create_network_function_device_config(device,
                                                                     hm_req)
         LOG.debug("Health Check RPC sent to configurator for device: "
-                    "%s with health check parameters: %s" % (device['id'],
-                                                             hm_req))
+                  "%s with health check parameters: %s" % (
+                        device['id'], hm_req))
         self._update_network_function_device_db(device,
                                                'HEALTH_CHECK_PENDING')
 
@@ -746,7 +746,7 @@ class DeviceOrchestrator(object):
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
         LOG.debug("Device create failed for device: %s, with "
-                    "data: %s" % (device['id'], device))
+                  "data: %s" % (device['id'], device))
 
     def handle_interfaces_setup_failed(self, event):
         device = event.data
@@ -757,7 +757,7 @@ class DeviceOrchestrator(object):
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
         LOG.debug("Interface configuration failed for device: %s,"
-                    "with config: %s" % (device['id'], device))
+                  "with config: %s" % (device['id'], device))
 
     def handle_routes_config_failed(self, event):
         device = event.data
@@ -768,7 +768,7 @@ class DeviceOrchestrator(object):
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
         LOG.debug("Routes configuration failed for device: %s,"
-                    "with config: %s" % (device['id'], device))
+                  "with config: %s" % (device['id'], device))
 
     def handle_driver_error(self, event):
         device = event.data

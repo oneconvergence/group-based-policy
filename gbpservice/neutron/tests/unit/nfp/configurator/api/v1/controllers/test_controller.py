@@ -191,7 +191,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
             prepare_mock.return_value = rpcclient.client
             rpc_mock.return_value = True
             value = rpcclient.call()
-        self.assertEqual(value, True)
+        self.assertTrue(value)
 
     def test_cast(self):
         """Tests cast function of RPCClient.
@@ -209,7 +209,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
             rpc_mock.return_value = True
             value = rpcclient.cast('rpc_method_name',
                                    jsonutils.dumps(self.data))
-        self.assertEqual(value, True)
+        self.assertTrue(value)
 
     def test_post_create_network_function_device_config_fail(self):
         """Tests failure case of HTTP post request
