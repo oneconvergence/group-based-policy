@@ -25,12 +25,12 @@ LOG = logging.getLogger(__name__)
 class VyosOrchestrationDriver(OrchestrationDriverBase):
 
     def __init__(self, config, supports_device_sharing=True,
-		 supports_hotplug=True, max_interfaces=10):
+                 supports_hotplug=True, max_interfaces=10):
         super(VyosOrchestrationDriver, self).__init__(
-	    config,
-            supports_device_sharing=supports_device_sharing,
-            supports_hotplug=supports_hotplug,
-            max_interfaces=max_interfaces)
+                config,
+                supports_device_sharing=supports_device_sharing,
+                supports_hotplug=supports_hotplug,
+                max_interfaces=max_interfaces)
         self.service_vendor = 'Vyos'
 
     def get_network_function_device_config_info(self, device_data):
@@ -150,7 +150,7 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                             'service_id': device_data['network_function_id'],
                             'tenant_id': device_data['tenant_id']
                         },
-                       'service_type': (device_data['service_details'][
+                        'service_type': (device_data['service_details'][
                                'service_type'].lower())
                     }
                 },

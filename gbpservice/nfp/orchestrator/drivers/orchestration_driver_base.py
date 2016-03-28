@@ -11,6 +11,8 @@
 #    under the License.
 
 from neutron._i18n import _LE
+from neutron._i18n import _LI
+
 from oslo_log import log as logging
 
 from gbpservice.nfp.common import constants as nfp_constants
@@ -31,7 +33,7 @@ class OrchestrationDriverBase(object):
     is launched for each Network Service Instance
     """
     def __init__(self, config, supports_device_sharing=False,
-	         supports_hotplug=False, max_interfaces=5):
+                 supports_hotplug=False, max_interfaces=5):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
         self.supports_hotplug = supports_hotplug
@@ -328,10 +330,10 @@ class OrchestrationDriverBase(object):
         if device_data['service_details'].get('image_name'):
             image_name = device_data['service_details']['image_name']
         else:
-            LOG.info(_("No image name provided in service profile's "
+            LOG.info(_LI("No image name provided in service profile's "
                          "service flavor field, image will be selected "
-                         "based on service vendor's name : %s") % (
-                            device_data['service_vendor']))
+                         "based on service vendor's name : %s")
+                     % (device_data['service_vendor']))
             image_name = device_data['service_vendor']
         image_name = '%s' % image_name.lower()
         try:
@@ -352,7 +354,7 @@ class OrchestrationDriverBase(object):
         if device_data['service_details'].get('flavor'):
             flavor = device_data['service_details']['flavor']
         else:
-            LOG.info(_("No Device flavor provided in service profile's "
+            LOG.info(_LI("No Device flavor provided in service profile's "
                          "service flavor field, using default "
                          "flavor: m1.medium"))
             flavor = 'm1.medium'
