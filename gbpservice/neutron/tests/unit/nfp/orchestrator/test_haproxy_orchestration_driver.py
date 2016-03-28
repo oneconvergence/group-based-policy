@@ -374,7 +374,8 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                                   'port_classification': 'provider'}],
                        'network_function_id': '4',
                        'tenant_id': '5',
-                       'service_details': {'service_vendor': 'vyos', 'service_type': 'firewall'}}
+                       'service_details': {'service_vendor': 'vyos',
+                                           'service_type': 'firewall'}}
 
         reply = driver.get_network_function_device_config_info(device_data)
         self.assertIsInstance(reply, dict, msg='')

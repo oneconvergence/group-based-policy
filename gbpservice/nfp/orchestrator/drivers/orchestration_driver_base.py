@@ -300,11 +300,13 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type']
-                != nfp_constants.NOVA_MODE):
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=
-                                device_data['service_details']['device_type'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             interfaces = self._get_interfaces_for_device_create(device_data)
@@ -463,11 +465,13 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type']
-            != nfp_constants.NOVA_MODE):
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=
-                                device_data['service_details']['device_type'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             token = (device_data['token']
@@ -517,11 +521,13 @@ class OrchestrationDriverBase(object):
                            'service_details']):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type']
-                != nfp_constants.NOVA_MODE):
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=
-                                device_data['service_details']['device_type'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             token = (device_data['token']
@@ -578,11 +584,13 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type']
-            != nfp_constants.NOVA_MODE):
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=
-                                device_data['service_details']['device_type'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             token = (device_data['token']
@@ -658,11 +666,13 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if (device_data['service_details']['device_type']
-            != nfp_constants.NOVA_MODE):
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=
-                                device_data['service_details']['device_type'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             token = (device_data['token']
