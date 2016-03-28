@@ -223,7 +223,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         device_data = {'id': '1',
                        'tenant_id': '2',
                        'service_details': {'device_type': 'xyz'}}
-        self.assertRaises(Exception,
+        self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.get_network_function_device_status,
                           device_data)
         device_data['service_details'] = {'device_type': 'nova'}
@@ -372,6 +372,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'}],
+                       'service_type': 'loadbalancer',
                        'network_function_id': '4',
                        'tenant_id': '5',
                        'service_details': {'service_vendor': 'vyos',
