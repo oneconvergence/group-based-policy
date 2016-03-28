@@ -1,12 +1,32 @@
-import socket
-import os
-import sys
-import time
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import argparse
 import ConfigParser
+from gbpservice.nfp.core import common as core_common
+import os
 import Queue
-import threading
 from Queue import Empty
+import socket
+import sys
+import threading
+import time
+
+from oslo_log import log as logging
+
+log_info = core_common.log_info
+log_error = core_common.log_error
+
+LOG = logging.getLogger(__name__)
 
 # Queue of proxy connections which workers will handle
 ConnQ = Queue.Queue(maxsize=0)
@@ -69,7 +89,9 @@ class UnixServer(object):
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         # Bind the socket to the port
-        print >>sys.stderr, 'starting up on %s' % self.bind_path
+        log_info(LOG, (sys.stderr,
+                       'starting up on %s' % self.bind_path))
+        # print >>sys.stderr, 'starting up on %s' % self.bind_path
         self.socket.bind(self.bind_path)
         self.socket.listen(self.max_connections)
 
@@ -96,12 +118,14 @@ class TcpClient(object):
 
     def connect(self):
         sock = socket.socket()
-        print >>sys.stderr, 'connecting to %s port %s' % self.server
+        log_info(LOG, (sys.stderr,
+                       'connecting to %s port %s' % self.server))
+        # print >>sys.stderr, 'connecting to %s port %s' % self.server
         sock.settimeout(self.conf.connect_max_wait_timeout)
         try:
             sock.connect(self.server)
-        except socket.error, exc:
-            print "Caught exception socket.error : %s" % exc
+        except socket.error as exc:
+            log_error(LOG, "Caught exception socket.error : %s" % exc)
             return sock, False
         return sock, True
 
@@ -125,7 +149,7 @@ class Connection(object):
 
     def _timedout(self):
         if self._idle_count > self._idle_count_max:
-            raise ConnectionTimedOut
+            raise ConnectionIdleTimeOut
 
     def idle(self):
         self._tick()
@@ -183,7 +207,7 @@ class ProxyConnection(object):
             self._proxy(self._unix_conn, self._tcp_conn)
             self._proxy(self._tcp_conn, self._unix_conn)
             return True
-        except:
+        except Exception:
             self._unix_conn.close()
             self._tcp_conn.close()
             return False
@@ -253,7 +277,8 @@ class Proxy(object):
 
         tcpsocket, connected = self.client.connect()
         if not connected:
-            print "Proxy -> Could not connect with tcp server"
+            log_error(LOG, "Proxy -> Could not connect with tcp server")
+            # print "Proxy -> Could not connect with tcp server"
             unixsocket.close()
             tcpsocket.close()
         else:

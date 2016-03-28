@@ -16,4 +16,3 @@ LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'
 VPN_NFP_PLUGIN_TOPIC = 'vpn_plugin'
 DEVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-ndo'
 SERVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-nso'
-

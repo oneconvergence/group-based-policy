@@ -11,9 +11,9 @@
 #    under the License.
 
 
+from gbpservice.nfp.lib.transport import RPCClient
 from gbpservice.nfp.proxy_agent.lib import topics as a_topics
 from neutron import context as n_context
-from gbpservice.nfp.lib.transport import RPCClient
 
 
 class NotificationHandler(object):
@@ -21,29 +21,28 @@ class NotificationHandler(object):
     def _get_dummy_context(self):
         context = {
             u'read_only': False,
-			u'domain': None,
-			u'project_name': None,
-			u'user_id': None,
-			u'show_deleted': False,
-			u'roles': [],
-			u'user_identity': u'',
-			u'project_domain': None,
-			u'tenant_name': None,
-			u'auth_token': None,
-			u'resource_uuid': None,
-			u'project_id': None,
-			u'tenant_id': None,
-			u'is_admin': True,
-			u'user': None,
-			u'request_id': u'',
-			u'user_domain': None,
-			u'timestamp': u'',
-			u'tenant': None,
-			u'user_name': None}
+            u'domain': None,
+            u'project_name': None,
+            u'user_id': None,
+            u'show_deleted': False,
+            u'roles': [],
+            u'user_identity': u'',
+            u'project_domain': None,
+            u'tenant_name': None,
+            u'auth_token': None,
+            u'resource_uuid': None,
+            u'project_id': None,
+            u'tenant_id': None,
+            u'is_admin': True,
+            u'user': None,
+            u'request_id': u'',
+            u'user_domain': None,
+            u'timestamp': u'',
+            u'tenant': None,
+            u'user_name': None}
         return context
 
-
-    def set_firewall_status(self, **kwargs):
+    def set_firewall_status(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
@@ -53,8 +52,7 @@ class NotificationHandler(object):
                              firewall_id=kwargs['firewall_id'],
                              status=kwargs['status'])
 
-
-    def firewall_deleted(self, **kwargs):
+    def firewall_deleted(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
@@ -63,8 +61,21 @@ class NotificationHandler(object):
                              host=kwargs['host'],
                              firewall_id=kwargs['firewall_id'])
 
+    def update_status(self, resource, **kwargs):
+        if resource == 'vpn':
+            self._update_status_vpn(**kwargs)
+        else:
+            self._update_status_lb(**kwargs)
 
-    def update_status(self, **kwargs):
+    def _update_status_vpn(self, **kwargs):
+        rpcClient = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+        context = kwargs.get('context')
+        rpc_ctx = n_context.Context.from_dict(context)
+        del kwargs['context']
+        rpcClient.cctxt.cast(rpc_ctx, 'update_status',
+                             status=kwargs['status'])
+
+    def _update_status_lb(self, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
@@ -74,8 +85,7 @@ class NotificationHandler(object):
                              obj_id=kwargs['obj_id'],
                              status=kwargs['status'])
 
-
-    def update_pool_stats(self, **kwargs):
+    def update_pool_stats(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
@@ -85,8 +95,7 @@ class NotificationHandler(object):
                              stats=kwargs['stats'],
                              host=kwargs['host'])
 
-
-    def pool_destroyed(self, **kwargs):
+    def pool_destroyed(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
@@ -94,8 +103,7 @@ class NotificationHandler(object):
         rpcClient.cctxt.cast(rpc_ctx, 'pool_destroyed',
                              pool_id=kwargs['pool_id'])
 
-
-    def pool_deployed(self, **kwargs):
+    def pool_deployed(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
@@ -103,8 +111,8 @@ class NotificationHandler(object):
         rpcClient.cctxt.cast(rpc_ctx, 'pool_deployed',
                              pool_id=kwargs['pool_id'])
 
-
-    def network_function_device_notification(self, resource, kwargs_list, device=True):
+    def network_function_device_notification(self, resource,
+                                             kwargs_list, device=True):
         context = self._get_dummy_context()
         topic = [
             a_topics.SERVICE_ORCHESTRATOR_TOPIC,
@@ -121,12 +129,3 @@ class NotificationHandler(object):
         rpc_ctx = n_context.Context.from_dict(context)
         rpcClient.cctxt.cast(rpc_ctx, 'network_function_device_notification',
                              notification_data=notification_data)
-
-    def update_status(self, **kwargs):
-        rpcClient = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        context = kwargs.get('context')
-        rpc_ctx = n_context.Context.from_dict(context)
-        del kwargs['context']
-        rpcClient.cctxt.cast(rpc_ctx, 'update_status',
-                             status=kwargs['status'])
-

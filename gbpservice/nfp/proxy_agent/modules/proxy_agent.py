@@ -9,25 +9,16 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import os
-import sys
-import ast
-import json
-import time
+
+from gbpservice.nfp.core import common as core_common
+from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.proxy_agent.lib import RestClientOverUnix as rc
+from gbpservice.nfp.proxy_agent.lib import topics
 
 from oslo_log import log as logging
-import oslo_messaging as messaging
-from gbpservice.nfp.core.controller import Controller
-from gbpservice.nfp.core.event import Event
-from gbpservice.nfp.core.rpc import RpcAgent
 
-from neutron.common import rpc as n_rpc
-from neutron import context as n_context
-
-from gbpservice.nfp.proxy_agent.lib import topics
-from gbpservice.nfp.proxy_agent.lib import RestClientOverUnix as rc
-
-from neutron import context as ctx
+log_info = core_common.log_info
+log_error = core_common.log_error
 
 
 LOG = logging.getLogger(__name__)
@@ -60,46 +51,50 @@ class RpcHandler(object):
         try:
             resp, content = rc.post(
                 'create_network_function_config', body=body)
-            LOG.info(
-                "create_network_function_config -> POST response: (%s)" % (content))
+            log_info(LOG,
+                     "create_network_function_config -> POST response: (%s)\
+" % (content))
 
         except rc.RestClientException as rce:
-            LOG.error("create_firewall -> POST request failed.Reason: %s" % (
-                rce))
+            log_error(LOG,
+                      "create_firewall -> POST request failed.Reason: %s" % (
+                          rce))
 
     def delete_network_function_config(self, context, body):
         try:
             resp, content = rc.post('delete_network_function_config',
                                     body=body, delete=True)
-            LOG.info(
-                "delete_network_function_config -> POST response: (%s)" % (content))
+            log_info(LOG,
+                     "delete_network_function_config -> POST response: (%s)\
+" % (content))
 
         except rc.RestClientException as rce:
-            LOG.error("delete_firewall -> DELETE request failed.Reason: %s" % (
-                rce))
+            log_error(LOG,
+                      "delete_firewall -> DELETE request failed.Reason: %s" % (
+                          rce))
 
-    # generic RPC
     def create_network_function_device_config(self, context, body):
         try:
-            LOG.info("%s:%s" % (context, body))
             resp, content = rc.post('create_network_function_device_config',
                                     body=body)
-            LOG.info(
-                "create_network_function_device_config -> POST response: (%s)" % (content))
+            log_info(LOG,
+                     "create_network_function_device_config -> POST response: (%s)\
+" % (content))
 
         except rc.RestClientException as rce:
-            LOG.error("create_network_function_device_config -> request failed\
-.Reason %s " % (rce))
+            log_error(
+                LOG, "create_network_function_device_config -> request failed .\
+Reason %s " % (rce))
 
     def delete_network_function_device_config(self, context, body):
         try:
-            LOG.info("%s:%s" % (context, body))
             resp, content = rc.post('delete_network_function_device_config',
                                     body=body, delete=True)
-            LOG.info(
-                "delete_network_function_device_config -> POST response: (%s)" % (content))
+            log_info(LOG,
+                     "delete_network_function_device_config -> POST response: (%s)\
+" % (content))
 
         except rc.RestClientException as rce:
-            LOG.error(
-                "delete_network_function_device_config -> request failed\
+            log_error(LOG,
+                      "delete_network_function_device_config -> request failed\
 .Reason %s " % (rce))

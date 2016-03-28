@@ -10,14 +10,21 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import httplib2
-import httplib
-import socket
 import exceptions
-from oslo_config import cfg
-import six.moves.urllib.parse as urlparse
-import json
+
+from gbpservice.nfp.core import common as core_common
+
+import httplib
+import httplib2
+
 from oslo_log import log as logging
+from oslo_serialization import jsonutils
+
+import six.moves.urllib.parse as urlparse
+import socket
+
+log_info = core_common.log_info
+log_error = core_common.log_error
 
 LOG = logging.getLogger(__name__)
 
@@ -43,12 +50,12 @@ class UnixHTTPConnection(httplib.HTTPConnection):
             self.sock.settimeout(self.timeout)
         try:
             self.sock.connect(self.socket_path)
-        except socket.error, exc:
+        except socket.error as exc:
             raise RestClientException(
                 "Caught exception socket.error : %s" % exc)
 
 
-class UnixRestClient():
+class UnixRestClient(object):
 
     def _http_request(self, url, method_type, headers=None, body=None):
         try:
@@ -71,7 +78,7 @@ class UnixRestClient():
                      server_addr='127.0.0.1',
                      headers=None, body=None):
         path = '/v1/nfp/' + path
-        body = json.dumps(body)
+        body = jsonutils.dumps(body)
         url = urlparse.urlunsplit((
             request_method,
             server_addr,
@@ -81,9 +88,9 @@ class UnixRestClient():
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
-            LOG.info("%s:%s" % (resp, content))
+            log_info(LOG, "%s:%s" % (resp, content))
         except RestClientException as rce:
-            LOG.info("ERROR : %s" % (rce))
+            log_error(LOG, "ERROR : %s" % (rce))
             raise rce
 
         success_code = [200, 201, 202, 204]
@@ -115,8 +122,8 @@ class UnixRestClient():
         elif resp.status == 500:
             raise RestClientException("HTTPServerError: %s" % resp.reason)
         else:
-            raise Exception(_('Unhandled Exception code: %s %s') %
-                            (resp.status, resp.reason))
+            raise Exception('Unhandled Exception code: %s %s' % (resp.status,
+                                                                 resp.reason))
 
 
 def get(path):
