@@ -10,10 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import json
 import oslo_serialization.jsonutils as jsonutils
 
-from oslo_config import cfg
 from oslo_log import log as logging
 import pecan
 from pecan import rest
@@ -30,6 +28,7 @@ Implements following HTTP methods.
 """
 
 notifications = []
+
 
 class Controller(rest.RestController):
 
@@ -73,7 +72,7 @@ class Controller(rest.RestController):
 
         global notifications
         try:
-            notification_data = json.dumps(notifications)
+            notification_data = jsonutils.dumps(notifications)
             msg = ("NOTIFICATION_DATA sent to config_agent %s"
                    % notification_data)
             LOG.info(msg)
@@ -82,7 +81,7 @@ class Controller(rest.RestController):
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to get notification_data  %s."
-                   % str(err).capitalize())
+                % str(err).capitalize())
             LOG.error(msg)
             error_data = self._format_description(msg)
             return jsonutils.dumps(error_data)
@@ -138,4 +137,3 @@ class Controller(rest.RestController):
 
         error_data = {'failure_desc': {'msg': msg}}
         return error_data
-
