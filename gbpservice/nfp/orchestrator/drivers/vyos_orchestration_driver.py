@@ -24,7 +24,7 @@ LOG = logging.getLogger(__name__)
 
 class VyosOrchestrationDriver(OrchestrationDriverBase):
 
-    def __init__(self, config, supports_device_sharing=True,
+    def __init__(self, config=None, supports_device_sharing=True,
 		 supports_hotplug=True, max_interfaces=10):
         super(VyosOrchestrationDriver, self).__init__(
 	    config,
