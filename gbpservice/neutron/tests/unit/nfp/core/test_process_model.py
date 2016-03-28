@@ -154,12 +154,12 @@ class Test_Process_Model(unittest.TestCase):
         mocked_sequencer_map = mock.Mock()
         mocked_sequencer._sequencer_map = mocked_sequencer_map
         mocked_sequencer_map = {}
-        self.assertEqual(self.EventSequencer.add(event1), False)
+        self.assertFalse(self.EventSequencer.add(event1))
         mocked_sequencer_map = self.create_sequencer_map(
             self.sc._workers[0][0].pid,
             self.service1['id']
         )
-        self.assertEqual(self.EventSequencer.add(event1), True)
+        self.assertTrue(self.EventSequencer.add(event1))
 
     def test_handle_event_on_queue(self):
         event1 = self.sc.new_event(

@@ -16,29 +16,30 @@ import Queue
 import sys
 import sys
 
-from oslo_config import cfg as oslo_config
-
-conf = oslo_config.CONF
 deque = collections.deque
 
 
-def log_info(logger, msg):
+def log(logger, level, msg):
+    eval('_log_%s' % (level.lower()))(logger, msg)
+
+
+def _log_info(logger, msg):
     logger.info(msg)
 
 
-def log_debug(logger, msg):
-    logger.debug(msg)
+def _log_debug(logger, msg):
+    logger.info(msg)
 
 
-def log_error(logger, msg):
+def _log_error(logger, msg):
     logger.error(msg)
 
 
-def log_warn(logger,  msg):
+def _log_warn(logger, msg):
     logger.warn(msg)
 
 
-def log_exception(logger, msg):
+def _log_exception(logger, msg):
     logger.exception(msg)
 
 
@@ -98,10 +99,10 @@ def identify(obj):
 
 def load_nfp_symbols(namespace):
     namespace['identify'] = identify
-    namespace['log_info'] = log_info
-    namespace['log_debug'] = log_debug
-    namespace['log_error'] = log_error
-    namespace['log_exception'] = log_exception
+    namespace['log_info'] = _log_info
+    namespace['log_debug'] = _log_debug
+    namespace['log_error'] = _log_error
+    namespace['log_exception'] = _log_exception
 
 
 """Wrapper class over python deque.
@@ -178,4 +179,4 @@ class NfpFifo(object):
             for msg in msgs:
                 self._queue.remove(msg)
         except ValueError as err:
-            pass
+            err = err

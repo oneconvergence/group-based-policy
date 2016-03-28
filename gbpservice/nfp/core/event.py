@@ -12,7 +12,6 @@
 
 import multiprocessing
 import os
-import Queue
 import time
 import uuid as pyuuid
 
@@ -21,7 +20,9 @@ from oslo_log import log as oslo_logging
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import threadpool as nfp_tp
 
-LOG = oslo_logging.getLogger(__name__)
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
+identify = nfp_common.identify
 
 """Descriptor of event. """
 
@@ -110,8 +111,8 @@ class EventSequencer(object):
                 # remove it. useful in restart cases later.
                 event = val['queue'][0]
                 val['in_use'] = True
-                log_debug(LOG, "%s - sequencer_get - returning"
-                          % (event.identify()))
+                LOG(LOGGER, 'DEBUG', "%s - sequencer_get - returning"
+                    % (event.identify()))
                 return event
 
     def add(self, event):
@@ -127,14 +128,15 @@ class EventSequencer(object):
             seq_map = self._sequencer_map[event.binding_key]
             seq_map['queue'].append(event)
             queued = True
-            log_debug(LOG, "%s - sequencer_add - an event"
-                      "already in progress, queueing" % (event.identify()))
+            LOG(LOGGER, 'DEBUG', "%s - sequencer_add - an event"
+                "already in progress, queueing" % (event.identify()))
         except KeyError as err:
             self._sequencer_map[event.binding_key] = {
                 'in_use': True, 'queue': [event]}
-            log_debug(LOG,
-                      "%s - sequencer_add - first event "
-                      "in sequence, scheduling it" % (event.identify()))
+            err = err
+            LOG(LOGGER, 'DEBUG',
+                "%s - sequencer_add - first event "
+                "in sequence, scheduling it" % (event.identify()))
         return queued
 
     def copy(self):
@@ -153,20 +155,21 @@ class EventSequencer(object):
             the complete entry is deleted from sequencer map.
         """
         bkey = event.binding_key
-        self._sequencer_map[bkey]['queue'].remove(ev)
+        self._sequencer_map[bkey]['queue'].remove(event)
         self._sequencer_map[bkey]['in_use'] = False
-        log_debug(LOG, "%s - sequencer - removed" % (
+        LOG(LOGGER, 'DEBUG', "%s - sequencer - removed" % (
             event.identify()))
 
     def delete_eventmap(self, event):
         """Internal method to delete event map, if it is empty. """
         seq_map = self._sequencer_map[event.binding_key]
         if seq_map['queue'] == []:
-            log_debug(LOG,
-                      "sequencer - no events -"
-                      "deleting entry - %s"
-                      % (ev.binding_key))
-            del self._sequencer_map[ev.desc.worker_attached][ev.binding_key]
+            LOG(LOGGER, 'DEBUG',
+                "sequencer - no events -"
+                "deleting entry - %s"
+                % (event.binding_key))
+            del self._sequencer_map[
+                event.desc.worker_attached][event.binding_key]
 
 """Handles the processing of evens in event queue.
 
@@ -204,6 +207,7 @@ class EventQueueHandler(object):
                 if self._pipe.poll(0.1):
                     event = self._pipe.recv()
             except multiprocessing.TimeoutError as err:
+                err = err
                 pass
             if event:
                 # If this event needs to be serialized and is first event
@@ -223,11 +227,11 @@ class EventQueueHandler(object):
             handler.
             """
         t = self._tpool.dispatch(self._sc.poll_event_timedout, eh, ev)
-        log_debug(LOG,
-                  "%s - dispatch poll event - "
-                  "to event handler: %s - "
-                  "in thread: %s"
-                  % (ev.identify(), identify(eh), t.identify()))
+        LOG(LOGGER, 'DEBUG',
+            "%s - dispatch poll event - "
+            "to event handler: %s - "
+            "in thread: %s"
+            % (ev.identify(), identify(eh), t.identify()))
 
     def run(self, pipe):
         """Worker process loop to fetch & process events from event queue.
@@ -243,8 +247,8 @@ class EventQueueHandler(object):
                 max times.
             c) EVENT - Internal event added by listener process.
         """
-        log_info(LOG,
-                 "%d - worker started" % (os.getpid()))
+        LOG(LOGGER, 'INFO',
+            "%d - worker started" % (os.getpid()))
         # Update my identity on my copy of controller
         self._sc._process_name = 'worker-process'
         # Update my pid in worker map
@@ -259,16 +263,16 @@ class EventQueueHandler(object):
         while True:
             event = self._get()
             if event:
-                log_debug(LOG,
-                          "%s - worker - got new event" % (event.identify()))
+                LOG(LOGGER, 'DEBUG',
+                    "%s - worker - got new event" % (event.identify()))
                 eh = self._ehs.get(event)
                 if not event.desc.poll_event:
                     t = self._tpool.dispatch(eh.handle_event, event)
-                    log_debug(LOG, "%s - dispatch internal event -"
-                              "to event handler:%s - "
-                              "in thread:%s" % (
-                                  event.identify(),
-                                  identify(eh), t.identify()))
+                    LOG(LOGGER, 'DEBUG', "%s - dispatch internal event -"
+                        "to event handler:%s - "
+                        "in thread:%s" % (
+                            event.identify(),
+                            identify(eh), t.identify()))
                 else:
                     self._dispatch_poll_event(eh, event)
             time.sleep(0)  # Yield the CPU

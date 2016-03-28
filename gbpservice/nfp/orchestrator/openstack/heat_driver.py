@@ -128,7 +128,7 @@ class HeatDriver():
                                         pconst.FIREWALL: ["vyos", "asav"],
                                         pconst.VPN: ["vyos", "asav"]
                                         }
-    vendor_name = 'oneconvergence'
+    vendor_name = 'NFP'
     required_heat_resources = {
         pconst.LOADBALANCER: ['OS::Neutron::LoadBalancer',
                               'OS::Neutron::Pool'],
@@ -141,12 +141,10 @@ class HeatDriver():
     initialized = False
 
     def __init__(self, config):
-        self._lbaas_plugin = None
         self.keystoneclient = KeystoneClient(config)
         self.gbp_client = GBPClient(config)
         self.neutron_client = NeutronClient(config)
         self.initialized = True
-        #self._name = name
         self.resource_owner_tenant_id = None
 
     @property
@@ -160,23 +158,12 @@ class HeatDriver():
             self.resource_owner_tenant_id = None
         return self.resource_owner_tenant_id
 
-    def lbaas_plugin(self):
-        if self._lbaas_plugin:
-            return self._lbaas_plugin
-        self._lbaas_plugin = manager.NeutronManager.get_service_plugins().get(
-            pconst.LOADBALANCER)
-        return self._lbaas_plugin
-
     def _resource_owner_tenant_id(self):
         user, pwd, tenant_name, auth_url =\
             self.keystoneclient.get_keystone_creds()
-        # keystoneclient = keyclient.Client(username=user, password=pwd,
-        #                                  auth_url=auth_url)
         auth_token = self.keystoneclient.get_scoped_keystone_token(
             user, pwd, tenant_name)
         try:
-            #tenant = keystoneclient.tenants.find(name=tenant)
-            # return tenant.id
             tenant_id = self.keystoneclient.get_tenant_id(
                 auth_token, tenant_name)
             return tenant_id
@@ -189,15 +176,10 @@ class HeatDriver():
                     _LE('Multiple tenants matches found for %s'), tenant_name)
 
     def _get_resource_owner_context(self):
-        #auth_token = self.keystoneclient.get_admin_token()
         if cfg.CONF.heat_driver.is_service_admin_owned:
             tenant_id = self.resource_owner_tenant_id
             user, pwd, tenant_name, auth_url =\
                 self.keystoneclient.get_keystone_creds()
-            # keystoneclient = keyclient.Client(username=user, password=pwd,
-            #                                  auth_url=auth_url)
-            # auth_token = keystoneclient.get_token(
-            #    self.resource_owner_tenant_id)
             auth_token = self.keystoneclient.get_scoped_keystone_token(user,
                 pwd, tenant_name, self.resource_owner_tenant_id)
         return auth_token, tenant_id
@@ -262,17 +244,11 @@ class HeatDriver():
 
     def keystone(self, user, pwd, tenant_name, tenant_id=None):
         if tenant_id:
-            # return keyclient.Client(
-            #    username=user, password=password,
-            #    auth_url=auth_url, tenant_id=tenant_id)
             return self.keystoneclient.get_scoped_keystone_token(
                 user, pwd, tenant_name, tenant_id)
         else:
             return self.keystoneclient.get_scoped_keystone_token(
                 user, pwd, tenant_name)
-            # return keyclient.Client(
-            #    username=user, password=password,
-            #    auth_url=auth_url, tenant_name=tenant)
 
     def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None):
         user_tenant_id = tenant_id or resource_owner_tenant_id
@@ -300,8 +276,6 @@ class HeatDriver():
             timeout_mins=timeout_mins)
 
     def _get_tenant_context(self, tenant_id):
-        # tenant_token = self.keystone(tenant_id=tenant_id).get_token(
-        #        tenant_id)
         user, password, tenant, auth_url =\
             self.keystoneclient.get_keystone_creds()
 
@@ -744,12 +718,12 @@ class HeatDriver():
             if not update:
                 services_nsp = self.gbp_client.get_network_service_policies(
                     auth_token,
-                    filters={'name': ['oneconvergence_services_nsp']})
+                    filters={'name': ['nfp_services_nsp']})
                 if not services_nsp:
                     fip_nsp = {
                         'network_service_policy': {
-                            'name': 'oneconvergence_services_nsp',
-                            'description': 'oneconvergence_implicit_resource',
+                            'name': 'nfp_services_nsp',
+                            'description': 'nfp_implicit_resource',
                             'shared': False,
                             'tenant_id': tenant_id,
                             'network_service_params': [
@@ -777,12 +751,9 @@ class HeatDriver():
                     auth_token, stitching_ptg_id,
                     {'policy_target_group': {
                         'network_service_policy_id': nsp['id']}})
-            #filters = {'port_id': [consumer_port['id']]}
-            # floatingips = self.neutron_client.get_floating_ips(
-            #    auth_token, filters=filters)
             if not base_mode_support:
                 floatingips = self.neutron_client.get_floating_ips(
-                    auth_token, consumer_port['id'])  # Need to test
+                    auth_token, consumer_port['id'])
                 if not floatingips:
                     raise FloatingIPForVPNRemovedManually()
                 stitching_port_fip = floatingips[0]['floating_ip_address']
@@ -1093,8 +1064,6 @@ class HeatDriver():
                      "name %(stack_name)s for provider PTG %(provider)s"),
                  {'stack_id': stack_id, 'stack_name': stack_name,
                   'provider': provider['id']})
-        # self._wait_for_stack_operation_complete(heatclient, stack_id,
-        #                                         "create")
         if service_profile['service_type'] == pconst.LOADBALANCER:
             auth_token, provider_tenant_id = self._get_tenant_context(
                 provider_tenant_id)
@@ -1122,11 +1091,14 @@ class HeatDriver():
                 pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
         service_type = service_profile['service_type']
+        service_details = transport.parse_service_flavor_string(
+                service_profile['service_flavor'])
+        base_mode_support = (True if service_details['device_type'] == 'None'
+                                  else False)
         provider_tenant_id = provider['tenant_id']
         heatclient = self._get_heat_client(resource_owner_tenant_id,
                                            tenant_id=provider_tenant_id)
-
-        if not mgmt_ip:
+        if not base_mode_support and not mgmt_ip:
             raise ServiceInfoNotAvailableOnUpdate()
 
         stack_template, stack_params = self._update_node_config(
@@ -1237,7 +1209,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
@@ -1258,7 +1230,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
@@ -1283,7 +1255,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
@@ -1313,7 +1285,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
@@ -1336,7 +1308,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']

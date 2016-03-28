@@ -39,7 +39,7 @@ es_openstack_opts = [
 OPTS = [
     cfg.IntOpt(
         'workers',
-        default=1,
+        default=4,
         help='Number of event worker process to be created.'
     ),
     cfg.StrOpt(

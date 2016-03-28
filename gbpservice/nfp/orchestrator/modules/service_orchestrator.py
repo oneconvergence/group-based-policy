@@ -57,7 +57,7 @@ def events_init(controller, config, service_orchestrator):
               'DELETE_NETWORK_FUNCTION_INSTANCE', 'DEVICE_CREATED',
               'DEVICE_ACTIVE', 'DEVICE_DELETED', 'APPLY_USER_CONFIG',
               'DELETE_USER_CONFIG', 'POLICY_TARGET_ADD',
-              'POLICY_TARGET_REMOVE', 'CONSMUER_ADD', 'CONSUMER_REMOVE',
+              'POLICY_TARGET_REMOVE', 'CONSUMER_ADD', 'CONSUMER_REMOVE',
               'APPLY_USER_CONFIG_IN_PROGRESS',
               'DELETE_USER_CONFIG_IN_PROGRESS', 'USER_CONFIG_APPLIED',
               'USER_CONFIG_DELETED', 'USER_CONFIG_DELETE_FAILED',
@@ -205,8 +205,8 @@ class RpcHandlerConfigurator(object):
             'heat': ['APPLY_USER_CONFIG',
                      'DELETE_USER_CONFIG',
                      'POLICY_TARGET_ADD',
-                     'POLICY_TARGET_REMOVE'
-                     'CONSMUER_ADD',
+                     'POLICY_TARGET_REMOVE',
+                     'CONSUMER_ADD',
                      'CONSUMER_REMOVE']
         }
 
@@ -335,7 +335,7 @@ class ServiceOrchestrator(object):
             "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
             "POLICY_TARGET_ADD": self.policy_target_add_user_config,
             "POLICY_TARGET_REMOVE": self.policy_target_remove_user_config,
-            "CONSMUER_ADD": self.consumer_ptg_add_user_config,
+            "CONSUMER_ADD": self.consumer_ptg_add_user_config,
             "CONSUMER_REMOVE": self.consumer_ptg_remove_user_config,
             "DEVICE_DELETED": self.handle_device_deleted,
             "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
@@ -379,6 +379,16 @@ class ServiceOrchestrator(object):
         else:
             self._controller.post_event(event)
         self._log_event_created(event_id, event_data)
+
+    def _get_base_mode_support(self, service_profile_id):
+        admin_token = self.keystoneclient.get_admin_token()
+        service_profile = self.gbpclient.get_service_profile(
+            admin_token, service_profile_id)
+        service_details = transport.parse_service_flavor_string(
+                                        service_profile['service_flavor'])
+        base_mode_support = (True if service_details['device_type'] == 'None'
+                             else False)
+        return base_mode_support
 
     def create_network_function(self, context, network_function_info):
         # For neutron mode, we have handle port creation here
@@ -472,15 +482,9 @@ class ServiceOrchestrator(object):
         network_function_info = self.db_handler.get_network_function(
             self.db_session, network_function_id)
         service_profile_id = network_function_info['service_profile_id']
-        admin_token = self.keystoneclient.get_admin_token()
-        service_profile = self.gbpclient.get_service_profile(
-            admin_token, service_profile_id)
-        service_details = transport.parse_service_flavor_string(
-                                        service_profile['service_flavor'])
-        base_mode_support = (True if service_details['device_type'] == 'None'
-                             else False)
-        if ((not base_mode_support) and
-                (not network_function_info['network_function_instances'])):
+        base_mode_support = self._get_base_mode_support(service_profile_id)
+        if (not base_mode_support and
+                not network_function_info['network_function_instances']):
             self.db_handler.delete_network_function(
                 self.db_session, network_function_id)
             return
@@ -744,17 +748,11 @@ class ServiceOrchestrator(object):
 
     def handle_user_config_deleted(self, event):
         request_data = event.data
-        admin_token = self.keystoneclient.get_admin_token()
         network_function = self.db_handler.get_network_function(
             self.db_session,
             request_data['network_function_id'])
         service_profile_id = network_function['service_profile_id']
-        service_profile = self.gbpclient.get_service_profile(
-            admin_token, service_profile_id)
-        service_details = transport.parse_service_flavor_string(
-                                        service_profile['service_flavor'])
-        base_mode_support = (True if service_details['device_type'] == 'None'
-                             else False)
+        base_mode_support = self._get_base_mode_support(service_profile_id)
         if base_mode_support:
             self.db_handler.delete_network_function(
                 self.db_session, network_function['id'])
@@ -814,8 +812,14 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         network_function_details = self.get_network_function_details(
             network_function_id)
-        required_attributes = ["network_function", "network_function_instance",
-                               "network_function_device"]
+        base_mode_support = self._get_base_mode_support(
+            network_function['service_profile_id'])
+        if not base_mode_support:
+            required_attributes = ["network_function",
+                                   "network_function_instance",
+                                   "network_function_device"]
+        else:
+            required_attributes = ["network_function"]
         if (set(required_attributes) & set(network_function_details.keys()) !=
             set(required_attributes)):
                 self.db_handler.update_network_function(
@@ -824,7 +828,7 @@ class ServiceOrchestrator(object):
                 {'status': nfp_constants.ERROR,
                  'status_description': ("Config Update for Policy Target "
                                         "addition event failed")})
-                return
+            return
         service_config = network_function['service_config']
         network_function_data = {
             'network_function_details': network_function_details,
@@ -858,8 +862,14 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         network_function_details = self.get_network_function_details(
             network_function_id)
-        required_attributes = ["network_function", "network_function_instance",
-                               "network_function_device"]
+        base_mode_support = self._get_base_mode_support(
+            network_function['service_profile_id'])
+        if not base_mode_support:
+            required_attributes = ["network_function",
+                                   "network_function_instance",
+                                   "network_function_device"]
+        else:
+            required_attributes = ["network_function"]
         if (set(required_attributes) & set(network_function_details.keys()) !=
             set(required_attributes)):
                 self.db_handler.update_network_function(
@@ -868,7 +878,7 @@ class ServiceOrchestrator(object):
                 {'status': nfp_constants.ERROR,
                  'status_description': ("Config Update for Policy Target "
                                         "removed event failed")})
-                return
+            return
         service_config = network_function['service_config']
         network_function_data = {
             'network_function_details': network_function_details,
@@ -879,10 +889,9 @@ class ServiceOrchestrator(object):
 
     def policy_target_remove_user_config(self, event):
         request_data = event.data
-        network_function_data = request_data['network_function_data']
-        network_function_details = network_function_data[
+        network_function_details = request_data[
             'network_function_details']
-        policy_target = network_function_data['policy_target']
+        policy_target = request_data['policy_target']
         config_id = self.config_driver.handle_policy_target_removed(
             network_function_details, policy_target)
         network_function = network_function_details['network_function']
@@ -904,8 +913,14 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         network_function_details = self.get_network_function_details(
             network_function_id)
-        required_attributes = ["network_function", "network_function_instance",
-                               "network_function_device"]
+        base_mode_support = self._get_base_mode_support(
+            network_function['service_profile_id'])
+        if not base_mode_support:
+            required_attributes = ["network_function",
+                                   "network_function_instance",
+                                   "network_function_device"]
+        else:
+            required_attributes = ["network_function"]
         if (set(required_attributes) & set(network_function_details.keys()) !=
                 set(required_attributes)):
             self.db_handler.update_network_function(
@@ -925,10 +940,9 @@ class ServiceOrchestrator(object):
 
     def consumer_ptg_add_user_config(self, event):
         request_data = event.data
-        network_function_data = request_data['network_function_data']
-        network_function_details = network_function_data[
+        network_function_details = request_data[
             'network_function_details']
-        consumer_ptg = network_function_data['consumer_ptg']
+        consumer_ptg = request_data['consumer_ptg']
         config_id = self.config_driver.handle_consumer_ptg_added(
             network_function_details, consumer_ptg)
         network_function = network_function_details['network_function']
@@ -951,8 +965,14 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         network_function_details = self.get_network_function_details(
             network_function_id)
-        required_attributes = ["network_function", "network_function_instance",
-                               "network_function_device"]
+        base_mode_support = self._get_base_mode_support(
+            network_function['service_profile_id'])
+        if not base_mode_support:
+            required_attributes = ["network_function",
+                                   "network_function_instance",
+                                   "network_function_device"]
+        else:
+            required_attributes = ["network_function"]
         if (set(required_attributes) & set(network_function_details.keys()) !=
             set(required_attributes)):
             self.db_handler.update_network_function(
@@ -972,10 +992,9 @@ class ServiceOrchestrator(object):
 
     def consumer_ptg_remove_user_config(self, event):
         request_data = event.data
-        network_function_data = request_data['network_function_data']
-        network_function_details = network_function_data[
+        network_function_details = request_data[
             'network_function_details']
-        consumer_ptg = network_function_data['consumer_ptg']
+        consumer_ptg = request_data['consumer_ptg']
         config_id = self.config_driver.handle_consumer_ptg_removed(
             network_function_details, consumer_ptg)
         network_function = network_function_details['network_function']

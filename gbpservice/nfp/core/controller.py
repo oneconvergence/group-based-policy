@@ -29,11 +29,13 @@ from oslo_service import service as oslo_service
 from gbpservice.nfp.core import cfg as nfp_config
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import event_lb as nfp_lb
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.core import rpc as nfp_rpc
-from gbpservice.nfp.core import event_lb as nfp_lb
 
-LOG = oslo_logging.getLogger(__name__)
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
+identify = nfp_common.identify
 
 eventlet.monkey_patch()
 
@@ -49,7 +51,8 @@ class EventHandlers(object):
     def register(self, event_desc):
         """Register an event handler. """
         ehs = self._event_handlers
-        log_debug(LOG, "Registering handler %s" % (self.identify(event_desc)))
+        LOG(LOGGER, 'DEBUG', "Registering handler %s" %
+            (self.identify(event_desc)))
         try:
             ehs[event_desc.id].extend([event_desc])
         except KeyError:
@@ -91,7 +94,7 @@ class Controller(object):
         # Cache of auto-loaded NFP modules
         self._modules = modules
         # Sequencer to sequence the related events.
-        self._sequencer = EventSequencer(self)
+        self._sequencer = nfp_event.EventSequencer(self)
         # Map of worker pid to pipe assoc with it.
         self._worker_pipe_map = {}
         # Identity of process which is executing this controller obj.
@@ -116,9 +119,9 @@ class Controller(object):
             self._worker_pipe_map[worker[0].pid] = worker[1]
 
         # Polling task to poll for timer events
-        self._polling_task = PollingTask(self)
+        self._polling_task = nfp_poll.PollingTask(self)
         # Seperate task for reporting as report state rpc is a 'call'
-        self._reportstate_task = ReportStateTask(self)
+        self._reportstate_task = nfp_rpc.ReportStateTask(self)
 
         for idx, agent in enumerate(self._rpc_agents):
             launcher = oslo_service.launch(oslo_config.CONF, agent[0])
@@ -149,8 +152,8 @@ class Controller(object):
             # Worker cannot distribute events, so post it to distributor
             pipe = self._worker_pipe_map[os.getpid()]
             self._pipe_send(pipe, event)
-            log_debug(LOG, "%s - post event - "
-                      "worker >> distributor" % (event.identify()))
+            LOG(LOGGER, 'DEBUG', "%s - post event - "
+                "worker >> distributor" % (event.identify()))
         else:
             worker = self._loadbalancer.get(event.binding_key)
             event.desc.worker_attached = worker[0].pid
@@ -158,9 +161,9 @@ class Controller(object):
             # eventq_handler)
             pipe = worker[1]
             self._pipe_send(pipe, event)
-            log_debug(LOG, "%s - post event - "
-                      "distributor >> worker:%d"
-                      % (event.identify(), event.desc.worker_attached))
+            LOG(LOGGER, 'DEBUG', "%s - post event - "
+                "distributor >> worker:%d"
+                % (event.identify(), event.desc.worker_attached))
 
             if event.lifetime:
                 self._add_lifetime_event(event)
@@ -174,7 +177,7 @@ class Controller(object):
 
             Executor: worker-process
         """
-        log_debug(LOG, "%s - event complete" % (event.identify()))
+        LOG(LOGGER, 'DEBUG', "%s - event complete" % (event.identify()))
         seq_map = self._sequencer.copy()
         try:
             seq_map = seq_map[event.desc.worker_attached]
@@ -182,14 +185,15 @@ class Controller(object):
             seq_q = seq_map[event.binding_key]['queue']
             for seq_event in seq_q:
                 if seq_event.desc.uid == event.desc.uid:
-                    log_debug(LOG, "%s - removing from sequencer"
-                              % (seq_event.identify()))
+                    LOG(LOGGER, 'DEBUG', "%s - removing from sequencer"
+                        % (seq_event.identify()))
                     self._sequencer.remove(seq_event)
                     break
             self._sequencer.delete_eventmap(event)
         except KeyError as err:
             # Event not in sequence map
             # Not an issue, event might not have serialized
+            err = err
             pass
 
     def poll_event(self, event, max_times=sys.maxint):
@@ -204,21 +208,21 @@ class Controller(object):
         """
         if self._process_name == 'distributor-process':
             if not event.desc.worker_attached:
-                log_error(LOG, "%s - poll event -  "
-                          "no worker is associated" % (event.identify()))
+                LOG(LOGGER, 'DEBUG', "%s - poll event -  "
+                    "no worker is associated" % (event.identify()))
                 # Get some worker from the pool.
                 worker = self._loadbalancer.get(None)
                 event.desc.worker_attached = worker[0].pid
-            log_debug(LOG, "%s - poll event - "
-                      "distributor - adding to poller" % (
-                          event.identify()))
+            LOG(LOGGER, 'DEBUG', "%s - poll event - "
+                "distributor - adding to poller" % (
+                    event.identify()))
             event.desc.poll_event = 'POLL_EVENT'
             event.max_times = max_times
             self._pollhandler.add_event(event)
         else:
-            log_debug(LOG, "%s - poll event - "
-                      "worker:%d >> distributor"
-                      % (event.identify(), os.getpid()))
+            LOG(LOGGER, 'DEBUG', "%s - poll event - "
+                "worker:%d >> distributor"
+                % (event.identify(), os.getpid()))
             event.desc.poll_event = 'POLL_EVENT'
             event.max_times = max_times
             event.desc.worker_attached = os.getpid()
@@ -233,7 +237,8 @@ class Controller(object):
 
             Executor: worker-process
         """
-        log_debug(LOG, "%s - poll event timedout - " % (event.identify()))
+        LOG(LOGGER, 'DEBUG', "%s - poll event timedout - " %
+            (event.identify()))
         if event.id == 'EVENT_EXPIRED':
             self._pollhandler.event_expired(eh, event)
             # Call done to auto cancel the event
@@ -250,14 +255,14 @@ class Controller(object):
 
             Executor: worker-process
         """
-        log_debug(LOG, "%s - poll event complete" % (event.identify()))
+        LOG(LOGGER, 'DEBUG', "%s - poll event complete" % (event.identify()))
         event.id = 'POLL_EVENT_CANCEL'
         self.poll_event(event)
 
     def new_event(self, **kwargs):
         """API for NFP modules to prep an Event from passed args """
-        event = Event(**kwargs)
-        desc = EventDesc(**kwargs)
+        event = nfp_event.Event(**kwargs)
+        desc = nfp_event.EventDesc(**kwargs)
         setattr(event, 'desc', desc)
         return event
 
@@ -267,8 +272,8 @@ class Controller(object):
         if self._process_name == 'worker':
             return
         for event in events:
-            log_debug(LOG, "%s - registered handler - %s"
-                      % (event.identify(), identify(event.handler)))
+            LOG(LOGGER, 'DEBUG', "%s - registered handler - %s"
+                % (event.identify(), identify(event.handler)))
             self._event_handlers.register(event)
 
     def register_rpc_agents(self, agents):
@@ -282,14 +287,14 @@ class Controller(object):
     def init_complete(self):
         """Invokes NFP modules init_complete() to do any post init logic """
         for module in self._modules:
-            log_debug(LOG, "Invoking init_complete() of module %s"
-                      % (identify(module)))
+            LOG(LOGGER, 'DEBUG', "Invoking init_complete() of module %s"
+                % (identify(module)))
             try:
                 module.nfp_module_post_init(self, self._conf)
             except AttributeError:
-                log_debug(LOG, "Module %s does not implement"
-                          "nfp_module_post_init() method - skipping"
-                          % (identify(module)))
+                LOG(LOGGER, 'DEBUG', "Module %s does not implement"
+                    "nfp_module_post_init() method - skipping"
+                    % (identify(module)))
 
     def stash_event(self, event):
         """To stash an event.
@@ -301,10 +306,10 @@ class Controller(object):
             Executor: worker-process
         """
         if self._process_name == 'distributor-process':
-            log_error(LOG, "%s - distributor - cannot stash event" % (
+            LOG(LOGGER, 'ERROR', "%s - distributor - cannot stash event" % (
                 event.identify()))
         else:
-            log_debug(LOG, "%s - worker - stashed" % (event.identify()))
+            LOG(LOGGER, 'DEBUG', "%s - worker - stashed" % (event.identify()))
             self._stashq.put(event)
 
     def get_stashed_events(self):
@@ -327,7 +332,7 @@ class Controller(object):
             except Queue.Empty:
                 pass
         else:
-            log_error(LOG, "worker cannot pull stashed events")
+            LOG(LOGGER, 'ERROR', "worker cannot pull stashed events")
         return events
 
     def sequencer_put_event(self, event):
@@ -380,13 +385,13 @@ class Controller(object):
             Executor: poll-task of distributor-process
         """
         if not event.desc.worker_attached:
-            log_error(LOG, "%s - timedoutevent - "
-                      "no worker attached, dropping" % (event.identify()))
+            LOG(LOGGER, 'ERROR', "%s - timedoutevent - "
+                "no worker attached, dropping" % (event.identify()))
         else:
             pipe = self._worker_pipe_map[event.desc.worker_attached]
-            log_error(LOG, "%s - timedoutevent -"
-                      "to worker:%d" % (
-                          event.identify(), event.desc.worker_attached))
+            LOG(LOGGER, 'ERROR', "%s - timedoutevent -"
+                "to worker:%d" % (
+                    event.identify(), event.desc.worker_attached))
             self._pipe_send(pipe, event)
 
     def modules_init(self, modules):
@@ -399,15 +404,17 @@ class Controller(object):
         """
         inited_modules = []
         for module in modules:
-            log_debug(LOG, "Initializing module %s" % (identify(module)))
+            LOG(LOGGER, 'DEBUG', "Initializing module %s" %
+                (identify(module)))
             try:
                 module.nfp_module_init(self, self._conf)
                 inited_modules.append(module)
-                log_info(LOG, "module - %s - initialized" % (identify(module)))
+                LOG(LOGGER, 'INFO', "module - %s - initialized" %
+                    (identify(module)))
             except AttributeError:
-                log_error(LOG, "module - %s - "
-                          "nfp_module_init() missing, skip loading"
-                          % (identify(module)))
+                LOG(LOGGER, 'ERROR', "module - %s - "
+                    "nfp_module_init() missing, skip loading"
+                    % (identify(module)))
                 continue
         return inited_modules
 
@@ -424,7 +431,7 @@ class Controller(object):
         for worker in self._workers:
             pipes.append(worker[1])
 
-        handler = PollQueueHandler(self, pipes, self._event_handlers)
+        handler = nfp_poll.PollQueueHandler(self, pipes, self._event_handlers)
         return handler
 
     def _init(self):
@@ -450,7 +457,7 @@ class Controller(object):
             Executor: distributor-process.
         """
         wc = oslo_config.CONF.workers
-        log_info(LOG, "Creating %d number of workers" % (wc))
+        LOG(LOGGER, 'INFO', "Creating %d number of workers" % (wc))
 
         ev_workers = [tuple() for w in range(0, wc)]
 
@@ -458,7 +465,7 @@ class Controller(object):
             # Create pipe for communication.
             ppipe, cpipe = multiprocessing.Pipe(duplex=True)
             # Worker class.
-            evq_handler = EventQueueHandler(
+            evq_handler = nfp_event.EventQueueHandler(
                 self, self._conf, cpipe, self._event_handlers, self._modules)
             mp_process = multiprocessing.Process
             # create process using multiprocessing.
@@ -509,8 +516,8 @@ def modules_import():
     try:
         files = os.listdir(modules_dir)
     except OSError:
-        log_error(LOG, "Failed to read files from directory %s" %
-                  (modules_dir))
+        LOG(LOGGER, 'ERROR', "Failed to read files from directory %s" %
+            (modules_dir))
         files = []
 
     for fname in files:
@@ -520,7 +527,7 @@ def modules_import():
                                     globals(), locals(), [fname[:-3]], -1)
                 modules += [eval('module.%s' % (fname[:-3]))]
             except Exception as exc:
-                log_error(LOG, "NFP module %s import failed." % (fname))
+                LOG(LOGGER, 'ERROR', "NFP module %s import failed." % (fname))
 
     sys.path = syspath
     return modules
