@@ -20,8 +20,8 @@ from oslo_config import cfg
 from gbpservice.neutron.tests.unit.nfp.orchestrator import test_nfp_db
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
-from gbpservice.nfp.core import main  # noqa
-from gbpservice.nfp.core.main import Event
+from gbpservice.nfp.core import controller  # noqa
+from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.orchestrator.modules import (
     service_orchestrator as nso)
 from gbpservice.nfp.lib import transport

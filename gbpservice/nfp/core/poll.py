@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import multiprocessing
 import os
-import Queue
 import random
 import six
 import time
@@ -23,8 +23,9 @@ from oslo_service import periodic_task as oslo_periodic_task
 
 from gbpservice.nfp.core import common as nfp_common
 
-LOG = oslo_logging.getLogger(__name__)
-
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
+identify = nfp_common.identify
 
 """Decorator definition """
 
@@ -120,6 +121,7 @@ class PollEventDesc(object):
             desc = self._poll_event_descs[event.id]
             return self._timedout(desc, event)
         except KeyError as exc:
+            exc = exc
             return event
 
     def get_poll_event_desc(self, event):
@@ -131,6 +133,7 @@ class PollEventDesc(object):
         try:
             return self._poll_event_descs[event.id]
         except KeyError as exc:
+            exc = exc
             return None
 
 
@@ -191,7 +194,7 @@ class PollQueueHandler(object):
             Invoked in context of worker process
             to send event to polling task.
         """
-        log_debug(LOG, "%s - added for polling" % (event.identify()))
+        LOG(LOGGER, 'DEBUG', "%s - added for polling" % (event.identify()))
         self._cache.put(event)
 
     def event_expired(self, eh, event):
@@ -203,12 +206,12 @@ class PollQueueHandler(object):
             Executor: worker-process
         """
         try:
-            log_debug(LOG, "%s - event expired" % (event.identify()))
+            LOG(LOGGER, 'DEBUG', "%s - event expired" % (event.identify()))
             eh.event_cancelled(event.data, reason='EVENT_EXPIRED')
         except AttributeError:
-            log_debug(LOG,
-                      "%s - handler does not implement"
-                      "event_cancelled method" % (identify(eh)))
+            LOG(LOGGER, 'DEBUG',
+                "%s - handler does not implement"
+                "event_cancelled method" % (identify(eh)))
 
     def event_timedout(self, eh, event):
         """Invoked when an event timedout.
@@ -225,23 +228,23 @@ class PollQueueHandler(object):
             peh = eh.get_poll_event_desc(event)
             if peh:
                 ret = peh(eh, event)
-                log_debug(LOG,
-                          "%s - timedout - invoking method:%s - "
-                          "of handler:%s" % (
-                              event.identify(), identify(peh), identify(eh)))
+                LOG(LOGGER, 'DEBUG',
+                    "%s - timedout - invoking method:%s - "
+                    "of handler:%s" % (
+                        event.identify(), identify(peh), identify(eh)))
             else:
                 ret = eh.handle_poll_event(event)
-                log_debug(LOG,
-                          "%s - timedout - "
-                          "invoking method:handle_poll_event - "
-                          "of handler:%s" % (
-                              event.identify(), identify(eh)))
+                LOG(LOGGER, 'DEBUG',
+                    "%s - timedout - "
+                    "invoking method:handle_poll_event - "
+                    "of handler:%s" % (
+                        event.identify(), identify(eh)))
         else:
             ret = eh.handle_poll_event(event)
-            log_debug(LOG,
-                      "%s - timedout - invoking method:handle_poll_event - "
-                      "of handler:%s" % (
-                          event.identify(), identify(eh)))
+            LOG(LOGGER, 'DEBUG',
+                "%s - timedout - invoking method:handle_poll_event - "
+                "of handler:%s" % (
+                    event.identify(), identify(eh)))
 
         self._event_dispatched(eh, event, ret)
 
@@ -254,22 +257,23 @@ class PollQueueHandler(object):
             if pipe.poll(timeout):
                 return pipe.recv()
         except multiprocessing.TimeoutError as err:
+            err = err
             return None
 
     def _poll_event_cancelled(self, eh, event):
         try:
-            log_debug(LOG,
-                      "%s - poll event cancelled - "
-                      "invoking method:poll_event_cancel - "
-                      "of handler:%s"
-                      % (event.identify(), identify(eh)))
+            LOG(LOGGER, 'DEBUG',
+                "%s - poll event cancelled - "
+                "invoking method:poll_event_cancel - "
+                "of handler:%s"
+                % (event.identify(), identify(eh)))
             eh.poll_event_cancel(event)
         except AttributeError:
-            log_debug(LOG,
-                      "%s - poll event cancelled - "
-                      "handler:%s - does not implement"
-                      "poll_event_cancel method" % (
-                          event.identify(), identify(eh)))
+            LOG(LOGGER, 'DEBUG',
+                "%s - poll event cancelled - "
+                "handler:%s - does not implement"
+                "poll_event_cancel method" % (
+                    event.identify(), identify(eh)))
         return
 
     def _get_default_status(self, event, ret):
@@ -345,8 +349,8 @@ class PollQueueHandler(object):
             Executor: distributor-process
         """
 
-        log_debug(LOG, "%s - processing - from worker:%d" %
-                  (ev.identify(), os.getpid()))
+        LOG(LOGGER, 'DEBUG', "%s - processing - from worker:%d" %
+            (ev.identify(), os.getpid()))
 
         if ev.desc.poll_event != 'POLL_EVENT':
             self._cache.remove([ev])
@@ -372,8 +376,8 @@ class PollQueueHandler(object):
         """
         event = self._get(pipe, timeout=timeout)
         if event:
-            log_debug(LOG,
-                      "%s - new poll event" % (event.identify()))
+            LOG(LOGGER, 'DEBUG',
+                "%s - new poll event" % (event.identify()))
             self._cache.put(event)
         return event
 
@@ -385,9 +389,6 @@ class PollQueueHandler(object):
             Events need to persist and polled they are declated complete
             or cancelled.
         """
-        # log_debug(LOG, "Fill events from multi processing Q to internal
-        # cache")
-
         # Wait for the first event and for subsequent,
         # pull in as much as possible with some max limit.
         # as the same thread has to poll for already pulled

@@ -15,7 +15,7 @@ from gbpservice.nfp.orchestrator.drivers import (
 from gbpservice.nfp.orchestrator.db import api as db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfpdb
 
-from gbpservice.nfp.lib import backend_lib
+from gbpservice.nfp.lib import transport
 
 class DummyEvent():
     def __init__(self, data, status, ref_count=0):
@@ -135,11 +135,11 @@ class NDORpcApiTestCase(unittest.TestCase):
                  'network_function_instance_id': 'network_function_instance_id',
                  'network_function_device_id': 'network_function_instance_id'}
         config_params = {'config': {}}
-        backend_lib.send_request_to_configurator = mock.MagicMock(return_value=True)
+        transport.send_request_to_configurator = mock.MagicMock(return_value=True)
         self.rpc_handler.create_network_function_device_config(device_data,
                                                                config_params)
 
-        backend_lib.send_request_to_configurator.assert_called_once_with(
+        transport.send_request_to_configurator.assert_called_once_with(
             self.rpc_handler.conf, self.rpc_handler.context,
             config_params, 'CREATE', True)
 
@@ -156,10 +156,10 @@ class NDORpcApiTestCase(unittest.TestCase):
                  'network_function_instance_id': 'network_function_instance_id',
                  'network_function_device_id': 'network_function_instance_id'}
         config_params = {'config': {}}
-        backend_lib.send_request_to_configurator = mock.MagicMock(return_value=True)
+        transport.send_request_to_configurator = mock.MagicMock(return_value=True)
         self.rpc_handler.delete_network_function_device_config(device_data,
                                                                config_params)
-        backend_lib.send_request_to_configurator.assert_called_once_with(
+        transport.send_request_to_configurator.assert_called_once_with(
             self.rpc_handler.conf, self.rpc_handler.context,
             config_params, 'DELETE', True)
 

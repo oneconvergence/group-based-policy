@@ -20,7 +20,8 @@ from oslo_log import log as logging
 
 from gbpservice.nfp.core import common as nfp_common
 
-LOG = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+LOG = nfp_common.log
 
 
 nfp_common.load_nfp_symbols(globals())
@@ -83,7 +84,7 @@ class ThreadPool(object):
             try:
                 x.stop()
             except Exception as ex:
-                log_error("Exception", ex)
+                LOG(LOGGER, 'EXCEPTION', "Exception", ex)
 
     def wait(self):
         """Wait for the thread """
@@ -98,4 +99,4 @@ class ThreadPool(object):
             except eventlet.greenlet.GreenletExit:
                 pass
             except Exception as ex:
-                log_error("Exception", ex)
+                LOG(LOGGER, 'ERROR', "Exception", ex)

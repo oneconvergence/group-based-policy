@@ -17,12 +17,14 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging as messaging
 
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.core import rpc as nfp_rpc
 
 
-LOG = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+LOG = nfp_common.log
 Event = nfp_event.Event
 PollEventDesc = nfp_poll.PollEventDesc
 RpcAgent = nfp_rpc.RpcAgent
@@ -80,7 +82,7 @@ def test_service_create(conf, sc):
     # Event with timer
     ev = sc.new_event(id='SERVICE_CREATE', data=service1,
                       binding_key=service1['id'],
-                      #binding_key='SERIALIZE',
+                      # binding_key='SERIALIZE',
                       key=service1['id'], lifetime=11, serialize=True)
     sc.post_event(ev)
 
@@ -96,7 +98,7 @@ def test_service_create(conf, sc):
     # event Without Timer
     ev = sc.new_event(id='SERVICE_CREATE', data=service2,
                       binding_key=service2['id'],
-                      #binding_key='SERIALIZE',
+                      # binding_key='SERIALIZE',
                       key=service2['id'], serialize=True)
     sc.post_event(ev)
 
@@ -112,7 +114,7 @@ def test_service_create(conf, sc):
 
     ev = sc.new_event(id='SERVICE_CREATE', data=service3,
                       binding_key=service3['id'],
-                      #binding_key='SERIALIZE',
+                      # binding_key='SERIALIZE',
                       key=service3['id'], serialize=True)
     sc.post_event(ev)
 
@@ -124,14 +126,13 @@ def test_service_create(conf, sc):
 
     ev = sc.new_event(id='SERVICE_DUMMY_EVENT', key='dummy_event')
     sc.post_event(ev)
-    
+
     time.sleep(1)
     while True:
         events = sc.get_stashed_events()
         for event in events:
-            LOG.info("Stashed event %s " % (event.identify()))
+            LOG(LOGGER, 'INFO', "Stashed event %s " % (event.identify()))
         time.sleep(1)
-    
 
 
 class Collector(object):
@@ -171,8 +172,8 @@ class Agent(PollEventDesc):
         self._handle_poll_event(ev)
 
     def handle_event(self, ev):
-        LOG.info("Handle event :%s, Process ID :%d" %
-                 (ev.identify(), os.getpid()))
+        LOG(LOGGER, 'INFO', "Handle event :%s, Process ID :%d" %
+            (ev.identify(), os.getpid()))
         if ev.id == 'SERVICE_CREATE':
             self._handle_create_event(ev)
         elif ev.id == 'SERVICE_DELETE':
@@ -181,8 +182,10 @@ class Agent(PollEventDesc):
             self._handle_dummy_event(ev)
 
     def event_cancelled(self, ev, reason=''):
-        LOG.info("In event_cancel method of Handler for Event %s - reason %s " %
-                 (ev.identify(), reason))
+        LOG(LOGGER, 'INFO',
+            "In event_cancel method of Handler for"
+            "Event %s - reason %s " %
+            (ev.identify(), reason))
 
     def _handle_create_event(self, ev):
         """Driver logic here.
@@ -203,8 +206,9 @@ class Agent(PollEventDesc):
         # self._sc.poll_event_done(ev)
 
     def poll_event_cancel(self, event):
-        LOG.info("In poll_event_cancel method of Handler for  Event %s " %
-                 (event))
+        LOG(LOGGER, 'INFO', "In poll_event_cancel"
+            "method of Handler for  Event %s " %
+            (event))
 
     @nfp_poll.poll_event_desc(event='SERVICE_CREATE', spacing=1)
     def service_create_poll_event(self, ev):
@@ -218,16 +222,16 @@ class Agent(PollEventDesc):
         if not ev.data['count']:
             poll = False
 
-        LOG.info("Poll event (%s)" % (ev.identify()))
+        LOG(LOGGER, 'INFO', "Poll event (%s)" % (ev.identify()))
         return {'poll': poll, 'event': ev}
 
     @nfp_poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=1)
     def service_dummy_poll_event(self, ev):
         self._sc.stash_event(ev)
-        LOG.info("Poll event (%s)" % (ev.identify()))
+        LOG(LOGGER, 'INFO', "Poll event (%s)" % (ev.identify()))
         self._sc.poll_event_done(ev)
 
     def _handle_poll_event(self, ev):
         """Driver logic here
         """
-        LOG.info("Poll event (%s)" % (ev.identify()))
+        LOG(LOGGER, 'INFO', "Poll event (%s)" % (ev.identify()))

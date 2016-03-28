@@ -23,7 +23,9 @@ from neutron import context as n_context
 
 from gbpservice.nfp.core import common as nfp_common
 
-LOG = oslo_logging.getLogger(__name__)
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
+identify = nfp_common.identify
 
 """Wrapper class for Neutron RpcAgent definition.
 
@@ -47,12 +49,13 @@ class RpcAgent(n_rpc.Service):
             self._report_state = ReportState(report_state)
 
     def start(self):
-        log_debug(LOG, "RPCAgent listening on %s" % (self.identify))
+        LOG(LOGGER, 'DEBUG', "RPCAgent listening on %s" % (self.identify))
         super(RpcAgent, self).start()
 
     def report_state(self):
         if hasattr(self, '_report_state'):
-            log_debug(LOG, "Agent (%s) reporting state" % (self.identify()))
+            LOG(LOGGER, 'DEBUG', "Agent (%s) reporting state" %
+                (self.identify()))
             self._report_state.report()
 
     def identify(self):
@@ -78,17 +81,19 @@ class ReportState(object):
 
     def report(self):
         try:
-            log_debug(LOG, "Reporting state with data (%s)" % (self._data))
+            LOG(LOGGER, 'DEBUG', "Reporting state with data (%s)" %
+                (self._data))
             self._state_rpc.report_state(self._n_context, self._data)
             self._data.pop('start_flag', None)
         except AttributeError:
             # This means the server does not support report_state
-            log_warn(LOG, "Neutron server does not support state report."
-                     "Agent State reporting will be "
-                     "disabled.")
+            LOG(LOGGER, 'WARN',
+                "Neutron server does not support state report."
+                "Agent State reporting will be "
+                "disabled.")
             return
         except Exception:
-            log_exception("Stopped reporting agent state!")
+            LOG(LOGGER, 'EXCEPTION', "Stopped reporting agent state!")
 
 """Periodic task to report neutron *aaS agent state.
 
