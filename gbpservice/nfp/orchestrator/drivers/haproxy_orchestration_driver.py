@@ -32,7 +32,7 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
     def __init__(self, config=None, supports_device_sharing=True,
                  supports_hotplug=True, max_interfaces=10):
         super(HaproxyOrchestrationDriver, self).__init__(
-	    config,
+            config,
             supports_device_sharing=supports_device_sharing,
             supports_hotplug=supports_hotplug,
             max_interfaces=max_interfaces)

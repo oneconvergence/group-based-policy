@@ -1,10 +1,23 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import mock
-import unittest
 from oslo_config import cfg
-from keystoneclient.v2_0 import client as identity_client
-from neutronclient.v2_0 import client as neutron_client
+import unittest
+
 from gbpclient.v2_0 import client as gbp_client
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from keystoneclient.v2_0 import client as identity_client
+from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 
 cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
@@ -25,6 +38,7 @@ class SampleData(unittest.TestCase):
         self.TENANT_ID = '384757095ca4495683c7f34ae077f8c0'
         self.TENANT_NAME = 'admin'
         self.USERNAME = 'admin'
+
 
 @mock.patch.object(identity_client, "Client")
 class TestKeystoneClient(SampleData):
@@ -58,7 +72,7 @@ class TestKeystoneClient(SampleData):
         instance = mock_obj.return_value
         instance.auth_token = True
         retval = self.keystone_obj.get_admin_token()
-        self.assertEqual(retval, True)
+        self.assertTrue(retval)
         mock_obj.assert_called_once_with(auth_url=self.AUTH_URL,
                                          password='neutron_pass',
                                          tenant_id=None,
@@ -72,7 +86,7 @@ class TestKeystoneClient(SampleData):
                                                              self.PASSWORD,
                                                              self.TENANT_NAME,
                                                              self.TENANT_ID)
-        self.assertEqual(retval, True)
+        self.assertTrue(retval)
         mock_obj.assert_called_once_with(auth_url=self.AUTH_URL,
                                          password=self.PASSWORD,
                                          tenant_id=self.TENANT_ID,
@@ -84,7 +98,7 @@ class TestKeystoneClient(SampleData):
         instance.tenants.find().id = True
         retval = self.keystone_obj.get_tenant_id(self.AUTH_TOKEN,
                                                  "service")
-        self.assertEqual(retval, True)
+        self.assertTrue(retval)
         mock_obj.assert_called_once_with(auth_url=self.AUTH_URL,
                                          token=self.AUTH_TOKEN)
 
@@ -103,7 +117,7 @@ class TestNovaClient(SampleData):
         retval = self.nova_obj.get_image_id(self.AUTH_TOKEN,
                                             self.TENANT_ID,
                                             self.IMAGE_NAME)
-        self.assertEqual(retval, True)
+        self.assertTrue(retval)
         mock_obj.assert_called_once_with('2', auth_token=self.AUTH_TOKEN,
                                          tenant_id=self.TENANT_ID,
                                          auth_url=self.AUTH_URL)
@@ -114,7 +128,7 @@ class TestNovaClient(SampleData):
         retval = self.nova_obj.get_flavor_id(self.AUTH_TOKEN,
                                              self.TENANT_ID,
                                              self.FLAVOR_NAME)
-        self.assertEqual(retval, True)
+        self.assertTrue(retval)
 
     @mock.patch.object(identity_client, "Client")
     def test_get_instance(self, key_obj, mock_obj):
@@ -142,27 +156,29 @@ class TestNovaClient(SampleData):
 
     def test_attach_interface(self, mock_obj):
         instance = mock_obj.return_value
-        with mock.patch.object(instance.servers, "interface_attach") as mock_obj1:
+        with mock.patch.object(instance.servers,
+                               "interface_attach") as mock_obj1:
             mock_obj1.return_value = True
             retval = self.nova_obj.attach_interface(self.AUTH_TOKEN,
                                                     self.TENANT_ID,
                                                     self.INSTANCE_ID,
                                                     "port_id")
-            self.assertEqual(retval, True)
+            self.assertTrue(retval)
             mock_obj.assert_called_once_with('2', auth_token=self.AUTH_TOKEN,
                                              tenant_id=self.TENANT_ID,
                                              auth_url=self.AUTH_URL)
 
     def test_detach_interface(self, mock_obj):
         instance = mock_obj.return_value
-        with mock.patch.object(instance.servers, "interface_detach") as mock_obj1:
+        with mock.patch.object(instance.servers,
+                               "interface_detach") as mock_obj1:
             mock_obj1.return_value = True
             retval = self.nova_obj.detach_interface(self.AUTH_TOKEN,
                                                     self.TENANT_ID,
                                                     self.INSTANCE_ID,
                                                     "port_id")
 
-            self.assertEqual(retval, True)
+            self.assertTrue(retval)
             mock_obj.assert_called_once_with('2', auth_token=self.AUTH_TOKEN,
                                              tenant_id=self.TENANT_ID,
                                              auth_url=self.AUTH_URL)
@@ -182,7 +198,7 @@ class TestNovaClient(SampleData):
 
     def test_get_instances(self, mock_obj):
         instance = mock_obj.return_value
-        obj = instance.servers.list("instance_test").to_dict()
+        instance.servers.list("instance_test").to_dict()
         retval = self.nova_obj.get_instances(self.AUTH_TOKEN,
                                              {'tenant_id': self.TENANT_ID})
         self.assertIsNotNone(retval)
@@ -192,7 +208,7 @@ class TestNovaClient(SampleData):
 
     def test_create_instance(self, mock_obj):
         instance = mock_obj.return_value
-        obj = instance.flavors.find(self.FLAVOR_NAME)
+        instance.flavors.find(self.FLAVOR_NAME)
         with mock.patch.object(instance.servers, "create") as mock_obj1:
             instance = mock_obj1.return_value
             obj1 = instance.to_dict()['id']
@@ -264,17 +280,16 @@ class TestNeutronClient(SampleData):
     def test_get_subnets(self, mock_obj):
         instance = mock_obj.return_value
         obj = instance.list_subnets().get('subnets', [])
-        retval = self.neutron_obj.get_subnets(self.AUTH_TOKEN,
-                                            {})
+        retval = self.neutron_obj.get_subnets(self.AUTH_TOKEN, {})
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
+
     def test_get_pools(self, mock_obj):
         instance = mock_obj.return_value
         obj = instance.list_pools().get('pools', [])
         retval = self.neutron_obj.get_pools(self.AUTH_TOKEN,
                                             {})
-        print retval
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
@@ -283,7 +298,7 @@ class TestNeutronClient(SampleData):
         instance = mock_obj.return_value
         obj = instance.show_vip('vip_id')
         retval = self.neutron_obj.get_vip(self.AUTH_TOKEN,
-                                             'vip_id')
+                                          'vip_id')
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
@@ -326,7 +341,7 @@ class TestNeutronClient(SampleData):
 
     def test_disassociate_floating_ip(self, mock_obj):
         instance = mock_obj.return_value
-        obj = instance.update_floatingip('floatingip_id', body='data')
+        instance.update_floatingip('floatingip_id', body='data')
         retval = self.neutron_obj.disassociate_floating_ip(self.AUTH_TOKEN,
                                                            'floatingip_id')
         self.assertIsNone(retval)
@@ -335,7 +350,7 @@ class TestNeutronClient(SampleData):
 
     def test_associate_floating_ip(self, mock_obj):
         instance = mock_obj.return_value
-        obj = instance.update_floatingip('floatingip_id', body='data')
+        instance.update_floatingip('floatingip_id', body='data')
         retval = self.neutron_obj.associate_floating_ip(self.AUTH_TOKEN,
                                                         'floatingip_id',
                                                         'port_id')
@@ -409,9 +424,10 @@ class TestGBPClient(SampleData):
         instance = mock_obj.return_value
         obj = instance.update_policy_target_group(
             body='policy_target_group_info')['policy_target_group']
-        retval = self.gbp_obj.update_policy_target_group(self.AUTH_TOKEN,
-                                                         'ptg_id',
-                                                         'policy_target_group_info')
+        retval = self.gbp_obj.update_policy_target_group(
+                                        self.AUTH_TOKEN,
+                                        'ptg_id',
+                                        'policy_target_group_info')
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
@@ -419,7 +435,8 @@ class TestGBPClient(SampleData):
     def test_update_policy_target(self, mock_obj):
         instance = mock_obj.return_value
         obj = instance.update_policy_target('policy_target_id',
-                                            body='policy_target_info')['policy_target']
+                                            body='policy_target_info')[
+                                                            'policy_target']
         retval = self.gbp_obj.update_policy_target(self.AUTH_TOKEN,
                                                    'policy_target_id',
                                                    'updated_pt')
@@ -464,16 +481,16 @@ class TestGBPClient(SampleData):
     def test_delete_policy_target_group(self, mock_obj):
         instance = mock_obj.return_value
         obj = instance.delete_policy_target_group('policy_target_id')
-        retval = self.gbp_obj.delete_policy_target_group(self.AUTH_TOKEN,
-                                                         'policy_target_group_id')
+        retval = self.gbp_obj.delete_policy_target_group(
+                                            self.AUTH_TOKEN,
+                                            'policy_target_group_id')
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
 
     def test_create_l2_policy(self, mock_obj):
         instance = mock_obj.return_value
-        obj = instance.create_l2_policy(body=
-                                        'l2_policy_info')['l2_policy']
+        obj = instance.create_l2_policy(body='l2_policy_info')['l2_policy']
         retval = self.gbp_obj.create_l2_policy(self.AUTH_TOKEN,
                                                self.TENANT_ID,
                                                'name',
@@ -515,15 +532,17 @@ class TestGBPClient(SampleData):
         instance = mock_obj.return_value
         obj = instance.create_network_service_policy(
             body='network_service_policy_info')['network_service_policy']
-        retval = self.gbp_obj.create_network_service_policy(self.AUTH_TOKEN,
-                                                            'network_service_policy_info')
+        retval = self.gbp_obj.create_network_service_policy(
+                                self.AUTH_TOKEN,
+                                'network_service_policy_info')
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
 
     def test_get_network_service_policies(self, mock_obj):
         instance = mock_obj.return_value
-        obj = instance.list_network_service_policies({})['network_service_policies']
+        obj = instance.list_network_service_policies({})[
+                                                    'network_service_policies']
         retval = self.gbp_obj.get_network_service_policies(self.AUTH_TOKEN,
                                                            filters={})
         self.assertEqual(retval, obj)
@@ -610,7 +629,6 @@ class TestGBPClient(SampleData):
         obj = instance.list_policy_targets({})['policy_targets']
         retval = self.gbp_obj.list_pt(self.AUTH_TOKEN,
                                       filters={})
-        print retval
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
