@@ -12,6 +12,8 @@
 
 from neutron._i18n import _LE
 from neutron._i18n import _LI
+from neutron import context as n_context
+from neutron.common import rpc as n_rpc
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 import oslo_messaging
@@ -819,7 +821,7 @@ class ServiceOrchestrator(object):
                 {'status': nfp_constants.ERROR,
                  'status_description': ("Config Update for Policy Target "
                                         "addition event failed")})
-            return
+                return
         service_config = network_function['service_config']
         network_function_data = {
             'network_function_details': network_function_details,
@@ -863,7 +865,7 @@ class ServiceOrchestrator(object):
                 {'status': nfp_constants.ERROR,
                  'status_description': ("Config Update for Policy Target "
                                         "removed event failed")})
-            return
+                return
         service_config = network_function['service_config']
         network_function_data = {
             'network_function_details': network_function_details,
