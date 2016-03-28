@@ -20,7 +20,6 @@ from keystoneclient import exceptions as k_exceptions
 from keystoneclient.v3 import client as keyclientv3
 from neutron.common import exceptions as n_exc
 from neutron._i18n import _
-from neutron import manager
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -141,12 +140,10 @@ class HeatDriver():
     initialized = False
 
     def __init__(self, config):
-        self._lbaas_plugin = None
         self.keystoneclient = KeystoneClient(config)
         self.gbp_client = GBPClient(config)
         self.neutron_client = NeutronClient(config)
         self.initialized = True
-        #self._name = name
         self.resource_owner_tenant_id = None
 
     @property
@@ -160,23 +157,12 @@ class HeatDriver():
             self.resource_owner_tenant_id = None
         return self.resource_owner_tenant_id
 
-    def lbaas_plugin(self):
-        if self._lbaas_plugin:
-            return self._lbaas_plugin
-        self._lbaas_plugin = manager.NeutronManager.get_service_plugins().get(
-            pconst.LOADBALANCER)
-        return self._lbaas_plugin
-
     def _resource_owner_tenant_id(self):
         user, pwd, tenant_name, auth_url =\
             self.keystoneclient.get_keystone_creds()
-        # keystoneclient = keyclient.Client(username=user, password=pwd,
-        #                                  auth_url=auth_url)
         auth_token = self.keystoneclient.get_scoped_keystone_token(
             user, pwd, tenant_name)
         try:
-            #tenant = keystoneclient.tenants.find(name=tenant)
-            # return tenant.id
             tenant_id = self.keystoneclient.get_tenant_id(
                 auth_token, tenant_name)
             return tenant_id
@@ -189,15 +175,10 @@ class HeatDriver():
                     _('Multiple tenants matches found for %s'), tenant_name)
 
     def _get_resource_owner_context(self):
-        #auth_token = self.keystoneclient.get_admin_token()
         if cfg.CONF.heat_driver.is_service_admin_owned:
             tenant_id = self.resource_owner_tenant_id
             user, pwd, tenant_name, auth_url =\
                 self.keystoneclient.get_keystone_creds()
-            # keystoneclient = keyclient.Client(username=user, password=pwd,
-            #                                  auth_url=auth_url)
-            # auth_token = keystoneclient.get_token(
-            #    self.resource_owner_tenant_id)
             auth_token = self.keystoneclient.get_scoped_keystone_token(user,
                 pwd, tenant_name, self.resource_owner_tenant_id)
         return auth_token, tenant_id
@@ -243,7 +224,6 @@ class HeatDriver():
                              keystone_version)
             if heat_role:
                 if heat_role.name not in allocated_role_names:
-                    LOG.info("Trying add to heat_role")
                     v2client.roles.add_user_role(admin_id, heat_role.id,
                         tenant=project_id)
         else:
@@ -262,17 +242,11 @@ class HeatDriver():
 
     def keystone(self, user, pwd, tenant_name, tenant_id=None):
         if tenant_id:
-            # return keyclient.Client(
-            #    username=user, password=password,
-            #    auth_url=auth_url, tenant_id=tenant_id)
             return self.keystoneclient.get_scoped_keystone_token(
                 user, pwd, tenant_name, tenant_id)
         else:
             return self.keystoneclient.get_scoped_keystone_token(
                 user, pwd, tenant_name)
-            # return keyclient.Client(
-            #    username=user, password=password,
-            #    auth_url=auth_url, tenant_name=tenant)
 
     def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None):
         user_tenant_id = tenant_id or resource_owner_tenant_id
@@ -281,8 +255,6 @@ class HeatDriver():
 	except Exception:
 	    LOG.exception(_("Failed to assign admin user to project"))
 	    raise
-        # admin_token = self.keystone(tenant_id=user_tenant_id).get_token(
-        #        user_tenant_id)
         user, password, tenant, auth_url =\
             self.keystoneclient.get_keystone_creds()
         admin_token = self.keystone(
@@ -300,8 +272,6 @@ class HeatDriver():
             timeout_mins=timeout_mins)
 
     def _get_tenant_context(self, tenant_id):
-        # tenant_token = self.keystone(tenant_id=tenant_id).get_token(
-        #        tenant_id)
         user, password, tenant, auth_url =\
             self.keystoneclient.get_keystone_creds()
 
@@ -776,12 +746,9 @@ class HeatDriver():
                     auth_token, stitching_ptg_id,
                     {'policy_target_group': {
                         'network_service_policy_id': nsp['id']}})
-            #filters = {'port_id': [consumer_port['id']]}
-            # floatingips = self.neutron_client.get_floating_ips(
-            #    auth_token, filters=filters)
             if not base_mode_support:
                 floatingips = self.neutron_client.get_floating_ips(
-                    auth_token, consumer_port['id'])  # Need to test
+                    auth_token, consumer_port['id'])
                 if not floatingips:
                     raise FloatingIPForVPNRemovedManually()
                 stitching_port_fip = floatingips[0]['floating_ip_address']
@@ -879,7 +846,6 @@ class HeatDriver():
                                admin_token,
                                policy_target['policy_target_group_id'])
                elif port_classification == nfp_constants.PROVIDER:
-                   LOG.info(_("provider info: %s") % (port_id))
                    provider_port = self.neutron_client.get_port(admin_token,
                            port_id)['port']
                    if policy_target:
@@ -1090,8 +1056,6 @@ class HeatDriver():
                    " for provider PTG %(provider)s"),
                  {'stack_id': stack_id, 'stack_name': stack_name,
                   'provider': provider['id']})
-        # self._wait_for_stack_operation_complete(heatclient, stack_id,
-        #                                         "create")
         if service_profile['service_type'] == pconst.LOADBALANCER:
             auth_token, provider_tenant_id = self._get_tenant_context(
                 provider_tenant_id)
