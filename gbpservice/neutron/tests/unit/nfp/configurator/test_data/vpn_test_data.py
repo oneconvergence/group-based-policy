@@ -69,8 +69,9 @@ class VPNTestData(object):
                                         "gateway_ip": "1.2.3.4/24"}]
         self.data_for_del_src_route = [{"source_cidr": "1.2.3.4/24"}]
         self.conn_id = 'ac3a0e54-cdf2-4ea7-ac2f-7c0225ab9af6'
-        # self.data_='{"local_cidr": "11.0.6.0/24", "peer_address": \
-        # "1.103.2.2", "peer_cidrs": "[141.0.0.0/24]"}'
+        self.data_={"local_cidr": "11.0.6.0/24",
+                    "peer_address": "1.103.2.2",
+                    "peer_cidrs": ["141.0.0.1/24"]}
         self.data__ = {"local_cidr": "11.0.6.0/24",
                        "peer_address": "1.103.2.2",
                        "peer_cidr": "141.0.0.0/24"}
