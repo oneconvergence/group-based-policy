@@ -10,13 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from neutron import context as n_context
-from neutron.common import rpc as n_rpc
-from oslo_log import helpers as log_helpers
-from oslo_log import log as logging
-import oslo_messaging
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
@@ -28,6 +21,14 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import heat_driver
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from neutron import context as n_context
+from neutron._i18n import _LE
+from neutron._i18n import _LI
+from neutron.common import rpc as n_rpc
+
+from oslo_log import helpers as log_helpers
+from oslo_log import log as logging
+import oslo_messaging
 
 
 LOG = logging.getLogger(__name__)
@@ -210,7 +211,7 @@ class RpcHandlerConfigurator(object):
         }
 
     def _log_event_created(self, event_id, event_data):
-        LOG.info(_("Service Orchestrator, RPC Handler for configurator,"
+        LOG.info(_LI("Service Orchestrator, RPC Handler for configurator,"
                      "Created event, %s(event_name)s with "
                      "event data: %(event_data)s"),
                  {'event_name': event_id, 'event_data': event_data})
@@ -414,10 +415,11 @@ class ServiceOrchestrator(object):
 
         if (not service_details.get('service_vendor') or
                 not service_details.get('device_type')):
-            LOG.error(_("service_vendor or device_type not provided in "
+            LOG.error(_LE("service_vendor or device_type not provided in "
                           "service profile's service flavor field. Setting "
                           "network function to ERROR, Provided service "
-                          "profile: %s" % service_profile))
+                          "profile: %(service_profile)s"),
+                      {'service_profile': service_profile})
             network_function_status = {'status': nfp_constants.ERROR}
             self.db_handler.update_network_function(
                     self.db_session, network_function['id'],
@@ -425,7 +427,6 @@ class ServiceOrchestrator(object):
             return None
 
         if base_mode_support:
-            print "invoke heat api directly"
             network_function_details = self.get_network_function_details(
                 network_function['id'])
             network_function_data = {
@@ -529,7 +530,8 @@ class ServiceOrchestrator(object):
             'status': nfp_constants.PENDING_CREATE,
             'network_function_id': request_data['network_function']['id'],
             'service_type': request_data['service_type'],
-            'service_vendor': request_data['service_details']['service_vendor'],
+            'service_vendor': (
+                request_data['service_details']['service_vendor']),
             'share_existing_device': request_data['share_existing_device'],
             'port_info': request_data['network_function_port_info'],
         }
@@ -542,7 +544,8 @@ class ServiceOrchestrator(object):
             'network_function': request_data['network_function'],
             'network_function_instance': nfi_db,
             'management_network_info': request_data['management_network_info'],
-            'service_vendor': request_data['service_details']['service_vendor'],
+            'service_vendor': (
+                request_data['service_details']['service_vendor']),
             'service_details': request_data['service_details'],
             'share_existing_device': request_data['share_existing_device'],
         }
@@ -901,8 +904,6 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         network_function_details = self.get_network_function_details(
             network_function_id)
-        config_id = self.config_driver.handle_consumer_ptg_added(
-            network_function_details, consumer_ptg)
         required_attributes = ["network_function", "network_function_instance",
                                "network_function_device"]
         if (set(required_attributes) & set(network_function_details.keys()) !=
@@ -1060,7 +1061,7 @@ class NSOConfiguratorRpcApi(object):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='create')
-        LOG.info(_("Sending create heat config request to configurator "
+        LOG.info(_LI("Sending create heat config request to configurator "
                      "with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
@@ -1074,7 +1075,7 @@ class NSOConfiguratorRpcApi(object):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='delete')
-        LOG.info(_("Sending delete heat config request to configurator "
+        LOG.info(_LI("Sending delete heat config request to configurator "
                      " with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
@@ -1088,7 +1089,7 @@ class NSOConfiguratorRpcApi(object):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='pt_add')
-        LOG.info(_("Sending delete heat config request to configurator "
+        LOG.info(_LI("Sending delete heat config request to configurator "
                      "with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
@@ -1102,7 +1103,7 @@ class NSOConfiguratorRpcApi(object):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='pt_remove')
-        LOG.info(_("Sending delete heat config request to configurator "
+        LOG.info(_LI("Sending delete heat config request to configurator "
                      "with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
@@ -1116,7 +1117,7 @@ class NSOConfiguratorRpcApi(object):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='consumer_add')
-        LOG.info(_("Sending delete heat config request to configurator "
+        LOG.info(_LI("Sending delete heat config request to configurator "
                      "with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
@@ -1130,7 +1131,7 @@ class NSOConfiguratorRpcApi(object):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='consumer_remove')
-        LOG.info(_("Sending delete heat config request to configurator "
+        LOG.info(_LI("Sending delete heat config request to configurator "
                      "with config_params = %(config_params)s") %
                  {'config_params': config_params})
 

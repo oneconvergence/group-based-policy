@@ -61,7 +61,7 @@ class NDOModuleTestCase(unittest.TestCase):
          controller = "dummy-controller"
          config = "dummy-config"
          device_orchestrator.DeviceOrchestrator = mock.Mock()
-         device_orchestrator.module_init(controller, config)
+         device_orchestrator.nfp_module_init(controller, config)
          mock_events_init.assert_called_once_with(controller, config,
                                     device_orchestrator.DeviceOrchestrator())
          mock_rpc_init.assert_called_once_with(controller, config)
@@ -180,6 +180,7 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
     def _initialize_ndo_handler(self):
         ndo_handler = device_orchestrator.DeviceOrchestrator(
                 object, cfg.CONF)
+        #ndo_handler.db_session = mock.MagicMock()
         self.event = DummyEvent(100, 'PENDING_CREATE')
         return ndo_handler
 
@@ -341,18 +342,11 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
                                      'mgmt_port_id': ['mgmt-data-port-id']}
 
         event_id = 'DELETE_CONFIGURATION'
-        event_data = {'id': 'device-id', 'mgmt_port_id': mgmt_port_id,
-                      'compute_policy': 'nova',
-                      'network_model': 'port-policy',
-                      'network_function_instance_id': 'nfi-id',
-                      'ports': [],
-                      'network_function_id': 'network_function_id',
-                      'service_type': 'service-type'}
         ndo_handler._create_event = mock.MagicMock(return_value=True)
 
         ndo_handler.delete_network_function_device(delete_event_req)
         ndo_handler._create_event.assert_called_with(event_id=event_id,
-                                             event_data=event_data)
+                                             event_data=delete_event_req.data)
 
     @mock.patch.object(nfpdb.NFPDbBase, 'update_network_function_device')
     def test_delete_device_configuration(self, mock_update_nsd):

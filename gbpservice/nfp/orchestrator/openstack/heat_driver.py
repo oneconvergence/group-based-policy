@@ -15,19 +15,6 @@
 import copy
 import time
 
-from heatclient import exc as heat_exc
-from keystoneclient import exceptions as k_exceptions
-from keystoneclient.v3 import client as keyclientv3
-from neutron.common import exceptions as n_exc
-from neutron._i18n import _
-from neutron import manager
-from neutron.plugins.common import constants as pconst
-from oslo_config import cfg
-from oslo_log import log as logging
-from oslo_serialization import jsonutils
-from oslo_utils import excutils
-import yaml
-
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
@@ -42,6 +29,19 @@ from gbpservice.nfp.orchestrator.openstack.openstack_driver\
 from gbpservice.neutron.services.grouppolicy.common import constants as gconst
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.lib import transport
+
+from heatclient import exc as heat_exc
+from keystoneclient import exceptions as k_exceptions
+from neutron import manager
+from neutron._i18n import _LE, _LI
+from neutron.common import exceptions as n_exc
+from neutron.plugins.common import constants as pconst
+from oslo_config import cfg
+from oslo_log import log as logging
+from oslo_serialization import jsonutils
+from oslo_utils import excutils
+import yaml
+
 
 
 HEAT_DRIVER_OPTS = [
@@ -182,11 +182,11 @@ class HeatDriver():
             return tenant_id
         except k_exceptions.NotFound:
             with excutils.save_and_reraise_exception(reraise=True):
-                LOG.error(_('No tenant with name %s exists.'), tenant_name)
+                LOG.error(_LE('No tenant with name %s exists.'), tenant_name)
         except k_exceptions.NoUniqueMatch:
             with excutils.save_and_reraise_exception(reraise=True):
                 LOG.error(
-                    _('Multiple tenants matches found for %s'), tenant_name)
+                    _LE('Multiple tenants matches found for %s'), tenant_name)
 
     def _get_resource_owner_context(self):
         #auth_token = self.keystoneclient.get_admin_token()
@@ -243,7 +243,7 @@ class HeatDriver():
                              keystone_version)
             if heat_role:
                 if heat_role.name not in allocated_role_names:
-                    LOG.info("Trying add to heat_role")
+                    LOG.info(_LI("Trying add to heat_role"))
                     v2client.roles.add_user_role(admin_id, heat_role.id,
                         tenant=project_id)
         else:
@@ -276,11 +276,11 @@ class HeatDriver():
 
     def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None):
         user_tenant_id = tenant_id or resource_owner_tenant_id
-	try:
+        try:
             self._assign_admin_user_to_project(user_tenant_id)
-	except Exception:
-	    LOG.exception(_("Failed to assign admin user to project"))
-	    raise
+        except Exception:
+            LOG.exception(_LE("Failed to assign admin user to project"))
+            raise
         # admin_token = self.keystone(tenant_id=user_tenant_id).get_token(
         #        user_tenant_id)
         user, password, tenant, auth_url =\
@@ -628,7 +628,7 @@ class HeatDriver():
         svc_mgmt_ptgs = self.gbp_client.get_policy_target_groups(
             auth_token, filters)
         if not svc_mgmt_ptgs:
-            LOG.error(_("Service Management Group is not created by Admin"))
+            LOG.error(_LE("Service Management Group is not created by Admin"))
             raise Exception()
         else:
             mgmt_subnet_id = svc_mgmt_ptgs[0]['subnets'][0]
@@ -665,7 +665,7 @@ class HeatDriver():
         service_vendor = service_profile['service_flavor']
         service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
-        base_mode_support = (True if service_details['device_type'] == 'None' 
+        base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
 
         stack_template = service_chain_node.get('config')
@@ -766,10 +766,11 @@ class HeatDriver():
                         auth_token,
                         filters={'port_id': [consumer_port['id']]})
                     if not stitching_pts:
-                        LOG.error(_("Policy target is not created for the "
+                        LOG.error(_LE("Policy target is not created for the "
                                     "stitching port"))
                         raise Exception()
-                    stitching_ptg_id = stitching_pts[0]['policy_target_group_id']
+                    stitching_ptg_id = (
+                        stitching_pts[0]['policy_target_group_id'])
                 else:
                     stitching_ptg_id = consumer['id']
                 self.gbp_client.update_policy_target_group(
@@ -792,7 +793,7 @@ class HeatDriver():
                         consumer_port['fixed_ips'][0]['ip_address'] +
                         ';service_vendor=' + service_vendor +
                         ';stitching_cidr=' + stitching_cidr +
-                        ';stitching_gateway=' + stitching_subnet['gateway_ip'] +
+                        ';stitching_gateway=' + stitching_subnet['gateway_ip']+
                         ';mgmt_gw_ip=' + mgmt_gw_ip)
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
@@ -800,14 +801,14 @@ class HeatDriver():
                     is_template_aws_version,
                     'OS::Neutron::IPsecSiteConnection')
                 for siteconn_key in siteconn_keys:
-                    stack_template[resources_key][siteconn_key][properties_key][
-                        'description'] = desc
+                    stack_template[resources_key][siteconn_key][
+                        properties_key]['description'] = desc
 
         for parameter in stack_template.get(parameters_key) or []:
             if parameter in config_param_values:
                 stack_params[parameter] = config_param_values[parameter]
 
-        LOG.info(_('Final stack_template : %(stack_data)s, '
+        LOG.info(_LI('Final stack_template : %(stack_data)s, '
                  'stack_params : %(params)s') %
                  {'stack_data': stack_template, 'params': stack_params})
         return (stack_template, stack_params)
@@ -845,8 +846,8 @@ class HeatDriver():
         provider_ptg = self.gbp_client.get_policy_target_group(
                             admin_token,
                             provider_ptg_id)
-	consumer_ptg = None
-	if consumer_ptg_id and consumer_ptg_id != 'N/A':
+        consumer_ptg = None
+        if consumer_ptg_id and consumer_ptg_id != 'N/A':
             consumer_ptg = self.gbp_client.get_policy_target_group(
                             admin_token,
                             consumer_ptg_id)
@@ -873,13 +874,13 @@ class HeatDriver():
                if port_classification == nfp_constants.CONSUMER:
                    consumer_port = self.neutron_client.get_port(admin_token,
                            port_id)['port']
-                   if policy_target: 
+                   if policy_target:
                        consumer_policy_target_group =\
                            self.gbp_client.get_policy_target_group(
                                admin_token,
                                policy_target['policy_target_group_id'])
                elif port_classification == nfp_constants.PROVIDER:
-                   LOG.info(_("provider info: %s") % (port_id))
+                   LOG.info(_LI("provider info: %s") % (port_id))
                    provider_port = self.neutron_client.get_port(admin_token,
                            port_id)['port']
                    if policy_target:
@@ -921,7 +922,7 @@ class HeatDriver():
                 elif stack.stack_status == 'CREATE_COMPLETE':
                     return
                 elif stack.stack_status == 'DELETE_COMPLETE':
-                    LOG.info(_("Stack %(stack)s is deleted"),
+                    LOG.info(_LI("Stack %(stack)s is deleted"),
                              {'stack': stack_id})
                     if action == "delete":
                         return
@@ -945,7 +946,7 @@ class HeatDriver():
                 else:
                     return
             except Exception:
-                LOG.exception(_("Retrieving the stack %(stack)s failed."),
+                LOG.exception(_LE("Retrieving the stack %(stack)s failed."),
                               {'stack': stack_id})
                 if action == "create" or action == "update":
                     operation_failed = True
@@ -956,7 +957,7 @@ class HeatDriver():
                 if ignore_error:
                     return
                 else:
-                    LOG.error(_("Stack %(stack_name)s %(action)s failed for "
+                    LOG.error(_LE("Stack %(stack_name)s %(action)s failed for "
                                 "tenant %(stack_owner)s"),
                               {'stack_name': stack.stack_name,
                                'stack_owner': stack.stack_owner,
@@ -968,7 +969,7 @@ class HeatDriver():
                 time.sleep(STACK_ACTION_RETRY_WAIT)
                 time_waited = time_waited + STACK_ACTION_RETRY_WAIT
                 if time_waited >= wait_timeout:
-                    LOG.error(_("Stack %(action)s not completed within "
+                    LOG.error(_LE("Stack %(action)s not completed within "
                                 "%(wait)s seconds"),
                               {'action': action,
                                'wait': wait_timeout,
@@ -994,7 +995,8 @@ class HeatDriver():
         intermediate_status = "IN_PROGRESS"
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
-        heatclient = self._get_heat_client(resource_owner_tenant_id, tenant_id=tenant_id)
+        heatclient = self._get_heat_client(resource_owner_tenant_id,
+                                           tenant_id=tenant_id)
 
         try:
             stack = heatclient.get(stack_id)
@@ -1005,7 +1007,7 @@ class HeatDriver():
             elif stack.stack_status == 'UPDATE_COMPLETE':
                 return success_status
             elif stack.stack_status == 'DELETE_COMPLETE':
-                LOG.info(_("Stack %(stack)s is deleted"),
+                LOG.info(_LI("Stack %(stack)s is deleted"),
                          {'stack': stack_id})
                 return failure_status
             elif stack.stack_status == 'CREATE_FAILED':
@@ -1017,7 +1019,7 @@ class HeatDriver():
                     'DELETE_IN_PROGRESS']:
                 return intermediate_status
         except Exception:
-            LOG.exception(_("Retrieving the stack %(stack)s failed."),
+            LOG.exception(_LE("Retrieving the stack %(stack)s failed."),
                           {'stack': stack_id})
             return failure_status
 
@@ -1027,7 +1029,8 @@ class HeatDriver():
         intermediate_status = "IN_PROGRESS"
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
-        heatclient = self._get_heat_client(resource_owner_tenant_id, tenant_id=tenant_id)
+        heatclient = self._get_heat_client(resource_owner_tenant_id,
+                                           tenant_id=tenant_id)
 
         try:
             stack = heatclient.get(stack_id)
@@ -1036,7 +1039,7 @@ class HeatDriver():
             elif stack.stack_status == 'CREATE_COMPLETE':
                 return failure_status
             elif stack.stack_status == 'DELETE_COMPLETE':
-                LOG.info(_("Stack %(stack)s is deleted"),
+                LOG.info(_LI("Stack %(stack)s is deleted"),
                          {'stack': stack_id})
                 return success_status
             elif stack.stack_status == 'CREATE_FAILED':
@@ -1048,7 +1051,7 @@ class HeatDriver():
                     'DELETE_IN_PROGRESS']:
                 return intermediate_status
         except Exception:
-            LOG.exception(_("Retrieving the stack %(stack)s failed."),
+            LOG.exception(_LE("Retrieving the stack %(stack)s failed."),
                           {'stack': stack_id})
             return failure_status
 
@@ -1086,8 +1089,8 @@ class HeatDriver():
 
         stack = heatclient.create(stack_name, stack_template, stack_params)
         stack_id = stack['stack']['id']
-        LOG.info(_("Created stack with ID %(stack_id)s and name %(stack_name)s"
-                   " for provider PTG %(provider)s"),
+        LOG.info(_LI("Created stack with ID %(stack_id)s and "
+                     "name %(stack_name)s for provider PTG %(provider)s"),
                  {'stack_id': stack_id, 'stack_name': stack_name,
                   'provider': provider['id']})
         # self._wait_for_stack_operation_complete(heatclient, stack_id,
@@ -1111,7 +1114,7 @@ class HeatDriver():
         except Exception:
             # Log the error and continue with VM delete in case of *aas
             # cleanup failure
-            LOG.exception(_("Cleaning up the service chain stack failed"))
+            LOG.exception(_LE("Cleaning up the service chain stack failed"))
 
     def _update(self, auth_token, resource_owner_tenant_id, service_profile,
                 service_chain_node, service_chain_instance, provider,
@@ -1139,7 +1142,7 @@ class HeatDriver():
                                                             stack_id,
                                                             'delete')
                 except Exception as err:
-                    LOG.error(_("Stack deletion failed for STACK ID - "
+                    LOG.error(_LE("Stack deletion failed for STACK ID - "
                               "%(stack_id)s for Tenant - %(tenant_id)s . "
                               "ERROR - %(err)") %
                               {'stack_id': stack_id,
@@ -1170,7 +1173,7 @@ class HeatDriver():
                            'configuration would have been lost. Please check '
                            'with the ADMIN for issue of failure and '
                            're-initiate the update node once again.')
-                    LOG.exception(_('%(msg) NODE-ID: %(node_id)s '
+                    LOG.exception(_LE('%(msg) NODE-ID: %(node_id)s '
                                   'INSTANCE-ID: %(instance_id)s '
                                   'TenantID: %(tenant_id)s . '
                                   'ERROR: %(err)s') %
@@ -1214,7 +1217,7 @@ class HeatDriver():
                        'configuration would have been lost. Please check '
                        'with the ADMIN for issue of failure and '
                        're-initiate the update node once again.')
-                LOG.exception(_('%(msg) NODE-ID: %(node_id)  INSTANCE-ID: '
+                LOG.exception(_LE('%(msg) NODE-ID: %(node_id)  INSTANCE-ID: '
                               '%(instance_id) TenantID: %(tenant_id) . '
                               'ERROR: %(err)') %
                               {'msg': msg, 'node_id': service_chain_node['id'],
@@ -1249,7 +1252,8 @@ class HeatDriver():
 
         return stack_id
 
-    def handle_policy_target_added(self, network_function_details, policy_target):
+    def handle_policy_target_added(self, network_function_details,
+                                   policy_target):
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
@@ -1273,7 +1277,8 @@ class HeatDriver():
 
         return stack_id
 
-    def handle_policy_target_removed(self, network_function_details, policy_target):
+    def handle_policy_target_removed(self, network_function_details,
+                                     policy_target):
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
@@ -1297,7 +1302,7 @@ class HeatDriver():
                                         mgmt_ip, pt_added_or_removed=True)
                 return stack_id
             except Exception:
-                LOG.exception(_("Processing policy target delete failed"))
+                LOG.exception(_LE("Processing policy target delete failed"))
 
     def notify_chain_parameters_updated(self, network_function_details):
         pass  # We are not using the classifier specified in redirect Rule
