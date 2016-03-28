@@ -478,8 +478,8 @@ class ServiceOrchestrator(object):
                                         service_profile['service_flavor'])
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
-        if (not base_mode_support and
-                not network_function_info['network_function_instances']):
+        if ((not base_mode_support) and
+                (not network_function_info['network_function_instances'])):
             self.db_handler.delete_network_function(
                 self.db_session, network_function_id)
             return
