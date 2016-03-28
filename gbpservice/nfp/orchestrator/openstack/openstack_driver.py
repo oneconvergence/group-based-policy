@@ -1233,7 +1233,7 @@ class GBPClient(OpenstackApi):
                                     endpoint_url=self.network_service)
             filters = filters if filters is not None else {}
             return gbp.show_policy_target(pt_id,
-                                          **filters['policy_target'])
+                                          **filters)['policy_target']
         except Exception as ex:
             err = ("Failed to read PT information"
                    ". PT  %s."
