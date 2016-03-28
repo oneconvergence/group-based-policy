@@ -128,7 +128,7 @@ class HeatDriver():
                                         pconst.FIREWALL: ["vyos", "asav"],
                                         pconst.VPN: ["vyos", "asav"]
                                         }
-    vendor_name = 'oneconvergence'
+    vendor_name = 'NFP'
     required_heat_resources = {
         pconst.LOADBALANCER: ['OS::Neutron::LoadBalancer',
                               'OS::Neutron::Pool'],
@@ -744,12 +744,12 @@ class HeatDriver():
             if not update:
                 services_nsp = self.gbp_client.get_network_service_policies(
                     auth_token,
-                    filters={'name': ['oneconvergence_services_nsp']})
+                    filters={'name': ['nfp_services_nsp']})
                 if not services_nsp:
                     fip_nsp = {
                         'network_service_policy': {
-                            'name': 'oneconvergence_services_nsp',
-                            'description': 'oneconvergence_implicit_resource',
+                            'name': 'nfp_services_nsp',
+                            'description': 'nfp_implicit_resource',
                             'shared': False,
                             'tenant_id': tenant_id,
                             'network_service_params': [
@@ -1119,11 +1119,14 @@ class HeatDriver():
                 pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
         service_type = service_profile['service_type']
+        service_details = transport.parse_service_flavor_string(
+                service_profile['service_flavor'])
+        base_mode_support = (True if service_details['device_type'] == 'None'
+                                  else False)
         provider_tenant_id = provider['tenant_id']
         heatclient = self._get_heat_client(resource_owner_tenant_id,
                                            tenant_id=provider_tenant_id)
-
-        if not mgmt_ip:
+        if not base_mode_support and not mgmt_ip:
             raise ServiceInfoNotAvailableOnUpdate()
 
         stack_template, stack_params = self._update_node_config(
@@ -1234,7 +1237,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
@@ -1254,7 +1257,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
@@ -1278,7 +1281,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
@@ -1308,7 +1311,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
@@ -1331,7 +1334,7 @@ class HeatDriver():
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
+        provider = service_details['provider_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
