@@ -123,6 +123,7 @@ class NeutronPlumber():
     def _check_stitching_network(self, token, tenant_id, router_id):
         stitching_nw_name = "stitching_net-%s" % tenant_id
         filters = {'name': stitching_nw_name}
+        stitching_subnet = None
         stitching_net = self.neutron.get_networks(token, filters=filters)
         if not stitching_net:
             stitching_net, stitching_subnet = self._create_stitching_network(
@@ -132,18 +133,25 @@ class NeutronPlumber():
                    (tenant_id, stitching_nw_name))
             LOG.error(err)
             raise Exception(err)
+
         net_id = stitching_net[0]['id']
+        if not stitching_subnet:
+            subnet_id = stitching_net[0]['subnets'][0]
+            stitching_subnet = self.neutron.get_subnet(token,
+                                                       subnet_id)['subnet']
+        else:
+            subnet_id = stitching_subnet['id']
+        cidr = stitching_subnet['cidr']
+        gateway_ip = stitching_subnet['gateway_ip']
         if router_id:
             filters = {"network_id": net_id,
                        "device_owner": "network:router_interface",
                        "device_id": router_id}
             router_if = self.neutron.get_ports(token, filters)
             if not router_if:
-                subnet_id = (stitching_subnet['id'] if stitching_subnet
-                             else stitching_net['subnets'][0])
                 self.neutron.add_router_interface(token, router_id,
                                                   {'subnet_id': subnet_id})
-        return net_id
+        return net_id, cidr, gateway_ip
 
     def _check_router_gateway(self, token, floating_net_id, router_id):
         filters = {'device_owner': "network:router_gateway",
@@ -156,7 +164,8 @@ class NeutronPlumber():
     def create_stitching_for_svc(self, tenant_id, router_id,
                                  fip_required):
         token = self.keystone.get_admin_token()
-        net_id = self._check_stitching_network(token, tenant_id, router_id)
+        net_id, cidr, gateway_ip = self._check_stitching_network(
+            token, tenant_id, router_id)
         attrs = {'port_security_enabled': False}
         # stitching port belongs to services tenant, so tenant_id is not set
         hotplug_port = self.neutron.create_port(token, "", net_id,
@@ -165,9 +174,11 @@ class NeutronPlumber():
         #                           hotplug_port['id'])
         stitching_fip = None
         if fip_required:
-            floating_net_id = ""  # get from config
+            floating_net_id = cfg.CONF.keystone_authtoken.internet_ext_network
             self._check_router_gateway(token, floating_net_id, router_id)
             stitching_fip = self.neutron.create_floatingip(
                 token, floating_net_id, hotplug_port['id'])
         return {"port": hotplug_port,
-                "floating_ip": stitching_fip}
+                "floating_ip": stitching_fip,
+                "gateway": gateway_ip,
+                "cidr": cidr}

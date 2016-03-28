@@ -41,6 +41,8 @@ es_openstack_opts = [
                default='9696', help='Auth protocol used.'),
     cfg.StrOpt('auth_version',
                default='v2.0', help='Auth protocol used.'),
+    cfg.StrOpt('internet_ext_network',
+               help="External net with internet"),
 ]
 cfg.CONF.register_opts(es_openstack_opts, "keystone_authtoken")
 
