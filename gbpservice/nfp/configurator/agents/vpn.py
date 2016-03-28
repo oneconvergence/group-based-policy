@@ -19,9 +19,8 @@ from gbpservice.nfp.core import main
 from gbpservice.nfp.core import poll as core_pt
 
 import os
-import oslo_messaging as messaging
-from oslo_messaging import MessagingTimeout
 from oslo_log import log as logging
+import oslo_messaging as messaging
 
 
 LOG = logging.getLogger(__name__)

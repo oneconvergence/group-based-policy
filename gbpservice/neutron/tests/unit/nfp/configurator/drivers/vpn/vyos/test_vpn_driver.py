@@ -17,8 +17,8 @@ from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
 
 import json
-import jsonutils
 import mock
+from oslo_serialization import jsonutils
 import requests
 import unittest
 
@@ -67,7 +67,7 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
                                                 service_type='ipsec')
         with mock.patch.object(self.plugin_rpc, 'update_status') as (
                                                 mock_update_status),\
-            mock.patch.object(json, 'loads') as mock_resp,\
+            mock.patch.object(jsonutils, 'loads') as mock_resp,\
             mock.patch.object(self.driver.agent, 'get_vpn_servicecontext',
                               return_value=[self.dict_objects.svc_context]),\
             mock.patch.object(requests, 'post') as (
@@ -201,7 +201,7 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
 
         with mock.patch.object(
                 requests, 'post', return_value=self.resp) as mock_post, \
-            mock.patch.object(json, 'loads',
+            mock.patch.object(jsonutils, 'loads',
                               return_value=self.fake_resp_dict):
             self.driver.configure_routes(self.dict_objects.context_device,
                                          self.kwargs)
@@ -301,7 +301,8 @@ class RestApiTestCase(unittest.TestCase):
         self.fake_resp_dict.update({'status': True})
         with mock.patch.object(requests, 'post', return_value=self.resp) as (
                                                                 mock_post),\
-            mock.patch.object(json, 'loads', return_value=self.fake_resp_dict):
+            mock.patch.object(jsonutils, 'loads',
+                              return_value=self.fake_resp_dict):
             self.rest_obj.post('create-ipsec-site-conn', self.data)
             mock_post.assert_called_with(
                                     self.dict_objects.url_create_ipsec_conn,
@@ -321,7 +322,8 @@ class RestApiTestCase(unittest.TestCase):
         self.fake_resp_dict.update({'status': False})
         with mock.patch.object(requests, 'post', return_value=self.resp) as (
                                                                 mock_post),\
-            mock.patch.object(json, 'loads', return_value=self.fake_resp_dict):
+            mock.patch.object(jsonutils, 'loads',
+                              return_value=self.fake_resp_dict):
             with self.assertRaises(Exception):
                 self.rest_obj.post('create-ipsec-site-conn', self.data)
             mock_post.assert_called_with(
@@ -366,12 +368,12 @@ class RestApiTestCase(unittest.TestCase):
         Implements testcase for vpn drivers delete method to test in
         success condition while making call to the service VM
         '''
-
         self.resp = mock.Mock(status_code=200)
         self.fake_resp_dict.update({'status': True})
         with mock.patch.object(requests, 'delete', return_value=self.resp) as (
                                                                 mock_delete),\
-            mock.patch.object(json, 'loads', return_value=self.fake_resp_dict):
+            mock.patch.object(jsonutils, 'loads',
+                              return_value=self.fake_resp_dict):
             self.rest_obj.delete('delete-ipsec-site-conn',
                                  self.args,
                                  self.data)
@@ -393,7 +395,8 @@ class RestApiTestCase(unittest.TestCase):
         self.fake_resp_dict.update({'status': False})
         with mock.patch.object(requests, 'delete', return_value=self.resp) as (
                                                                 mock_delete),\
-            mock.patch.object(json, 'loads', return_value=self.fake_resp_dict):
+            mock.patch.object(jsonutils, 'loads',
+                              return_value=self.fake_resp_dict):
             with self.assertRaises(Exception):
                 self.rest_obj.delete('delete-ipsec-site-conn',
                                      self.args,

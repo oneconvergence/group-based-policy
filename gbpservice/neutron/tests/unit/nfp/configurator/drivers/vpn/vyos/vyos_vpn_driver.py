@@ -1,5 +1,17 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+
 import copy
-import json
 import requests
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
@@ -8,6 +20,7 @@ from gbpservice.nfp.configurator.lib import vpn_constants as const
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_serialization import jsonutils
 
 LOG = logging.getLogger(__name__)
 
@@ -64,11 +77,11 @@ class RestApi(object):
         url = const.request_url % (
             self.vm_mgmt_ip,
             const.CONFIGURATION_SERVER_PORT, api)
-        data = json.dumps(args)
+        data = jsonutils.dumps(args)
 
         try:
             resp = requests.post(url, data=data, timeout=self.timeout)
-            message = json.loads(resp.text)
+            message = jsonutils.loads(resp.text)
             msg = "POST url %s %d" % (url, resp.status_code)
             LOG.info(msg)
             if resp.status_code == 200 and message.get("status", False):
@@ -99,7 +112,7 @@ class RestApi(object):
         url = const.request_url % (
             self.vm_mgmt_ip,
             const.CONFIGURATION_SERVER_PORT, api)
-        data = json.dumps(args)
+        data = jsonutils.dumps(args)
 
         try:
             resp = requests.put(url, data=data, timeout=self.timeout)
@@ -136,10 +149,10 @@ class RestApi(object):
             url += '?' + self._dict_to_query_str(args)
 
         if data:
-            data = json.dumps(data)
+            data = jsonutils.dumps(data)
         try:
             resp = requests.delete(url, timeout=self.timeout, data=data)
-            message = json.loads(resp.text)
+            message = jsonutils.loads(resp.text)
             msg = "DELETE url %s %d" % (url, resp.status_code)
             LOG.debug(msg)
             if resp.status_code == 200 and message.get("status", False):
@@ -326,7 +339,7 @@ class VpnGenericConfigDriver(object):
         for source_cidr in kwargs['source_cidrs']:
             route_info.append({'source_cidr': source_cidr,
                                'gateway_ip': kwargs['gateway_ip']})
-        data = json.dumps(route_info)
+        data = jsonutils.dumps(route_info)
         msg = ("Initiating POST request to configure route of "
                "primary service at: %r" % kwargs['vm_mgmt_ip'])
         LOG.info(msg)
@@ -346,7 +359,7 @@ class VpnGenericConfigDriver(object):
             raise Exception(err)
 
         if resp.status_code in const.SUCCESS_CODES:
-            message = json.loads(resp.text)
+            message = jsonutils.loads(resp.text)
             if message.get("status", False):
                 msg = ("Route configured successfully for VYOS"
                        " service at: %r" % kwargs['vm_mgmt_ip'])
@@ -382,7 +395,7 @@ class VpnGenericConfigDriver(object):
         route_info = []
         for source_cidr in kwargs['source_cidrs']:
             route_info.append({'source_cidr': source_cidr})
-        data = json.dumps(route_info)
+        data = jsonutils.dumps(route_info)
         msg = ("Initiating DELETE route request to primary service at: %r"
                % kwargs['vm_mgmt_ip'])
         LOG.info(msg)
@@ -427,9 +440,9 @@ class VpnGenericConfigDriver(object):
 
         active_fip = rule_info['active_fip']
 
-        url = const.request_url % (active_fip,
-                                   const.CONFIGURATION_SERVER_PORT, 'add_rule')
-        data = json.dumps(active_rule_info)
+        url = const.request_url % (active_fip, const.CONFIGURATION_SERVER_PORT,
+                                   'add_rule')
+        data = jsonutils.dumps(active_rule_info)
         msg = ("Initiating POST request to add persistent rule to primary "
                "service with SERVICE ID: %r of tenant: %r at: %r" % (
                     rule_info['service_id'], rule_info['tenant_id'],
@@ -491,15 +504,15 @@ class VpnGenericConfigDriver(object):
         active_fip = rule_info['fip']
 
         msg = ("Initiating DELETE persistent rule for SERVICE ID: %r of "
-               "tenant: %r " %
-               (rule_info['service_id'], rule_info['tenant_id']))
+               "tenant: %r " % (
+                        rule_info['service_id'], rule_info['tenant_id']))
         LOG.info(msg)
         url = const.request_url % (active_fip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'delete_rule')
 
         try:
-            data = json.dumps(active_rule_info)
+            data = jsonutils.dumps(active_rule_info)
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError, err:
             msg = ("Failed to establish connection to service at: %r "
