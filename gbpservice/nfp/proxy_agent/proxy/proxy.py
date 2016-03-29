@@ -23,6 +23,8 @@ import time
 
 from oslo_log import log as logging
 
+from neutron.common import config as n_common_config
+
 LOGGER = logging.getLogger(__name__)
 LOG = nfp_common.log
 
@@ -281,6 +283,7 @@ class Proxy(object):
 
 
 def main(argv):
+    n_common_config.setup_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-config-file', "--config-file", action="store", dest='config_file')
