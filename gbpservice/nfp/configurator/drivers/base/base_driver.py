@@ -10,8 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import subprocess
 from oslo_log import log as logging
+
+import subprocess
+
 LOG = logging.getLogger(__name__)
 SUCCESS = 'SUCCESS'
 FAILED = 'FAILED'
@@ -39,23 +41,33 @@ class BaseDriver(object):
         return SUCCESS
 
     def configure_healthmonitor(self, context, kwargs):
-        return self._check_vm_health(kwargs)
+        ip = kwargs.get('mgmt_ip')
+        command = 'ping -c5 ' + ip
+        return self._check_vm_health(command)
 
     def clear_healthmonitor(self, context, kwargs):
         return SUCCESS
 
-    def _check_vm_health(self, kwargs):
+    def _check_vm_health(self, command):
         """Ping based basic HM support provided by BaseDriver.
            Service provider can override the method implementation
            if they want to support other types.
+
+           :param command - command to execute
+
+           Returns: SUCCESS/FAILED
         """
-        ip = kwargs.get('mgmt_ip')
-        COMMAND = 'ping -c5 '+ip
+        msg = ("Executing command %s for VM health check" % (command))
+        LOG.debug(msg)
         try:
-            subprocess.check_output(COMMAND, stderr=subprocess.STDOUT,
+            subprocess.check_output(command, stderr=subprocess.STDOUT,
                                     shell=True)
-        except Exception:
-            # LOG.error("Health check failed for vm=%s, ip=%s," % (
-            #                                        kwargs.get('vmid'), ip))
+        except Exception as e:
+            msg = ("VM health check failed. Command '%s' execution failed."
+                   " Reason=%s" % (command, e))
+            LOG.warn(msg)
             return FAILED
+        msg = ("VM Health check successful. Command '%s' executed"
+               " successfully" % (command))
+        LOG.debug(msg)
         return SUCCESS

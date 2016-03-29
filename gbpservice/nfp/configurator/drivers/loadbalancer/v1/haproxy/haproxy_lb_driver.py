@@ -10,11 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log as logging
+import ast
+
+from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
                                                     haproxy_rest_client)
 from gbpservice.nfp.configurator.lib import lb_constants
-from gbpservice.nfp.configurator.drivers.base import base_driver
+from oslo_log import log as logging
 
 DRIVER_NAME = 'loadbalancer'
 PROTOCOL_MAP = {
@@ -58,16 +60,14 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
         if vip is None:
             return None
         else:
-            #  vip_desc = json.loads(vip['description'])
-            vip_desc = vip['description']
+            vip_desc = ast.literal_eval(vip['description'])
             device = vip_desc['floating_ip']
             if device:
                 HaproxyOnVmDriver.pool_to_device[pool_id] = device
                 return device
 
     def _get_interface_mac(self, vip):
-        # vip_desc = json.loads(vip['description'])
-        vip_desc = vip['description']
+        vip_desc = ast.literal_eval(vip['description'])
         return vip_desc['provider_interface_mac']
 
     def _expand_expected_codes(self, codes):
@@ -521,7 +521,8 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
         return stats
 
     def create_vip(self, vip, context):
-        LOG.info(" create vip [vip=%s ]" % (vip))
+        msg = (" create vip [vip=%s ]" % (vip))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(vip['pool_id'], context)
             logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'],
@@ -545,7 +546,8 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             LOG.info(msg)
 
     def update_vip(self, old_vip, vip, context):
-        LOG.info(" update vip [old_vip=%s, vip=%s ]" % (old_vip, vip))
+        msg = (" update vip [old_vip=%s, vip=%s ]" % (old_vip, vip))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(old_vip['pool_id'],
                                                     context)
@@ -558,9 +560,10 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
 
             # is vip's pool changed
             if not vip['pool_id'] == old_vip['pool_id']:
-                LOG.info(" vip pool id changed. first deleting old vip "
-                         " [old pool=%s, new pool=%s]" % (old_vip['pool_id'],
-                                                          vip['pool_id']))
+                msg = (" vip pool id changed. first deleting old vip "
+                       " [old pool=%s, new pool=%s]" % (old_vip['pool_id'],
+                                                        vip['pool_id']))
+                LOG.info(msg)
                 # Delete the old VIP
                 self._delete_vip(old_vip, device_addr)
 
@@ -591,7 +594,8 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             LOG.info(msg)
 
     def delete_vip(self, vip, context):
-        LOG.info(" delete vip [vip=%s ]" % (vip))
+        msg = (" delete vip [vip=%s ]" % (vip))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(vip['pool_id'], context)
             logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'],
@@ -614,11 +618,13 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
 
     def create_pool(self, pool, context):
         # nothing to do here because a pool needs a vip to be useful
-        LOG.info("create pool [pool=%s]" % (pool))
+        msg = ("create pool [pool=%s]" % (pool))
+        LOG.info(msg)
         pass
 
     def update_pool(self, old_pool, pool, context):
-        LOG.info("update pool [old_pool=%s, pool=%s]" % (old_pool, pool))
+        msg = ("update pool [old_pool=%s, pool=%s]" % (old_pool, pool))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(pool['id'], context)
             if (pool['vip_id'] and
@@ -643,7 +649,8 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
 
     def delete_pool(self, pool, context):
         # if pool is not known, do nothing
-        LOG.info("delete pool [pool=%s]" % (pool))
+        msg = ("delete pool [pool=%s]" % (pool))
+        LOG.info(msg)
         try:
             device = HaproxyOnVmDriver.pool_to_device.get(pool['id'], None)
             if device is None:
@@ -663,10 +670,10 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             LOG.info(msg)
 
     def create_member(self, member, context):
-        LOG.info(" create member [member=%s] " % (member))
+        msg = (" create member [member=%s] " % (member))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(member['pool_id'], context)
-            LOG.info(" create_member device_adds is %s " % (device_addr))
             if device_addr is not None:
                 self._create_member(member, device_addr, context)
         except Exception as e:
@@ -679,8 +686,9 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             LOG.info(msg)
 
     def update_member(self, old_member, member, context):
-        LOG.info(" update member [old_member=%s, member=%s] " % (old_member,
-                                                                 member))
+        msg = (" update member [old_member=%s, member=%s] " % (old_member,
+                                                               member))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(old_member['pool_id'],
                                                     context)
@@ -701,7 +709,8 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             LOG.info(msg)
 
     def delete_member(self, member, context):
-        LOG.info(" delete member [member=%s] " % (member))
+        msg = (" delete member [member=%s] " % (member))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(member['pool_id'],
                                                     context)
@@ -718,8 +727,9 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
 
     def create_pool_health_monitor(self, health_monitor, pool_id, context):
         # create the health_monitor
-        LOG.info("create pool health monitor [hm=%s, pool_id=%s]"
-                 % (health_monitor, pool_id))
+        msg = ("create pool health monitor [hm=%s, pool_id=%s]"
+               % (health_monitor, pool_id))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
@@ -738,8 +748,9 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
 
     def update_pool_health_monitor(self, old_health_monitor, health_monitor,
                                    pool_id, context):
-        LOG.info("update pool health monitor [old_hm=%s, hm=%s, pool_id=%s]"
-                 % (old_health_monitor, health_monitor, pool_id))
+        msg = ("update pool health monitor [old_hm=%s, hm=%s, pool_id=%s]"
+               % (old_health_monitor, health_monitor, pool_id))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
@@ -770,8 +781,9 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             LOG.info(msg)
 
     def delete_pool_health_monitor(self, health_monitor, pool_id, context):
-        LOG.info("delete pool health monitor [hm=%s, pool_id=%s]"
-                 % (health_monitor, pool_id))
+        msg = ("delete pool health monitor [hm=%s, pool_id=%s]"
+               % (health_monitor, pool_id))
+        LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
@@ -787,3 +799,20 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             msg = ("Deleted pool health monitor: %s with pool ID: %s"
                    % (str(health_monitor), pool_id))
             LOG.info(msg)
+
+    def configure_healthmonitor(self, context, kwargs):
+        """Overriding BaseDriver's configure_healthmonitor().
+           It does netcat to HAPROXY_AGENT_LISTEN_PORT 1234.
+           HaProxy agent runs inside service vm..Once agent is up and
+           reachable, service vm is assumed to be active.
+
+           :param context - context
+           :param kwargs - kwargs coming from orchestrator
+
+           Returns: SUCCESS/FAILED
+
+        """
+        ip = kwargs.get('mgmt_ip')
+        port = str(lb_constants.HAPROXY_AGENT_LISTEN_PORT)
+        command = 'nc ' + ip + ' ' + port + ' -z'
+        return self._check_vm_health(command)

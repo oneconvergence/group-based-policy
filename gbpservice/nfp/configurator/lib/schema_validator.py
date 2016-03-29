@@ -1,12 +1,38 @@
-from oslo_log import log
-import gbpservice.nfp.configurator.lib.schema as schema
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
+from oslo_log import log
+
+import gbpservice.nfp.configurator.lib.schema as schema
 LOG = log.getLogger(__name__)
 
+""" Validates request data against standard resource schemas given in schema.py
 
-class SchemaValidator():
+    Validation is focused on keys. It cross checks if resources in
+    request_data has all the keys given in the schema of that resource.
+"""
+
+
+class SchemaValidator(object):
 
     def decode(self, request_data):
+        """ Validate request data against resource schema.
+
+        :param: request_data
+
+        Returns: True - If schema validation is successful.
+                 False - If schema validation fails.
+
+        """
         try:
             if not self.validate_schema(request_data, schema.request_data):
                 return False
@@ -54,24 +80,31 @@ class SchemaValidator():
             LOG.error(e)
             return False
 
-        LOG.debug("Schema validation successful for"
-                  " request_data=%s" % (request_data))
         return True
 
     def validate_schema(self, resource, resource_schema):
+        """ Validate resource against resource_schema
+
+        :param resource
+        :param resource_schema
+
+        Returns: True/False
+        """
         diff = set(resource_schema.keys()) - set(resource.keys())
 
         # If resource has unexpected extra keywords
         if len(resource.keys()) > len(resource_schema.keys()):
             diff = set(resource.keys()) - set(resource_schema.keys())
-            LOG.error("FAILED: resource=%s has unexpected extra keys=%s,"
-                      " expected keys are= %s " % (resource, list(diff),
-                                                   resource_schema.keys()))
+            msg = ("FAILED: resource=%s has unexpected extra keys=%s,"
+                   " expected keys are= %s " % (resource, list(diff),
+                                                resource_schema.keys()))
+            LOG.error(msg)
             return False
         elif len(diff) == 0:
             return True
         else:
-            LOG.error("FAILED: resource=%s does not contain keys=%s,"
-                      " expected keys are= %s " % (resource, list(diff),
-                                                   resource_schema.keys()))
+            msg = ("FAILED: resource=%s does not contain keys=%s,"
+                   " expected keys are= %s " % (resource, list(diff),
+                                                resource_schema.keys()))
+            LOG.error(msg)
             return False

@@ -266,11 +266,14 @@ class ConfiguratorRpcManager(object):
 
         """
 
-        notifications = self.sc.get_stash_event()
-        if notifications:
-            msg = ("Notification Data: %r" % notifications)
+        events = self.sc.get_stashed_events()
+        notifications = []
+        for event in events:
+            notification = event.data
+            msg = ("Notification Data: %r" % notification)
+            notifications.append(notification)
             LOG.info(msg)
-        return [notifications]
+        return notifications
 
 """Implements configurator module APIs.
 
@@ -397,7 +400,7 @@ def get_configurator_module_instance(sc):
     return cm
 
 
-def module_init(sc, conf):
+def nfp_module_init(sc, conf):
     """Initializes configurator module.
 
     Creates de-multiplexer object and invokes all the agent entry point
@@ -454,7 +457,7 @@ def module_init(sc, conf):
         LOG.debug(msg)
 
 
-def init_complete(sc, conf):
+def nfp_module_post_init(sc, conf):
     """Invokes service agent's initialization complete methods.
 
     :param sc: Service Controller object that is used for interfacing

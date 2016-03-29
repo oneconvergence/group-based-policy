@@ -10,13 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import mock
-
 """ This class provides data that is needed for calling methods of
 agent and driver.
 
 """
-
 
 
 class Foo(object):
@@ -31,26 +28,12 @@ class FakeObjects(object):
     sc = 'sc'
     context = {'notification_data': {},
                'resource': 'context_resource'}
-
-    '''context_logical_device = {'notification_data': {},
-               'resource': 'context_resource',
-               'service_info':{'pools':[{'id':'6350c0fd-07f8-46ff-b797-62acd23760de',
-                                         'members':[{'members': '4910851f-4af7-4592-ad04-08b508c6fa21'}],
-                                         'health_monitors_status':[{'status':'status'}],
-                                        'provider':'provider'
-                                         }
-                                       ],
-                               'members':[{'id':{'members': '4910851f-4af7-4592-ad04-08b508c6fa21'},
-                                         'status':'status'
-                                         }
-                                       ]
-                               }
-                              }'''
-
+    context_pool = {'notification_data': {},
+                    'resource': 'vip'}
     conf = 'conf'
     rpcmgr = 'rpcmgr'
     nqueue = 'nqueue'
-    drivers = mock.Mock(return_value='abc')  # 'drivers'
+    drivers = ['haproxy']
     vip_context = {'notification_data': {}, 'resource': 'context_resource'}
     context_test = {'notification_data': {}, 'resource': 'context_resource'}
     method = {'CREATE_VIP': 'create_network_function_config',
@@ -180,7 +163,7 @@ class FakeObjects(object):
                 }}]}
         return request_data
 
-    def get_request_data_for_create_member(self):
+    def get_request_data_for_member(self):
         """Returns request data needed for create_member method.
 
         Returns: request_data
@@ -200,7 +183,7 @@ class FakeObjects(object):
                 }}]}
         return request_data
 
-    def get_request_data_for_create_pool_hm(self):
+    def get_request_data_for_pool_hm(self):
         """Returns request data needed for create_pool_health_monitor method.
 
         Returns: request_data
@@ -273,9 +256,9 @@ class FakeObjects(object):
 
         vip = [{"status": "ACTIVE",
                 "protocol": "TCP",
-                "description": {"floating_ip": "192.168.100.149",
-                                "provider_interface_mac":
-                                "aa:bb:cc:dd:ee:ff"},
+                "description": '{"floating_ip": "192.168.100.149",'
+                               '"provider_interface_mac":'
+                               '"aa:bb:cc:dd:ee:ff"}',
                 "address": "42.0.0.14",
                 "protocol_port": 22,
                 "port_id": "cfd9fcc0-c27b-478b-985e-8dd73f2c16e8",
@@ -445,3 +428,75 @@ class FakeEvent(object):
             'kwargs': kwargs,
         }
 
+""" This class provides assertion data for HaproxyOnVmDriverTestCase.
+
+This class provides assertion data that is expected for mock method to
+call by assert_called_with function. This assertion data is depend on
+input data used to call method which uses mocking.
+
+"""
+
+
+class AssertionData(object):
+
+    url = '192.168.100.149'
+    port = '1234'
+    header = {'Content-Type': 'application/json'}
+    timeout = 30
+    delete_vip_url = ('http://192.168.100.149:1234/backend/'
+                      'bck:6350c0fd-07f8-46ff-b797-62acd23760de')
+    create_vip_data = ('{"frnt:7a755739-1bbb-4211-9130-b6c82d9169a5": {'
+                       '"provider_interface_mac": "aa:bb:cc:dd:ee:ff", '
+                       '"bind": "42.0.0.14:22", '
+                       '"default_backend": '
+                       '"bck:6350c0fd-07f8-46ff-b797-62acd23760de", '
+                       '"option": {"tcplog": true}, '
+                       '"mode": "tcp"}}')
+    create_vip_url = 'http://192.168.100.149:1234/frontend'
+    create_vip_resources = 'backend/bck:6350c0fd-07f8-46ff-b797-62acd23760de'
+    update_vip_data = ('{"provider_interface_mac": "aa:bb:cc:dd:ee:ff", '
+                       '"bind": "42.0.0.14:22", '
+                       '"default_backend": '
+                       '"bck:6350c0fd-07f8-46ff-b797-62acd23760de", '
+                       '"option": {"tcplog": true}, '
+                       '"mode": "tcp"}')
+    update_vip_url = ('http://192.168.100.149:1234/frontend/frnt:'
+                      '7a755739-1bbb-4211-9130-b6c82d9169a5')
+    update_pool_data = ('{"server": '
+                        '{"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": '
+                        '["42.0.0.11:80", "weight 1", '
+                        '"check inter 10s fall 3"]}, "balance": "roundrobin", '
+                        '"mode": "tcp", "timeout": {"check": "10s"}, '
+                        '"option": {}}')
+    update_pool_url = ('http://192.168.100.149:1234/backend/bck:'
+                       '6350c0fd-07f8-46ff-b797-62acd23760de')
+    create_member_data = ('{"timeout": {}, "server": '
+                          '{"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": '
+                          '["42.0.0.11:80", "weight 1", '
+                          '"check inter 10s fall 3"], "resource": []}}')
+    create_member_url = ('http://192.168.100.149:1234/backend/bck:'
+                         '6350c0fd-07f8-46ff-b797-62acd23760de')
+    delete_member_data = '{"timeout": {}, "server": {"resource": []}}'
+    delete_member_url = ('http://192.168.100.149:1234/backend/bck:'
+                         '6350c0fd-07f8-46ff-b797-62acd23760de')
+    update_member_data = ('{"timeout": {}, "server": '
+                          '{"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": '
+                          '["42.0.0.11:80", "weight 1", '
+                          '"check inter 10s fall 3"], "resource": []}}')
+    update_member_url = ('http://192.168.100.149:1234/backend/bck:'
+                         '6350c0fd-07f8-46ff-b797-62acd23760de')
+    create_hm_data = ('{"timeout": {"check": "10s"}, "server": '
+                      '{"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": [], '
+                      '"resource": []}}')
+    create_hm_url = ('http://192.168.100.149:1234/backend/bck:'
+                     '6350c0fd-07f8-46ff-b797-62acd23760de')
+    delete_hm_data = ('{"timeout": {}, "server": {"srvr:'
+                      '4910851f-4af7-4592-ad04-08b508c6fa21": [], '
+                      '"resource": []}}')
+    delete_hm_url = ('http://192.168.100.149:1234/backend/bck:'
+                     '6350c0fd-07f8-46ff-b797-62acd23760de')
+    update_hm_data = ('{"timeout": {"check": "10s"}, "server": '
+                      '{"srvr:4910851f-4af7-4592-ad04-08b508c6fa21": [], '
+                      '"resource": []}}')
+    update_hm_url = ('http://192.168.100.149:1234/backend/bck:'
+                     '6350c0fd-07f8-46ff-b797-62acd23760de')

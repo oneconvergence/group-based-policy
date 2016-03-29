@@ -29,10 +29,10 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
     Overrides methods from HotplugSupportedOrchestrationDriver class for
     performing things specific to Haproxy service VM
     """
-    def __init__(self, config, supports_device_sharing=True, supports_hotplug=True,
-                 max_interfaces=10):
+    def __init__(self, config=None, supports_device_sharing=True,
+                 supports_hotplug=True, max_interfaces=10):
         super(HaproxyOrchestrationDriver, self).__init__(
-	    config,
+            config,
             supports_device_sharing=supports_device_sharing,
             supports_hotplug=supports_hotplug,
             max_interfaces=max_interfaces)
@@ -75,7 +75,7 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
                 for key in ['service_vendor',
                             'mgmt_ip_address',
                             'ports',
-                            'service_type']) or
+                            'service_details']) or
 
             any(key not in port
                 for port in device_data['ports']
@@ -146,7 +146,8 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
                         'stitching_interface_position': 3,
                         'provider_mac': provider_mac,
                         'stitching_mac': consumer_mac,
-                        'service_type': device_data['service_type'].lower()
+                        'service_type': (device_data['service_details'][
+                            'service_type'].lower())
                     }
                 },
                 {
@@ -160,7 +161,8 @@ class HaproxyOrchestrationDriver(OrchestrationDriverBase):
                         'destination_cidr': consumer_cidr,
                         'gateway_ip': consumer_gateway_ip,
                         'provider_interface_position': 2,
-                        'service_type': device_data['service_type'].lower()
+                        'service_type': (device_data['service_details'][
+                            'service_type'].lower())
                     }
                 }
             ]

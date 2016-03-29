@@ -23,14 +23,9 @@ from neutron import context as n_context
 
 from gbpservice.nfp.core import common as nfp_common
 
-LOG = oslo_logging.getLogger(__name__)
-
-log_warn = nfp_common.log_warn
-log_info = nfp_common.log_info
-log_debug = nfp_common.log_debug
-log_error = nfp_common.log_error
-log_exception = nfp_common.log_exception
-
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
+identify = nfp_common.identify
 
 """Wrapper class for Neutron RpcAgent definition.
 
@@ -45,20 +40,22 @@ class RpcAgent(n_rpc.Service):
     def __init__(
             self, sc, host=None,
             topic=None, manager=None, report_state=None):
-
+        # report_state =
+        #   {<agent_state_keys>, 'plugin_topic': '', 'report_interval': ''}
         super(RpcAgent, self).__init__(host=host, topic=topic, manager=manager)
 
         # Check if the agent needs to report state
         if report_state:
-            self._report_state = ReportState(self._report_state)
+            self._report_state = ReportState(report_state)
 
     def start(self):
-        log_debug(LOG, "RPCAgent listening on %s" % (self.identify))
+        LOG(LOGGER, 'DEBUG', "RPCAgent listening on %s" % (self.identify))
         super(RpcAgent, self).start()
 
     def report_state(self):
         if hasattr(self, '_report_state'):
-            log_debug(LOG, "Agent (%s) reporting state" % (self.identify()))
+            LOG(LOGGER, 'DEBUG', "Agent (%s) reporting state" %
+                (self.identify()))
             self._report_state.report()
 
     def identify(self):
@@ -77,24 +74,26 @@ class ReportState(object):
     def __init__(self, data):
         self._n_context = n_context.get_admin_context_without_session()
         self._data = data
-        self._topic = data['plugin_topic']
-        self._interval = data['report_interval']
+        self._topic = data.pop('plugin_topic', None)
+        self._interval = data.pop('report_interval', 0)
         self._state_rpc = n_agent_rpc.PluginReportStateAPI(
             self._topic)
 
     def report(self):
         try:
-            log_debug(LOG, "Reporting state with data (%s)" % (self._data))
+            LOG(LOGGER, 'DEBUG', "Reporting state with data (%s)" %
+                (self._data))
             self._state_rpc.report_state(self._n_context, self._data)
             self._data.pop('start_flag', None)
         except AttributeError:
             # This means the server does not support report_state
-            log_warn(LOG, "Neutron server does not support state report."
-                     "Agent State reporting will be "
-                     "disabled.")
+            LOG(LOGGER, 'WARN',
+                "Neutron server does not support state report."
+                "Agent State reporting will be "
+                "disabled.")
             return
         except Exception:
-            log_exception("Stopped reporting agent state!")
+            LOG(LOGGER, 'EXCEPTION', "Stopped reporting agent state!")
 
 """Periodic task to report neutron *aaS agent state.
 
@@ -116,6 +115,11 @@ class ReportStateTask(oslo_periodic_task.PeriodicTasks):
 
     @oslo_periodic_task.periodic_task(spacing=5)
     def report_state(self, context):
-        log_debug(LOG, "Report state task invoked !")
         # trigger the state reporting
         self._sc.report_state()
+
+
+def load_nfp_symbols(namespace):
+    nfp_common.load_nfp_symbols(namespace)
+
+load_nfp_symbols(globals())

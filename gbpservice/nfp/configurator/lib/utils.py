@@ -10,9 +10,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_log import log
+
+import inspect
 import os
 import sys
-import inspect
+
+LOG = log.getLogger(__name__)
+
+"""Utility class which provides common library functions for configurator.
+   New common library functions, if needed, should be added in this class.
+"""
 
 
 class ConfiguratorUtils(object):
@@ -20,10 +28,16 @@ class ConfiguratorUtils(object):
         pass
 
     def load_drivers(self, pkg):
+        """Load all the driver class objects inside pkg. In each class in the
+           pkg it will look for keywork 'service_type' or/and 'vendor' and
+           select that class as driver class
 
-        """
         @param pkg : package
         e.g pkg = 'gbpservice.neutron.nsf.configurator.drivers.firewall'
+
+        Returns: driver_objects dictionary
+               e.g driver_objects = {'loadbalancer': <driver class object>}
+
         """
         driver_objects = {}
 
@@ -39,7 +53,8 @@ class ConfiguratorUtils(object):
             try:
                 files = os.listdir(subd)
             except OSError:
-                print "Failed to read files"
+                msg = ("Failed to read files from dir %s" % (subd))
+                LOG.error(msg)
                 files = []
 
             for fname in files:
@@ -61,9 +76,13 @@ class ConfiguratorUtils(object):
         return driver_objects
 
     def load_agents(self, pkg):
-        """
+        """Load all the agents inside pkg.
+
         @param pkg : package
         e.g pkg = 'gbpservice.neutron.nsf.configurator.agents'
+
+        Returns: imported_service_agents list
+
         """
         imported_service_agents = []
         base_agent = __import__(pkg,
@@ -74,7 +93,8 @@ class ConfiguratorUtils(object):
         try:
             files = os.listdir(agents_dir)
         except OSError:
-            print "Failed to read files"
+            msg = ("Failed to read files from dir %s" % (agents_dir))
+            LOG.error(msg)
             files = []
 
         for fname in files:

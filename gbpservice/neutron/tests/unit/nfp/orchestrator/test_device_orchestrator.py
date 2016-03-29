@@ -1,23 +1,33 @@
-import sys
-import unittest
-import mock
+# Copyright (c) 2016 OpenStack Foundation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import copy
-from mock import patch
-
-from oslo_config import cfg
-
-from gbpservice.nfp.orchestrator.modules import (
-    device_orchestrator)
-from gbpservice.nfp.orchestrator.drivers import (
-    orchestration_driver_base)
+from gbpservice.nfp.orchestrator.db import nfp_db as nfpdb
 from gbpservice.nfp.orchestrator.drivers import (
     haproxy_orchestration_driver)
-from gbpservice.nfp.orchestrator.db import api as db_api
-from gbpservice.nfp.orchestrator.db import nfp_db as nfpdb
+from gbpservice.nfp.orchestrator.modules import (
+    device_orchestrator)
 
-from gbpservice.nfp.lib import backend_lib
+from gbpservice.nfp.lib import transport
+import mock
+from mock import patch
+from oslo_config import cfg
+import unittest
 
-class DummyEvent():
+
+class DummyEvent(object):
     def __init__(self, data, status, ref_count=0):
         self.data = {}
         self.data['status'] = status
@@ -30,13 +40,13 @@ class DummyEvent():
         self.data['ports'] = [{'id': 'myid1',
                      'port_model': 'neutron',
                      'port_classification': 'management',
-                     'port_role': 'active'},]
+                     'port_role': 'active'}]
         self.data['mgmt_port_id'] = [
                         {'id': 'myid1',
                          'port_model': 'neutron',
                          'port_classification': 'management',
                          'port_role': 'active'},
-                        ]
+                                    ]
         self.data['interfaces_in_use'] = 1
         self.data['reference_count'] = ref_count
         self.data['service_vendor'] = 'vyos'
@@ -45,27 +55,30 @@ class DummyEvent():
 param_req = {'param1': 'value1', 'param2': 'value2'}
 
 cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
-orchestration_driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(cfg.CONF)
+orchestration_driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
+    cfg.CONF)
 NDO_CLASS_PATH = ('gbpservice.nfp.orchestrator'
                   '.modules.device_orchestrator')
 ORCHESTRATION_DRIVER_CLASS_PATH = ('gbpservice.nfp.orchestrator'
                                    '.drivers.orchestration_driver_base')
 ORCHESTRATOR_LIB_PATH = ('gbpservice.nfp.orchestrator.lib')
-class DummyExtensionManager():
+
+
+class DummyExtensionManager(object):
     drivers = 'dummy-driver'
+
 
 class NDOModuleTestCase(unittest.TestCase):
     @mock.patch.object(device_orchestrator, 'events_init')
     @mock.patch.object(device_orchestrator, 'rpc_init')
     def test_module_init(self, mock_rpc_init, mock_events_init):
-         controller = "dummy-controller"
-         config = "dummy-config"
-         device_orchestrator.DeviceOrchestrator = mock.Mock()
-         device_orchestrator.module_init(controller, config)
-         mock_events_init.assert_called_once_with(controller, config,
-                                    device_orchestrator.DeviceOrchestrator())
-         mock_rpc_init.assert_called_once_with(controller, config)
-
+        controller = "dummy-controller"
+        config = "dummy-config"
+        device_orchestrator.DeviceOrchestrator = mock.Mock()
+        device_orchestrator.nfp_module_init(controller, config)
+        mock_events_init.assert_called_once_with(controller, config,
+                                   device_orchestrator.DeviceOrchestrator())
+        mock_rpc_init.assert_called_once_with(controller, config)
 
     def test_rpc_init(self):
         controller = mock.Mock()
@@ -85,19 +98,19 @@ class NDOModuleTestCase(unittest.TestCase):
         controller.register_events.assert_called_once_with(mock.ANY)
 
 
-class NDORpcHandlerTestCase():
+class NDORpcHandlerTestCase(object):
 
     def setUp(self):
         super(NDORpcHandlerTestCase, self).setUp()
         self.controller = mock.Mock()
         self.config = mock.Mock()
         self.rpc_handler = device_orchestrator.RpcHandler(self.config,
-                                                               self.controller)
+                                                          self.controller)
 
     @mock.patch.object(device_orchestrator.DeviceOrchestrator,
                        "get_network_function_config_info")
     def test_rpc_create_network_function(self,
-                                         mock_get_network_function_config_info):
+                                        mock_get_network_function_config_info):
         self.rpc_response = {'notification_data': {
                                     'kwargs': [{'resource': 'healthmonitor',
                                                 'kwargs': {'result': 'success',
@@ -107,14 +120,15 @@ class NDORpcHandlerTestCase():
                                                           self.rpc_response)
         event_id = 'DEVICE_HEALTHY'
         event_data = {'device_id': 'dev-id'}
-        self.controller._create_event.assert_called_once_with(event_id=event_id,
-                                                        event_data=event_data)
-        self.rpc_handler.get_network_function_config_info.assert_called_once_with(
-            "context", self.rpc_response)
+        self.controller._create_event.assert_called_once_with(
+            event_id=event_id,
+            event_data=event_data)
+        self.rpc_handler.get_network_function_config_info.\
+            assert_called_once_with("context", self.rpc_response)
 
 
 @patch(NDO_CLASS_PATH + '.NDOConfiguratorRpcApi.__init__',
-        mock.MagicMock(return_value=None))
+       mock.MagicMock(return_value=None))
 class NDORpcApiTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -131,15 +145,16 @@ class NDORpcApiTestCase(unittest.TestCase):
         self.rpc_handler.context = mock.MagicMock(return_value=context)
         self.rpc_handler.rpc_api = mock.MagicMock(return_value=True)
         device_data = {'id': 'network_function_id',
-                 'network_function_id': 'network_function_id',
-                 'network_function_instance_id': 'network_function_instance_id',
-                 'network_function_device_id': 'network_function_instance_id'}
+             'network_function_id': 'network_function_id',
+             'network_function_instance_id': 'network_function_instance_id',
+             'network_function_device_id': 'network_function_instance_id'}
         config_params = {'config': {}}
-        backend_lib.send_request_to_configurator = mock.MagicMock(return_value=True)
+        transport.send_request_to_configurator = mock.MagicMock(
+            return_value=True)
         self.rpc_handler.create_network_function_device_config(device_data,
                                                                config_params)
 
-        backend_lib.send_request_to_configurator.assert_called_once_with(
+        transport.send_request_to_configurator.assert_called_once_with(
             self.rpc_handler.conf, self.rpc_handler.context,
             config_params, 'CREATE', True)
 
@@ -152,34 +167,36 @@ class NDORpcApiTestCase(unittest.TestCase):
         self.rpc_handler.context = mock.MagicMock(return_value=context)
         self.rpc_handler.rpc_api = mock.MagicMock(return_value=True)
         device_data = {'id': 'network_function_id',
-                 'network_function_id': 'network_function_id',
-                 'network_function_instance_id': 'network_function_instance_id',
-                 'network_function_device_id': 'network_function_instance_id'}
+             'network_function_id': 'network_function_id',
+             'network_function_instance_id': 'network_function_instance_id',
+             'network_function_device_id': 'network_function_instance_id'}
         config_params = {'config': {}}
-        backend_lib.send_request_to_configurator = mock.MagicMock(return_value=True)
+        transport.send_request_to_configurator = mock.MagicMock(
+            return_value=True)
         self.rpc_handler.delete_network_function_device_config(device_data,
                                                                config_params)
-        backend_lib.send_request_to_configurator.assert_called_once_with(
+        transport.send_request_to_configurator.assert_called_once_with(
             self.rpc_handler.conf, self.rpc_handler.context,
             config_params, 'DELETE', True)
 
 
 @patch(NDO_CLASS_PATH + '.DeviceOrchestrator._create_event',
-        mock.MagicMock(return_value=True))
+       mock.MagicMock(return_value=True))
 @patch(NDO_CLASS_PATH +
-        '.DeviceOrchestrator._get_orchestration_driver',
-        mock.MagicMock(return_value=orchestration_driver))
+       '.DeviceOrchestrator._get_orchestration_driver',
+       mock.MagicMock(return_value=orchestration_driver))
 @patch(NDO_CLASS_PATH + '.NDOConfiguratorRpcApi.__init__',
-        mock.MagicMock(return_value=None))
+       mock.MagicMock(return_value=None))
 @patch(ORCHESTRATION_DRIVER_CLASS_PATH + '.OrchestrationDriverBase.__init__',
-        mock.MagicMock(return_value=param_req))
+       mock.MagicMock(return_value=param_req))
 @patch(ORCHESTRATOR_LIB_PATH + '.extension_manager.ExtensionManager',
-	mock.MagicMock(return_value=DummyExtensionManager()))
+       mock.MagicMock(return_value=DummyExtensionManager()))
 class DeviceOrchestratorTestCase(unittest.TestCase):
 
     def _initialize_ndo_handler(self):
         ndo_handler = device_orchestrator.DeviceOrchestrator(
                 object, cfg.CONF)
+        #ndo_handler.db_session = mock.MagicMock()
         self.event = DummyEvent(100, 'PENDING_CREATE')
         return ndo_handler
 
@@ -242,8 +259,8 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         mock_update_nsd.assert_called_with(ndo_handler.db_session,
                                            orig_event_data['id'],
                                            orig_event_data)
-        ndo_handler.configurator_rpc.create_network_function_device_config.assert_called_with(
-            orig_event_data, param_req)
+        ndo_handler.configurator_rpc.create_network_function_device_config.\
+            assert_called_with(orig_event_data, param_req)
 
     @mock.patch.object(nfpdb.NFPDbBase, 'update_network_function_device')
     def test_plug_interfaces(self, mock_update_nsd):
@@ -286,8 +303,8 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
                 mock.MagicMock(return_value=True))
 
         ndo_handler.create_device_configuration(self.event)
-        ndo_handler.configurator_rpc.create_network_function_device_config.assert_called_with(
-                device, config_params)
+        ndo_handler.configurator_rpc.create_network_function_device_config.\
+            assert_called_with(device, config_params)
 
     @mock.patch.object(nfpdb.NFPDbBase, 'update_network_function_device')
     def test_device_configuration_complete(self,
@@ -310,11 +327,11 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
 
         event_id = 'DEVICE_ACTIVE'
         device_created_data = {
-                'network_function_id' : orig_event_data['network_function_id'],
-                'network_function_instance_id' : (
+                'network_function_id': orig_event_data['network_function_id'],
+                'network_function_instance_id': (
                     orig_event_data['network_function_instance_id']),
-                'network_function_device_id' : orig_event_data['id'],
-                }
+                'network_function_device_id': orig_event_data['id'],
+                              }
         ndo_handler._create_event.assert_called_with(event_id=event_id,
                                              event_data=device_created_data)
 
@@ -328,12 +345,13 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         delete_event_req = DummyEvent(100, 'ACTIVE')
         delete_event_req.data = {'network_function_device_id': 'device-id',
                 'network_function_instance': {'id': 'nfi-id', 'port_info': []},
-                'network_function_id': 'network_function_id',
-                }
+                'network_function_id': 'network_function_id'
+                                 }
         mgmt_port_id = {'id': 'port-id', 'port_model': 'port-policy'}
         ndo_handler._prepare_device_data = mock.MagicMock(
             return_value=delete_event_req.data)
-        ndo_handler._get_service_type = mock.MagicMock(return_value='service-type')
+        ndo_handler._get_service_type = mock.MagicMock(
+            return_value='service-type')
         ndo_handler._get_port = mock.MagicMock(return_value=mgmt_port_id)
 
         mock_get_port.return_value = mgmt_port_id
@@ -341,18 +359,11 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
                                      'mgmt_port_id': ['mgmt-data-port-id']}
 
         event_id = 'DELETE_CONFIGURATION'
-        event_data = {'id': 'device-id', 'mgmt_port_id': mgmt_port_id,
-                      'compute_policy': 'nova',
-                      'network_model': 'port-policy',
-                      'network_function_instance_id': 'nfi-id',
-                      'ports': [],
-                      'network_function_id': 'network_function_id',
-                      'service_type': 'service-type'}
         ndo_handler._create_event = mock.MagicMock(return_value=True)
 
         ndo_handler.delete_network_function_device(delete_event_req)
         ndo_handler._create_event.assert_called_with(event_id=event_id,
-                                             event_data=event_data)
+                                             event_data=delete_event_req.data)
 
     @mock.patch.object(nfpdb.NFPDbBase, 'update_network_function_device')
     def test_delete_device_configuration(self, mock_update_nsd):
@@ -365,8 +376,8 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
                 mock.MagicMock(return_value=True))
 
         ndo_handler.delete_device_configuration(self.event)
-        ndo_handler.configurator_rpc.delete_network_function_device_config.assert_called_with(
-            self.event.data, config_params)
+        ndo_handler.configurator_rpc.delete_network_function_device_config.\
+            assert_called_with(self.event.data, config_params)
 
     @mock.patch.object(nfpdb.NFPDbBase, 'update_network_function_device')
     def test_unplug_interfaces(self, mock_update_nsd):
@@ -376,7 +387,8 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         ndo_handler._prepare_device_data = mock.MagicMock(
             return_value=self.event.data)
         orig_event_data = copy.deepcopy(self.event.data)
-        orig_event_data['status_description'] = ndo_handler.status_map['ACTIVE']
+        orig_event_data['status_description'] = (
+            ndo_handler.status_map['ACTIVE'])
         orchestration_driver.unplug_network_function_device_interfaces = (
             mock.MagicMock(return_value=True))
 
@@ -390,7 +402,8 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         self.event = DummyEvent(101, 'ACTIVE')
         orig_event_data = copy.deepcopy(self.event.data)
         orig_event_data['interfaces_in_use'] -= len(orig_event_data['ports'])
-        orig_event_data['status_description'] = ndo_handler.status_map['ACTIVE']
+        orig_event_data['status_description'] = (
+            ndo_handler.status_map['ACTIVE'])
 
         orchestration_driver.unplug_network_function_device_interfaces = (
             mock.MagicMock(return_value=False))
@@ -446,8 +459,8 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         ndo_handler.handle_device_not_up(self.event)
         orig_event_data['network_function_device_id'] = orig_event_data['id']
         mock_update_nsd.assert_called_with(ndo_handler.db_session,
-                                                  orig_event_data['id'],
-                                                        orig_event_data)
+                                           orig_event_data['id'],
+                                           orig_event_data)
 
     @mock.patch.object(nfpdb.NFPDbBase, 'update_network_function_device')
     def test_handle_device_not_reachable(self, mock_update_nsd):
@@ -462,8 +475,8 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         ndo_handler.handle_device_not_reachable(self.event)
         orig_event_data['network_function_device_id'] = orig_event_data['id']
         mock_update_nsd.assert_called_with(ndo_handler.db_session,
-                                                  orig_event_data['id'],
-                                                        orig_event_data)
+                                           orig_event_data['id'],
+                                           orig_event_data)
 
     @mock.patch.object(nfpdb.NFPDbBase, 'update_network_function_device')
     def test_handle_device_config_failed(self, mock_update_nsd):
@@ -478,13 +491,12 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         ndo_handler.handle_device_config_failed(self.event)
         orig_event_data['network_function_device_id'] = orig_event_data['id']
         mock_update_nsd.assert_called_with(ndo_handler.db_session,
-                                                  orig_event_data['id'],
-                                                        orig_event_data)
+                                           orig_event_data['id'],
+                                           orig_event_data)
+
 
 def main():
     unittest.main()
 
 if __name__ == '__main__':
     main()
-
-

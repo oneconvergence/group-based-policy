@@ -20,7 +20,7 @@ from oslo_log import log as logging
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import fw_constants as const
 from gbpservice.nfp.configurator.lib import utils as load_driver
-from gbpservice.nfp.core import main
+from gbpservice.nfp.core import event as nfp_event
 
 
 LOG = logging.getLogger(__name__)
@@ -28,8 +28,8 @@ LOG = logging.getLogger(__name__)
 rest_timeout = [
     cfg.IntOpt(
         'rest_timeout',
-        default=30,
-        help=_("rest api timeout"))]
+        default=360,
+        help=("rest api timeout"))]
 cfg.CONF.register_opts(rest_timeout)
 
 """ Implements Fwaas response path to Neutron plugin.
@@ -120,6 +120,10 @@ class FWaasRpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     'firewall': firewall,
                     'host': host}
+        # REVISIT(mak): How to send large data ?
+        # New API required to send over unix sockert ?
+        context['service_info'] = {}
+        # ev = self.sc.new_event(id=method, data={}, key=None)
         ev = self.sc.new_event(id=method, data=arg_dict, key=None)
         self.sc.post_event(ev)
 
@@ -292,7 +296,7 @@ class FWaasEventHandler(object):
                            firewall['id'], firewall['tenant_id']))
                     LOG.info(msg)
                     self.plugin_rpc.firewall_deleted(
-                                        context, firewall['id'])
+                        context, firewall['id'])
 
         elif ev.id == const.FIREWALL_UPDATE_EVENT:
             if not self._is_firewall_rule_exists(firewall):
@@ -302,13 +306,13 @@ class FWaasEventHandler(object):
                 status = self.method(context, firewall, host)
             except Exception as err:
                 self.plugin_rpc.set_firewall_status(
-                            context, firewall['id'], 'ERROR')
+                    context, firewall['id'], 'ERROR')
                 msg = ("Failed to update Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
             else:
                 self.plugin_rpc.set_firewall_status(
-                                context, firewall['id'], status)
+                    context, firewall['id'], status)
                 msg = ("Updated Firewall and status set to %s" % status)
                 LOG.info(msg)
         else:
@@ -335,8 +339,8 @@ def events_init(sc, drivers, rpcmgr):
                      const.FIREWALL_DELETE_EVENT]
     evs = []
     for event in event_id_list:
-        evs.append(main.Event(id=event, handler=FWaasEventHandler(
-                              sc, drivers, rpcmgr)))
+        evs.append(nfp_event.Event(id=event, handler=FWaasEventHandler(
+            sc, drivers, rpcmgr)))
     sc.register_events(evs)
 
 

@@ -9,17 +9,16 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 import os
-import oslo_messaging as messaging
 
 from gbpservice.nfp.configurator.agents import agent_base
-from oslo_log import log as logging
-from gbpservice.nfp.core import main
-from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import data_filter
-from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.configurator.lib import lb_constants
+from gbpservice.nfp.configurator.lib import utils
+from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import poll as nfp_poll
+from neutron import context
+from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class LBaasRpcSender(data_filter.Filter):
             )
         )
 
-    def update_status(self, obj_type, obj_id, status):
+    def update_status(self, obj_type, obj_id, status, context):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
         :param obj_type: object type
@@ -62,14 +61,14 @@ class LBaasRpcSender(data_filter.Filter):
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_status',
-               'kwargs': {'obj_type': obj_type,
+               'kwargs': {'context': context,
+                          'obj_type': obj_type,
                           'obj_id': obj_id,
                           'status': status}
                }
-        LOG.info("sending update status notification %s " % (msg))
         self.notify._notification(msg)
 
-    def update_pool_stats(self, pool_id, stats):
+    def update_pool_stats(self, pool_id, stats, context):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
         :param pool_id: pool id
@@ -79,10 +78,10 @@ class LBaasRpcSender(data_filter.Filter):
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_pool_stats',
-               'kwargs': {'pool_id': pool_id,
+               'kwargs': {'context': context,
+                          'pool_id': pool_id,
                           'stats': stats}
                }
-        LOG.info("sending update pool stats notification %s " % (msg))
         self.notify._notification(msg)
 
 
@@ -370,6 +369,13 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         self.rpcmgr = rpcmgr
         self.plugin_rpc = LBaasRpcSender(sc)
 
+        """TODO(pritam): Remove neutron context dependency. As of now because
+           config agent needs context in notification, and internal poll event
+           like collect_stats() does not have context, creating context here,
+           but should get rid of this in future.
+        """
+        self.context = context.get_admin_context_without_session()
+
     def _get_driver(self, driver_name=lb_constants.SERVICE_TYPE):
         """Retrieves service driver object based on service type input.
 
@@ -407,7 +413,8 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         Returns: None
 
         """
-        LOG.info("###### Handling event=%s ########" % (ev.id))
+        msg = ("Handling event=%s" % (ev.id))
+        LOG.info(msg)
         try:
             msg = ("Worker process with ID: %s starting "
                    "to handle task: %s of topic: %s. "
@@ -417,8 +424,9 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
             method = getattr(self, "_%s" % (ev.id.lower()))
             method(ev)
         except Exception as err:
-            LOG.error("Failed to perform the operation: %s. %s"
-                      % (ev.id, str(err).capitalize()))
+            msg = ("Failed to perform the operation: %s. %s"
+                   % (ev.id, str(err).capitalize()))
+            LOG.error(msg)
         finally:
             if ev.id == lb_constants.EVENT_COLLECT_STATS:
                 """Do not say event done for collect stats as it is
@@ -426,7 +434,8 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 """
                 pass
             else:
-                LOG.info("###### Calling event done for ev=%s######" % (ev.id))
+                msg = ("Calling event done for event=%s" % (ev.id))
+                LOG.info(msg)
                 self.sc.event_done(ev)
 
     def _handle_event_vip(self, ev, operation):
@@ -446,13 +455,14 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                LOG.warn("Failed to delete vip %s" % (vip['id']))
+                msg = ("Failed to delete vip %s" % (vip['id']))
+                LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status('vip', vip['id'],
-                                              lb_constants.ERROR)
+                                              lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status('vip', vip['id'],
-                                          lb_constants.ACTIVE)
+                                          lb_constants.ACTIVE, context)
 
     def _create_vip(self, ev):
         self._handle_event_vip(ev, 'create')
@@ -472,9 +482,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
             if operation == 'create':
                 driver_name = data['driver_name']
                 if driver_name not in self.drivers:
-                    LOG.error(_('No device driver on agent: %s.'), driver_name)
+                    msg = ('No device driver on agent: %s.' % (driver_name))
+                    LOG.error(msg)
                     self.plugin_rpc.update_status('pool', pool['id'],
-                                                  lb_constants.ERROR)
+                                                  lb_constants.ERROR, context)
                     return
                 driver = self.drivers[driver_name]
                 driver.create_pool(pool, context)
@@ -490,14 +501,15 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                LOG.warn("Failed to delete pool %s" % (pool['id']))
+                msg = ("Failed to delete pool %s" % (pool['id']))
+                LOG.warn(msg)
                 del LBaaSEventHandler.instance_mapping[pool['id']]
             else:
                 self.plugin_rpc.update_status('pool', pool['id'],
-                                              lb_constants.ERROR)
+                                              lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status('pool', pool['id'],
-                                          lb_constants.ACTIVE)
+                                          lb_constants.ACTIVE, context)
 
     def _create_pool(self, ev):
         self._handle_event_pool(ev, 'create')
@@ -524,13 +536,14 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                LOG.warn("Failed to delete member %s" % (member['id']))
+                msg = ("Failed to delete member %s" % (member['id']))
+                LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status('member', member['id'],
-                                              lb_constants.ERROR)
+                                              lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status('member', member['id'],
-                                          lb_constants.ACTIVE)
+                                          lb_constants.ACTIVE, context)
 
     def _create_member(self, ev):
         self._handle_event_member(ev, 'create')
@@ -564,14 +577,15 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                LOG.warn("Failed to delete pool health monitor."
-                         " assoc_id: %s" % (assoc_id))
+                msg = ("Failed to delete pool health monitor."
+                       " assoc_id: %s" % (assoc_id))
+                LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status(
-                    'health_monitor', assoc_id, lb_constants.ERROR)
+                    'health_monitor', assoc_id, lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status(
-                'health_monitor', assoc_id, lb_constants.ACTIVE)
+                'health_monitor', assoc_id, lb_constants.ACTIVE, context)
 
     def _create_pool_health_monitor(self, ev):
         self._handle_event_pool_health_monitor(ev, 'create')
@@ -597,10 +611,11 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
             try:
                 stats = driver.get_stats(pool_id)
                 if stats:
-                    self.plugin_rpc.update_pool_stats(pool_id, stats)
+                    self.plugin_rpc.update_pool_stats(pool_id, stats,
+                                                      self.context)
             except Exception:
-                LOG.exception(_('Error updating statistics on pool %s'),
-                              pool_id)
+                msg = ("Error updating statistics on pool %s" % (pool_id))
+                LOG.error(msg)
 
 
 def events_init(sc, drivers, rpcmgr):
@@ -636,8 +651,8 @@ def events_init(sc, drivers, rpcmgr):
 
     evs = []
     for ev_id in ev_ids:
-        ev = main.Event(id=ev_id, handler=LBaaSEventHandler(sc, drivers,
-                                                            rpcmgr))
+        ev = nfp_event.Event(id=ev_id, handler=LBaaSEventHandler(sc, drivers,
+                                                                 rpcmgr))
         evs.append(ev)
     sc.register_events(evs)
 
@@ -738,4 +753,5 @@ def _start_collect_stats(sc):
 
 def init_agent_complete(cm, sc, conf):
     _start_collect_stats(sc)
-    LOG.info("Initialization of loadbalancer agent completed.")
+    msg = ("Initialization of loadbalancer agent completed.")
+    LOG.info(msg)

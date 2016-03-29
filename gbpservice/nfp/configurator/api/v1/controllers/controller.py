@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import json
 import oslo_serialization.jsonutils as jsonutils
 import subprocess
 
@@ -24,6 +23,7 @@ from pecan import rest
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
+n_rpc.init(cfg.CONF)
 
 """Implements all the APIs Invoked by HTTP requests.
 
@@ -64,7 +64,7 @@ class Controller(rest.RestController):
         """
 
         try:
-            notification_data = json.dumps(self.rpcclient.call())
+            notification_data = jsonutils.dumps(self.rpcclient.call())
             msg = ("NOTIFICATION_DATA sent to config_agent %s"
                    % notification_data)
             LOG.info(msg)
@@ -103,6 +103,8 @@ class Controller(rest.RestController):
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."
                    % (self.method_name, str(err).capitalize()))
+            extra_import = ("need to remove this import %s" % config)
+            LOG.debug(extra_import)
             LOG.error(msg)
             error_data = self._format_description(msg)
             return jsonutils.dumps(error_data)
@@ -170,7 +172,6 @@ class RPCClient(object):
         target = oslo_messaging.Target(
             topic=self.topic,
             version=self.API_VERSION)
-        n_rpc.init(cfg.CONF)
         self.client = n_rpc.get_client(target)
 
     def call(self):

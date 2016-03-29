@@ -370,7 +370,7 @@ class FwGenericConfigDriver(object):
                "primary service at: %r" % vm_mgmt_ip)
         LOG.info(msg)
         try:
-            resp = requests.post(url, data=data, timeout=60)
+            resp = requests.post(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
                    "%r. ERROR: %r" % (vm_mgmt_ip, str(err).capitalize()))
@@ -701,3 +701,19 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
             self._print_exception('Failure', resp.status_code, url,
                                   'create', resp.content)
             return const.STATUS_ERROR
+
+    def configure_healthmonitor(self, context, kwargs):
+        """Overriding BaseDriver's configure_healthmonitor().
+           It does netcat to CONFIGURATION_SERVER_PORT  8888.
+           Configuration agent runs inside service vm.Once agent is up and
+           reachable, service vm is assumed to be active.
+           :param context - context
+           :param kwargs - kwargs coming from orchestrator
+
+           Returns: SUCCESS/FAILED
+
+        """
+        ip = kwargs.get('mgmt_ip')
+        port = str(const.CONFIGURATION_SERVER_PORT)
+        command = 'nc ' + ip + ' ' + port + ' -z'
+        return self._check_vm_health(command)

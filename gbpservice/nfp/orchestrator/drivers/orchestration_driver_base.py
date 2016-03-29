@@ -11,6 +11,8 @@
 #    under the License.
 
 from neutron._i18n import _LE
+from neutron._i18n import _LI
+
 from oslo_log import log as logging
 
 from gbpservice.nfp.common import constants as nfp_constants
@@ -31,7 +33,7 @@ class OrchestrationDriverBase(object):
     is launched for each Network Service Instance
     """
     def __init__(self, config, supports_device_sharing=False,
-	         supports_hotplug=False, max_interfaces=5):
+                 supports_hotplug=False, max_interfaces=5):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
         self.supports_hotplug = supports_hotplug
@@ -203,7 +205,7 @@ class OrchestrationDriverBase(object):
 
         if any(key not in device_data
                for key in ['tenant_id',
-                           'service_vendor']):
+                           'service_details']):
             raise exceptions.IncompleteData()
 
         return {
@@ -280,7 +282,7 @@ class OrchestrationDriverBase(object):
             any(key not in device_data
                 for key in ['tenant_id',
                             'service_vendor',
-                            'compute_policy',
+                            'service_details',
                             'network_model',
                             'management_network_info',
                             'ports']) or
@@ -298,9 +300,13 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=device_data['compute_policy'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             interfaces = self._get_interfaces_for_device_create(device_data)
@@ -323,7 +329,15 @@ class OrchestrationDriverBase(object):
                                           by=len(interfaces))
             return None
 
-        image_name = '%s' % device_data['service_vendor'].lower()
+        if device_data['service_details'].get('image_name'):
+            image_name = device_data['service_details']['image_name']
+        else:
+            LOG.info(_LI("No image name provided in service profile's "
+                         "service flavor field, image will be selected "
+                         "based on service vendor's name : %s")
+                     % (device_data['service_vendor']))
+            image_name = device_data['service_vendor']
+        image_name = '%s' % image_name.lower()
         try:
             image_id = self.compute_handler_nova.get_image_id(
                     token,
@@ -339,7 +353,13 @@ class OrchestrationDriverBase(object):
                                           by=len(interfaces))
             return None
 
-        flavor = 'm1.medium'
+        if device_data['service_details'].get('flavor'):
+            flavor = device_data['service_details']['flavor']
+        else:
+            LOG.info(_LI("No Device flavor provided in service profile's "
+                         "service flavor field, using default "
+                         "flavor: m1.medium"))
+            flavor = 'm1.medium'
         interfaces_to_attach = []
         try:
             for interface in interfaces:
@@ -433,7 +453,7 @@ class OrchestrationDriverBase(object):
             any(key not in device_data
                 for key in ['id',
                             'tenant_id',
-                            'compute_policy',
+                            'service_details',
                             'mgmt_port_id']) or
 
             type(device_data['mgmt_port_id']) is not dict or
@@ -445,9 +465,13 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=device_data['compute_policy'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             token = (device_data['token']
@@ -494,12 +518,16 @@ class OrchestrationDriverBase(object):
         if any(key not in device_data
                for key in ['id',
                            'tenant_id',
-                           'compute_policy']):
+                           'service_details']):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=device_data['compute_policy'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             token = (device_data['token']
@@ -543,7 +571,7 @@ class OrchestrationDriverBase(object):
             any(key not in device_data
                 for key in ['id',
                             'tenant_id',
-                            'compute_policy',
+                            'service_details',
                             'ports']) or
 
             type(device_data['ports']) is not list or
@@ -556,9 +584,13 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=device_data['compute_policy'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             token = (device_data['token']
@@ -623,7 +655,7 @@ class OrchestrationDriverBase(object):
             any(key not in device_data
                 for key in ['id',
                             'tenant_id',
-                            'compute_policy',
+                            'service_details',
                             'ports']) or
 
             any(key not in port
@@ -634,9 +666,13 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
-        if device_data['compute_policy'] != nfp_constants.NOVA_MODE:
+        if (
+            device_data['service_details']['device_type'] !=
+            nfp_constants.NOVA_MODE
+        ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=device_data['compute_policy'])
+                                compute_policy=device_data['service_details'][
+                                                                'device_type'])
 
         try:
             token = (device_data['token']
@@ -690,7 +726,7 @@ class OrchestrationDriverBase(object):
         if any(key not in device_data
                for key in ['id',
                            'mgmt_ip_address',
-                           'service_type']):
+                           'service_details']):
             raise exceptions.IncompleteData()
 
         return {
@@ -704,7 +740,8 @@ class OrchestrationDriverBase(object):
                         'vmid': device_data['id'],
                         'mgmt_ip': device_data['mgmt_ip_address'],
                         'periodicity': 'initial',
-                        'service_type': device_data['service_type'].lower()
+                        'service_type': (device_data['service_details'
+                                                     ]['service_type'].lower())
                     }
                 }
             ]

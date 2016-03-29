@@ -19,7 +19,7 @@ from gbpservice.nfp.configurator.lib import (
                             generic_config_constants as gen_cfg_const)
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import utils
-from gbpservice.nfp.core import main
+from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
 
 LOG = logging.getLogger(__name__)
@@ -390,7 +390,7 @@ def events_init(sc, drivers, rpcmgr):
 
     for event in event_id_list:
         events.append(
-                main.Event(
+                nfp_event.Event(
                     id=event,
                     handler=GenericConfigEventHandler(sc, drivers, rpcmgr)))
 

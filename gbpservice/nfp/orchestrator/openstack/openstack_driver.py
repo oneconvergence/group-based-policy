@@ -13,10 +13,10 @@
 from oslo_log import log as logging
 
 from gbpclient.v2_0 import client as gbp_client
-from neutronclient.v2_0 import client as neutron_client
-from novaclient import client as nova_client
 from keystoneclient.v2_0 import client as identity_client
 from keystoneclient.v3 import client as keyclientv3
+from neutronclient.v2_0 import client as neutron_client
+from novaclient import client as nova_client
 
 LOG = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class OpenstackApi(object):
     def __init__(self, config, username=None,
                  password=None, tenant_name=None):
         self.nova_version = '2'
-	self.config = config
+        self.config = config
         self.identity_service = ("%s://%s:%d/%s/" %
                                  (config.keystone_authtoken.auth_protocol,
                                   config.keystone_authtoken.auth_host,
@@ -39,7 +39,8 @@ class OpenstackApi(object):
                                  config.bind_port))
         self.username = username or config.keystone_authtoken.admin_user
         self.password = password or config.keystone_authtoken.admin_password
-        self.tenant_name = tenant_name or config.keystone_authtoken.admin_tenant_name
+        self.tenant_name = (tenant_name or
+                            config.keystone_authtoken.admin_tenant_name)
         self.token = None
 
 
@@ -160,6 +161,7 @@ class KeystoneClient(OpenstackApi):
             domain_name="default",
             auth_url=v3_auth_url)
         return v3client
+
 
 class NovaClient(OpenstackApi):
     """ Nova Client Api driver. """
@@ -325,9 +327,9 @@ class NovaClient(OpenstackApi):
 
         """
         if (
-                        not filters or
-                            type(filters) != dict or
-                        'tenant_id' not in filters
+            not filters or
+            type(filters) != dict or
+            'tenant_id' not in filters
         ):
             err = ("Failed to process get_instances,"
                    " filters(type: dict) with tenant_id is mandatory")
@@ -350,7 +352,7 @@ class NovaClient(OpenstackApi):
 
     def create_instance(self, token, tenant_id, image_id, flavor,
                         nw_port_id_list, name, secgroup_name=None,
-                        metadata={}, files=[], config_drive=False,
+                        metadata=None, files=None, config_drive=False,
                         userdata=None, key_name='', different_hosts=None,
                         volume_support=False, volume_size="2"):
         """ Launch a VM with given details
@@ -396,9 +398,9 @@ class NovaClient(OpenstackApi):
             kwargs.update(config_drive=True)
         if userdata is not None and type(userdata) is str:
             kwargs.update(userdata=userdata)
-        if type(metadata) is dict and metadata != {}:
+        if metadata is not None and type(metadata) is dict and metadata != {}:
             kwargs.update(meta=metadata)
-        if type(files) is list and files != []:
+        if files is not None and type(files) is list and files != []:
             kwargs.update(files=files)
         if nw_port_id_list:
             nics = [{"port-id": entry.get("port"), "net-id": entry.get("uuid"),
@@ -646,7 +648,7 @@ class NeutronClient(OpenstackApi):
         LOG.debug("Successfully associated floatingip %s"
                   % floatingip_id)
 
-    def list_ports(self, token, port_ids=[], **kwargs):
+    def list_ports(self, token, port_ids=None, **kwargs):
         """
         :param token:
         :param port_ids:
@@ -656,6 +658,7 @@ class NeutronClient(OpenstackApi):
         try:
             neutron = neutron_client.Client(token=token,
                                             endpoint_url=self.network_service)
+            port_ids = port_ids if port_ids is not None else []
             ports = neutron.list_ports(id=port_ids).get('ports', [])
             return ports
         except Exception as ex:
@@ -663,7 +666,7 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def list_subnets(self, token, subnet_ids=[], **kwargs):
+    def list_subnets(self, token, subnet_ids=None, **kwargs):
         """
         :param token:
         :param subnet_ids:
@@ -673,6 +676,7 @@ class NeutronClient(OpenstackApi):
         try:
             neutron = neutron_client.Client(token=token,
                                             endpoint_url=self.network_service)
+            subnet_ids = subnet_ids if subnet_ids is not None else []
             subnets = neutron.list_subnets(id=subnet_ids).get('subnets', [])
             return subnets
         except Exception as ex:
@@ -757,6 +761,7 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
+
 class GBPClient(OpenstackApi):
     """ GBP Client Api Driver. """
 
@@ -782,7 +787,7 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def get_policy_target_group(self, token, ptg_id, filters={}):
+    def get_policy_target_group(self, token, ptg_id, filters=None):
         """
         :param token: A scoped token
         :param ptg_id: PTG
@@ -792,6 +797,7 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.show_policy_target_group(
                 ptg_id, **filters)['policy_target_group']
         except Exception as ex:
@@ -801,7 +807,8 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def update_policy_target_group(self, token, ptg_id, policy_target_group_info):
+    def update_policy_target_group(self, token, ptg_id,
+                                   policy_target_group_info):
         """ Updates a GBP Policy Target Group
 
         :param token: A scoped token
@@ -812,7 +819,8 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
-            return gbp.update_policy_target_group(body=policy_target_group_info)['policy_target_group']
+            return gbp.update_policy_target_group(
+                        body=policy_target_group_info)['policy_target_group']
         except Exception as ex:
             err = ("Failed to update policy target group. Error :: %s" % (ex))
             LOG.error(err)
@@ -979,7 +987,7 @@ class GBPClient(OpenstackApi):
 
     # NOTE: The plural form in the function name is needed in that way
     # to construct the function generically
-    def get_l2_policys(self, token, filters={}):
+    def get_l2_policys(self, token, filters=None):
         """ List L2 policies
 
         :param token: A scoped_token
@@ -992,13 +1000,14 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.list_l2_policies(**filters)['l2_policies']
         except Exception as ex:
             err = ("Failed to list l2 policies. Reason %s" % ex)
             LOG.error(err)
             raise Exception(err)
 
-    def get_l2_policy(self, token, policy_id, filters={}):
+    def get_l2_policy(self, token, policy_id, filters=None):
         """ List L2 policies
 
         :param token: A scoped_token
@@ -1012,6 +1021,7 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.show_l2_policy(
                 policy_id, **filters)['l2_policy']
         except Exception as ex:
@@ -1021,19 +1031,21 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def create_network_service_policy(self, token, network_service_policy_info):
+    def create_network_service_policy(self, token,
+                                      network_service_policy_info):
 
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
-            return gbp.create_network_service_policy(body=network_service_policy_info)['network_service_policy']
+            return gbp.create_network_service_policy(
+                    body=network_service_policy_info)['network_service_policy']
         except Exception as ex:
             err = ("Failed to create network service policy "
                    "Error :: %s" % (ex))
             LOG.error(err)
             raise Exception(err)
 
-    def get_network_service_policies(self, token, filters={}):
+    def get_network_service_policies(self, token, filters=None):
         """ List network service policies
 
         :param token: A scoped_token
@@ -1046,13 +1058,15 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
-            return gbp.list_network_service_policies(**filters)['network_service_policies']
+            filters = filters if filters is not None else {}
+            return gbp.list_network_service_policies(**filters)[
+                                                    'network_service_policies']
         except Exception as ex:
             err = ("Failed to list network service policies. Reason %s" % ex)
             LOG.error(err)
             raise Exception(err)
 
-    def get_external_policies(self, token, filters={}):
+    def get_external_policies(self, token, filters=None):
         """ List external policies
 
         :param token: A scoped_token
@@ -1065,13 +1079,14 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.list_external_policies(**filters)['external_policies']
         except Exception as ex:
             err = ("Failed to list external policies. Reason %s" % ex)
             LOG.error(err)
             raise Exception(err)
 
-    def get_policy_rule_sets(self, token, filters={}):
+    def get_policy_rule_sets(self, token, filters=None):
         """ List policy rule sets
 
         :param token: A scoped_token
@@ -1084,13 +1099,14 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.list_policy_rule_sets(**filters)['policy_rule_sets']
         except Exception as ex:
             err = ("Failed to list policy rule sets. Reason %s" % ex)
             LOG.error(err)
             raise Exception(err)
 
-    def get_policy_actions(self, token, filters={}):
+    def get_policy_actions(self, token, filters=None):
         """ List policy actions
 
         :param token: A scoped_token
@@ -1103,13 +1119,14 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.list_policy_actions(**filters)['policy_actions']
         except Exception as ex:
             err = ("Failed to list policy actions. Reason %s" % ex)
             LOG.error(err)
             raise Exception(err)
 
-    def get_policy_rules(self, token, filters={}):
+    def get_policy_rules(self, token, filters=None):
         """ List policy rules
 
         :param token: A scoped_token
@@ -1122,6 +1139,7 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.list_policy_rules(**filters)['policy_rules']
         except Exception as ex:
             err = ("Failed to list policy rules. Reason %s" % ex)
@@ -1136,11 +1154,12 @@ class GBPClient(OpenstackApi):
             return gbp.create_l3_policy(body=l3_policy_info)['l3_policy']
         except Exception as ex:
             err = ("Failed to create l3 policy under tenant"
-                   " %s. Error :: %s" % (l3_policy_info['l3_policy']['tenant_id'], ex))
+                   " %s. Error :: %s"
+                   % (l3_policy_info['l3_policy']['tenant_id'], ex))
             LOG.error(err)
             raise Exception(err)
 
-    def get_l3_policy(self, token, policy_id, filters={}):
+    def get_l3_policy(self, token, policy_id, filters=None):
         """ List L3 policies
 
         :param token: A scoped_token
@@ -1153,6 +1172,7 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.show_l3_policy(
                 policy_id, **filters)['l3_policy']
         except Exception as ex:
@@ -1162,7 +1182,7 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def get_l3_policies(self, token, filters={}):
+    def get_l3_policies(self, token, filters=None):
         """ List L3 policies
 
         :param token: A scoped_token
@@ -1175,13 +1195,14 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.list_l3_policies(**filters)['l3_policies']
         except Exception as ex:
             err = ("Failed to list l3 policies. Reason %s" % ex)
             LOG.error(err)
             raise Exception(err)
 
-    def get_policy_targets(self, token, filters={}):
+    def get_policy_targets(self, token, filters=None):
         """ List Policy Targets
 
         :param token: A scoped_token
@@ -1194,6 +1215,7 @@ class GBPClient(OpenstackApi):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.list_policy_targets(**filters)['policy_targets']
         except Exception as ex:
             err = ("Failed to read PT list."
@@ -1201,13 +1223,15 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def list_pt(self, token, filters={}):
+    def list_pt(self, token, filters=None):
+        filters = filters if filters is not None else {}
         return self.get_policy_targets(token, filters=filters)
 
-    def get_policy_target(self, token, pt_id, filters={}):
+    def get_policy_target(self, token, pt_id, filters=None):
         try:
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
+            filters = filters if filters is not None else {}
             return gbp.show_policy_target(pt_id,
                                           **filters)['policy_target']
         except Exception as ex:
@@ -1230,4 +1254,5 @@ class GBPClient(OpenstackApi):
     def get_servicechain_instance(self, token, instance_id):
         gbp = gbp_client.Client(token=token,
                                 endpoint_url=self.network_service)
-        return gbp.show_servicechain_instance(instance_id)['servicechain_instance']
+        return gbp.show_servicechain_instance(instance_id)[
+                                                    'servicechain_instance']
