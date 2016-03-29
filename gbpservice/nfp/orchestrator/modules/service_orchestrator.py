@@ -26,7 +26,10 @@ from gbpservice.nfp.lib import transport
 from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
+from gbpservice.nfp.orchestrator.openstack import heat_driver
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from gbpservice.nfp.orchestrator.openstack.plumber import SCPlumber
+import constants as orchestrator_constants
 
 import sys
 import traceback
@@ -63,13 +66,9 @@ def events_init(controller, config, service_orchestrator):
               'POLICY_TARGET_ADD', 'POLICY_TARGET_REMOVE',
               'CONSUMER_ADD', 'CONSUMER_REMOVE',
               'APPLY_USER_CONFIG_IN_PROGRESS',
-              'UPDATE_USER_CONFIG_PREPARING_TO_START',
-              'UPDATE_USER_CONFIG_IN_PROGRESS',
-              'UPDATE_USER_CONFIG_STILL_IN_PROGRESS',
-              'DELETE_USER_CONFIG_IN_PROGRESS',
-              'CONFIG_APPLIED', 'USER_CONFIG_APPLIED', 'USER_CONFIG_DELETED',
-              'USER_CONFIG_DELETE_FAILED', 'USER_CONFIG_UPDATE_FAILED',
-              'USER_CONFIG_FAILED']
+              'DELETE_USER_CONFIG_IN_PROGRESS', 'USER_CONFIG_APPLIED',
+              'USER_CONFIG_DELETED', 'USER_CONFIG_DELETE_FAILED',
+              'DEVICE_CREATE_FAILED', 'USER_CONFIG_FAILED']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -83,7 +82,6 @@ def nfp_module_init(controller, config):
 
 
 class RpcHandler(object):
-
     """RPC Handler for Node Driver to NFP.
 
     Create and Get Network Function methods are invoked in an RPC Call and data
@@ -223,9 +221,32 @@ class RpcHandler(object):
         return service_orchestrator.get_network_function_context(
             network_function_id)
 
+    @log_helpers.log_method_call
+    def neutron_update_nw_function_config(self, context, network_function):
+        """
+        RPC cast().
+        :param context:
+        :param network_function:
+        :return:
+        """
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return self.neutron_handler.process_update_network_function_request(
+            context, service_orchestrator, network_function)
+
+    @log_helpers.log_method_call
+    def neutron_delete_nw_function_config(self, context, network_function):
+        """
+        RPC cast()
+        :param context:
+        :param network_function:
+        :return:
+        """
+        service_orchestrator = ServiceOrchestrator(self._controller)
+        return self.neutron_handler.process_delete_network_function_request(
+            service_orchestrator, network_function)
+
 
 class RpcHandlerConfigurator(object):
-
     """RPC Handler for Configurator to NFP.
     """
 
@@ -644,7 +665,7 @@ class ServiceOrchestrator(object):
         service_config_str = network_function_info.get('service_config')
         network_function = {
             'name': name,
-            'description': '',
+            'description': network_function_info.get('description', ''),
             'tenant_id': network_function_info['tenant_id'],
             'service_id': service_id,  # GBP Service Node or Neutron Service ID
             'service_chain_id': service_chain_id,  # GBP SC instance ID
@@ -682,7 +703,8 @@ class ServiceOrchestrator(object):
                 'port_model': nfp_constants.GBP_NETWORK
             }
         else:
-            management_network_info = {}
+            management_network_info = \
+                network_function_info['management_network_info']
         create_network_function_instance_request = {
             'network_function': network_function,
             'network_function_port_info': network_function_info['port_info'],
@@ -866,8 +888,17 @@ class ServiceOrchestrator(object):
         }
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
-        network_function = self.db_handler.get_network_function(
-            self.db_session, nfi['network_function_id'])
+        network_function_details = self.get_network_function_details(
+            nfi['network_function_id'])
+        # REVISIT(VK) For neutron workflow. What if GBP workflow require to
+        # fill description field.
+        if network_function_details['description']:
+            updated_network_function = {'status': nfp_constants.ACTIVE}
+            self.db_handler.update_network_function(
+                self.db_session, nfi['network_function_id'],
+                updated_network_function)
+            return
+        network_function = network_function_details['network_function']
         service_config = network_function['service_config']
 
         self.create_network_function_user_config(network_function['id'],
@@ -1805,3 +1836,191 @@ class NSOConfiguratorRpcApi(object):
                                                config_params,
                                                'DELETE')
         nfp_logging.clear_logging_context()
+
+
+class SOHelper(object):
+    def __init__(self):
+        self.sc_plumber = SCPlumber()
+
+    def process_update_network_function_request(self, context,
+                                                service_orchestrator,
+                                                nw_function_info):
+        """
+        :param context:
+        :param service_orchestrator:
+        :param nw_function_info:
+        In Neutron case:
+        nw_function_info = {'network_function_model': 'neutron',
+                            'tenant_id': tenant_id,
+                            'service_profile_id': service_profile_id,
+                            'service_type':
+                            'vpn_service/ipsec_site_connection/fw',
+                            'service_info': [{'router_id': <>, 'port': <>,
+                                            'subnet': <>}],
+                            'resource_data': <>,
+                            }
+        :return:
+        """
+        if nw_function_info['service_type'].lower() == 'vpn_service' or \
+                'ipsec_site_connection':
+            return self.handle_processing_for_vpn(
+                context, service_orchestrator, nw_function_info)
+        elif nw_function_info['service_type'].lower() == 'fw':
+            self.handle_processing_for_fw(context, service_orchestrator,
+                                          nw_function_info)
+
+    def process_delete_network_function_request(self, context,
+                                                service_orchestrator,
+                                                nw_function_info):
+        service = self.get_nw_fun_details(service_orchestrator,
+                                          nw_function_info)
+        service_orchestrator.delete_network_function(service[0]['id'])
+
+    def handle_processing_for_vpn(self, context, service_orchestrator,
+                                  nw_function_info):
+        fip_required = (True
+                        if nw_function_info['service_type'].lower() ==
+                        'vpn_service' else False)
+        if not fip_required:
+            return self.process_ipsec_request(nw_function_info,
+                                              service_orchestrator)
+        else:
+            # This should return
+            # {'port': <port details>, 'floating_ip': <fip>, 'gateway':
+            # <gateway_ip>, 'cidr': <cidr>}
+            router_id = nw_function_info['service_info'][0].get('router_id',
+                                                                None)
+            stitching_port = self.sc_plumber.get_stitching_port(
+                nw_function_info['tenant_id'],
+                router_id=router_id, fip_required=fip_required)
+            stitching_port.update(
+                id=stitching_port['port']['id'],
+                port_model=orchestrator_constants.NEUTRON_PORT,
+                port_classification=orchestrator_constants.CONSUMER,
+                port_role=nfp_constants.ACTIVE_PORT)
+            nw_function_info['management_network_info'] = dict(
+                # id=self.config.NEUTRON_SERVICE_MGMT_NW,
+                id='mgmt_nw',
+                port_model=orchestrator_constants.NEUTRON_PORT
+            )
+            admin_token = service_orchestrator.keystoneclient.get_admin_token()
+            provider_subnet = service_orchestrator.neutronclient.get_subnet(
+                admin_token, nw_function_info['service_info'][0]['subnet'])[
+                                                                   'subnet']
+            # REVISIT(VK) - Mgmt Port related info cam't be fill here.
+            # That's bad.
+            desc = dict(# fip=stitching_port['floatingip'], # mgmt fip
+                        tunnel_local_cidr=provider_subnet['cidr'],
+                        user_access_ip=stitching_port['floating_ip'],
+                        fixed_ip=stitching_port['port']['fixed_ips'][0][
+                            'ip_address'],
+                        standby_fip=None, service_vendor='vyos',
+                        stitching_cidr=stitching_port['cidr'],
+                        stitching_gateway=stitching_port['gateway'],
+                        mgmt_gw_ip='',
+                        network_service='neutron_vpn_service'
+                        )
+            # Prefix 'neutron' to identify *aaS requests
+            nw_function_info['description'] = str(desc)
+            nw_function_info['network_function_mode'] = "neutron"
+            nw_function_info['port_info'] = [stitching_port]
+            nw_function_info['service_chain_id'] = None
+            nw_function_info['service_config'] = nw_function_info[
+                'service_info'][0].get('router_id', None)
+            nw_function_info['service_id'] = nw_function_info[
+                'resource_data']['id']
+            nw_function_info['share_existing_device'] = False
+            return service_orchestrator.create_network_function(
+                context, nw_function_info)
+
+    def process_ipsec_request(self, nw_function_info, service_orchestrator):
+        vpn_service = self.get_nw_fun_details(
+            service_orchestrator, nw_function_info, 'vpn')
+        if len(vpn_service) != 1:
+            raise Exception()
+        vpn_service = vpn_service[0]
+        nw_function_info.update(vpn_service)
+        vpn_service_instance = (
+            service_orchestrator.db_handler.get_network_function_instances(
+                service_orchestrator.db_session,
+                filters={'network_function_id': [vpn_service['id']]}))
+        if len(vpn_service_instance) != 1:
+            raise Exception()
+        vpn_service_instance = vpn_service_instance[0]
+        self.update_nw_fun(service_orchestrator, vpn_service,
+                           vpn_service_instance)
+        _ports = vpn_service_instance['port_info']
+        for u_port in _ports:
+            _port = service_orchestrator.db_handler.get_port_info(u_port)
+            if _port['port_classification'] == \
+                    orchestrator_constants.CONSUMER:
+                admin_token = service_orchestrator.keystoneclient \
+                    .get_admin_token()
+                gateway_ip = service_orchestrator.neutronclient.get_port(
+                    admin_token, u_port)['port']['fixed_ips'][0][
+                    'ip_address']
+            break
+        try:
+            gateway_ip
+        except NameError:
+            raise NameError()
+        # REVISIT(VK) For VPN, this field currently store router id. It
+        # should go.
+        router_id = vpn_service['service_config']
+        self.sc_plumber.update_router_service_gateway(
+            router_id, nw_function_info['resource_data']['peer_cidr'],
+            gateway_ip)
+        nw_function_info["ipsec_service_status"] = "ACTIVE"
+        return nw_function_info
+
+    @staticmethod
+    def update_nw_fun(service_orchestrator, service,
+                      service_instance):
+        try:
+            nw_function_device_id = service_instance[
+                'network_function_device_id']
+            nw_func_device_details = service_orchestrator.db_handler \
+                .get_network_function_device(
+                    service_orchestrator.db_session, nw_function_device_id)
+            mgmt_ip = nw_func_device_details['mgmt_ip_address']
+            import ast
+            desc = ast.literal_eval(service['description'])
+            desc.update(fip=mgmt_ip)
+            service_orchestrator.db_handler.update_network_function(
+                service_orchestrator.db_session, service['id'],
+                {"description": str(desc)})
+        except Exception, err:
+            raise Exception(err)
+
+    @staticmethod
+    def handle_processing_for_fw(nw_function_info):
+        provider_port = {'id': nw_function_info['service_info']['port']['id'],
+                         'port_model': orchestrator_constants.NEUTRON_PORT,
+                         'port_classification':
+                             orchestrator_constants.PROVIDER}
+        nw_function_info['port_info'].append(provider_port)
+        nw_function_info['service_id'] = provider_port['id']
+
+    def get_nw_fun_details(self, service_orchestrator, nw_function_info,
+                           svc_type):
+        get_details = getattr(self, 'get_%s_service_details' %
+                              svc_type.lower())
+        return get_details(service_orchestrator, nw_function_info)
+
+    @staticmethod
+    def get_vpn_service_details(service_orchestrator, nw_function_info):
+        filters = dict(service_id=[nw_function_info['resource_data'][
+                                       'vpnservice_id']])
+        return service_orchestrator.db_handler.get_network_functions(
+            service_orchestrator.db_session, filters=filters)
+
+    @staticmethod
+    def get_fw_service_details(service_orchestrator,  nw_function_info):
+        filters = dict(service_id=[nw_function_info['service_info']['port'][
+                                       'id']])
+        return service_orchestrator.db_handler.get_network_functions(
+            service_orchestrator.db_session, filters=filters)
+
+    def postprocess_update_network_function_request(self):
+        pass
+
