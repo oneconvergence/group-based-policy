@@ -15,6 +15,7 @@ from gbpservice.neutron.tests.unit.nfp.configurator.test_data import \
                                                         vpn_test_data
 from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
+from requests import exceptions as rest_excep
 
 import json
 import mock
@@ -309,14 +310,11 @@ class RestApiTestCase(unittest.TestCase):
                                     data=self.j_data,
                                     timeout=self.timeout)
 
-    # As it is raising the generic we exception
-    # that need to be fixed in the driver code
-    '''
     def test_post_fail(self):
-        \'''
+        '''
         Implements testcase for vpn drivers post method to test in
         fail condition while making call to the service VM
-        \'''
+        '''
 
         self.resp = mock.Mock(status_code=404)
         self.fake_resp_dict.update({'status': False})
@@ -324,13 +322,12 @@ class RestApiTestCase(unittest.TestCase):
                                                                 mock_post),\
             mock.patch.object(jsonutils, 'loads',
                               return_value=self.fake_resp_dict):
-            with self.assertRaises(Exception):
+            with self.assertRaises(rest_excep.ConnectionError):
                 self.rest_obj.post('create-ipsec-site-conn', self.data)
             mock_post.assert_called_with(
                                     self.dict_objects.url_create_ipsec_conn,
                                     data=self.j_data,
                                     timeout=self.timeout)
-    '''
 
     def test_put_success(self):
         '''
@@ -382,14 +379,11 @@ class RestApiTestCase(unittest.TestCase):
                                     timeout=self.timeout,
                                     data=self.j_data)
 
-    # As it is raising the generic we exception
-    # that need to be fixed in the driver code
-    '''
     def test_delete_fail(self):
-        \'''
+        '''
         Implements testcase for vpn drivers delete method to test in
         fail condition while making call to the service VM
-        \'''
+        '''
 
         self.resp = mock.Mock(status_code=404)
         self.fake_resp_dict.update({'status': False})
@@ -397,7 +391,7 @@ class RestApiTestCase(unittest.TestCase):
                                                                 mock_delete),\
             mock.patch.object(jsonutils, 'loads',
                               return_value=self.fake_resp_dict):
-            with self.assertRaises(Exception):
+            with self.assertRaises(rest_excep.ConnectionError):
                 self.rest_obj.delete('delete-ipsec-site-conn',
                                      self.args,
                                      self.data)
@@ -405,7 +399,6 @@ class RestApiTestCase(unittest.TestCase):
                                     self.dict_objects.url_delete_ipsec_conn,
                                     timeout=self.timeout,
                                     data=self.j_data)
-    '''
 
     def test_get_success(self):
         '''

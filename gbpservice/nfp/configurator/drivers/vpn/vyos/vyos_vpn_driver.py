@@ -21,6 +21,8 @@ from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
+from requests import exceptions as rest_excep
+
 
 LOG = logging.getLogger(__name__)
 
@@ -93,12 +95,12 @@ class RestApi(object):
                        % (url, resp.status_code,
                           message.get("reason", None)))
                 LOG.error(msg)
-                raise Exception(msg)
+                raise rest_excep.ConnectionError(msg)
         except Exception as err:
             msg = ("Post Rest API %s - Failed. Reason: %s"
                    % (url, str(err).capitalize()))
             LOG.error(msg)
-            raise Exception(msg)
+            raise rest_excep.ConnectionError(msg)
 
     def put(self, api, args):
         """
@@ -163,12 +165,12 @@ class RestApi(object):
                 msg = ("DELETE Rest API %s - Failed %s"
                        % (url, message.get("reason", None)))
                 LOG.error(msg)
-                raise Exception(msg)
+                raise rest_excep.ConnectionError(msg)
         except Exception as err:
             msg = ("Delete Rest API %s - Failed. Reason: %s"
                    % (url, str(err).capitalize()))
             LOG.error(msg)
-            raise Exception(msg)
+            raise rest_excep.ConnectionError(msg)
 
     def get(self, api, args):
         """
@@ -248,12 +250,7 @@ class VPNServiceValidator(object):
         self.agent.update_status(
             context, self._update_service_status(vpnsvc, const.STATE_ERROR))
         raise ResourceErrorState(name='vpn_service', id=vpnsvc['id'],
-                                message=message)
-        '''
-        msg = "Resource '%(name)s' : '%(id)s' went to error state, \
-               %(message)" % ('vpn_service', vpnsvc['id'], message)
-        raise Exception(msg)
-        '''
+                                 message=message)
 
     def _active_state(self, context, vpnsvc):
         """
@@ -616,11 +613,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             context, self._update_conn_status(conn,
                                               const.STATE_ERROR))
         raise ResourceErrorState(id=conn['id'], message=message)
-        '''
-        msg = "Resource '%(name)s' : '%(id)s' went to error state, \
-              %(message)" % (conn['id'], message)
-        raise Exception(msg)
-        '''
 
     def _init_state(self, context, conn):
         """
@@ -1097,18 +1089,9 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
             if rsrc not in self.handlers.keys():
                 raise UnknownResourceException(rsrc=rsrc)
-                '''
-                msg = "Unsupported resource '%(resource)s' from plugin " % (
-                                                                        rsrc)
-                raise Exception(msg)
-                '''
+
             if reason not in self.handlers[rsrc].keys():
                 raise UnknownReasonException(reason=reason)
-                '''
-                msg = "Unsupported rpcreason '%(reason)s' from plugin " % (
-                                                                        reason)
-                raise Exception(msg)
-                '''
 
             self.handlers[rsrc][reason](context, kwargs)
 
