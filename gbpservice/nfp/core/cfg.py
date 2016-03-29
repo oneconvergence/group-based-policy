@@ -34,6 +34,8 @@ es_openstack_opts = [
                default='v2.0', help='Auth protocol used.'),
     cfg.StrOpt('auth_uri',
                default='', help='Auth URI.'),
+    cfg.StrOpt('internet_ext_network',
+               help="External net with internet"),
 ]
 
 OPTS = [

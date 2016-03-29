@@ -177,7 +177,8 @@ class NeutronPlumber():
             floating_net_id = cfg.CONF.keystone_authtoken.internet_ext_network
             self._check_router_gateway(token, floating_net_id, router_id)
             stitching_fip = self.neutron.create_floatingip(
-                token, floating_net_id, hotplug_port['id'])
+                token, floating_net_id,
+                hotplug_port['id'])['floating_ip_address']
         return {"port": hotplug_port,
                 "floating_ip": stitching_fip,
                 "gateway": gateway_ip,
