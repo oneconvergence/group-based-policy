@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.proxy_agent.modules import proxy_agent as proxy_agent
+from gbpservice.nfp.proxy_agent.modules import proxy_agent
 import mock
 from neutron import context as ctx
 import unittest

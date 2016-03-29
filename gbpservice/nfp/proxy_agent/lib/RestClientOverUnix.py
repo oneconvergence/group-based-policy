@@ -99,7 +99,7 @@ class UnixRestClient(object):
         success_code = [200, 201, 202, 204]
         # Evaluate responses into success and failures.
         # Raise exception for failure cases which needs
-        # to be handled in caller function.
+        # to be handled by caller.
         if success_code.__contains__(resp.status):
             return resp, content
         elif resp.status == 400:
@@ -153,7 +153,7 @@ def post(path, body, delete=False):
     """Implements post method for unix restclient
     Return:Http Response
     """
-    # Method-Type needs to be added here,as DELETE/CREATE
+    # Method-Type added here,as DELETE/CREATE
     # both case are handled by post as delete also needs
     # to send data to the rest-unix-server.
     headers = {'content-type': 'application/json'}

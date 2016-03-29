@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.proxy_agent import proxy
+from gbpservice.nfp.proxy_agent.proxy import proxy
 import multiprocessing
 from multiprocessing import Process
 import os
@@ -272,6 +272,19 @@ class TreadStart(threading.Thread):
         UnixClient().multiple_unix_connections()
 
 
+class TestConfiguration(object):
+
+    def __init__(self):
+        self.thread_pool_size = 10
+        self.unix_bind_path = '/tmp/uds_socket'
+        self.max_connections = 10
+        self.rest_server_address = '11.0.0.3'
+        self.rest_server_port = 8070
+        self.worker_threads = 40
+        self.connect_max_wait_timeout = 10
+        self.idle_max_wait_timeout = 10
+        self.idle_min_wait_timeout = 0.1
+
 """
 Class to Initiate the Configurator Proxy
 """
@@ -281,8 +294,7 @@ class ProxyStart(object):
 
     def __init__(self):
         # Need to change with absolute path
-        self.path = os.getcwd() + '/proxy.ini'
-        self.conf = proxy.Configuration(self.path)
+        self.conf = TestConfiguration()
 
     def run(self, server):
         """
