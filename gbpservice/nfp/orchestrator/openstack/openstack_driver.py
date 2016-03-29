@@ -692,7 +692,7 @@ class NeutronClient(OpenstackApi):
         try:
             neutron = neutron_client.Client(token=token,
                                             endpoint_url=self.network_service)
-            return neutron.create_floatingip(body=attrs)
+            return neutron.create_floatingip(body=attrs)['floatingip']
         except Exception as ex:
             err = ("Failed to create floatingip %s" % ex)
             LOG.error(err)
