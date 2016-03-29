@@ -21,7 +21,6 @@ from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
-from requests import exceptions as rest_excep
 
 
 LOG = logging.getLogger(__name__)
@@ -95,12 +94,12 @@ class RestApi(object):
                        % (url, resp.status_code,
                           message.get("reason", None)))
                 LOG.error(msg)
-                raise rest_excep.ConnectionError(msg)
+                raise requests.exceptions.HTTPError(msg)
         except Exception as err:
             msg = ("Post Rest API %s - Failed. Reason: %s"
                    % (url, str(err).capitalize()))
             LOG.error(msg)
-            raise rest_excep.ConnectionError(msg)
+            raise requests.exceptions.HTTPError(msg)
 
     def put(self, api, args):
         """
@@ -165,12 +164,12 @@ class RestApi(object):
                 msg = ("DELETE Rest API %s - Failed %s"
                        % (url, message.get("reason", None)))
                 LOG.error(msg)
-                raise rest_excep.ConnectionError(msg)
+                raise requests.exceptions.HTTPError(msg)
         except Exception as err:
             msg = ("Delete Rest API %s - Failed. Reason: %s"
                    % (url, str(err).capitalize()))
             LOG.error(msg)
-            raise rest_excep.ConnectionError(msg)
+            raise requests.exceptions.HTTPError(msg)
 
     def get(self, api, args):
         """

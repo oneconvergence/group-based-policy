@@ -15,7 +15,6 @@ from gbpservice.neutron.tests.unit.nfp.configurator.test_data import \
                                                         vpn_test_data
 from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
-from requests import exceptions as rest_excep
 
 import json
 import mock
@@ -322,7 +321,7 @@ class RestApiTestCase(unittest.TestCase):
                                                                 mock_post),\
             mock.patch.object(jsonutils, 'loads',
                               return_value=self.fake_resp_dict):
-            with self.assertRaises(rest_excep.ConnectionError):
+            with self.assertRaises(requests.exceptions.HTTPError):
                 self.rest_obj.post('create-ipsec-site-conn', self.data)
             mock_post.assert_called_with(
                                     self.dict_objects.url_create_ipsec_conn,
@@ -391,7 +390,7 @@ class RestApiTestCase(unittest.TestCase):
                                                                 mock_delete),\
             mock.patch.object(jsonutils, 'loads',
                               return_value=self.fake_resp_dict):
-            with self.assertRaises(rest_excep.ConnectionError):
+            with self.assertRaises(requests.exceptions.HTTPError):
                 self.rest_obj.delete('delete-ipsec-site-conn',
                                      self.args,
                                      self.data)
