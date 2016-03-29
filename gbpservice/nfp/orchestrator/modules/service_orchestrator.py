@@ -127,7 +127,7 @@ class RpcHandler(object):
         :return:
         """
         service_orchestrator = ServiceOrchestrator(self._controller)
-        self.neutron_handler.process_update_network_function_request(
+        return self.neutron_handler.process_update_network_function_request(
             context, service_orchestrator, network_function)
 
     def neutron_delete_nw_function_config(self, context, network_function):
@@ -138,7 +138,7 @@ class RpcHandler(object):
         :return:
         """
         service_orchestrator = ServiceOrchestrator(self._controller)
-        self.neutron_handler.process_delete_network_function_request(
+        return self.neutron_handler.process_delete_network_function_request(
             service_orchestrator, network_function)
 
 
@@ -769,8 +769,10 @@ class SOHelper(object):
                 nw_function_info['tenant_id'],
                 router_id=router_id, fip_required=fip_required)
             stitching_port.update(
+                id=stitching_port['port']['id'],
                 port_model=orchestrator_constants.NEUTRON_PORT,
-                port_classification=orchestrator_constants.CONSUMER)
+                port_classification=orchestrator_constants.CONSUMER,
+                port_role=nfp_constants.ACTIVE_PORT)
             nw_function_info['management_network_info'] = dict(
                 # id=self.config.NEUTRON_SERVICE_MGMT_NW,
                 id='mgmt_nw',
