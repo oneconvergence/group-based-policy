@@ -89,7 +89,6 @@ class UnixServer(object):
         # Bind the socket to the port
         LOG(LOGGER, 'INFO', (sys.stderr,
                              'starting up on %s' % self.bind_path))
-        # print >>sys.stderr, 'starting up on %s' % self.bind_path
         self.socket.bind(self.bind_path)
         self.socket.listen(self.max_connections)
 
@@ -118,7 +117,6 @@ class TcpClient(object):
         sock = socket.socket()
         LOG(LOGGER, 'INFO', (sys.stderr,
                              'connecting to %s port %s' % self.server))
-        # print >>sys.stderr, 'connecting to %s port %s' % self.server
         sock.settimeout(self.conf.connect_max_wait_timeout)
         try:
             sock.connect(self.server)
@@ -267,7 +265,6 @@ class Proxy(object):
             t.daemon = True
             t.start()
         while True:
-            # print "Listening for unix client connections"
             self.server.listen()
 
     def new_client(self, unixsocket, address):
@@ -276,7 +273,6 @@ class Proxy(object):
         tcpsocket, connected = self.client.connect()
         if not connected:
             LOG(LOGGER, 'ERROR', "Proxy -> Could not connect with tcp server")
-            # print "Proxy -> Could not connect with tcp server"
             unixsocket.close()
             tcpsocket.close()
         else:
