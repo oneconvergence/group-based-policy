@@ -26,6 +26,8 @@ class TestContext(object):
         except Exception:
             return ctx.Context('some_user', 'some_tenant')
 
+"Common class for proxy agent test cases"
+
 
 class ConfigAgentProxyTestCase(unittest.TestCase):
 

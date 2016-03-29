@@ -20,6 +20,8 @@ from oslo_log import log as logging
 LOGGER = logging.getLogger(__name__)
 LOG = nfp_common.log
 
+"""Periodic Class to pull notification from configurator"""
+
 
 class PullNotification(core_pt.PollEventDesc):
 
@@ -31,6 +33,7 @@ class PullNotification(core_pt.PollEventDesc):
         self._sc.poll_event(ev)
 
     def _method_handler(self, notification):
+        # Method handles notification as per resource,receiver and method
         mod = nh.NotificationHandler()
         mod_method = getattr(mod, notification['method'])
         reciever = notification['receiver']
@@ -47,16 +50,9 @@ class PullNotification(core_pt.PollEventDesc):
 
     @core_pt.poll_event_desc(event='PULL_NOTIFICATIONS', spacing=1)
     def pull_notifications(self, ev):
+        """Pull and handle notification from configurator."""
         notifications = transport.get_response_from_configurator(self._conf)
-        '''
-        response_data = [
-            {'receiver': <neutron/device_orchestrator/service_orchestrator>,
-             'resource': <firewall/vpn/loadbalancer/orchestrator>,
-             'method': <notification method name>,
-             'kwargs': <notification method arguments>
-        },
-        ]
-        '''
+
         if not isinstance(notifications, list):
             LOG(LOGGER, 'ERROR', "Notfications not list, %s" % (notifications))
 

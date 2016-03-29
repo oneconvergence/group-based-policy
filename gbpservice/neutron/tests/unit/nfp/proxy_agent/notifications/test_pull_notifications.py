@@ -27,6 +27,8 @@ class TestContext(object):
             context = ctx.Context('some_user', 'some_tenant')
         return context.to_dict()
 
+"""Common class for pull notification tests"""
+
 
 class PullNotificationTestCase(unittest.TestCase):
 

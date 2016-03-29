@@ -22,6 +22,7 @@ LOG = nfp_common.log
 
 
 def rpc_init(config, sc):
+    """Register agent with its handler."""
     rpcmgr = RpcHandler(config, sc)
     agent = RpcAgent(
         sc,
@@ -32,6 +33,7 @@ def rpc_init(config, sc):
 
 
 def nfp_module_init(sc, conf):
+    """Initialize module to register rpc & event handler"""
     rpc_init(conf, sc)
 
 
@@ -43,8 +45,10 @@ class RpcHandler(object):
         self._conf = conf
         self._sc = sc
 
-    # firewall/lb RPC's
     def create_network_function_config(self, context, body):
+        """Method of rpc handler for create_network_function_config.
+        Return: Http Response.
+        """
         try:
             resp, content = rc.post(
                 'create_network_function_config', body=body)
@@ -58,6 +62,9 @@ class RpcHandler(object):
                     rce))
 
     def delete_network_function_config(self, context, body):
+        """Method of rpc handler for delete_network_function_config.
+        Return: Http Response.
+        """
         try:
             resp, content = rc.post('delete_network_function_config',
                                     body=body, delete=True)
@@ -71,6 +78,9 @@ class RpcHandler(object):
                     rce))
 
     def create_network_function_device_config(self, context, body):
+        """Method of rpc handler for create_network_function_device_config.
+        Return: Http Response.
+        """
         try:
             resp, content = rc.post('create_network_function_device_config',
                                     body=body)
@@ -84,6 +94,9 @@ class RpcHandler(object):
                 "request failed . Reason %s " % (rce))
 
     def delete_network_function_device_config(self, context, body):
+        """Method of rpc handler for delete_network_function_device_config.
+        Return: Http Response.
+        """
         try:
             resp, content = rc.post('delete_network_function_device_config',
                                     body=body, delete=True)

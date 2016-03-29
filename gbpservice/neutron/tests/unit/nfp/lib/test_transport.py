@@ -16,13 +16,12 @@ from neutron import context as ctx
 from oslo_serialization import jsonutils
 import unittest
 
+"""
+Common class used to create configuration mapping
+"""
+
 
 class Map(dict):
-    """
-    Example:
-    m = Map({'first_name': 'Eduardo'},
-    last_name='Pool', age=24, sports=['Soccer'])
-    """
 
     def __init__(self, *args, **kwargs):
         super(Map, self).__init__(*args, **kwargs)
@@ -62,6 +61,7 @@ class TestContext(object):
             return ctx.Context('some_user', 'some_tenant')
 
     def get_test_context(self):
+        # creating a test context
         variables = {}
         variables['context'] = self.get_context()
         variables['body'] = {'config': [{'kwargs': {}}]}
@@ -96,6 +96,7 @@ class CommonLibarayTest(unittest.TestCase):
         return (200, '')
 
     def test_rpc_send_request_to_configurator(self):
+
         with mock.patch('oslo_messaging.rpc.client._CallContext.cast') as cast:
             cast.side_effect = self._cast
 
@@ -138,6 +139,7 @@ class CommonLibarayTest(unittest.TestCase):
             common.get_response_from_configurator(conf)
 
     def test_unix_rest_get_response_from_configurator(self):
+
         with mock.patch(self.imprt_rc + '.get') as mock_get, \
                 mock.patch.object(jsonutils, 'loads') as mock_loads:
             mock_get.side_effect = self._uget

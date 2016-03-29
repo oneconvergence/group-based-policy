@@ -15,6 +15,7 @@ from gbpservice.nfp.proxy_agent.notifications import pull
 
 
 def events_init(sc, conf):
+    """Register event with its handler."""
     evs = [
         Event(id='PULL_NOTIFICATIONS',
               handler=pull.PullNotification(sc, conf))]
@@ -22,10 +23,12 @@ def events_init(sc, conf):
 
 
 def nfp_module_init(sc, conf):
+    """Initialize module to register rpc & event handler"""
     events_init(sc, conf)
 
 
 def nfp_module_post_init(sc, conf):
+    """Post a event for pull notification after each periodic_task_interval"""
     ev = sc.new_event(id='PULL_NOTIFICATIONS',
                       key='PULL_NOTIFICATIONS')
     sc.post_event(ev)

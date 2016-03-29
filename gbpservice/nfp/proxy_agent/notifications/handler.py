@@ -15,6 +15,8 @@ from gbpservice.nfp.lib.transport import RPCClient
 from gbpservice.nfp.proxy_agent.lib import topics as a_topics
 from neutron import context as n_context
 
+"""Common class for handling notification"""
+
 
 class NotificationHandler(object):
 

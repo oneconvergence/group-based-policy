@@ -55,10 +55,14 @@ oslo_config.CONF.register_opts(rest_opts, "REST")
 oslo_config.CONF.register_opts(rpc_opts, "RPC")
 n_rpc.init(cfg.CONF)
 
+""" Common Class for restClient exceptions """
+
 
 class RestClientException(exceptions.Exception):
 
     """ RestClient Exception """
+
+""" Common Class to handle restclient request"""
 
 
 class RestApi(object):
@@ -70,6 +74,9 @@ class RestApi(object):
 
     def _response(self, resp, url):
         success_code = [200, 201, 202, 204]
+        # Evaluate responses into success and failures.
+        # Raise exception for failure cases which needs
+        # to be handled in caller function.
         if success_code.__contains__(resp.status_code):
             return resp
         elif resp.status_code == 400:
@@ -103,11 +110,17 @@ class RestApi(object):
         return resp
 
     def post(self, path, body, method_type):
+        """Post restclient request handler
+        Return:Http response
+        """
         url = self.url % (
             self.rest_server_ip,
             self.rest_server_port, path)
         data = jsonutils.dumps(body)
         try:
+            # Method-Type needs to be added here,as DELETE/CREATE
+            # both case are handled by post as delete also needs
+            # to send data to the rest-server.
             headers = {"content-type": "application/json",
                        "method-type": method_type}
             resp = requests.post(url, data,
@@ -119,6 +132,9 @@ class RestApi(object):
                 (url, rce))
 
     def get(self, path):
+        """Get restclient request handler
+        Return:Http response
+        """
         url = self.url % (
             self.rest_server_ip,
             self.rest_server_port, path)
@@ -131,6 +147,8 @@ class RestApi(object):
         except RestClientException as rce:
             LOG(LOGGER, 'ERROR', "Rest API %s - Failed. Reason: %s" %
                 (url, rce))
+
+""" Common Class to handle rpcclient request"""
 
 
 class RPCClient(object):
@@ -147,6 +165,12 @@ class RPCClient(object):
 
 def send_request_to_configurator(conf, context, body,
                                  method_type, device_config=False):
+    """Common function to handle (create, delete) request for configurator.
+    Send create/delete to configurator rest-server.
+    Return:Http Response
+    """
+    # This function reads configuration data and decides
+    # method (tcp_rest/rpc) for sending request to configurator.
     if device_config:
         method_name = method_type.lower() + '_network_function_device_config'
         for ele in body['config']:
@@ -174,6 +198,19 @@ def send_request_to_configurator(conf, context, body,
 
 
 def get_response_from_configurator(conf):
+    """Common function to handle get request for configurator.
+    Get notification http response from configurator rest server.
+    Return:Http Response
+    response_data = [
+            {'receiver': <neutron/device_orchestrator/service_orchestrator>,
+             'resource': <firewall/vpn/loadbalancer/orchestrator>,
+             'method': <notification method name>,
+             'kwargs': <notification method arguments>
+        },
+    ]
+    """
+    # This function reads configuration data and decides
+    # method (tcp_rest/ unix_rest/ rpc) for get response from configurator.
     if conf.backend == 'tcp_rest':
         try:
             rc = RestApi(conf.REST.rest_server_ip, conf.REST.rest_server_port)
@@ -214,6 +251,9 @@ def get_response_from_configurator(conf):
 
 
 def parse_service_flavor_string(service_flavor_str):
+    """Parse service_flavour string to service details dictionary.
+        Return: Service Details Dictionary
+    """
     service_flavor_dict = dict(item.split('=') for item
                                in service_flavor_str.split(','))
     service_details = {key.strip(): value.strip() for key, value

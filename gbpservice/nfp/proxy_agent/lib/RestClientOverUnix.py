@@ -43,6 +43,7 @@ class UnixHTTPConnection(httplib.HTTPConnection):
         self.socket_path = '/tmp/uds_socket'
 
     def connect(self):
+        """Method used to connect socket server."""
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         if self.timeout:
             self.sock.settimeout(self.timeout)
@@ -75,6 +76,10 @@ class UnixRestClient(object):
     def send_request(self, path, method_type, request_method='http',
                      server_addr='127.0.0.1',
                      headers=None, body=None):
+        """Implementation for common interface for all unix crud requests.
+        Return:Http Response
+        """
+        # prepares path, body, url for sending unix request.
         path = '/v1/nfp/' + path
         body = jsonutils.dumps(body)
         url = urlparse.urlunsplit((
@@ -92,6 +97,9 @@ class UnixRestClient(object):
             raise rce
 
         success_code = [200, 201, 202, 204]
+        # Evaluate responses into success and failures.
+        # Raise exception for failure cases which needs
+        # to be handled in caller function.
         if success_code.__contains__(resp.status):
             return resp, content
         elif resp.status == 400:
@@ -125,17 +133,29 @@ class UnixRestClient(object):
 
 
 def get(path):
+    """Implements get method for unix restclient
+    Return:Http Response
+    """
     headers = {'content-type': 'application/json'}
     return UnixRestClient().send_request(path, 'GET', headers=headers)
 
 
 def put(path, body):
+    """Implements put method for unix restclient
+    Return:Http Response
+    """
     headers = {'content-type': 'application/json'}
     return UnixRestClient().\
         send_request(path, 'PUT', headers=headers, body=body)
 
 
 def post(path, body, delete=False):
+    """Implements post method for unix restclient
+    Return:Http Response
+    """
+    # Method-Type needs to be added here,as DELETE/CREATE
+    # both case are handled by post as delete also needs
+    # to send data to the rest-unix-server.
     headers = {'content-type': 'application/json'}
     if delete:
         headers.update({'method-type': 'DELETE'})
