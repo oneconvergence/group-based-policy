@@ -37,6 +37,9 @@ def prepare_request_data(resource, kwargs, service_type):
 
 
 def _filter_data(routers, networks, filters):
+    # filter routers and networks data and formulate
+    # dictionary of subnets, routers and ports for the
+    # given tenant.
     tenant_id = filters['tenant_id'][0]
     _filtered_routers = []
     _filtered_subnets = []

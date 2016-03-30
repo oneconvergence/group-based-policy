@@ -16,6 +16,11 @@ from neutron_vpnaas.db.vpn import vpn_db
 from oslo_messaging import target
 
 
+"""
+RPC handler for VPN service
+"""
+
+
 class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     RPC_API_VERSION = '1.0'
     _target = target.Target(version=RPC_API_VERSION)
@@ -26,8 +31,12 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         super(VpnAgent, self).__init__()
 
     def vpnservice_updated(self, context, **kwargs):
+
         resource_data = kwargs.get('resource')
+        # Collecting db entry required by configurator.
         db = self._context(context, resource_data['tenant_id'])
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})

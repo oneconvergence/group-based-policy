@@ -16,6 +16,11 @@ from neutron_fwaas.db.firewall import firewall_db
 from oslo_messaging import target
 
 
+"""
+RPC handler for Firwrall service
+"""
+
+
 class FwAgent(firewall_db.Firewall_db_mixin):
 
     RPC_API_VERSION = '1.0'
@@ -28,7 +33,10 @@ class FwAgent(firewall_db.Firewall_db_mixin):
 
     def create_firewall(self, context, firewall, host):
 
+        # Collecting db entry required by configurator.
         db = self._context(context, firewall['tenant_id'])
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         resource = 'firewall'
@@ -43,7 +51,11 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                                                "CREATE")
 
     def delete_firewall(self, context, firewall, host):
+
+        # Collecting db entry required by configurator.
         db = self._context(context, firewall['tenant_id'])
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         resource = 'firewall'

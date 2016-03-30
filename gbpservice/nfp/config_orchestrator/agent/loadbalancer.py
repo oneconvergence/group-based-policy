@@ -16,6 +16,11 @@ from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from oslo_messaging import target
 
 
+"""
+RPC handler for Loadbalancer service
+"""
+
+
 class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
     RPC_API_VERSION = '1.0'
     _target = target.Target(version=RPC_API_VERSION)
@@ -26,7 +31,11 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         super(LbAgent, self).__init__()
 
     def _post(self, context, tenant_id, name, **kwargs):
+
+        # Collecting db entry required by configurator.
         db = self._context(context, tenant_id)
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
@@ -36,7 +45,11 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
                                                "CREATE")
 
     def _delete(self, context, tenant_id, name, **kwargs):
+
+        # Collecting db entry required by configurator.
         db = self._context(context, tenant_id)
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
