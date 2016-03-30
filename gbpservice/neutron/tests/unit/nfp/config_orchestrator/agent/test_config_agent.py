@@ -12,7 +12,6 @@
 
 from gbpservice.nfp.config_orchestrator.agent import firewall
 from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
-from gbpservice.nfp.config_orchestrator.agent import rpc_cb
 from gbpservice.nfp.config_orchestrator.agent import vpn
 import mock
 from neutron import context as ctx
@@ -490,85 +489,6 @@ class VPNTestCase(unittest.TestCase):
                         vpn_handler.vpnservice_updated(context,
                                                        resource=resource)
 
-
-class NotificationTestCase(unittest.TestCase):
-
-    def _get_context(self):
-        context = TestContext().get_context()
-        context.is_admin = False
-        context_dict = context.to_dict()
-        return context_dict
-
-    def _prepare_request_data(self, receiver, resource,
-                              method, kwargs):
-        response_data = [
-            {'receiver': receiver,  # <neutron/orchestrator>,
-             'resource': resource,  # <firewall/vpn/loadbalancer/generic>,
-             'method': method,  # <notification method name>,
-             'kwargs': kwargs
-             }
-        ]
-        for ele in response_data:
-            ele['kwargs'].update({'context': self._get_context()})
-        return response_data
-
-    def _prepare_request_data_orchestrator(self, receiver, resource,
-                                           method, kwargs):
-        response_data = [
-            {'receiver': receiver,  # <neutron/orchestrator>,
-             'resource': resource,  # <firewall/vpn/loadbalancer/generic>,
-             'method': method,  # <notification method name>,
-             'kwargs': [kwargs]
-             }
-        ]
-        for ele in response_data:
-            for e in ele['kwargs']:
-                e.update({'context': self._get_context()})
-        return response_data
-
-    def _call_orchestrator(self, context, method, **kwargs):
-        if method == 'get_notifications':
-            print("call method: orchestrator")
-            return self.\
-                _prepare_request_data_orchestrator(
-                    'orchestrator',
-                    'interface',
-                    'network_function_device_notification',
-                    {})
-
-    def _call_neutron_firewall_status(self, context, method, **kwargs):
-        if method == 'get_notifications':
-            print("cast method:neutron")
-            kwargs = {'host': '', 'firewall_id': 123, 'status': 'Active'}
-            return self._prepare_request_data('neutron', 'firewall',
-                                              'set_firewall_status',
-                                              kwargs)
-
-    def test_rpc_pull_event_orchestrator(self):
-        with mock.patch(
-                'oslo_messaging.rpc.client._CallContext.call') as call,\
-                mock.patch(
-                    'oslo_messaging.rpc.client._CallContext.cast') as cast:
-            call.side_effect = self._call_orchestrator
-            cast.side_effect = RpcMethods().cast
-            ev = ''
-            sc = {}
-            conf = Conf()
-            rpc_cb_handler = rpc_cb.RpcCallback(sc, conf)
-            rpc_cb_handler.rpc_pull_event(ev)
-
-    def test_rpc_pull_event_neutron(self):
-        with mock.patch(
-            'oslo_messaging.rpc.client._CallContext.call') as call,\
-            mock.patch(
-                'oslo_messaging.rpc.client._CallContext.cast') as cast:
-            call.side_effect = self._call_neutron_firewall_status
-            cast.side_effect = RpcMethods().cast
-            ev = ''
-            sc = {}
-            conf = Conf()
-            rpc_cb_handler = rpc_cb.RpcCallback(sc, conf)
-            rpc_cb_handler.rpc_pull_event(ev)
 
 if __name__ == '__main__':
     unittest.main()

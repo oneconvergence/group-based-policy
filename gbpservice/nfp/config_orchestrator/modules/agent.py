@@ -12,10 +12,8 @@
 
 from gbpservice.nfp.config_orchestrator.agent import firewall as fw
 from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
-from gbpservice.nfp.config_orchestrator.agent import rpc_cb
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.config_orchestrator.agent import vpn as vp
-from gbpservice.nfp.core.main import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from oslo_config import cfg
 
@@ -70,19 +68,5 @@ def rpc_init(sc, conf):
     sc.register_rpc_agents([fwagent, lbagent, vpnagent])
 
 
-def events_init(sc, conf):
-    evs = [
-        Event(id='PULL_RPC_NOTIFICATIONS',
-              handler = rpc_cb.RpcCallback(sc, conf))]
-    sc.register_events(evs)
-
-
-def module_init(sc, conf):
+def nfp_module_init(sc, conf):
     rpc_init(sc, conf)
-    events_init(sc, conf)
-
-
-def init_complete(sc, conf):
-    ev = sc.new_event(id='PULL_RPC_NOTIFICATIONS',
-                      key='PULL_RPC_NOTIFICATIONS')
-    sc.post_event(ev)

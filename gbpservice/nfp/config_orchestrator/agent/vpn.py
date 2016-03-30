@@ -11,20 +11,9 @@
 #    under the License.
 
 from gbpservice.nfp.config_orchestrator.agent import common
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.lib import transport
-from neutron import context as n_context
 from neutron_vpnaas.db.vpn import vpn_db
 from oslo_messaging import target
-
-
-def update_status(**kwargs):
-    rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    rpc_ctx = n_context.Context.from_dict(context)
-    del kwargs['context']
-    rpcClient.cctxt.cast(rpc_ctx, 'update_status',
-                         status=kwargs['status'])
 
 
 class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
