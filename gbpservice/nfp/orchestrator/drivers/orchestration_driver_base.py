@@ -17,11 +17,22 @@ from oslo_log import log as logging
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions
-from gbpservice.nfp.orchestrator.openstack import (
-    openstack_driver
+from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from gbpservice.nfp.orchestrator.coal.networking import (
+    nfp_neutron_network_driver, nfp_gbp_network_driver
 )
 
 LOG = logging.getLogger(__name__)
+
+
+def _set_network_handler(f):
+    def wrapped(self, *args, **kwargs):
+        device_data = args[0]
+        network_model = device_data.get('network_model')
+        if network_model:
+            self.network_handler = self.network_handlers[network_model]
+        return f(self, *args, **kwargs)
+    return wrapped
 
 
 class OrchestrationDriverBase(object):
@@ -41,10 +52,16 @@ class OrchestrationDriverBase(object):
 
         # TODO(MAGESH): Try to move the following handlers to
         # NDO manager rather than having here in the driver
-        self.identity_handler = openstack_driver.KeystoneClient(config)
-        self.compute_handler_nova = openstack_driver.NovaClient(config)
-        self.network_handler_gbp = openstack_driver.GBPClient(config)
-        self.network_handler_neutron = openstack_driver.NeutronClient(config)
+        self.identity_handler = openstack_driver.KeystoneClient()
+        self.compute_handler_nova = openstack_driver.NovaClient()
+        self.network_handlers = {
+            nfp_constants.GBP_MODE:
+                nfp_gbp_network_driver.NFPGBPNetworkDriver(),
+            nfp_constants.NEUTRON_MODE:
+                nfp_neutron_network_driver.NFPNeutronNetworkDriver()
+        }
+        # This is dynamically set by the decorator _set_network_handler
+        self.network_handler = None
 
         # statistics available
         # - instances
@@ -113,26 +130,18 @@ class OrchestrationDriverBase(object):
                           ' creation'))
             return None
 
-        name = 'mgmt_interface'  # TODO(RPM): Use proper name
-        port_model = None
-        if device_data['network_model'] == nfp_constants.GBP_NETWORK:
-            mgmt_ptg_id = device_data['management_network_info']['id']
-            mgmt_interface = self.network_handler_gbp.create_policy_target(
-                                token,
-                                self._get_admin_tenant_id(token=token),
-                                mgmt_ptg_id,
-                                name)
-            port_model = nfp_constants.GBP_PORT
-        else:
-            mgmt_net_id = device_data['management_network_info']['id']
-            mgmt_interface = self.network_handler_neutron.create_port(
-                                token,
-                                self._get_admin_tenant_id(token=token),
-                                mgmt_net_id)
-            port_model = nfp_constants.NEUTRON_PORT
+        name = 'mgmt_interface'  # TODO[RPM]: Use proper name
+        mgmt_interface = self.network_handler.create_port(
+                token,
+                self._get_admin_tenant_id(token=token),
+                device_data['management_network_info']['id'],
+                name=name)
 
         return {'id': mgmt_interface['id'],
-                'port_model': port_model,
+                'port_model': (nfp_constants.GBP_PORT
+                               if device_data['network_model'] ==
+                               nfp_constants.GBP_MODE
+                               else nfp_constants.NEUTRON_PORT),
                 'port_classification': nfp_constants.MANAGEMENT,
                 'port_role': None}
 
@@ -147,11 +156,7 @@ class OrchestrationDriverBase(object):
                           ' deletion'))
             return None
 
-        if interface['port_model'] == nfp_constants.GBP_PORT:
-            self.network_handler_gbp.delete_policy_target(token,
-                                                          interface['id'])
-        else:
-            self.network_handler_neutron.delete_port(token, interface['id'])
+        self.network_handler.delete_port(token, interface['id'])
 
     def _get_interfaces_for_device_create(self, device_data):
         mgmt_interface = self._create_management_interface(device_data)
@@ -162,26 +167,6 @@ class OrchestrationDriverBase(object):
         for interface in interfaces:
             if interface['port_classification'] == nfp_constants.MANAGEMENT:
                 self._delete_management_interface(device_data, interface)
-
-    def _get_port_id(self, interface, token):
-        if interface['port_model'] == nfp_constants.GBP_PORT:
-            pt = self.network_handler_gbp.get_policy_target(
-                                token,
-                                interface['id'])
-            return pt['port_id']
-        else:
-            return interface['id']
-
-    def _get_port_details(self, token, port_id):
-        port = self.network_handler_neutron.get_port(token, port_id)
-        ip = port['port']['fixed_ips'][0]['ip_address']
-        mac = port['port']['mac_address']
-        subnet_id = port['port']['fixed_ips'][0]['subnet_id']
-        subnet = self.network_handler_neutron.get_subnet(token, subnet_id)
-        cidr = subnet['subnet']['cidr']
-        gateway_ip = subnet['subnet']['gateway_ip']
-
-        return (ip, mac, cidr, gateway_ip)
 
     def get_network_function_device_sharing_info(self, device_data):
         """ Get filters for NFD sharing
@@ -266,6 +251,7 @@ class OrchestrationDriverBase(object):
                 return device
         return None
 
+    @_set_network_handler
     def create_network_function_device(self, device_data):
         """ Create a NFD
 
@@ -363,17 +349,20 @@ class OrchestrationDriverBase(object):
         interfaces_to_attach = []
         try:
             for interface in interfaces:
-                port_id = self._get_port_id(interface, token)
+                port_id = self.network_handler.get_port_id(token,
+                                                           interface['id'])
                 interfaces_to_attach.append({'port': port_id})
 
             if not self.supports_hotplug:
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.PROVIDER:
-                        port_id = self._get_port_id(port, token)
+                        port_id = self.network_handler.get_port_id(
+                                                        token, interface['id'])
                         interfaces_to_attach.append({'port': port_id})
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.CONSUMER:
-                        port_id = self._get_port_id(port, token)
+                        port_id = self.network_handler.get_port_id(
+                                                        token, interface['id'])
                         interfaces_to_attach.append({'port': port_id})
         except Exception:
             self._increment_stats_counter('port_details_get_failures')
@@ -406,11 +395,10 @@ class OrchestrationDriverBase(object):
             for interface in interfaces:
                 if interface['port_classification'] == (
                                                     nfp_constants.MANAGEMENT):
-                    port_id = self._get_port_id(interface, token)
-                    port = self.network_handler_neutron.get_port(token,
-                                                                 port_id)
-                    mgmt_ip_address = port['port']['fixed_ips'][0][
-                                                                'ip_address']
+                    (mgmt_ip_address,
+                     dummy, dummy,
+                     dummy) = self.network_handler.get_port_details(
+                                                        token, interface['id'])
         except Exception:
             self._increment_stats_counter('port_details_get_failures')
             LOG.error(_LE('Failed to get management port details'))
@@ -438,6 +426,7 @@ class OrchestrationDriverBase(object):
                 'interfaces_in_use': len(interfaces_to_attach),
                 'description': ''}  # TODO(RPM): what should be the description
 
+    @_set_network_handler
     def delete_network_function_device(self, device_data):
         """ Delete the NFD
 
@@ -552,6 +541,7 @@ class OrchestrationDriverBase(object):
 
         return device['status']
 
+    @_set_network_handler
     def plug_network_function_device_interfaces(self, device_data):
         """ Attach the network interfaces for NFD
 
@@ -605,11 +595,9 @@ class OrchestrationDriverBase(object):
         try:
             for port in device_data['ports']:
                 if port['port_classification'] == nfp_constants.PROVIDER:
-                    port_id = self._get_port_id(port, token)
-                    self.network_handler_neutron.update_port(
-                                token, port_id,
-                                security_groups=[],
-                                port_security_enabled=False)
+                    self.network_handler.set_promiscuos_mode(token, port['id'])
+                    port_id = self.network_handler.get_port_id(token,
+                                                               port['id'])
                     self.compute_handler_nova.attach_interface(
                                 token,
                                 self._get_admin_tenant_id(token=token),
@@ -618,11 +606,9 @@ class OrchestrationDriverBase(object):
                     break
             for port in device_data['ports']:
                 if port['port_classification'] == nfp_constants.CONSUMER:
-                    port_id = self._get_port_id(port, token)
-                    self.network_handler_neutron.update_port(
-                                token, port_id,
-                                security_groups=[],
-                                port_security_enabled=False)
+                    self.network_handler.set_promiscuos_mode(token, port['id'])
+                    port_id = self.network_handler.get_port_id(token,
+                                                               port['id'])
                     self.compute_handler_nova.attach_interface(
                                 token,
                                 self._get_admin_tenant_id(token=token),
@@ -636,6 +622,7 @@ class OrchestrationDriverBase(object):
         else:
             return True
 
+    @_set_network_handler
     def unplug_network_function_device_interfaces(self, device_data):
         """ Detach the network interfaces for NFD
 
@@ -686,7 +673,8 @@ class OrchestrationDriverBase(object):
 
         try:
             for port in device_data['ports']:
-                port_id = self._get_port_id(port, token)
+                port_id = self.network_handler.get_port_id(token,
+                                                           port['id'])
                 self.compute_handler_nova.detach_interface(
                             token,
                             self._get_admin_tenant_id(token=token),

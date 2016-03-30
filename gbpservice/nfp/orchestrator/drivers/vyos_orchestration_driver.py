@@ -103,10 +103,10 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
         for port in device_data['ports']:
             if port['port_classification'] == nfp_constants.PROVIDER:
                 try:
-                    port_id = self._get_port_id(port, token)
-                    (provider_ip, provider_mac,
-                     provider_cidr, dummy) = self._get_port_details(token,
-                                                                    port_id)
+                    (provider_ip, provider_mac, provider_cidr, dummy) = (
+                            self.network_handler.get_port_details(token,
+                                                                  port['id'])
+                    )
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_LE('Failed to get provider port details'
@@ -114,11 +114,11 @@ class VyosOrchestrationDriver(OrchestrationDriverBase):
                     return None
             elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
-                    port_id = self._get_port_id(port, token)
-                    (consumer_ip, consumer_mac,
-                     consumer_cidr,
-                     consumer_gateway_ip) = self._get_port_details(token,
-                                                                   port_id)
+                    (consumer_ip, consumer_mac, consumer_cidr,
+                     consumer_gateway_ip) = (
+                            self.network_handler.get_port_details(token,
+                                                                  port['id'])
+                    )
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_LE('Failed to get consumer port details'
