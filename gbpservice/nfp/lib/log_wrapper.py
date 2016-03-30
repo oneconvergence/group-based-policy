@@ -10,11 +10,22 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-FW_NFP_CONFIGAGENT_TOPIC = 'oc-firewall-agent'
-LB_NFP_CONFIGAGENT_TOPIC = 'oc-lbaas_agent'
-VPN_NFP_CONFIGAGENT_TOPIC = 'vpn_agent'
 
-FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
-LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'
-VPN_NFP_PLUGIN_TOPIC = 'vpn_plugin'
-GC_NFP_PLUGIN_TOPIC = 'nfp-configurator-ndo'
+def log_info(log, msg):
+    log.info(msg)
+
+
+def log_debug(log, msg):
+        log.debug(msg)
+
+
+def log_error(log, msg):
+    log.error(msg)
+
+
+def log_warn(log, msg):
+    log.warn(msg)
+
+
+def log_exception(log, msg):
+    log.exception(msg)

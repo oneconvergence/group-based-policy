@@ -10,11 +10,53 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from gbpservice.nfp.config_orchestrator.agent import common
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.lib import transport
+from neutron import context as n_context
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from gbpservice.nfp.config_orchestrator.agent.common import *
-from gbpservice.nfp.lib.transport import *
+from oslo_messaging import target
 
-LOG = logging.getLogger(__name__)
+
+def update_status(**kwargs):
+    rpcClient = transport.RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
+    context = kwargs.get('context')
+    rpc_ctx = n_context.Context.from_dict(context)
+    del kwargs['context']
+    rpcClient.cctxt.cast(rpc_ctx, 'update_status',
+                         obj_type=kwargs['obj_type'],
+                         obj_id=kwargs['obj_id'],
+                         status=kwargs['status'])
+
+
+def update_pool_stats(**kwargs):
+    rpcClient = transport. RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
+    context = kwargs.get('context')
+    rpc_ctx = n_context.Context.from_dict(context)
+    del kwargs['context']
+    rpcClient.cctxt.cast(rpc_ctx, 'update_pool_stats',
+                         pool_id=kwargs['pool_id'],
+                         stats=kwargs['stats'],
+                         host=kwargs['host'])
+
+
+def pool_destroyed(**kwargs):
+    rpcClient = transport.RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
+    context = kwargs.get('context')
+    rpc_ctx = n_context.Context.from_dict(context)
+    del kwargs['context']
+    rpcClient.cctxt.cast(rpc_ctx, 'pool_destroyed',
+                         pool_id=kwargs['pool_id'])
+
+
+def pool_deployed(**kwargs):
+    rpcClient = transport.RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
+    context = kwargs.get('context')
+    rpc_ctx = n_context.Context.from_dict(context)
+    del kwargs['context']
+    rpcClient.cctxt.cast(rpc_ctx, 'pool_deployed',
+                         pool_id=kwargs['pool_id'])
+
 
 class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
     RPC_API_VERSION = '1.0'
@@ -30,16 +72,20 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
-        body = prepare_request_data(name, kwargs, "loadbalancer")
-        send_request_to_configurator(self._conf, context, body, "CREATE")
+        body = common.prepare_request_data(name, kwargs, "loadbalancer")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "CREATE")
 
     def _delete(self, context, tenant_id, name, **kwargs):
         db = self._context(context, tenant_id)
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
-        body = prepare_request_data(name, kwargs, "loadbalancer")
-        send_request_to_configurator(self._conf, context, body, "DELETE")
+        body = common.prepare_request_data(name, kwargs, "loadbalancer")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "DELETE")
 
     def create_vip(self, context, vip):
         self._post(context, vip['tenant_id'], 'vip', vip=vip)
@@ -82,7 +128,9 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         return db
 
     def _get_core_context(self, context, filters):
-        core_context_dict = get_core_context(context, filters, self._conf.host)
+        core_context_dict = common.get_core_context(context,
+                                                    filters,
+                                                    self._conf.host)
         del core_context_dict['routers']
         return core_context_dict
 

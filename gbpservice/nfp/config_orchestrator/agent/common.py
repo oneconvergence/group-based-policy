@@ -10,16 +10,39 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
-from oslo_messaging import target
-from oslo_log import log as logging
-from neutron import manager
-from neutron.common import rpc as n_rpc
-from neutron.plugins.common import constants
-from neutron.common import topics as n_topics
 from neutron.common import constants as n_constants
+from neutron.common import rpc as n_rpc
+from neutron.common import topics as n_topics
+from oslo_log import log as logging
+from oslo_messaging import target
+
 LOG = logging.getLogger(__name__)
 Version = 'v1'  # v1/v2/v3#
+
+
+def get_dummy_context():
+    context = {
+        u'read_only': False,
+        u'domain': None,
+        u'project_name': None,
+        u'user_id': None,
+        u'show_deleted': False,
+        u'roles': [],
+        u'user_identity': u'',
+        u'project_domain': None,
+        u'tenant_name': None,
+        u'auth_token': None,
+        u'resource_uuid': None,
+        u'project_id': None,
+        u'tenant_id': None,
+        u'is_admin': True,
+        u'user': None,
+        u'request_id': u'',
+        u'user_domain': None,
+        u'timestamp': u'',
+        u'tenant': None,
+        u'user_name': None}
+    return context
 
 
 def prepare_request_data(resource, kwargs, service_type):

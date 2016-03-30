@@ -10,11 +10,34 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from gbpservice.nfp.config_orchestrator.agent import common
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.lib import transport
+from neutron import context as n_context
 from neutron_fwaas.db.firewall import firewall_db
-from gbpservice.nfp.config_orchestrator.agent.common import *
-from gbpservice.nfp.lib.transport import *
+from oslo_messaging import target
 
-LOG = logging.getLogger(__name__)
+
+def set_firewall_status(**kwargs):
+    rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
+    context = kwargs.get('context')
+    rpc_ctx = n_context.Context.from_dict(context)
+    del kwargs['context']
+    rpcClient.cctxt.cast(rpc_ctx, 'set_firewall_status',
+                         host=kwargs['host'],
+                         firewall_id=kwargs['firewall_id'],
+                         status=kwargs['status'])
+
+
+def firewall_deleted(**kwargs):
+    rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
+    context = kwargs.get('context')
+    rpc_ctx = n_context.Context.from_dict(context)
+    del kwargs['context']
+    rpcClient.cctxt.cast(rpc_ctx, 'firewall_deleted',
+                         host=kwargs['host'],
+                         firewall_id=kwargs['firewall_id'])
+
 
 class FwAgent(firewall_db.Firewall_db_mixin):
 
@@ -35,17 +58,27 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         kwargs = {resource: firewall,
                   'host': host,
                   'context': context_dict}
-        body = prepare_request_data(resource, kwargs, "firewall")
-        send_request_to_configurator(self._conf, context, body, "CREATE")
+        body = common. prepare_request_data(resource,
+                                            kwargs,
+                                            "firewall")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "CREATE")
 
     def delete_firewall(self, context, firewall, host):
         db = self._context(context, firewall['tenant_id'])
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         resource = 'firewall'
-        kwargs = {resource: firewall, 'host': host, 'context': context_dict}
-        body = prepare_request_data(resource, kwargs, "firewall")
-        send_request_to_configurator(self._conf, context, body, "DELETE")
+        kwargs = {resource: firewall,
+                  'host': host,
+                  'context': context_dict}
+        body = common.prepare_request_data(resource,
+                                           kwargs,
+                                           "firewall")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "DELETE")
 
     def _context(self, context, tenant_id):
         if context.is_admin:
@@ -63,4 +96,6 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                 'firewall_rules': db_data.get_firewall_rules(**args)}
 
     def _get_core_context(self, context, filters):
-        return get_core_context(context, filters, self._conf.host)
+        return common.get_core_context(context,
+                                       filters,
+                                       self._conf.host)
