@@ -10,6 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron._i18n import _LE
+from neutron._i18n import _LI
+from neutron.common import rpc as n_rpc
+from neutron import context as n_context
+from oslo_log import helpers as log_helpers
+from oslo_log import log as logging
+import oslo_messaging
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
@@ -17,18 +24,10 @@ from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
-from gbpservice.nfp.orchestrator.openstack import heat_driver
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from neutron.common import rpc as n_rpc
-from neutron import context as n_context
-
-from oslo_log import helpers as log_helpers
-from oslo_log import log as logging
-import oslo_messaging
 
 
 LOG = logging.getLogger(__name__)
@@ -304,7 +303,6 @@ class ServiceOrchestrator(object):
     def __init__(self, controller, config):
         self._controller = controller
         self.db_handler = nfp_db.NFPDbBase()
-        #self.db_session = nfp_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient(config)
         self.keystoneclient = openstack_driver.KeystoneClient(config)
         self.config_driver = heat_driver.HeatDriver(config)
@@ -391,7 +389,6 @@ class ServiceOrchestrator(object):
         return base_mode_support
 
     def create_network_function(self, context, network_function_info):
-        # For neutron mode, we have handle port creation here
         self._validate_create_service_input(context, network_function_info)
         # GBP or Neutron
         mode = network_function_info['network_function_mode']
@@ -460,6 +457,8 @@ class ServiceOrchestrator(object):
                 'id': network_function_info['management_ptg_id'],
                 'port_model': nfp_constants.GBP_NETWORK
             }
+        else:
+            management_network_info = {}
         create_network_function_instance_request = {
             'network_function': network_function,
             'network_function_port_info': network_function_info['port_info'],
@@ -474,7 +473,8 @@ class ServiceOrchestrator(object):
                            event_data=create_network_function_instance_request)
         return network_function
 
-    def update_network_function(self):
+    def update_network_function(self, context, network_function_id,
+                                updated_network_function):
         # Handle config update
         pass
 
@@ -514,8 +514,9 @@ class ServiceOrchestrator(object):
                                event_data=event_data)
             return
 
-        self.config_driver.delete(network_function_info['heat_stack_id'],
-                                  network_function_info['tenant_id'])
+        self.config_driver.delete_config(
+            network_function_info['heat_stack_id'],
+            network_function_info['tenant_id'])
         request_data = {
             'heat_stack_id': network_function_info['heat_stack_id'],
             'tenant_id': network_function_info['tenant_id'],
@@ -588,7 +589,7 @@ class ServiceOrchestrator(object):
     def apply_user_config(self, event):
         request_data = event.data
         network_function_details = request_data['network_function_details']
-        request_data['heat_stack_id'] = self.config_driver.apply_user_config(
+        request_data['heat_stack_id'] = self.config_driver.apply_config(
             network_function_details)  # Heat driver to launch stack
         network_function = network_function_details['network_function']
         request_data['tenant_id'] = network_function['tenant_id']
@@ -675,7 +676,7 @@ class ServiceOrchestrator(object):
                 updated_network_function)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == "COMPLETED":
+        elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'status': nfp_constants.ACTIVE}
             self.db_handler.update_network_function(
                 self.db_session,
@@ -683,7 +684,7 @@ class ServiceOrchestrator(object):
                 updated_network_function)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == "IN_PROGRESS":
+        elif config_status == nfp_constants.IN_PROGRESS:
             return CONTINUE_POLLING
 
     def check_for_user_config_deleted(self, event):
@@ -706,7 +707,7 @@ class ServiceOrchestrator(object):
                                event_data=event_data)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == "COMPLETED":
+        elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'heat_stack_id': None}
             self.db_handler.update_network_function(
                 self.db_session,
@@ -719,7 +720,7 @@ class ServiceOrchestrator(object):
                                event_data=event_data)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == "IN_PROGRESS":
+        elif config_status == nfp_constants.IN_PROGRESS:
             return CONTINUE_POLLING
 
     def handle_user_config_applied(self, event):
@@ -772,7 +773,7 @@ class ServiceOrchestrator(object):
             self.db_session,
             request_data['network_function_id'],
             updated_network_function)
-        # Trigger RPC to notify the Create_Service caller with status ??
+        # Trigger RPC to notify the Create_Service caller with status
 
     # When NDO deletes Device DB, the Foreign key NSI will be nulled
     # So we have to pass the NSI ID in delete event to NDO and process
