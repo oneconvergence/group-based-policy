@@ -1,0 +1,3 @@
+#!/bin/vbash
+sudo rm /var/run/pluto.pid
+vbash -ic 'restart vpn'
