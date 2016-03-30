@@ -286,10 +286,15 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         self.nfp_notifier = NFPClientApi(nfp_rpc_topics.NFP_NSO_TOPIC)
 
     def _parse_service_flavor_string(self, service_flavor_str):
-        service_flavor_dict = dict(item.split('=') for item
-                                   in service_flavor_str.split(','))
-        service_details = {key.strip(): value.strip()
-                           for key, value in service_flavor_dict.iteritems()}
+        service_details = {}
+        if ',' not in service_flavor_str:
+            service_details['device_type'] = 'nova'
+            service_details['service_vendor'] = service_flavor_str
+        else:
+            service_flavor_dict = dict(item.split('=') for item
+                                       in service_flavor_str.split(','))
+            service_details = {key.strip(): value.strip() for key, value
+                               in service_flavor_dict.iteritems()}
         return service_details
 
     def get_plumbing_info(self, context):
