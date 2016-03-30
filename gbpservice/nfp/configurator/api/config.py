@@ -60,6 +60,26 @@ logging = {
                  }
 }
 
+cloud_services = [
+                   {'service_name': 'configurator',
+                    'host': '127.0.0.1',  # route rpc's to 'host'
+                    'topic': 'configurator',
+                    'reporting_interval': '10',  # in seconds
+                    'apis': ['CONFIGURATION', 'EVENT']
+                    },
+
+                   {'service_name': 'visibility',
+                    'host': '127.0.0.1',  # route rpc's to 'host'
+                    'topic': 'visibility',
+                    'reporting_interval': '10',  # in seconds
+                    'apis': ['CONFIGURATION', 'EVENT']
+                    },
+                   ]
+
+nsd_controller = {'host': '127.0.0.1',  # pull notifications from 'host'
+                  'notification_queue': 'configurator-notifications'
+                  }
+
 # Custom Configurations must be in Python dictionary format::
 #
 # foo = {'bar':'baz'}

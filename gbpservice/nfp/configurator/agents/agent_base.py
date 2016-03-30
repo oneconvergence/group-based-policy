@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import pika
+
 from gbpservice.nfp.configurator.lib import constants as const
 from oslo_log import log as logging
 
@@ -90,16 +92,31 @@ class AgentBaseRPCManager(object):
                 **sa_req_list[0]['kwargs'])
 
 
+""" RMQPublisher for under the cloud services.
+
+    This class acts as publisher to publish all the notification events to
+    under the cloud services on rabbitmq's 'configurator-notifications'queue.
+"""
+
+
 class AgentBaseNotification(object):
 
     def __init__(self, sc):
         self.sc = sc
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+                                                  host=const.RABBITMQ_HOST))
+        self.channel = self.connection.channel()
+        self.queue = const.NOTIFICATION_QUEUE
+        self.channel.queue_declare(queue=self.queue,
+                                   durable=True  # make queue persistent
+                                   )
 
     def _notification(self, data):
-        """Enqueues notification event into notification queue.
+        """Enqueues notification event into rabbitmq's
+           'configurator-notifications' queue
 
-        These events are enqueued into notification queue and are retrieved
-        when get_notifications() API lands on configurator.
+        These events are enqueued into 'configurator-notifications' queue
+        and are retrieved when get_notifications() API lands on configurator.
 
         :param data: Event data blob
 
@@ -107,9 +124,19 @@ class AgentBaseNotification(object):
 
         """
 
-        event = self.sc.new_event(
-            id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
-        self.sc.stash_event(event)
+        try:
+            self.channel.queue_declare(queue=self.queue,
+                                       durable=True  # make queue persistent
+                                       )
+            body = str(data)
+            self.channel.basic_publish(exchange='',
+                                       routing_key=self.queue,
+                                       body=body,
+                                       properties=pika.BasicProperties(
+                                         delivery_mode=2  # make msg persistent
+                                       ))
+        except Exception as e:
+            raise e
 
 
 class AgentBaseEventHandler(object):
