@@ -12,7 +12,7 @@ class HaproxyOnVMPluginDriver(adb.AgentDriverBase):
 
     def __init__(self, plugin):
         # Monkey patch LB agent topic and LB agent type
-        adb.topics.LOADBALANCER_AGENT = topics.LB_NFP_CONFIGAGENT_TOPIC
+        adb.l_const.LOADBALANCER_AGENT = topics.LB_NFP_CONFIGAGENT_TOPIC
         adb.q_const.AGENT_TYPE_LOADBALANCER = 'NFP Loadbalancer agent'
 
         super(HaproxyOnVMPluginDriver, self).__init__(plugin)

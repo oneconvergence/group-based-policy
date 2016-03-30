@@ -10,7 +10,7 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
         # Monkey patch L3 agent topic
         # L3 agent was where reference firewall agent runs
         # patch that topic to the NFP firewall agent's topic name
-        ref_fw_plugin.topics.L3_AGENT = topics.FW_NFP_CONFIGAGENT_TOPIC
+        ref_fw_plugin.f_const.L3_AGENT = topics.FW_NFP_CONFIGAGENT_TOPIC
 
         # Ensure neutron fwaas extensions are loaded
         ext_path = neutron_fwaas.extensions.__path__[0]
