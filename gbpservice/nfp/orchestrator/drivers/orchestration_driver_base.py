@@ -52,13 +52,13 @@ class OrchestrationDriverBase(object):
 
         # TODO(MAGESH): Try to move the following handlers to
         # NDO manager rather than having here in the driver
-        self.identity_handler = openstack_driver.KeystoneClient()
-        self.compute_handler_nova = openstack_driver.NovaClient()
+        self.identity_handler = openstack_driver.KeystoneClient(config)
+        self.compute_handler_nova = openstack_driver.NovaClient(config)
         self.network_handlers = {
             nfp_constants.GBP_MODE:
-                nfp_gbp_network_driver.NFPGBPNetworkDriver(),
+                nfp_gbp_network_driver.NFPGBPNetworkDriver(config),
             nfp_constants.NEUTRON_MODE:
-                nfp_neutron_network_driver.NFPNeutronNetworkDriver()
+                nfp_neutron_network_driver.NFPNeutronNetworkDriver(config)
         }
 
         # statistics available

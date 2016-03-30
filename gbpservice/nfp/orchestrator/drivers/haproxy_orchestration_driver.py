@@ -35,7 +35,7 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
 
     @odb._set_network_handler
     def get_network_function_device_config_info(self, device_data,
-                                                network_handler):
+                                                network_handler=None):
         """ Get the configuration information for NFD
 
         :param device_data: NFD device

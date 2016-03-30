@@ -17,9 +17,10 @@ from gbpservice.nfp.orchestrator.coal.networking import(
 
 
 class NFPGBPNetworkDriver(neutron_nd.NFPNeutronNetworkDriver):
-    def __init__(self):
-        super(NFPGBPNetworkDriver, self).__init__()
-        self.network_handler = openstack_driver.GBPClient()
+    def __init__(self, config):
+        self.config = config
+        super(NFPGBPNetworkDriver, self).__init__(config)
+        self.network_handler = openstack_driver.GBPClient(config)
 
     def setup_traffic_steering(self):
         pass
@@ -38,14 +39,14 @@ class NFPGBPNetworkDriver(neutron_nd.NFPNeutronNetworkDriver):
 
     def get_port_details(self, token, port_id):
         _port_id = self.get_port_id(token, port_id)
-        self.network_handler = openstack_driver.NeutronClient()
+        self.network_handler = openstack_driver.NeutronClient(self.config)
         port_details = super(NFPGBPNetworkDriver, self).get_port_details(
                                                             token, _port_id)
-        self.network_handler = openstack_driver.GBPClient()
+        self.network_handler = openstack_driver.GBPClient(self.config)
         return port_details
 
     def set_promiscuos_mode(self, token, port_id):
         port_id = self.get_port_id(token, port_id)
-        self.network_handler = openstack_driver.NeutronClient()
+        self.network_handler = openstack_driver.NeutronClient(self.config)
         super(NFPGBPNetworkDriver, self).set_promiscuos_mode(token, port_id)
-        self.network_handler = openstack_driver.GBPClient()
+        self.network_handler = openstack_driver.GBPClient(self.config)

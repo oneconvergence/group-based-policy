@@ -17,8 +17,8 @@ from gbpservice.nfp.orchestrator.coal.networking import(
 
 
 class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
-    def __init__(self):
-        self.network_handler = openstack_driver.NeutronClient()
+    def __init__(self, config):
+        self.network_handler = openstack_driver.NeutronClient(config)
 
     def setup_traffic_steering(self):
         pass
