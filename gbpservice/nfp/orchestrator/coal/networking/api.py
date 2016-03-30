@@ -10,9 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.orchestrator.networking.drivers import (
+from gbpservice.nfp.orchestrator.coal.networking.drivers import (
     gbp_driver)
-from gbpservice.nfp.orchestrator.networking.drivers import (
+from gbpservice.nfp.orchestrator.coal.networking.drivers import (
     neutron_driver)
 
 

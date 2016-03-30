@@ -12,7 +12,7 @@
 
 from oslo_log import log as logging
 
-from gbpservice.nfp.orchestrator.networking.drivers import (
+from gbpservice.nfp.orchestrator.coal.networking.drivers import (
     networking_driver_base)
 
 
