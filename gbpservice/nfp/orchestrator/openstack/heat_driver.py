@@ -19,7 +19,7 @@ from gbpservice.neutron.services.grouppolicy.common import constants as gconst
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.orchestrator.config_drivers.heat_client\
+from gbpservice.nfp.orchestrator.openstack.heat_client\
     import HeatClient
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
