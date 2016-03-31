@@ -15,8 +15,6 @@
 
 import copy
 from gbpservice.nfp.orchestrator.db import nfp_db as nfpdb
-from gbpservice.nfp.orchestrator.drivers import (
-    haproxy_orchestration_driver)
 from gbpservice.nfp.orchestrator.modules import (
     device_orchestrator)
 
@@ -52,20 +50,22 @@ class DummyEvent(object):
         self.data['service_vendor'] = 'vyos'
 
 
-param_req = {'param1': 'value1', 'param2': 'value2'}
-
-cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
-orchestration_driver = haproxy_orchestration_driver.HaproxyOrchestrationDriver(
-    cfg.CONF)
-NDO_CLASS_PATH = ('gbpservice.nfp.orchestrator'
-                  '.modules.device_orchestrator')
-ORCHESTRATION_DRIVER_CLASS_PATH = ('gbpservice.nfp.orchestrator'
-                                   '.drivers.orchestration_driver_base')
-ORCHESTRATOR_LIB_PATH = ('gbpservice.nfp.orchestrator.lib')
+class HaproxyDummyDriver(object):
+    def get_network_function_device_status(self):
+        pass
 
 
 class DummyExtensionManager(object):
     drivers = 'dummy-driver'
+
+
+param_req = {'param1': 'value1', 'param2': 'value2'}
+
+cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
+orchestration_driver = HaproxyDummyDriver()
+NDO_CLASS_PATH = ('gbpservice.nfp.orchestrator'
+                  '.modules.device_orchestrator')
+ORCHESTRATOR_LIB_PATH = ('gbpservice.nfp.orchestrator.lib')
 
 
 class NDOModuleTestCase(unittest.TestCase):
@@ -182,13 +182,13 @@ class NDORpcApiTestCase(unittest.TestCase):
 
 @patch(NDO_CLASS_PATH + '.DeviceOrchestrator._create_event',
        mock.MagicMock(return_value=True))
+@patch(NDO_CLASS_PATH + '.DeviceOrchestrator.db_session',
+       mock.MagicMock(return_value=True))
 @patch(NDO_CLASS_PATH +
        '.DeviceOrchestrator._get_orchestration_driver',
        mock.MagicMock(return_value=orchestration_driver))
 @patch(NDO_CLASS_PATH + '.NDOConfiguratorRpcApi.__init__',
        mock.MagicMock(return_value=None))
-@patch(ORCHESTRATION_DRIVER_CLASS_PATH + '.OrchestrationDriverBase.__init__',
-       mock.MagicMock(return_value=param_req))
 @patch(ORCHESTRATOR_LIB_PATH + '.extension_manager.ExtensionManager',
        mock.MagicMock(return_value=DummyExtensionManager()))
 class DeviceOrchestratorTestCase(unittest.TestCase):

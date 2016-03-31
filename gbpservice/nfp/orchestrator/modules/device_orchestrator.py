@@ -143,7 +143,6 @@ class DeviceOrchestrator(object):
         self.state = state
         self.request = request
         self.nsf_db = nfp_db.NFPDbBase()
-        self.db_session = nfp_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient(config)
         self.keystoneclient = openstack_driver.KeystoneClient(config)
 
@@ -175,9 +174,9 @@ class DeviceOrchestrator(object):
                 'DEVICE_NOT_UP': 'Device not became UP/ACTIVE',
         }
 
-    #@property
-    #def db_session(self):
-    #    return nfp_db_api.get_session()
+    @property
+    def db_session(self):
+        return nfp_db_api.get_session()
 
     def event_method_mapping(self, event_id):
         event_handler_mapping = {
