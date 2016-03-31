@@ -24,6 +24,7 @@ from pecan import rest
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
 n_rpc.init(cfg.CONF)
+base_mode_notifications = []
 
 """Implements all the APIs Invoked by HTTP requests.
 
@@ -52,6 +53,39 @@ class Controller(rest.RestController):
                 str(err).capitalize())
             LOG.error(msg)
 
+    def _push_notification(self, context, request_info, result):
+        response = {
+            'receiver': 'service_orchestrator',
+            'resource': 'heat',
+            'method': 'network_function_device_notification',
+            'kwargs': [
+                {
+                    'context': context,
+                    'resource': 'heat',
+                    'request_info': request_info,
+                    'result': result
+                }
+            ]
+        }
+
+        base_mode_notifications.append(response)
+
+    def _is_base_mode(self, body):
+        service_type = body['info'].get('service_type')
+
+        if (service_type != "heat"):
+            return False
+
+        # Assuming config list will have only one element
+        config_data = body['config'][0]
+        context = config_data['kwargs']['context']
+        request_info = config_data['kwargs']['request_info']
+
+        # Only heat is supported presently
+        result = "unhandled"
+        self._push_notification(context, request_info, result)
+        return True
+
     @pecan.expose(method='GET', content_type='application/json')
     def get(self):
         """Method of REST server to handle request get_notifications.
@@ -63,12 +97,22 @@ class Controller(rest.RestController):
 
         """
 
+        global base_mode_notifications
+
         try:
-            notification_data = jsonutils.dumps(self.rpcclient.call())
+            notification_data = self.rpcclient.call()
             msg = ("NOTIFICATION_DATA sent to config_agent %s"
                    % notification_data)
             LOG.info(msg)
-            return notification_data
+
+            if (len(base_mode_notifications) != 0):
+                msg = ("BASE MODE NOTIFICATION_DATA sent to config_agent %s"
+                       % base_mode_notifications)
+                LOG.info(msg)
+                notification_data += base_mode_notifications
+                base_mode_notifications = []
+
+            return jsonutils.dumps(notification_data)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to get notification_data  %s."
@@ -95,6 +139,9 @@ class Controller(rest.RestController):
             body = None
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
+
+            if self._is_base_mode(body):
+                return
 
             self.rpcclient.cast(self.method_name, body)
             msg = ("Successfully served HTTP request %s" % self.method_name)
