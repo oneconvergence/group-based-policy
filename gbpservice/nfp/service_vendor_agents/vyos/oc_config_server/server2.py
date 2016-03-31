@@ -26,6 +26,7 @@ sys.path.insert(0, dirname(dirname(abspath(__file__))))
 from vyos_session.utils import init_logger
 from oc_fw_module import OCFWConfigClass
 from edit_persistent_rule import EditPersistentRule
+from static_ip import StaticIp
 from flask import Flask, request
 from os.path import abspath, dirname
 from vpn_api_server import VPNHandler as vpnhandler
@@ -399,6 +400,36 @@ def send_error_response(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
+
+
+@app.route('/add_static_ip', methods=['POST'])
+def add_static_ip():
+    try:
+        static_ip_obj = StaticIp()
+        data = json.loads(request.data)
+        static_ip_obj.configure(data)
+    except Exception as err:
+        msg = ("Error adding static IPs for hotplugged interfaces. "
+               "Data: %r. Error: %r" % (data, str(err)))
+        logger.error(msg)
+        return json.dumps(dict(status=False, reason=msg))
+    else:
+        return json.dumps(dict(status=True))
+
+
+@app.route('/del_static_ip', methods=['DELETE'])
+def del_static_ip():
+    try:
+        static_ip_obj = StaticIp()
+        data = json.loads(request.data)
+        static_ip_obj.clear(data)
+    except Exception as err:
+        msg = ("Error clearing static IPs for hotplugged interfaces. "
+               "Data: %r. Error: %r" % (data, str(err)))
+        logger.error(msg)
+        return json.dumps(dict(status=False, reason=msg))
+    else:
+        return json.dumps(dict(status=True))
 
 
 @app.route('/add_rule', methods=['POST'])
