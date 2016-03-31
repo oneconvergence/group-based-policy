@@ -19,10 +19,10 @@ from gbpservice.neutron.services.grouppolicy.common import constants as gconst
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.orchestrator.config_drivers.heat_client\
+    import HeatClient
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
-from gbpservice.nfp.orchestrator.openstack.heat_client\
-    import HeatClient
 from gbpservice.nfp.orchestrator.openstack.openstack_driver\
     import GBPClient
 from gbpservice.nfp.orchestrator.openstack.openstack_driver\
@@ -34,6 +34,7 @@ from heatclient import exc as heat_exc
 from keystoneclient import exceptions as k_exceptions
 from neutron._i18n import _LE
 from neutron._i18n import _LI
+from neutron._i18n import _LW
 from neutron.common import exceptions as n_exc
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
@@ -119,7 +120,7 @@ class NodeDBUpdateException(n_exc.NeutronException):
     message = _("Failed to Update DB with Stack details - %(msg)s")
 
 
-class HeatDriver():
+class HeatDriver(object):
     SUPPORTED_SERVICE_TYPES = [pconst.LOADBALANCER, pconst.FIREWALL,
                                pconst.VPN
                                ]
@@ -144,7 +145,6 @@ class HeatDriver():
         self.gbp_client = GBPClient(config)
         self.neutron_client = NeutronClient(config)
         self.initialized = True
-        self.resource_owner_tenant_id = None
 
     @property
     def resource_owner_tenant_id(self):
@@ -908,9 +908,9 @@ class HeatDriver():
                         'DELETE_IN_PROGRESS']:
                     return
             except heat_exc.HTTPNotFound:
-                LOG.warn(_("Stack %(stack)s created by service chain driver "
-                           "is not found while waiting for %(action)s to "
-                           "complete"),
+                LOG.warning(_LW("Stack %(stack)s created by service chain "
+                           "driver is not found while waiting for %(action)s "
+                           "to complete"),
                          {'stack': stack_id, 'action': action})
                 if action == "create" or action == "update":
                     operation_failed = True
@@ -1026,7 +1026,7 @@ class HeatDriver():
                           {'stack': stack_id})
             return failure_status
 
-    def apply_user_config(self, network_function_details):
+    def apply_config(self, network_function_details):
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
@@ -1072,7 +1072,7 @@ class HeatDriver():
 
         return stack_id
 
-    def delete(self, stack_id, tenant_id):
+    def delete_config(self, stack_id, tenant_id):
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
 

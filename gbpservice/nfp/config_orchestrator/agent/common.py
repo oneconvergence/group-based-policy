@@ -45,16 +45,17 @@ def _filter_data(routers, networks, filters):
     _filtered_ports = []
     for router in routers:
         if router['tenant_id'] == tenant_id:
-            _filtered_routers.append(router)
+            _filtered_routers.append({'id':router['id']})
     for network in networks:
         subnets = network['subnets']
         ports = network['ports']
         for subnet in subnets:
             if subnet['tenant_id'] == tenant_id:
-                _filtered_subnets.append(subnet)
+                _filtered_subnets.append({'id':subnet['id']})
         for port in ports:
             if port['tenant_id'] == tenant_id:
-                _filtered_ports.append(port)
+                _filtered_ports.append({'id':port['id'],
+                                        'fixed_ips':port['fixed_ips']})
 
     return {'subnets': _filtered_subnets,
             'routers': _filtered_routers,

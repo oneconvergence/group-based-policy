@@ -59,7 +59,11 @@ class FwGenericConfigDriver(object):
                     provider_mac=kwargs.get('provider_mac'),
                     stitching_ip=kwargs.get('stitching_ip'),
                     stitching_cidr=kwargs.get('stitching_cidr'),
-                    stitching_mac=kwargs.get('stitching_mac'))
+                    stitching_mac=kwargs.get('stitching_mac'),
+                    provider_interface_position=kwargs.get(
+                                            'provider_interface_position'),
+                    stitching_interface_position=kwargs.get(
+                                            'stitching_interface_position'))
         active_fip = rule_info['active_fip']
 
         url = const.request_url % (active_fip,
@@ -98,7 +102,8 @@ class FwGenericConfigDriver(object):
             LOG.error(msg)
             return msg
         if not result['status']:
-            msg = ("Error adding static IPs. URL: %r" % url)
+            msg = ("Error adding static IPs. URL: %r. Reason: %s." %
+                   (url, result['reason']))
             LOG.error(msg)
             return msg
 
@@ -247,7 +252,8 @@ class FwGenericConfigDriver(object):
             LOG.error(msg)
             return msg
         if not result['status']:
-            msg = ("Error removing static IPs. URL: %r" % url)
+            msg = ("Error removing static IPs. URL: %r. Reason: %s." %
+                   (url, result['reason']))
             LOG.error(msg)
             return msg
 

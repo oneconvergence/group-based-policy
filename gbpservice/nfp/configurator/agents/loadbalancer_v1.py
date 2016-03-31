@@ -752,6 +752,6 @@ def _start_collect_stats(sc):
 
 
 def init_agent_complete(cm, sc, conf):
-    _start_collect_stats(sc)
+    #_start_collect_stats(sc)
     msg = ("Initialization of loadbalancer agent completed.")
     LOG.info(msg)
