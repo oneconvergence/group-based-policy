@@ -24,9 +24,9 @@ from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
+from gbpservice.nfp.orchestrator.openstack import heat_driver
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 
@@ -406,7 +406,9 @@ class ServiceOrchestrator(object):
         name = "%s.%s.%s" % (service_profile['service_type'],
                              service_vendor,
                              service_chain_id or service_id)
-        service_config = network_function_info.get('service_config')
+        service_config_str = network_function_info.get('service_config')
+        tag_str, _ = self.config_driver.\
+                        parse_template_config_string(service_config_str)
         network_function = {
             'name': name,
             'description': '',
@@ -414,7 +416,7 @@ class ServiceOrchestrator(object):
             'service_id': service_id,  # GBP Service Node or Neutron Service ID
             'service_chain_id': service_chain_id,  # GBP SC instance ID
             'service_profile_id': service_profile_id,
-            'service_config': service_config,
+            'service_config': service_config_str,
             'status': nfp_constants.PENDING_CREATE
         }
         network_function = self.db_handler.create_network_function(
@@ -434,22 +436,17 @@ class ServiceOrchestrator(object):
             return None
 
         if base_mode_support:
-            network_function_details = self.get_network_function_details(
-                network_function['id'])
-            network_function_data = {
-                'network_function_details': network_function_details
-            }
-            self.configurator_rpc.create_network_function_user_config(
-                network_function_data, service_config)
-
-            '''#(TODO) make changes for config_init and ansible too
-            template = service_config.split('heat_config:')[1]
-            network_function = {
-                'service_config': template
-            }
-            network_function = self.db_handler.update_network_function(
-                self.db_session, network_function_id, network_function)
-            '''
+            if tag_str != 'config_init:':
+                network_function_details = self.get_network_function_details(
+                    network_function['id'])
+                network_function_data = {
+                    'network_function_details': network_function_details
+                }
+                self.configurator_rpc.create_network_function_user_config(
+                    network_function_data, service_config_str)
+            else:
+                # Place holder for calling config_init API
+                pass
             return network_function
 
         if mode == nfp_constants.GBP_MODE:
