@@ -145,7 +145,9 @@ class HeatDriver(object):
         self.gbp_client = GBPClient(config)
         self.neutron_client = NeutronClient(config)
         self.initialized = True
+        #self.resource_owner_tenant_id = None
 
+    '''
     @property
     def resource_owner_tenant_id(self):
         if self.resource_owner_tenant_id:
@@ -156,6 +158,7 @@ class HeatDriver(object):
         else:
             self.resource_owner_tenant_id = None
         return self.resource_owner_tenant_id
+    '''
 
     def _resource_owner_tenant_id(self):
         user, pwd, tenant_name, auth_url =\
@@ -176,11 +179,11 @@ class HeatDriver(object):
 
     def _get_resource_owner_context(self):
         if cfg.CONF.heat_driver.is_service_admin_owned:
-            tenant_id = self.resource_owner_tenant_id
+            tenant_id = self._resource_owner_tenant_id()
             user, pwd, tenant_name, auth_url =\
                 self.keystoneclient.get_keystone_creds()
             auth_token = self.keystoneclient.get_scoped_keystone_token(
-                user, pwd, tenant_name, self.resource_owner_tenant_id)
+                user, pwd, tenant_name, tenant_id)
         return auth_token, tenant_id
 
     def _get_role_by_name(self, keystone_client, name, keystone_version):
