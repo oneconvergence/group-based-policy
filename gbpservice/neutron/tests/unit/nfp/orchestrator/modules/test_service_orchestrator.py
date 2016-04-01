@@ -13,23 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from gbpservice.neutron.tests.unit.nfp.orchestrator import test_nfp_db
+import mock
+
+from oslo_config import cfg
+
+from gbpservice.neutron.tests.unit.nfp.orchestrator.db import test_nfp_db
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
+from gbpservice.nfp.core import controller  # noqa
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.lib import transport
 from gbpservice.nfp.orchestrator.modules import (
     service_orchestrator as nso)
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
-import mock
-
-from oslo_config import cfg
 
 
-class NSOoduleTestCase(test_nfp_db.NFPDBTestCase):
+class NSOModuleTestCase(test_nfp_db.NFPDBTestCase):
 
     def setUp(self):
-        super(NSOoduleTestCase, self).setUp()
+        super(NSOModuleTestCase, self).setUp()
 
     @mock.patch.object(nso, 'events_init')
     @mock.patch.object(nso, 'rpc_init')
@@ -59,7 +61,7 @@ class NSOoduleTestCase(test_nfp_db.NFPDBTestCase):
         controller.register_events.assert_called_once_with(mock.ANY)
 
 
-class NSORpcHandlerTestCase(NSOoduleTestCase):
+class NSORpcHandlerTestCase(NSOModuleTestCase):
 
     def setUp(self):
         super(NSORpcHandlerTestCase, self).setUp()
@@ -141,7 +143,7 @@ class NSORpcHandlerTestCase(NSOoduleTestCase):
                 "context", "network_function_id", "policy_target_group")
 
 
-class ServiceOrchestratorTestCase(NSOoduleTestCase):
+class ServiceOrchestratorTestCase(NSOModuleTestCase):
 
     def setUp(self):
         super(ServiceOrchestratorTestCase, self).setUp()
@@ -365,7 +367,7 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
         self.assertIsNone(nfi['network_function_device_id'])
         with mock.patch.object(
             self.service_orchestrator.config_driver,
-            "apply_user_config") as mock_apply_user_config:
+            "apply_config") as mock_apply_user_config:
             mock_apply_user_config.return_value = "stack_id"
             self.service_orchestrator.handle_device_active(
                 test_event)
@@ -684,6 +686,9 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
         nfi = self.create_network_function_instance()
         network_function_id = nfi['network_function_id']
         policy_target = mock.Mock()
+        transport.parse_service_flavor_string = mock.MagicMock(return_value=
+                                                    {'device_type': 'VM',
+                                                     'service_vendor': 'vyos'})
         with mock.patch.object(
             self.service_orchestrator.config_driver,
             "handle_policy_target_added") as mock_handle_policy_target_added:
@@ -725,6 +730,9 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
         nfi = self.create_network_function_instance()
         network_function_id = nfi['network_function_id']
         policy_target = mock.Mock()
+        transport.parse_service_flavor_string = mock.MagicMock(return_value=
+                                                    {'device_type': 'VM',
+                                                     'service_vendor': 'vyos'})
         with mock.patch.object(
             self.service_orchestrator.config_driver,
             "handle_policy_target_removed") as mock_handle_pt_removed:
@@ -765,6 +773,9 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
         nfi = self.create_network_function_instance()
         network_function_id = nfi['network_function_id']
         policy_target_group = mock.Mock()
+        transport.parse_service_flavor_string = mock.MagicMock(return_value=
+                                                    {'device_type': 'VM',
+                                                     'service_vendor': 'vyos'})
         with mock.patch.object(
             self.service_orchestrator.config_driver,
             "handle_consumer_ptg_added") as mock_handle_consumer_ptg_added:
@@ -807,6 +818,9 @@ class ServiceOrchestratorTestCase(NSOoduleTestCase):
         nfi = self.create_network_function_instance()
         network_function_id = nfi['network_function_id']
         policy_target_group = mock.Mock()
+        transport.parse_service_flavor_string = mock.MagicMock(return_value=
+                                                    {'device_type': 'VM',
+                                                     'service_vendor': 'vyos'})
         with mock.patch.object(
             self.service_orchestrator.config_driver,
             "handle_consumer_ptg_removed") as mock_handle_consumer_ptg_removed:

@@ -103,8 +103,6 @@ class RpcHandler(object):
 
     # RPC APIs status notification from Configurator
     def network_function_device_notification(self, context, notification_data):
-        #context = kwargs.get('context')
-        #notification_data = kwargs.get('notification_data')
         responses = notification_data.get('kwargs')
 
         for response in responses:
