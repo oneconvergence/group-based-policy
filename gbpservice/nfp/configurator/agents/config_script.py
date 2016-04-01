@@ -158,7 +158,7 @@ def events_init(sc, drivers, rpcmgr):
     event = nfp_event.Event(
                 id=const.CREATE_CONFIG_SCRIPT_EVENT,
                 handler=ConfigScriptEventHandler(sc, drivers, rpcmgr))
-    sc.register_events(event)
+    sc.register_events([event])
 
 
 def load_drivers():
