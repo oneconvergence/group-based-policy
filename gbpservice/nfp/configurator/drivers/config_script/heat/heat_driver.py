@@ -10,8 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron import context
-from oslo_config import cfg
 from oslo_log import log as logging
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
@@ -31,11 +29,12 @@ initialized. Also, only this driver class is exposed to the agent.
 
 class HeatDriver(base_driver.BaseDriver):
     service_type = const.SERVICE_TYPE
+    resource_type = const.HEAT_RESOURCE
 
     def __init__(self):
-        self.timeout = cfg.CONF.rest_timeout
-        self.host = cfg.CONF.host
-        self.context = context.get_admin_context_without_session()
+        pass
 
     def run_heat(self, context, kwargs):
-        return const.UNHANDLED
+        msg = ("Heat template execution request is received but unhandled")
+        LOG.info(msg)
+        return const.UNHANDLED_RESULT

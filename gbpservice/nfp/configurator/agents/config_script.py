@@ -13,7 +13,6 @@
 import os
 import oslo_messaging as messaging
 
-from oslo_config import cfg
 from oslo_log import log as logging
 
 from gbpservice.nfp.configurator.agents import agent_base
@@ -24,7 +23,7 @@ from gbpservice.nfp.core import event as nfp_event
 LOG = logging.getLogger(__name__)
 
 """ Implements ConfigScriptRpcManager class which receives requests
-    from Configurator to Agent.
+    from Configurator module.
 
 Methods of this class are invoked by the configurator. Events are
 created according to the requests received and enqueued to worker queues.
@@ -49,7 +48,10 @@ class ConfigScriptRpcManager(agent_base.AgentBaseRPCManager):
         super(ConfigScriptRpcManager, self).__init__(sc, conf)
 
     def run_config_script(self, context, kwargs):
-        """ Receives request to create heat from configurator
+        """ Receives request to execute config script.
+
+        :param context: RPC context
+        :param kwargs: Contains configuration script and request information
 
         """
 
@@ -58,10 +60,6 @@ class ConfigScriptRpcManager(agent_base.AgentBaseRPCManager):
 
         arg_dict = {'context': context,
                     'kwargs': kwargs}
-        # REVISIT(mak): How to send large data ?
-        # New API required to send over unix sockert ?
-        context['service_info'] = {}
-        # ev = self.sc.new_event(id=method, data={}, key=None)
         ev = self.sc.new_event(id=const.CREATE_CONFIG_SCRIPT_EVENT,
                                data=arg_dict, key=None)
         self.sc.post_event(ev)
@@ -76,11 +74,11 @@ appropriate handler class methods for ConfigScript methods.
 
 class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
     def __init__(self, sc, drivers, rpcmgr):
-        """ Instantiates class object.
+        """ Initializes parent and child class objects.
 
         :param sc: Service Controller object that is used to communicate
-        with process model core file.
-        :param drivers: dictionary of driver name to object mapping
+        with process model.
+        :param drivers: Dictionary of driver name to object mapping
         :param rpcmgr: ConfigScriptRpcManager class object
 
         """
@@ -88,11 +86,10 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
         super(ConfigScriptEventHandler, self).__init__(sc, drivers, rpcmgr)
         self.sc = sc
         self.drivers = drivers
-        self.host = cfg.CONF.host
         self.rpcmgr = rpcmgr
 
     def _get_driver(self):
-        """ Retrieves driver object given the service type
+        """ Retrieves driver object given the service type.
 
         """
 
@@ -103,7 +100,7 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
         """ Demultiplexes the config_script request to appropriate
         driver methods.
 
-        :param ev: event object sent from process model event handler
+        :param ev: Event object sent from process model event handler
 
         """
 
@@ -121,31 +118,27 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
             driver = self._get_driver()
             self.method = getattr(driver, "run_%s" % resource)
 
-            try:
-                result = self.method(context, kwargs)
-            except Exception as err:
-                msg = ("Failed to configure ConfigScript and status is "
-                       "changed to ERROR. %s." % str(err).capitalize())
-                LOG.error(msg)
-            finally:
-                notification_data = {
-                    'receiver': 'service_orchestrator',
-                    'resource': resource,
-                    'method': 'network_function_device_notification',
-                    'kwargs': [
-                        {
-                            'context': context,
-                            'resource': resource,
-                            'request_info': request_info,
-                            'result': result
-                        }
-                    ]
-                }
-                self.notify._notification(notification_data)
+            result = self.method(context, kwargs)
         except Exception as err:
-            msg = ("Failed to perform the operation: %s. %s"
+            result = const.ERROR_RESULT
+            msg = ("Failed to handle event: %s. %s"
                    % (ev.id, str(err).capitalize()))
             LOG.error(msg)
+        finally:
+            notification_data = {
+                'receiver': 'service_orchestrator',
+                'resource': resource,
+                'method': 'network_function_device_notification',
+                'kwargs': [
+                    {
+                        'context': context,
+                        'resource': resource,
+                        'request_info': request_info,
+                        'result': result
+                    }
+                ]
+            }
+            self.notify._notification(notification_data)
 
 
 def events_init(sc, drivers, rpcmgr):
@@ -162,12 +155,10 @@ def events_init(sc, drivers, rpcmgr):
 
     """
 
-    event_id_list = [const.CREATE_CONFIG_SCRIPT_EVENT]
-    evs = []
-    for event in event_id_list:
-        evs.append(nfp_event.Event(id=event, handler=ConfigScriptEventHandler(
-            sc, drivers, rpcmgr)))
-    sc.register_events(evs)
+    event = nfp_event.Event(
+                id=const.CREATE_CONFIG_SCRIPT_EVENT,
+                handler=ConfigScriptEventHandler(sc, drivers, rpcmgr))
+    sc.register_events(event)
 
 
 def load_drivers():
