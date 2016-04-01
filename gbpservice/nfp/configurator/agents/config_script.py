@@ -48,55 +48,23 @@ class ConfigScriptRpcManager(agent_base.AgentBaseRPCManager):
 
         super(ConfigScriptRpcManager, self).__init__(sc, conf)
 
-    def _create_event(self, context, script, host, method):
-        """ Creates and enqueues the events to the worker queues.
-
-        :param context: Neutron context
-        :param script: Script input by user
-        :param host: Name of the host machine
-        :param method: CREATE_HEAT/CREATE_ANSIBLE/CREATE_CONFIG_INIT
-
-        """
-
-        arg_dict = {'context': context,
-                    'script': script,
-                    'host': host}
-        # REVISIT(mak): How to send large data ?
-        # New API required to send over unix sockert ?
-        context['service_info'] = {}
-        # ev = self.sc.new_event(id=method, data={}, key=None)
-        ev = self.sc.new_event(id=method, data=arg_dict, key=None)
-        self.sc.post_event(ev)
-
-    def create_heat(self, context, script, host):
+    def run_config_script(self, context, kwargs):
         """ Receives request to create heat from configurator
 
         """
 
         msg = ("ConfigScriptRpcManager received Create Heat request.")
         LOG.debug(msg)
-        self._create_event(context, script,
-                           host, const.CREATE_HEAT_EVENT)
 
-    def create_ansible(self, context, script, host):
-        """ Receives request to create ansible from configurator
-
-        """
-
-        msg = ("ConfigScriptRpcManager received Create Ansible request.")
-        LOG.debug(msg)
-        self._create_event(context, script,
-                           host, const.CREATE_ANSIBLE_EVENT)
-
-    def create_config_init(self, context, script, host):
-        """ Receives request to create config_init from configurator
-
-        """
-
-        msg = ("ConfigScriptRpcManager received Create ConfigInit request.")
-        LOG.debug(msg)
-        self._create_event(context, script,
-                           host, const.CREATE_CONFIG_INIT_EVENT)
+        arg_dict = {'context': context,
+                    'kwargs': kwargs}
+        # REVISIT(mak): How to send large data ?
+        # New API required to send over unix sockert ?
+        context['service_info'] = {}
+        # ev = self.sc.new_event(id=method, data={}, key=None)
+        ev = self.sc.new_event(id=const.CREATE_CONFIG_SCRIPT_EVENT,
+                               data=arg_dict, key=None)
+        self.sc.post_event(ev)
 
 """ Handler class which invokes config_script driver methods
 
@@ -139,21 +107,22 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
 
         """
 
-        context = ev.data.get('context')
-        script = ev.data.get('script')
-        host = ev.data.get('host')
-
         try:
+            context = ev.data['context']
+            resource = context['resource']
+            kwargs = ev.data['kwargs']
+            request_info = kwargs['request_info']
+
             msg = ("Worker process with ID: %s starting to "
                    "handle task: %s of type ConfigScript. "
                    % (os.getpid(), ev.id))
             LOG.debug(msg)
 
             driver = self._get_driver()
-            self.method = getattr(driver, "%s" % (ev.id.lower()))
+            self.method = getattr(driver, "run_%s" % resource)
 
             try:
-                result = self.method(context, script, host)
+                result = self.method(context, kwargs)
             except Exception as err:
                 msg = ("Failed to configure ConfigScript and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
@@ -161,14 +130,13 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
             finally:
                 notification_data = {
                     'receiver': 'service_orchestrator',
-                    'resource': 'heat',
+                    'resource': resource,
                     'method': 'network_function_device_notification',
                     'kwargs': [
                         {
                             'context': context,
-                            'resource': ev.id.split('_')[1],
-                            # For *aaS, we don't have request info right?
-                            # 'request_info': request_info,
+                            'resource': resource,
+                            'request_info': request_info,
                             'result': result
                         }
                     ]
@@ -194,9 +162,7 @@ def events_init(sc, drivers, rpcmgr):
 
     """
 
-    event_id_list = [const.CREATE_HEAT_EVENT,
-                     const.CREATE_ANSIBLE_EVENT,
-                     const.CREATE_CONFIG_INIT_EVENT]
+    event_id_list = [const.CREATE_CONFIG_SCRIPT_EVENT]
     evs = []
     for event in event_id_list:
         evs.append(nfp_event.Event(id=event, handler=ConfigScriptEventHandler(

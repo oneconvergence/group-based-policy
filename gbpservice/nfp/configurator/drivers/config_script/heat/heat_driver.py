@@ -19,8 +19,8 @@ from gbpservice.nfp.configurator.lib import config_script_constants as const
 
 LOG = logging.getLogger(__name__)
 
-""" ConfigScript as a service driver for handling config script
-service configuration requests.
+""" Heat as a driver for handling config script
+heat configuration requests.
 
 We initialize service type in this class because agent loads
 class object only for those driver classes that have service type
@@ -29,7 +29,7 @@ initialized. Also, only this driver class is exposed to the agent.
 """
 
 
-class ConfigScriptDriver(base_driver.BaseDriver):
+class HeatDriver(base_driver.BaseDriver):
     service_type = const.SERVICE_TYPE
 
     def __init__(self):
@@ -37,11 +37,5 @@ class ConfigScriptDriver(base_driver.BaseDriver):
         self.host = cfg.CONF.host
         self.context = context.get_admin_context_without_session()
 
-    def create_heat(self, context, script, host):
-        return const.UNHANDLED
-
-    def create_ansible(self, context, script, host):
-        return const.UNHANDLED
-
-    def create_config_init(self, context, script, host):
+    def run_heat(self, context, kwargs):
         return const.UNHANDLED

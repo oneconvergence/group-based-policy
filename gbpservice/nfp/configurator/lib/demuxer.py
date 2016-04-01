@@ -117,7 +117,7 @@ class ServiceAgentDemuxer(object):
                 elif service_type == 'loadbalancer':
                     method = operation + '_' + config_data['resource']
                 elif service_type == 'config_script':
-                    method = operation + '_' + config_data['resource']
+                    method = 'run' + service_type
             else:
                 sa_info.update({'service_type': 'generic'})
                 if operation == 'create':
@@ -139,7 +139,8 @@ class ServiceAgentDemuxer(object):
             context = config_data['kwargs']['context']
             sa_info.update({'context': context})
             del config_data['kwargs']['context']
-            if 'generic' in sa_info['service_type']:
+            if ('generic' in sa_info['service_type'] or
+                    'config_script' in sa_info['service_type']):
                 sa_info.update({'kwargs': {'kwargs': data}})
             else:
                 sa_info.update({'kwargs': data})
