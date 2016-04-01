@@ -10,12 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-supported_service_types = ['firewall', 'vpn', 'loadbalancer',
-                           'config_script', None]
-invalid_service_type = 'invalid'
-SUCCESS = 'SUCCESS'
-FAILED = 'FAILED'
-ORCHESTRATOR = 'orchestrator'
-EVENT_STASH = 'STASH_EVENT'
-EVENT_PROCESS_BATCH = 'PROCESS_BATCH'
-NFD_NOTIFICATION = 'network_function_device_notification'
+DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.config_script'
+SERVICE_TYPE = 'config_script'
+CREATE_CONFIG_SCRIPT_EVENT = 'CREATE_CONFIG_SCRIPT'
+UNHANDLED_RESULT = 'unhandled'
+ERROR_RESULT = 'error'
+HEAT_RESOURCE = 'HEAT'
