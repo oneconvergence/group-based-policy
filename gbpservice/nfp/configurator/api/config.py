@@ -62,17 +62,17 @@ logging = {
 
 cloud_services = [
                    {'service_name': 'configurator',
-                    'host': '127.0.0.1',  # route rpc's to 'host'
+                    'host': 'hostname',  # route rpc's to 'host'
                     'topic': 'configurator',
                     'reporting_interval': '10',  # in seconds
-                    'apis': ['CONFIGURATION', 'EVENT']
+                    'apis': ['CONFIGURATION']
                     },
 
                    {'service_name': 'visibility',
-                    'host': '127.0.0.1',  # route rpc's to 'host'
+                    'host': 'hostname',  # route rpc's to 'host'
                     'topic': 'visibility',
                     'reporting_interval': '10',  # in seconds
-                    'apis': ['CONFIGURATION', 'EVENT']
+                    'apis': ['EVENT']
                     },
                    ]
 
