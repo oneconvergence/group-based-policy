@@ -39,3 +39,6 @@ ERROR = "ERROR"
 HEAT_CONFIG_TAG = 'heat_config'
 CONFIG_INIT_TAG = 'config_init'
 ANSIBLE_TAG =  'ansible'
+
+COMPLETED = "COMPLETED"
+IN_PROGRESS = "IN_PROGRESS"

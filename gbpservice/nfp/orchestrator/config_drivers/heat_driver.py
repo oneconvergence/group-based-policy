@@ -641,7 +641,7 @@ class HeatDriver(object):
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
 
-        stack_template_str = self.parse_template_config_string(
+        _, stack_template_str = self.parse_template_config_string(
                 service_chain_node.get('config'))
         stack_template = (jsonutils.loads(stack_template_str) if
                           stack_template_str.startswith('{') else
