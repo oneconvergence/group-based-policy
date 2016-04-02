@@ -27,6 +27,10 @@ class SCPlumber():
     def delete_stitching(self):
         pass
 
+    def clear_all_extraroutes(self, router_id):
+        # cli - neutron router-update xyz --routes action=clear
+        self.plumber.clear_router_routes(router_id)
+
     def update_router_service_gateway(self, router_id, peer_cidrs,
                                       stitching_interface_ip, delete=False):
         if not delete:
@@ -161,6 +165,12 @@ class NeutronPlumber():
         if not gw_port:
             self.neutron.add_router_gateway(token, router_id,
                                             floating_net_id)
+
+    def clear_router_routes(self, router_id):
+        token = self.keystone.get_admin_token()
+        response = self.neutron.update_router(token, router_id,
+                                              routes=None)
+        return response
 
     def create_stitching_for_svc(self, tenant_id, router_id,
                                  fip_required):
