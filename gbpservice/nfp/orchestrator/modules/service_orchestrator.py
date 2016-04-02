@@ -90,6 +90,7 @@ class RpcHandler(object):
         super(RpcHandler, self).__init__()
         self.conf = conf
         self._controller = controller
+        self.neutron_handler = SOHelper(conf)
 
     @log_helpers.log_method_call
     def create_network_function(self, context, network_function):
@@ -199,7 +200,7 @@ class RpcHandler(object):
         :param network_function:
         :return:
         """
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return self.neutron_handler.process_update_network_function_request(
             context, service_orchestrator, network_function)
 
@@ -211,7 +212,7 @@ class RpcHandler(object):
         :param network_function:
         :return:
         """
-        service_orchestrator = ServiceOrchestrator(self._controller)
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return self.neutron_handler.process_delete_network_function_request(
             service_orchestrator, network_function)
 
@@ -333,6 +334,7 @@ class ServiceOrchestrator(object):
         #self.db_session = nfp_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient(config)
         self.keystoneclient = openstack_driver.KeystoneClient(config)
+        self.neutronclient = openstack_driver.NeutronClient(config)
         self.config_driver = heat_driver.HeatDriver(config)
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = NSOConfiguratorRpcApi(neutron_context, config)
@@ -1198,8 +1200,8 @@ class NSOConfiguratorRpcApi(object):
 
 
 class SOHelper(object):
-    def __init__(self):
-        self.sc_plumber = SCPlumber()
+    def __init__(self, conf):
+        self.sc_plumber = SCPlumber(conf)
 
     def process_update_network_function_request(self, context,
                                                 service_orchestrator,

@@ -10,8 +10,8 @@ LOG = logging.getLogger(__name__)
 class SCPlumber():
     """ Class to perform plumbing function
     """
-    def __init__(self):
-        self.plumber = NeutronPlumber()
+    def __init__(self, conf):
+        self.plumber = NeutronPlumber(conf)
 
     def get_stitching_port(self, tenant_id, router_id=None,
                            fip_required=False):
@@ -37,9 +37,10 @@ class SCPlumber():
 
 
 class NeutronPlumber():
-    def __init__(self):
-        self.keystone = KeystoneClient()
-        self.neutron = NeutronClient()
+    def __init__(self, conf):
+        self.conf = conf
+        self.keystone = KeystoneClient(conf)
+        self.neutron = NeutronClient(conf)
 
     def add_extra_route(self, router_id, peer_cidrs,
                         stitching_interface_ip):
@@ -112,12 +113,12 @@ class NeutronPlumber():
         name = "stitching_net-%s" % tenant_id
         attrs = {"name": name}
         stitching_net = self.neutron.create_network(
-            token, cfg.CONF.keystone_authtoken.admin_tenant_id, attrs=attrs)
+            token, self.conf.keystone_authtoken.admin_tenant_id, attrs=attrs)
         cidr = "192.168.0.0/26"  # TODO:kedar - get it from config
         attrs = {"network_id": stitching_net['id'], "cidr": cidr,
                  "ip_version": 4}
         stitching_subnet = self.neutron.create_subnet(
-            token, cfg.CONF.keystone_authtoken.admin_tenant_id, attrs=attrs)
+            token, self.conf.keystone_authtoken.admin_tenant_id, attrs=attrs)
         return [stitching_net], stitching_subnet
 
     def _check_stitching_network(self, token, tenant_id, router_id):
@@ -174,7 +175,7 @@ class NeutronPlumber():
         #                           hotplug_port['id'])
         stitching_fip = None
         if fip_required:
-            floating_net_id = cfg.CONF.keystone_authtoken.internet_ext_network
+            floating_net_id = self.conf.keystone_authtoken.internet_ext_network
             self._check_router_gateway(token, floating_net_id, router_id)
             stitching_fip = self.neutron.create_floatingip(
                 token, floating_net_id,
