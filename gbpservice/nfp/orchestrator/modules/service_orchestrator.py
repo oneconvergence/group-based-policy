@@ -666,6 +666,11 @@ class ServiceOrchestrator(object):
         config_status = self.config_driver.is_config_complete(
             request_data['heat_stack_id'], request_data['tenant_id'])
         if config_status == nfp_constants.ERROR:
+            LOG.info(_LI("NSO: applying user config failed for "
+                    "network function %(network_function_id)s data "
+                    "%(data)s"), {'data': request_data,
+                    'network_function_id':
+                        request_data['network_function_id']})
             updated_network_function = {'status': nfp_constants.ERROR}
             self.db_handler.update_network_function(
                 self.db_session,
@@ -675,6 +680,10 @@ class ServiceOrchestrator(object):
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'status': nfp_constants.ACTIVE}
+            LOG.info(_LI("NSO: applying user config is successfull moving "
+                    "network function %(network_function_id)s to ACTIVE"),
+                    {'network_function_id':
+                    request_data['network_function_id']})
             self.db_handler.update_network_function(
                 self.db_session,
                 request_data['network_function_id'],
