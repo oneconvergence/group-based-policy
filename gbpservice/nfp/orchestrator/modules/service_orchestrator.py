@@ -1064,12 +1064,12 @@ class NSOConfiguratorRpcApi(object):
         config_params = {
             'info': {
                 'version': 'v1',
-                'service_type': 'heat'
+                'service_type': 'config_script'
             },
             'config': [{
                 'resource': 'heat',
                 'kwargs': {
-                    'template': service_config,
+                    'config_string': service_config,
                     'request_info': None
                 }
             }]

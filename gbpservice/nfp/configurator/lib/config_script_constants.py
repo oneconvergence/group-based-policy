@@ -10,14 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log as logging
-
-from gbpservice.nfp.orchestrator.networking.drivers import (
-    networking_driver_base)
-
-
-LOG = logging.getLogger(__name__)
-
-
-class NeutronDriver(networking_driver_base.NetworkDriverBase):
-    pass
+DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.config_script'
+SERVICE_TYPE = 'config_script'
+CREATE_CONFIG_SCRIPT_EVENT = 'CREATE_CONFIG_SCRIPT'
+UNHANDLED_RESULT = 'unhandled'
+ERROR_RESULT = 'error'
+HEAT_RESOURCE = 'HEAT'
