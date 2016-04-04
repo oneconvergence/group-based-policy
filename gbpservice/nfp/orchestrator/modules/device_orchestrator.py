@@ -45,13 +45,11 @@ def rpc_init(controller, config):
 
 def events_init(controller, config, device_orchestrator):
     events = ['CREATE_NETWORK_FUNCTION_DEVICE', 'DEVICE_SPAWNING',
-              'DEVICE_UP', 'DEVICE_HEALTHY',
-              'CONFIGURE_DEVICE', 'DEVICE_CONFIGURED',
+              'DEVICE_HEALTHY', 'CONFIGURE_DEVICE',
+              'DEVICE_CONFIGURED',
               'DELETE_NETWORK_FUNCTION_DEVICE',
-              'DELETE_CONFIGURATION', 'DELETE_CONFIGURATION_COMPLETED',
-              'DELETE_DEVICE', 'DEVICE_NOT_UP',
-              'DEVICE_NOT_REACHABLE', 'DEVICE_CONFIGURATION_FAILED',
-              'DRIVER_ERROR', 'DEVICE_ERROR']
+              'DELETE_CONFIGURATION_COMPLETED',
+              'DEVICE_NOT_REACHABLE', 'DEVICE_CONFIGURATION_FAILED']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -213,8 +211,6 @@ class DeviceOrchestrator(object):
 
             "DELETE_NETWORK_FUNCTION_DEVICE": (
                 self.delete_network_function_device),
-            "DELETE_CONFIGURATION": (
-                self.delete_device_configuration),
             "DELETE_CONFIGURATION_COMPLETED": self.unplug_interfaces,
             #"DELETE_HEALTH_MONITOR": (
             #    self.delete_device_health_monitor),
@@ -445,6 +441,7 @@ class DeviceOrchestrator(object):
         # exists to share, so create a new device.
         if dev_sharing_info and device:
             # Device is already active, no need to change status
+            device['network_function_device_id'] = device['id']
             self._create_event(event_id='DEVICE_HEALTHY',
                                event_data=device,
                                is_internal_event=True)
@@ -660,7 +657,8 @@ class DeviceOrchestrator(object):
                  {'device': delete_nfd_request})
 
         self._create_event(event_id='DELETE_CONFIGURATION',
-                           event_data=device)
+                           event_data=device,
+                           is_internal_event=True)
 
     def delete_device_configuration(self, event):
         device = event.data
