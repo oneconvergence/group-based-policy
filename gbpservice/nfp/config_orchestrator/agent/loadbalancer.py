@@ -17,8 +17,8 @@ from gbpservice.nfp.lib.transport import *
 LOG = logging.getLogger(__name__)
 
 class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
-    RPC_API_VERSION = '1.0'
-    _target = target.Target(version=RPC_API_VERSION)
+    RPC_API_VERSION = '2.0'
+    target = target.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
