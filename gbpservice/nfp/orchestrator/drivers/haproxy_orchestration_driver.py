@@ -15,15 +15,20 @@ from oslo_log import log as logging
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions
-from gbpservice.nfp.orchestrator.drivers import (
-    orchestration_driver_base as odb
+from gbpservice.nfp.orchestrator.drivers.orchestration_driver_base import (
+    OrchestrationDriverBase
 )
+
 
 LOG = logging.getLogger(__name__)
 
 
-class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
+class HaproxyOrchestrationDriver(OrchestrationDriverBase):
+    """Haproxy Service VM Driver for orchestration of virtual appliances
 
+    Overrides methods from HotplugSupportedOrchestrationDriver class for
+    performing things specific to Haproxy service VM
+    """
     def __init__(self, config=None, supports_device_sharing=True,
                  supports_hotplug=True, max_interfaces=10):
         super(HaproxyOrchestrationDriver, self).__init__(
@@ -33,9 +38,7 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
             max_interfaces=max_interfaces)
         self.service_vendor = 'Haproxy'
 
-    @odb._set_network_handler
-    def get_network_function_device_config_info(self, device_data,
-                                                network_handler=None):
+    def get_network_function_device_config_info(self, device_data):
         """ Get the configuration information for NFD
 
         :param device_data: NFD device
@@ -70,7 +73,6 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
         if (
             any(key not in device_data
                 for key in ['service_vendor',
-                            'network_model',
                             'mgmt_ip_address',
                             'ports',
                             'service_details']) or
@@ -104,9 +106,10 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
         for port in device_data['ports']:
             if port['port_classification'] == nfp_constants.PROVIDER:
                 try:
-                    (provider_ip, provider_mac, provider_cidr, dummy) = (
-                            network_handler.get_port_details(token, port['id'])
-                    )
+                    port_id = self._get_port_id(port, token)
+                    (provider_ip, provider_mac,
+                     provider_cidr, dummy) = self._get_port_details(token,
+                                                                    port_id)
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_LE('Failed to get provider port details'
@@ -114,10 +117,11 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
                     return None
             elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
-                    (consumer_ip, consumer_mac, consumer_cidr,
-                     consumer_gateway_ip) = (
-                            network_handler.get_port_details(token, port['id'])
-                    )
+                    port_id = self._get_port_id(port, token)
+                    (consumer_ip, consumer_mac,
+                     consumer_cidr,
+                     consumer_gateway_ip) = self._get_port_details(token,
+                                                                   port_id)
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_LE('Failed to get consumer port details'

@@ -10,29 +10,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_log import log as logging
 
-class NFPNetworkDriverBase(object):
-    """ NFP Network Driver Base class
+from gbpservice.nfp.orchestrator.networking.drivers import (
+    networking_driver_base)
 
-    Handles ports, operations on them
-    """
-    def __init__(self):
-        pass
 
-    def setup_traffic_steering(self):
-        pass
+LOG = logging.getLogger(__name__)
 
-    def create_port(self, token, admin_id, net_id, name=None):
-        pass
 
-    def delete_port(self, token, port_id):
-        pass
-
-    def get_port_id(self, token, port_id):
-        pass
-
-    def get_port_details(self, token, port_id):
-        pass
-
-    def set_promiscuos_mode(self, token, port_id):
-        pass
+class GBPDriver(networking_driver_base.NetworkDriverBase):
+    pass
