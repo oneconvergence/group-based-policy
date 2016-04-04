@@ -218,7 +218,7 @@ class DeviceOrchestrator(object):
             #    self.delete_device), # should we wait for
             # this, or simply delete device
             "DELETE_DEVICE": self.delete_device,
-            "DELETE_CONFIGURATION": delete_device_configuration,
+            "DELETE_CONFIGURATION": self.delete_device_configuration,
             "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
             "DEVICE_CONFIGURATION_FAILED": self.handle_device_config_failed,
             "DEVICE_ERROR": self.handle_device_create_error,
