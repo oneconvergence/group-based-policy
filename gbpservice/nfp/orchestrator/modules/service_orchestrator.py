@@ -514,7 +514,7 @@ class ServiceOrchestrator(object):
                                event_data=event_data)
             return
 
-        self.config_driver.delete_config(
+        heat_stack_id = self.config_driver.delete_config(
             network_function_info['heat_stack_id'],
             network_function_info['tenant_id'])
         request_data = {
@@ -522,6 +522,10 @@ class ServiceOrchestrator(object):
             'tenant_id': network_function_info['tenant_id'],
             'network_function_id': network_function_info['id']
         }
+        if not heat_stack_id:
+            self._create_event('USER_CONFIG_DELETE_FAILED',
+                               event_data=request_data)
+            return
         self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
@@ -592,13 +596,18 @@ class ServiceOrchestrator(object):
         request_data['heat_stack_id'] = self.config_driver.apply_config(
             network_function_details)  # Heat driver to launch stack
         network_function = network_function_details['network_function']
+        request_data['network_function_id'] = network_function['id']
+        if not request_data['heat_stack_id']:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         request_data['tenant_id'] = network_function['tenant_id']
+        request_data['network_function_details'] = network_function_details
         LOG.debug("handle_device_active heat_stack_id: %s"
                   % (request_data['heat_stack_id']))
         self.db_handler.update_network_function(
             self.db_session, network_function['id'],
             {'heat_stack_id': request_data['heat_stack_id']})
-        request_data['network_function_id'] = network_function['id']
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True)
@@ -667,7 +676,8 @@ class ServiceOrchestrator(object):
     def check_for_user_config_complete(self, event):
         request_data = event.data
         config_status = self.config_driver.is_config_complete(
-            request_data['heat_stack_id'], request_data['tenant_id'])
+            request_data['heat_stack_id'], request_data['tenant_id'],
+            request_data['network_function_details'])
         if config_status == nfp_constants.ERROR:
             updated_network_function = {'status': nfp_constants.ERROR}
             self.db_handler.update_network_function(
@@ -842,18 +852,23 @@ class ServiceOrchestrator(object):
         request_data = event.data
         network_function_details = request_data['network_function_details']
         policy_target = request_data['policy_target']
-        config_id = self.config_driver.handle_policy_target_added(
-            network_function_details, policy_target)
+        config_id = self.config_driver.handle_policy_target_operations(
+            network_function_details, policy_target, "add")
         network_function = network_function_details['network_function']
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         self.db_handler.update_network_function(
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id']
-        }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
@@ -893,18 +908,23 @@ class ServiceOrchestrator(object):
         network_function_details = request_data[
             'network_function_details']
         policy_target = request_data['policy_target']
-        config_id = self.config_driver.handle_policy_target_removed(
-            network_function_details, policy_target)
+        config_id = self.config_driver.handle_policy_target_operations(
+            network_function_details, policy_target, "remove")
         network_function = network_function_details['network_function']
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         self.db_handler.update_network_function(
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id']
-        }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
@@ -944,18 +964,23 @@ class ServiceOrchestrator(object):
         network_function_details = request_data[
             'network_function_details']
         consumer_ptg = request_data['consumer_ptg']
-        config_id = self.config_driver.handle_consumer_ptg_added(
-            network_function_details, consumer_ptg)
+        config_id = self.config_driver.handle_consumer_ptg_operations(
+            network_function_details, consumer_ptg, "add")
         network_function = network_function_details['network_function']
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         self.db_handler.update_network_function(
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id']
-        }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True)
@@ -996,18 +1021,23 @@ class ServiceOrchestrator(object):
         network_function_details = request_data[
             'network_function_details']
         consumer_ptg = request_data['consumer_ptg']
-        config_id = self.config_driver.handle_consumer_ptg_removed(
-            network_function_details, consumer_ptg)
+        config_id = self.config_driver.handle_consumer_ptg_operations(
+            network_function_details, consumer_ptg, "remove")
         network_function = network_function_details['network_function']
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         self.db_handler.update_network_function(
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id']
-        }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
