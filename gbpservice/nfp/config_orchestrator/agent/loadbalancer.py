@@ -23,7 +23,7 @@ RPC handler for Loadbalancer service
 
 
 class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
-    RPC_API_VERSION = '1.0'
+    RPC_API_VERSION = '2.0'
     target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
