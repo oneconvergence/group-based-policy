@@ -24,9 +24,9 @@ from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
-from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 
@@ -1099,12 +1099,12 @@ class NSOConfiguratorRpcApi(object):
         config_params = {
             'info': {
                 'version': 'v1',
-                'service_type': 'heat'
+                'service_type': 'config_script'
             },
             'config': [{
                 'resource': 'heat',
                 'kwargs': {
-                    'template': service_config,
+                    'config_string': service_config,
                     'request_info': None
                 }
             }]

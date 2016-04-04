@@ -345,7 +345,7 @@ def events_init(sc, drivers, rpcmgr):
 
 
 def load_drivers():
-    """Imports all the driver files.
+    """Imports all the driver files corresponding to this agent.
 
     Returns: Dictionary of driver objects with a specified service type and
     vendor name

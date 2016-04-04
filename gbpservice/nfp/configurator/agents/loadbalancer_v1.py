@@ -78,7 +78,7 @@ class LBaasRpcSender(data_filter.Filter):
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_pool_stats',
-               'kwargs': {'context': context,
+               'kwargs': {'context': context.to_dict(),
                           'pool_id': pool_id,
                           'stats': stats}
                }

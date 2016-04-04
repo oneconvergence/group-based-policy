@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_log import helpers as log_helpers
 from oslo_log import log
 
 from gbpservice.nfp.configurator.lib import constants
@@ -122,6 +123,7 @@ class ConfiguratorRpcManager(object):
         # identified service agent
         sa_instance.process_request(sa_req_list, notification_data)
 
+    @log_helpers.log_method_call
     def create_network_function_device_config(self, context, request_data):
         """RPC method to configure a network service device.
 
@@ -144,6 +146,7 @@ class ConfiguratorRpcManager(object):
                    str(err).capitalize())
             LOG.error(msg)
 
+    @log_helpers.log_method_call
     def delete_network_function_device_config(self, context, request_data):
         """RPC method to clear configuration of a network service device.
 
@@ -166,6 +169,7 @@ class ConfiguratorRpcManager(object):
                    str(err).capitalize())
             LOG.error(msg)
 
+    @log_helpers.log_method_call
     def update_network_function_device_config(self, context, request_data):
         """RPC method to update of configuration in a network service device.
 
@@ -188,6 +192,7 @@ class ConfiguratorRpcManager(object):
                    str(err).capitalize())
             LOG.error(msg)
 
+    @log_helpers.log_method_call
     def create_network_function_config(self, context, request_data):
         """RPC method to configure a network service.
 
@@ -210,6 +215,7 @@ class ConfiguratorRpcManager(object):
                    str(err).capitalize())
             LOG.error(msg)
 
+    @log_helpers.log_method_call
     def delete_network_function_config(self, context, request_data):
         """RPC method to clear configuration of a network service.
 
@@ -232,6 +238,7 @@ class ConfiguratorRpcManager(object):
                    str(err).capitalize())
             LOG.error(msg)
 
+    @log_helpers.log_method_call
     def update_network_function_config(self, context, request_data):
         """RPC method to update of configuration in a network service.
 
@@ -254,6 +261,7 @@ class ConfiguratorRpcManager(object):
                    str(err).capitalize())
             LOG.error(msg)
 
+    @log_helpers.log_method_call
     def get_notifications(self, context):
         """RPC method to get all notifications published by configurator.
 
