@@ -140,7 +140,7 @@ class DeviceOrchestrator(object):
     This class handles the orchestration of Network Function Device lifecycle.
     It deals with physical service resources - Network Devices. This module
     interacts with Service Orchestrator and Configurator. Service Orchestrator
-    sends device create/delete request, Device orchestrator sends/receieves 
+    sends device create/delete request, Device orchestrator sends/receieves
     RPC to/from configurator to create generic config. Device Orchestrator
     loads drivers specified in config file, and selects corresponding drivers
     based on service vendor.
@@ -156,13 +156,13 @@ class DeviceOrchestrator(object):
     stopped, if it returns any other status, the poll event is continued.
     2) In case of new device creation, once device become ACTIVE, NDO plug
     the interfaces.
-    3) After plugging the interfaces NDO sends RPC call to configurator for 
+    3) After plugging the interfaces NDO sends RPC call to configurator for
     creating generic config.
     4) Rpc Handler receives notification API from configurator, In case of
     success update DB with status as ACTIVE and create event DEVICE_CREATED
-    for Service Orchestrator. In case of any error, create event 
+    for Service Orchestrator. In case of any error, create event
     DEVICE_CREATE_FAILED and update DB as ERROR.
- 
+
     """
 
     def __init__(self, controller, config):
@@ -206,7 +206,9 @@ class DeviceOrchestrator(object):
             "CREATE_NETWORK_FUNCTION_DEVICE": (
                 self.create_network_function_device),
             "DEVICE_SPAWNING": self.check_device_is_up,
+            "DEVICE_UP": self.perform_health_check,
             "DEVICE_HEALTHY": self.plug_interfaces,
+            "CONFIGURE_DEVICE": self.create_device_configuration,
             "DEVICE_CONFIGURED": self.device_configuration_complete,
 
             "DELETE_NETWORK_FUNCTION_DEVICE": (
@@ -219,8 +221,12 @@ class DeviceOrchestrator(object):
             #"HEALTH_MONITOR_DELETED": (
             #    self.delete_device), # should we wait for
             # this, or simply delete device
+            "DELETE_DEVICE": self.delete_device,
             "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
             "DEVICE_CONFIGURATION_FAILED": self.handle_device_config_failed,
+            "DEVICE_ERROR": self.handle_device_create_error,
+            "DEVICE_NOT_UP": self.handle_device_not_up,
+            "DRIVER_ERROR": self.handle_driver_error
         }
         if event_id not in event_handler_mapping:
             raise Exception("Invalid event ID")
@@ -253,19 +259,25 @@ class DeviceOrchestrator(object):
                          'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None,
-                      is_poll_event=False, original_event=False):
-        if is_poll_event:
-            ev = self._controller.new_event(
-                id=event_id, data=event_data,
-                serialize=original_event.serialize,
-                binding_key=original_event.binding_key,
-                key=original_event.desc.uid)
-            LOG.debug("poll event started for %s" % (ev.id))
-            self._controller.poll_event(ev, max_times=10)
+                      is_poll_event=False, original_event=False,
+                      is_internal_event=False):
+        if not is_internal_event:
+            if is_poll_event:
+                ev = self._controller.new_event(
+                    id=event_id, data=event_data,
+                    serialize=original_event.serialize,
+                    binding_key=original_event.binding_key,
+                    key=original_event.desc.uid)
+                LOG.debug("poll event started for %s" % (ev.id))
+                self._controller.poll_event(ev, max_times=10)
+            else:
+                ev = self._controller.new_event(id=event_id, data=event_data)
+                self._controller.post_event(ev)
+            self._log_event_created(event_id, event_data)
         else:
-            ev = self._controller.new_event(id=event_id, data=event_data)
-            self._controller.post_event(ev)
-        self._log_event_created(event_id, event_data)
+            # Same module API, so calling corresponding function directly.
+            event = self._controller.new_event(id=event_id, data=event_data)
+            self.handle_event(event)
 
     def poll_event_cancel(self, ev):
         LOG.info(_LI("Poll event %(event_id)s cancelled."),
@@ -273,10 +285,13 @@ class DeviceOrchestrator(object):
 
         if ev.id == 'DEVICE_SPAWNING':
             LOG.info(_LI("Device is not up still after 10secs of launch"))
+            # create event DEVICE_NOT_UP
             device = ev.data
+            self._create_event(event_id='DEVICE_NOT_UP',
+                               event_data=device,
+                               is_internal_event=True)
             self._update_network_function_device_db(device,
                                                     'DEVICE_NOT_UP')
-            self.handle_device_not_up(device)
 
     def _update_device_status(self, device, state, status_desc=None):
         device['status'] = state
@@ -430,7 +445,9 @@ class DeviceOrchestrator(object):
         # exists to share, so create a new device.
         if dev_sharing_info and device:
             # Device is already active, no need to change status
-            self.plug_interfaces(device, is_event_call=False)
+            self._create_event(event_id='DEVICE_HEALTHY',
+                               event_data=device,
+                               is_internal_event=True)
             LOG.info(_LI("Sharing existing device: %s(device)s for reuse"),
                      {'device': device})
         else:
@@ -441,7 +458,9 @@ class DeviceOrchestrator(object):
                     device_data))
             if not driver_device_info:
                 LOG.info(_LI("Device creation failed"))
-                self.handle_device_create_error(device)
+                self._create_event(event_id='DEVICE_ERROR',
+                                   event_data=nfd_request,
+                                   is_internal_event=True)
                 return None
 
             # Update newly created device with required params
@@ -474,28 +493,40 @@ class DeviceOrchestrator(object):
             orchestration_driver.get_network_function_device_status(device))
         if is_device_up == nfp_constants.ACTIVE:
             self._controller.poll_event_done(event)
+
+            # create event DEVICE_UP
+            self._create_event(event_id='DEVICE_UP',
+                               event_data=device,
+                               is_internal_event=True)
             self._update_network_function_device_db(device,
                                                    'DEVICE_UP')
-            self.perform_health_check(device)
             return STOP_POLLING
         elif is_device_up == nfp_constants.ERROR:
             self._controller.poll_event_done(event)
+
+            # create event DEVICE_NOT_UP
+            self._create_event(event_id='DEVICE_NOT_UP',
+                               event_data=device,
+                               is_internal_event=True)
             self._update_network_function_device_db(device,
                                                    'DEVICE_NOT_UP')
-            self.handle_device_not_up(device)
             return STOP_POLLING
         else:
             # Continue polling until device status became ACTIVE/ERROR.
             return CONTINUE_POLLING
 
-    def perform_health_check(self, device):
+    def perform_health_check(self, event):
+        # The driver tells which protocol / port to monitor ??
+        device = event.data
         orchestration_driver = self._get_orchestration_driver(
             device['service_vendor'])
         hm_req = (
             orchestration_driver.get_network_function_device_healthcheck_info(
                                                                 device))
         if not hm_req:
-            self.handle_driver_error(device)
+            self._create_event(event_id='DRIVER_ERROR',
+                               event_data=device,
+                               is_internal_event=True)
             return None
         self.configurator_rpc.create_network_function_device_config(device,
                                                                     hm_req)
@@ -569,19 +600,25 @@ class DeviceOrchestrator(object):
                 device))
         if _ifaces_plugged_in:
             self._increment_device_interface_count(device)
-            self.create_device_configuration(device)
+            self._create_event(event_id='CONFIGURE_DEVICE',
+                               event_data=device,
+                               is_internal_event=True)
         else:
-            # wrong
-            self.handle_interfaces_setup_failed(device)
+            self._create_event(event_id='DEVICE_CONFIGURATION_FAILED',
+                               event_data=device,
+                               is_internal_event=True)
 
-    def create_device_configuration(self, device):
+    def create_device_configuration(self, event):
+        device = event.data
         orchestration_driver = self._get_orchestration_driver(
             device['service_vendor'])
         config_params = (
             orchestration_driver.get_network_function_device_config_info(
                                                                     device))
         if not config_params:
-            self.handle_driver_error(device)
+            self._create_event(event_id='DRIVER_ERROR',
+                               event_data=device,
+                               is_internal_event=True)
             return None
         # Sends RPC to configurator to create generic config
         self.configurator_rpc.create_network_function_device_config(
@@ -624,16 +661,18 @@ class DeviceOrchestrator(object):
 
         self._create_event(event_id='DELETE_CONFIGURATION',
                            event_data=device)
-        self.delete_device_configuration(device)
 
-    def delete_device_configuration(self, device):
+    def delete_device_configuration(self, event):
+        device = event.data
         orchestration_driver = self._get_orchestration_driver(
             device['service_vendor'])
         config_params = (
             orchestration_driver.get_network_function_device_config_info(
                                                                 device))
         if not config_params:
-            self.handle_driver_error(device)
+            self._create_event(event_id='DRIVER_ERROR',
+                               event_data=device,
+                               is_internal_event=True)
             return None
         # Sends RPC call to configurator to delete generic config API
         self.configurator_rpc.delete_network_function_device_config(device,
@@ -655,9 +694,13 @@ class DeviceOrchestrator(object):
         else:
             # Ignore unplug error
             pass
-        self.delete_device(device)
+        self._create_event(event_id='DELETE_DEVICE',
+                           event_data=device,
+                           is_internal_event=True)
 
-    def delete_device(self, device):
+    def delete_device(self, event):
+        # Update status in DB, send DEVICE_DELETED event to NSO.
+        device = event.data
         orchestration_driver = self._get_orchestration_driver(
             device['service_vendor'])
 
@@ -676,14 +719,16 @@ class DeviceOrchestrator(object):
                            event_data=device)
 
     # Error Handling
-    def handle_device_create_error(self, device):
+    def handle_device_create_error(self, event):
+        device = event.data
         LOG.error(_LE("Device creation failed, for device %(device)s"),
                   {'device': device})
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
 
-    def handle_device_not_up(self, device):
+    def handle_device_not_up(self, event):
+        device = event.data
         status = nfp_constants.ERROR
         desc = 'Device not became ACTIVE'
         self._update_network_function_device_db(device, status, desc)
@@ -711,7 +756,8 @@ class DeviceOrchestrator(object):
         LOG.debug("Device create failed for device: %s, with "
                   "data: %s" % (device['id'], device))
 
-    def handle_interfaces_setup_failed(self, device):
+    def handle_interfaces_setup_failed(self, event):
+        device = event.data
         status = nfp_constants.ERROR
         desc = 'Interfaces Plugging failed'
         self._update_network_function_device_db(device, status, desc)
@@ -721,7 +767,8 @@ class DeviceOrchestrator(object):
         LOG.debug("Interface Plugging failed for device: %s,"
                   "with config: %s" % (device['id'], device))
 
-    def handle_driver_error(self, device):
+    def handle_driver_error(self, event):
+        device = event.data
         LOG.error(_LE("Exception occured in driver, driver returned None "
                      " for device %(device)s"), {'device': device})
         status = nfp_constants.ERROR
