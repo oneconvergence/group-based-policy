@@ -388,7 +388,9 @@ class ServiceOrchestrator(object):
                              else False)
         return base_mode_support
 
-    def create_user_config(self, network_function_id, service_config_str):
+    def update_network_function_user_config(self, network_function_id,
+                                            service_config_str,
+                                            operation):
         tag_str, config_str = self.config_driver.\
                         parse_template_config_string(service_config_str)
         if not config_str:
@@ -406,11 +408,24 @@ class ServiceOrchestrator(object):
             network_function_data = {
                 'network_function_details': network_function_details
             }
-            self.configurator_rpc.create_network_function_user_config(
-                network_function_data, service_config_str)
+            rpc_method = getattr(self.configurator_rpc, operation +
+                                 '_network_function_user_config')
+            rpc_method(network_function_data, service_config_str)
         else:
             # Place holder for calling config_init API
             pass
+
+    def create_network_function_user_config(self, network_function_id,
+                                            service_config_str):
+        self.update_network_function_user_config(network_function_id,
+                                                 service_config_str,
+                                                 operation='create')
+
+    def delete_network_function_user_config(self, network_function_id,
+                                            service_config_str):
+        self.update_network_function_user_config(network_function_id,
+                                                 service_config_str,
+                                                 operation='delete')
 
     def create_network_function(self, context, network_function_info):
         self._validate_create_service_input(context, network_function_info)
@@ -460,8 +475,8 @@ class ServiceOrchestrator(object):
         if base_mode_support:
             # In base mode support, create user config directly, no need to
             # create network function instance, network function device first.
-            self.create_user_config(network_function['id'],
-                                    service_config_str)
+            self.create_network_function_user_config(network_function['id'],
+                                                     service_config_str)
             return network_function
 
         if mode == nfp_constants.GBP_MODE:
@@ -505,14 +520,9 @@ class ServiceOrchestrator(object):
         }
         network_function = self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
-        network_function_details = self.get_network_function_details(
-            network_function_info['id'])
         service_config = network_function_info['service_config']
-        network_function_data = {
-            'network_function_details': network_function_details
-        }
-        self.configurator_rpc.delete_network_function_user_config(
-            network_function_data, service_config)
+        self.delete_network_function_user_config(network_function_id,
+                                                 service_config)
 
     def delete_user_config(self, event):
         request_data = event.data
@@ -592,7 +602,8 @@ class ServiceOrchestrator(object):
             self.db_session, nfi['network_function_id'])
         service_config = network_function['service_config']
 
-        self.create_user_config(network_function['id'], service_config)
+        self.create_network_function_user_config(network_function['id'],
+                                                 service_config)
 
     def apply_user_config(self, event):
         request_data = event.data
@@ -628,14 +639,14 @@ class ServiceOrchestrator(object):
     def handle_driver_error(self, network_function_id):
         network_function_details = self.get_network_function_details(
                 network_function_id)
-        network_function_id = network_function_details['network_function']
+        network_function_id = network_function_details['network_function']['id']
         network_function = {'status': nfp_constants.ERROR}
         self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
 
-        if network_function_details.get('network_function_instances'):
+        if network_function_details.get('network_function_instance'):
             network_function_instance_id = network_function_details[
-                    'network_function_instances']['id']
+                    'network_function_instance']['id']
             nfi = {
                    'status': nfp_constants.ERROR,
                    }
