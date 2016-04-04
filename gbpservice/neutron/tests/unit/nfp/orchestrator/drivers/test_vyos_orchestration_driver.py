@@ -191,6 +191,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
         device_data = {'id': '1',
                        'tenant_id': '2',
                        'service_details': {'device_type': 'xyz'},
+                       'network_model': 'gbp',
                        'mgmt_port_id': {'id': '3',
                                         'port_model': 'gbp',
                                         'port_classification': 'mgmt'}}
@@ -253,20 +254,21 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
                                                         return_value=None)
         driver.network_handler.get_port_id = mock.MagicMock(return_value='7')
 
-        self.assertRaises(exceptions.HotplugNotSupported,
-                          driver.plug_network_function_device_interfaces, None)
-
-        driver.supports_hotplug = True
-
         device_data = {'id': '1',
                        'tenant_id': '2',
                        'service_details': {'device_type': 'xyz'},
+                       'network_model': 'gbp',
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'},
                                  {'id': '4',
                                   'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
+        self.assertRaises(exceptions.HotplugNotSupported,
+                          driver.plug_network_function_device_interfaces, device_data)
+
+        driver.supports_hotplug = True
+
         self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.plug_network_function_device_interfaces,
                           device_data)
@@ -296,21 +298,21 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
                                                         return_value=None)
         driver.network_handler.get_port_id = mock.MagicMock(return_value='7')
 
-        self.assertRaises(exceptions.HotplugNotSupported,
-                          driver.unplug_network_function_device_interfaces,
-                          None)
-
-        driver.supports_hotplug = True
-
         device_data = {'id': '1',
                        'tenant_id': '2',
                        'service_details': {'device_type': 'xyz'},
+                       'network_model': 'gbp',
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'},
                                  {'id': '4',
                                   'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
+        self.assertRaises(exceptions.HotplugNotSupported,
+                          driver.unplug_network_function_device_interfaces,
+                          device_data)
+
+        driver.supports_hotplug = True
         self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.unplug_network_function_device_interfaces,
                           device_data)
@@ -359,6 +361,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'}],
                        'service_type': 'firewall',
+                       'network_model': 'gbp',
                        'network_function_id': '4',
                        'tenant_id': '5',
                        'service_details': {'service_vendor': 'vyos',
