@@ -46,7 +46,7 @@ def rpc_init(controller, config):
 def events_init(controller, config, device_orchestrator):
     events = ['CREATE_NETWORK_FUNCTION_DEVICE', 'DEVICE_SPAWNING',
               'DEVICE_HEALTHY', 'CONFIGURE_DEVICE',
-              'DEVICE_CONFIGURED',
+              'DEVICE_CONFIGURED', "DELETE_CONFIGURATION",
               'DELETE_NETWORK_FUNCTION_DEVICE',
               'DELETE_CONFIGURATION_COMPLETED',
               'DEVICE_NOT_REACHABLE', 'DEVICE_CONFIGURATION_FAILED']
@@ -218,6 +218,7 @@ class DeviceOrchestrator(object):
             #    self.delete_device), # should we wait for
             # this, or simply delete device
             "DELETE_DEVICE": self.delete_device,
+            "DELETE_CONFIGURATION": delete_device_configuration,
             "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
             "DEVICE_CONFIGURATION_FAILED": self.handle_device_config_failed,
             "DEVICE_ERROR": self.handle_device_create_error,
