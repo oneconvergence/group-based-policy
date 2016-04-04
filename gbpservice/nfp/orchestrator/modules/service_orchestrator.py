@@ -388,6 +388,30 @@ class ServiceOrchestrator(object):
                              else False)
         return base_mode_support
 
+    def create_user_config(self, network_function_id, service_config_str):
+        tag_str, config_str = self.config_driver.\
+                        parse_template_config_string(service_config_str)
+        if not config_str:
+            LOG.error(_LE('Exception while parsing config string, config '
+                          'string: %(config_str)s is improper for '
+                          'network_function id: %(network_function_id)s'),
+                      {'config_str': service_config_str,
+                       'network_function_id': network_function_id})
+            self.handle_driver_error(network_function_id)
+            return None
+
+        if tag_str != nfp_constants.CONFIG_INIT_TAG:
+            network_function_details = self.get_network_function_details(
+                network_function_id)
+            network_function_data = {
+                'network_function_details': network_function_details
+            }
+            self.configurator_rpc.create_network_function_user_config(
+                network_function_data, service_config_str)
+        else:
+            # Place holder for calling config_init API
+            pass
+
     def create_network_function(self, context, network_function_info):
         self._validate_create_service_input(context, network_function_info)
         # GBP or Neutron
@@ -407,8 +431,6 @@ class ServiceOrchestrator(object):
                              service_vendor,
                              service_chain_id or service_id)
         service_config_str = network_function_info.get('service_config')
-        tag_str, _ = self.config_driver.\
-                        parse_template_config_string(service_config_str)
         network_function = {
             'name': name,
             'description': '',
@@ -436,17 +458,10 @@ class ServiceOrchestrator(object):
             return None
 
         if base_mode_support:
-            if tag_str != 'config_init:':
-                network_function_details = self.get_network_function_details(
-                    network_function['id'])
-                network_function_data = {
-                    'network_function_details': network_function_details
-                }
-                self.configurator_rpc.create_network_function_user_config(
-                    network_function_data, service_config_str)
-            else:
-                # Place holder for calling config_init API
-                pass
+            # In base mode support, create user config directly, no need to
+            # create network function instance, network function device first.
+            self.create_user_config(network_function['id'],
+                                    service_config_str)
             return network_function
 
         if mode == nfp_constants.GBP_MODE:
@@ -573,15 +588,11 @@ class ServiceOrchestrator(object):
         }
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
-        network_function_details = self.get_network_function_details(
-            nfi['network_function_id'])
-        network_function = network_function_details['network_function']
+        network_function = self.db_handler.get_network_function(
+            self.db_session, nfi['network_function_id'])
         service_config = network_function['service_config']
-        network_function_data = {
-            'network_function_details': network_function_details
-        }
-        self.configurator_rpc.create_network_function_user_config(
-            network_function_data, service_config)
+
+        self.create_user_config(network_function['id'], service_config)
 
     def apply_user_config(self, event):
         request_data = event.data
@@ -613,6 +624,24 @@ class ServiceOrchestrator(object):
         self.db_handler.update_network_function(
             self.db_session, nfi['network_function_id'], network_function)
         # Trigger RPC to notify the Create_Service caller with status
+
+    def handle_driver_error(self, network_function_id):
+        network_function_details = self.get_network_function_details(
+                network_function_id)
+        network_function_id = network_function_details['network_function']
+        network_function = {'status': nfp_constants.ERROR}
+        self.db_handler.update_network_function(
+            self.db_session, network_function_id, network_function)
+
+        if network_function_details.get('network_function_instances'):
+            network_function_instance_id = network_function_details[
+                    'network_function_instances']['id']
+            nfi = {
+                   'status': nfp_constants.ERROR,
+                   }
+            nfi = self.db_handler.update_network_function_instance(
+                        self.db_session, network_function_instance_id, nfi)
+
 
     def _update_network_function_instance(self):
         pass

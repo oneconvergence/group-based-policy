@@ -796,8 +796,11 @@ class HeatDriver(object):
             try:
                 service_config = config_str.split(tag_str + ':')[1]
                 break
-            except Exception:
+            except IndexError:
+                # Try for next tag
                 pass
+            except Exception:
+                return None, None
         if not service_config:
             service_config = config_str
         return tag_str, service_config
