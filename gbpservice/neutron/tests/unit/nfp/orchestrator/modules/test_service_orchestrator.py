@@ -402,6 +402,9 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
 
     def test_event_check_for_user_config_complete(self):
         network_function = self.create_network_function()
+        network_function_details = (
+            self.service_orchestrator.get_network_function_details(
+                network_function['id']))
         with mock.patch.object(
             self.service_orchestrator.config_driver,
             "is_config_complete") as mock_is_config_complete:
@@ -410,12 +413,15 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             request_data = {
                 'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
-                'network_function_id': network_function['id']}
+                'network_function_id': network_function['id'],
+                'network_function_details': network_function_details
+            }
             test_event = Event(data=request_data)
             status = self.service_orchestrator.check_for_user_config_complete(
                 test_event)
             mock_is_config_complete.assert_called_once_with(
-                request_data['heat_stack_id'], network_function['tenant_id'])
+                request_data['heat_stack_id'], network_function['tenant_id'],
+                request_data['network_function_details'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual(network_function['status'], db_nf['status'])
@@ -427,12 +433,15 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             request_data = {
                 'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
-                'network_function_id': network_function['id']}
+                'network_function_id': network_function['id'],
+                'network_function_details': network_function_details
+            }
             test_event = Event(data=request_data)
             status = self.service_orchestrator.check_for_user_config_complete(
                 test_event)
             mock_is_config_complete.assert_called_once_with(
-                request_data['heat_stack_id'], network_function['tenant_id'])
+                request_data['heat_stack_id'], network_function['tenant_id'],
+                request_data['network_function_details'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual('ERROR', db_nf['status'])
@@ -445,12 +454,15 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             request_data = {
                 'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
-                'network_function_id': network_function['id']}
+                'network_function_id': network_function['id'],
+                'network_function_details': network_function_details
+            }
             test_event = Event(data=request_data)
             status = self.service_orchestrator.check_for_user_config_complete(
                 test_event)
             mock_is_config_complete.assert_called_once_with(
-                request_data['heat_stack_id'], network_function['tenant_id'])
+                request_data['heat_stack_id'], network_function['tenant_id'],
+                request_data['network_function_details'])
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual('ACTIVE', db_nf['status'])
@@ -691,8 +703,9 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                                                      'service_vendor': 'vyos'})
         with mock.patch.object(
             self.service_orchestrator.config_driver,
-            "handle_policy_target_added") as mock_handle_policy_target_added:
-            mock_handle_policy_target_added.return_value = 'stack_id'
+            "handle_policy_target_operations") as\
+            mock_handle_policy_target_operations:
+            mock_handle_policy_target_operations.return_value = 'stack_id'
             self.service_orchestrator.handle_policy_target_added(
                 self.context, network_function_id, policy_target)
         db_nf = self.nfp_db.get_network_function(
@@ -735,7 +748,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                                                      'service_vendor': 'vyos'})
         with mock.patch.object(
             self.service_orchestrator.config_driver,
-            "handle_policy_target_removed") as mock_handle_pt_removed:
+            "handle_policy_target_operations") as mock_handle_pt_removed:
             mock_handle_pt_removed.return_value = 'stack_id'
             self.service_orchestrator.handle_policy_target_removed(
                 self.context, network_function_id, policy_target)
@@ -778,7 +791,8 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                                                      'service_vendor': 'vyos'})
         with mock.patch.object(
             self.service_orchestrator.config_driver,
-            "handle_consumer_ptg_added") as mock_handle_consumer_ptg_added:
+            "handle_consumer_ptg_operations") as\
+            mock_handle_consumer_ptg_added:
             mock_handle_consumer_ptg_added.return_value = 'stack_id'
             self.service_orchestrator.handle_consumer_ptg_added(
                 self.context, network_function_id, policy_target_group)
@@ -823,7 +837,8 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                                                      'service_vendor': 'vyos'})
         with mock.patch.object(
             self.service_orchestrator.config_driver,
-            "handle_consumer_ptg_removed") as mock_handle_consumer_ptg_removed:
+            "handle_consumer_ptg_operations") as\
+            mock_handle_consumer_ptg_removed:
             mock_handle_consumer_ptg_removed.return_value = 'stack_id'
             self.service_orchestrator.handle_consumer_ptg_removed(
                 self.context, network_function_id, policy_target_group)

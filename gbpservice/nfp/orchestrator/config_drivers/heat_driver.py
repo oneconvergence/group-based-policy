@@ -257,7 +257,7 @@ class HeatDriver(object):
             self._assign_admin_user_to_project(user_tenant_id)
         except Exception:
             LOG.exception(_LE("Failed to assign admin user to project"))
-            return None 
+            return None
         user, password, tenant, auth_url =\
             self.keystoneclient.get_keystone_creds()
         admin_token = self.keystone(
@@ -298,18 +298,17 @@ class HeatDriver(object):
         provider_tenant_id = provider['tenant_id']
         if service_profile['service_type'] == pconst.LOADBALANCER:
             network_function_instance = network_function_details.get(
-            'network_function_instance')
+                'network_function_instance')
             if network_function_instance:
                 for port in network_function_instance.get('port_info'):
                     port_info = db_handler.get_port_info(db_session, port)
-                    port_classification = port_info['port_classification']
                     if port_info['port_model'] != nfp_constants.GBP_PORT:
                         return
             auth_token, provider_tenant_id = self._get_tenant_context(
                 provider_tenant_id)
             self._create_policy_target_for_vip(auth_token,
                                                provider_tenant_id, provider)
- 
+
     def _create_policy_target_for_vip(self, auth_token,
                                       provider_tenant_id, provider):
         provider_subnet = None
@@ -493,7 +492,7 @@ class HeatDriver(object):
     def _update_firewall_template(self, auth_token, provider, stack_template):
         consumer_ptgs, consumer_eps = self._get_consumers_for_chain(
             auth_token, provider)
-        if (consumer_ptgs == None) and (consumer_eps == None):
+        if (consumer_ptgs is None) and (consumer_eps is None):
             return None
         is_template_aws_version = stack_template.get(
             'AWSTemplateFormatVersion', False)
@@ -744,9 +743,9 @@ class HeatDriver(object):
                 stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
         elif service_type == pconst.VPN:
-            rvpn_l3_policy= self._get_rvpn_l3_policy(auth_token,
+            rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token,
                 provider, update)
-            if rvpn_l3_policy == None:
+            if rvpn_l3_policy is None:
                 return None, None
             config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
                 'ip_pool']
@@ -807,7 +806,7 @@ class HeatDriver(object):
                 if not floatingips:
                     LOG.Error(_LE("Floating IP for VPN Service has been "
                          "disassociated Manually"))
-                    return None, None 
+                    return None, None
                 stitching_port_fip = floatingips[0]['floating_ip_address']
                 desc = ('fip=' + mgmt_ip +
                         ";tunnel_local_cidr=" +
@@ -1192,7 +1191,7 @@ class HeatDriver(object):
                 except Exception as err:
                     LOG.error(_LE("Stack deletion failed for STACK ID - "
                                   "%(stack_id)s for Tenant - %(tenant_id)s . "
-                                  "ERROR - %(err)") %
+                                  "ERROR - %(err)s") %
                               {'stack_id': stack_id,
                                'tenant_id': provider_tenant_id,
                                'err': str(err)})
@@ -1210,7 +1209,7 @@ class HeatDriver(object):
                            'update of node. To recover,please delete the '
                            'associated provider of Tenant ID -  %r . Details '
                            '- %r' % (provider_tenant_id, str(err)))
-                    LOG.exception(_LE('%(msg)') % {'msg': msg}) 
+                    LOG.exception(_LE('%(msg)s') % {'msg': msg})
                     return None
                 try:
                     self._wait_for_stack_operation_complete(
@@ -1222,7 +1221,7 @@ class HeatDriver(object):
                            'configuration would have been lost. Please check '
                            'with the ADMIN for issue of failure and '
                            're-initiate the update node once again.')
-                    LOG.exception(_LE('%(msg) NODE-ID: %(node_id)s '
+                    LOG.exception(_LE('%(msg)s NODE-ID: %(node_id)s '
                                       'INSTANCE-ID: %(instance_id)s '
                                       'TenantID: %(tenant_id)s . '
                                       'ERROR: %(err)s') %
@@ -1241,7 +1240,7 @@ class HeatDriver(object):
                            'configuration would have been lost. Please check '
                            'with the ADMIN for issue of failure and '
                            're-initiate the update node once again.')
-                    LOG.exception(_LE('%(msg) NODE-ID: %(node_id)s '
+                    LOG.exception(_LE('%(msg)s NODE-ID: %(node_id)s '
                                       'INSTANCE-ID: %(instance_id)s '
                                       'TenantID: %(tenant_id)s . '
                                       'ERROR: %(err)s') %
@@ -1265,7 +1264,7 @@ class HeatDriver(object):
                        'update of node. To recover,please delete the '
                        'associated provider of Tenant ID -  %r . Details '
                        '- %r' % (provider_tenant_id, str(err)))
-                LOG.exception(_LE('%(msg)') % {'msg': msg}) 
+                LOG.exception(_LE('%(msg)s') % {'msg': msg})
                 return None
             stack_id = stack["stack"]["id"]
         return stack_id
@@ -1350,6 +1349,6 @@ class HeatDriver(object):
                     return None
                 return stack_id
             except Exception:
-                LOG.exception(_LE("Processing policy target group %(operation)s "
-                    " failed") % {'operation': operation})
+                LOG.exception(_LE("Processing policy target group "
+                    "%(operation)s failed") % {'operation': operation})
                 return None
