@@ -744,12 +744,12 @@ class HeatDriver(object):
                 stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
         elif service_type == pconst.VPN:
-            rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token,
-                provider, update)
-            if rvpn_l3_policy is None:
-                return None, None
-            config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
-                'ip_pool']
+            #rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token,
+            #    provider, update)
+            #if rvpn_l3_policy is None:
+            #    return None, None
+            #config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
+            #    'ip_pool']
             config_param_values['Subnet'] = (
                 consumer_port['fixed_ips'][0]['subnet_id']
                 if consumer_port else None)
