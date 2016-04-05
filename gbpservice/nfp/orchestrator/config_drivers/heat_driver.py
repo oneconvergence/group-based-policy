@@ -326,9 +326,10 @@ class HeatDriver(object):
             if lb_pool_ids and lb_pool_ids[0]['vip_id']:
                 lb_vip = self.neutron_client.get_vip(
                     auth_token, lb_pool_ids[0]['vip_id'])
+                vip_name = "service_target_vip_pt" + lb_pool_ids[0]['vip_id']
                 self.gbp_client.create_policy_target(
                     auth_token, provider_tenant_id, provider['id'],
-                    "service_target_vip_pt", lb_vip['vip']['port_id'])
+                    vip_name, lb_vip['vip']['port_id'])
 
     def _is_service_target(self, policy_target):
         if policy_target['name'] and (policy_target['name'].startswith(
@@ -440,7 +441,7 @@ class HeatDriver(object):
                     break
 
         if not redirect_prs:
-            LOG.ERROR(_LE("Redirect rule doesn't exist in policy target rule "
+            LOG.error(_LE("Redirect rule doesn't exist in policy target rule "
                       " set"))
             return None, None
         return (redirect_prs['consuming_policy_target_groups'],
@@ -679,7 +680,7 @@ class HeatDriver(object):
                               stack_template.startswith('{') else
                               yaml.load(stack_template))
         except Exception:
-            LOG.ERROR(_("Unable to load stack template for service chain "
+            LOG.error(_LE("Unable to load stack template for service chain "
                 "node:  %(node_id)s") % {'node_id': service_chain_node})
             return None, None
         config_param_values = service_chain_instance.get(
