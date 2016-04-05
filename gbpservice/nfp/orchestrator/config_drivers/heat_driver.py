@@ -678,9 +678,9 @@ class HeatDriver(object):
         _, stack_template_str = self.parse_template_config_string(
                 service_chain_node.get('config'))
         try:
-            stack_template = (jsonutils.loads(stack_template) if
+            stack_template = (jsonutils.loads(stack_template_str) if
                               stack_template.startswith('{') else
-                              yaml.load(stack_template))
+                              yaml.load(stack_template_str))
         except Exception:
             LOG.error(_LE("Unable to load stack template for service chain "
                 "node:  %(node_id)s") % {'node_id': service_chain_node})
