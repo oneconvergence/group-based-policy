@@ -674,7 +674,9 @@ class HeatDriver(object):
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
 
-        stack_template = service_chain_node.get('config')
+        #stack_template = service_chain_node.get('config')
+        _, stack_template_str = self.parse_template_config_string(
+                service_chain_node.get('config'))
         try:
             stack_template = (jsonutils.loads(stack_template) if
                               stack_template.startswith('{') else
@@ -836,6 +838,23 @@ class HeatDriver(object):
                      'stack_params : %(params)s') %
                  {'stack_data': stack_template, 'params': stack_params})
         return (stack_template, stack_params)
+
+    def parse_template_config_string(self, config_str):
+        service_config = tag_str = ''
+        for tag_str in [nfp_constants.HEAT_CONFIG_TAG,
+                        nfp_constants.CONFIG_INIT_TAG,
+                        nfp_constants.ANSIBLE_TAG]:
+            try:
+                service_config = config_str.split(tag_str + ':')[1]
+                break
+            except IndexError:
+                # Try for next tag
+                pass
+            except Exception:
+                return None, None
+        if not service_config:
+            service_config = config_str
+        return tag_str, service_config
 
     def get_service_details(self, network_function_details):
         db_handler = nfp_db.NFPDbBase()
