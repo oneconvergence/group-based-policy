@@ -10,32 +10,44 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from gbpservice.nfp.config_orchestrator.agent import common
+from gbpservice.nfp.lib import transport
 from neutron_vpnaas.db.vpn import vpn_db
-from gbpservice.nfp.config_orchestrator.agent.common import *
-from gbpservice.nfp.lib.transport import *
+from oslo_log import helpers as log_helpers
+import oslo_messaging as messaging
 
-LOG = logging.getLogger(__name__)
+
+"""
+RPC handler for VPN service
+"""
 
 
 class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     RPC_API_VERSION = '1.0'
-    _target = target.Target(version=RPC_API_VERSION)
+    target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
         super(VpnAgent, self).__init__()
 
+    @log_helpers.log_method_call
     def vpnservice_updated(self, context, **kwargs):
+
         resource_data = kwargs.get('resource')
+        # Collecting db entry required by configurator.
         db = self._context(context, resource_data['tenant_id'])
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
         resource = resource_data['rsrc_type']
         reason = resource_data['reason']
-        body = prepare_request_data(resource, kwargs, "vpn")
-        send_request_to_configurator(self._conf, context, body, reason)
+        body = common. prepare_request_data(resource, kwargs, "vpn")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               reason)
 
     def _context(self, context, tenant_id):
         if context.is_admin:
@@ -54,6 +66,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'ipsec_site_conns': db_data.get_ipsec_site_connections(**args)}
 
     def _get_core_context(self, context, filters):
-        core_context_dict = get_core_context(context, filters, self._conf.host)
+        core_context_dict = common.get_core_context(context,
+                                                    filters,
+                                                    self._conf.host)
         del core_context_dict['ports']
         return core_context_dict

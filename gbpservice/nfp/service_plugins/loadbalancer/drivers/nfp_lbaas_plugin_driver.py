@@ -15,14 +15,5 @@ class HaproxyOnVMPluginDriver(adb.AgentDriverBase):
         adb.l_const.LOADBALANCER_AGENT = topics.LB_NFP_CONFIGAGENT_TOPIC
         adb.q_const.AGENT_TYPE_LOADBALANCER = 'NFP Loadbalancer agent'
 
-        # TODO (RPM): RPC API version 2.0 is not integration tested
-        # Till then this is a workaround to use RPC API 1.0
-        save_rpc_version_string = adb.LoadBalancerCallbacks.target.version
-        adb.LoadBalancerCallbacks.target.version = '1.0'
-
         super(HaproxyOnVMPluginDriver, self).__init__(plugin)
 
-        # TODO (RPM): RPC API version 2.0 is not integration tested
-        # Till then this is a workaround to use RPC API 1.0
-        self.agent_rpc.client.target.version = '1.0'
-        adb.LoadBalancerCallbacks.target.version = save_rpc_version_string
