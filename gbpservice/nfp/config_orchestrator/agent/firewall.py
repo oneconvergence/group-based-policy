@@ -101,6 +101,8 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         kwargs = kwargs['kwargs']
         rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
         firewall_id = kwargs['firewall_id']
+        # firewall = kwargs['firewall']     # kwargs contains whole firewall
+                                            # object under key firewall
         status = kwargs['status']
         msg = ("Config Orchestrator received "
                 "firewall_configuration_create_complete API, making an "
@@ -117,6 +119,8 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         kwargs = kwargs['kwargs']
         rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
         firewall_id = kwargs['firewall_id']
+        # firewall = kwargs['firewall']     # kwargs contains whole firewall
+                                            # object under key firewall
         msg = ("Config Orchestrator received "
                 "firewall_configuration_delete_complete API, making an "
                 "firewall_deleted RPC call for firewall: %s" % (firewall_id))
