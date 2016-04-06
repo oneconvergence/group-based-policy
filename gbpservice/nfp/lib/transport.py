@@ -246,7 +246,7 @@ def get_response_from_configurator(conf):
             rpc_cbs_data = rpcClient.cctxt.call(context,
                                                 'get_notifications')
         except Exception as e:
-            LOG(LOGGER, 'ERROR', "Exception while processing %s", e)
+            LOG(LOGGER, 'ERROR', "Exception while processing %s" % e)
         return rpc_cbs_data
 
 
