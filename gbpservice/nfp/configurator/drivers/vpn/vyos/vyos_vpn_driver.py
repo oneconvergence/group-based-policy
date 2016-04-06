@@ -27,9 +27,9 @@ LOG = logging.getLogger(__name__)
 
 rest_timeout = [
     cfg.IntOpt(
-        'rest_timeout',
+        'VPN.rest_timeout',
         default=30,
-        help=_("rest api timeout"))]
+        help="rest api timeout")]
 
 cfg.CONF.register_opts(rest_timeout)
 
@@ -373,6 +373,8 @@ class VpnGenericConfigDriver(object):
         msg = ("Route configuration status : %r "
                % (active_configured))
         LOG.info(msg)
+        if active_configured:
+            return "SUCCESS"
 
     def clear_routes(self, context, kwargs):
         """
@@ -417,6 +419,83 @@ class VpnGenericConfigDriver(object):
         msg = ("Route deletion status : %r "
                % (active_configured))
         LOG.info(msg)
+        if active_configured:
+            return "SUCCESS"
+
+    def _configure_static_ips(self, kwargs):
+        """ Configure static IPs for provider and stitching interfaces
+        of service VM.
+
+        Issues REST call to service VM for configuration of static IPs.
+
+        :param kwargs: a dictionary of firewall rules and objects
+        send by neutron plugin
+
+        Returns: SUCCESS/Failure message with reason.
+
+        """
+
+        rule_info = kwargs.get('rule_info')
+        static_ips_info = dict(
+                    provider_ip=kwargs.get('provider_ip'),
+                    provider_cidr=kwargs.get('provider_cidr'),
+                    provider_mac=kwargs.get('provider_mac'),
+                    stitching_ip=kwargs.get('stitching_ip'),
+                    stitching_cidr=kwargs.get('stitching_cidr'),
+                    stitching_mac=kwargs.get('stitching_mac'),
+                    provider_interface_position=kwargs.get(
+                                            'provider_interface_position'),
+                    stitching_interface_position=kwargs.get(
+                                            'stitching_interface_position'))
+        active_fip = rule_info['active_fip']
+
+        url = const.request_url % (active_fip,
+                                   const.CONFIGURATION_SERVER_PORT,
+                                   'add_static_ip')
+        data = jsonutils.dumps(static_ips_info)
+
+        msg = ("Initiating POST request to add static IPs for primary "
+               "service with SERVICE ID: %r of tenant: %r at: %r" %
+               (rule_info['service_id'], rule_info['tenant_id'],
+                active_fip))
+        LOG.info(msg)
+        try:
+            resp = requests.post(url, data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError as err:
+            msg = ("Failed to establish connection to primary service at: "
+                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except requests.exceptions.RequestException as err:
+            msg = ("Unexpected ERROR happened  while adding "
+                   "static IPs for primary service at: %r "
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response, invalid JSON. URL: "
+                   "%r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if not result['status']:
+            msg = ("Error adding static IPs. URL: %r. Reason: %s." %
+                   (url, result['reason']))
+            LOG.error(msg)
+            return msg
+
+        msg = ("Static IPs successfully added for SERVICE ID: %r"
+               " of tenant: %r" % (rule_info['service_id'],
+                                   rule_info['tenant_id']))
+        LOG.info(msg)
+        return const.STATUS_SUCCESS
+
 
     def configure_interfaces(self, context, kwargs):
         """
@@ -429,6 +508,19 @@ class VpnGenericConfigDriver(object):
 
         Returns: None
         """
+        try:
+            result_static_ips = self._configure_static_ips(kwargs)
+        except Exception as err:
+            msg = ("Failed to add static IPs. Error: %s" % err)
+            LOG.error(msg)
+            return msg
+        else:
+            if result_static_ips != const.STATUS_SUCCESS:
+                return result_static_ips
+            else:
+                msg = ("Added static IPs. Result: %s" % result_static_ips)
+                LOG.info(msg)
+
 
         rule_info = kwargs['rule_info']
 
@@ -484,6 +576,77 @@ class VpnGenericConfigDriver(object):
                " of tenant: %r" % (rule_info['service_id'],
                                    rule_info['tenant_id']))
         LOG.info(msg)
+        return "SUCCESS"
+
+    def _clear_static_ips(self, kwargs):
+        """ Clear static IPs for provider and stitching
+        interfaces of the service VM.
+
+        Issues REST call to service VM for deletion of static IPs.
+
+        :param kwargs: a dictionary of firewall rules and objects
+        send by neutron plugin
+
+        Returns: SUCCESS/Failure message with reason.
+
+        """
+
+        rule_info = kwargs.get('rule_info')
+        static_ips_info = dict(
+                    provider_ip=kwargs.get('provider_ip'),
+                    provider_cidr=kwargs.get('provider_cidr'),
+                    provider_mac=kwargs.get('provider_mac'),
+                    stitching_ip=kwargs.get('stitching_ip'),
+                    stitching_cidr=kwargs.get('stitching_cidr'),
+                    stitching_mac=kwargs.get('stitching_mac'))
+        active_fip = rule_info['active_fip']
+
+        url = const.request_url % (active_fip,
+                                   const.CONFIGURATION_SERVER_PORT,
+                                   'del_static_ip')
+        data = jsonutils.dumps(static_ips_info)
+
+        msg = ("Initiating POST request to remove static IPs for primary "
+               "service with SERVICE ID: %r of tenant: %r at: %r" %
+               (rule_info['service_id'], rule_info['tenant_id'],
+                active_fip))
+        LOG.info(msg)
+        try:
+            resp = requests.delete(url, data=data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError as err:
+            msg = ("Failed to establish connection to primary service at: "
+                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except requests.exceptions.RequestException as err:
+            msg = ("Unexpected ERROR happened  while removing "
+                   "static IPs for primary service at: %r "
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response, invalid JSON. URL: "
+                   "%r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if not result['status']:
+            msg = ("Error removing static IPs. URL: %r. Reason: %s." %
+                   (url, result['reason']))
+            LOG.error(msg)
+            return msg
+
+        msg = ("Static IPs successfully removed for SERVICE ID: %r"
+               " of tenant: %r" % (rule_info['service_id'],
+                                   rule_info['tenant_id']))
+        LOG.info(msg)
+        return const.STATUS_SUCCESS
 
     def clear_interfaces(self, context, kwargs):
         """
@@ -496,6 +659,20 @@ class VpnGenericConfigDriver(object):
 
         Returns: None
         """
+        try:
+            result_static_ips = self._clear_static_ips(kwargs)
+        except Exception as err:
+            msg = ("Failed to remove static IPs. Error: %s" % err)
+            LOG.error(msg)
+            return msg
+        else:
+            if result_static_ips != const.STATUS_SUCCESS:
+                return result_static_ips
+            else:
+                msg = ("Successfully removed static IPs. "
+                       "Result: %s" % result_static_ips)
+                LOG.info(msg)
+
 
         rule_info = kwargs['rule_info']
 
@@ -552,6 +729,7 @@ class VpnGenericConfigDriver(object):
                                     rule_info['tenant_id']))
 
         LOG.info(msg)
+        return "SUCCESS"
 
 """
 Driver class for implementing VPN IPSEC configuration
@@ -968,7 +1146,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             self._error_state(context, conn, msg)
 
         try:
-
             tenant_conns = self._ipsec_get_tenant_conns(
                 context, mgmt_fip, conn)
         except Exception as err:
@@ -1082,7 +1259,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
         @lockutils.synchronized(tenant_id)
         def _vpnservice_updated(context, kwargs):
-
             reason = kwargs.get('reason')
             rsrc = kwargs.get('rsrc_type')
 
@@ -1096,3 +1272,18 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
         return _vpnservice_updated(context, kwargs)
 
+    def configure_healthmonitor(self, context, kwargs):
+        """Overriding BaseDriver's configure_healthmonitor().
+           It does netcat to CONFIGURATION_SERVER_PORT  8888.
+           Configuration agent runs inside service vm.Once agent is up and
+           reachable, service vm is assumed to be active.
+           :param context - context
+           :param kwargs - kwargs coming from orchestrator
+
+           Returns: SUCCESS/FAILED
+
+        """
+        ip = kwargs.get('mgmt_ip')
+        port = str(const.CONFIGURATION_SERVER_PORT)
+        command = 'nc ' + ip + ' ' + port + ' -z'
+        return self._check_vm_health(command)

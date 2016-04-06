@@ -15,7 +15,7 @@ from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
-from gbpservice.nfp.core import main
+from gbpservice.nfp.core import controller as main
 from gbpservice.nfp.core import poll as core_pt
 
 import os
@@ -141,7 +141,7 @@ class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
 
         super(VPNaasRpcManager, self).__init__(conf, sc)
 
-    def vpnservice_updated(self, context, kwargs):
+    def vpnservice_updated(self, context, **kwargs):
         """Registers the VPNaas plugin events to update the vpn configurations.
 
         :param context: dictionary, confined to the specific service type.
@@ -398,4 +398,3 @@ def init_agent_complete(cm, sc, conf):
     sc.post_event(ev)
     msg = " vpn agent init complete"
     LOG.info(msg)
-
