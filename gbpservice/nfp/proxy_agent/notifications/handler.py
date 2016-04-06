@@ -44,24 +44,30 @@ class NotificationHandler(object):
             u'user_name': None}
         return context
 
-    def set_firewall_status(self, resource, **kwargs):
-        rpcClient = RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
+    def firewall_configuration_create_complete(self, resource, **kwargs):
+        rpcClient = RPCClient(a_topics.FW_NFP_CONFIGAGENT_TOPIC)
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
-        rpcClient.cctxt.cast(rpc_ctx, 'set_firewall_status',
-                             host=kwargs['host'],
-                             firewall_id=kwargs['firewall_id'],
-                             status=kwargs['status'])
+        # RPC call to Config Orchestrator
+        rpcClient.cctxt.cast(rpc_ctx,
+                             'firewall_configuration_create_complete',
+                             kwargs=kwargs)
+                            #host=kwargs['host'],
+                            #firewall_id=kwargs['firewall_id'],
+                            #status=kwargs['status'])
 
-    def firewall_deleted(self, resource, **kwargs):
-        rpcClient = RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
+    def firewall_configuration_delete_complete(self, resource, **kwargs):
+        rpcClient = RPCClient(a_topics.FW_NFP_CONFIGAGENT_TOPIC)
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
-        rpcClient.cctxt.cast(rpc_ctx, 'firewall_deleted',
-                             host=kwargs['host'],
-                             firewall_id=kwargs['firewall_id'])
+        # RPC call to Config Orchestrator
+        rpcClient.cctxt.cast(rpc_ctx,
+                             'firewall_configuration_delete_complete',
+                             kwargs=kwargs)
+                             #host=kwargs['host'],
+                             #firewall_id=kwargs['firewall_id'])
 
     def update_status(self, resource, **kwargs):
         if resource == 'vpn':
