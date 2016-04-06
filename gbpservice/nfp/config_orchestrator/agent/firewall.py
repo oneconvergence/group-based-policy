@@ -104,10 +104,9 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         # firewall = kwargs['firewall']     # kwargs contains whole firewall
                                             # object under key firewall
         status = kwargs['status']
-        msg = ("Config Orchestrator received "
-                "firewall_configuration_create_complete API, making an "
-                "set_firewall_status RPC call for firewall: %s & status "
-                " %s" % (firewall_id, status))
+        msg = ("NCO received firewall_configuration_create_complete API, "
+               "making an set_firewall_status RPC call to plugin for "
+               "firewall: %s with status %s" % (firewall_id, status))
         LOG.info(msg)
         # RPC call to plugin to set firewall status
         rpcClient.cctxt.cast(context, 'set_firewall_status',
@@ -121,11 +120,11 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         firewall_id = kwargs['firewall_id']
         # firewall = kwargs['firewall']     # kwargs contains whole firewall
                                             # object under key firewall
-        msg = ("Config Orchestrator received "
-                "firewall_configuration_delete_complete API, making an "
-                "firewall_deleted RPC call for firewall: %s" % (firewall_id))
+        msg = ("NCO received firewall_configuration_delete_complete API, "
+               "making an firewall_deleted RPC call to plugin for firewall: "
+               "%s" % (firewall_id))
         LOG.info(msg)
-        # RPC call to plugin to update firewall deleted
+        # RPC call to plugin to inform firewall deleted
         rpcClient.cctxt.cast(context, 'firewall_deleted',
                              host=kwargs['host'],
                              firewall_id=firewall_id)

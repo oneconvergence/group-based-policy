@@ -11,11 +11,16 @@
 #    under the License.
 
 from gbpservice.nfp.config_orchestrator.agent import common
+from gbpservice.nfp.common import constants as const
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.proxy_agent.lib import topics
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
+from neutron import context as n_context
 from oslo_log import helpers as log_helpers
+from oslo_log import log
 import oslo_messaging as messaging
 
+LOG = log.getLogger(__name__)
 
 """
 RPC handler for Loadbalancer service
@@ -23,7 +28,7 @@ RPC handler for Loadbalancer service
 
 
 class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
-    RPC_API_VERSION = '2.0'
+    RPC_API_VERSION = const.LOADBALANCER_RPC_API_VERSION
     target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
@@ -121,3 +126,32 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
                 'vips': db_data.get_vips(**args),
                 'members': db_data.get_members(**args),
                 'health_monitors': db_data.get_health_monitors(**args)}
+
+    def update_status(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.LB_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt = rpcClient.client.prepare(
+            version=const.LOADBALANCER_RPC_API_VERSION)
+        msg = ("NCO received LB's update_status API, making an update_status "
+               "RPC call to plugin for %s: %s with status %s" % (
+                            kwargs['obj_type'], kwargs['obj_id'],
+                            kwargs['status']))
+        LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'update_status',
+                             obj_type=kwargs['obj_type'],
+                             obj_id=kwargs['obj_id'],
+                             status=kwargs['status'])
+
+    def update_pool_stats(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.LB_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt = rpcClient.client.prepare(version=
+            const.LOADBALANCER_RPC_API_VERSION)
+        msg = ("NCO received LB's update_pool_stats API, making an "
+               "update_pool_stats RPC call to plugin for updating"
+               "pool: %s stats" % (kwargs['obj_id']))
+        LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'update_pool_stats',
+                             pool_id=kwargs['pool_id'],
+                             stats=kwargs['stats'],
+                             host=kwargs['host'])
