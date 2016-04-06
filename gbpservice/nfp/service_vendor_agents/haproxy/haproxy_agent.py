@@ -108,6 +108,11 @@ class HaproxyAgent():
                                'get_%s' % parent_resource)
         return methodToCall(resource_id)
 
+    def get_lbstats(self, parent_resource, resource_id):
+        methodToCall = getattr(self.haproxy_driver,
+                               'get_%s' % parent_resource)
+        return methodToCall(resource_id)
+
     def sync_config(self, parent_resource, resource_id):
         methodToCall = getattr(self.haproxy_driver,
                                '%s_config' % parent_resource)
@@ -116,6 +121,11 @@ class HaproxyAgent():
     def setup_ha(self, parent_resource, body):
         methodToCall = getattr(self.haproxy_driver,
                                '%s' % parent_resource)
+        return methodToCall(body)
+
+    def rsyslog_client_config(self, body):
+        methodToCall = getattr(self.haproxy_driver,
+                               'configure_rsyslog_as_client')
         return methodToCall(body)
 
     def server(self, environ, start_response):
@@ -145,7 +155,8 @@ class HaproxyAgent():
             params = parse_qs(params)
             url_parts = url.path.split('/')
             parent_resource = self.get_parent_resource(url_parts)
-            if parent_resource not in ['frontend', 'backend', 'stats', 'sync', 'setup_ha']:
+            if parent_resource not in ['frontend', 'backend', 'stats', 'sync',
+                     'setup_ha', 'lbstats', 'configure-rsyslog-as-client']:
                 err = Exception()
                 err.message = "Invalid resource name '%s'" % parent_resource
                 return self.return_error(err, start_response)
@@ -156,6 +167,8 @@ class HaproxyAgent():
                         result = self.sync_config(parent_resource, data)
                     elif parent_resource == 'setup_ha':
                         result = self.setup_ha(parent_resource, data)
+                    elif parent_resource == 'configure-rsyslog-as-client':
+                        result = self.rsyslog_client_config(data)
                     else:
                         result = self.create_method(parent_resource, data)
                 except Exception, err:
@@ -192,6 +205,9 @@ class HaproxyAgent():
                     try:
                         if parent_resource == 'stats':
                             result = self.get_stats(parent_resource, resource_id)
+                        elif parent_resource == 'lbstats':
+                            result = self.get_lbstats(parent_resource, 
+                                        resource_id)
                         else:
                             result = self.show_method(parent_resource, resource_id)
                     except KeyError:

@@ -34,6 +34,7 @@ from vyos_policy_based_routes import RoutesConfigHandler as routes_handler
 from ha_config import VYOSHAConfig
 from vyos_exception import OCException
 from flask import jsonify
+from visibility_api import APIHandler as apihandler
 # sys.path.insert(0, dirname(dirname(abspath(__file__))))
 # sys.path.insert(0, (abspath(__file__)))
 
@@ -458,6 +459,41 @@ def del_rule():
         return json.dumps(dict(status=False))
     else:
         return json.dumps(dict(status=True))
+
+
+@app.route('/configure-rsyslog-as-client', methods=['POST'])
+def configure_rsyslog_as_client():
+    try:
+        config_data = json.loads(request.data)
+        status = apihandler().configure_rsyslog_as_client(config_data)
+        return json.dumps(dict(status=status))
+    except Exception as ex:
+        err = ("Error while conifiguring rsyslog client. Reason: %s" % ex)
+        logger.error(err)
+        return json.dumps(dict(status=False, reason=err))
+
+
+@app.route('/get-fw-stats', methods=['GET'])
+def get_fw_stats():
+    try:
+        mac_address = request.args.get('mac_address')
+        fw_stats = apihandler().get_fw_stats(mac_address)
+        return json.dumps(dict(stats=fw_stats))
+    except Exception as ex:
+        err = ("Error while getting firewall stats. Reason: %s" % ex)
+        logger.error(err)
+        return json.dumps(dict(status=False, reason=err))
+
+
+@app.route('/get-vpn-stats', methods=['GET'])
+def get_vpn_stats():
+    try:
+        vpn_stats = apihandler().get_vpn_stats()
+        return json.dumps(dict(stats=vpn_stats))
+    except Exception as ex:
+        err = ("Error while getting vpn stats. Reason: %s" % ex)
+        logger.error(err)
+        return json.dumps(dict(status=False, reason=err))
 
 
 def handler(signum, frame):
