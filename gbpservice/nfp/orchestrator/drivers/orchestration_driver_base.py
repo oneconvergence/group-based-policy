@@ -17,10 +17,13 @@ from oslo_log import log as logging
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions
-from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from gbpservice.nfp.orchestrator.coal.networking import (
-    nfp_neutron_network_driver, nfp_gbp_network_driver
+    nfp_gbp_network_driver
 )
+from gbpservice.nfp.orchestrator.coal.networking import (
+    nfp_neutron_network_driver
+)
+from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 LOG = logging.getLogger(__name__)
 
@@ -128,7 +131,7 @@ class OrchestrationDriverBase(object):
                           ' creation'))
             return None
 
-        name = 'mgmt_interface'  # TODO[RPM]: Use proper name
+        name = 'mgmt_interface'  # TODO(RPM): Use proper name
         mgmt_interface = network_handler.create_port(
                 token,
                 self._get_admin_tenant_id(token=token),

@@ -648,7 +648,8 @@ class ServiceOrchestrator(object):
     def handle_driver_error(self, network_function_id):
         network_function_details = self.get_network_function_details(
                 network_function_id)
-        network_function_id = network_function_details['network_function']['id']
+        network_function_id = network_function_details.get(
+                'network_function')['id']
         network_function = {'status': nfp_constants.ERROR}
         self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
@@ -658,10 +659,9 @@ class ServiceOrchestrator(object):
                     'network_function_instance']['id']
             nfi = {
                    'status': nfp_constants.ERROR,
-                   }
+            }
             nfi = self.db_handler.update_network_function_instance(
                         self.db_session, network_function_instance_id, nfi)
-
 
     def _update_network_function_instance(self):
         pass
