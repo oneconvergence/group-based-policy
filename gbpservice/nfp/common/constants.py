@@ -55,29 +55,3 @@ CUSTOM_JSON = 'custom_json'
 
 COMPLETED = "COMPLETED"
 IN_PROGRESS = "IN_PROGRESS"
-
-CONFIG_SCRIPT = 'config_script'
-
-CONFIG_TAG_RESOURCE_MAP = {
-    HEAT_CONFIG_TAG: 'heat',
-    CONFIG_INIT_TAG: 'config_init',
-    ANSIBLE_TAG: 'ansible',
-    CUSTOM_JSON: 'custom_json'}
-
-LOADBALANCER_RPC_API_VERSION = "2.0"
-LOADBALANCERV2_RPC_API_VERSION = "1.0"
-
-HEALTHMONITOR_RESOURCE = 'healthmonitor'
-INTERFACE_RESOURCE = 'interfaces'
-ROUTES_RESOURCE = 'routes'
-
-MAXIMUM_INTERFACES = 'maximum_interfaces'
-SUPPORTS_SHARING = 'supports_device_sharing'
-SUPPORTS_HOTPLUG = 'supports_hotplug'
-
-METADATA_SUPPORTED_ATTRIBUTES = [MAXIMUM_INTERFACES,
-                                 SUPPORTS_SHARING,
-                                 SUPPORTS_HOTPLUG]
-MANAGEMENT_INTERFACE_NAME = 'mgmt_interface'
-
-POOL_EVENT_MAX_TIMES = 400
