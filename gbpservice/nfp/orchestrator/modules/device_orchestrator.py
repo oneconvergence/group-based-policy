@@ -33,6 +33,7 @@ LOG = logging.getLogger(__name__)
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
 
+
 def rpc_init(controller, config):
     rpcmgr = RpcHandler(config, controller)
     agent = RpcAgent(
