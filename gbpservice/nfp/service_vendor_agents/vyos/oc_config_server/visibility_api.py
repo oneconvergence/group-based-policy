@@ -190,9 +190,12 @@ class APIHandler(object):
                     '--show-ipsec-sa-detail')
 
         raw_ipsec_stats = self.run_command(command)
-        ipsec_parsed_data = self.parse_vpn_s2s(raw_ipsec_stats)
-        if ipsec_parsed_data:
-            vpn_parsed_data['ipsec'] = ipsec_parsed_data
+        if raw_ipsec_stats:
+            ipsec_parsed_data = self.parse_vpn_s2s(raw_ipsec_stats)
+            if ipsec_parsed_data:
+                vpn_parsed_data['ipsec'] = ipsec_parsed_data
+            else:
+                logger.warning("Empty IPSec VPN Stats")
         else:
             logger.warning("Empty IPSec VPN Stats")
 
@@ -200,10 +203,12 @@ class APIHandler(object):
                     '--mode=server')
 
         raw_remote_stats = self.run_command(command)
-
-        remote_parsed_data = self.parse_vpn_remote(raw_remote_stats)
-        if remote_parsed_data:
-            vpn_parsed_data['remote'] = remote_parsed_data
+        if raw_remote_stats:
+            remote_parsed_data = self.parse_vpn_remote(raw_remote_stats)
+            if remote_parsed_data:
+                vpn_parsed_data['remote'] = remote_parsed_data
+            else:
+                logger.warning("Empty Remote VPN Stats")
         else:
             logger.warning("Empty Remote VPN Stats")
 
