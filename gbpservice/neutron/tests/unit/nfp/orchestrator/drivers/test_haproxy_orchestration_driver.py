@@ -265,7 +265,8 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                                   'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
         self.assertRaises(exceptions.HotplugNotSupported,
-                          driver.plug_network_function_device_interfaces, device_data)
+                          driver.plug_network_function_device_interfaces,
+                          device_data)
 
         driver.supports_hotplug = True
 
