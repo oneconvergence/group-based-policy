@@ -10,42 +10,67 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from gbpservice.nfp.config_orchestrator.agent import common
+from gbpservice.nfp.lib import transport
 from neutron_fwaas.db.firewall import firewall_db
-from gbpservice.nfp.config_orchestrator.agent.common import *
-from gbpservice.nfp.lib.transport import *
+from oslo_log import helpers as log_helpers
+import oslo_messaging as messaging
 
-LOG = logging.getLogger(__name__)
+
+"""
+RPC handler for Firwrall service
+"""
+
 
 class FwAgent(firewall_db.Firewall_db_mixin):
 
     RPC_API_VERSION = '1.0'
-    _target = target.Target(version=RPC_API_VERSION)
+    target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
         super(FwAgent, self).__init__()
 
+    @log_helpers.log_method_call
     def create_firewall(self, context, firewall, host):
 
+        # Collecting db entry required by configurator.
         db = self._context(context, firewall['tenant_id'])
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         resource = 'firewall'
         kwargs = {resource: firewall,
                   'host': host,
                   'context': context_dict}
-        body = prepare_request_data(resource, kwargs, "firewall")
-        send_request_to_configurator(self._conf, context, body, "CREATE")
+        body = common. prepare_request_data(resource,
+                                            kwargs,
+                                            "firewall")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "CREATE")
 
+    @log_helpers.log_method_call
     def delete_firewall(self, context, firewall, host):
+
+        # Collecting db entry required by configurator.
         db = self._context(context, firewall['tenant_id'])
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         resource = 'firewall'
-        kwargs = {resource: firewall, 'host': host, 'context': context_dict}
-        body = prepare_request_data(resource, kwargs, "firewall")
-        send_request_to_configurator(self._conf, context, body, "DELETE")
+        kwargs = {resource: firewall,
+                  'host': host,
+                  'context': context_dict}
+        body = common.prepare_request_data(resource,
+                                           kwargs,
+                                           "firewall")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "DELETE")
 
     def _context(self, context, tenant_id):
         if context.is_admin:
@@ -63,4 +88,6 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                 'firewall_rules': db_data.get_firewall_rules(**args)}
 
     def _get_core_context(self, context, filters):
-        return get_core_context(context, filters, self._conf.host)
+        return common.get_core_context(context,
+                                       filters,
+                                       self._conf.host)

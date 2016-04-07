@@ -15,7 +15,9 @@ from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.proxy_agent.lib import RestClientOverUnix as rc
 from gbpservice.nfp.proxy_agent.lib import topics
 
+from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
+import oslo_messaging as messaging
 
 LOGGER = logging.getLogger(__name__)
 LOG = nfp_common.log
@@ -39,12 +41,14 @@ def nfp_module_init(sc, conf):
 
 class RpcHandler(object):
     RPC_API_VERSION = '1.0'
+    target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         super(RpcHandler, self).__init__()
         self._conf = conf
         self._sc = sc
 
+    @log_helpers.log_method_call
     def create_network_function_config(self, context, body):
         """Method of rpc handler for create_network_function_config.
         Return: Http Response.
@@ -61,6 +65,7 @@ class RpcHandler(object):
                 "create_firewall -> POST request failed.Reason: %s" % (
                     rce))
 
+    @log_helpers.log_method_call
     def delete_network_function_config(self, context, body):
         """Method of rpc handler for delete_network_function_config.
         Return: Http Response.
@@ -77,6 +82,7 @@ class RpcHandler(object):
                 "delete_firewall -> DELETE request failed.Reason: %s" % (
                     rce))
 
+    @log_helpers.log_method_call
     def create_network_function_device_config(self, context, body):
         """Method of rpc handler for create_network_function_device_config.
         Return: Http Response.
@@ -93,6 +99,7 @@ class RpcHandler(object):
                 "create_network_function_device_config ->"
                 "request failed . Reason %s " % (rce))
 
+    @log_helpers.log_method_call
     def delete_network_function_device_config(self, context, body):
         """Method of rpc handler for delete_network_function_device_config.
         Return: Http Response.

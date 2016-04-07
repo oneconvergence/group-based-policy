@@ -23,6 +23,11 @@ class Foo(object):
     binding_key = 'binding_key'
 
 
+class Context():
+    def to_dict(self):
+        return {}
+
+
 class FakeObjects(object):
 
     sc = 'sc'

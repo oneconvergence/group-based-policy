@@ -66,7 +66,7 @@ class PullNotification(core_pt.PollEventDesc):
                     self._method_handler(notification)
                 except AttributeError:
                     LOG(LOGGER, 'ERROR',
-                        "AttributeError while handling message" % (
+                        "AttributeError while handling message %s " % (
                             notification))
                 except Exception as e:
                     # import sys
