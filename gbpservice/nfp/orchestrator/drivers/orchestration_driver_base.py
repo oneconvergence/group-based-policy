@@ -281,6 +281,7 @@ class OrchestrationDriverBase(object):
                             'service_vendor',
                             'service_details',
                             'network_model',
+                            'name',
                             'management_network_info',
                             'ports']) or
 
@@ -389,7 +390,7 @@ class OrchestrationDriverBase(object):
                                           by=len(interfaces))
             return None
 
-        instance_name = 'instance'  # TODO(RPM):use proper name
+        instance_name = device_data['name']
         try:
             instance_id = self.compute_handler_nova.create_instance(
                     token, self._get_admin_tenant_id(token=token),
