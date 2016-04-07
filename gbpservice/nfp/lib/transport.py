@@ -50,9 +50,12 @@ OPTS = [
     ),
 ]
 
+database = [cfg.StrOpt("connection",
+                       help="Mysql db connection uri")]
 oslo_config.CONF.register_opts(OPTS)
 oslo_config.CONF.register_opts(rest_opts, "REST")
 oslo_config.CONF.register_opts(rpc_opts, "RPC")
+oslo_config.CONF.register_opts(database, "db")
 n_rpc.init(cfg.CONF)
 
 UNIX_REST = 'unix_rest'

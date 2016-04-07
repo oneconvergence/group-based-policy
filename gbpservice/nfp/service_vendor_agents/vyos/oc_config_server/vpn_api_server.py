@@ -87,7 +87,7 @@ utils.init_logger(logger)
 
 class NoInterfaceOnCidr(Exception):
     def __init__(self, **kwargs):
-        self.message = _("No interface in the network '%(cidr)s'") % kwargs
+        self.message = ("No interface in the network '%(cidr)s'") % kwargs
 
 
 class VPNHandler(configOpts):

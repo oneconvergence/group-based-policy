@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
+
 from neutron._i18n import _LE
 from neutron._i18n import _LI
 from neutron.common import rpc as n_rpc
@@ -354,7 +356,6 @@ class RpcHandlerConfigurator(object):
 
 
 class ServiceOrchestrator(object):
-
     """Orchestrator For Network Services
 
     This class handles the orchestration of Network Function lifecycle.
@@ -647,6 +648,7 @@ class ServiceOrchestrator(object):
                   'service_provider': service_vendor})
 
     def create_network_function(self, context, network_function_info):
+        # For neutron mode, we have handle port creation here
         self._validate_create_service_input(context, network_function_info)
         # GBP or Neutron
         mode = network_function_info['network_function_mode']
@@ -1953,7 +1955,8 @@ class SOHelper(object):
                            vpn_service_instance)
         _ports = vpn_service_instance['port_info']
         for u_port in _ports:
-            _port = service_orchestrator.db_handler.get_port_info(u_port)
+            _port = service_orchestrator.db_handler.get_port_info(
+                service_orchestrator.db_session, u_port)
             if _port['port_classification'] == \
                     orchestrator_constants.CONSUMER:
                 admin_token = service_orchestrator.keystoneclient \
@@ -1970,7 +1973,7 @@ class SOHelper(object):
         # should go.
         router_id = vpn_service['service_config']
         self.sc_plumber.update_router_service_gateway(
-            router_id, nw_function_info['resource_data']['peer_cidr'],
+            router_id, nw_function_info['resource_data']['peer_cidrs'],
             gateway_ip)
         nw_function_info["ipsec_service_status"] = "ACTIVE"
         return nw_function_info

@@ -10,12 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 import eventlet
-from neutron_vpnaas.db.vpn import vpn_db
-from gbpservice.nfp.config_orchestrator.agent.common import *
+from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
-from gbpservice.nfp.lib.transport import *
-from neutron import context as n_context
-from neutron.common import exceptions as n_exec
+from gbpservice.nfp.lib import transport
+from neutron_vpnaas.db.vpn import vpn_db
+from oslo_log import helpers as log_helpers
+import oslo_messaging as messaging
 
 LOG = logging.getLogger(__name__)
 
@@ -28,37 +28,28 @@ class VPNServiceCreateFailed(n_exec.NeutronException):
     message = "VPN Service Creation Failed"
 
 
-def update_status(**kwargs):
-    rpcClient = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    rpc_ctx = n_context.Context.from_dict(context)
-    del kwargs['context']
-    rpcClient.cctxt.cast(rpc_ctx, 'update_status',
-                         status=kwargs['status'])
-
-
 class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     RPC_API_VERSION = '1.0'
-    _target = target.Target(version=RPC_API_VERSION)
+    target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
         super(VpnAgent, self).__init__()
 
+    @log_helpers.log_method_call
     def vpnservice_updated(self, context, **kwargs):
-        LOG.error("kwargs  %r" % kwargs)
+        LOG.debug("vpnservice _updated kwargs  %r" % kwargs)
         if self._is_network_function_mode_neutron(kwargs):
             if kwargs['reason'] == 'create':
                 nw_fun_info =  \
                     self.validate_and_process_vpn_create_service_request(
                         context, kwargs)
-                LOG.error("nw_func_info  %r" % nw_fun_info)
                 if kwargs['rsrc_type'] == 'ipsec_site_connection':
-                    if 'status' in nw_fun_info and nw_fun_info["status"] == \
-                            "ACTIVE":
+                    if ('status' in nw_fun_info['nw_func'] and
+                        nw_fun_info['nw_func']["status"] == "ACTIVE"):
                         kwargs['resource']['description'] = nw_fun_info[
-                            'description']
+                            'nw_func']['description']
                         self.call_configurator(context, kwargs)
             if kwargs['reason'] == 'delete':
                 if kwargs['rsrc_type'] == 'ipsec_site_connection':
@@ -67,7 +58,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                         context, 'get_network_functions',
                         filters={'service_id': [kwargs['resource'][
                                                     'vpnservice_id']]})
-                    kwargs['resource']['description'] = nw_func['description']
+                    if nw_func:
+                        kwargs['resource']['description'] = nw_func[0]['description']
                     self.call_configurator(context, kwargs)
                 else:
                     self.validate_and_process_vpn_delete_service_request(
@@ -77,14 +69,19 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
 
     def call_configurator(self, context, kwargs):
         resource_data = kwargs.get('resource')
+        # Collecting db entry required by configurator.
         db = self._context(context, resource_data['tenant_id'])
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
-        resource = resource_data['rsrc_type']
-        reason = resource_data['reason']
-        body = prepare_request_data(resource, kwargs, "vpn")
-        send_request_to_configurator(self._conf, context, body, reason)
+        resource = kwargs.get('rsrc_type')
+        reason = kwargs.get('reason')
+        body = common. prepare_request_data(resource, kwargs, "vpn")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               reason)
 
     def _context(self, context, tenant_id):
         if context.is_admin:
@@ -103,9 +100,34 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'ipsec_site_conns': db_data.get_ipsec_site_connections(**args)}
 
     def _get_core_context(self, context, filters):
-        core_context_dict = get_core_context(context, filters, self._conf.host)
+        core_context_dict = common.get_core_context(context,
+                                                    filters,
+                                                    self._conf.host)
         del core_context_dict['ports']
         return core_context_dict
+
+    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    def update_status(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.VPN_NFP_PLUGIN_TOPIC)
+        msg = ("NCO received VPN's update_status API,"
+                "making an update_status RPC call to plugin for %s object"
+                "with status %s" % (kwargs['obj_id'], kwargs['status']))
+        LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'update_status',
+                             kwargs=kwargs)
+
+    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    def ipsec_site_conn_deleted(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.VPN_NFP_PLUGIN_TOPIC)
+        msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
+                "making an ipsec_site_conn_deleted RPC call to plugin for "
+                "%s object" % (kwargs['obj_id']))
+        LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
+                             kwargs=kwargs)
+
 
     def validate_and_process_vpn_create_service_request(self, context,
                                                         resource_data):
@@ -114,30 +136,34 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         :param resource_data:
         :return:
         """
-        rpcc = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        nw_function_info = self.prepare_request_data_for_orch(resource_data)
+        rpcc = RPCClient(a_topics.NFP_NSO_TOPIC)
+        vpn_plugin = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+        nw_function_info = self.prepare_request_data_for_orch(context,
+                                                              resource_data)
         if resource_data['rsrc_type'].lower() == 'vpn_service':
             nw_func = self.wait_for_device_ready(context, nw_function_info)
-            rpcc.cctxt.cast(context, 'update_status', status=nw_func['status'])
+            vpn_plugin.cctxt.cast(context, 'update_status', status=nw_func['status'])
         else:
             try:
                 nw_func = rpcc.cctxt.call(
                             context, 'neutron_update_nw_function_config',
                             network_function=nw_function_info)
             except Exception, err:
-                rpcc.cctxt.cast(context, 'update_status', status="ERROR")
+                vpn_plugin.cctxt.cast(context, 'update_status',
+                                      status="ERROR")
                 nw_function_info["status"] = "ERROR"
                 return nw_function_info
-            if "ipsec_service_status" in nw_func and nw_function_info[
+            if "ipsec_service_status" in nw_func and nw_func[
                     "ipsec_service_status"] == "ACTIVE":
-                nw_function_info.update(nw_func)
+                nw_function_info.update(nw_func=nw_func)
             else:
-                rpcc.cctxt.cast(context, 'update_status', status="ERROR")
+                vpn_plugin.cctxt.cast(context, 'update_status',
+                                      status="ERROR")
                 nw_function_info["status"] = "ERROR"
         return nw_function_info
 
     @staticmethod
-    def prepare_request_data_for_orch(vpn_data):
+    def prepare_request_data_for_orch(context, vpn_data):
         resource = vpn_data.get('resource')
         router_id = resource.get('router_id')
         subnet = resource.get('subnet_id')
@@ -146,7 +172,15 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                          'subnet': subnet}]
         network_function_info = dict()
         desc = resource['description']
+        rpcc = RPCClient(a_topics.NFP_NSO_TOPIC)
+        nw_func = rpcc.cctxt.call(
+                        context, 'get_network_functions',
+                        filters={'service_id': resource[
+                                                   'vpnservice_id']})
         fields = desc.split(';')
+        if nw_func:
+            resource['description'] = nw_func[0]['description']
+
         for field in fields:
             if 'service_profile_id' in field:
                 network_function_info['service_profile_id'] = field.split(
