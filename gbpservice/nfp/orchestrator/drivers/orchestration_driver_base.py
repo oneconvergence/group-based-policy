@@ -281,7 +281,7 @@ class OrchestrationDriverBase(object):
                             'service_vendor',
                             'service_details',
                             'network_model',
-                            'name'
+                            'name',
                             'management_network_info',
                             'ports']) or
 
