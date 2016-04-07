@@ -304,14 +304,16 @@ class OrchestrationDriverBase(object):
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=device_data['service_details'][
                                                                 'device_type'])
-
+        log_meta_data = (device_data.get('log_meta_data')
+                         if 'log_meta_data' in device_data else '')
         try:
             interfaces = self._get_interfaces_for_device_create(
                     device_data,
                     network_handler=network_handler
             )
         except Exception:
-            LOG.exception(_LE('Failed to get interfaces for device creation'))
+            LOG.exception(_LE(log_meta_data + 'Failed to get interfaces for'
+                              ' device creation'))
             return None
         else:
             self._increment_stats_counter('management_interfaces',
@@ -323,7 +325,8 @@ class OrchestrationDriverBase(object):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token, for device creation'))
+            LOG.error(_LE(log_meta_data + 'Failed to get token, for device'
+                          ' creation'))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -333,9 +336,9 @@ class OrchestrationDriverBase(object):
         if device_data['service_details'].get('image_name'):
             image_name = device_data['service_details']['image_name']
         else:
-            LOG.info(_LI("No image name provided in service profile's "
-                         "service flavor field, image will be selected "
-                         "based on service vendor's name : %s")
+            LOG.info(_LI(log_meta_data + "No image name provided in service"
+                         " profile's service flavor field, image will be"
+                         " selected based on service vendor's name:%s")
                      % (device_data['service_vendor']))
             image_name = device_data['service_vendor']
         image_name = '%s' % image_name.lower()
@@ -346,8 +349,8 @@ class OrchestrationDriverBase(object):
                     image_name)
         except Exception:
             self._increment_stats_counter('image_details_get_failures')
-            LOG.error(_LE('Failed to get image id for device creation.'
-                          ' image name: %s')
+            LOG.error(_LE(log_meta_data + 'Failed to get image id for device'
+                          ' creation, image name:%s')
                       % (image_name))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
@@ -358,9 +361,9 @@ class OrchestrationDriverBase(object):
         if device_data['service_details'].get('flavor'):
             flavor = device_data['service_details']['flavor']
         else:
-            LOG.info(_LI("No Device flavor provided in service profile's "
-                         "service flavor field, using default "
-                         "flavor: m1.medium"))
+            LOG.info(_LI(log_meta_data + "No Device flavor provided in service"
+                         " profile's service flavor field, using default"
+                         " flavor: m1.medium"))
             flavor = 'm1.medium'
         interfaces_to_attach = []
         try:
@@ -381,8 +384,8 @@ class OrchestrationDriverBase(object):
                         interfaces_to_attach.append({'port': port_id})
         except Exception:
             self._increment_stats_counter('port_details_get_failures')
-            LOG.error(_LE('Failed to fetch list of interfaces to attach'
-                          ' for device creation'))
+            LOG.error(_LE(log_meta_data + 'Failed to fetch list of interfaces'
+                          ' to attach for device creation'))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -397,7 +400,7 @@ class OrchestrationDriverBase(object):
                     interfaces_to_attach, instance_name)
         except Exception:
             self._increment_stats_counter('instance_launch_failures')
-            LOG.error(_LE('Failed to create %s instance')
+            LOG.error(_LE(log_meta_data + 'Failed to create %s instance')
                       % (device_data['compute_policy']))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
@@ -418,7 +421,8 @@ class OrchestrationDriverBase(object):
                                                         token, interface['id'])
         except Exception:
             self._increment_stats_counter('port_details_get_failures')
-            LOG.error(_LE('Failed to get management port details'))
+            LOG.error(_LE(log_meta_data + 'Failed to get management port'
+                          ' details'))
             try:
                 self.compute_handler_nova.delete_instance(
                                             token,
@@ -427,7 +431,7 @@ class OrchestrationDriverBase(object):
                                             device_data['id'])
             except Exception:
                 self._increment_stats_counter('instance_delete_failures')
-                LOG.error(_LE('Failed to delete %s instance')
+                LOG.error(_LE(log_meta_data + 'Failed to delete %s instance')
                           % (device_data['compute_policy']))
             self._decrement_stats_counter('instances')
             self._delete_interfaces(device_data, interfaces,

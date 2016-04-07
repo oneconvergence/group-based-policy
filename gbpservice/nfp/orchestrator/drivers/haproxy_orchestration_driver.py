@@ -67,6 +67,8 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
 
         :raises: exceptions.IncompleteData
         """
+        log_meta_data = (device_data.get('log_meta_data')
+                         if 'log_meta_data' in device_data else '')
         if (
             any(key not in device_data
                 for key in ['service_vendor',
@@ -89,7 +91,7 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token'
+            LOG.error(_LE(log_meta_data + 'Failed to get token'
                           ' for get device config info operation'))
             return None
 
@@ -109,8 +111,9 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
                     )
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
-                    LOG.error(_LE('Failed to get provider port details'
-                                  ' for get device config info operation'))
+                    LOG.error(_LE(log_meta_data + 'Failed to get provider port'
+                                  ' details for get device config info'
+                                  ' operation'))
                     return None
             elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
@@ -120,8 +123,9 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
                     )
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
-                    LOG.error(_LE('Failed to get consumer port details'
-                                  ' for get device config info operation'))
+                    LOG.error(_LE(log_meta_data + 'Failed to get consumer port'
+                                  ' details for get device config info'
+                                  ' operation'))
                     return None
 
         return {

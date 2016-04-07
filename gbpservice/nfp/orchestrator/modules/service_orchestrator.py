@@ -345,14 +345,16 @@ class ServiceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        LOG.info(_LI("Service Orchestrator received event %(id)s"),
-                 {'id': event.id})
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
+        LOG.info(_LI(log_meta_data + "Service Orchestrator received event"
+                     " %(id)s"), {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
         except Exception:
-            LOG.exception(_LE("Error in processing event: %(event_id)s"),
-                          {'event_id': event.id})
+            LOG.exception(_LE(log_meta_data + "Error in processing event:"
+                              "%(event_id)s"), {'event_id': event.id})
 
     def handle_poll_event(self, event):
         LOG.info(_LI("Service Orchestrator received poll event %(id)s"),
@@ -365,8 +367,10 @@ class ServiceOrchestrator(object):
                               "%(event_id)s"), {'event_id': event.id})
 
     def _log_event_created(self, event_id, event_data):
-        LOG.info(_LI("Created event %s(event_name)s with event "
-                     "data: %(event_data)s"),
+        log_meta_data = (event_data.get('log_meta_data')
+                         if 'log_meta_data' in event_data else '')
+        LOG.info(_LI(log_meta_data + "Created event %s(event_name)s with event"
+                     " data: %(event_data)s"),
                  {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None, key=None,
@@ -390,11 +394,12 @@ class ServiceOrchestrator(object):
 
     def update_network_function_user_config(self, network_function_id,
                                             service_config_str,
-                                            operation):
+                                            operation,
+                                            log_meta_data=''):
         tag_str, config_str = self.config_driver.\
                         parse_template_config_string(service_config_str)
         if not config_str:
-            LOG.error(_LE('Exception while parsing config string, config '
+            LOG.error(_LE(log_meta_data + 'Exception while parsing config '
                           'string: %(config_str)s is improper for '
                           'network_function id: %(network_function_id)s'),
                       {'config_str': service_config_str,
@@ -410,22 +415,27 @@ class ServiceOrchestrator(object):
             }
             rpc_method = getattr(self.configurator_rpc, operation +
                                  '_network_function_user_config')
-            rpc_method(network_function_data, service_config_str)
+            rpc_method(network_function_data, service_config_str,
+                       log_meta_data)
         else:
             # Place holder for calling config_init API
             pass
 
     def create_network_function_user_config(self, network_function_id,
-                                            service_config_str):
+                                            service_config_str,
+                                            log_meta_data=''):
         self.update_network_function_user_config(network_function_id,
                                                  service_config_str,
-                                                 operation='create')
+                                                 operation='create',
+                                                 log_meta_data=log_meta_data)
 
     def delete_network_function_user_config(self, network_function_id,
-                                            service_config_str):
+                                            service_config_str,
+                                            log_meta_data=''):
         self.update_network_function_user_config(network_function_id,
                                                  service_config_str,
-                                                 operation='delete')
+                                                 operation='delete',
+                                                 log_meta_data=log_meta_data)
 
     def create_network_function(self, context, network_function_info):
         self._validate_create_service_input(context, network_function_info)
@@ -459,11 +469,21 @@ class ServiceOrchestrator(object):
         network_function = self.db_handler.create_network_function(
             self.db_session, network_function)
 
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceType:%s, ServiceProfileID:%s] " % (
+                                network_function['tenant_id'],
+                                network_function['service_chain_id'],
+                                service_profile['service_type'],
+                                network_function['service_profile_id']))
+
+        LOG.info(_LI(log_meta_data + " created network_function:%s into db")
+                 % (network_function['id']))
+
         if (not service_details.get('service_vendor') or
                 not service_details.get('device_type')):
-            LOG.error(_LE("service_vendor or device_type not provided in "
-                          "service profile's service flavor field. Setting "
-                          "network function to ERROR, Provided service "
+            LOG.error(_LE(log_meta_data + "service_vendor or device_type not "
+                          "provided in service profile's service flavor field."
+                          "Setting network function to ERROR, Provided service"
                           "profile: %(service_profile)s"),
                       {'service_profile': service_profile})
             network_function_status = {'status': nfp_constants.ERROR}
@@ -492,10 +512,10 @@ class ServiceOrchestrator(object):
             'management_network_info': management_network_info,
             'service_type': service_profile['service_type'],
             'service_details': service_details,
-            'share_existing_device': False  # Extend service profile if needed
+            'share_existing_device': False,  # Extend service profile if needed
+            'log_meta_data': log_meta_data
         }
-
-        # Create and event to perform Network service instance
+        # Create an event to perform Network service instance
         self._create_event('CREATE_NETWORK_FUNCTION_INSTANCE',
                            event_data=create_network_function_instance_request)
         return network_function
@@ -508,30 +528,60 @@ class ServiceOrchestrator(object):
     def delete_network_function(self, context, network_function_id):
         network_function_info = self.db_handler.get_network_function(
             self.db_session, network_function_id)
+
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceProfileID:%s, ServiceInstanceID:%s] " % (
+                                network_function_info['tenant_id'],
+                                network_function_info['service_chain_id'],
+                                network_function_info['service_profile_id'],
+                                network_function_info['id']))
+
+        LOG.info(_LI(log_meta_data + "Received delete network function"
+                 " request for network_function:%s") % (network_function_id))
+
         service_profile_id = network_function_info['service_profile_id']
         base_mode_support = self._get_base_mode_support(service_profile_id)
         if (not base_mode_support and
                 not network_function_info['network_function_instances']):
             self.db_handler.delete_network_function(
                 self.db_session, network_function_id)
+            LOG.info(_LI(log_meta_data + "Deleted network_function:%s"
+                         " from db. base_mode_support:%s,"
+                         " network_function_instances:%s ")
+                     % (network_function_id,
+                        base_mode_support,
+                        network_function_info['network_function_instances']))
             return
         network_function = {
             'status': nfp_constants.PENDING_DELETE
         }
         network_function = self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
+
+        LOG.info(_LI(log_meta_data + "Updated network_function:%s"
+                     " status to %s ") % (network_function_id,
+                                          nfp_constants.PENDING_DELETE))
+
         service_config = network_function_info['service_config']
         self.delete_network_function_user_config(network_function_id,
-                                                 service_config)
+                                                 service_config,
+                                                 log_meta_data)
 
     def delete_user_config(self, event):
         request_data = event.data
         network_function_details = request_data['network_function_details']
         network_function_info = network_function_details['network_function']
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s"
+                         " ServiceProfileID:%s] " % (
+                          network_function_info['tenant_id'],
+                          network_function_info['service_chain_id'],
+                          network_function_info['service_profile_id']))
+
         if not network_function_info['heat_stack_id']:
             event_data = {
                 'network_function_id': network_function_info['id']
             }
+            event_data['log_meta_data'] = log_meta_data
             self._create_event('USER_CONFIG_DELETED',
                                event_data=event_data)
             return
@@ -544,6 +594,7 @@ class ServiceOrchestrator(object):
             'tenant_id': network_function_info['tenant_id'],
             'network_function_id': network_function_info['id']
         }
+        request_data['log_meta_data'] = log_meta_data
         if not heat_stack_id:
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=request_data)
@@ -552,6 +603,8 @@ class ServiceOrchestrator(object):
                            event_data=request_data, is_poll_event=True)
 
     def create_network_function_instance(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         request_data = event.data
         name = '%s.%s' % (request_data['network_function']['name'],
                           request_data['network_function']['id'])
@@ -569,6 +622,9 @@ class ServiceOrchestrator(object):
         nfi_db = self.db_handler.create_network_function_instance(
             self.db_session, create_nfi_request)
 
+        LOG.info(_LI(log_meta_data + " created network_function_instance:%s"
+                     " into db") % (nfi_db['id']))
+
         request_data['service_details'].update(
                                 service_type=request_data['service_type'])
         create_nfd_request = {
@@ -580,10 +636,19 @@ class ServiceOrchestrator(object):
             'service_details': request_data['service_details'],
             'share_existing_device': request_data['share_existing_device'],
         }
+
+        # append service instance id to log_meta_data
+        log_meta_data = log_meta_data[:-2] + (", ServiceInstanceID:%s] "
+                                              % (nfi_db['id']))
+
+        # add log_meta_deta to create_nfd_request
+        create_nfd_request['log_meta_data'] = log_meta_data
         self._create_event('CREATE_NETWORK_FUNCTION_DEVICE',
                            event_data=create_nfd_request)
 
     def handle_device_created(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         request_data = event.data
         nfi = {
             'network_function_device_id': request_data[
@@ -591,9 +656,14 @@ class ServiceOrchestrator(object):
         }
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
+
+        LOG.info(_LI(log_meta_data + " network function instance:%s updated"
+                     " into db") % (nfi))
         return
 
     def handle_device_active(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         request_data = event.data
         nfi = {
             'status': nfp_constants.ACTIVE,
@@ -602,12 +672,17 @@ class ServiceOrchestrator(object):
         }
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
+
+        LOG.info(_LI(log_meta_data + " Updated network function instance:%s")
+                 % (nfi))
+
         network_function = self.db_handler.get_network_function(
             self.db_session, nfi['network_function_id'])
         service_config = network_function['service_config']
 
         self.create_network_function_user_config(network_function['id'],
-                                                 service_config)
+                                                 service_config,
+                                                 log_meta_data)
 
     def apply_user_config(self, event):
         request_data = event.data
@@ -615,6 +690,13 @@ class ServiceOrchestrator(object):
         request_data['heat_stack_id'] = self.config_driver.apply_config(
             network_function_details)  # Heat driver to launch stack
         network_function = network_function_details['network_function']
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s"
+                         " ServiceProfileID:%s]" % (
+                          network_function['tenant_id'],
+                          network_function['service_chain_id'],
+                          network_function['service_profile_id']))
+
+        request_data['log_meta_data'] = log_meta_data
         request_data['network_function_id'] = network_function['id']
         if not request_data['heat_stack_id']:
             self._create_event('USER_CONFIG_FAILED',
@@ -622,8 +704,8 @@ class ServiceOrchestrator(object):
             return
         request_data['tenant_id'] = network_function['tenant_id']
         request_data['network_function_details'] = network_function_details
-        LOG.debug("handle_device_active heat_stack_id: %s"
-                  % (request_data['heat_stack_id']))
+        LOG.info(_LI(log_meta_data + "Created heat stack:%s")
+                 % (request_data['heat_stack_id']))
         self.db_handler.update_network_function(
             self.db_session, network_function['id'],
             {'heat_stack_id': request_data['heat_stack_id']})
@@ -632,6 +714,8 @@ class ServiceOrchestrator(object):
                            is_poll_event=True)
 
     def handle_device_create_failed(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         request_data = event.data
         nfi = {
             'status': nfp_constants.ERROR,
@@ -641,9 +725,11 @@ class ServiceOrchestrator(object):
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
         network_function = {'status': nfp_constants.ERROR}
-        self.db_handler.update_network_function(
-            self.db_session, nfi['network_function_id'], network_function)
+        nf = self.db_handler.update_network_function(
+                self.db_session, nfi['network_function_id'], network_function)
         # Trigger RPC to notify the Create_Service caller with status
+        LOG.error(_LE(log_meta_data + " Device creation failed for network"
+                      " function %s") % (nf))
 
     def handle_driver_error(self, network_function_id):
         network_function_details = self.get_network_function_details(
@@ -667,7 +753,9 @@ class ServiceOrchestrator(object):
         pass
 
     def delete_network_function_instance(self, event):
-        nfi_id = event.data
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
+        nfi_id = event.data.get('nfi_id')
         nfi = {'status': nfp_constants.PENDING_DELETE}
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, nfi_id, nfi)
@@ -678,12 +766,14 @@ class ServiceOrchestrator(object):
                 'network_function_instance': nfi,
                 'network_function_id': nfi['network_function_id']
             }
+            delete_nfd_request['log_meta_data'] = log_meta_data
             self._create_event('DELETE_NETWORK_FUNCTION_DEVICE',
                                event_data=delete_nfd_request)
         else:
             device_deleted_event = {
                 'network_function_instance_id': nfi['id']
             }
+            device_deleted_event['log_meta_data'] = log_meta_data
             self._create_event('DEVICE_DELETED',
                                event_data=device_deleted_event)
 
@@ -711,59 +801,78 @@ class ServiceOrchestrator(object):
                     request="Create Network Function")
 
     def check_for_user_config_complete(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         request_data = event.data
         config_status = self.config_driver.is_config_complete(
             request_data['heat_stack_id'], request_data['tenant_id'],
             request_data['network_function_details'])
         if config_status == nfp_constants.ERROR:
-            LOG.info(_LI("NSO: applying user config failed for "
-                    "network function %(network_function_id)s data "
-                    "%(data)s"), {'data': request_data,
-                    'network_function_id':
-                        request_data['network_function_id']})
+            LOG.error(_LE(log_meta_data + "Applying user config failed"
+                          " for network_function %(network_function_id)s data"
+                          " %(data)s"),
+                      {'data': request_data,
+                      'network_function_id':
+                          request_data['network_function_id']})
             updated_network_function = {'status': nfp_constants.ERROR}
             self.db_handler.update_network_function(
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
+
+            log_meta_data = ("[Audit EventCategory:ServiceAdmin,"
+                             " Event:ServiceCreate, " + log_meta_data[1:])
+            LOG.error(_LE(log_meta_data + " create_network_function:%s"
+                          " failed." % (request_data['network_function_id'])))
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'status': nfp_constants.ACTIVE}
-            LOG.info(_LI("NSO: applying user config is successfull moving "
-                    "network function %(network_function_id)s to ACTIVE"),
-                    {'network_function_id':
-                    request_data['network_function_id']})
             self.db_handler.update_network_function(
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
+
+            log_meta_data = ("[Audit EventCategory:ServiceAdmin,"
+                             " Event:ServiceCreate, " + log_meta_data[1:])
+            LOG.info(_LI(log_meta_data + " Handled create_network_function:%s"
+                         " successfully."
+                     % (request_data['network_function_id'])))
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
+            LOG.info(_LI(log_meta_data + " Heat stack:%s is in PROGRESS")
+                     % (request_data['heat_stack_id']))
             return CONTINUE_POLLING
 
     def check_for_user_config_deleted(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         request_data = event.data
         event_data = {
             'network_function_id': request_data['network_function_id']
         }
+        event_data['log_meta_data'] = log_meta_data
         try:
             config_status = self.config_driver.is_config_delete_complete(
                 request_data['heat_stack_id'], request_data['tenant_id'])
         except Exception as err:
             # FIXME: May be we need a count before removing the poll event
-            LOG.error(_LE("Error: %(err)s while verifying configuration delete"
-                          " completion."), {'err': err})
+            LOG.error(_LE(log_meta_data + "Error: %(err)s while verifying"
+                          " configuration delete completion."), {'err': err})
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data)
             return STOP_POLLING
         if config_status == nfp_constants.ERROR:
+            LOG.error(_LE(log_meta_data + " Heat stack:%s delete failed")
+                      % (request_data['heat_stack_id']))
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
+            LOG.info(_LI(log_meta_data + " Heat stack:%s deleted")
+                     % (request_data['heat_stack_id']))
             updated_network_function = {'heat_stack_id': None}
             self.db_handler.update_network_function(
                 self.db_session,
@@ -772,11 +881,14 @@ class ServiceOrchestrator(object):
             event_data = {
                 'network_function_id': request_data['network_function_id']
             }
+            event_data['log_meta_data'] = log_meta_data
             self._create_event('USER_CONFIG_DELETED',
                                event_data=event_data)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
+            LOG.info(log_meta_data + " Heat stack:%s delete is in PROGRESS"
+                     % (request_data['heat_stack_id']))
             return CONTINUE_POLLING
 
     def handle_user_config_applied(self, event):
@@ -804,6 +916,8 @@ class ServiceOrchestrator(object):
         # Trigger RPC to notify the Create_Service caller with status
 
     def handle_user_config_deleted(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         request_data = event.data
         network_function = self.db_handler.get_network_function(
             self.db_session,
@@ -813,14 +927,25 @@ class ServiceOrchestrator(object):
         if base_mode_support:
             self.db_handler.delete_network_function(
                 self.db_session, network_function['id'])
+            LOG.info(_LI(log_meta_data + " Deleted network_function:%s from"
+                         " db bec base_mode_support:%s")
+                     % (network_function['id'], base_mode_support))
             return
         for nfi_id in network_function['network_function_instances']:
+            event_data = {}
+            # Append nfi_id to log_meta_data
+            log_meta_data = log_meta_data[:-1] + (", ServiceInstanceID:%s]"
+                                                  % (nfi_id))
+            event_data['log_meta_data'] = log_meta_data
+            event_data['nfi_id'] = nfi_id
             self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
-                               event_data=nfi_id)
+                               event_data=event_data)
 
     # Change to Delete_failed or continue with instance and device
     # delete if config delete fails? or status CONFIG_DELETE_FAILED ??
     def handle_user_config_delete_failed(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         request_data = event.data
         updated_network_function = {
             'status': nfp_constants.ERROR,
@@ -830,22 +955,36 @@ class ServiceOrchestrator(object):
             request_data['network_function_id'],
             updated_network_function)
         # Trigger RPC to notify the Create_Service caller with status
+        LOG.error(_LE(log_meta_data + " User config delete failed for"
+                  "network_function:%s. Updating its db status to ERROR")
+                  % (request_data['network_function_id']))
 
     # When NDO deletes Device DB, the Foreign key NSI will be nulled
     # So we have to pass the NSI ID in delete event to NDO and process
     # the result based on that
     def handle_device_deleted(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         request_data = event.data
         nfi_id = request_data['network_function_instance_id']
         nfi = self.db_handler.get_network_function_instance(
             self.db_session, nfi_id)
         self.db_handler.delete_network_function_instance(
             self.db_session, nfi_id)
+
+        LOG.info(_LI(log_meta_data + " Deleted network_function_instance:%s"
+                 " from db ") % (nfi_id))
+
         network_function = self.db_handler.get_network_function(
             self.db_session, nfi['network_function_id'])
         if not network_function['network_function_instances']:
             self.db_handler.delete_network_function(
                 self.db_session, nfi['network_function_id'])
+
+            log_meta_data = ("[Audit EventCategory:ServiceAdmin,"
+                             " Event:ServiceDelete, " + log_meta_data[1:])
+            LOG.info(_LI(log_meta_data + " Handled delete_network_function:%s"
+                         " successfully") % (nfi['network_function_id']))
             # Inform delete service caller with delete completed RPC
 
     def get_network_function(self, context, network_function_id):
@@ -869,6 +1008,15 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         network_function_details = self.get_network_function_details(
             network_function_id)
+
+        nfi_id = network_function_details['network_function_instance']['id']
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceProfileID:%s, ServiceInstanceID:%s] "
+                         % (network_function['tenant_id'],
+                            network_function['service_chain_id'],
+                            network_function['service_profile_id'],
+                            nfi_id))
+
         base_mode_support = self._get_base_mode_support(
             network_function['service_profile_id'])
         if not base_mode_support:
@@ -885,6 +1033,8 @@ class ServiceOrchestrator(object):
                 {'status': nfp_constants.ERROR,
                  'status_description': ("Config Update for Policy Target "
                                         "addition event failed")})
+            LOG.error(_LE(log_meta_data + "Config Update for Policy Target "
+                          "addition event failed"))
             return
         service_config = network_function['service_config']
         network_function_data = {
@@ -892,7 +1042,7 @@ class ServiceOrchestrator(object):
             'policy_target': policy_target
         }
         self.configurator_rpc.policy_target_add_user_config(
-            network_function_data, service_config)
+            network_function_data, service_config, log_meta_data)
 
     def policy_target_add_user_config(self, event):
         request_data = event.data
@@ -901,15 +1051,25 @@ class ServiceOrchestrator(object):
         config_id = self.config_driver.handle_policy_target_operations(
             network_function_details, policy_target, "add")
         network_function = network_function_details['network_function']
+
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceProfileID:%s] "
+                         % (network_function['tenant_id'],
+                            network_function['service_chain_id'],
+                            network_function['service_profile_id']))
         request_data = {
             'heat_stack_id': config_id,
             'tenant_id': network_function['tenant_id'],
             'network_function_id': network_function['id'],
             'network_function_details': network_function_details
         }
+        request_data['log_meta_data'] = log_meta_data
         if not config_id:
             self._create_event('USER_CONFIG_FAILED',
                                event_data=request_data)
+            LOG.error(_LE(log_meta_data + " Policy target add user config"
+                          "failed. stack id not found for network_function:%s"
+                      % (network_function['id'])))
             return
         self.db_handler.update_network_function(
             self.db_session,
@@ -924,6 +1084,15 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         network_function_details = self.get_network_function_details(
             network_function_id)
+
+        nfi_id = network_function_details['network_function_instance']['id']
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceProfileID:%s, ServiceInstanceID:%s] "
+                         % (network_function['tenant_id'],
+                            network_function['service_chain_id'],
+                            network_function['service_profile_id'],
+                            nfi_id))
+
         base_mode_support = self._get_base_mode_support(
             network_function['service_profile_id'])
         if not base_mode_support:
@@ -940,6 +1109,8 @@ class ServiceOrchestrator(object):
                 {'status': nfp_constants.ERROR,
                  'status_description': ("Config Update for Policy Target "
                                         "removed event failed")})
+            LOG.error(_LE(log_meta_data + "Config Update for Policy Target "
+                          "removed event failed"))
             return
         service_config = network_function['service_config']
         network_function_data = {
@@ -947,7 +1118,7 @@ class ServiceOrchestrator(object):
             'policy_target': policy_target
         }
         self.configurator_rpc.policy_target_remove_user_config(
-            network_function_data, service_config)
+            network_function_data, service_config, log_meta_data)
 
     def policy_target_remove_user_config(self, event):
         request_data = event.data
@@ -957,15 +1128,25 @@ class ServiceOrchestrator(object):
         config_id = self.config_driver.handle_policy_target_operations(
             network_function_details, policy_target, "remove")
         network_function = network_function_details['network_function']
+
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceProfileID:%s] "
+                         % (network_function['tenant_id'],
+                            network_function['service_chain_id'],
+                            network_function['service_profile_id']))
         request_data = {
             'heat_stack_id': config_id,
             'tenant_id': network_function['tenant_id'],
             'network_function_id': network_function['id'],
             'network_function_details': network_function_details
         }
+        request_data['log_meta_data'] = log_meta_data
         if not config_id:
             self._create_event('USER_CONFIG_FAILED',
                                event_data=request_data)
+            LOG.error(_LE(log_meta_data + " Policy target remove user config"
+                          "failed. Stack id not found for network_function:%s"
+                      % (network_function['id'])))
             return
         self.db_handler.update_network_function(
             self.db_session,
@@ -980,6 +1161,15 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         network_function_details = self.get_network_function_details(
             network_function_id)
+
+        nfi_id = network_function_details['network_function_instance']['id']
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceProfileID:%s, ServiceInstanceID:%s] "
+                         % (network_function['tenant_id'],
+                            network_function['service_chain_id'],
+                            network_function['service_profile_id'],
+                            nfi_id))
+
         base_mode_support = self._get_base_mode_support(
             network_function['service_profile_id'])
         if not base_mode_support:
@@ -996,6 +1186,8 @@ class ServiceOrchestrator(object):
                 {'status': nfp_constants.ERROR,
                  'status_description': ("Config Update for Consumer Policy"
                                         " Target Group Addition failed")})
+            LOG.error(_LE(log_meta_data + "Config Update for Consumer Policy"
+                          " Target Group Addition failed"))
             return
         service_config = network_function['service_config']
         network_function_data = {
@@ -1003,7 +1195,7 @@ class ServiceOrchestrator(object):
             'consumer_ptg': consumer_ptg
         }
         self.configurator_rpc.consumer_add_user_config(
-            network_function_data, service_config)
+            network_function_data, service_config, log_meta_data)
 
     def consumer_ptg_add_user_config(self, event):
         request_data = event.data
@@ -1013,15 +1205,26 @@ class ServiceOrchestrator(object):
         config_id = self.config_driver.handle_consumer_ptg_operations(
             network_function_details, consumer_ptg, "add")
         network_function = network_function_details['network_function']
+
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceProfileID:%s] "
+                         % (network_function['tenant_id'],
+                            network_function['service_chain_id'],
+                            network_function['service_profile_id']))
+
         request_data = {
             'heat_stack_id': config_id,
             'tenant_id': network_function['tenant_id'],
             'network_function_id': network_function['id'],
             'network_function_details': network_function_details
         }
+        request_data['log_meta_data'] = log_meta_data
         if not config_id:
             self._create_event('USER_CONFIG_FAILED',
                                event_data=request_data)
+            LOG.error(_LE(log_meta_data + " Consumer PTG add user config"
+                          "failed. Stack id not found for network_function:%s"
+                      % (network_function['id'])))
             return
         self.db_handler.update_network_function(
             self.db_session,
@@ -1037,6 +1240,15 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         network_function_details = self.get_network_function_details(
             network_function_id)
+
+        nfi_id = network_function_details['network_function_instance']['id']
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceProfileID:%s, ServiceInstanceID:%s] "
+                         % (network_function['tenant_id'],
+                            network_function['service_chain_id'],
+                            network_function['service_profile_id'],
+                            nfi_id))
+
         base_mode_support = self._get_base_mode_support(
             network_function['service_profile_id'])
         if not base_mode_support:
@@ -1053,6 +1265,8 @@ class ServiceOrchestrator(object):
                 {'status': nfp_constants.ERROR,
                  'status_description': ("Config Update for Consumer Policy"
                                         " Target Group Removal failed")})
+            LOG.error(_LE(log_meta_data + "Config Update for Consumer Policy"
+                          " Target Group Removal failed"))
             return
         service_config = network_function['service_config']
         network_function_data = {
@@ -1060,7 +1274,7 @@ class ServiceOrchestrator(object):
             'consumer_ptg': consumer_ptg
         }
         self.configurator_rpc.consumer_remove_user_config(
-            network_function_data, service_config)
+            network_function_data, service_config, log_meta_data)
 
     def consumer_ptg_remove_user_config(self, event):
         request_data = event.data
@@ -1070,15 +1284,26 @@ class ServiceOrchestrator(object):
         config_id = self.config_driver.handle_consumer_ptg_operations(
             network_function_details, consumer_ptg, "remove")
         network_function = network_function_details['network_function']
+
+        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
+                         " ServiceProfileID:%s] "
+                         % (network_function['tenant_id'],
+                            network_function['service_chain_id'],
+                            network_function['service_profile_id']))
+
         request_data = {
             'heat_stack_id': config_id,
             'tenant_id': network_function['tenant_id'],
             'network_function_id': network_function['id'],
             'network_function_details': network_function_details
         }
+        request_data['log_meta_data'] = log_meta_data
         if not config_id:
             self._create_event('USER_CONFIG_FAILED',
                                event_data=request_data)
+            LOG.error(_LE(log_meta_data + " Consumer PTG remove user config"
+                          "failed. Stack id not found for network_function:%s"
+                      % (network_function['id'])))
             return
         self.db_handler.update_network_function(
             self.db_session,
@@ -1153,12 +1378,13 @@ class NSOConfiguratorRpcApi(object):
         return config_params
 
     def create_network_function_user_config(self, user_config_data,
-                                            service_config):
+                                            service_config,
+                                            log_meta_data=''):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='create')
-        LOG.info(_LI("Sending create heat config request to configurator "
-                     "with config_params = %(config_params)s") %
+        LOG.info(_LI(log_meta_data + "Sending create heat config request to"
+                     " configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
         return transport.send_request_to_configurator(self.conf,
@@ -1167,12 +1393,13 @@ class NSOConfiguratorRpcApi(object):
                                                       'CREATE')
 
     def delete_network_function_user_config(self, user_config_data,
-                                            service_config):
+                                            service_config,
+                                            log_meta_data=''):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='delete')
-        LOG.info(_LI("Sending delete heat config request to configurator "
-                     " with config_params = %(config_params)s") %
+        LOG.info(_LI(log_meta_data + "Sending delete heat config request to "
+                     " configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
         return transport.send_request_to_configurator(self.conf,
@@ -1181,12 +1408,12 @@ class NSOConfiguratorRpcApi(object):
                                                       'DELETE')
 
     def policy_target_add_user_config(self, user_config_data,
-                                      service_config):
+                                      service_config, log_meta_data=''):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='pt_add')
-        LOG.info(_LI("Sending delete heat config request to configurator "
-                     "with config_params = %(config_params)s") %
+        LOG.info(_LI(log_meta_data + "Sending delete heat config request to"
+                     " configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
         return transport.send_request_to_configurator(self.conf,
@@ -1195,12 +1422,12 @@ class NSOConfiguratorRpcApi(object):
                                                       'CREATE')
 
     def policy_target_remove_user_config(self, user_config_data,
-                                         service_config):
+                                         service_config, log_meta_data=''):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='pt_remove')
-        LOG.info(_LI("Sending delete heat config request to configurator "
-                     "with config_params = %(config_params)s") %
+        LOG.info(_LI(log_meta_data + "Sending delete heat config request to"
+                     " configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
         return transport.send_request_to_configurator(self.conf,
@@ -1209,12 +1436,12 @@ class NSOConfiguratorRpcApi(object):
                                                       'DELETE')
 
     def consumer_add_user_config(self, user_config_data,
-                                 service_config):
+                                 service_config, log_meta_data=''):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='consumer_add')
-        LOG.info(_LI("Sending delete heat config request to configurator "
-                     "with config_params = %(config_params)s") %
+        LOG.info(_LI(log_meta_data + "Sending delete heat config request to"
+                     " configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
         return transport.send_request_to_configurator(self.conf,
@@ -1223,12 +1450,12 @@ class NSOConfiguratorRpcApi(object):
                                                       'CREATE')
 
     def consumer_remove_user_config(self, user_config_data,
-                                    service_config):
+                                    service_config, log_meta_data=''):
         config_params = self.create_request_structure(service_config)
         self._update_params(user_config_data,
                             config_params, operation='consumer_remove')
-        LOG.info(_LI("Sending delete heat config request to configurator "
-                     "with config_params = %(config_params)s") %
+        LOG.info(_LI(log_meta_data + "Sending delete heat config request to"
+                     " configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
         return transport.send_request_to_configurator(self.conf,
