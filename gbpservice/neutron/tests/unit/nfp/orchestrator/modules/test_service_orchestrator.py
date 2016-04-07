@@ -181,6 +181,9 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         transport.parse_service_flavor_string = mock.MagicMock(return_value=
                                                     {'device_type': 'None',
                                                      'service_vendor': 'vyos'})
+        self.service_orchestrator.config_driver.\
+            parse_template_config_string = mock.MagicMock(return_value=
+                ('heat_config', '{}'))
         network_function = self.service_orchestrator.create_network_function(
             self.context, network_function_info)
         self.assertIsNotNone(network_function)
