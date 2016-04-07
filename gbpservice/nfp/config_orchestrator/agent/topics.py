@@ -12,7 +12,7 @@
 
 FW_NFP_CONFIGAGENT_TOPIC = 'nfp-firewall-agent'
 LB_NFP_CONFIGAGENT_TOPIC = 'nfp-lbaas-agent'
-VPN_NFP_CONFIGAGENT_TOPIC = 'nfp-vpn_agent'
+VPN_NFP_CONFIGAGENT_TOPIC = 'nfp-vpn-agent'
 
 FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
 LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'

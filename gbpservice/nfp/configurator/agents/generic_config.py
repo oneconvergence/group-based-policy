@@ -132,7 +132,6 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
         Returns: None
 
         """
-
         kwargs['fail_count'] = 0
         self._send_event(context,
                          kwargs,
@@ -184,8 +183,9 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         Returns: Service driver instance
 
         """
-
-        return self.drivers[service_type]()
+        from gbpservice.nfp.configurator.agents.vpn import VpnaasRpcSender
+        plugin_rpc = VpnaasRpcSender(self.sc)
+        return self.drivers[service_type](plugin_rpc)
 
     def handle_event(self, ev):
         """Processes the generated events in worker context.

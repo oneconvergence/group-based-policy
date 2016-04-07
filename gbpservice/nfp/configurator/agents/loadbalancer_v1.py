@@ -50,7 +50,7 @@ class LBaasRpcSender(data_filter.Filter):
             )
         )
 
-    def update_status(self, obj_type, obj_id, status, context, obj=None):
+    def update_status(self, obj_type, obj_id, status, context):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
         :param obj_type: object type
@@ -64,12 +64,11 @@ class LBaasRpcSender(data_filter.Filter):
                'kwargs': {'context': context,
                           'obj_type': obj_type,
                           'obj_id': obj_id,
-                          'status': status,
-                          obj_type: obj}
+                          'status': status}
                }
         self.notify._notification(msg)
 
-    def update_pool_stats(self, pool_id, stats, context, pool=None):
+    def update_pool_stats(self, pool_id, stats, context):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
         :param pool_id: pool id
@@ -79,10 +78,9 @@ class LBaasRpcSender(data_filter.Filter):
         msg = {'receiver': lb_constants.NEUTRON,
                'resource': lb_constants.SERVICE_TYPE,
                'method': 'update_pool_stats',
-               'kwargs': {'context': context.to_dict(),
+               'kwargs': {'context': context,
                           'pool_id': pool_id,
-                          'stats': stats,
-                          'pool': pool_id}
+                          'stats': stats}
                }
         self.notify._notification(msg)
 
@@ -461,12 +459,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status('vip', vip['id'],
-                                              lb_constants.ERROR,
-                                              context, vip)
+                                              lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status('vip', vip['id'],
-                                          lb_constants.ACTIVE,
-                                          context, vip)
+                                          lb_constants.ACTIVE, context)
 
     def _create_vip(self, ev):
         self._handle_event_vip(ev, 'create')
@@ -489,8 +485,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                     msg = ('No device driver on agent: %s.' % (driver_name))
                     LOG.error(msg)
                     self.plugin_rpc.update_status('pool', pool['id'],
-                                                  lb_constants.ERROR,
-                                                  context, pool)
+                                                  lb_constants.ERROR, context)
                     return
                 driver = self.drivers[driver_name]
                 driver.create_pool(pool, context)
@@ -511,12 +506,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 del LBaaSEventHandler.instance_mapping[pool['id']]
             else:
                 self.plugin_rpc.update_status('pool', pool['id'],
-                                              lb_constants.ERROR,
-                                              context, pool)
+                                              lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status('pool', pool['id'],
-                                          lb_constants.ACTIVE,
-                                          context, pool)
+                                          lb_constants.ACTIVE, context)
 
     def _create_pool(self, ev):
         self._handle_event_pool(ev, 'create')
@@ -547,12 +540,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status('member', member['id'],
-                                              lb_constants.ERROR,
-                                              context, member)
+                                              lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status('member', member['id'],
-                                          lb_constants.ACTIVE,
-                                          context, member)
+                                          lb_constants.ACTIVE, context)
 
     def _create_member(self, ev):
         self._handle_event_member(ev, 'create')
@@ -591,12 +582,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status(
-                    'health_monitor', assoc_id, lb_constants.ERROR,
-                    context, health_monitor)
+                    'health_monitor', assoc_id, lb_constants.ERROR, context)
         else:
             self.plugin_rpc.update_status(
-                'health_monitor', assoc_id, lb_constants.ACTIVE,
-                context, health_monitor)
+                'health_monitor', assoc_id, lb_constants.ACTIVE, context)
 
     def _create_pool_health_monitor(self, ev):
         self._handle_event_pool_health_monitor(ev, 'create')

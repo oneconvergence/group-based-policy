@@ -27,7 +27,7 @@ def rpc_init(sc, conf):
         manager=fwrpcmgr
     )
 
-    lb_report_state = {
+    '''lb_report_state = {
         'binary': 'oc-lb-agent',
         'host': cfg.CONF.host,
         'topic': a_topics.LB_NFP_CONFIGAGENT_TOPIC,
@@ -45,7 +45,7 @@ def rpc_init(sc, conf):
         manager=lbrpcmgr,
         report_state=lb_report_state
     )
-
+    '''
     vpn_report_state = {
         'binary': 'oc-vpn-agent',
         'host': cfg.CONF.host,
@@ -65,8 +65,8 @@ def rpc_init(sc, conf):
         report_state=vpn_report_state
     )
 
-    sc.register_rpc_agents([fwagent, lbagent, vpnagent])
-
+    sc.register_rpc_agents([fwagent, vpnagent])
+    #sc.register_rpc_agents([fwagent, lbagent, vpnagent])
 
 def nfp_module_init(sc, conf):
     rpc_init(sc, conf)

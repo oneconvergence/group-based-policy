@@ -1,81 +1,89 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+
+import ast
 import copy
-import json
 import requests
 
-from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_serialization import jsonutils
+
 
 LOG = logging.getLogger(__name__)
 
-auth_server_opts = [
-    cfg.StrOpt(
-        'auth_uri',
-        default="",
-        help=_("Keystone auth URI")),
-    cfg.StrOpt(
-        'admin_user',
-        default="cloud_admin",
-        help=_("Cloud admin user name")),
-    cfg.StrOpt(
-        'admin_password',
-        default="",
-        help=_("Cloud admin user password")),
-    cfg.StrOpt(
-        'admin_tenant_name',
-        default="admin",
-        help=_("Cloud admin tenant name")),
-    cfg.StrOpt(
-        'remote_vpn_role_name',
-        default="vpn",
-        help=_("Name of kv3 role for remote vpn users")),
-]
-cfg.CONF.register_opts(auth_server_opts, 'keystone_authtoken')
-
-OPTS = [
-    cfg.StrOpt('driver', required=True,
-               help='driver to be used for vyos configuration'),
-]
-
-cfg.CONF.register_opts(OPTS, "VYOS_CONFIG")
-
-vpn_agent_opts = [
-    cfg.MultiStrOpt(
-        'vpn_device_driver',
-        default=[],
-        help=_("The vpn device drivers Neutron will use")),
-]
-cfg.CONF.register_opts(vpn_agent_opts, 'vpnagent')
 rest_timeout = [
     cfg.IntOpt(
         'rest_timeout',
         default=30,
-        help=_("rest api timeout"))]
+        help="rest api timeout")]
 
-cfg.CONF.register_opts(rest_timeout)
+cfg.CONF.register_opts(rest_timeout, "VPN")
+
+
+class UnknownReasonException(Exception):
+    message = "Unsupported rpcreason '%(reason)s' from plugin "
+
+
+class UnknownResourceException(Exception):
+    message = "Unsupported resource '%(resource)s' from plugin "
+
+
+class InvalidRsrcType(Exception):
+    message = "Unsupported rsrctype '%(rsrc_type)s' from agent"
+
+
+class ResourceErrorState(Exception):
+    message = "Resource '%(name)s' : '%(id)s' \
+        went to error state, %(message)"
+
+
+"""
+Provides different methods to make ReST calls to the service VM,
+to update the configurations
+"""
 
 
 class RestApi(object):
     def __init__(self, vm_mgmt_ip):
         self.vm_mgmt_ip = vm_mgmt_ip
-        self.timeout = cfg.CONF.rest_timeout
+        self.timeout = cfg.CONF.VPN.rest_timeout
 
     def _dict_to_query_str(self, args):
         return '&'.join([str(k) + '=' + str(v) for k, v in args.iteritems()])
 
     def post(self, api, args):
+        """
+        Makes ReST call to the service VM to post the configurations.
+
+        :param api: method that need to called inside the service VM to
+        update the configurations.
+        :prarm args: data that is need to be configured in service VM
+
+        Returns: None
+        """
         url = const.request_url % (
             self.vm_mgmt_ip,
             const.CONFIGURATION_SERVER_PORT, api)
-        data = json.dumps(args)
+        data = jsonutils.dumps(args)
 
         try:
             resp = requests.post(url, data=data, timeout=self.timeout)
-            message = json.loads(resp.text)
+            message = jsonutils.loads(resp.text)
             msg = "POST url %s %d" % (url, resp.status_code)
             LOG.info(msg)
             if resp.status_code == 200 and message.get("status", False):
@@ -86,18 +94,27 @@ class RestApi(object):
                        % (url, resp.status_code,
                           message.get("reason", None)))
                 LOG.error(msg)
-                raise Exception(msg)
+                raise requests.exceptions.HTTPError(msg)
         except Exception as err:
             msg = ("Post Rest API %s - Failed. Reason: %s"
                    % (url, str(err).capitalize()))
             LOG.error(msg)
-            raise Exception(msg)
+            raise requests.exceptions.HTTPError(msg)
 
     def put(self, api, args):
+        """
+        Makes ReST call to the service VM to put the configurations.
+
+        :param api: method that need to called inside the service VM to
+        update the configurations.
+        :prarm args: data that is need to be configured in service VM
+
+        Returns: None
+        """
         url = const.request_url % (
             self.vm_mgmt_ip,
             const.CONFIGURATION_SERVER_PORT, api)
-        data = json.dumps(args)
+        data = jsonutils.dumps(args)
 
         try:
             resp = requests.put(url, data=data, timeout=self.timeout)
@@ -116,6 +133,16 @@ class RestApi(object):
             LOG.error(msg)
 
     def delete(self, api, args, data=None):
+        """
+        Makes ReST call to the service VM to delete the configurations.
+
+        :param api: method that need to called inside the service VM to
+        update the configurations.
+        :param args: fixed ip of the service VM to make frame the query string.
+        :data args: data that is need to be configured in service VM
+
+        Returns: None
+        """
         url = const.request_url % (
             self.vm_mgmt_ip,
             const.CONFIGURATION_SERVER_PORT, api)
@@ -124,10 +151,10 @@ class RestApi(object):
             url += '?' + self._dict_to_query_str(args)
 
         if data:
-            data = json.dumps(data)
+            data = jsonutils.dumps(data)
         try:
             resp = requests.delete(url, timeout=self.timeout, data=data)
-            message = json.loads(resp.text)
+            message = jsonutils.loads(resp.text)
             msg = "DELETE url %s %d" % (url, resp.status_code)
             LOG.debug(msg)
             if resp.status_code == 200 and message.get("status", False):
@@ -137,14 +164,23 @@ class RestApi(object):
                 msg = ("DELETE Rest API %s - Failed %s"
                        % (url, message.get("reason", None)))
                 LOG.error(msg)
-                raise Exception(msg)
+                raise requests.exceptions.HTTPError(msg)
         except Exception as err:
             msg = ("Delete Rest API %s - Failed. Reason: %s"
                    % (url, str(err).capitalize()))
             LOG.error(msg)
-            raise Exception(msg)
+            raise requests.exceptions.HTTPError(msg)
 
     def get(self, api, args):
+        """
+        Makes ReST call to the service VM to put the configurations.
+
+        :param api: method that need to called inside the service VM to
+        update the configurations.
+        :prarm args: data that is need to be configured in service VM
+
+        Returns: None
+        """
         output = ''
 
         url = const.request_url % (
@@ -175,8 +211,13 @@ class RestApi(object):
 
         return output
 
+"""
+Provides the methods to validate the vpn service which is about to
+be created in order to avoid any conflicts if they exists.
+"""
 
-class VPNSvcValidator(object):
+
+class VPNServiceValidator(object):
     def __init__(self, agent):
         self.agent = agent
 
@@ -195,30 +236,51 @@ class VPNSvcValidator(object):
         return vpnsvc_status
 
     def _error_state(self, context, vpnsvc, message=''):
+        """
+        Enqueues the status of the service to ERROR.
 
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param vpnsvc: vpn service dictionary.
+        :param message: the cause for the error.
+
+        Returns: None
+        """
         self.agent.update_status(
             context, self._update_service_status(vpnsvc, const.STATE_ERROR))
-
-        '''
-        raise exc.ResourceErrorState(name='vpn_service', id=vpnsvc['id'],
-                                     message=message)
-        '''
+        raise ResourceErrorState(name='vpn_service', id=vpnsvc['id'],
+                                 message=message)
 
     def _active_state(self, context, vpnsvc):
+        """
+        Enqueues the status of the service to ACTIVE.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param vpnsvc: vpn service dictionary.
+
+        Returns: None
+        """
         self.agent.update_status(
-            context, self._update_service_status(vpnsvc, const.STATE_ERROR))
+            context, self._update_service_status(vpnsvc, const.STATE_ACTIVE))
 
     def _get_local_cidr(self, vpn_svc):
-        svc_desc = json.loads(vpn_svc['description'])
+        svc_desc = ast.literal_eval(vpn_svc['description'])
         local_cidr = svc_desc.get("tunnel_local_cidr")
         return local_cidr
 
     def validate(self, context, vpnsvc):
-        lcidr = self._get_local_cidr(vpnsvc)
         """
         Get the vpn services for this tenant
-        Check for overlapping lcidr - not allowed
+        Check for overlapping lcidr - (not allowed)
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param vpnsvc: vpn service dictionary.
+
+        Returns: None
         """
+        lcidr = self._get_local_cidr(vpnsvc)
         filters = {'tenant_id': [context['tenant_id']]}
         t_vpnsvcs = self.agent.get_vpn_services(
             context, filters=filters)
@@ -239,6 +301,10 @@ class VPNSvcValidator(object):
                     vpnsvc, msg)
         self._active_state(context, vpnsvc)
 
+"""
+VPN generic config driver for handling device configurations requests
+"""
+
 
 class VpnGenericConfigDriver(object):
     """
@@ -247,9 +313,19 @@ class VpnGenericConfigDriver(object):
     """
 
     def __init__(self):
-        self.timeout = cfg.CONF.rest_timeout
+        self.timeout = cfg.CONF.VPN.rest_timeout
 
     def configure_routes(self, context, kwargs):
+        """
+        Configure routes for the service VM.
+
+        Makes a ReST call to the service VM to configure the routes
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
 
         url = const.request_url % (kwargs['vm_mgmt_ip'],
                                    const.CONFIGURATION_SERVER_PORT,
@@ -257,29 +333,31 @@ class VpnGenericConfigDriver(object):
         active_configured = False
         route_info = []
         for source_cidr in kwargs['source_cidrs']:
-            route_info.append({'source_cidr': source_cidr,
-                               'gateway_ip': kwargs['gateway_ip']})
-        data = json.dumps(route_info)
+            if source_cidr:
+                route_info.append({'source_cidr': source_cidr,
+                                   'gateway_ip': kwargs['gateway_ip']})
+        data = jsonutils.dumps(route_info)
         msg = ("Initiating POST request to configure route of "
                "primary service at: %r" % kwargs['vm_mgmt_ip'])
         LOG.info(msg)
         try:
             resp = requests.post(url, data=data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
                    "%r. ERROR: %r" % (kwargs['vm_mgmt_ip'],
                                       str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while configuring "
                    "route of service at: %r ERROR: %r" % (
-                    kwargs['vm_mgmt_ip'], str(err).capitalize()))
+                                                    kwargs['vm_mgmt_ip'],
+                                                    str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
 
         if resp.status_code in const.SUCCESS_CODES:
-            message = json.loads(resp.text)
+            message = jsonutils.loads(resp.text)
             if message.get("status", False):
                 msg = ("Route configured successfully for VYOS"
                        " service at: %r" % kwargs['vm_mgmt_ip'])
@@ -295,8 +373,20 @@ class VpnGenericConfigDriver(object):
         msg = ("Route configuration status : %r "
                % (active_configured))
         LOG.info(msg)
+        if active_configured:
+            return "SUCCESS"
 
     def clear_routes(self, context, kwargs):
+        """
+        Clear routes for the service VM.
+
+        Makes a ReST call to the service VM to clear the routes
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
 
         active_configured = False
         url = const.request_url % (kwargs['vm_mgmt_ip'],
@@ -304,22 +394,23 @@ class VpnGenericConfigDriver(object):
                                    'delete-source-route')
         route_info = []
         for source_cidr in kwargs['source_cidrs']:
-            route_info.append({'source_cidr': source_cidr})
-        data = json.dumps(route_info)
+            if source_cidr:
+                route_info.append({'source_cidr': source_cidr})
+        data = jsonutils.dumps(route_info)
         msg = ("Initiating DELETE route request to primary service at: %r"
                % kwargs['vm_mgmt_ip'])
         LOG.info(msg)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
                    " %r. ERROR: %r" % (kwargs['vm_mgmt_ip'], err))
             LOG.error(msg)
             raise Exception(err)
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while deleting "
                    " route of service at: %r ERROR: %r"
-                   % (kwargs['vm_mgmt_ip'],  err))
+                   % (kwargs['vm_mgmt_ip'], err))
             LOG.error(msg)
             raise Exception(err)
 
@@ -329,9 +420,112 @@ class VpnGenericConfigDriver(object):
         msg = ("Route deletion status : %r "
                % (active_configured))
         LOG.info(msg)
+        if active_configured:
+            return "SUCCESS"
+
+    def _configure_static_ips(self, kwargs):
+        """ Configure static IPs for provider and stitching interfaces
+        of service VM.
+
+        Issues REST call to service VM for configuration of static IPs.
+
+        :param kwargs: a dictionary of firewall rules and objects
+        send by neutron plugin
+
+        Returns: SUCCESS/Failure message with reason.
+
+        """
+
+        rule_info = kwargs.get('rule_info')
+        static_ips_info = dict(
+                    provider_ip=kwargs.get('provider_ip'),
+                    provider_cidr=kwargs.get('provider_cidr'),
+                    provider_mac=kwargs.get('provider_mac'),
+                    stitching_ip=kwargs.get('stitching_ip'),
+                    stitching_cidr=kwargs.get('stitching_cidr'),
+                    stitching_mac=kwargs.get('stitching_mac'),
+                    provider_interface_position=kwargs.get(
+                                            'provider_interface_position'),
+                    stitching_interface_position=kwargs.get(
+                                            'stitching_interface_position'))
+        active_fip = rule_info['active_fip']
+
+        url = const.request_url % (active_fip,
+                                   const.CONFIGURATION_SERVER_PORT,
+                                   'add_static_ip')
+        data = jsonutils.dumps(static_ips_info)
+        msg = ("@############################@ Static_ips info: %s" % static_ips_info)
         LOG.error(msg)
 
+        msg = ("Initiating POST request to add static IPs for primary "
+               "service with SERVICE ID: %r of tenant: %r at: %r" %
+               (rule_info['service_id'], rule_info['tenant_id'],
+                active_fip))
+        LOG.info(msg)
+        try:
+            resp = requests.post(url, data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError as err:
+            msg = ("Failed to establish connection to primary service at: "
+                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except requests.exceptions.RequestException as err:
+            msg = ("Unexpected ERROR happened  while adding "
+                   "static IPs for primary service at: %r "
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+        try:
+            result = resp.json()
+            msg = ("@############################@Configure interfaces response: %s" % result)
+            LOG.error(msg)
+        except ValueError as err:
+            msg = ("Unable to parse response, invalid JSON. URL: "
+                   "%r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if not result['status']:
+            msg = ("Error adding static IPs. URL: %r. Reason: %s." %
+                   (url, result['reason']))
+            LOG.error(msg)
+            return msg
+
+        msg = ("Static IPs successfully added for SERVICE ID: %r"
+               " of tenant: %r" % (rule_info['service_id'],
+                                   rule_info['tenant_id']))
+        LOG.info(msg)
+        return const.STATUS_SUCCESS
+
+
     def configure_interfaces(self, context, kwargs):
+        """
+        Configure interfaces for the service VM.
+
+        Makes a ReST call to the service VM to configure the interfaces
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
+        try:
+            result_static_ips = self._configure_static_ips(kwargs)
+        except Exception as err:
+            msg = ("Failed to add static IPs. Error: %s" % err)
+            LOG.error(msg)
+            return msg
+        else:
+            if result_static_ips != const.STATUS_SUCCESS:
+                return result_static_ips
+            else:
+                msg = ("Added static IPs. Result: %s" % result_static_ips)
+                LOG.info(msg)
+
 
         rule_info = kwargs['rule_info']
 
@@ -343,7 +537,7 @@ class VpnGenericConfigDriver(object):
 
         url = const.request_url % (active_fip,
                                    const.CONFIGURATION_SERVER_PORT, 'add_rule')
-        data = json.dumps(active_rule_info)
+        data = jsonutils.dumps(active_rule_info)
         msg = ("Initiating POST request to add persistent rule to primary "
                "service with SERVICE ID: %r of tenant: %r at: %r" % (
                     rule_info['service_id'], rule_info['tenant_id'],
@@ -351,19 +545,23 @@ class VpnGenericConfigDriver(object):
         LOG.info(msg)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
                    "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                                                    active_fip,
+                                                    rule_info['service_id'],
+                                                    rule_info['tenant_id'],
+                                                    str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while adding "
                    "persistent rule of primary service at: %r "
                    "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                                                    active_fip,
+                                                    rule_info['service_id'],
+                                                    rule_info['tenant_id'],
+                                                    str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
 
@@ -383,8 +581,103 @@ class VpnGenericConfigDriver(object):
                " of tenant: %r" % (rule_info['service_id'],
                                    rule_info['tenant_id']))
         LOG.info(msg)
+        return "SUCCESS"
+
+    def _clear_static_ips(self, kwargs):
+        """ Clear static IPs for provider and stitching
+        interfaces of the service VM.
+
+        Issues REST call to service VM for deletion of static IPs.
+
+        :param kwargs: a dictionary of firewall rules and objects
+        send by neutron plugin
+
+        Returns: SUCCESS/Failure message with reason.
+
+        """
+
+        rule_info = kwargs.get('rule_info')
+        static_ips_info = dict(
+                    provider_ip=kwargs.get('provider_ip'),
+                    provider_cidr=kwargs.get('provider_cidr'),
+                    provider_mac=kwargs.get('provider_mac'),
+                    stitching_ip=kwargs.get('stitching_ip'),
+                    stitching_cidr=kwargs.get('stitching_cidr'),
+                    stitching_mac=kwargs.get('stitching_mac'))
+        active_fip = rule_info['active_fip']
+
+        url = const.request_url % (active_fip,
+                                   const.CONFIGURATION_SERVER_PORT,
+                                   'del_static_ip')
+        data = jsonutils.dumps(static_ips_info)
+
+        msg = ("Initiating POST request to remove static IPs for primary "
+               "service with SERVICE ID: %r of tenant: %r at: %r" %
+               (rule_info['service_id'], rule_info['tenant_id'],
+                active_fip))
+        LOG.info(msg)
+        try:
+            resp = requests.delete(url, data=data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError as err:
+            msg = ("Failed to establish connection to primary service at: "
+                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except requests.exceptions.RequestException as err:
+            msg = ("Unexpected ERROR happened  while removing "
+                   "static IPs for primary service at: %r "
+                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+                   (active_fip, rule_info['service_id'],
+                    rule_info['tenant_id'], str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response, invalid JSON. URL: "
+                   "%r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if not result['status']:
+            msg = ("Error removing static IPs. URL: %r. Reason: %s." %
+                   (url, result['reason']))
+            LOG.error(msg)
+            return msg
+
+        msg = ("Static IPs successfully removed for SERVICE ID: %r"
+               " of tenant: %r" % (rule_info['service_id'],
+                                   rule_info['tenant_id']))
+        LOG.info(msg)
+        return const.STATUS_SUCCESS
 
     def clear_interfaces(self, context, kwargs):
+        """
+        Clear interfaces for the service VM.
+
+        Makes a ReST call to the service VM to clear the interfaces
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
+        try:
+            result_static_ips = self._clear_static_ips(kwargs)
+        except Exception as err:
+            msg = ("Failed to remove static IPs. Error: %s" % err)
+            LOG.error(msg)
+            return msg
+        else:
+            if result_static_ips != const.STATUS_SUCCESS:
+                return result_static_ips
+            else:
+                msg = ("Successfully removed static IPs. "
+                       "Result: %s" % result_static_ips)
+                LOG.info(msg)
+
 
         rule_info = kwargs['rule_info']
 
@@ -403,21 +696,25 @@ class VpnGenericConfigDriver(object):
                                    'delete_rule')
 
         try:
-            data = json.dumps(active_rule_info)
+            data = jsonutils.dumps(active_rule_info)
             resp = requests.delete(url, data=data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError, err:
+        except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: %r "
                    "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                                                    active_fip,
+                                                    rule_info['service_id'],
+                                                    rule_info['tenant_id'],
+                                                    str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
-        except requests.exceptions.RequestException, err:
+        except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while deleting "
                    "persistent rule of service at: %r "
                    "of SERVICE ID: %r of tenant: %r . ERROR: %r" % (
-                    active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                                                    active_fip,
+                                                    rule_info['service_id'],
+                                                    rule_info['tenant_id'],
+                                                    str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
 
@@ -437,13 +734,16 @@ class VpnGenericConfigDriver(object):
                                     rule_info['tenant_id']))
 
         LOG.info(msg)
+        return "SUCCESS"
+
+"""
+Driver class for implementing VPN IPSEC configuration
+requests from VPNaas Plugin.
+"""
 
 
 class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
-    """
-    Driver class for implementing VPN IPSEC configuration
-    requests from VPNaas Plugin.
-    """
+
     service_type = const.SERVICE_TYPE
 
     def __init__(self, agent_context):
@@ -456,16 +756,15 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 'update': self.update_ipsec_conn,
                 'delete': self.delete_ipsec_conn}}
         super(VpnaasIpsecDriver, self).__init__()
-    '''
-    @property
-    def service_type(self):
-        return "%s-%s" % (const.VYOS, const.SERVICE_TYPE)
-    '''
 
     def _update_conn_status(self, conn, status):
         """
         Driver will call this API to report
         status of a connection - only if there is any change.
+        :param conn: ipsec conn dicitonary
+        :param status: status of the service.
+
+        Returns: updated status dictionary
         """
         msg = ("Driver informing connection status "
                "changed to %s" % status)
@@ -481,18 +780,34 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         return vpnsvc_status
 
     def _error_state(self, context, conn, message=''):
+        """
+        Enqueues the status of the service to ERROR.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param conn: ipsec conn dicitonary.
+        :param message: the cause for the error.
+
+        Returns: None
+        """
+
         self.agent.update_status(
             context, self._update_conn_status(conn,
                                               const.STATE_ERROR))
-
-        '''
-        raise exc.ResourceErrorState(
-            name='ipsec-site-conn',
-            id=conn['id'], message=message)
-        '''
+        raise ResourceErrorState(id=conn['id'], message=message)
 
     def _init_state(self, context, conn):
-        LOG.info("IPSec: Configured successfully- %s " % conn['id'])
+        """
+        Enqueues the status of the service to ACTVIE.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param conn: ipsec conn dicitonary.
+
+        Returns: None
+        """
+        msg = "IPSec: Configured successfully- %s " % conn['id']
+        LOG.info(msg)
         self.agent.update_status(
             context, self._update_conn_status(conn,
                                               const.STATE_INIT))
@@ -504,24 +819,28 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         return self._get_fip_from_vpnsvc(svc_context['service'])
 
     def _get_ipsec_tunnel_local_cidr_from_vpnsvc(self, vpn_svc):
-        svc_desc = json.loads(vpn_svc['description'])
+        svc_desc = ast.literal_eval(vpn_svc['description'])
         tunnel_local_cidr = svc_desc.get("tunnel_local_cidr")
         return tunnel_local_cidr
+
+    def _get_stitching_cidr(self, conn):
+        svc_desc = ast.literal_eval(conn['description'])
+        stitching_cidr =  svc_desc.get("stitching_cidr")
+        return stitching_cidr
 
     def _get_ipsec_tunnel_local_cidr(self, svc_context):
         # Provider PTG is local cidr for the tunnel
         # - which is passed in svc description as of now
-        return self.\
-            _get_ipsec_tunnel_local_cidr_from_vpnsvc(
+        return self._get_ipsec_tunnel_local_cidr_from_vpnsvc(
                 svc_context['service'])
 
     def _get_stitching_fixed_ip(self, conn):
-        svc_desc = json.loads(conn['description'])
+        svc_desc = ast.literal_eval(conn['description'])
         fixed_ip = svc_desc.get("fixed_ip")
         return fixed_ip
 
     def _get_user_access_ip(self, conn):
-        svc_desc = json.loads(conn['description'])
+        svc_desc = ast.literal_eval(conn['description'])
         access_ip = svc_desc.get("user_access_ip")
         return access_ip
 
@@ -542,7 +861,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         conn['ikepolicy']['encryption_algorithm'] = ike_enc_algo
         conn['ipsecpolicy']['encryption_algorithm'] = ipsec_enc_algo
 
-    def _get_filers(self, tenant_id=None,
+    def _get_filters(self, tenant_id=None,
                     vpnservice_id=None,
                     conn_id=None, peer_address=None):
         filters = {}
@@ -558,30 +877,48 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     def _ipsec_create_conn(self, context, mgmt_fip, conn):
         """
-        Get the context for this conn
-        Issue POST to the vyos agenet
+        Get the context for this ipsec conn and make POST to the service VM.
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: None
         """
         svc_context = self.agent.get_vpn_servicecontext(
-            context, self._get_filers(conn_id=conn['id']))[0]
-        tunnel_local_cidr = self.\
-            _get_ipsec_tunnel_local_cidr(svc_context)
+            context, self._get_filters(conn_id=conn['id']))[0]
+        tunnel_local_cidr = self._get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
+        svc_context['siteconns'][0]['connection']['description'] = conn[
+            'description']
         conn = svc_context['siteconns'][0]['connection']
         svc_context['siteconns'][0]['connection']['stitching_fixed_ip'] = (
             self._get_stitching_fixed_ip(conn))
         svc_context['siteconns'][0]['connection']['access_ip'] = (
             self._get_user_access_ip(conn))
-        LOG.info("IPSec: Pushing ipsec configuration %s" % conn)
+        msg = "IPSec: Pushing ipsec configuration %s" % conn
+        LOG.info(msg)
         conn['tunnel_local_cidr'] = tunnel_local_cidr
         self._ipsec_conn_correct_enc_algo(svc_context['siteconns'][0])
+        svc_context['service']['cidr'] = self._get_stitching_cidr(conn)
         RestApi(mgmt_fip).post("create-ipsec-site-conn", svc_context)
         self._init_state(context, conn)
 
     def _ipsec_create_tunnel(self, context, mgmt_fip, conn):
+        """
+        Get the context for this ipsec conn and make POST to the service VM.
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: None
+        """
+
         svc_context = self.agent.get_vpn_servicecontext(
-            context, self._get_filers(conn_id=conn['id']))[0]
+            context, self._get_filters(conn_id=conn['id']))[0]
 
         tunnel_local_cidr = self.\
-            _get_ipsec_tunnel_local_cidr(svc_context)
+            _get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
 
         tunnel = {}
         tunnel['peer_address'] = conn['peer_address']
@@ -593,6 +930,16 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     def _ipsec_get_tenant_conns(self, context, mgmt_fip, conn,
                                 on_delete=False):
+        """
+        Get the context for this ipsec conn and vpn services.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: list of ipsec conns
+        """
         filters = {
             'tenant_id': [context['tenant_id']],
             'peer_address': [conn['peer_address']]}
@@ -664,8 +1011,18 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     def _ipsec_delete_tunnel(self, context, mgmt_fip,
                              conn):
-        lcidr = self.\
-            _get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
+        """
+        Make DELETE to the service VM to delete the tunnel.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: None
+        """
+
+        lcidr = self._get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
 
         tunnel = {}
         tunnel['peer_address'] = conn['peer_address']
@@ -681,6 +1038,17 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     def _ipsec_delete_connection(self, context, mgmt_fip,
                                  conn):
+        """
+        Make DELETE to the service VM to delete the ipsec conn.
+
+        :param context: Dictionary which holds all the required data for
+        for vpn service.
+        :param mgmt_fip: managent floting ip
+        :paraM conn: ipsec conn dictionary
+
+        Returns: None
+        """
+
         try:
             RestApi(mgmt_fip).delete(
                 "delete-ipsec-site-conn",
@@ -691,9 +1059,19 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             LOG.error(msg)
 
     def _ipsec_is_state_changed(self, svc_context, conn, fip):
+        """
+        Make GET request to the service VM to get the status of the site conn.
+
+        :param svc_context: list of ipsec conn dictionaries
+        :paraM conn: ipsec conn dictionary
+        :param fip: floting ip of the service VM
+
+        Returns: None
+        """
+
         c_state = None
         lcidr = self.\
-            _get_ipsec_tunnel_local_cidr(svc_context)
+            _get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
         if conn['status'] == const.STATE_INIT:
             tunnel = {
                 'peer_address': conn['peer_address'],
@@ -716,7 +1094,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         return c_state, False
 
     def _get_vm_mgmt_ip_from_desc(self, desc):
-        svc_desc = json.loads(desc['description'])
+        svc_desc = ast.literal_eval(desc['description'])
         fip = svc_desc.get("fip")
         return fip
 
@@ -724,13 +1102,24 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
         svc = kwargs.get('resource')
         LOG.info("Validating VPN service %s " % svc)
-        validator = VPNSvcValidator(self.agent)
+        validator = VPNServiceValidator(self.agent)
         validator.validate(context, svc)
 
     def create_ipsec_conn(self, context, kwargs):
+        """
+        Implements functions to make update ipsec configuration in service VM.
+
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
+
         conn = kwargs.get('resource')
         mgmt_fip = self._get_vm_mgmt_ip_from_desc(conn)
-        LOG.info("IPsec: create siteconnection %s" % conn)
+        msg = "IPsec: create siteconnection %s" % conn
+        LOG.info(msg)
         """
         Following conditions -
         0) Conn with more than one peer_address
@@ -746,10 +1135,10 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         """
         t_lcidr = self._get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
         if t_lcidr in conn['peer_cidrs']:
-            message = ("IPSec: Tunnel remote cidr %s conflicts "
-                        "with local cidr." % t_lcidr)
-            LOG.error( message)
-            self._error_state(context, conn, message)
+            msg = ("IPSec: Tunnel remote cidr %s conflicts "
+                   "with local cidr." % t_lcidr)
+            LOG.error(msg)
+            self._error_state(context, conn, msg)
         if len(conn['peer_cidrs']) != 1:
             msg = ("IPSec: Invalid number of peer CIDR. Should not be"
                    " less than 1.")
@@ -757,14 +1146,12 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             self._error_state(context, conn, msg)
 
         try:
-
             tenant_conns = self._ipsec_get_tenant_conns(
                 context, mgmt_fip, conn)
         except Exception as err:
             msg = ("IPSec: Failed to get tenant conns for IPSEC create. %s"
                    % str(err).capitalize())
             LOG.error(msg)
-
         try:
             if not tenant_conns:
                 self._ipsec_create_conn(context, mgmt_fip, conn)
@@ -777,34 +1164,34 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 self._ipsec_check_overlapping_peer(
                     context, tenant_conns, conn)
                 self._ipsec_create_tunnel(context, mgmt_fip, conn)
-            '''
-            except exc.ResourceErrorState as rex:
-                raise rex
-            '''
+
         except Exception as ex:
             msg = "IPSec: Exception in creating ipsec conn: %s" % ex
             LOG.error(msg)
             self._error_state(context, conn, msg)
 
-    def update_ipsec_conn(self,  context, kwargs):
+    def update_ipsec_conn(self, context, kwargs):
+        """
+        Implements functions to make update ipsec configuration in service VM.
+
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
         pass
-        # svc_contexts = self.agent.get_ipsec_contexts(
-        #    context, conn_id=kwargs.get('id'))
-        # svc_context = svc_contexts[0]
-
-        # self.pending_q.push(Resource(svc_context,  **kwargs))
-
-        # Talk to service manager and get floating ip
-        # (with tenant_id & svc_type as criteria)
-        # Might have to send some commands to
-        # update ipsec_conn params
-        # Can IPSEC policy params / IKE policy params
-        # be changed with connection intact ?
-        # Need to figure out which all params can be
-        # changed based on what vyos vm will support
-        # Maintain this resource ? will be useful in case of update ?
 
     def delete_ipsec_conn(self, context, kwargs):
+        """
+        Implements functions to make delete ipsec configuration in service VM.
+
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
 
         conn = kwargs.get('resource')
         msg = "IPsec: delete siteconnection %s" % conn
@@ -825,7 +1212,15 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             LOG.error(msg)
             self._error_state(context, conn, msg)
 
-    def check_status(self,  context, svc_context):
+    def check_status(self, context, svc_context):
+        """
+        Implements functions to get the status of the site to site conn.
+
+        :param context: context dictionary of vpn service type
+        :param svc_contex: list of ipsec conn dictionaries
+
+        Returns: None
+        """
         fip = self._get_fip(svc_context)
         sconns = svc_context['siteconns']
         for sconn in sconns:
@@ -844,9 +1239,18 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                                                       state))
 
     def vpnservice_updated(self, context, kwargs):
-        """Handle VPNaaS service driver change notifications."""
-        LOG.info("Handling VPN service update notification '%s'",
-                 kwargs.get('reason', ''))
+        """
+        Demultiplexes the different methods to update the configurations
+
+        :param context: context dictionary of vpn service type
+        :param kwargs: dicionary of a specific operation type, which was sent
+        from neutron plugin
+
+        Returns: None
+        """
+        msg = ("Handling VPN service update notification '%s'",
+               kwargs.get('reason', ''))
+        LOG.info(msg)
 
         resource = kwargs.get('resource')
         tenant_id = resource['tenant_id']
@@ -859,7 +1263,29 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             reason = kwargs.get('reason')
             rsrc = kwargs.get('rsrc_type')
 
+            if rsrc not in self.handlers.keys():
+                raise UnknownResourceException(rsrc=rsrc)
+
+            if reason not in self.handlers[rsrc].keys():
+                raise UnknownReasonException(reason=reason)
+
             self.handlers[rsrc][reason](context, kwargs)
 
         return _vpnservice_updated(context, kwargs)
+
+    def configure_healthmonitor(self, context, kwargs):
+        """Overriding BaseDriver's configure_healthmonitor().
+           It does netcat to CONFIGURATION_SERVER_PORT  8888.
+           Configuration agent runs inside service vm.Once agent is up and
+           reachable, service vm is assumed to be active.
+           :param context - context
+           :param kwargs - kwargs coming from orchestrator
+
+           Returns: SUCCESS/FAILED
+
+        """
+        ip = kwargs.get('mgmt_ip')
+        port = str(const.CONFIGURATION_SERVER_PORT)
+        command = 'nc ' + ip + ' ' + port + ' -z'
+        return self._check_vm_health(command)
 

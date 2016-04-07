@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
+
 from neutron._i18n import _LE
 from neutron._i18n import _LI
 from neutron.common import rpc as n_rpc
@@ -636,7 +638,12 @@ class ServiceOrchestrator(object):
         # REVISIT(VK) For neutron workflow. What if GBP workflow require to
         # fill description field.
         if network_function['description']:
-            updated_network_function = {'status': nfp_constants.ACTIVE}
+            desc = ast.literal_eval(network_function['description'])
+            nfi_device = self.db_handler.get_network_function_device(
+                self.db_session, nfi['network_function_device_id'])
+            desc.update(fip=nfi_device['mgmt_ip_address'])
+            updated_network_function = {'status': nfp_constants.ACTIVE,
+                                        'description': str(desc)}
             self.db_handler.update_network_function(
                 self.db_session, nfi['network_function_id'],
                 updated_network_function)
@@ -1387,7 +1394,8 @@ class SOHelper(object):
                            vpn_service_instance)
         _ports = vpn_service_instance['port_info']
         for u_port in _ports:
-            _port = service_orchestrator.db_handler.get_port_info(u_port)
+            _port = service_orchestrator.db_handler.get_port_info(
+                service_orchestrator.db_session, u_port)
             if _port['port_classification'] == \
                     orchestrator_constants.CONSUMER:
                 admin_token = service_orchestrator.keystoneclient \
@@ -1404,7 +1412,7 @@ class SOHelper(object):
         # should go.
         router_id = vpn_service['service_config']
         self.sc_plumber.update_router_service_gateway(
-            router_id, nw_function_info['resource_data']['peer_cidr'],
+            router_id, nw_function_info['resource_data']['peer_cidrs'],
             gateway_ip)
         nw_function_info["ipsec_service_status"] = "ACTIVE"
         return nw_function_info
