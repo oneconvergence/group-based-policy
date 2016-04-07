@@ -618,7 +618,11 @@ class OrchestrationDriverBase(object):
         try:
             for port in device_data['ports']:
                 if port['port_classification'] == nfp_constants.PROVIDER:
-                    network_handler.set_promiscuos_mode(token, port['id'])
+                    if (
+                        device_data['service_details']['service_type'].lower()
+                        in [nfp_constants.FIREWALL]
+                    ):
+                        network_handler.set_promiscuos_mode(token, port['id'])
                     port_id = network_handler.get_port_id(token, port['id'])
                     self.compute_handler_nova.attach_interface(
                                 token,
@@ -628,7 +632,11 @@ class OrchestrationDriverBase(object):
                     break
             for port in device_data['ports']:
                 if port['port_classification'] == nfp_constants.CONSUMER:
-                    network_handler.set_promiscuos_mode(token, port['id'])
+                    if (
+                        device_data['service_details']['service_type'].lower()
+                        in [nfp_constants.FIREWALL]
+                    ):
+                        network_handler.set_promiscuos_mode(token, port['id'])
                     port_id = network_handler.get_port_id(token, port['id'])
                     self.compute_handler_nova.attach_interface(
                                 token,
