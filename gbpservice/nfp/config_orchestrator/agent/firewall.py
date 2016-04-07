@@ -12,10 +12,15 @@
 
 from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.proxy_agent.lib import topics
 from neutron_fwaas.db.firewall import firewall_db
+from neutron import context as n_context
 from oslo_log import helpers as log_helpers
+from oslo_log import log
 import oslo_messaging as messaging
+from oslo_messaging import target
 
+LOG = log.getLogger(__name__)
 
 """
 RPC handler for Firwrall service
@@ -91,3 +96,63 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         return common.get_core_context(context,
                                        filters,
                                        self._conf.host)
+
+    def firewall_configuration_create_complete(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
+        firewall_id = kwargs['firewall_id']
+        # firewall = kwargs['firewall']     # kwargs contains whole firewall
+                                            # object under key firewall
+        status = kwargs['status']
+        msg = ("NCO received firewall_configuration_create_complete API, "
+               "making an set_firewall_status RPC call to plugin for "
+               "firewall: %s with status %s" % (firewall_id, status))
+        LOG.info(msg)
+        # RPC call to plugin to set firewall status
+        rpcClient.cctxt.cast(context, 'set_firewall_status',
+                             host=kwargs['host'],
+                             firewall_id=firewall_id,
+                             status=status)
+
+    def firewall_configuration_delete_complete(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
+        firewall_id = kwargs['firewall_id']
+        # firewall = kwargs['firewall']     # kwargs contains whole firewall
+                                            # object under key firewall
+        msg = ("NCO received firewall_configuration_delete_complete API, "
+               "making an firewall_deleted RPC call to plugin for firewall: "
+               "%s" % (firewall_id))
+        LOG.info(msg)
+        # RPC call to plugin to inform firewall deleted
+        rpcClient.cctxt.cast(context, 'firewall_deleted',
+                             host=kwargs['host'],
+                             firewall_id=firewall_id)
+
+class FwPluginApi(object):
+
+    RPC_API_VERSION = '1.0'
+    target = messaging.Target(version=RPC_API_VERSION)
+
+    def __init__(self, conf, sc):
+        print 'FwPluginApi'
+        self._conf = conf
+        self._sc = sc
+
+    def firewall_configuration_create_complete(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
+        firewall_id = kwargs['firewall_id']
+        status = kwargs['status']
+        rpcClient.cctxt.cast(context, 'set_firewall_status',
+                             host=kwargs['host'],
+                             firewall_id=firewall_id,
+                             status=status)
+
+    def firewall_configuration_delete_complete(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
+        firewall_id = kwargs['firewall_id']
+        rpcClient.cctxt.cast(context, 'firewall_deleted',
+                             host=kwargs['host'],
+                             firewall_id=firewall_id)

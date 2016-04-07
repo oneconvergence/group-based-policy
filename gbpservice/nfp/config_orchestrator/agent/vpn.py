@@ -9,15 +9,12 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import eventlet
+
 from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.lib import transport
 from neutron_vpnaas.db.vpn import vpn_db
 from oslo_log import helpers as log_helpers
 import oslo_messaging as messaging
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
-from neutron import context as n_context
-from neutron.common import exceptions as n_exec
 
 LOG = logging.getLogger(__name__)
 
@@ -107,6 +104,29 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                                                     self._conf.host)
         del core_context_dict['ports']
         return core_context_dict
+
+    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    def update_status(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.VPN_NFP_PLUGIN_TOPIC)
+        msg = ("NCO received VPN's update_status API,"
+                "making an update_status RPC call to plugin for %s object"
+                "with status %s" % (kwargs['obj_id'], kwargs['status']))
+        LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'update_status',
+                             kwargs=kwargs)
+
+    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    def ipsec_site_conn_deleted(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.VPN_NFP_PLUGIN_TOPIC)
+        msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
+                "making an ipsec_site_conn_deleted RPC call to plugin for "
+                "%s object" % (kwargs['obj_id']))
+        LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
+                             kwargs=kwargs)
+
 
     def validate_and_process_vpn_create_service_request(self, context,
                                                         resource_data):
