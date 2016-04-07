@@ -543,7 +543,9 @@ class HaproxyDriver:
                 parsed_stats = self.get_lbstats_from_socket(
                                 socket_path)
                 for proxy in parsed_stats:
-                    if vip_id in proxy['pxname'] or pool_id in proxy['pxname']:
+                    if vip_id in proxy['pxname']:
+                        filtered_stats.append(proxy)
+                    if pool_id and pool_id in proxy['pxname']:
                         filtered_stats.append(proxy)
                 return { 'stats' : filtered_stats }
             else:
