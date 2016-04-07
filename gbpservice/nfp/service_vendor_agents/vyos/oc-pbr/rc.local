@@ -1,0 +1,19 @@
+#!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+# Do not remove the following call to vyatta-postconfig-bootup.script.
+# Any boot time workarounds should be put in script below so that they
+# get preserved for the new image during image upgrade.
+POSTCONFIG=/opt/vyatta/etc/config/scripts/vyatta-postconfig-bootup.script
+[ -x $POSTCONFIG ] && $POSTCONFIG
+sudo bash /usr/share/oc-pbr/pbr_init & 
+exit 0

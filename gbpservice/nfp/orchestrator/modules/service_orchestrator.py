@@ -10,6 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from neutron._i18n import _LE
+from neutron._i18n import _LI
+from neutron.common import rpc as n_rpc
+from neutron import context as n_context
+from oslo_log import helpers as log_helpers
+from oslo_log import log as logging
+import oslo_messaging
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
@@ -17,19 +24,10 @@ from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
-from gbpservice.nfp.orchestrator.openstack import heat_driver
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from neutron.common import rpc as n_rpc
-from neutron import context as n_context
-
-from oslo_log import helpers as log_helpers
-from oslo_log import log as logging
-import oslo_messaging
-
 from gbpservice.nfp.orchestrator.openstack.plumber import SCPlumber
 import constants as orchestrator_constants
 
@@ -418,6 +416,45 @@ class ServiceOrchestrator(object):
                              else False)
         return base_mode_support
 
+    def update_network_function_user_config(self, network_function_id,
+                                            service_config_str,
+                                            operation):
+        tag_str, config_str = self.config_driver.\
+                        parse_template_config_string(service_config_str)
+        if not config_str:
+            LOG.error(_LE('Exception while parsing config string, config '
+                          'string: %(config_str)s is improper for '
+                          'network_function id: %(network_function_id)s'),
+                      {'config_str': service_config_str,
+                       'network_function_id': network_function_id})
+            self.handle_driver_error(network_function_id)
+            return None
+
+        if tag_str != nfp_constants.CONFIG_INIT_TAG:
+            network_function_details = self.get_network_function_details(
+                network_function_id)
+            network_function_data = {
+                'network_function_details': network_function_details
+            }
+            rpc_method = getattr(self.configurator_rpc, operation +
+                                 '_network_function_user_config')
+            rpc_method(network_function_data, service_config_str)
+        else:
+            # Place holder for calling config_init API
+            pass
+
+    def create_network_function_user_config(self, network_function_id,
+                                            service_config_str):
+        self.update_network_function_user_config(network_function_id,
+                                                 service_config_str,
+                                                 operation='create')
+
+    def delete_network_function_user_config(self, network_function_id,
+                                            service_config_str):
+        self.update_network_function_user_config(network_function_id,
+                                                 service_config_str,
+                                                 operation='delete')
+
     def create_network_function(self, context, network_function_info):
         # For neutron mode, we have handle port creation here
         self._validate_create_service_input(context, network_function_info)
@@ -437,7 +474,7 @@ class ServiceOrchestrator(object):
         name = "%s.%s.%s" % (service_profile['service_type'],
                              service_vendor,
                              service_chain_id or service_id)
-        service_config = network_function_info.get('service_config')
+        service_config_str = network_function_info.get('service_config')
         network_function = {
             'name': name,
             'description': network_function_info.get('description', ''),
@@ -445,7 +482,7 @@ class ServiceOrchestrator(object):
             'service_id': service_id,  # GBP Service Node or Neutron Service ID
             'service_chain_id': service_chain_id,  # GBP SC instance ID
             'service_profile_id': service_profile_id,
-            'service_config': network_function_info.get('service_config'),
+            'service_config': service_config_str,
             'status': nfp_constants.PENDING_CREATE
         }
         network_function = self.db_handler.create_network_function(
@@ -465,22 +502,10 @@ class ServiceOrchestrator(object):
             return None
 
         if base_mode_support:
-            network_function_details = self.get_network_function_details(
-                network_function['id'])
-            network_function_data = {
-                'network_function_details': network_function_details
-            }
-            self.configurator_rpc.create_network_function_user_config(
-                network_function_data, service_config)
-
-            '''#(TODO) make changes for config_init and ansible too
-            template = service_config.split('heat_config:')[1]
-            network_function = {
-                'service_config': template
-            }
-            network_function = self.db_handler.update_network_function(
-                self.db_session, network_function_id, network_function)
-            '''
+            # In base mode support, create user config directly, no need to
+            # create network function instance, network function device first.
+            self.create_network_function_user_config(network_function['id'],
+                                                     service_config_str)
             return network_function
 
         if mode == nfp_constants.GBP_MODE:
@@ -489,8 +514,7 @@ class ServiceOrchestrator(object):
                 'port_model': nfp_constants.GBP_NETWORK
             }
         else:
-            management_network_info = \
-                network_function_info['management_network_info']
+            management_network_info = {}
         create_network_function_instance_request = {
             'network_function': network_function,
             'network_function_port_info': network_function_info['port_info'],
@@ -505,7 +529,8 @@ class ServiceOrchestrator(object):
                            event_data=create_network_function_instance_request)
         return network_function
 
-    def update_network_function(self):
+    def update_network_function(self, context, network_function_id,
+                                updated_network_function):
         # Handle config update
         pass
 
@@ -524,14 +549,9 @@ class ServiceOrchestrator(object):
         }
         network_function = self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
-        network_function_details = self.get_network_function_details(
-            network_function_info['id'])
         service_config = network_function_info['service_config']
-        network_function_data = {
-            'network_function_details': network_function_details
-        }
-        self.configurator_rpc.delete_network_function_user_config(
-            network_function_data, service_config)
+        self.delete_network_function_user_config(network_function_id,
+                                                 service_config)
 
     def delete_user_config(self, event):
         request_data = event.data
@@ -545,13 +565,18 @@ class ServiceOrchestrator(object):
                                event_data=event_data)
             return
 
-        self.config_driver.delete(network_function_info['heat_stack_id'],
-                                  network_function_info['tenant_id'])
+        heat_stack_id = self.config_driver.delete_config(
+            network_function_info['heat_stack_id'],
+            network_function_info['tenant_id'])
         request_data = {
             'heat_stack_id': network_function_info['heat_stack_id'],
             'tenant_id': network_function_info['tenant_id'],
             'network_function_id': network_function_info['id']
         }
+        if not heat_stack_id:
+            self._create_event('USER_CONFIG_DELETE_FAILED',
+                               event_data=request_data)
+            return
         self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
@@ -606,37 +631,39 @@ class ServiceOrchestrator(object):
         }
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
-        network_function_details = self.get_network_function_details(
-            nfi['network_function_id'])
+		network_function = self.db_handler.get_network_function(
+            self.db_session, nfi['network_function_id'])
         # REVISIT(VK) For neutron workflow. What if GBP workflow require to
         # fill description field.
-        if network_function_details['description']:
+        if network_function['description']:
             updated_network_function = {'status': nfp_constants.ACTIVE}
             self.db_handler.update_network_function(
                 self.db_session, nfi['network_function_id'],
                 updated_network_function)
             return
-        network_function = network_function_details['network_function']
         service_config = network_function['service_config']
-        network_function_data = {
-            'network_function_details': network_function_details
-        }
-        self.configurator_rpc.create_network_function_user_config(
-            network_function_data, service_config)
+
+        self.create_network_function_user_config(network_function['id'],
+                                                 service_config)
 
     def apply_user_config(self, event):
         request_data = event.data
         network_function_details = request_data['network_function_details']
-        request_data['heat_stack_id'] = self.config_driver.apply_user_config(
+        request_data['heat_stack_id'] = self.config_driver.apply_config(
             network_function_details)  # Heat driver to launch stack
         network_function = network_function_details['network_function']
+        request_data['network_function_id'] = network_function['id']
+        if not request_data['heat_stack_id']:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         request_data['tenant_id'] = network_function['tenant_id']
+        request_data['network_function_details'] = network_function_details
         LOG.debug("handle_device_active heat_stack_id: %s"
                   % (request_data['heat_stack_id']))
         self.db_handler.update_network_function(
             self.db_session, network_function['id'],
             {'heat_stack_id': request_data['heat_stack_id']})
-        request_data['network_function_id'] = network_function['id']
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True)
@@ -654,6 +681,24 @@ class ServiceOrchestrator(object):
         self.db_handler.update_network_function(
             self.db_session, nfi['network_function_id'], network_function)
         # Trigger RPC to notify the Create_Service caller with status
+
+    def handle_driver_error(self, network_function_id):
+        network_function_details = self.get_network_function_details(
+                network_function_id)
+        network_function_id = network_function_details.get(
+                'network_function')['id']
+        network_function = {'status': nfp_constants.ERROR}
+        self.db_handler.update_network_function(
+            self.db_session, network_function_id, network_function)
+
+        if network_function_details.get('network_function_instance'):
+            network_function_instance_id = network_function_details[
+                    'network_function_instance']['id']
+            nfi = {
+                   'status': nfp_constants.ERROR,
+            }
+            nfi = self.db_handler.update_network_function_instance(
+                        self.db_session, network_function_instance_id, nfi)
 
     def _update_network_function_instance(self):
         pass
@@ -705,8 +750,14 @@ class ServiceOrchestrator(object):
     def check_for_user_config_complete(self, event):
         request_data = event.data
         config_status = self.config_driver.is_config_complete(
-            request_data['heat_stack_id'], request_data['tenant_id'])
+            request_data['heat_stack_id'], request_data['tenant_id'],
+            request_data['network_function_details'])
         if config_status == nfp_constants.ERROR:
+            LOG.info(_LI("NSO: applying user config failed for "
+                    "network function %(network_function_id)s data "
+                    "%(data)s"), {'data': request_data,
+                    'network_function_id':
+                        request_data['network_function_id']})
             updated_network_function = {'status': nfp_constants.ERROR}
             self.db_handler.update_network_function(
                 self.db_session,
@@ -714,15 +765,19 @@ class ServiceOrchestrator(object):
                 updated_network_function)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == "COMPLETED":
+        elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'status': nfp_constants.ACTIVE}
+            LOG.info(_LI("NSO: applying user config is successfull moving "
+                    "network function %(network_function_id)s to ACTIVE"),
+                    {'network_function_id':
+                    request_data['network_function_id']})
             self.db_handler.update_network_function(
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == "IN_PROGRESS":
+        elif config_status == nfp_constants.IN_PROGRESS:
             return CONTINUE_POLLING
 
     def check_for_user_config_deleted(self, event):
@@ -745,7 +800,7 @@ class ServiceOrchestrator(object):
                                event_data=event_data)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == "COMPLETED":
+        elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'heat_stack_id': None}
             self.db_handler.update_network_function(
                 self.db_session,
@@ -758,7 +813,7 @@ class ServiceOrchestrator(object):
                                event_data=event_data)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == "IN_PROGRESS":
+        elif config_status == nfp_constants.IN_PROGRESS:
             return CONTINUE_POLLING
 
     def handle_user_config_applied(self, event):
@@ -811,7 +866,7 @@ class ServiceOrchestrator(object):
             self.db_session,
             request_data['network_function_id'],
             updated_network_function)
-        # Trigger RPC to notify the Create_Service caller with status ??
+        # Trigger RPC to notify the Create_Service caller with status
 
     # When NDO deletes Device DB, the Foreign key NSI will be nulled
     # So we have to pass the NSI ID in delete event to NDO and process
@@ -880,18 +935,23 @@ class ServiceOrchestrator(object):
         request_data = event.data
         network_function_details = request_data['network_function_details']
         policy_target = request_data['policy_target']
-        config_id = self.config_driver.handle_policy_target_added(
-            network_function_details, policy_target)
+        config_id = self.config_driver.handle_policy_target_operations(
+            network_function_details, policy_target, "add")
         network_function = network_function_details['network_function']
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         self.db_handler.update_network_function(
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id']
-        }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
@@ -931,18 +991,23 @@ class ServiceOrchestrator(object):
         network_function_details = request_data[
             'network_function_details']
         policy_target = request_data['policy_target']
-        config_id = self.config_driver.handle_policy_target_removed(
-            network_function_details, policy_target)
+        config_id = self.config_driver.handle_policy_target_operations(
+            network_function_details, policy_target, "remove")
         network_function = network_function_details['network_function']
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         self.db_handler.update_network_function(
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id']
-        }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
@@ -982,18 +1047,23 @@ class ServiceOrchestrator(object):
         network_function_details = request_data[
             'network_function_details']
         consumer_ptg = request_data['consumer_ptg']
-        config_id = self.config_driver.handle_consumer_ptg_added(
-            network_function_details, consumer_ptg)
+        config_id = self.config_driver.handle_consumer_ptg_operations(
+            network_function_details, consumer_ptg, "add")
         network_function = network_function_details['network_function']
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         self.db_handler.update_network_function(
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id']
-        }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True)
@@ -1034,18 +1104,23 @@ class ServiceOrchestrator(object):
         network_function_details = request_data[
             'network_function_details']
         consumer_ptg = request_data['consumer_ptg']
-        config_id = self.config_driver.handle_consumer_ptg_removed(
-            network_function_details, consumer_ptg)
+        config_id = self.config_driver.handle_consumer_ptg_operations(
+            network_function_details, consumer_ptg, "remove")
         network_function = network_function_details['network_function']
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            self._create_event('USER_CONFIG_FAILED',
+                               event_data=request_data)
+            return
         self.db_handler.update_network_function(
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id']
-        }
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
@@ -1102,12 +1177,12 @@ class NSOConfiguratorRpcApi(object):
         config_params = {
             'info': {
                 'version': 'v1',
-                'service_type': 'heat'
+                'service_type': 'config_script'
             },
             'config': [{
                 'resource': 'heat',
                 'kwargs': {
-                    'template': service_config,
+                    'config_string': service_config,
                     'request_info': None
                 }
             }]

@@ -9,13 +9,12 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import eventlet
+
+from gbpservice.nfp.config_orchestrator.agent import common
+from gbpservice.nfp.lib import transport
 from neutron_vpnaas.db.vpn import vpn_db
-from gbpservice.nfp.config_orchestrator.agent.common import *
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
-from gbpservice.nfp.lib.transport import *
-from neutron import context as n_context
-from neutron.common import exceptions as n_exec
+from oslo_log import helpers as log_helpers
+import oslo_messaging as messaging
 
 LOG = logging.getLogger(__name__)
 
@@ -28,24 +27,16 @@ class VPNServiceCreateFailed(n_exec.NeutronException):
     message = "VPN Service Creation Failed"
 
 
-def update_status(**kwargs):
-    rpcClient = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-    context = kwargs.get('context')
-    rpc_ctx = n_context.Context.from_dict(context)
-    del kwargs['context']
-    rpcClient.cctxt.cast(rpc_ctx, 'update_status',
-                         status=kwargs['status'])
-
-
 class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     RPC_API_VERSION = '1.0'
-    _target = target.Target(version=RPC_API_VERSION)
+    target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         self._conf = conf
         self._sc = sc
         super(VpnAgent, self).__init__()
 
+    @log_helpers.log_method_call
     def vpnservice_updated(self, context, **kwargs):
         LOG.error("kwargs  %r" % kwargs)
         if self._is_network_function_mode_neutron(kwargs):
@@ -77,14 +68,19 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
 
     def call_configurator(self, context, kwargs):
         resource_data = kwargs.get('resource')
+        # Collecting db entry required by configurator.
         db = self._context(context, resource_data['tenant_id'])
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
         resource = resource_data['rsrc_type']
         reason = resource_data['reason']
-        body = prepare_request_data(resource, kwargs, "vpn")
-        send_request_to_configurator(self._conf, context, body, reason)
+        body = common. prepare_request_data(resource, kwargs, "vpn")
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               reason)
 
     def _context(self, context, tenant_id):
         if context.is_admin:
@@ -103,9 +99,34 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'ipsec_site_conns': db_data.get_ipsec_site_connections(**args)}
 
     def _get_core_context(self, context, filters):
-        core_context_dict = get_core_context(context, filters, self._conf.host)
+        core_context_dict = common.get_core_context(context,
+                                                    filters,
+                                                    self._conf.host)
         del core_context_dict['ports']
         return core_context_dict
+
+    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    def update_status(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.VPN_NFP_PLUGIN_TOPIC)
+        msg = ("NCO received VPN's update_status API,"
+                "making an update_status RPC call to plugin for %s object"
+                "with status %s" % (kwargs['obj_id'], kwargs['status']))
+        LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'update_status',
+                             kwargs=kwargs)
+
+    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    def ipsec_site_conn_deleted(self, context, **kwargs):
+        kwargs = kwargs['kwargs']
+        rpcClient = transport.RPCClient(topics.VPN_NFP_PLUGIN_TOPIC)
+        msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
+                "making an ipsec_site_conn_deleted RPC call to plugin for "
+                "%s object" % (kwargs['obj_id']))
+        LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
+                             kwargs=kwargs)
+
 
     def validate_and_process_vpn_create_service_request(self, context,
                                                         resource_data):

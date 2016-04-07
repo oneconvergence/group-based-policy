@@ -10,9 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-FW_NFP_CONFIGAGENT_TOPIC = 'oc-firewall-agent'
-LB_NFP_CONFIGAGENT_TOPIC = 'oc-lbaas_agent'
-VPN_NFP_CONFIGAGENT_TOPIC = 'vpn_agent'
+FW_NFP_CONFIGAGENT_TOPIC = 'nfp-firewall-agent'
+LB_NFP_CONFIGAGENT_TOPIC = 'nfp-lbaas-agent'
+VPN_NFP_CONFIGAGENT_TOPIC = 'nfp-vpn_agent'
 
 FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
 LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'

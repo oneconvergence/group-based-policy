@@ -17,6 +17,7 @@ from gbpservice.nfp.proxy_agent.notifications import handler as nh
 
 from oslo_log import log as logging
 
+
 LOGGER = logging.getLogger(__name__)
 LOG = nfp_common.log
 
@@ -65,8 +66,13 @@ class PullNotification(core_pt.PollEventDesc):
                     self._method_handler(notification)
                 except AttributeError:
                     LOG(LOGGER, 'ERROR',
-                        "AttributeError while handling message" % (
+                        "AttributeError while handling message %s " % (
                             notification))
                 except Exception as e:
+                    # import sys
+                    # import traceback
+                    # exc_type, exc_value, exc_traceback = sys.exc_info()
+                    # print traceback.format_exception(exc_type, exc_value,
+                    #                                 exc_traceback)
                     LOG(LOGGER, 'ERROR', "Generic exception (%s) \
                        while handling message (%s)" % (e, notification))

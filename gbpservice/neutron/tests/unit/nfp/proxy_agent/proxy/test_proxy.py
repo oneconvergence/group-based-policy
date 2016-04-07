@@ -21,7 +21,6 @@ import threading
 import time
 import unittest
 
-count = 0
 rxcount = 0
 txcount = 0
 connection_count = 0
@@ -130,8 +129,8 @@ Class to create Unix client based on test case
 
 class UnixClient(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, test_count=0):
+        self.test_count = test_count
 
     def single_unix_client(self):
         """
@@ -139,7 +138,7 @@ class UnixClient(object):
         messages with ideal_max_timeout difference.
         """
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        server_address = '/tmp/uds_socket'
+        server_address = '/tmp/uds_socket_%d' % (self.test_count)
         try:
             sock.connect(server_address)
             print('Connected to proxy')
@@ -172,7 +171,7 @@ class UnixClient(object):
         send multiple messages
         """
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        server_address = '/tmp/uds_socket'
+        server_address = '/tmp/uds_socket_%d' % (self.test_count)
         try:
             sock.connect(server_address)
             print('[Unix]Connected to proxy')
@@ -206,7 +205,7 @@ class UnixClient(object):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         # Connect the socket to the port where the server is listening
-        server_address = '/tmp/uds_socket'
+        server_address = '/tmp/uds_socket_%d' % (self.test_count)
         try:
             sock.connect(server_address)
             print('[Unix]Connected to proxy')
@@ -259,24 +258,25 @@ Descriptor class for Thread
 """
 
 
-class TreadStart(threading.Thread):
+class ThreadStart(threading.Thread):
 
-    def __init__(self, t_id):
+    def __init__(self, t_id, test_count=0):
         self.t_id = t_id
+        self.test_count = test_count
         threading.Thread.__init__(self)
 
     def run(self):
         """
         method to create new unix client as with thread
         """
-        UnixClient().multiple_unix_connections()
+        UnixClient(test_count=self.test_count).multiple_unix_connections()
 
 
 class TestConfiguration(object):
 
-    def __init__(self):
+    def __init__(self, test_count):
         self.thread_pool_size = 10
-        self.unix_bind_path = '/tmp/uds_socket'
+        self.unix_bind_path = '/tmp/uds_socket_%d' % (test_count)
         self.max_connections = 10
         self.rest_server_address = '11.0.0.3'
         self.rest_server_port = 8070
@@ -292,9 +292,9 @@ Class to Initiate the Configurator Proxy
 
 class ProxyStart(object):
 
-    def __init__(self):
+    def __init__(self, test_count=0):
         # Need to change with absolute path
-        self.conf = TestConfiguration()
+        self.conf = TestConfiguration(test_count)
 
     def run(self, server):
         """
@@ -326,11 +326,12 @@ class TestConfProxy(unittest.TestCase):
         tcp_process.start()
         time.sleep(2)
 
-        proxy_obj = Process(target=ProxyStart().run, args=(server_address,))
+        proxy_obj = Process(target=ProxyStart(
+            test_count=0).run, args=(server_address,))
         proxy_obj.start()
         time.sleep(5)
 
-        return_val = UnixClient().single_unix_client()
+        return_val = UnixClient(test_count=0).single_unix_client()
 
         tcp_process.join()
         os.kill(proxy_obj.pid, signal.SIGKILL)
@@ -351,11 +352,12 @@ class TestConfProxy(unittest.TestCase):
         tcp_process.start()
         time.sleep(2)
 
-        proxy_obj = Process(target=ProxyStart().run, args=(server_address,))
+        proxy_obj = Process(target=ProxyStart(
+            test_count=1).run, args=(server_address,))
         proxy_obj.start()
         time.sleep(5)
 
-        return_val = UnixClient().unix_client_msg_flooding()
+        return_val = UnixClient(test_count=1).unix_client_msg_flooding()
 
         tcp_process.join()
         os.kill(proxy_obj.pid, signal.SIGKILL)
@@ -374,7 +376,7 @@ class TestConfProxy(unittest.TestCase):
             tcp_process.start()
             time.sleep(5)
 
-            proxy_obj = Process(target=ProxyStart().run,
+            proxy_obj = Process(target=ProxyStart(test_count=2).run,
                                 args=(server_address,))
             proxy_obj.start()
             time.sleep(5)
@@ -383,7 +385,7 @@ class TestConfProxy(unittest.TestCase):
             # print>> sys.stderr, msg
 
         for i in range(2):
-            t = TreadStart(i)
+            t = ThreadStart(i, test_count=2)
             threads.append(t)
         for t in threads:
             t.start()
