@@ -93,8 +93,8 @@ class LBaasRpcSenderTest(unittest.TestCase):
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
                 mock_new_event), \
                 mock.patch.object(sc, 'stash_event') as (mock_stash_event):
-
-            agent.update_pool_stats('pool_id', 'stats', 'context')
+            context = test_data.Context()
+            agent.update_pool_stats('pool_id', 'stats', context)
 
             mock_new_event.assert_called_with(
                 id=const.EVENT_STASH,
@@ -102,7 +102,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
                 data={
                     'kwargs': {
                         'stats': 'stats',
-                        'context': 'context',
+                        'context': {},
                         'pool_id': 'pool_id'},
                     'resource': 'loadbalancer',
                     'method': 'update_pool_stats',

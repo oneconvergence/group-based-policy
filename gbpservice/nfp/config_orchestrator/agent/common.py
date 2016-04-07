@@ -10,14 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
-from oslo_messaging import target
-from oslo_log import log as logging
-from neutron import manager
-from neutron.common import rpc as n_rpc
-from neutron.plugins.common import constants
-from neutron.common import topics as n_topics
 from neutron.common import constants as n_constants
+from neutron.common import rpc as n_rpc
+from neutron.common import topics as n_topics
+from oslo_log import log as logging
+import oslo_messaging as messaging
+
 LOG = logging.getLogger(__name__)
 Version = 'v1'  # v1/v2/v3#
 
@@ -39,23 +37,26 @@ def prepare_request_data(resource, kwargs, service_type):
 
 
 def _filter_data(routers, networks, filters):
+    # filter routers and networks data and formulate
+    # dictionary of subnets, routers and ports for the
+    # given tenant.
     tenant_id = filters['tenant_id'][0]
     _filtered_routers = []
     _filtered_subnets = []
     _filtered_ports = []
     for router in routers:
         if router['tenant_id'] == tenant_id:
-            _filtered_routers.append({'id':router['id']})
+            _filtered_routers.append({'id': router['id']})
     for network in networks:
         subnets = network['subnets']
         ports = network['ports']
         for subnet in subnets:
             if subnet['tenant_id'] == tenant_id:
-                _filtered_subnets.append({'id':subnet['id']})
+                _filtered_subnets.append({'id': subnet['id']})
         for port in ports:
             if port['tenant_id'] == tenant_id:
-                _filtered_ports.append({'id':port['id'],
-                                        'fixed_ips':port['fixed_ips']})
+                _filtered_ports.append({'id': port['id'],
+                                        'fixed_ips': port['fixed_ips']})
 
     return {'subnets': _filtered_subnets,
             'routers': _filtered_routers,
@@ -69,19 +70,19 @@ def get_core_context(context, filters, host):
 
 
 def get_routers(context, host):
-    _target = target.Target(topic=n_topics.L3PLUGIN, version='1.0')
-    client = n_rpc.get_client(_target)
+    target = messaging.Target(topic=n_topics.L3PLUGIN, version='1.0')
+    client = n_rpc.get_client(target)
     cctxt = client.prepare()
     return cctxt.call(context, 'sync_routers', host=host,
                       router_ids=None)
 
 
 def get_networks(context, host):
-    _target = target.Target(
+    target = messaging.Target(
         topic=n_topics.PLUGIN,
         namespace=n_constants.RPC_NAMESPACE_DHCP_PLUGIN,
         version='1.0')
-    client = n_rpc.get_client(_target)
+    client = n_rpc.get_client(target)
     cctxt = client.prepare(version='1.1')
     return cctxt.call(context, 'get_active_networks_info',
                       host=host)
