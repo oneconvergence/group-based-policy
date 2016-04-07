@@ -79,6 +79,7 @@ class NotificationHandler(object):
 
     def _update_status_lb(self, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt = rpcClient.client.prepare(version='2.0')
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
@@ -89,6 +90,7 @@ class NotificationHandler(object):
 
     def update_pool_stats(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt = rpcClient.client.prepare(version='2.0')
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
@@ -99,6 +101,7 @@ class NotificationHandler(object):
 
     def pool_destroyed(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt = rpcClient.client.prepare(version='2.0')
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
@@ -107,6 +110,7 @@ class NotificationHandler(object):
 
     def pool_deployed(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt = rpcClient.client.prepare(version='2.0')
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']

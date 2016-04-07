@@ -15,6 +15,9 @@ import mock
 from neutron import context as ctx
 import unittest
 
+from neutron.common import rpc as n_rpc
+from oslo_config import cfg
+
 pull_notification = pull.PullNotification
 
 
@@ -43,6 +46,7 @@ class PullNotificationTestCase(unittest.TestCase):
         return response_data
 
     def setUp(self):
+        n_rpc.init(cfg.CONF)
         self.p_notification = pull_notification('sc', 'conf')
         self.context = TestContext().get_context_dict()
         self.ev = ''

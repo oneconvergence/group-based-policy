@@ -844,7 +844,7 @@ class GBPClient(OpenstackApi):
             }
         }
         if port_id:
-            policy_target_info["port_id"] = port_id
+            policy_target_info["policy_target"]["port_id"] = port_id
 
         try:
             gbp = gbp_client.Client(token=token,

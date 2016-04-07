@@ -1,0 +1,98 @@
+#!/bin/bash
+
+#Converts decimal to ip address
+function dec2ip () {
+    local ip dec=$1
+    for e in {3..0}
+    do
+        ((octet = dec / (256 ** e) ))
+        ((dec -= octet * 256 ** e))
+        ip+=$delim$octet
+        delim=.
+    done
+    echo $ip
+}
+
+#Converts ip notation to decimal
+function ip2dec () {
+    local a b c d ip=$1
+    IFS=. read -r a b c d <<< "$ip"
+    echo $((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))
+}
+
+
+#sleep 20
+flag=0
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+all_interfaces=`/sbin/ifconfig | grep "Link encap" | grep -v "127.0.0.1" |cut -d: -d " " -f 1`
+index=0
+for i in $all_interfaces; do
+    if [ "$i" == "eth0" ] || [ "$i" == "eth1" ]
+    then
+        while true
+        do
+            ip_addr=`/sbin/ifconfig $i | grep "inet " | awk -F'[: ]+' '{ print $4 }'`
+	    if [ $ip_addr ]
+	    then 
+	        #echo "GOT IP for interface $i"
+                #flag=1
+                break
+	    fi
+        done
+        bcast_ip=`/sbin/ifconfig $i | grep "inet " | awk -F'[: ]+' '{ print $6 }'`;
+        mask=`/sbin/ifconfig $i | grep "inet " | awk -F'[: ]+' '{ print $8 }'`;
+        dec_bcast_ip=$(ip2dec $bcast_ip)
+        dec_mask=$(ip2dec $mask)
+        dec_net_ip=$(($dec_bcast_ip & $dec_mask))
+        net_ip=$(dec2ip $dec_net_ip)
+        interfaces[$index]=$i
+        ip_addresses[$index]=$ip_addr
+        network_id[$index]=$net_ip
+        filename="/var/lib/dhcp3/dhclient_"$i"_lease"
+        #route=`grep "option routers" $filename |tail -1| cut -d: -d " " -f5`
+        route=`grep "new_routers" $filename |tail -1| cut -d: -d "=" -f2| tr -d "'"`
+        default_route[$index]=$route
+        #echo "$index ${default_route[$index]}" 
+	if [ "$i" == "eth0" ] && [ $flag == 0 ]
+	then
+	    table_name=$i"_table"
+	    table_id=`expr $index + 5`
+	    is_present=`grep "$table_name" /etc/iproute2/rt_tables`
+            if [ "$is_present" == "" ]
+            then
+                echo $table_id  $table_name >> /etc/iproute2/rt_tables
+            fi
+	    `ip route add default via ${default_route[$index]} table $table_name`
+	    `ip rule del from ${ip_addresses[$index]} table $table_name`
+	    `ip rule add from ${ip_addresses[$index]} table $table_name`
+	    echo 0 > /proc/sys/net/ipv4/conf/eth0/accept_source_route
+	    #echo "configured pbr for interface $i"
+	fi
+	#index=`expr $index + 1`
+        ((index++))	
+    fi
+done
+
+index=0
+for interface in ${interfaces[*]}; do
+    #echo "$index ${default_route[$index]}"
+    if [ "$interface" == "eth1" ] && [ $flag == 0 ]
+    then
+	#echo "Set default route on $interface ${default_route[$index]} $index"
+        cmd="bash /usr/share/oc-pbr/pbr ${default_route[$index]}"
+        #sudo su - vyos -c "$cmd"
+        #/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper begin
+        #/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper set protocols static route 0.0.0.0/0 next-hop ${default_route[$index]} 
+        #/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper commit
+        #/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper end
+	#source /opt/vyatta/etc/functions/script-template
+        #eval "set protocols static route 0.0.0.0/0 next-hop ${default_route[$index]}"
+	#eval "commit"
+	#eval "exit"
+    fi	
+    #index=`expr $index + 1`
+    ((index++))
+done
+
+#bash /usr/share/oc-pbr/controller_route
+echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore

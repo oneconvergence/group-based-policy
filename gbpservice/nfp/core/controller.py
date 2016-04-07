@@ -180,8 +180,6 @@ class Controller(object):
         LOG(LOGGER, 'DEBUG', "%s - event complete" % (event.identify()))
         seq_map = self._sequencer.copy()
         try:
-            seq_map = seq_map[event.desc.worker_attached]
-
             seq_q = seq_map[event.binding_key]['queue']
             for seq_event in seq_q:
                 if seq_event.desc.uid == event.desc.uid:
@@ -191,6 +189,7 @@ class Controller(object):
                     break
             self._sequencer.delete_eventmap(event)
         except KeyError as err:
+            LOG(LOGGER, 'DEBUG', "%s - event not in sequencer" %(event.identify()))
             # Event not in sequence map
             # Not an issue, event might not have serialized
             err = err
