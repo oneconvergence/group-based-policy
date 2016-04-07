@@ -11,7 +11,7 @@
 #    under the License.
 
 from gbpservice.nfp.config_orchestrator.agent import firewall as fw
-from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
+#from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.config_orchestrator.agent import vpn as vp
 from gbpservice.nfp.core.rpc import RpcAgent

@@ -633,7 +633,7 @@ class ServiceOrchestrator(object):
         }
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
-		network_function = self.db_handler.get_network_function(
+        network_function = self.db_handler.get_network_function(
             self.db_session, nfi['network_function_id'])
         # REVISIT(VK) For neutron workflow. What if GBP workflow require to
         # fill description field.
