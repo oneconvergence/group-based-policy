@@ -226,9 +226,7 @@ class RpcHandlerConfigurator(object):
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
-            ev = self._controller.new_event(id=event_id, data=event_data,
-                                            binding_key=network_function_id,
-                                            key=network_function_id)
+            ev = self._controller.new_event(id=event_id, data=event_data)
             self._controller.post_event(ev)
         self._log_event_created(event_id, event_data)
 
@@ -246,7 +244,7 @@ class RpcHandlerConfigurator(object):
             operation = request_info['operation']
 
             LOG.info(_LI("Request Info : %(req)s") % {'req': request_info})
-            if result.lower() == 'success':
+            if result.lower() != 'success':
                 if operation == 'create':
                     event_id = self.rpc_event_mapping[resource][0]
                 # elif operation == 'update':
@@ -263,7 +261,10 @@ class RpcHandlerConfigurator(object):
                     event_id = self.rpc_event_mapping[resource][5]
                 break
             else:
-                event_id = 'CONFIG_APPLIED'
+                if operation == 'create':
+                    event_id = 'CONFIG_APPLIED'
+                elif operation == 'delete':
+                    event_id = 'USER_CONFIG_DELETED'
         event_data = request_info['network_function_data']
         self._create_event(event_id=event_id,
                            event_data=event_data)
@@ -824,6 +825,10 @@ class ServiceOrchestrator(object):
             self.db_session,
             network_function_id,
             network_function)
+        LOG.info(_LI("NSO: applying user config is successfull moving "
+                "network function %(network_function_id)s to ACTIVE"),
+                {'network_function_id':
+                network_function_id})
 
     def handle_user_config_failed(self, event):
         request_data = event.data
