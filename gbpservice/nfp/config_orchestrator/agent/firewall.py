@@ -9,10 +9,10 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
+import ast
 from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.proxy_agent.lib import topics
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from neutron_fwaas.db.firewall import firewall_db
 from neutron import context as n_context
 from oslo_log import helpers as log_helpers
@@ -97,62 +97,70 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                                        filters,
                                        self._conf.host)
 
+    def _prepare_request_data(self, context, firewall):
+        request_data = None
+        try:
+            if firewall is not None:
+                firewall_desc = ast.literal_eval(firewall['description'])
+                request_data = common.get_network_function_map(
+                    context, firewall_desc['network_function_id'])
+                # Adding Service Type #
+                request_data.update({"service_type": "firewall",
+                                     "fw_mac": firewall_desc[
+                                         'provider_ptg_info'][0]})
+        except:
+            return request_data
+        return request_data
+
     def firewall_configuration_create_complete(self, context, **kwargs):
         kwargs = kwargs['kwargs']
-        rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
+        rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
         firewall_id = kwargs['firewall_id']
-        # firewall = kwargs['firewall']     # kwargs contains whole firewall
-                                            # object under key firewall
+        firewall = kwargs['firewall']
         status = kwargs['status']
-        msg = ("NCO received firewall_configuration_create_complete API, "
-               "making an set_firewall_status RPC call to plugin for "
-               "firewall: %s with status %s" % (firewall_id, status))
+        msg = ("Config Orchestrator received "
+               "firewall_configuration_create_complete API, making an "
+               "set_firewall_status RPC call for firewall: %s & status "
+               " %s" % (firewall_id, status))
         LOG.info(msg)
         # RPC call to plugin to set firewall status
         rpcClient.cctxt.cast(context, 'set_firewall_status',
                              host=kwargs['host'],
                              firewall_id=firewall_id,
                              status=status)
+        # Sending An Event for visiblity #
+        request_data = self._prepare_request_data(context, firewall)
+        LOG.info("%s : %s " % (request_data, firewall))
+        data = {'resource': None,
+                'context': context}
+        data['resource'] = {'eventtype': 'SERVICE',
+                            'eventid': 'SERVICE_CREATED',
+                            'eventdata': request_data}
+        ev = self._sc.new_event(id='SERVICE_CREATE',
+                                key='SERVICE_CREATE', data=data)
+        self._sc.post_event(ev)
 
     def firewall_configuration_delete_complete(self, context, **kwargs):
         kwargs = kwargs['kwargs']
-        rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
+        rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
         firewall_id = kwargs['firewall_id']
-        # firewall = kwargs['firewall']     # kwargs contains whole firewall
-                                            # object under key firewall
-        msg = ("NCO received firewall_configuration_delete_complete API, "
-               "making an firewall_deleted RPC call to plugin for firewall: "
-               "%s" % (firewall_id))
+        firewall = kwargs['firewall']
+        msg = ("Config Orchestrator received "
+               "firewall_configuration_delete_complete API, making an "
+               "firewall_deleted RPC call for firewall: %s" % (firewall_id))
         LOG.info(msg)
-        # RPC call to plugin to inform firewall deleted
+        # RPC call to plugin to update firewall deleted
         rpcClient.cctxt.cast(context, 'firewall_deleted',
                              host=kwargs['host'],
                              firewall_id=firewall_id)
-
-class FwPluginApi(object):
-
-    RPC_API_VERSION = '1.0'
-    target = messaging.Target(version=RPC_API_VERSION)
-
-    def __init__(self, conf, sc):
-        print 'FwPluginApi'
-        self._conf = conf
-        self._sc = sc
-
-    def firewall_configuration_create_complete(self, context, **kwargs):
-        kwargs = kwargs['kwargs']
-        rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
-        firewall_id = kwargs['firewall_id']
-        status = kwargs['status']
-        rpcClient.cctxt.cast(context, 'set_firewall_status',
-                             host=kwargs['host'],
-                             firewall_id=firewall_id,
-                             status=status)
-
-    def firewall_configuration_delete_complete(self, context, **kwargs):
-        kwargs = kwargs['kwargs']
-        rpcClient = transport.RPCClient(topics.FW_NFP_PLUGIN_TOPIC)
-        firewall_id = kwargs['firewall_id']
-        rpcClient.cctxt.cast(context, 'firewall_deleted',
-                             host=kwargs['host'],
-                             firewall_id=firewall_id)
+        # Sending An Event for visiblity #
+        request_data = self._prepare_request_data(context, firewall)
+        LOG.info("%s : %s " % (request_data, firewall))
+        data = {'resource': None,
+                'context': context}
+        data['resource'] = {'eventtype': 'SERVICE',
+                            'eventid': 'SERVICE_DELETED',
+                            'eventdata': request_data}
+        ev = self._sc.new_event(id='SERVICE_DELETE',
+                                key='SERVICE_DELETE', data=data)
+        self._sc.post_event(ev)

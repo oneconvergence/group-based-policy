@@ -10,9 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-
-from gbpservice.nfp.lib.transport import RPCClient
 from gbpservice.nfp.common import constants as const
+from gbpservice.nfp.lib.transport import RPCClient
 from gbpservice.nfp.proxy_agent.lib import topics as a_topics
 from neutron import context as n_context
 
@@ -50,25 +49,18 @@ class NotificationHandler(object):
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
-        # RPC call to Config Orchestrator
         rpcClient.cctxt.cast(rpc_ctx,
                              'firewall_configuration_create_complete',
                              kwargs=kwargs)
-                            #host=kwargs['host'],
-                            #firewall_id=kwargs['firewall_id'],
-                            #status=kwargs['status'])
 
     def firewall_configuration_delete_complete(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.FW_NFP_CONFIGAGENT_TOPIC)
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
-        # RPC call to Config Orchestrator
         rpcClient.cctxt.cast(rpc_ctx,
                              'firewall_configuration_delete_complete',
                              kwargs=kwargs)
-                            #host=kwargs['host'],
-                            #firewall_id=kwargs['firewall_id'])
 
     def update_status(self, resource, **kwargs):
         if resource == 'vpn':
@@ -91,11 +83,7 @@ class NotificationHandler(object):
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
-        # RPC call to Config Orchestrator
         rpcClient.cctxt.cast(rpc_ctx, 'update_status', kwargs=kwargs)
-                            #obj_type=kwargs['obj_type'],
-                            #obj_id=kwargs['obj_id'],
-                            #status=kwargs['status'])
 
     def update_pool_stats(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_CONFIGAGENT_TOPIC)
@@ -104,11 +92,7 @@ class NotificationHandler(object):
         context = kwargs.get('context')
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
-        # RPC call to Config Orchestrator
         rpcClient.cctxt.cast(rpc_ctx, 'update_pool_stats', kwargs=kwargs)
-                            #pool_id=kwargs['pool_id'],
-                            #stats=kwargs['stats'],
-                            #host=kwargs['host'])
 
     def pool_destroyed(self, resource, **kwargs):
         rpcClient = RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
@@ -137,6 +121,15 @@ class NotificationHandler(object):
         del kwargs['context']
         rpcClient.cctxt.cast(rpc_ctx, 'ipsec_site_conn_deleted',
                              kwargs=kwargs)
+
+    def vip_deleted(self, resource, **kwargs):
+        rpcClient = RPCClient(a_topics.LB_NFP_CONFIGAGENT_TOPIC)
+        rpcClient.cctxt = rpcClient.client.prepare(
+            version=const.LOADBALANCER_RPC_API_VERSION)
+        context = kwargs.get('context')
+        rpc_ctx = n_context.Context.from_dict(context)
+        del kwargs['context']
+        rpcClient.cctxt.cast(rpc_ctx, 'vip_deleted', kwargs=kwargs)
 
     def network_function_device_notification(self, resource,
                                              kwargs_list, device=True):

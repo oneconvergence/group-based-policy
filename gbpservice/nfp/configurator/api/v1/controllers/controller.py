@@ -97,7 +97,7 @@ class Controller(rest.RestController):
         try:
             if self.method_name == 'get_notifications':
                 notification_data = jsonutils.dumps(
-                                        self.rmqconsumer.pull_notifications())
+                    self.rmqconsumer.pull_notifications())
                 msg = ("NOTIFICATION_DATA sent to config_agent %s"
                        % notification_data)
                 LOG.info(msg)
@@ -134,7 +134,7 @@ class Controller(rest.RestController):
                 body = pecan.request.json_body
 
             if self.method_name == 'network_function_event':
-                routing_key = 'EVENT'
+                routing_key = 'VISIBILITY'
             else:
                 routing_key = 'CONFIGURATION'
             for uservice in self.rpc_routing_table[routing_key]:
@@ -273,6 +273,7 @@ class RPCClient(object):
 
 
 class CloudService():
+
     def __init__(self, **kwargs):
         self.service_name = kwargs.get('service_name')
         self.topic = kwargs.get('topic')
@@ -288,25 +289,44 @@ to pull all the notifications came from over the cloud services.
 """
 
 
-class RMQConsumer():
+class RMQConsumer(object):
 
     def __init__(self, rabbitmq_host, queue):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                                                  host=rabbitmq_host))
-        self.channel = self.connection.channel()
+        self.rabbitmq_host = rabbitmq_host
         self.queue = queue
+        self.create_connection()
+
+    def create_connection(self):
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host=self.rabbitmq_host))
 
     def pull_notifications(self):
-        self.queue_declared = self.channel.queue_declare(queue=self.queue,
-                                                         durable=True)
-        pending_msg_count = self.queue_declared.method.message_count
-        log = ('[notifications queue:%s, pending notifications:%s]'
-               % (self.queue, pending_msg_count))
-        LOG.info(log)
         notifications = []
-        for i in range(pending_msg_count):
-            method, properties, body = self.channel.basic_get(self.queue)
-            notifications.append(ast.literal_eval(body))
-            self.channel.basic_ack(delivery_tag=method.delivery_tag)
+        msgs_acknowledged = False
+        try:
+            self.channel = self.connection.channel()
+            self.queue_declared = self.channel.queue_declare(queue=self.queue,
+                                                             durable=True)
+            pending_msg_count = self.queue_declared.method.message_count
+            log = ('[notifications queue:%s, pending notifications:%s]'
+                   % (self.queue, pending_msg_count))
+            for i in range(pending_msg_count):
+                method, properties, body = self.channel.basic_get(self.queue)
+                notifications.append(ast.literal_eval(body))
 
-        return notifications
+            # Acknowledge all messages delivery
+            if pending_msg_count > 0:
+                self.channel.basic_ack(delivery_tag=method.delivery_tag,
+                                       multiple=True)
+                msgs_acknowledged = True
+
+            self.channel.close()
+            return notifications
+        except pika.exceptions.ConnectionClosed:
+            self.create_connection()
+            self.pull_notifications()
+        except pika.exceptions.ChannelClosed:
+            if msgs_acknowledged is False:
+                self.pull_notifications()
+            else:
+                return notifications

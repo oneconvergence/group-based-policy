@@ -103,13 +103,14 @@ class AgentBaseNotification(object):
 
     def __init__(self, sc):
         self.sc = sc
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                                                  host=const.RABBITMQ_HOST))
-        self.channel = self.connection.channel()
         self.queue = const.NOTIFICATION_QUEUE
-        self.channel.queue_declare(queue=self.queue,
-                                   durable=True  # make queue persistent
-                                   )
+        self.rabbitmq_host = const.RABBITMQ_HOST
+        self.create_connection()
+
+    def create_connection(self):
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+                                                  host=self.rabbitmq_host,
+                                                  heartbeat_interval=0))
 
     def _notification(self, data):
         """Enqueues notification event into rabbitmq's
@@ -125,18 +126,24 @@ class AgentBaseNotification(object):
         """
 
         try:
+            self.channel = self.connection.channel()
             self.channel.queue_declare(queue=self.queue,
-                                       durable=True  # make queue persistent
+                                       # make queue persistent
+                                       durable=True
                                        )
             body = str(data)
             self.channel.basic_publish(exchange='',
                                        routing_key=self.queue,
                                        body=body,
                                        properties=pika.BasicProperties(
-                                         delivery_mode=2  # make msg persistent
+                                           # make msg persistent
+                                           delivery_mode=2
                                        ))
+            self.channel.close()
         except Exception as e:
-            raise e
+            self.connection.close()
+            self.create_connection()
+            self._notification(data)
 
 
 class AgentBaseEventHandler(object):

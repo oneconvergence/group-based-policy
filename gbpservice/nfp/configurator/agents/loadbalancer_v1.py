@@ -86,6 +86,23 @@ class LBaasRpcSender(data_filter.Filter):
                }
         self.notify._notification(msg)
 
+    def vip_deleted(self, vip, status, context):
+        """ Enqueues the response from LBaaS operation to neutron plugin.
+
+        :param obj_type: object type
+        :param obj_id: object id
+        :param status: status of the object to be set
+
+        """
+        msg = {'receiver': lb_constants.NEUTRON,
+               'resource': lb_constants.SERVICE_TYPE,
+               'method': 'vip_deleted',
+               'kwargs': {'context': context,
+                          'vip_id': vip['id'],
+                          'vip': vip,
+                          'status': status}
+               }
+        self.notify._notification(msg)
 
 """Implements APIs invoked by configurator for processing RPC messages.
 
@@ -99,6 +116,7 @@ the methods of this class to configure the device.
 
 
 class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
+
     def __init__(self, sc, conf):
         """Instantiates child and parent class objects.
 
@@ -454,10 +472,12 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 driver.update_vip(old_vip, vip, context)
             elif operation == 'delete':
                 driver.delete_vip(vip, context)
+                self.plugin_rpc.vip_deleted(vip, lb_constants.ACTIVE, context)
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
                 msg = ("Failed to delete vip %s" % (vip['id']))
+                self.plugin_rpc.vip_deleted(vip, lb_constants.ACTIVE, context)
                 LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status('vip', vip['id'],
@@ -763,6 +783,6 @@ def _start_collect_stats(sc):
 
 
 def init_agent_complete(cm, sc, conf):
-    #_start_collect_stats(sc)
+    # _start_collect_stats(sc)
     msg = ("Initialization of loadbalancer agent completed.")
     LOG.info(msg)

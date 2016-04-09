@@ -12,8 +12,11 @@
 
 from gbpservice.nfp.config_orchestrator.agent import firewall as fw
 from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
+from gbpservice.nfp.config_orchestrator.agent import \
+    otc_service_events as otc_se
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.config_orchestrator.agent import vpn as vp
+from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from oslo_config import cfg
 
@@ -68,5 +71,17 @@ def rpc_init(sc, conf):
     sc.register_rpc_agents([fwagent, lbagent, vpnagent])
 
 
+def events_init(sc, conf):
+    """Register event with its handler."""
+    evs = [
+        Event(id='SERVICE_CREATE',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
+        Event(id='SERVICE_DELETE',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf))]
+
+    sc.register_events(evs)
+
+
 def nfp_module_init(sc, conf):
     rpc_init(sc, conf)
+    events_init(sc, conf)
