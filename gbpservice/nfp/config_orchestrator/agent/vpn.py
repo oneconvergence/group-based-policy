@@ -11,7 +11,7 @@
 #    under the License.
 
 from gbpservice.nfp.config_orchestrator.agent import common
-from gbpservice.nfp.config_orchestrator.agent import a_topics
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.lib import transport
 from neutron_vpnaas.db.vpn import vpn_db
 from neutron import context as n_context
