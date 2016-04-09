@@ -11,10 +11,11 @@
 #    under the License.
 
 import oslo_serialization.jsonutils as jsonutils
-
+import ast
 from oslo_log import log as logging
 import pecan
 from pecan import rest
+import requests
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
@@ -28,13 +29,19 @@ Implements following HTTP methods.
 """
 
 notifications = []
-
+cache_ips = set()
 
 class Controller(rest.RestController):
 
     def __init__(self, method_name):
         try:
             self.method_name = method_name
+            self.supported_service_types = ['config_script', 'firewall', 'loadbalancer', 'vpn']
+            self.resource_map = {
+                ('interfaces', 'healthmonitor', 'routes'): 'orchestrator',
+                ('heat'): 'service_orchestrator',
+                ('firewall', 'lb', 'vpn'): 'neutron'
+            }
             super(Controller, self).__init__()
         except Exception as err:
             msg = (
@@ -42,15 +49,21 @@ class Controller(rest.RestController):
                 str(err).capitalize())
             LOG.error(msg)
 
-    def _push_notification(self, context, request_info, result):
+    def _push_notification(self, context, request_info, result, config_data):
+        resource = config_data['resource']
+        receiver = ''
+        for key in self.resource_map.keys():
+            if resource in key:
+                receiver = self.resource_map[key]
+
         response = {
-            'receiver': 'service_orchestrator',
-            'resource': 'heat',
-            'method': 'network_function_device_notification',
+            'receiver': receiver,
+            'resource': resource,
+            'method': self.method_name,
             'kwargs': [
                 {
                     'context': context,
-                    'resource': 'heat',
+                    'resource': resource,
                     'request_info': request_info,
                     'result': result
                 }
@@ -69,19 +82,38 @@ class Controller(rest.RestController):
         Returns: Dictionary that contains Notification data
 
         """
-
+        global cache_ips
         global notifications
         try:
-            notification_data = jsonutils.dumps(notifications)
-            msg = ("NOTIFICATION_DATA sent to config_agent %s"
-                   % notification_data)
-            LOG.info(msg)
-            notifications = []
-            return notification_data
+            if not cache_ips:
+                notification_data = jsonutils.dumps(notifications)
+                msg = ("NOTIFICATION_DATA sent to config_agent %s"
+                       % notification_data)
+                LOG.info(msg)
+                notifications = []
+                return notification_data
+            else:
+                #import pdb; pdb.set_trace()
+                for ip in cache_ips:
+                    notification_response = requests.get('http://'+str(ip)+':8080/v1/nfp/get_notifications')
+                    #notification = notification_response.text
+                    #notification = ast.literal_eval(ast.literal_eval(jsonutils.dumps(notification)))
+                    notification = jsonutils.loads(notification_response.text)
+                    notifications.extend(notification)
+                    cache_ips.remove(ip)
+                    if ip not in cache_ips:
+                        break
+                notification_data = jsonutils.dumps(notifications)
+                msg = ("NOTIFICATION_DATA sent to config_agent %s"
+                       % notification_data)
+                LOG.info(msg)
+                notifications = []
+                
+                return notification_data    
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to get notification_data  %s."
-                % str(err).capitalize())
+                   % str(err).capitalize())
             LOG.error(msg)
             error_data = self._format_description(msg)
             return jsonutils.dumps(error_data)
@@ -99,8 +131,62 @@ class Controller(rest.RestController):
         Returns: None
 
         """
+        try:
+            global cache_ips
+            global notifications
+            body = None
+            if pecan.request.is_body_readable:
+                body = pecan.request.json_body
+
+            service_type = body['info'].get('service_type')
+            
+            # Assuming config list will have only one element
+            config_data = body['config'][0]
+            context = config_data['kwargs']['context']
+            kwargs = config_data['kwargs']
+            request_info = config_data['kwargs']['request_info']
+            LOG.info("POST DATA :: %s" % body)
+            # Only heat is supported presently
+            #if 'configurator_ip' in request_info:
+            if 'configurator_ip' in config_data['kwargs']:
+                configurator_ip = kwargs['configurator_ip']
+                cache_ips.add(configurator_ip)
+                LOG.info("POST BODY :: %s" % body)
+                requests.post('http://'+str(configurator_ip)+':8080/v1/nfp/'+self.method_name, data=jsonutils.dumps(body))
+
+            else: 
+                LOG.info("I am here") 
+                if (service_type == "heat"):
+                    result = "unhandled"
+                    self._push_notification(context, request_info, result, config_data)
+                else:
+                    result = "error"
+                    self._push_notification(context, request_info, result, config_data)
+        except Exception as err:
+            pecan.response.status = 400
+            msg = ("Failed to serve HTTP post request %s %s."
+                   % (self.method_name, str(err).capitalize()))
+            LOG.error(msg)
+            error_data = self._format_description(msg)
+            return jsonutils.dumps(error_data)
+
+    @pecan.expose(method='PUT', content_type='application/json')
+    def put(self, **body):
+        """Method of REST server to handle all the put requests.
+
+        This method sends an RPC cast to configurator according to the
+        HTTP request.
+
+        :param body: This method excepts dictionary as a parameter in HTTP
+        request and send this dictionary to configurator with RPC cast.
+
+        Returns: None
+
+        """
 
         try:
+            global cache_ips
+            global notifications
             body = None
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
@@ -111,14 +197,18 @@ class Controller(rest.RestController):
             config_data = body['config'][0]
             context = config_data['kwargs']['context']
             request_info = config_data['kwargs']['request_info']
-
-            # Only heat is supported presently
-            if (service_type == "heat"):
-                result = "unhandled"
-                self._push_notification(context, request_info, result)
-            else:
-                result = "error"
-                self._push_notification(context, request_info, result)
+            if 'configurator_ip' in request_info:
+                cache_ips.add(request_info['configurator_ip'])
+                LOG.info("PUT BODY :: %s" % body)
+                requests.post(
+                'http://'+str(request_info['configurator_ip'])+':8080/v1/nfp/'+self.method_name, data=jsonutils.dumps(body))
+            else:  
+                if (service_type == "heat"):
+                    result = "unhandled"
+                    self._push_notification(context, request_info, result, config_data)
+                else:
+                    result = "error"
+                    self._push_notification(context, request_info, result, config_data)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."
@@ -126,6 +216,7 @@ class Controller(rest.RestController):
             LOG.error(msg)
             error_data = self._format_description(msg)
             return jsonutils.dumps(error_data)
+      
 
     def _format_description(self, msg):
         """This methgod formats error description.
@@ -137,3 +228,4 @@ class Controller(rest.RestController):
 
         error_data = {'failure_desc': {'msg': msg}}
         return error_data
+

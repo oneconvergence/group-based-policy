@@ -152,7 +152,8 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
                             'tenant_id': device_data['tenant_id']
                         },
                         'service_type': (device_data['service_details'][
-                               'service_type'].lower())
+                               'service_type'].lower()),
+                        'configurator_ip': device_data['mgmt_ip_address']
                     }
                 },
                 {
@@ -168,6 +169,7 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
                         'provider_interface_position': 2,
                         'service_type': (device_data['service_details'][
                             'service_type'].lower()),
+                        'configurator_ip': device_data['mgmt_ip_address']
                     }
                 }
             ]

@@ -854,6 +854,7 @@ class HeatDriver(object):
                 return None, None
         if not service_config:
             service_config = config_str
+            tag_str = nfp_constants.HEAT_CONFIG_TAG
         return tag_str, service_config
 
     def get_service_details(self, network_function_details):

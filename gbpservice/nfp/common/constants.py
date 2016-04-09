@@ -46,3 +46,9 @@ ANSIBLE_TAG = 'ansible'
 
 COMPLETED = "COMPLETED"
 IN_PROGRESS = "IN_PROGRESS"
+
+LOADBALANCER_RPC_API_VERSION = "2.0"
+
+CONFIG_TAG_RESOURCE_MAP = {HEAT_CONFIG_TAG: 'heat',
+                           CONFIG_INIT_TAG: 'config_init',
+                           ANSIBLE_TAG: 'ansible'}

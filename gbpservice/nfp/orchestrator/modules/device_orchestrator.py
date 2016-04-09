@@ -14,7 +14,7 @@ from neutron._i18n import _LE
 from neutron._i18n import _LI
 from oslo_log import log as logging
 import oslo_messaging as messaging
-
+import time
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.core.event import Event
@@ -73,6 +73,7 @@ class RpcHandler(object):
         self._controller = controller
         self.rpc_event_mapping = {
                           'healthmonitor': ['DEVICE_HEALTHY',
+                                           'DEVICE_NOT_REACHABLE',
                                            'DEVICE_NOT_REACHABLE'],
                           'interfaces': ['DEVICE_CONFIGURED',
                                          'DELETE_CONFIGURATION_COMPLETED',
@@ -267,7 +268,7 @@ class DeviceOrchestrator(object):
                     binding_key=original_event.binding_key,
                     key=original_event.desc.uid)
                 LOG.debug("poll event started for %s" % (ev.id))
-                self._controller.poll_event(ev, max_times=10)
+                self._controller.poll_event(ev, max_times=20)
             else:
                 ev = self._controller.new_event(id=event_id, data=event_data)
                 self._controller.post_event(ev)
@@ -478,6 +479,7 @@ class DeviceOrchestrator(object):
             }
             self._create_event(event_id='DEVICE_CREATED',
                                event_data=device_created_data)
+            import time;time.sleep(60)
             self._create_event(event_id='DEVICE_SPAWNING',
                                event_data=device,
                                is_poll_event=True,
@@ -809,6 +811,7 @@ class NDOConfiguratorRpcApi(object):
             return None
         for config in config_params.get('config'):
             config['kwargs']['request_info'] = request_info
+        config_params['info']['service_type'] = device_data['service_details']['service_type']
 
     def create_network_function_device_config(self, device_data,
                                               config_params):

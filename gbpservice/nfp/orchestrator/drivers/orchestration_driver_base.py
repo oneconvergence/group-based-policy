@@ -758,6 +758,7 @@ class OrchestrationDriverBase(object):
                     'kwargs': {
                         'vmid': device_data['id'],
                         'mgmt_ip': device_data['mgmt_ip_address'],
+                        'configurator_ip': device_data['mgmt_ip_address'],
                         'periodicity': 'initial',
                         'service_type': (device_data['service_details'
                                                      ]['service_type'].lower())

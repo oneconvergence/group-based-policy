@@ -143,7 +143,8 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
                         'provider_mac': provider_mac,
                         'stitching_mac': consumer_mac,
                         'service_type': (device_data['service_details'][
-                            'service_type'].lower())
+                            'service_type'].lower()),
+                        'configurator_ip': device_data['mgmt_ip_address']
                     }
                 },
                 {
@@ -158,7 +159,8 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
                         'gateway_ip': consumer_gateway_ip,
                         'provider_interface_position': 2,
                         'service_type': (device_data['service_details'][
-                            'service_type'].lower())
+                            'service_type'].lower()),
+                        'configurator_ip': device_data['mgmt_ip_address']
                     }
                 }
             ]
