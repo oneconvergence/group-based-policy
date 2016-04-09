@@ -46,6 +46,7 @@ class NfpService(object):
     def __init__(self, conf):
         self._conf = conf
         self._event_handlers = nfp_event.NfpEventHandlers()
+        self._rpc_agents = list()
 
     def _make_new_event(self, event):
         """Make a new event from the object passed. """
@@ -66,8 +67,9 @@ class NfpService(object):
         for event_desc in event_descs:
             self._event_handlers.register(event_desc.id, event_desc.handler)
 
-    def register_rpc_agents(self):
-        pass
+    def register_rpc_agents(self, agents):
+        for agent in agents:
+            self._rpc_agents.append((agent,))
 
     def new_event(self, **kwargs):
         return self.create_event(**kwargs)
@@ -243,10 +245,20 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
 
     def post_launch(self):
         self._update_manager()
+
+        # Launch rpc_agents
+        for index, rpc_agent in enumerate(self._rpc_agents):
+            #Use threads for launching service
+            launcher = oslo_service.launch(self._conf, rpc_agent[0], workers=None)
+            self._rpc_agents[index] = rpc_agent + (launcher,)
+
         # One task to manage the resources - workers & events.
         eventlet.spawn_n(self._manager_task)
         # Oslo periodic task to poll for timer events
         nfp_poll.PollingTask(self._conf, self)
+        # Oslo periodic task for state reporting
+        nfp_rpc.ReportStateTask(self._conf, self)
+
 
     def poll_add(self, event, timeout, callback):
         self._poll_handler.poll_add(

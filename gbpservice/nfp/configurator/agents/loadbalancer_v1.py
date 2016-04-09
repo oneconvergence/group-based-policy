@@ -17,6 +17,7 @@ from gbpservice.nfp.configurator.lib import lb_constants
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import module as nfp_api
 from neutron import context
 from oslo_log import log as logging
 
@@ -360,7 +361,7 @@ invoked by core service controller.
 
 
 class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
-                        nfp_poll.PollEventDesc):
+                        nfp_api.NfpEventHandler):
     instance_mapping = {}
 
     def __init__(self, sc, drivers, rpcmgr):
@@ -603,7 +604,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
     def _collect_stats(self, ev):
         self.sc.poll_event(ev)
 
-    @nfp_poll.poll_event_desc(event=lb_constants.EVENT_COLLECT_STATS,
+    @nfp_api.poll_event_desc(event=lb_constants.EVENT_COLLECT_STATS,
                               spacing=60)
     def collect_stats(self, ev):
         for pool_id, driver_name in LBaaSEventHandler.instance_mapping.items():

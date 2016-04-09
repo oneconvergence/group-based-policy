@@ -18,7 +18,7 @@ import oslo_messaging as messaging
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.core.event import Event
-from gbpservice.nfp.core.poll import poll_event_desc
+from gbpservice.nfp.core.module import poll_event_desc
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
