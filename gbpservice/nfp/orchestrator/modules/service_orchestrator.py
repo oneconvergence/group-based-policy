@@ -41,6 +41,7 @@ LOG = nfp_logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
+mgmt_nw = 'mgmt_nw' # set this from config
 
 
 def rpc_init(controller, config):
@@ -247,6 +248,11 @@ class RpcHandler(object):
         service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return self.neutron_handler.process_delete_network_function_request(
             service_orchestrator, network_function)
+
+    @log_helpers.log_method_call
+    def admin_down_interfaces(self, port_ids):
+        neutron_handler = SOHelper(self.conf)
+        neutron_handler.admin_down_interfaces(port_ids)
 
 
 class RpcHandlerConfigurator(object):
@@ -707,8 +713,9 @@ class ServiceOrchestrator(object):
                 'port_model': nfp_constants.GBP_NETWORK
             }
         else:
-            management_network_info = \
-                network_function_info['management_network_info']
+            management_network_info = dict(id=mgmt_nw,
+                port_model=orchestrator_constants.NEUTRON_PORT)
+
         create_network_function_instance_request = {
             'network_function': network_function,
             'network_function_port_info': network_function_info['port_info'],
@@ -752,6 +759,11 @@ class ServiceOrchestrator(object):
         }
         network_function = self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
+        # DIRTY HACK HACK. For neutron workflow.
+        if network_function['description']:
+            self.handle_user_config_deleted(
+                    type('', (object,), {'data': network_function})())
+            return network_function
         heat_stack_id = network_function['heat_stack_id']
         LOG.info(_LI("[Event:DeleteService]"))
         if heat_stack_id:
@@ -1899,13 +1911,13 @@ class SOHelper(object):
                 router_id=router_id, fip_required=fip_required)
             stitching_port.update(
                 id=stitching_port['port']['id'],
-                port_model=orchestrator_constants.NEUTRON_PORT,
-                port_classification=orchestrator_constants.CONSUMER,
+                port_model=nfp_constants.NEUTRON_PORT,
+                port_classification=nfp_constants.CONSUMER,
                 port_role=nfp_constants.ACTIVE_PORT)
             nw_function_info['management_network_info'] = dict(
                 # id=self.config.NEUTRON_SERVICE_MGMT_NW,
-                id='mgmt_nw',
-                port_model=orchestrator_constants.NEUTRON_PORT
+                id=mgmt_nw,
+                port_model=nfp_constants.NEUTRON_PORT
             )
             admin_token = service_orchestrator.keystoneclient.get_admin_token()
             provider_subnet = service_orchestrator.neutronclient.get_subnet(
@@ -1958,7 +1970,7 @@ class SOHelper(object):
             _port = service_orchestrator.db_handler.get_port_info(
                 service_orchestrator.db_session, u_port)
             if _port['port_classification'] == \
-                    orchestrator_constants.CONSUMER:
+                    nfp_constants.CONSUMER:
                 admin_token = service_orchestrator.keystoneclient \
                     .get_admin_token()
                 gateway_ip = service_orchestrator.neutronclient.get_port(
@@ -1997,14 +2009,39 @@ class SOHelper(object):
         except Exception, err:
             raise Exception(err)
 
-    @staticmethod
-    def handle_processing_for_fw(nw_function_info):
-        provider_port = {'id': nw_function_info['service_info']['port']['id'],
-                         'port_model': orchestrator_constants.NEUTRON_PORT,
-                         'port_classification':
-                             orchestrator_constants.PROVIDER}
-        nw_function_info['port_info'].append(provider_port)
+    def handle_processing_for_fw(self, context, service_orchestrator,
+                                 nw_function_info):
+        router_id = nw_function_info['service_info'][0].get('router_id')
+        stitching_port = self.sc_plumber.get_stitching_port(
+                nw_function_info['tenant_id'], router_id=router_id)
+        stitching_port.update(
+                id=stitching_port['port']['id'],
+                port_model=nfp_constants.NEUTRON_PORT,
+                port_classification=nfp_constants.CONSUMER,
+                port_role=nfp_constants.ACTIVE_PORT)
+        nw_function_info['management_network_info'] = dict(
+                # id=self.config.NEUTRON_SERVICE_MGMT_NW,
+                id='mgmt_nw',
+                port_model=nfp_constants.NEUTRON_PORT
+        )
+        provider_port = {'id': nw_function_info['service_info'][0]['port'][
+            'id'],
+                         'port_model': nfp_constants.NEUTRON_PORT,
+                         'port_classification': nfp_constants.PROVIDER,
+                         'port_role': nfp_constants.ACTIVE_PORT}
+        desc = dict(provider_mac=nw_function_info['service_info'][0]['port'][
+            'mac_address'],
+                    stitching_mac=stitching_port['port']['mac_address'])
+        nw_function_info['description'] = str(desc)
+        nw_function_info['port_info'] = [stitching_port, provider_port]
         nw_function_info['service_id'] = provider_port['id']
+        nw_function_info['network_function_mode'] = "neutron"
+        nw_function_info['service_chain_id'] = None
+        nw_function_info['service_config'] = nw_function_info[
+            'resource_data']['id']
+        nw_function_info['share_existing_device'] = False
+        return service_orchestrator.create_network_function(
+                context, nw_function_info)
 
     def get_nw_fun_details(self, service_orchestrator, nw_function_info,
                            svc_type):
@@ -2028,4 +2065,7 @@ class SOHelper(object):
 
     def postprocess_update_network_function_request(self):
         pass
+
+    def admin_down_interfaces(self, port_ids):
+        self.sc_plumber.admin_down_interfaces(port_ids)
 
