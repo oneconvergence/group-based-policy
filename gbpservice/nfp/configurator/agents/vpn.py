@@ -92,22 +92,22 @@ class VpnaasRpcSender(data_filter.Filter):
         This method call updates status attribute of
         VPNServices.
         """
-        msg = {'receiver': const.NEUTRON,
+        msg = {'receiver': const.NEUTRON.lower(),
                'resource': const.SERVICE_TYPE,
                'method': 'update_status',
-               'data': {'context': context,
-                        'status': status}
+               'kwargs': {'context': context,
+                          'status': status}
                }
         self._notify._notification(msg)
 
     def ipsec_site_conn_deleted(self, context, resource_id):
         """ Notify VPNaaS plugin about delete of ipsec-site-conn """
 
-        msg = {'receiver': const.NEUTRON,
+        msg = {'receiver': const.NEUTRON.lower(),
                'resource': const.SERVICE_TYPE,
-               'method': 'ipsec_site_conn_deleted',
-               'data': {'context': context,
-                        'resource_id': resource_id}
+               'method': 'update_status',
+               'kwargs': {'context': context,
+                          'resource_id': resource_id}
                }
         self._notify._notification(msg)
 
@@ -398,3 +398,4 @@ def init_agent_complete(cm, sc, conf):
     sc.post_event(ev)
     msg = " vpn agent init complete"
     LOG.info(msg)
+
