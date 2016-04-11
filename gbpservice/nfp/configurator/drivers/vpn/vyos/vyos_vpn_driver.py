@@ -895,11 +895,11 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             self._get_stitching_fixed_ip(conn))
         svc_context['siteconns'][0]['connection']['access_ip'] = (
             self._get_user_access_ip(conn))
-        msg = "IPSec: Pushing ipsec configuration %s" % conn
-        LOG.info(msg)
         conn['tunnel_local_cidr'] = tunnel_local_cidr
         self._ipsec_conn_correct_enc_algo(svc_context['siteconns'][0])
         svc_context['service']['cidr'] = self._get_stitching_cidr(conn)
+        msg = "IPSec: Pushing ipsec configuration %s" % conn
+        LOG.info(msg)
         RestApi(mgmt_fip).post("create-ipsec-site-conn", svc_context)
         self._init_state(context, conn)
 
