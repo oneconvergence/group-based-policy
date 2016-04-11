@@ -95,7 +95,7 @@ class VpnaasRpcSender(data_filter.Filter):
         msg = {'receiver': const.NEUTRON.lower(),
                'resource': const.SERVICE_TYPE,
                'method': 'update_status',
-               'data': {'context': context,
+               'kwargs': {'context': context,
                         'status': status}
                }
         self._notify._notification(msg)
@@ -106,7 +106,7 @@ class VpnaasRpcSender(data_filter.Filter):
         msg = {'receiver': const.NEUTRON.lower(),
                'resource': const.SERVICE_TYPE,
                'method': 'ipsec_site_conn_deleted',
-               'data': {'context': context,
+               'kwargs': {'context': context,
                         'resource_id': resource_id}
                }
         self._notify._notification(msg)
