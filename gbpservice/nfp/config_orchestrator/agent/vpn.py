@@ -67,7 +67,12 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                     self.validate_and_process_vpn_delete_service_request(
                         context, kwargs)
         else:
-            self.call_configurator(context, kwargs)
+            if (kwargs['reason'] == 'delete' and 
+                    kwargs['rsrc_type'] == 'vpn_service'):
+                vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
+                                      id=resource_data['resource']['id'])
+            else:
+                self.call_configurator(context, kwargs)
 
     def call_configurator(self, context, kwargs):
         resource_data = kwargs.get('resource')
@@ -110,21 +115,18 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def update_status(self, context, **kwargs):
-        kwargs = kwargs['kwargs']
+        status = kwargs['kwargs']['status']
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt.cast(context, 'update_status',
-                             kwargs=kwargs)
+                             status=status)
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, **kwargs):
-        kwargs = kwargs['kwargs']
+        resource_id = kwargs['kwargs']['resource_id']
+        LOG.error("kwargs are %s" % kwargs)
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
-                "making an ipsec_site_conn_deleted RPC call to plugin for "
-                "%s object" % (kwargs['obj_id']))
-        LOG.info(msg)
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
-                             kwargs=kwargs)
+                             resource_id=resource_id)
 
 
     def validate_and_process_vpn_create_service_request(self, context,
@@ -236,15 +238,27 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                                   filters={'service_id': [resource_data[
                                            'resource']['id']]})
         if not nw_func:
-            rpcc.cctxt.cast(context, 'update_status', status="ERROR")
+            status = 'ERROR'
         else:
             rpcc.cctxt.call(context, 'delete_network_function',
-                            network_function_id=nw_func['id'])
+                            network_function_id=nw_func[0]['id'])
             try:
-                self.wait_for_device_delete(context, nw_func['id'])
+                self.wait_for_device_delete(context, nw_func[0]['id'],
+                                            rpcc)
             except VPNServiceDeleteFailed, err:
-                rpcc.cctxt.cast(context, 'update_status', status="ERROR")
-            rpcc.cctxt.cast(context, 'update_status', status="DELETED")
+                LOG.error("Exception %s" % err)
+                status = 'ERROR'
+            else:
+                vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
+                                      id=resource_data['resource']['id'])
+                return
+        LOG.error("delete failed %s " % resource_data)
+        vpnsvc_status = [{
+                'id': resource_data['resource']['id'],
+                'status': status,
+                'updated_pending_status':True,
+                'ipsec_site_connections':{}}]
+        vpn_plugin.cctxt.cast(context, 'update_status', status=vpnsvc_status)
 
     @staticmethod
     def wait_for_device_delete(context, nw_fun_id, rpcc):

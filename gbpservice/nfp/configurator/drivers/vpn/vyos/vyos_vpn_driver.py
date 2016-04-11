@@ -454,8 +454,6 @@ class VpnGenericConfigDriver(object):
                                    const.CONFIGURATION_SERVER_PORT,
                                    'add_static_ip')
         data = jsonutils.dumps(static_ips_info)
-        msg = ("@############################@ Static_ips info: %s" % static_ips_info)
-        LOG.error(msg)
 
         msg = ("Initiating POST request to add static IPs for primary "
                "service with SERVICE ID: %r of tenant: %r at: %r" %
@@ -482,8 +480,6 @@ class VpnGenericConfigDriver(object):
 
         try:
             result = resp.json()
-            msg = ("@############################@Configure interfaces response: %s" % result)
-            LOG.error(msg)
         except ValueError as err:
             msg = ("Unable to parse response, invalid JSON. URL: "
                    "%r. %r" % (url, str(err).capitalize()))
