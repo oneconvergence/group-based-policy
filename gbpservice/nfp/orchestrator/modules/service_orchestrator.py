@@ -37,6 +37,7 @@ LOG = logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
+mgmt_nw = 'mgmt_nw' # set this from config
 
 
 def rpc_init(controller, config):
@@ -516,7 +517,9 @@ class ServiceOrchestrator(object):
                 'port_model': nfp_constants.GBP_NETWORK
             }
         else:
-            management_network_info = {}
+            management_network_info = dict(id=mgmt_nw,
+                port_model=orchestrator_constants.NEUTRON_PORT)
+
         create_network_function_instance_request = {
             'network_function': network_function,
             'network_function_port_info': network_function_info['port_info'],
@@ -1343,7 +1346,7 @@ class SOHelper(object):
                 port_role=nfp_constants.ACTIVE_PORT)
             nw_function_info['management_network_info'] = dict(
                 # id=self.config.NEUTRON_SERVICE_MGMT_NW,
-                id='mgmt_nw',
+                id=mgmt_nw,
                 port_model=orchestrator_constants.NEUTRON_PORT
             )
             admin_token = service_orchestrator.keystoneclient.get_admin_token()

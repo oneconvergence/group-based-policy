@@ -55,7 +55,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                         self.call_configurator(context, kwargs)
             if kwargs['reason'] == 'delete':
                 if kwargs['rsrc_type'] == 'ipsec_site_connection':
-                    rpcc = RPCClient(a_topics.NFP_NSO_TOPIC)
+                    rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
                     nw_func = rpcc.cctxt.call(
                         context, 'get_network_functions',
                         filters={'service_id': [kwargs['resource'][
@@ -112,10 +112,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     def update_status(self, context, **kwargs):
         kwargs = kwargs['kwargs']
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        msg = ("NCO received VPN's update_status API,"
-                "making an update_status RPC call to plugin for %s object"
-                "with status %s" % (kwargs['obj_id'], kwargs['status']))
-        LOG.info(msg)
         rpcClient.cctxt.cast(context, 'update_status',
                              kwargs=kwargs)
 
@@ -138,21 +134,37 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         :param resource_data:
         :return:
         """
-        rpcc = RPCClient(a_topics.NFP_NSO_TOPIC)
-        vpn_plugin = RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        nw_function_info = self.prepare_request_data_for_orch(context,
-                                                              resource_data)
+        rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+        vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         if resource_data['rsrc_type'].lower() == 'vpn_service':
+            nw_function_info = self.prepare_request_data_for_orch(
+                context, resource_data['resource']['id'], resource_data)
             nw_func = self.wait_for_device_ready(context, nw_function_info)
-            vpn_plugin.cctxt.cast(context, 'update_status', status=nw_func['status'])
+            vpnsvc_status = [{
+                'id': resource_data['resource']['id'],
+                'status': nw_func['status'],
+                'updated_pending_status':True,
+                'ipsec_site_connections':{}}]
+            vpn_plugin.cctxt.cast(context, 'update_status', status=vpnsvc_status)
         else:
+            nw_function_info = self.prepare_request_data_for_orch(
+                context, resource_data['resource']['vpnservice_id'],
+                resource_data)
             try:
                 nw_func = rpcc.cctxt.call(
                             context, 'neutron_update_nw_function_config',
                             network_function=nw_function_info)
             except Exception, err:
+                vpnconn_status = [{
+                    'id': resource_data['resource']['vpnservice_id'],
+                    'status':'ACTIVE',
+                    'updated_pending_status':False,
+                    'ipsec_site_connections':{
+                        resource_data['resource']['id']: {
+                            'status': "ERROR",
+                            'updated_pending_status': True}}}]
                 vpn_plugin.cctxt.cast(context, 'update_status',
-                                      status="ERROR")
+                                      status=vpnconn_status)
                 nw_function_info["status"] = "ERROR"
                 return nw_function_info
             if "ipsec_service_status" in nw_func and nw_func[
@@ -165,7 +177,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         return nw_function_info
 
     @staticmethod
-    def prepare_request_data_for_orch(context, vpn_data):
+    def prepare_request_data_for_orch(context, vpnservice_id, vpn_data):
         resource = vpn_data.get('resource')
         router_id = resource.get('router_id')
         subnet = resource.get('subnet_id')
@@ -174,11 +186,10 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                          'subnet': subnet}]
         network_function_info = dict()
         desc = resource['description']
-        rpcc = RPCClient(a_topics.NFP_NSO_TOPIC)
+        rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
         nw_func = rpcc.cctxt.call(
                         context, 'get_network_functions',
-                        filters={'service_id': resource[
-                                                   'vpnservice_id']})
+                        filters={'service_id': vpnservice_id})
         fields = desc.split(';')
         if nw_func:
             resource['description'] = nw_func[0]['description']
@@ -198,7 +209,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
 
     @staticmethod
     def wait_for_device_ready(context, nw_function_info_data):
-        rpcc = RPCClient(a_topics.NFP_NSO_TOPIC)
+        rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
         nw_func = rpcc.cctxt.call(context, 'neutron_update_nw_function_config',
                                   network_function=nw_function_info_data)
         try:
@@ -220,7 +231,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
 
     def validate_and_process_vpn_delete_service_request(self, context,
                                                         resource_data):
-        rpcc = RPCClient(a_topics.NFP_NSO_TOPIC)
+        rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
         nw_func = rpcc.cctxt.call(context, 'get_network_functions',
                                   filters={'service_id': [resource_data[
                                            'resource']['id']]})
