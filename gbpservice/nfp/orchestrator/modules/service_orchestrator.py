@@ -253,7 +253,7 @@ class RpcHandlerConfigurator(object):
             result = response.get('result')
             operation = request_info['operation']
 
-            if result.lower() != 'handled':
+            if result.lower() != 'success':
                 if operation == 'create':
                     event_id = self.rpc_event_mapping[resource][0]
                 # elif operation == 'update':

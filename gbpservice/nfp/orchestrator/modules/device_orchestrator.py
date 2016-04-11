@@ -14,7 +14,6 @@ from neutron._i18n import _LE
 from neutron._i18n import _LI
 from oslo_log import log as logging
 import oslo_messaging as messaging
-import time
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.core.event import Event
@@ -479,7 +478,6 @@ class DeviceOrchestrator(object):
             }
             self._create_event(event_id='DEVICE_CREATED',
                                event_data=device_created_data)
-            import time;time.sleep(60)
             self._create_event(event_id='DEVICE_SPAWNING',
                                event_data=device,
                                is_poll_event=True,
