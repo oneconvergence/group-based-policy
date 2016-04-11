@@ -216,7 +216,8 @@ class RpcHandlerConfigurator(object):
                  {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None,
-                      is_poll_event=False, original_event=False):
+                      is_poll_event=False, original_event=False,
+                      serialize=False):
         if is_poll_event:
             ev = self._controller.new_event(
                 id=event_id, data=event_data,
@@ -226,7 +227,16 @@ class RpcHandlerConfigurator(object):
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
-            ev = self._controller.new_event(id=event_id, data=event_data)
+            if serialize:
+                LOG.info(_LI('in serialize, waiting for 15 secs'))
+                network_function_id = event_data['network_function_details'
+                                                 ]['network_function']['id']
+                ev = self._controller.new_event(id=event_id, data=event_data,
+                                                binding_key=network_function_id,
+                                                key=network_function_id,
+                                                serialize=True)
+            else:
+                ev = self._controller.new_event(id=event_id, data=event_data)
             self._controller.post_event(ev)
         self._log_event_created(event_id, event_data)
 
@@ -236,6 +246,7 @@ class RpcHandlerConfigurator(object):
         #context = kwargs.get('context')
         #notification_data = kwargs.get('notification_data')
         responses = notification_data.get('kwargs')
+        serialize = False
 
         for response in responses:
             resource = response.get('resource')
@@ -251,17 +262,21 @@ class RpcHandlerConfigurator(object):
                 elif operation == 'delete':
                     event_id = self.rpc_event_mapping[resource][1]
                 elif operation == 'pt_add':
+                    serialize = True
                     event_id = self.rpc_event_mapping[resource][2]
                 elif operation == 'pt_remove':
+                    serialize = True
                     event_id = self.rpc_event_mapping[resource][3]
                 elif operation == 'consumer_add':
+                    serialize = True
                     event_id = self.rpc_event_mapping[resource][4]
                 else:
+                    serialize = True
                     event_id = self.rpc_event_mapping[resource][5]
             break
         event_data = request_info['network_function_data']
         self._create_event(event_id=event_id,
-                           event_data=event_data)
+                           event_data=event_data, serialize=serialize)
 
 
 class ServiceOrchestrator(object):
@@ -819,11 +834,11 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-
             log_meta_data = ("[Audit EventCategory:ServiceAdmin,"
                              " Event:ServiceCreate, " + log_meta_data[1:])
             LOG.error(_LE(log_meta_data + " create_network_function:%s"
                           " failed." % (request_data['network_function_id'])))
+            self._controller.event_done(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
@@ -838,6 +853,7 @@ class ServiceOrchestrator(object):
             LOG.info(_LI(log_meta_data + " Handled create_network_function:%s"
                          " successfully."
                      % (request_data['network_function_id'])))
+            self._controller.event_done(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
@@ -862,12 +878,14 @@ class ServiceOrchestrator(object):
                           " configuration delete completion."), {'err': err})
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data)
+            self._controller.event_done(event)
             return STOP_POLLING
         if config_status == nfp_constants.ERROR:
             LOG.error(_LE(log_meta_data + " Heat stack:%s delete failed")
                       % (request_data['heat_stack_id']))
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data)
+            self._controller.event_done(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
@@ -884,6 +902,7 @@ class ServiceOrchestrator(object):
             event_data['log_meta_data'] = log_meta_data
             self._create_event('USER_CONFIG_DELETED',
                                event_data=event_data)
+            self._controller.event_done(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:

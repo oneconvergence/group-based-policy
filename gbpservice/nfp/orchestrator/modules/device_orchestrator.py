@@ -381,6 +381,7 @@ class DeviceOrchestrator(object):
         network_function_instance = nfd_request['network_function_instance']
         service_vendor = nfd_request['service_details'].get('service_vendor')
         service_details = nfd_request['service_details']
+        device_data['name'] = network_function_instance['name']
         device_data['share_existing_device'] = (
                                     nfd_request.get('share_existing_device'))
         device_data['management_network_info'] = (
