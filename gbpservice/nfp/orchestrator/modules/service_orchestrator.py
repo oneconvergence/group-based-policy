@@ -714,7 +714,7 @@ class ServiceOrchestrator(object):
             }
         else:
             management_network_info = dict(id=mgmt_nw,
-                port_model=orchestrator_constants.NEUTRON_PORT)
+                port_model=nfp_constants.NEUTRON_PORT)
 
         create_network_function_instance_request = {
             'network_function': network_function,

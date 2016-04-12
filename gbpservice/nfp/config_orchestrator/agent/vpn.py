@@ -69,6 +69,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         else:
             if (kwargs['reason'] == 'delete' and 
                     kwargs['rsrc_type'] == 'vpn_service'):
+                vpn_plugin = transport.RPCClient(
+                    a_topics.VPN_NFP_PLUGIN_TOPIC)
                 vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
                                       id=resource_data['resource']['id'])
             else:
@@ -238,11 +240,14 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     def validate_and_process_vpn_delete_service_request(self, context,
                                                         resource_data):
         rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+        vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         nw_func = rpcc.cctxt.call(context, 'get_network_functions',
                                   filters={'service_id': [resource_data[
                                            'resource']['id']]})
         if not nw_func:
-            status = 'ERROR'
+            vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
+                                  id=resource_data['resource']['id'])
+            return
         else:
             rpcc.cctxt.call(context, 'delete_network_function',
                             network_function_id=nw_func[0]['id'])
@@ -256,7 +261,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
                                       id=resource_data['resource']['id'])
                 return
-        LOG.error("delete failed %s " % resource_data)
+        LOG.error("Delete of vpnservice %s failed" % resource_data)
         vpnsvc_status = [{
                 'id': resource_data['resource']['id'],
                 'status': status,
