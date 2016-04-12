@@ -10,6 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+FIREWALL = 'firewall'
+LOADBALANCER = 'loadbalancer'
+VPN = 'vpn'
+
 GBP_MODE = "gbp"
 NEUTRON_MODE = "neutron"
 NOVA_MODE = "nova"
@@ -38,7 +42,7 @@ ERROR = "ERROR"
 
 HEAT_CONFIG_TAG = 'heat_config'
 CONFIG_INIT_TAG = 'config_init'
-ANSIBLE_TAG =  'ansible'
+ANSIBLE_TAG = 'ansible'
 
 COMPLETED = "COMPLETED"
 IN_PROGRESS = "IN_PROGRESS"

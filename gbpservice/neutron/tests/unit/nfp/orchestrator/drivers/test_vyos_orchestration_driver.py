@@ -143,6 +143,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
                        'service_vendor': 'vyos',
                        'management_network_info': {'id': '2'},
                        'service_details': {'device_type': 'xyz'},
+                       'name': 'FIREWALL.vyos.1.2',
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'},

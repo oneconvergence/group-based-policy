@@ -143,6 +143,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                        'service_vendor': 'haproxy',
                        'management_network_info': {'id': '2'},
                        'service_details': {'device_type': 'xyz'},
+                       'name': 'LOADBALANCER.haproxy.1.2',
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'},

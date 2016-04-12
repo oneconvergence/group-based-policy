@@ -281,6 +281,7 @@ class OrchestrationDriverBase(object):
                             'service_vendor',
                             'service_details',
                             'network_model',
+                            'name',
                             'management_network_info',
                             'ports']) or
 
@@ -389,7 +390,7 @@ class OrchestrationDriverBase(object):
                                           by=len(interfaces))
             return None
 
-        instance_name = 'instance'  # TODO(RPM):use proper name
+        instance_name = device_data['name']
         try:
             instance_id = self.compute_handler_nova.create_instance(
                     token, self._get_admin_tenant_id(token=token),
@@ -618,7 +619,11 @@ class OrchestrationDriverBase(object):
         try:
             for port in device_data['ports']:
                 if port['port_classification'] == nfp_constants.PROVIDER:
-                    network_handler.set_promiscuos_mode(token, port['id'])
+                    if (
+                        device_data['service_details']['service_type'].lower()
+                        in [nfp_constants.FIREWALL]
+                    ):
+                        network_handler.set_promiscuos_mode(token, port['id'])
                     port_id = network_handler.get_port_id(token, port['id'])
                     self.compute_handler_nova.attach_interface(
                                 token,
@@ -628,7 +633,11 @@ class OrchestrationDriverBase(object):
                     break
             for port in device_data['ports']:
                 if port['port_classification'] == nfp_constants.CONSUMER:
-                    network_handler.set_promiscuos_mode(token, port['id'])
+                    if (
+                        device_data['service_details']['service_type'].lower()
+                        in [nfp_constants.FIREWALL]
+                    ):
+                        network_handler.set_promiscuos_mode(token, port['id'])
                     port_id = network_handler.get_port_id(token, port['id'])
                     self.compute_handler_nova.attach_interface(
                                 token,
