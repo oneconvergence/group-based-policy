@@ -293,9 +293,9 @@ class HeatDriver(object):
         db_session = nfp_db_api.get_session()
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
-        provider = service_details['policy_target_group']
-        provider = service_details['provider_ptg']
-        provider_tenant_id = provider['tenant_id']
+        # provider = service_details['policy_target_group']
+        # provider = service_details['provider_ptg']
+        # provider_tenant_id = provider['tenant_id']
         if service_profile['service_type'] == pconst.LOADBALANCER:
             network_function_instance = network_function_details.get(
                 'network_function_instance')
