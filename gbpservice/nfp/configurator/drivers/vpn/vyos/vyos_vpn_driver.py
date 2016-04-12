@@ -840,6 +840,11 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         access_ip = svc_desc.get("user_access_ip")
         return access_ip
 
+    def _get_stitching_gw_from_desc(self, conn):
+        svc_desc = ast.literal_eval(conn['description'])
+        stitching_gw = svc_desc.get("stitching_gateway")
+        return stitching_gw
+
     def _ipsec_conn_correct_enc_algo(self, conn):
         ike_enc_algo = conn['ikepolicy']['encryption_algorithm']
         ipsec_enc_algo = conn['ipsecpolicy']['encryption_algorithm']
@@ -1150,6 +1155,11 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             LOG.error(msg)
         try:
             if not tenant_conns:
+                msg = "Adding default route for stitching network"
+                LOG.debug()
+                gateway_ip = self._get_stitching_gw_from_desc(conn)
+                RestApi(mgmt_fip).post("add-stitching-route",
+                                   {'gateway_ip': gateway_ip})
                 self._ipsec_create_conn(context, mgmt_fip, conn)
             else:
                 """
