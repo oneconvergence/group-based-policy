@@ -115,3 +115,20 @@ class RpcHandler(object):
             LOG(LOGGER, 'ERROR',
                 "delete_network_function_device_config ->"
                 "request failed.Reason %s " % (rce))
+
+    @log_helpers.log_method_call
+    def network_function_event(self, context, body):
+        """Method of rpc handler for create_service.
+        Return: Http Response.
+        """
+        try:
+            resp, content = rc.post('network_function_event',
+                                    body=body)
+            LOG(LOGGER, 'INFO',
+                "create_service ->"
+                "POST response: (%s)" % (content))
+
+        except rc.RestClientException as rce:
+            LOG(LOGGER, 'ERROR',
+                "network_function_event ->"
+                "request failed.Reason %s " % (rce))

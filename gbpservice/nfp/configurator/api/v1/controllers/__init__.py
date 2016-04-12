@@ -39,7 +39,8 @@ class ControllerResolver(object):
     update_network_function_config = controller.Controller(
         "update_network_function_config")
     get_notifications = controller.Controller("get_notifications")
-
+    network_function_event = controller.Controller("network_function_event")
+    get_requests = controller.Controller("get_requests")
 
 """ This class forwards HTTP requests starting with /v1/nfp.
 
