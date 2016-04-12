@@ -339,6 +339,7 @@ class ServiceOrchestrator(object):
         #self.db_session = nfp_db_api.get_session()
         self.gbpclient = openstack_driver.GBPClient(config)
         self.keystoneclient = openstack_driver.KeystoneClient(config)
+        self.neutronclient = openstack_driver.NeutronClient(config)
         self.config_driver = heat_driver.HeatDriver(config)
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = NSOConfiguratorRpcApi(neutron_context, config)
@@ -521,7 +522,7 @@ class ServiceOrchestrator(object):
             }
         else:
             management_network_info = dict(id=mgmt_nw,
-                port_model=orchestrator_constants.NEUTRON_PORT)
+                port_model=nfp_constants.NEUTRON_PORT)
 
         create_network_function_instance_request = {
             'network_function': network_function,
