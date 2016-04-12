@@ -138,7 +138,7 @@ class NDORpcApiTestCase(unittest.TestCase):
 
     def test_create_network_function_device_config(self):
         context = 'context'
-        conf = 'config'
+        conf = {'info': 'info'}
         self.rpc_handler = device_orchestrator.NDOConfiguratorRpcApi(
             context, conf)
         self.rpc_handler.conf = mock.MagicMock(return_value=conf)
@@ -147,8 +147,11 @@ class NDORpcApiTestCase(unittest.TestCase):
         device_data = {'id': 'network_function_id',
              'network_function_id': 'network_function_id',
              'network_function_instance_id': 'network_function_instance_id',
-             'network_function_device_id': 'network_function_instance_id'}
-        config_params = {'config': {}}
+             'network_function_device_id': 'network_function_instance_id',
+             'mgmt_ip_address': 'mgmt-ip',
+             'service_details': {'service_type': 'service_type'}}
+        config_params = {'info': {'service_type': ''},
+                         'config': [{'kwargs': {}}]}
         transport.send_request_to_configurator = mock.MagicMock(
             return_value=True)
         self.rpc_handler.create_network_function_device_config(device_data,
@@ -169,8 +172,11 @@ class NDORpcApiTestCase(unittest.TestCase):
         device_data = {'id': 'network_function_id',
              'network_function_id': 'network_function_id',
              'network_function_instance_id': 'network_function_instance_id',
-             'network_function_device_id': 'network_function_instance_id'}
-        config_params = {'config': {}}
+             'network_function_device_id': 'network_function_instance_id',
+             'mgmt_ip_address': 'mgmt-ip',
+             'service_details': {'service_type': 'service_type'}}
+        config_params = {'info': {'service_type': ''},
+                         'config': [{'kwargs': {}}]}
         transport.send_request_to_configurator = mock.MagicMock(
             return_value=True)
         self.rpc_handler.delete_network_function_device_config(device_data,
