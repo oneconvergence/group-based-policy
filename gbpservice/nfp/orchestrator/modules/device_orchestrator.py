@@ -811,8 +811,6 @@ class NDOConfiguratorRpcApi(object):
             return None
         for config in config_params.get('config'):
             config['kwargs']['request_info'] = request_info
-        config_params['info']['service_type'] = (
-                device_data['service_details']['service_type'])
 
     def create_network_function_device_config(self, device_data,
                                               config_params):
