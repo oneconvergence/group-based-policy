@@ -193,7 +193,8 @@ class RpcHandler(object):
     def get_network_function_details(self, context, network_function_id):
         '''Invoked in an RPC Call.
 
-        Return the Network function Details object'''
+        Return the Network function Details object
+        '''
         service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.get_network_function_details(
             network_function_id)
