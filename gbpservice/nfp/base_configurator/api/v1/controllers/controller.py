@@ -140,8 +140,6 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            service_type = body['info'].get('service_type')
-
             # Assuming config list will have only one element
             config_data = body['config'][0]
             context = config_data['kwargs']['context']
@@ -157,6 +155,7 @@ class Controller(rest.RestController):
                     data=jsonutils.dumps(body))
                 cache_ips.add(device_ip)
             else:
+                service_type = body['info'].get('service_type')
                 if (service_type == "config_init"):
                     result = "unhandled"
                     self._push_notification(context, request_info,
@@ -194,8 +193,6 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            service_type = body['info'].get('service_type')
-
             # Assuming config list will have only one element
             config_data = body['config'][0]
             context = config_data['kwargs']['context']
@@ -210,6 +207,7 @@ class Controller(rest.RestController):
                     data=jsonutils.dumps(body))
                 cache_ips.add(device_ip)
             else:
+                service_type = body['info'].get('service_type')
                 if (service_type == "config_init"):
                     result = "unhandled"
                     self._push_notification(context, request_info,
