@@ -10,10 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from oslo_log import log as logging
-import oslo_messaging as messaging
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.core.event import Event
@@ -24,8 +20,12 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from neutron._i18n import _LE
+from neutron._i18n import _LI
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
+from oslo_log import log as logging
+import oslo_messaging as messaging
 
 LOG = logging.getLogger(__name__)
 
