@@ -521,8 +521,8 @@ class ServiceOrchestrator(object):
                 'port_model': nfp_constants.GBP_NETWORK
             }
         else:
-            management_network_info = dict(id=mgmt_nw,
-                port_model=nfp_constants.NEUTRON_PORT)
+            management_network_info = dict(
+                id=mgmt_nw, port_model=nfp_constants.NEUTRON_PORT)
 
         create_network_function_instance_request = {
             'network_function': network_function,
