@@ -248,10 +248,10 @@ class RpcHandlerConfigurator(object):
                 network_function_id = event_data['network_function_details'
                                                  ]['network_function']['id']
                 ev = self._controller.new_event(
-                         id=event_id, data=event_data,
-                         binding_key=network_function_id,
-                         key=network_function_id,
-                         serialize=True)
+                                            id=event_id, data=event_data,
+                                            binding_key=network_function_id,
+                                            key=network_function_id,
+                                            serialize=True)
             else:
                 ev = self._controller.new_event(id=event_id, data=event_data)
             self._controller.post_event(ev)
@@ -844,9 +844,10 @@ class ServiceOrchestrator(object):
     def handle_config_applied(self, event):
         event_data = event.data
         network_function_id = event_data['network_function_details'
-                                        ]['network_function']['id']
+                                         ]['network_function']['id']
         network_function_instance = event_data['network_function_details'
-                                        ].get('network_function_instance')
+                                               ].get(
+                                                   'network_function_instance')
         if network_function_instance:
             network_function_instance_id = network_function_instance['id']
             nfi = {
@@ -966,9 +967,9 @@ class ServiceOrchestrator(object):
         network_function_data = {
             'network_function_details': network_function_details,
             'policy_target': policy_target
-        }
+                                }
         tag_str, _ = self.config_driver.\
-                        parse_template_config_string(service_config)
+            parse_template_config_string(service_config)
         self.configurator_rpc.policy_target_add_user_config(
             network_function_data, service_config, tag_str)
 
@@ -1023,9 +1024,9 @@ class ServiceOrchestrator(object):
         network_function_data = {
             'network_function_details': network_function_details,
             'policy_target': policy_target
-        }
+                                }
         tag_str, _ = self.config_driver.\
-                        parse_template_config_string(service_config)
+            parse_template_config_string(service_config)
         self.configurator_rpc.policy_target_remove_user_config(
             network_function_data, service_config, tag_str)
 
@@ -1081,9 +1082,9 @@ class ServiceOrchestrator(object):
         network_function_data = {
             'network_function_details': network_function_details,
             'consumer_ptg': consumer_ptg
-        }
+                                }
         tag_str, _ = self.config_driver.\
-                        parse_template_config_string(service_config)
+            parse_template_config_string(service_config)
         self.configurator_rpc.consumer_add_user_config(
             network_function_data, service_config, tag_str)
 
@@ -1140,9 +1141,9 @@ class ServiceOrchestrator(object):
         network_function_data = {
             'network_function_details': network_function_details,
             'consumer_ptg': consumer_ptg
-        }
+                                }
         tag_str, _ = self.config_driver.\
-                        parse_template_config_string(service_config)
+            parse_template_config_string(service_config)
         self.configurator_rpc.consumer_remove_user_config(
             network_function_data, service_config, tag_str)
 

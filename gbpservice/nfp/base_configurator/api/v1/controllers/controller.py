@@ -99,7 +99,7 @@ class Controller(rest.RestController):
             else:
                 for ip in cache_ips:
                     notification_response = requests.get(
-                        'http://'+str(ip)+':8080/v1/nfp/get_notifications')
+                        'http://' + str(ip) + ':8080/v1/nfp/get_notifications')
                     notification = jsonutils.loads(notification_response.text)
                     notifications.extend(notification)
                     cache_ips.remove(ip)
@@ -153,7 +153,7 @@ class Controller(rest.RestController):
                 device_ip = request_info['device_ip']
                 ip = str(device_ip)
                 requests.post(
-                    'http://'+ip+':8080/v1/nfp/'+self.method_name,
+                    'http://' + ip + ':8080/v1/nfp/' + self.method_name,
                     data=jsonutils.dumps(body))
                 cache_ips.add(device_ip)
             else:
@@ -206,7 +206,7 @@ class Controller(rest.RestController):
                 device_ip = request_info['device_ip']
                 ip = str(device_ip)
                 requests.post(
-                    'http://'+ip+':8080/v1/nfp/'+self.method_name,
+                    'http://' + ip + ':8080/v1/nfp/' + self.method_name,
                     data=jsonutils.dumps(body))
                 cache_ips.add(device_ip)
             else:
