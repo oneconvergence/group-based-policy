@@ -10,8 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-supported_service_types = ['firewall', 'vpn', 'loadbalancer',
-                           'config_script', None]
+supported_service_types = ['firewall', 'vpn', 'loadbalancer', None]
 invalid_service_type = 'invalid'
 SUCCESS = 'SUCCESS'
 FAILED = 'FAILED'
