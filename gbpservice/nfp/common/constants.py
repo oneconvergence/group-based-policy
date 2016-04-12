@@ -54,3 +54,4 @@ CONFIG_TAG_RESOURCE_MAP = {
     CONFIG_INIT_TAG: 'config_init',
     ANSIBLE_TAG: 'ansible'}
 
+LOADBALANCER_RPC_API_VERSION = "2.0"

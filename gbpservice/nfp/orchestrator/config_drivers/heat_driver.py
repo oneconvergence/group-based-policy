@@ -75,7 +75,9 @@ cfg.CONF.register_opts(HEAT_DRIVER_OPTS,
 
 SC_METADATA = ('{"sc_instance":"%s", "floating_ip": "%s", '
                '"provider_interface_mac": "%s", '
-               '"standby_provider_interface_mac": "%s"}')
+               '"standby_provider_interface_mac": "%s",'
+               '"network_function_id": "%s"}')
+
 SVC_MGMT_PTG_NAME = (
     cfg.CONF.heat_driver.svc_management_ptg_name)
 
@@ -145,7 +147,7 @@ class HeatDriver(object):
         self.gbp_client = GBPClient(config)
         self.neutron_client = NeutronClient(config)
         self.initialized = True
-        #self.resource_owner_tenant_id = None
+        # self.resource_owner_tenant_id = None
 
     '''
     @property
@@ -445,7 +447,7 @@ class HeatDriver(object):
 
         if not redirect_prs:
             LOG.error(_LE("Redirect rule doesn't exist in policy target rule "
-                      " set"))
+                          " set"))
             return None, None
         return (redirect_prs['consuming_policy_target_groups'],
                 redirect_prs['consuming_external_policies'])
@@ -524,8 +526,8 @@ class HeatDriver(object):
                     break
             if not provider_cidr:
                 LOG.error(_LE("Unable to get provider cidr for provider "
-                    "policy target group %(provider_ptg)s") %
-                    {"provider_ptg": provider})
+                              "policy target group %(provider_ptg)s") %
+                          {"provider_ptg": provider})
                 return None
 
             fw_template_properties = dict(
@@ -606,7 +608,7 @@ class HeatDriver(object):
 
         if node_update and not rvpn_l3_policy:
             LOG.error(_LE("Unable to get L3 policy for remote VPN "
-                "while updating node"))
+                          "while updating node"))
             return None
 
         if not rvpn_l3_policy:
@@ -656,7 +658,7 @@ class HeatDriver(object):
 
     def _update_node_config(self, auth_token, tenant_id, service_profile,
                             service_chain_node, service_chain_instance,
-                            provider, consumer_port,
+                            provider, consumer_port, network_function,
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
         provider_cidr = provider_subnet = None
@@ -677,15 +679,16 @@ class HeatDriver(object):
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
 
-        #stack_template = service_chain_node.get('config')
+        # stack_template = service_chain_node.get('config')
         _, stack_template_str = self.parse_template_config_string(
-                service_chain_node.get('config'))
+            service_chain_node.get('config'))
         try:
             stack_template = (jsonutils.loads(stack_template_str) if
                               stack_template_str.startswith('{') else
                               yaml.load(stack_template_str))
         except Exception:
-            LOG.error(_LE("Unable to load stack template for service chain "
+            LOG.error(_LE(
+                "Unable to load stack template for service chain "
                 "node:  %(node_id)s") % {'node_id': service_chain_node})
             return None, None
         config_param_values = service_chain_instance.get(
@@ -728,7 +731,8 @@ class HeatDriver(object):
                     SC_METADATA % (service_chain_instance['id'],
                                    mgmt_ip,
                                    provider_port_mac,
-                                   standby_provider_port_mac))
+                                   standby_provider_port_mac,
+                                   network_function['id']))
         elif service_type == pconst.FIREWALL:
             stack_template = self._update_firewall_template(
                 auth_token, provider, stack_template)
@@ -740,7 +744,9 @@ class HeatDriver(object):
                 firewall_desc = {'vm_management_ip': mgmt_ip,
                                  'provider_ptg_info': [provider_port_mac],
                                  'provider_cidr': provider_cidr,
-                                 'service_vendor': service_vendor}
+                                 'service_vendor': service_vendor,
+                                 'network_function_id': network_function[
+                                     'id']}
 
                 fw_key = self._get_heat_resource_key(
                     stack_template[resources_key],
@@ -749,11 +755,11 @@ class HeatDriver(object):
                 stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
         elif service_type == pconst.VPN:
-            #rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token,
+            # rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token,
             #    provider, update)
-            #if rvpn_l3_policy is None:
+            # if rvpn_l3_policy is None:
             #    return None, None
-            #config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
+            # config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
             #    'ip_pool']
             config_param_values['Subnet'] = (
                 consumer_port['fixed_ips'][0]['subnet_id']
@@ -811,7 +817,7 @@ class HeatDriver(object):
                     auth_token, consumer_port['id'])
                 if not floatingips:
                     LOG.Error(_LE("Floating IP for VPN Service has been "
-                         "disassociated Manually"))
+                                  "disassociated Manually"))
                     return None, None
                 stitching_port_fip = floatingips[0]['floating_ip_address']
                 desc = ('fip=' + mgmt_ip +
@@ -823,7 +829,8 @@ class HeatDriver(object):
                         ';stitching_cidr=' + stitching_cidr +
                         ';stitching_gateway=' + stitching_subnet[
                             'gateway_ip'] +
-                        ';mgmt_gw_ip=' + mgmt_gw_ip)
+                        ';mgmt_gw_ip=' + mgmt_gw_ip,
+                        ';network_function_id=' + network_function['id'])
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
                     stack_template[resources_key],
@@ -984,10 +991,11 @@ class HeatDriver(object):
                         'DELETE_IN_PROGRESS']:
                     return
             except heat_exc.HTTPNotFound:
-                LOG.warning(_LW("Stack %(stack)s created by service chain "
-                           "driver is not found while waiting for %(action)s "
-                           "to complete"),
-                         {'stack': stack_id, 'action': action})
+                LOG.warning(_LW(
+                    "Stack %(stack)s created by service chain "
+                    "driver is not found while waiting for %(action)s "
+                    "to complete"),
+                    {'stack': stack_id, 'action': action})
                 if action == "create" or action == "update":
                     operation_failed = True
                 else:
@@ -1029,16 +1037,18 @@ class HeatDriver(object):
                             pass
                         return
                     else:
-                        LOG.error(_LE("Stack %(stack_name)s %(action)s not "
-                                  "completed within %(time)s seconds where "
-                                  "stack owner is %(stack_owner)s") %
-                            {'stack_name': stack.stack_name, 'action': action,
-                            'time': wait_timeout,
-                            'stack_owner': stack.stack_owner})
+                        LOG.error(_LE(
+                            "Stack %(stack_name)s %(action)s not "
+                            "completed within %(time)s seconds where "
+                            "stack owner is %(stack_owner)s") %
+                            {'stack_name': stack.stack_name,
+                             'action': action,
+                             'time': wait_timeout,
+                             'stack_owner': stack.stack_owner})
                         return None
 
     def is_config_complete(self, stack_id, tenant_id,
-        network_function_details):
+                           network_function_details):
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
@@ -1139,7 +1149,9 @@ class HeatDriver(object):
         stack_template, stack_params = self._update_node_config(
             auth_token, provider_tenant_id, service_profile,
             service_chain_node, service_chain_instance, provider,
-            consumer_port, provider_port, mgmt_ip=mgmt_ip, consumer=consumer)
+            consumer_port, network_function_details['network_function'],
+            provider_port, mgmt_ip=mgmt_ip, consumer=consumer)
+
         if not stack_template and not stack_params:
             return None
 
@@ -1147,8 +1159,8 @@ class HeatDriver(object):
             stack = heatclient.create(stack_name, stack_template, stack_params)
         except Exception:
             LOG.error(_LE("Heat stack creation failed for template : "
-                "%(template)s and stack parameters : %(params)s") %
-                {'template': stack_template, 'params': stack_params})
+                          "%(template)s and stack parameters : %(params)s") %
+                      {'template': stack_template, 'params': stack_params})
             return None
 
         stack_id = stack['stack']['id']
@@ -1178,8 +1190,8 @@ class HeatDriver(object):
 
     def _update(self, auth_token, resource_owner_tenant_id, service_profile,
                 service_chain_node, service_chain_instance, provider,
-                consumer_port, provider_port, stack_id, mgmt_ip=None,
-                pt_added_or_removed=False):
+                consumer_port, network_function, provider_port, stack_id,
+                mgmt_ip=None, pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
         service_type = service_profile['service_type']
         service_details = transport.parse_service_flavor_string(
@@ -1200,7 +1212,7 @@ class HeatDriver(object):
         stack_template, stack_params = self._update_node_config(
             auth_token, provider_tenant_id, service_profile,
             service_chain_node, service_chain_instance, provider,
-            consumer_port, provider_port,
+            consumer_port, network_function, provider_port,
             update=True, mgmt_ip=mgmt_ip)
         if not stack_template and not stack_params:
             return None
@@ -1308,7 +1320,9 @@ class HeatDriver(object):
         stack_id = self._update(auth_token, resource_owner_tenant_id,
                                 service_profile, service_chain_node,
                                 service_chain_instance, provider,
-                                consumer_port, provider_port,
+                                consumer_port, network_function_details[
+                                    'network_function'],
+                                provider_port,
                                 stack_id, mgmt_ip)
 
         if not stack_id:
@@ -1316,7 +1330,7 @@ class HeatDriver(object):
         return stack_id
 
     def handle_policy_target_operations(self, network_function_details,
-                                     policy_target, operation):
+                                        policy_target, operation):
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
@@ -1336,19 +1350,22 @@ class HeatDriver(object):
                 stack_id = self._update(auth_token, resource_owner_tenant_id,
                                         service_profile, service_chain_node,
                                         service_chain_instance, provider,
-                                        consumer_port, provider_port, stack_id,
+                                        consumer_port,
+                                        network_function_details[
+                                            'network_function'],
+                                        provider_port, stack_id,
                                         mgmt_ip, pt_added_or_removed=True)
                 return stack_id
             except Exception:
                 LOG.exception(_LE("Processing policy target %(operation)s "
-                    " failed") % {'operation': operation})
+                                  " failed") % {'operation': operation})
                 return None
 
     def notify_chain_parameters_updated(self, network_function_details):
         pass  # We are not using the classifier specified in redirect Rule
 
     def handle_consumer_ptg_operations(self, network_function_details,
-                                  policy_target_group, operation):
+                                       policy_target_group, operation):
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
@@ -1366,13 +1383,16 @@ class HeatDriver(object):
                 stack_id = self._update(auth_token, resource_owner_tenant_id,
                                         service_profile, service_chain_node,
                                         service_chain_instance, provider,
-                                        consumer_port, provider_port,
-                                        stack_id, mgmt_ip)
+                                        consumer_port,
+                                        network_function_details[
+                                            'network_function'],
+                                        provider_port, stack_id, mgmt_ip)
 
                 if not stack_id:
                     return None
                 return stack_id
             except Exception:
-                LOG.exception(_LE("Processing policy target group "
+                LOG.exception(_LE(
+                    "Processing policy target group "
                     "%(operation)s failed") % {'operation': operation})
                 return None
