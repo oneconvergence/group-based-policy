@@ -158,7 +158,7 @@ class Controller(rest.RestController):
                     data=jsonutils.dumps(body))
 
             else:
-                if (service_type == "heat"):
+                if (service_type == "config_init"):
                     result = "unhandled"
                     self._push_notification(context, request_info,
                                             result, config_data)
