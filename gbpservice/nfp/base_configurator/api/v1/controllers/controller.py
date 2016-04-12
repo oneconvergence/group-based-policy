@@ -151,12 +151,11 @@ class Controller(rest.RestController):
                 msg = ("POSTING DATA TO VM :: %s" % body)
                 LOG.info(msg)
                 device_ip = request_info['device_ip']
-                cache_ips.add(device_ip)
                 ip = str(device_ip)
                 requests.post(
                     'http://'+ip+':8080/v1/nfp/'+self.method_name,
                     data=jsonutils.dumps(body))
-
+                cache_ips.add(device_ip)
             else:
                 if (service_type == "config_init"):
                     result = "unhandled"
@@ -205,14 +204,13 @@ class Controller(rest.RestController):
                 msg = ("PUTTING DATA TO VM :: %s" % body)
                 LOG.info(msg)
                 device_ip = request_info['device_ip']
-                cache_ips.add(device_ip)
                 ip = str(device_ip)
                 requests.post(
                     'http://'+ip+':8080/v1/nfp/'+self.method_name,
                     data=jsonutils.dumps(body))
-
+                cache_ips.add(device_ip)
             else:
-                if (service_type == "heat"):
+                if (service_type == "config_init"):
                     result = "unhandled"
                     self._push_notification(context, request_info,
                                             result, config_data)
