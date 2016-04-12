@@ -15,7 +15,6 @@ import oslo_serialization.jsonutils as jsonutils
 from oslo_log import log as logging
 import pecan
 from pecan import rest
-import requests
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
@@ -29,16 +28,14 @@ Implements following HTTP methods.
 """
 
 notifications = []
-cache_ips = set()
 
 
 class Controller(rest.RestController):
 
     def __init__(self, method_name):
         try:
-            self.method_name = method_name
-            self.supported_service_types = ['config_script',
-                                            'firewall',
+            self.method_name = "network_function_device_notification"
+            self.supported_service_types = ['config_script', 'firewall',
                                             'loadbalancer', 'vpn']
             self.resource_map = {
                 ('interfaces', 'healthmonitor', 'routes'): 'orchestrator',
@@ -53,7 +50,6 @@ class Controller(rest.RestController):
             LOG.error(msg)
 
     def _push_notification(self, context, request_info, result, config_data):
-        global notifications
         resource = config_data['resource']
         receiver = ''
         for key in self.resource_map.keys():
@@ -63,7 +59,7 @@ class Controller(rest.RestController):
         response = {
             'receiver': receiver,
             'resource': resource,
-            'method': 'network_function_device_notification',
+            'method': self.method_name,
             'kwargs': [
                 {
                     'context': context,
@@ -86,32 +82,15 @@ class Controller(rest.RestController):
         Returns: Dictionary that contains Notification data
 
         """
-        global cache_ips
+
         global notifications
         try:
-            if not cache_ips:
-                notification_data = jsonutils.dumps(notifications)
-                msg = ("NOTIFICATION_DATA sent to config_agent %s"
-                       % notification_data)
-                LOG.info(msg)
-                notifications = []
-                return notification_data
-            else:
-                for ip in cache_ips:
-                    notification_response = requests.get(
-                        'http://' + str(ip) + ':8080/v1/nfp/get_notifications')
-                    notification = jsonutils.loads(notification_response.text)
-                    notifications.extend(notification)
-                    cache_ips.remove(ip)
-                    if ip not in cache_ips:
-                        break
-                notification_data = jsonutils.dumps(notifications)
-                msg = ("NOTIFICATION_DATA sent to config_agent %s"
-                       % notification_data)
-                LOG.info(msg)
-                notifications = []
-
-                return notification_data
+            notification_data = jsonutils.dumps(notifications)
+            msg = ("NOTIFICATION_DATA sent to config_agent %s"
+                   % notification_data)
+            LOG.info(msg)
+            notifications = []
+            return notification_data
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to get notification_data  %s."
@@ -122,20 +101,7 @@ class Controller(rest.RestController):
 
     @pecan.expose(method='POST', content_type='application/json')
     def post(self, **body):
-        """Method of REST server to handle all the post requests.
-
-        This method sends an RPC cast to configurator according to the
-        HTTP request.
-
-        :param body: This method excepts dictionary as a parameter in HTTP
-        request and send this dictionary to configurator with RPC cast.
-
-        Returns: None
-
-        """
         try:
-            global cache_ips
-            global notifications
             body = None
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
@@ -147,24 +113,14 @@ class Controller(rest.RestController):
             context = config_data['kwargs']['context']
             request_info = config_data['kwargs']['request_info']
 
-            if 'device_ip' in request_info:
-                msg = ("POSTING DATA TO VM :: %s" % body)
-                LOG.info(msg)
-                device_ip = request_info['device_ip']
-                ip = str(device_ip)
-                requests.post(
-                    'http://' + ip + ':8080/v1/nfp/' + self.method_name,
-                    data=jsonutils.dumps(body))
-                cache_ips.add(device_ip)
+            if service_type.lower() in self.supported_service_types:
+                result = "success"
+                self._push_notification(context, request_info,
+                                        result, config_data)
             else:
-                if (service_type == "config_init"):
-                    result = "unhandled"
-                    self._push_notification(context, request_info,
-                                            result, config_data)
-                else:
-                    result = "error"
-                    self._push_notification(context, request_info,
-                                            result, config_data)
+                result = "error"
+                self._push_notification(context, request_info,
+                                        result, config_data)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."
@@ -175,21 +131,7 @@ class Controller(rest.RestController):
 
     @pecan.expose(method='PUT', content_type='application/json')
     def put(self, **body):
-        """Method of REST server to handle all the put requests.
-
-        This method sends an RPC cast to configurator according to the
-        HTTP request.
-
-        :param body: This method excepts dictionary as a parameter in HTTP
-        request and send this dictionary to configurator with RPC cast.
-
-        Returns: None
-
-        """
-
         try:
-            global cache_ips
-            global notifications
             body = None
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
@@ -200,27 +142,18 @@ class Controller(rest.RestController):
             config_data = body['config'][0]
             context = config_data['kwargs']['context']
             request_info = config_data['kwargs']['request_info']
-            if 'device_ip' in request_info:
-                msg = ("PUTTING DATA TO VM :: %s" % body)
-                LOG.info(msg)
-                device_ip = request_info['device_ip']
-                ip = str(device_ip)
-                requests.post(
-                    'http://' + ip + ':8080/v1/nfp/' + self.method_name,
-                    data=jsonutils.dumps(body))
-                cache_ips.add(device_ip)
+
+            if service_type.lower() in self.supported_service_types:
+                result = "success"
+                self._push_notification(context, request_info,
+                                        result, config_data)
             else:
-                if (service_type == "config_init"):
-                    result = "unhandled"
-                    self._push_notification(context, request_info,
-                                            result, config_data)
-                else:
-                    result = "error"
-                    self._push_notification(context, request_info,
-                                            result, config_data)
+                result = "error"
+                self._push_notification(context, request_info,
+                                        result, config_data)
         except Exception as err:
             pecan.response.status = 400
-            msg = ("Failed to serve HTTP post request %s %s."
+            msg = ("Failed to serve HTTP put request %s %s."
                    % (self.method_name, str(err).capitalize()))
             LOG.error(msg)
             error_data = self._format_description(msg)

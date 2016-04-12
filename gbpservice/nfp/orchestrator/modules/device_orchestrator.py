@@ -10,11 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from oslo_log import log as logging
-import oslo_messaging as messaging
-
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.core.event import Event
@@ -25,8 +20,12 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from neutron._i18n import _LE
+from neutron._i18n import _LI
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
+from oslo_log import log as logging
+import oslo_messaging as messaging
 
 LOG = logging.getLogger(__name__)
 
@@ -73,6 +72,7 @@ class RpcHandler(object):
         self._controller = controller
         self.rpc_event_mapping = {
                           'healthmonitor': ['DEVICE_HEALTHY',
+                                           'DEVICE_NOT_REACHABLE',
                                            'DEVICE_NOT_REACHABLE'],
                           'interfaces': ['DEVICE_CONFIGURED',
                                          'DELETE_CONFIGURATION_COMPLETED',
@@ -267,7 +267,7 @@ class DeviceOrchestrator(object):
                     binding_key=original_event.binding_key,
                     key=original_event.desc.uid)
                 LOG.debug("poll event started for %s" % (ev.id))
-                self._controller.poll_event(ev, max_times=10)
+                self._controller.poll_event(ev, max_times=20)
             else:
                 ev = self._controller.new_event(id=event_id, data=event_data)
                 self._controller.post_event(ev)
@@ -801,6 +801,8 @@ class NDOConfiguratorRpcApi(object):
                 'network_function_device_id': device['id'],
                 'operation': operation
         }
+        nfd_ip = device['mgmt_ip_address']
+        request_info.update({'device_ip': nfd_ip})
         return request_info
 
     def _update_params(self, device_data, config_params, operation):
@@ -809,6 +811,8 @@ class NDOConfiguratorRpcApi(object):
             return None
         for config in config_params.get('config'):
             config['kwargs']['request_info'] = request_info
+        config_params['info']['service_type'] = (
+                device_data['service_details']['service_type'])
 
     def create_network_function_device_config(self, device_data,
                                               config_params):

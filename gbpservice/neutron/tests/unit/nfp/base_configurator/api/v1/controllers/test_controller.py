@@ -44,11 +44,11 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         RootController = root_controller.RootController()
         self.app = webtest.TestApp(pecan.make_app(RootController))
         self.data = {'info': {'service_type': 'heat'}, 'config': [
-            {'resource': 'Res', 'kwargs': {'context': 'context',
-                                           'request_info': 'request_info'}}]}
+            {'resource': 'heat', 'kwargs': {'context': 'context',
+                                            'request_info': 'request_info'}}]}
         self.data_error = {'info': {'service_type': 'others'}, 'config': [
-            {'resource': 'Res', 'kwargs': {'context': 'context',
-                                           'request_info': 'request_info'}}]}
+            {'resource': 'heat', 'kwargs': {'context': 'context',
+                                            'request_info': 'request_info'}}]}
 
     def post_create_network_function_config_with_heat(self):
         """Tests HTTP post request create_network_function_device_config.
@@ -115,7 +115,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                     'context': context,
                     'resource': 'heat',
                     'request_info': request_info,
-                    'result': 'unhandled'
+                    'result': 'error'
                 }
             ]
         }

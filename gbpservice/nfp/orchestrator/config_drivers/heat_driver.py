@@ -295,9 +295,9 @@ class HeatDriver(object):
         db_session = nfp_db_api.get_session()
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
-        provider = service_details['policy_target_group']
-        provider = service_details['provider_ptg']
-        provider_tenant_id = provider['tenant_id']
+        # provider = service_details['policy_target_group']
+        # provider = service_details['provider_ptg']
+        # provider_tenant_id = provider['tenant_id']
         if service_profile['service_type'] == pconst.LOADBALANCER:
             network_function_instance = network_function_details.get(
                 'network_function_instance')
@@ -306,10 +306,13 @@ class HeatDriver(object):
                     port_info = db_handler.get_port_info(db_session, port)
                     if port_info['port_model'] != nfp_constants.GBP_PORT:
                         return
-            auth_token, provider_tenant_id = self._get_tenant_context(
-                provider_tenant_id)
-            self._create_policy_target_for_vip(auth_token,
-                                               provider_tenant_id, provider)
+            # _, provider_tenant_id = self._get_tenant_context(
+            #     provider_tenant_id)
+            # TODO(yogesh): Need to revisit this. Due to this pt, provider
+            # group is not getting, deleted, throwing error ptg in use.
+            # We need to manually delete pt first to delete group.
+            # self._create_policy_target_for_vip(auth_token,
+            #                                    provider_tenant_id, provider)
 
     def _create_policy_target_for_vip(self, auth_token,
                                       provider_tenant_id, provider):
@@ -861,6 +864,7 @@ class HeatDriver(object):
                 return None, None
         if not service_config:
             service_config = config_str
+            tag_str = nfp_constants.HEAT_CONFIG_TAG
         return tag_str, service_config
 
     def get_service_details(self, network_function_details):
