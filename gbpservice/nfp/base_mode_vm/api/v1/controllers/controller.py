@@ -34,9 +34,9 @@ class Controller(rest.RestController):
 
     def __init__(self, method_name):
         try:
-            self.method_name = method_name
-            self.supported_service_types = ['config_script',
-                                            'firewall', 'loadbalancer', 'vpn']
+            self.method_name = "network_function_device_notification"
+            self.supported_service_types = ['config_script', 'firewall',
+                                            'loadbalancer', 'vpn']
             self.resource_map = {
                 ('interfaces', 'healthmonitor', 'routes'): 'orchestrator',
                 ('heat'): 'service_orchestrator',
@@ -59,7 +59,7 @@ class Controller(rest.RestController):
         response = {
             'receiver': receiver,
             'resource': resource,
-            'method': 'network_function_device_notification',
+            'method': self.method_name,
             'kwargs': [
                 {
                     'context': context,
@@ -102,7 +102,6 @@ class Controller(rest.RestController):
     @pecan.expose(method='POST', content_type='application/json')
     def post(self, **body):
         try:
-            global notifications
             body = None
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
@@ -115,11 +114,11 @@ class Controller(rest.RestController):
             request_info = config_data['kwargs']['request_info']
 
             if service_type.lower() in self.supported_service_types:
-                result = "handled"
+                result = "success"
                 self._push_notification(context, request_info,
                                         result, config_data)
             else:
-                result = "unhandled"
+                result = "error"
                 self._push_notification(context, request_info,
                                         result, config_data)
         except Exception as err:
@@ -145,7 +144,7 @@ class Controller(rest.RestController):
             request_info = config_data['kwargs']['request_info']
 
             if service_type.lower() in self.supported_service_types:
-                result = "handled"
+                result = "success"
                 self._push_notification(context, request_info,
                                         result, config_data)
             else:
