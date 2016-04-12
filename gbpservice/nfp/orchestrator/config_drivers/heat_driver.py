@@ -304,10 +304,13 @@ class HeatDriver(object):
                     port_info = db_handler.get_port_info(db_session, port)
                     if port_info['port_model'] != nfp_constants.GBP_PORT:
                         return
-            auth_token, provider_tenant_id = self._get_tenant_context(
-                provider_tenant_id)
-            self._create_policy_target_for_vip(auth_token,
-                                               provider_tenant_id, provider)
+            # _, provider_tenant_id = self._get_tenant_context(
+            #     provider_tenant_id)
+            # TODO(yogesh): Need to revisit this. Due to this pt, provider
+            # group is not getting, deleted, throwing error ptg in use.
+            # We need to manually delete pt first to delete group.
+            # self._create_policy_target_for_vip(auth_token,
+            #                                    provider_tenant_id, provider)
 
     def _create_policy_target_for_vip(self, auth_token,
                                       provider_tenant_id, provider):
