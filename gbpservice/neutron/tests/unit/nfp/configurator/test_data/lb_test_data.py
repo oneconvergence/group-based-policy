@@ -23,7 +23,7 @@ class Foo(object):
     binding_key = 'binding_key'
 
 
-class Context():
+class Context(object):
     def to_dict(self):
         return {}
 
