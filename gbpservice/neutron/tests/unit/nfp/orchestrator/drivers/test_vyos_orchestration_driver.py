@@ -257,7 +257,8 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
 
         device_data = {'id': '1',
                        'tenant_id': '2',
-                       'service_details': {'device_type': 'xyz'},
+                       'service_details': {'device_type': 'xyz',
+                                           'service_type': 'firewall'},
                        'network_model': 'gbp',
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
@@ -275,7 +276,7 @@ class VyosOrchestrationDriverTestCase(unittest.TestCase):
                           driver.plug_network_function_device_interfaces,
                           device_data)
 
-        device_data['service_details'] = {'device_type': 'nova'}
+        device_data['service_details']['device_type'] = 'nova'
 
         self.assertTrue(driver.plug_network_function_device_interfaces(
                                                                 device_data),

@@ -189,7 +189,8 @@ class Controller(object):
                     break
             self._sequencer.delete_eventmap(event)
         except KeyError as err:
-            LOG(LOGGER, 'DEBUG', "%s - event not in sequencer" %(event.identify()))
+            LOG(LOGGER, 'DEBUG', "%s - event not in sequencer" %
+                (event.identify()))
             # Event not in sequence map
             # Not an issue, event might not have serialized
             err = err

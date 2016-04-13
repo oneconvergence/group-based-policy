@@ -10,13 +10,22 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-FW_NFP_CONFIGAGENT_TOPIC = 'nfp-firewall-agent'
-LB_NFP_CONFIGAGENT_TOPIC = 'nfp-lbaas-agent'
-VPN_NFP_CONFIGAGENT_TOPIC = 'nfp-vpn_agent'
-NFP_NSO_TOPIC = "nfp-service-orchestrator"
+import pecan
+from v1 import controllers
 
-FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
-LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'
-VPN_NFP_PLUGIN_TOPIC = 'vpn_plugin'
-DEVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-ndo'
-SERVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-nso'
+
+class RootController(object):
+    """This is root controller that forward the request to __init__.py
+    file inside controller folder inside v1
+
+    """
+
+    v1 = controllers.V1Controller()
+
+    @pecan.expose()
+    def get(self):
+        # TODO(blogan): once a decision is made on how to do versions, do that
+        # here
+        return {'versions': [{'status': 'CURRENT',
+                              'updated': '2014-12-11T00:00:00Z',
+                              'id': 'v1'}]}

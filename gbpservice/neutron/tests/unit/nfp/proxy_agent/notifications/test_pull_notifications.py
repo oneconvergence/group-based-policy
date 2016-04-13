@@ -60,11 +60,12 @@ class PullNotificationTestCase(unittest.TestCase):
         response_data = self._resp_base_structure()
         response_data[0]['receiver'] = 'neutron'
         response_data[0]['resource'] = 'firewall'
-        response_data[0]['method'] = 'set_firewall_status'
+        response_data[0]['method'] = 'firewall_configuration_create_complete'
         response_data[0]['kwargs'] = {'context': self.context,
                                       'host': '',
                                       'status': '',
-                                      'firewall_id': ''}
+                                      'firewall_id': '',
+                                      'firewall': ''}
         return response_data
 
     def test_set_firewall_status_pull_notifications(self):
@@ -79,10 +80,11 @@ class PullNotificationTestCase(unittest.TestCase):
         response_data = self._resp_base_structure()
         response_data[0]['receiver'] = 'neutron'
         response_data[0]['resource'] = 'firewall'
-        response_data[0]['method'] = 'firewall_deleted'
+        response_data[0]['method'] = 'firewall_configuration_delete_complete'
         response_data[0]['kwargs'] = {'context': self.context,
                                       'host': '',
-                                      'firewall_id': ''}
+                                      'firewall_id': '',
+                                      'firewall': ''}
         return response_data
 
     def test_firewall_deleted_pull_notifications(self):
