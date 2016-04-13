@@ -283,7 +283,7 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         try:
             self._get_driver()
 
-            self._get_driver().check_status(context, svc_context)
+            return self._get_driver().check_status(context, svc_context)
         except Exception as err:
             msg = ("Failed to sync ipsec connection information. %s."
                    % str(err).capitalize())
@@ -302,11 +302,10 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         context = ev.data.get('context')
         kwargs = ev.data.get('kwargs')
         s2s_contexts = self._plugin_rpc.get_vpn_servicecontext(context)
-        for site_conn in s2s_contexts[0]['siteconns']:
-            if site_conn['connection']['id'] == kwargs['resource']['id']:
-                self._sync_ipsec_conns(context, s2s_contexts[0])
-                return {'poll': False}
-
+        site_conn = s2s_contexts[0]['siteconns'][0]
+        state = self._sync_ipsec_conns(context, s2s_contexts[0])
+        if state == const.STATE_ACTIVE:
+            return {'poll': False}
 
 def events_init(sc, drivers):
     """Registers events with core service controller.

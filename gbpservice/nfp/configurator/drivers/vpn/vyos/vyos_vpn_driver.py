@@ -1231,21 +1231,20 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         Returns: None
         """
         fip = self._get_fip(svc_context)
-        sconns = svc_context['siteconns']
-        for sconn in sconns:
-            conn = sconn['connection']
-            try:
-                state, changed = self._ipsec_is_state_changed(
-                    svc_context, conn, fip)
-            except Exception as err:
-                msg = ("Failed to check if IPSEC state is changed. %s"
-                       % str(err).capitalize())
-                LOG.error(msg)
-                continue
-            if changed:
-                self.agent.update_status(
-                    context, self._update_conn_status(conn,
-                                                      state))
+        conn = svc_context['siteconns'][0]['connection']
+        try:
+            state, changed = self._ipsec_is_state_changed(
+                svc_context, conn, fip)
+        except Exception as err:
+            msg = ("Failed to check if IPSEC state is changed. %s"
+                   % str(err).capitalize())
+            LOG.error(msg)
+
+        if changed:
+            self.agent.update_status(
+                context, self._update_conn_status(conn,
+                                                  state))
+        return state
 
     def vpnservice_updated(self, context, kwargs):
         """
