@@ -11,7 +11,7 @@
 #    under the License.
 
 from gbpservice.nfp.common import constants as nfp_constants
-from gbpservice.nfp.common import topics as nsf_topics
+from gbpservice.nfp.common import topics as nfp_topics
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.poll import poll_event_desc
 from gbpservice.nfp.core.rpc import RpcAgent
@@ -38,7 +38,7 @@ def rpc_init(controller, config):
     agent = RpcAgent(
         controller,
         host=config.host,
-        topic=nsf_topics.NFP_CONFIGURATOR_NDO_TOPIC,
+        topic=nfp_topics.NFP_CONFIGURATOR_NDO_TOPIC,
         manager=rpcmgr)
     controller.register_rpc_agents([agent])
 
@@ -167,7 +167,7 @@ class DeviceOrchestrator(object):
     def __init__(self, controller, config):
         self._controller = controller
         self.config = config
-        self.nsf_db = nfp_db.NFPDbBase()
+        self.nfp_db = nfp_db.NFPDbBase()
         self.gbpclient = openstack_driver.GBPClient(config)
         self.keystoneclient = openstack_driver.KeystoneClient(config)
 
@@ -299,12 +299,12 @@ class DeviceOrchestrator(object):
             device['status_description'] = self.status_map.get(state)
 
     def _get_port(self, port_id):
-        return self.nsf_db.get_port_info(self.db_session, port_id)
+        return self.nfp_db.get_port_info(self.db_session, port_id)
 
     def _get_ports(self, port_ids):
         data_ports = []
         for port_id in port_ids:
-            port_info = self.nsf_db.get_port_info(self.db_session, port_id)
+            port_info = self.nfp_db.get_port_info(self.db_session, port_id)
             data_ports.append(port_info)
         return data_ports
 
@@ -316,7 +316,7 @@ class DeviceOrchestrator(object):
         device_info['reference_count'] = 0
         #(ashu) driver is sending that info
         #device_info['interfaces_in_use'] = 0
-        device = self.nsf_db.create_network_function_device(self.db_session,
+        device = self.nfp_db.create_network_function_device(self.db_session,
                                                             device_info)
         mgmt_port_id = device.pop('mgmt_port_id')
         mgmt_port_id = self._get_port(mgmt_port_id)
@@ -326,14 +326,14 @@ class DeviceOrchestrator(object):
     def _update_network_function_device_db(self, device, state,
                                            status_desc=''):
         self._update_device_status(device, state, status_desc)
-        self.nsf_db.update_network_function_device(self.db_session,
+        self.nfp_db.update_network_function_device(self.db_session,
                                                    device['id'], device)
 
     def _delete_network_function_device_db(self, device_id):
-        self.nsf_db.delete_network_function_device(self.db_session, device_id)
+        self.nfp_db.delete_network_function_device(self.db_session, device_id)
 
     def _get_network_function_devices(self, filters=None):
-        network_function_devices = self.nsf_db.get_network_function_devices(
+        network_function_devices = self.nfp_db.get_network_function_devices(
                                                 self.db_session, filters)
         for device in network_function_devices:
             mgmt_port_id = device.pop('mgmt_port_id')
@@ -392,7 +392,7 @@ class DeviceOrchestrator(object):
 
         nsi_port_info = []
         for port_id in network_function_instance.pop('port_info'):
-            port_info = self.nsf_db.get_port_info(self.db_session, port_id)
+            port_info = self.nfp_db.get_port_info(self.db_session, port_id)
             nsi_port_info.append(port_info)
 
         device_data['ports'] = nsi_port_info
@@ -407,8 +407,8 @@ class DeviceOrchestrator(object):
             device_data['network_model'] = nfp_constants.NEUTRON_MODE
         return device_data
 
-    def _get_nsf_db_resource(self, resource_name, resource_id):
-        db_method = getattr(self.nsf_db, 'get_' + resource_name)
+    def _get_nfp_db_resource(self, resource_name, resource_id):
+        db_method = getattr(self.nfp_db, 'get_' + resource_name)
         return db_method(self.db_session, resource_id)
 
     def _update_device_data(self, device, device_data):
@@ -549,13 +549,13 @@ class DeviceOrchestrator(object):
         network_function_instance_id = (
                                 device_info['network_function_instance_id'])
 
-        network_function = self._get_nsf_db_resource(
+        network_function = self._get_nfp_db_resource(
                                 'network_function',
                                 network_function_id)
-        network_function_device = self._get_nsf_db_resource(
+        network_function_device = self._get_nfp_db_resource(
                                 'network_function_device',
                                 network_function_device_id)
-        network_function_instance = self._get_nsf_db_resource(
+        network_function_instance = self._get_nfp_db_resource(
                                 'network_function_instance',
                                 network_function_instance_id)
 
@@ -791,7 +791,7 @@ class NDOConfiguratorRpcApi(object):
         self.context = context
         self.client = n_rpc.get_client(self.target)
         self.rpc_api = self.client.prepare(version=self.API_VERSION,
-                                topic=nsf_topics.NFP_NDO_CONFIGURATOR_TOPIC)
+                                topic=nfp_topics.NFP_NDO_CONFIGURATOR_TOPIC)
 
     def _get_request_info(self, device, operation):
         request_info = {

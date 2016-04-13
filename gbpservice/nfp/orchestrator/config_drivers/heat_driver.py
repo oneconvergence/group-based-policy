@@ -512,29 +512,30 @@ class HeatDriver(object):
             stack_template['resources'], is_template_aws_version,
             'OS::Neutron::FirewallPolicy')[0]
 
+        provider_l2p_subnets = self.neutron_client.get_subnets(
+            auth_token,
+            filters={'id': provider['subnets']})
+        for subnet in provider_l2p_subnets:
+            if not subnet['name'].startswith(APIC_OWNED_RES):
+                provider_cidr = subnet['cidr']
+                break
+        if not provider_cidr:
+            LOG.error(_LE("Unable to get provider cidr for provider "
+                "policy target group %(provider_ptg)s") %
+                {"provider_ptg": provider})
+            return None
+
+        fw_template_properties = dict(
+            resources_key=resources_key, properties_key=properties_key,
+            is_template_aws_version=is_template_aws_version,
+            fw_rule_keys=fw_rule_keys,
+            fw_policy_key=fw_policy_key)
+
         if consumer_ptgs:
             provider_cidr = None
             filters = {'id': consumer_ptgs}
             consumer_ptgs_details = self.gbp_client.get_policy_target_groups(
                 auth_token, filters)
-            provider_l2p_subnets = self.neutron_client.get_subnets(
-                auth_token,
-                filters={'id': provider['subnets']})
-            for subnet in provider_l2p_subnets:
-                if not subnet['name'].startswith(APIC_OWNED_RES):
-                    provider_cidr = subnet['cidr']
-                    break
-            if not provider_cidr:
-                LOG.error(_LE("Unable to get provider cidr for provider "
-                              "policy target group %(provider_ptg)s") %
-                          {"provider_ptg": provider})
-                return None
-
-            fw_template_properties = dict(
-                resources_key=resources_key, properties_key=properties_key,
-                is_template_aws_version=is_template_aws_version,
-                fw_rule_keys=fw_rule_keys,
-                fw_policy_key=fw_policy_key)
 
             # Revisit(Magesh): What is the name updated below ?? FW or Rule?
             # This seems to have no effect in UTs
