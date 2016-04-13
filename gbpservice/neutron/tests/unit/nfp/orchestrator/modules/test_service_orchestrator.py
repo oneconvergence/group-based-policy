@@ -808,6 +808,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         transport.parse_service_flavor_string = mock.MagicMock(return_value=
                                                     {'device_type': 'VM',
                                                      'service_vendor': 'vyos'})
+        nfp_log_helper.prepare_log_meta_data = mock.MagicMock(return_value='')
         with mock.patch.object(
             self.service_orchestrator.config_driver,
             "handle_consumer_ptg_operations") as\
@@ -826,6 +827,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             'network_function_details': network_function_details,
             'consumer_ptg': policy_target_group
         }
+        network_function_data['log_meta_data'] = ''
         mock_create_rpc.assert_called_once_with(
             network_function_data, service_config
         )
@@ -854,6 +856,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         transport.parse_service_flavor_string = mock.MagicMock(return_value=
                                                     {'device_type': 'VM',
                                                      'service_vendor': 'vyos'})
+        nfp_log_helper.prepare_log_meta_data = mock.MagicMock(return_value='')
         with mock.patch.object(
             self.service_orchestrator.config_driver,
             "handle_consumer_ptg_operations") as\
@@ -872,6 +875,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             'network_function_details': network_function_details,
             'consumer_ptg': policy_target_group
         }
+        network_function_data['log_meta_data'] = ''
         mock_delete_rpc.assert_called_once_with(
             network_function_data, service_config
         )
