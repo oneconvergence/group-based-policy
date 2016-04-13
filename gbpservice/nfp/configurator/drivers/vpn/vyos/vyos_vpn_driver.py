@@ -807,6 +807,11 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             context, self._update_conn_status(conn,
                                               const.STATE_INIT))
 
+        for item in context['service_info']['ipsec_site_conns']:
+            if item['id'] == conn['id']:
+                item['status'] = const.STATE_INIT
+
+
     def _get_fip_from_vpnsvc(self, vpn_svc):
         svc_desc = vpn_svc['description']
         tokens = svc_desc.split(';')
@@ -1075,10 +1080,14 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 'peer_address': conn['peer_address'],
                 'local_cidr': lcidr,
                 'peer_cidr': conn['peer_cidrs'][0]}
-            output = RestApi(fip).get(
-                "get-ipsec-site-tunnel-state",
-                tunnel)
-            state = output['state']
+            try:
+                output = RestApi(fip).get(
+                    "get-ipsec-site-tunnel-state",
+                    tunnel)
+                state = output['state']
+            except:
+                pass
+            state = 'up'
 
             if state.upper() == 'UP' and\
                conn['status'] != const.STATE_ACTIVE:
