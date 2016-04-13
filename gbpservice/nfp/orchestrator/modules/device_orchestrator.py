@@ -671,10 +671,10 @@ class DeviceOrchestrator(object):
             orchestration_driver.get_network_function_device_config_info(
                                                                 device))
         if not config_params:
-            self._create_event(event_id='DRIVER_ERROR',
-                               event_data=device,
-                               is_internal_event=True)
-            return None
+            # Ignore error in delete path
+            LOG.error(_LE("Exception occurred in driver while getting "
+                          "config_params. Driver returned None "
+                          "for device %(device)s"), {'device': device})
         # Sends RPC call to configurator to delete generic config API
         self.configurator_rpc.delete_network_function_device_config(device,
                                                             config_params)
@@ -693,8 +693,10 @@ class DeviceOrchestrator(object):
             self._decrement_device_interface_count(device)
             device['mgmt_port_id'] = mgmt_port_id
         else:
-            # Ignore unplug error
-            pass
+            # Ignore error in delete path
+            LOG.error(_LE("Interface unplugging failed, exception in "
+                          "driver. Driver returned None for device "
+                          "%(device)s"), {'device': device})
         self._create_event(event_id='DELETE_DEVICE',
                            event_data=device,
                            is_internal_event=True)
