@@ -164,7 +164,8 @@ class RPCClient(object):
 
 
 def send_request_to_configurator(conf, context, body,
-                                 method_type, device_config=False):
+                                 method_type, device_config=False,
+                                 network_function_event=False):
     """Common function to handle (create, delete) request for configurator.
     Send create/delete to configurator rest-server.
     Return:Http Response
@@ -175,6 +176,8 @@ def send_request_to_configurator(conf, context, body,
         method_name = method_type.lower() + '_network_function_device_config'
         for ele in body['config']:
             ele['kwargs'].update({'context': context.to_dict()})
+    elif network_function_event:
+        method_name = 'network_function_event'
     else:
         if (body['config'][0]['resource'] == 'heat'):
             body['config'][0]['kwargs'].update({'context': context.to_dict()})

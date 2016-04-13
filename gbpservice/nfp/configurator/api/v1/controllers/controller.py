@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
 import oslo_serialization.jsonutils as jsonutils
-import subprocess
 
 from neutron.agent.common import config
 from neutron.common import rpc as n_rpc
@@ -19,10 +19,10 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 import pecan
-from pecan import rest
+from pecan import rest, conf
+import pika
 
 LOG = logging.getLogger(__name__)
-TOPIC = 'configurator'
 n_rpc.init(cfg.CONF)
 
 """Implements all the APIs Invoked by HTTP requests.
@@ -41,9 +41,15 @@ class Controller(rest.RestController):
 
     def __init__(self, method_name):
         try:
-            self.host = subprocess.check_output(
-                'hostname', shell=True).rstrip()
-            self.rpcclient = RPCClient(topic=TOPIC, host=self.host)
+            self.services = conf['cloud_services']
+            self.rpc_routing_table = {}
+            for service in self.services:
+                self._entry_to_rpc_routing_table(service)
+
+            nsd_controller = conf['nsd_controller']
+            self.rmqconsumer = RMQConsumer(nsd_controller['host'],
+                                           nsd_controller['notification_queue']
+                                           )
             self.method_name = method_name
             super(Controller, self).__init__()
         except Exception as err:
@@ -51,6 +57,31 @@ class Controller(rest.RestController):
                 "Failed to initialize Controller class  %s." %
                 str(err).capitalize())
             LOG.error(msg)
+
+    def _entry_to_rpc_routing_table(self, service):
+        """Prepares routing table based on the uservice configuration.
+           This routing table is used to route the rpcs to all interested
+           uservices. Key used for routing is the uservice[apis].
+
+        :param uservice
+        e.g uservice = {'service_name': 'configurator',
+                        'host': 'localhost',
+                        'topic': 'configurator',
+                        'reporting_interval': '10',  # in seconds
+                        'apis': ['CONFIGURATION', 'EVENT']
+                        }
+        Returns: None
+
+        Prepares: self.rpc_routing_table
+            e.g self.rpc_routing_table = {'CONFIGURATION': [rpc_client, ...],
+                                          'EVENT': [rpc_client, ...]
+                                          }
+        """
+        for api in service['apis']:
+            if api not in self.rpc_routing_table:
+                self.rpc_routing_table[api] = []
+
+            self.rpc_routing_table[api].append(CloudService(**service))
 
     @pecan.expose(method='GET', content_type='application/json')
     def get(self):
@@ -64,15 +95,21 @@ class Controller(rest.RestController):
         """
 
         try:
-            notification_data = jsonutils.dumps(self.rpcclient.call())
-            msg = ("NOTIFICATION_DATA sent to config_agent %s"
-                   % notification_data)
-            LOG.info(msg)
-            return notification_data
+            if self.method_name == 'get_notifications':
+                notification_data = jsonutils.dumps(
+                    self.rmqconsumer.pull_notifications())
+                msg = ("NOTIFICATION_DATA sent to config_agent %s"
+                       % notification_data)
+                LOG.info(msg)
+                return notification_data
+            elif self.method_name == 'get_requests':
+                """TODO(pritam): handle this
+                """
+                return jsonutils.dumps({})
         except Exception as err:
             pecan.response.status = 400
-            msg = ("Failed to get notification_data  %s."
-                   % str(err).capitalize())
+            msg = ("Failed to get handle request=%s. Reason=%s."
+                   % (self.method_name, str(err).capitalize()))
             LOG.error(msg)
             error_data = self._format_description(msg)
             return jsonutils.dumps(error_data)
@@ -96,7 +133,14 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            self.rpcclient.cast(self.method_name, body)
+            if self.method_name == 'network_function_event':
+                routing_key = 'VISIBILITY'
+            else:
+                routing_key = 'CONFIGURATION'
+            for uservice in self.rpc_routing_table[routing_key]:
+                uservice.rpcclient.cast(self.method_name, body)
+                LOG.info('Sent RPC to %s %s' % (uservice.topic, uservice.host))
+
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
         except Exception as err:
@@ -127,7 +171,14 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            self.rpcclient.cast(self.method_name, body)
+            if self.method_name == 'network_function_event':
+                routing_key = 'VISIBILITY'
+            else:
+                routing_key = 'CONFIGURATION'
+            for uservice in self.rpc_routing_table[routing_key]:
+                uservice.rpcclient.cast(self.method_name, body)
+                LOG.info('Sent RPC to %s %s' % (uservice.topic, uservice.host))
+
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
         except Exception as err:
@@ -174,7 +225,7 @@ class RPCClient(object):
             version=self.API_VERSION)
         self.client = n_rpc.get_client(target)
 
-    def call(self):
+    def call(self, method_name):
         """Method for sending call request on behalf of REST Controller.
 
         This method sends an RPC call to configurator.
@@ -183,8 +234,7 @@ class RPCClient(object):
 
         """
         cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self,
-                          'get_notifications')
+        return cctxt.call(self, method_name)
 
     def cast(self, method_name, request_data):
         """Method for sending cast request on behalf of REST Controller.
@@ -215,3 +265,68 @@ class RPCClient(object):
 
         """
         return {}
+
+
+""" CloudService keeps all information of uservice along with initialized
+    RPCClient object using which rpc is routed to over the cloud service.
+"""
+
+
+class CloudService():
+
+    def __init__(self, **kwargs):
+        self.service_name = kwargs.get('service_name')
+        self.topic = kwargs.get('topic')
+        self.host = kwargs.get('host')
+        self.reporting_interval = kwargs.get('reporting_interval')
+        self.rpcclient = RPCClient(topic=self.topic, host=self.host)
+
+
+"""RMQConsumer for over the cloud services.
+
+This class access rabbitmq's 'configurator-notifications' queue
+to pull all the notifications came from over the cloud services.
+"""
+
+
+class RMQConsumer(object):
+
+    def __init__(self, rabbitmq_host, queue):
+        self.rabbitmq_host = rabbitmq_host
+        self.queue = queue
+        self.create_connection()
+
+    def create_connection(self):
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host=self.rabbitmq_host))
+
+    def pull_notifications(self):
+        notifications = []
+        msgs_acknowledged = False
+        try:
+            self.channel = self.connection.channel()
+            self.queue_declared = self.channel.queue_declare(queue=self.queue,
+                                                             durable=True)
+            pending_msg_count = self.queue_declared.method.message_count
+            log = ('[notifications queue:%s, pending notifications:%s]'
+                   % (self.queue, pending_msg_count))
+            for i in range(pending_msg_count):
+                method, properties, body = self.channel.basic_get(self.queue)
+                notifications.append(ast.literal_eval(body))
+
+            # Acknowledge all messages delivery
+            if pending_msg_count > 0:
+                self.channel.basic_ack(delivery_tag=method.delivery_tag,
+                                       multiple=True)
+                msgs_acknowledged = True
+
+            self.channel.close()
+            return notifications
+        except pika.exceptions.ConnectionClosed:
+            self.create_connection()
+            self.pull_notifications()
+        except pika.exceptions.ChannelClosed:
+            if msgs_acknowledged is False:
+                self.pull_notifications()
+            else:
+                return notifications

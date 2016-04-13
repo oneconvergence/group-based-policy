@@ -10,13 +10,25 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-FW_NFP_CONFIGAGENT_TOPIC = 'nfp-firewall-agent'
-LB_NFP_CONFIGAGENT_TOPIC = 'nfp-lbaas-agent'
-VPN_NFP_CONFIGAGENT_TOPIC = 'nfp-vpn_agent'
-NFP_NSO_TOPIC = "nfp-service-orchestrator"
+# -*- coding: utf-8 -*-
+try:
+    import setuptools
+except ImportError:
+    import ez_setup
+    ez_setup.use_setuptools()
+    import setuptools
 
-FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
-LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'
-VPN_NFP_PLUGIN_TOPIC = 'vpn_plugin'
-DEVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-ndo'
-SERVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-nso'
+setuptools.setup(
+    name='api',
+    version='0.1',
+    description='',
+    author='',
+    author_email='',
+    install_requires=[
+        "pecan",
+    ],
+    test_suite='api',
+    zip_safe=False,
+    include_package_data=True,
+    packages=setuptools.find_packages(exclude=['ez_setup'])
+)
