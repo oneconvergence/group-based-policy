@@ -147,7 +147,7 @@ class AgentBaseEventHandler(object):
                 resource = request['resource']
                 kwargs = request['kwargs']
                 request_info = kwargs['kwargs']['request_info']
-                del kwargs['kwargs']['request_info']
+                # del kwargs['kwargs']['request_info']
                 context = request['context']
                 service_type = kwargs.get('kwargs').get('service_type')
 

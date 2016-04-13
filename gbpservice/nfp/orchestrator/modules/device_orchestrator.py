@@ -21,6 +21,7 @@ from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.poll import poll_event_desc
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.lib import nfp_log_helper
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
@@ -83,12 +84,16 @@ class RpcHandler(object):
                                   }
 
     def _log_event_created(self, event_id, event_data):
-        LOG.info(_LI("Device Orchestrator, RPC Handler, Created event "
-                     "%s(event_name)s with event data: %(event_data)s"),
-                 {'event_name': event_id, 'event_data': event_data})
+        log_meta_data = (event_data.get('log_meta_data')
+                         if 'log_meta_data' in event_data else '')
+        LOG.info(_LI(log_meta_data + "Device Orchestrator, RPC Handler,Created"
+                     " event %(event_name)s with event data:\n%(event_data)s"),
+                 {'event_name': event_id,
+                  'event_data': nfp_log_helper.make_dict_readable(event_data)})
 
     def _create_event(self, event_id, event_data=None,
                       is_poll_event=False, original_event=False):
+        self._log_event_created(event_id, event_data)
         if is_poll_event:
             ev = self._controller.new_event(
                 id=event_id, data=event_data,
@@ -100,7 +105,6 @@ class RpcHandler(object):
         else:
             ev = self._controller.new_event(id=event_id, data=event_data)
             self._controller.post_event(ev)
-        self._log_event_created(event_id, event_data)
 
     # RPC APIs status notification from Configurator
     def network_function_device_notification(self, context, notification_data):
@@ -234,8 +238,8 @@ class DeviceOrchestrator(object):
     def handle_event(self, event):
         log_meta_data = (event.data.get('log_meta_data')
                          if 'log_meta_data' in event.data else '')
-        LOG.info(_LI(log_meta_data + "Device Orchestrator received event"
-                     " %(id)s"), {'id': event.id})
+        LOG.info(_LI(log_meta_data + "Device Orchestrator received event:"
+                     "%(id)s"), {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
@@ -259,8 +263,9 @@ class DeviceOrchestrator(object):
         log_meta_data = (event_data.get('log_meta_data')
                          if 'log_meta_data' in event_data else '')
         LOG.info(_LI(log_meta_data + "Device Orchestrator created event"
-                     " %s(event_name)s with event data: %(event_data)s"),
-                 {'event_name': event_id, 'event_data': event_data})
+                     " %(event_name)s with event data:\n %(event_data)s"),
+                 {'event_name': event_id,
+                  'event_data': nfp_log_helper.make_dict_readable(event_data)})
 
     def _create_event(self, event_id, event_data=None,
                       is_poll_event=False, original_event=False,
@@ -434,10 +439,6 @@ class DeviceOrchestrator(object):
         nfd_request = event.data
         device = None
 
-        LOG.info(_LI(log_meta_data + "Device Orchestrator received create"
-                     " network service device request with data %(data)s"),
-                 {'data': nfd_request})
-
         device_data = self._get_device_data(nfd_request)
         orchestration_driver = self._get_orchestration_driver(
                                     device_data['service_vendor'])
@@ -459,16 +460,22 @@ class DeviceOrchestrator(object):
                                event_data=device,
                                is_internal_event=True)
             LOG.info(_LI(log_meta_data + "Sharing existing device: %s(device)s"
-                         " for reuse"), {'device': device})
+                         " for reuse"),
+                     {'device': nfp_log_helper.make_dict_readable(device)})
         else:
             LOG.info(_LI(log_meta_data + "No Device exists for sharing,"
-                         " Creating new device,device request: %(device)s"),
-                     {'device': nfd_request})
+                         " Creating new device"))
             driver_device_info = (
                 orchestration_driver.create_network_function_device(
                     device_data))
             if not driver_device_info:
-                LOG.info(_LI(log_meta_data + "Device creation failed"))
+                log_meta_data = nfp_log_helper.prepare_log_meta_data(
+                                        log_meta_data=log_meta_data,
+                                        level='Alert',
+                                        event_category='Service',
+                                        event='Resource')
+
+                LOG.error(_LE(log_meta_data + "Device creation failed."))
                 self._create_event(event_id='DEVICE_ERROR',
                                    event_data=nfd_request,
                                    is_internal_event=True)
@@ -512,13 +519,13 @@ class DeviceOrchestrator(object):
         if is_device_up == nfp_constants.ACTIVE:
             self._controller.poll_event_done(event)
 
+            LOG.info(_LI(log_meta_data + "Device:%s is UP.") % (device['id']))
             # create event DEVICE_UP
             self._create_event(event_id='DEVICE_UP',
                                event_data=device,
                                is_internal_event=True)
             self._update_network_function_device_db(device,
                                                    'DEVICE_UP')
-            LOG.info(_LI(log_meta_data + "Device:%s is UP.") % (device['id']))
             return STOP_POLLING
         elif is_device_up == nfp_constants.ERROR:
             self._controller.poll_event_done(event)
@@ -532,8 +539,8 @@ class DeviceOrchestrator(object):
             return STOP_POLLING
         else:
             # Continue polling until device status became ACTIVE/ERROR.
-            LOG.debug(log_meta_data + " Device:%s is not yet up"
-                      % (device['id']))
+            LOG.info(log_meta_data + " Device:%s is not yet up"
+                     % (device['id']))
             return CONTINUE_POLLING
 
     def perform_health_check(self, event):
@@ -600,13 +607,6 @@ class DeviceOrchestrator(object):
         device['mgmt_port_id'] = mgmt_port_id
         device['network_function_id'] = network_function_id
 
-        log_meta_data = ("[TenantID:%s, ServiceChainID:%s,"
-                         " ServiceProfileID:%s, ServiceInstanceID:%s] " % (
-                                network_function['tenant_id'],
-                                network_function['service_chain_id'],
-                                network_function['service_profile_id'],
-                                network_function_instance['id']))
-        device['log_meta_data'] = log_meta_data
         return device
 
     def plug_interfaces(self, event, is_event_call=True):
@@ -617,7 +617,7 @@ class DeviceOrchestrator(object):
         # Get event data, as configurator sends back only request_info, which
         # contains nf_id, nfi_id, nfd_id.
         device = self._prepare_device_data(device_info)
-        log_meta_data = (device.get('log_meta_data')
+        log_meta_data = (event.data.get('log_meta_data')
                          if 'log_meta_data' in device else '')
         self._update_network_function_device_db(device,
                                                 'HEALTH_CHECK_COMPLETED')
@@ -634,6 +634,7 @@ class DeviceOrchestrator(object):
                                event_data=device,
                                is_internal_event=True)
         else:
+            LOG.error(_LE(log_meta_data + " Plug interface failed"))
             self._create_event(event_id='DEVICE_CONFIGURATION_FAILED',
                                event_data=device,
                                is_internal_event=True)
@@ -657,7 +658,7 @@ class DeviceOrchestrator(object):
     def device_configuration_complete(self, event):
         device_info = event.data
         device = self._prepare_device_data(device_info)
-        log_meta_data = (device.get('log_meta_data')
+        log_meta_data = (event.data.get('log_meta_data')
                          if 'log_meta_data' in device else '')
         # Change status to active in DB and generate an event DEVICE_ACTIVE
         # to inform NSO
@@ -665,8 +666,8 @@ class DeviceOrchestrator(object):
         self._update_network_function_device_db(device, nfp_constants.ACTIVE)
         LOG.info(_LI(log_meta_data + "Device Configuration completed for"
                      "device: %(device_id)s Updated DB status to ACTIVE,"
-                     "Incremented device reference count for %(device)s"),
-                 {'device_id': device['id'], 'device': device})
+                     "Incremented device reference count"),
+                 {'device_id': device['id']})
 
         device_created_data = {
                                'network_function_id': (
@@ -690,9 +691,9 @@ class DeviceOrchestrator(object):
         delete_nfd_request['network_function_instance_id'] = (
             network_function_instance['id'])
         device = self._prepare_device_data(delete_nfd_request)
+        device['log_meta_data'] = log_meta_data
         LOG.info(_LI(log_meta_data + "Device Orchestrator received delete"
-                     " network service device request for device %(device)s"),
-                 {'device': delete_nfd_request})
+                     " network_function_device request"))
 
         self._create_event(event_id='DELETE_CONFIGURATION',
                            event_data=device,
@@ -715,8 +716,11 @@ class DeviceOrchestrator(object):
                                                             config_params)
 
     def unplug_interfaces(self, event):
+        log_meta_data = (event.data.get('log_meta_data')
+                         if 'log_meta_data' in event.data else '')
         device_info = event.data
         device = self._prepare_device_data(device_info)
+        device['log_meta_data'] = log_meta_data
         orchestration_driver = self._get_orchestration_driver(
             device['service_vendor'])
 
@@ -763,8 +767,8 @@ class DeviceOrchestrator(object):
     # Error Handling
     def handle_device_create_error(self, event):
         device = event.data
-        LOG.error(_LE("Device creation failed, for device %(device)s"),
-                  {'device': device})
+        LOG.error(_LE("Device creation failed, for device\n %(device)s"),
+                  {'device': nfp_log_helper.make_dict_readable(device)})
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
@@ -772,8 +776,15 @@ class DeviceOrchestrator(object):
     def handle_device_not_up(self, event):
         log_meta_data = (event.data.get('log_meta_data')
                          if 'log_meta_data' in event.data else '')
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(
+                            log_meta_data=log_meta_data,
+                            level='Alert',
+                            event_category='Service',
+                            event='Resource')
+
         device = event.data
-        LOG.error(_LE(log_meta_data + "Device %s not up") % (device))
+        LOG.error(_LE(log_meta_data + "Device not up\n %s")
+                  % (nfp_log_helper.make_dict_readable(device)))
         status = nfp_constants.ERROR
         desc = 'Device not became ACTIVE'
         self._update_network_function_device_db(device, status, desc)
@@ -793,6 +804,10 @@ class DeviceOrchestrator(object):
     def handle_device_config_failed(self, event):
         log_meta_data = (event.data.get('log_meta_data')
                          if 'log_meta_data' in event.data else '')
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(
+                log_meta_data=log_meta_data,
+                event_category='ServiceConfig',
+                event='Create')
         device = event.data
         status = nfp_constants.ERROR
         desc = 'Configuring Device Failed.'
@@ -800,8 +815,9 @@ class DeviceOrchestrator(object):
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
-        LOG.error(_LE(log_meta_data + "Device create failed for device: %s,"
-                      " Reason: %s") % (device, desc))
+        LOG.error(_LE(log_meta_data + "Device create failed for device:\n%s,"
+                      " Reason: %s")
+                  % (nfp_log_helper.make_dict_readable(device), desc))
 
     def handle_interfaces_setup_failed(self, event):
         device = event.data
@@ -811,16 +827,22 @@ class DeviceOrchestrator(object):
         device['network_function_device_id'] = device['id']
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
-        LOG.error("Interface Plugging failed for device: %s,"
-                  "with config: %s" % (device['id'], device))
+        LOG.error(_LE("Interface Plugging failed for device: %s,"
+                      "with config: %s")
+                  % (device['id'], nfp_log_helper.make_dict_readable(device)))
 
     def handle_driver_error(self, event):
         log_meta_data = (event.data.get('log_meta_data')
                          if 'log_meta_data' in event.data else '')
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(
+                            log_meta_data=log_meta_data,
+                            event_category='Service',
+                            event='Resource')
+
         device = event.data
         LOG.error(_LE(log_meta_data + "Exception occured in driver, driver"
                       " returned None for device %(device)s"),
-                  {'device': device})
+                  {'device': nfp_log_helper.make_dict_readable(device)})
         status = nfp_constants.ERROR
         desc = 'Exception in driver, driver return None'
         self._update_network_function_device_db(device, status, desc)
@@ -848,7 +870,8 @@ class NDOConfiguratorRpcApi(object):
                 'network_function_instance_id': (
                                 device['network_function_instance_id']),
                 'network_function_device_id': device['id'],
-                'operation': operation
+                'operation': operation,
+                'log_meta_data': device.get('log_meta_data')
         }
         return request_info
 
@@ -865,8 +888,9 @@ class NDOConfiguratorRpcApi(object):
                          if 'log_meta_data' in device_data else '')
         self._update_params(device_data, config_params, operation='create')
         LOG.info(_LI(log_meta_data + "Sending create NFD config request to"
-                     " configurator with config_params = %(config_params)s"),
-                 {'config_params': config_params})
+                     " configurator with config_params:\n %(config_params)s"),
+                 {'config_params':
+                  nfp_log_helper.make_dict_readable(config_params)})
 
         return transport.send_request_to_configurator(self.conf,
                                                       self.context,
@@ -880,8 +904,9 @@ class NDOConfiguratorRpcApi(object):
                          if 'log_meta_data' in device_data else '')
         self._update_params(device_data, config_params, operation='delete')
         LOG.info(_LI(log_meta_data + "Sending delete NFD config request to"
-                     " configurator with config_params = %(config_params)s"),
-                 {'config_params': config_params})
+                     " configurator with config_params:\n %(config_params)s"),
+                 {'config_params':
+                  nfp_log_helper.make_dict_readable(config_params)})
 
         return transport.send_request_to_configurator(self.conf,
                                                       self.context,

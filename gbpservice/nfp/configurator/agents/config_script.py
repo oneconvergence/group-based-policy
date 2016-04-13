@@ -109,11 +109,12 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
             resource = context['resource']
             kwargs = ev.data['kwargs']
             request_info = kwargs['request_info']
-
-            msg = ("Worker process with ID: %s starting to "
-                   "handle task: %s of type ConfigScript. "
-                   % (os.getpid(), ev.id))
-            LOG.debug(msg)
+            log_meta_data = (
+                request_info['network_function_data']['log_meta_data']
+                if 'log_meta_data' in request_info['network_function_data']
+                else '')
+            msg = (log_meta_data + " Handling event:%s" % (ev.id))
+            LOG.info(msg)
 
             driver = self._get_driver()
             self.method = getattr(driver, "run_%s" % resource)
@@ -121,7 +122,7 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
             result = self.method(context, kwargs)
         except Exception as err:
             result = const.ERROR_RESULT
-            msg = ("Failed to handle event: %s. %s"
+            msg = (log_meta_data + "Failed to handle event: %s. %s"
                    % (ev.id, str(err).capitalize()))
             LOG.error(msg)
         finally:

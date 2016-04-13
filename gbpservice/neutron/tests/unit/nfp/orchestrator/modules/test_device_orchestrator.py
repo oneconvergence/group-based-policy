@@ -48,6 +48,7 @@ class DummyEvent(object):
         self.data['interfaces_in_use'] = 1
         self.data['reference_count'] = ref_count
         self.data['service_vendor'] = 'vyos'
+        self.data['log_meta_data'] = ''
 
 
 class HaproxyDummyDriver(object):
@@ -333,7 +334,8 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
                 'network_function_instance_id': (
                     orig_event_data['network_function_instance_id']),
                 'network_function_device_id': orig_event_data['id'],
-                              }
+                'log_meta_data': ''
+                }
         ndo_handler._create_event.assert_called_with(event_id=event_id,
                                              event_data=device_created_data)
 

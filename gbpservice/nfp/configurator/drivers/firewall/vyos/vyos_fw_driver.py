@@ -21,6 +21,7 @@ from oslo_serialization import jsonutils
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import fw_constants as const
 
+
 LOG = logging.getLogger(__name__)
 
 
@@ -52,6 +53,8 @@ class FwGenericConfigDriver(object):
 
         """
 
+        log_meta_data = (kwargs['request_info']['log_meta_data']
+                         if 'log_meta_data' in kwargs['request_info'] else '')
         rule_info = kwargs.get('rule_info')
         static_ips_info = dict(
                     provider_ip=kwargs.get('provider_ip'),
@@ -71,22 +74,22 @@ class FwGenericConfigDriver(object):
                                    'add_static_ip')
         data = jsonutils.dumps(static_ips_info)
 
-        msg = ("Initiating POST request to add static IPs for primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" %
+        msg = (log_meta_data + "Initiating POST request to add static IPs for "
+               "primary service with SERVICE ID: %r of tenant: %r at: %r" %
                (rule_info['service_id'], rule_info['tenant_id'],
                 active_fip))
         LOG.info(msg)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+            msg = (log_meta_data + "Failed to establish connection to primary "
+                   "service at: %r of SERVICE ID: %r of tenant: %r . ERROR: %r"
+                   % (active_fip, rule_info['service_id'],
+                      rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened  while adding "
+            msg = (log_meta_data + "Unexpected ERROR happened  while adding "
                    "static IPs for primary service at: %r "
                    "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
                    (active_fip, rule_info['service_id'],
@@ -97,19 +100,20 @@ class FwGenericConfigDriver(object):
         try:
             result = resp.json()
         except ValueError as err:
-            msg = ("Unable to parse response, invalid JSON. URL: "
-                   "%r. %r" % (url, str(err).capitalize()))
+            msg = (log_meta_data + "Unable to parse response, invalid JSON. "
+                   "URL: %r. %r" % (url, str(err).capitalize()))
             LOG.error(msg)
             return msg
         if not result['status']:
-            msg = ("Error adding static IPs. URL: %r. Reason: %s." %
-                   (url, result['reason']))
+            msg = (log_meta_data + "Error adding static IPs. URL: %r. "
+                   "Reason: %s." % (url, result['reason']))
             LOG.error(msg)
             return msg
 
-        msg = ("Static IPs successfully added for SERVICE ID: %r"
-               " of tenant: %r" % (rule_info['service_id'],
-                                   rule_info['tenant_id']))
+        msg = (log_meta_data + "Static IPs successfully added for "
+               "SERVICE ID: %r of tenant: %r"
+               % (rule_info['service_id'],
+                  rule_info['tenant_id']))
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
@@ -127,7 +131,8 @@ class FwGenericConfigDriver(object):
         Returns: SUCCESS/Failure message with reason.
 
         """
-
+        log_meta_data = (kwargs['request_info']['log_meta_data']
+                         if 'log_meta_data' in kwargs['request_info'] else '')
         try:
             result_static_ips = self._configure_static_ips(kwargs)
         except Exception as err:
@@ -138,7 +143,8 @@ class FwGenericConfigDriver(object):
             if result_static_ips != const.STATUS_SUCCESS:
                 return result_static_ips
             else:
-                msg = ("Added static IPs. Result: %s" % result_static_ips)
+                msg = (log_meta_data + "Added static IPs. Result: %s"
+                       % result_static_ips)
                 LOG.info(msg)
 
         rule_info = kwargs.get('rule_info')
@@ -152,22 +158,22 @@ class FwGenericConfigDriver(object):
         url = const.request_url % (active_fip,
                                    const.CONFIGURATION_SERVER_PORT, 'add_rule')
         data = jsonutils.dumps(active_rule_info)
-        msg = ("Initiating POST request to add persistent rule to primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" % (
-                    rule_info['service_id'], rule_info['tenant_id'],
-                    active_fip))
+        msg = (log_meta_data + "Initiating POST request to add persistent rule"
+               " to primary service with SERVICE ID: %r of tenant: %r at: %r"
+               % (rule_info['service_id'], rule_info['tenant_id'],
+                  active_fip))
         LOG.info(msg)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+            msg = (log_meta_data + "Failed to establish connection to primary "
+                   "service at: %r of SERVICE ID: %r of tenant: %r . ERROR: %r"
+                   % (active_fip, rule_info['service_id'],
+                      rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened  while adding "
+            msg = (log_meta_data + "Unexpected ERROR happened  while adding "
                    "persistent rule of primary service at: %r "
                    "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
                    (active_fip, rule_info['service_id'],
@@ -178,18 +184,19 @@ class FwGenericConfigDriver(object):
         try:
             result = resp.json()
         except ValueError as err:
-            msg = ("Unable to parse response, invalid JSON. URL: "
-                   "%r. %r" % (url, str(err).capitalize()))
+            msg = (log_meta_data + "Unable to parse response, invalid JSON. "
+                   "URL: %r. %r" % (url, str(err).capitalize()))
             LOG.error(msg)
             return msg
         if not result['status']:
-            msg = ("Error adding persistent rule. URL: %r" % url)
+            msg = (log_meta_data + "Error adding persistent rule. URL: %r"
+                   % url)
             LOG.error(msg)
             return msg
 
-        msg = ("Persistent rule successfully added for SERVICE ID: %r"
-               " of tenant: %r" % (rule_info['service_id'],
-                                   rule_info['tenant_id']))
+        msg = (log_meta_data + "Persistent rule successfully added for "
+               "SERVICE ID: %r of tenant: %r"
+               % (rule_info['service_id'], rule_info['tenant_id']))
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
@@ -277,18 +284,20 @@ class FwGenericConfigDriver(object):
         Returns: SUCCESS/Failure message with reason.
 
         """
-
+        log_meta_data = (kwargs['request_info']['log_meta_data']
+                         if 'log_meta_data' in kwargs['request_info'] else '')
         try:
             result_static_ips = self._clear_static_ips(kwargs)
         except Exception as err:
-            msg = ("Failed to remove static IPs. Error: %s" % err)
+            msg = (log_meta_data + "Failed to remove static IPs. Error: %s"
+                   % err)
             LOG.error(msg)
             return msg
         else:
             if result_static_ips != const.STATUS_SUCCESS:
                 return result_static_ips
             else:
-                msg = ("Successfully removed static IPs. "
+                msg = (log_meta_data + "Successfully removed static IPs. "
                        "Result: %s" % result_static_ips)
                 LOG.info(msg)
 
@@ -300,8 +309,8 @@ class FwGenericConfigDriver(object):
 
         active_fip = rule_info['active_fip']
 
-        msg = ("Initiating DELETE persistent rule for SERVICE ID: %r of "
-               "tenant: %r " %
+        msg = (log_meta_data + "Initiating DELETE persistent rule for "
+               "SERVICE ID: %r of tenant: %r " %
                (rule_info['service_id'], rule_info['tenant_id']))
         LOG.info(msg)
         url = const.request_url % (active_fip,
@@ -312,14 +321,14 @@ class FwGenericConfigDriver(object):
             data = jsonutils.dumps(active_rule_info)
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
+            msg = (log_meta_data + "Failed to establish connection to service"
+                   " at: %r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
                    (active_fip, rule_info['service_id'],
                     rule_info['tenant_id'], str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
         except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened  while deleting "
+            msg = (log_meta_data + "Unexpected ERROR happened  while deleting "
                    "persistent rule of service at: %r "
                    "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
                    (active_fip, rule_info['service_id'],
@@ -330,17 +339,18 @@ class FwGenericConfigDriver(object):
         try:
             result = resp.json()
         except ValueError as err:
-            msg = ("Unable to parse response, invalid JSON. URL: "
+            msg = (log_meta_data + "Unable to parse response,invalid JSON URL:"
                    "%r. %r" % (url, str(err).capitalize()))
             LOG.error(msg)
             raise Exception(msg)
         if not result['status'] or resp.status_code not in [200, 201, 202]:
-            msg = ("Error deleting persistent rule. URL: %r" % url)
+            msg = (log_meta_data + "Error deleting persistent rule. \URL: %r"
+                   % url)
             LOG.error(msg)
             raise Exception(msg)
-        msg = ("Persistent rule successfully deleted for SERVICE ID: %r"
-               " of tenant: %r " % (rule_info['service_id'],
-                                    rule_info['tenant_id']))
+        msg = (log_meta_data + "Persistent rule successfully deleted for "
+               "SERVICE ID: %r of tenant: %r " % (rule_info['service_id'],
+                                                  rule_info['tenant_id']))
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
@@ -356,6 +366,8 @@ class FwGenericConfigDriver(object):
         Returns: SUCCESS/Failure message with reason.
 
         """
+        log_meta_data = (kwargs['request_info']['log_meta_data']
+                         if 'log_meta_data' in kwargs['request_info'] else '')
 
         vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
         source_cidrs = kwargs.get('source_cidrs')
@@ -372,19 +384,19 @@ class FwGenericConfigDriver(object):
             route_info.append({'source_cidr': source_cidr,
                                'gateway_ip': gateway_ip})
         data = jsonutils.dumps(route_info)
-        msg = ("Initiating POST request to configure route of "
+        msg = (log_meta_data + "Initiating POST request to configure route of "
                "primary service at: %r" % vm_mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.post(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to service at: "
-                   "%r. ERROR: %r" % (vm_mgmt_ip, str(err).capitalize()))
+            msg = (log_meta_data + "Failed to establish connection to service "
+                   "at:%r. ERROR: %r" % (vm_mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened  while configuring "
-                   "route of service at: %r ERROR: %r" %
+            msg = (log_meta_data + "Unexpected ERROR happened while "
+                   "configuring route of service at: %r ERROR: %r" %
                    (vm_mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
@@ -392,25 +404,26 @@ class FwGenericConfigDriver(object):
         if resp.status_code in const.SUCCESS_CODES:
             message = jsonutils.loads(resp.text)
             if message.get("status", False):
-                msg = ("Route configured successfully for VYOS"
+                msg = (log_meta_data + "Route configured successfully for VYOS"
                        " service at: %r" % vm_mgmt_ip)
                 LOG.info(msg)
                 active_configured = True
             else:
-                msg = ("Configure source route failed on service with"
-                       " status %s %s"
+                msg = (log_meta_data + "Configure source route failed on"
+                       "service with status %s %s"
                        % (resp.status_code, message.get("reason", None)))
                 LOG.error(msg)
                 return msg
 
-        msg = ("Route configuration status : %r "
+        msg = (log_meta_data + "Route configuration status : %r "
                % (active_configured))
         LOG.info(msg)
         if active_configured:
             return const.STATUS_SUCCESS
         else:
-            return ("Failed to configure source route. Response code: %s."
-                    "Response Content: %r" % (resp.status_code, resp.content))
+            return (log_meta_data + "Failed to configure source route."
+                    "Response code: %s. Response Content: %r"
+                    % (resp.status_code, resp.content))
 
     def clear_routes(self, context, kwargs):
         """ Clear routes for the service VM.
@@ -425,6 +438,9 @@ class FwGenericConfigDriver(object):
 
         """
 
+        log_meta_data = (kwargs['request_info']['log_meta_data']
+                         if 'log_meta_data' in kwargs['request_info'] else '')
+
         vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
         source_cidrs = kwargs.get('source_cidrs')
 
@@ -437,18 +453,18 @@ class FwGenericConfigDriver(object):
         for source_cidr in source_cidrs:
             route_info.append({'source_cidr': source_cidr})
         data = jsonutils.dumps(route_info)
-        msg = ("Initiating DELETE route request to primary service at: %r"
-               % vm_mgmt_ip)
+        msg = (log_meta_data + "Initiating DELETE route request to primary "
+               "service at: %r" % vm_mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to primary service at: "
-                   " %r. ERROR: %r" % (vm_mgmt_ip, err))
+            msg = (log_meta_data + "Failed to establish connection to primary "
+                   "service at:%r. ERROR: %r" % (vm_mgmt_ip, err))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened  while deleting "
+            msg = (log_meta_data + "Unexpected ERROR happened  while deleting "
                    " route of service at: %r ERROR: %r"
                    % (vm_mgmt_ip, err))
             LOG.error(msg)
@@ -457,14 +473,15 @@ class FwGenericConfigDriver(object):
         if resp.status_code in const.SUCCESS_CODES:
             active_configured = True
 
-        msg = ("Route deletion status : %r "
+        msg = (log_meta_data + "Route deletion status : %r "
                % (active_configured))
         LOG.info(msg)
         if active_configured:
             return const.STATUS_SUCCESS
         else:
-            return ("Failed to delete source route. Response code: %s."
-                    "Response Content: %r" % (resp.status_code, resp.content))
+            return (log_meta_data + "Failed to delete source route.Response "
+                    "code: %s. Response Content: %r"
+                    % (resp.status_code, resp.content))
 
 """ Firewall as a service driver for handling firewall
 service configuration requests.
@@ -719,7 +736,9 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
            Returns: SUCCESS/FAILED
 
         """
+        log_meta_data = (kwargs['request_info']['log_meta_data']
+                         if 'log_meta_data' in kwargs['request_info'] else '')
         ip = kwargs.get('mgmt_ip')
         port = str(const.CONFIGURATION_SERVER_PORT)
         command = 'nc ' + ip + ' ' + port + ' -z'
-        return self._check_vm_health(command)
+        return self._check_vm_health(command, log_meta_data=log_meta_data)

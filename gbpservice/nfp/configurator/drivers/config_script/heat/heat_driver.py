@@ -35,6 +35,10 @@ class HeatDriver(base_driver.BaseDriver):
         pass
 
     def run_heat(self, context, kwargs):
-        msg = ("Heat template execution request received but unhandled")
+        nfd = kwargs['request_info']['network_function_data']
+        log_meta_data = (nfd['log_meta_data']
+                         if 'log_meta_data' in nfd else '')
+        msg = (log_meta_data + "Heat template execution request received"
+               " but unhandled")
         LOG.info(msg)
         return const.UNHANDLED_RESULT

@@ -48,7 +48,7 @@ class BaseDriver(object):
     def clear_healthmonitor(self, context, kwargs):
         return SUCCESS
 
-    def _check_vm_health(self, command):
+    def _check_vm_health(self, command, log_meta_data=''):
         """Ping based basic HM support provided by BaseDriver.
            Service provider can override the method implementation
            if they want to support other types.
@@ -57,17 +57,15 @@ class BaseDriver(object):
 
            Returns: SUCCESS/FAILED
         """
-        msg = ("Executing command %s for VM health check" % (command))
-        LOG.debug(msg)
         try:
             subprocess.check_output(command, stderr=subprocess.STDOUT,
                                     shell=True)
         except Exception as e:
-            msg = ("VM health check failed. Command '%s' execution failed."
-                   " Reason=%s" % (command, e))
+            msg = (log_meta_data + "VM health check failed. Command '%s' "
+                   "execution failed. Reason=%s" % (command, e))
             LOG.warn(msg)
             return FAILED
-        msg = ("VM Health check successful. Command '%s' executed"
-               " successfully" % (command))
-        LOG.debug(msg)
+        msg = (log_meta_data + "VM Health check successful. Command '%s' "
+               "executed successfully" % (command))
+        LOG.info(msg)
         return SUCCESS

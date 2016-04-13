@@ -23,6 +23,7 @@ from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.core import controller  # noqa
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.lib import nfp_log_helper
 from gbpservice.nfp.orchestrator.modules import (
     service_orchestrator as nso)
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
@@ -254,6 +255,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         transport.parse_service_flavor_string = mock.MagicMock(return_value=
                                                     {'device_type': 'VM',
                                                      'service_vendor': 'vyos'})
+        nfp_log_helper.prepare_log_meta_data = mock.MagicMock(return_value='')
         # with mock.patch.object(
         #    self.service_orchestrator.config_driver, "delete") as mock_delete:
         self.service_orchestrator.delete_network_function(
@@ -271,6 +273,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         network_function_data = {
             'network_function_details': network_function_details
         }
+        network_function_data['log_meta_data'] = ''
         mock_rpc.assert_called_once_with(
             network_function_data, service_config)
         # request_data = {
@@ -533,8 +536,9 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             mock_is_config_delete_complete.assert_called_once_with(
                 request_data['heat_stack_id'], network_function['tenant_id'])
             event_data = {
-                'network_function_id': network_function['id']
+                'network_function_id': network_function['id'],
             }
+            event_data['log_meta_data'] = ''
             mock_create_event.assert_called_once_with(
                 'USER_CONFIG_DELETE_FAILED', event_data=event_data)
             self.assertEqual(status, nso.STOP_POLLING)
@@ -559,6 +563,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             event_data = {
                 'network_function_id': network_function['id']
             }
+            event_data['log_meta_data'] = ''
             mock_create_event.assert_called_once_with(
                 'USER_CONFIG_DELETED', event_data=event_data)
             self.assertEqual(status, nso.STOP_POLLING)
@@ -584,8 +589,10 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                                                      'service_vendor': 'vyos'})
         test_event = Event(data=request_data)
         self.service_orchestrator.handle_user_config_deleted(test_event)
+        event_data = {'nfi_id': nfi['id'],
+                      'log_meta_data': ''}
         mock_create_event.assert_called_once_with(
-            'DELETE_NETWORK_FUNCTION_INSTANCE', event_data=nfi['id'])
+            'DELETE_NETWORK_FUNCTION_INSTANCE', event_data=event_data)
 
     def test_event_handle_user_config_delete_failed(self):
         network_function = self.create_network_function()
@@ -606,7 +613,10 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         openstack_driver.GBPClient, "get_service_profile")
     @mock.patch.object(
         nso.NSOConfiguratorRpcApi, "delete_network_function_user_config")
-    def test_delete_network_function(self, mock_rpc, mock_get_admin_token,
+    #@mock.patch.object(
+    #                   nfp_log_helper, "prepare_log_meta_data")
+    def test_delete_network_function(self, 
+                                     mock_rpc, mock_get_admin_token,
                                      mock_get_service_profile,
                                      mock_create_event):
         nfi = self.create_network_function_instance()
@@ -615,6 +625,8 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         transport.parse_service_flavor_string = mock.MagicMock(return_value=
                                                     {'device_type': 'VM',
                                                      'service_vendor': 'vyos'})
+
+        nfp_log_helper.prepare_log_meta_data = mock.MagicMock(return_value='')
         self.assertEqual([nfi['id']],
                          network_function['network_function_instances'])
         # with mock.patch.object(
@@ -635,6 +647,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         network_function_data = {
             'network_function_details': network_function_details
         }
+        network_function_data['log_meta_data'] = ''
         mock_rpc.assert_called_once_with(
             network_function_data, service_config)
         # event_data = {
@@ -655,7 +668,9 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             self.session, nfi['network_function_id'])
         self.assertEqual([nfi['id']],
                          network_function['network_function_instances'])
-        test_event = Event(data=nfi['id'])
+        event_data = {'nfi_id': nfi['id'],
+                      'log_meta_data': ''}
+        test_event = Event(data=event_data)
         self.service_orchestrator.delete_network_function_instance(
             test_event)
         db_nfi = self.nfp_db.get_network_function_instance(
@@ -666,6 +681,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             'network_function_device_id': nfi['network_function_device_id'],
             'network_function_instance': db_nfi
         }
+        delete_event_data['log_meta_data'] = ''
         mock_create_event.assert_called_once_with(
             'DELETE_NETWORK_FUNCTION_DEVICE',
             event_data=delete_event_data)

@@ -812,7 +812,9 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
            Returns: SUCCESS/FAILED
 
         """
+        log_meta_data = (kwargs['request_info']['log_meta_data']
+                         if 'log_meta_data' in kwargs['request_info'] else '')
         ip = kwargs.get('mgmt_ip')
         port = str(lb_constants.HAPROXY_AGENT_LISTEN_PORT)
         command = 'nc ' + ip + ' ' + port + ' -z'
-        return self._check_vm_health(command)
+        return self._check_vm_health(command, log_meta_data=log_meta_data)
