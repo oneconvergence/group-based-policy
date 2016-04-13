@@ -21,7 +21,7 @@ from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from neutron._i18n import _LE
-from neutron._i18n import _LI
+from neutron._i18n import _LI, _LW
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 from oslo_log import log as logging
@@ -672,7 +672,7 @@ class DeviceOrchestrator(object):
                                                                 device))
         if not config_params:
             # Ignore error in delete path
-            LOG.error(_LE("Exception occurred in driver while getting "
+            LOG.warning(_LW("Exception occurred in driver while getting "
                           "config_params. Driver returned None "
                           "for device %(device)s"), {'device': device})
         # Sends RPC call to configurator to delete generic config API
@@ -694,7 +694,7 @@ class DeviceOrchestrator(object):
             device['mgmt_port_id'] = mgmt_port_id
         else:
             # Ignore error in delete path
-            LOG.error(_LE("Interface unplugging failed, exception in "
+            LOG.warning(_LW("Interface unplugging failed, exception in "
                           "driver. Driver returned None for device "
                           "%(device)s"), {'device': device})
         self._create_event(event_id='DELETE_DEVICE',
