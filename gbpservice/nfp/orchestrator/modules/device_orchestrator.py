@@ -459,7 +459,7 @@ class DeviceOrchestrator(object):
             self._create_event(event_id='DEVICE_HEALTHY',
                                event_data=device,
                                is_internal_event=True)
-            LOG.info(_LI(log_meta_data + "Sharing existing device: %s(device)s"
+            LOG.info(_LI(log_meta_data + "Sharing existing device: %(device)s"
                          " for reuse"),
                      {'device': nfp_log_helper.make_dict_readable(device)})
         else:

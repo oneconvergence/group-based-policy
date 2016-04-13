@@ -617,23 +617,20 @@ class ServiceOrchestrator(object):
         }
         network_function = self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
-<<<<<<< HEAD
-
-        service_config = network_function_info['service_config']
-        self.delete_network_function_user_config(network_function_id,
-                                                 service_config,
-                                                 log_meta_data)
-=======
         heat_stack_id = network_function['heat_stack_id']
         if heat_stack_id:
             service_config = network_function_info['service_config']
             self.delete_network_function_user_config(network_function_id,
-                                                     service_config)
+                                                     service_config,
+                                                     log_meta_data)
         else:
             for nfi_id in network_function['network_function_instances']:
+                event_data = {}
+                # Append nfi_id to log_meta_data
+                event_data['log_meta_data'] = log_meta_data
+                event_data['nfi_id'] = nfi_id
                 self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
-                                   event_data=nfi_id)
->>>>>>> 92371ee43da1e42fb3cc0315530cbadc26a388d9
+                                   event_data=event_data)
 
     def delete_user_config(self, event):
         log_meta_data = (event.data.get('log_meta_data')
