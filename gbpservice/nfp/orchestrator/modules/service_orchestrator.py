@@ -1906,7 +1906,7 @@ class SOHelper(object):
             # <gateway_ip>, 'cidr': <cidr>}
             router_id = nw_function_info['service_info'][0].get('router_id',
                                                                 None)
-            stitching_port = self.sc_plumber.get_stitching_port(
+            stitching_port = self.sc_plumber.get_stitching_info(
                 nw_function_info['tenant_id'],
                 router_id=router_id, fip_required=fip_required)
             stitching_port.update(
@@ -2012,7 +2012,7 @@ class SOHelper(object):
     def handle_processing_for_fw(self, context, service_orchestrator,
                                  nw_function_info):
         router_id = nw_function_info['service_info'][0].get('router_id')
-        stitching_port = self.sc_plumber.get_stitching_port(
+        stitching_port = self.sc_plumber.get_stitching_info(
                 nw_function_info['tenant_id'], router_id=router_id)
         stitching_port.update(
                 id=stitching_port['port']['id'],

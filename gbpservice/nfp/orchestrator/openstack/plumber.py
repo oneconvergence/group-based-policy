@@ -13,10 +13,8 @@ class SCPlumber():
     def __init__(self, conf):
         self.plumber = NeutronPlumber(conf)
 
-    def get_stitching_port(self, tenant_id, router_id=None,
+    def get_stitching_info(self, tenant_id, router_id=None,
                            fip_required=False):
-        # find network with this name in this tenant
-        # If network not present, create a new one
         # create a port for hotplug with port security disabled
         # assign fip if needed
         # After successful operation, return port details.
@@ -42,8 +40,8 @@ class SCPlumber():
         else:
             self.plumber.delete_extra_route(router_id, peer_cidrs)
 
-    def unplug_router_interface(self, router_id, subnet_id):
-        self.plumber.remove_router_interface(router_id, subnet_id)
+    def undo_plumbing(self, **kwargs):
+        self.plumber.undo_plumbing(**kwargs)
 
 
 class NeutronPlumber():
@@ -188,7 +186,7 @@ class NeutronPlumber():
         net_id, cidr, gateway_ip = self._check_stitching_network(
             token, tenant_id, router_id)
         attrs = {'port_security_enabled': False,
-                 'name': 'stitching-port'}
+                 'name': 'nfp-owned-stitching-port'}
         # stitching port belongs to services tenant, so tenant_id is not set
         hotplug_port = self.neutron.create_port(token, "", net_id,
                                                 attrs)
@@ -211,8 +209,19 @@ class NeutronPlumber():
         for port in ports:
             self.neutron.update_port(token, port, admin_state_up=False)
 
-    def remove_router_interface(self, router_id, subnet_id):
+    def undo_plumbing(self, **kwargs):
+        subnet_id = kwargs['subnet_id']
+        port_id = kwargs['port_id']
+        network_id = ['network_id']
+        router_id = ['router_id']
         token = self.keystone.get_admin_token()
+        # delete stitching port
+        self.neutron.delete_port(token, port_id)
+        # delete router interface
         interface_info = {'subnet_id': subnet_id}
         self.neutron.remove_router_interface(token, router_id,
                                              interface_info)
+        # delete SUBNET
+        self.neutron.delete_subnet(token, subnet_id)
+        # delete NETWORK
+        self.neutron.delete_network(token, network_id)
