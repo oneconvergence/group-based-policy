@@ -127,8 +127,7 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            service_type = body['info'].get('service_type')
-
+            # service_type = body['info'].get('service_type')
             # Assuming config list will have only one element
             config_data = body['config'][0]
             context = config_data['kwargs']['context']

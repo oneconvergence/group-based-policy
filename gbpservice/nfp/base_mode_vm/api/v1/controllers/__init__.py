@@ -60,4 +60,3 @@ class V1Controller(object):
         return {'versions': [{'status': 'CURRENT',
                               'updated': '2014-12-11T00:00:00Z',
                               'id': 'v1'}]}
-
