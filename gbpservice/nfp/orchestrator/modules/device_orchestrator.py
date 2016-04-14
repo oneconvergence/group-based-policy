@@ -48,7 +48,7 @@ def events_init(controller, config, device_orchestrator):
               'DEVICE_HEALTHY', 'CONFIGURE_DEVICE',
               'DEVICE_CONFIGURED', "DELETE_CONFIGURATION",
               'DELETE_NETWORK_FUNCTION_DEVICE',
-              'DELETE_CONFIGURATION_COMPLETED',
+              'DELETE_CONFIGURATION_COMPLETED', 'DEVICE_BEING_DELETED',
               'DEVICE_NOT_REACHABLE', 'DEVICE_CONFIGURATION_FAILED']
     events_to_register = []
     for event in events:
@@ -219,6 +219,7 @@ class DeviceOrchestrator(object):
             #    self.delete_device), # should we wait for
             # this, or simply delete device
             "DELETE_DEVICE": self.delete_device,
+            "DEVICE_BEING_DELETED": self.check_device_deleted,
             "DELETE_CONFIGURATION": self.delete_device_configuration,
             "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
             "DEVICE_CONFIGURATION_FAILED": self.handle_device_config_failed,
@@ -290,6 +291,21 @@ class DeviceOrchestrator(object):
                                is_internal_event=True)
             self._update_network_function_device_db(device,
                                                     'DEVICE_NOT_UP')
+        if ev.id == 'DEVICE_BEING_DELETED':
+            LOG.info(_LI("Device is not deleted completely."
+                         " Continuing further cleanup of resources."
+                         " Possibly there could be stale port resources"
+                         " on Compute"))
+            device = ev.data
+            orchestration_driver = self._get_orchestration_driver(
+                                                device['service_vendor'])
+            device_id = device['id']
+            del device['id']
+            orchestration_driver.delete_network_function_device(device)
+            self._delete_network_function_device_db(device_id)
+            # DEVICE_DELETED event for NSO
+            self._create_event(event_id='DEVICE_DELETED',
+                               event_data=device)
 
     def _update_device_status(self, device, state, status_desc=None):
         device['status'] = state
@@ -709,15 +725,37 @@ class DeviceOrchestrator(object):
         device_ref_count = device['reference_count']
         if device_ref_count <= 0:
             orchestration_driver.delete_network_function_device(device)
-            self._delete_network_function_device_db(device['id'])
+            self._create_event(event_id='DEVICE_BEING_DELETED',
+                               event_data=device,
+                               is_poll_event=True,
+                               original_event=event)
         else:
             desc = 'Network Service Device can be reuse'
             self._update_network_function_device_db(device,
                                                     device['status'],
                                                     desc)
-        # DEVICE_DELETED event for NSO
-        self._create_event(event_id='DEVICE_DELETED',
-                           event_data=device)
+            # DEVICE_DELETED event for NSO
+            self._create_event(event_id='DEVICE_DELETED',
+                               event_data=device)
+
+    @poll_event_desc(event='DEVICE_BEING_DELETED', spacing=20)
+    def check_device_deleted(self, event):
+        device = event.data
+        orchestration_driver = self._get_orchestration_driver(
+            device['service_vendor'])
+        status = orchestration_driver.get_network_function_device_status(
+                        device, ignore_failure=True)
+        if not status:
+            device_id = device['id']
+            del device['id']
+            orchestration_driver.delete_network_function_device(device)
+            self._delete_network_function_device_db(device_id)
+            # DEVICE_DELETED event for NSO
+            self._create_event(event_id='DEVICE_DELETED',
+                               event_data=device)
+            return STOP_POLLING
+        else:
+            return CONTINUE_POLLING
 
     # Error Handling
     def handle_device_create_error(self, event):

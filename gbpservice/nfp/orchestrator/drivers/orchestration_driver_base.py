@@ -460,8 +460,7 @@ class OrchestrationDriverBase(object):
         """
         if (
             any(key not in device_data
-                for key in ['id',
-                            'tenant_id',
+                for key in ['tenant_id',
                             'service_details',
                             'network_model',
                             'mgmt_port_id']) or
@@ -492,29 +491,36 @@ class OrchestrationDriverBase(object):
             LOG.error(_LE('Failed to get token for device deletion'))
             return None
 
-        try:
-            self.compute_handler_nova.delete_instance(
-                                            token,
-                                            self._get_admin_tenant_id(
-                                                                token=token),
-                                            device_data['id'])
-        except Exception:
-            self._increment_stats_counter('instance_delete_failures')
-            LOG.error(_LE('Failed to delete %s instance')
-                      % (device_data['compute_policy']))
+        if device_data.get('id'):
+            # delete the device instance
+            #
+            # this method will be invoked again
+            # once the device instance deletion is completed
+            try:
+                self.compute_handler_nova.delete_instance(
+                                                token,
+                                                self._get_admin_tenant_id(
+                                                                    token=token),
+                                                device_data['id'])
+            except Exception:
+                self._increment_stats_counter('instance_delete_failures')
+                LOG.error(_LE('Failed to delete %s instance')
+                          % (device_data['compute_policy']))
+            else:
+                self._decrement_stats_counter('instances')
         else:
-            self._decrement_stats_counter('instances')
+            # device instance deletion is done, delete remaining resources 
+            try:
+                self._delete_interfaces(device_data,
+                                        [device_data['mgmt_port_id']],
+                                        network_handler=network_handler)
+            except Exception:
+                LOG.error(_LE('Failed to delete the management data port(s)'))
+            else:
+                self._decrement_stats_counter('management_interfaces')
 
-        try:
-            self._delete_interfaces(device_data,
-                                    [device_data['mgmt_port_id']],
-                                    network_handler=network_handler)
-        except Exception:
-            LOG.error(_LE('Failed to delete the management data port(s)'))
-        else:
-            self._decrement_stats_counter('management_interfaces')
-
-    def get_network_function_device_status(self, device_data):
+    def get_network_function_device_status(self, device_data,
+                                           ignore_failure=False):
         """ Get the status of NFD
 
         :param device_data: NFD device
@@ -556,6 +562,8 @@ class OrchestrationDriverBase(object):
                             self._get_admin_tenant_id(token=token),
                             device_data['id'])
         except Exception:
+            if ignore_failure:
+                return None
             self._increment_stats_counter('instance_details_get_failures')
             LOG.error(_LE('Failed to get %s instance details')
                       % (device_data['compute_policy']))
