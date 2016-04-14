@@ -212,8 +212,8 @@ class NeutronPlumber():
     def undo_plumbing(self, **kwargs):
         subnet_id = kwargs['subnet_id']
         port_id = kwargs['port_id']
-        network_id = ['network_id']
-        router_id = ['router_id']
+        network_id = kwargs['network_id']
+        router_id = kwargs['router_id']
         token = self.keystone.get_admin_token()
         # delete stitching port
         self.neutron.delete_port(token, port_id)
