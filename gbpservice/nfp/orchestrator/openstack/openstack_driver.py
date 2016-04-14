@@ -932,7 +932,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-
     def create_subnet(self, token, tenant_id, attrs=None):
 
         attr = {
@@ -950,6 +949,24 @@ class NeutronClient(OpenstackApi):
         except Exception as ex:
             raise Exception("subnet creation failed for tenant: %r"
                             " Error: %s" % (tenant_id, ex))
+
+    def delete_network(self, token, network_id):
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            neutron.delete_network(network_id)
+        except Exception as ex:
+            raise Exception("Network % delete failed."
+                            " Error: %s" % (network_id, ex))
+
+    def delete_subnet(self, token, subnet_id):
+        try:
+            neutron = neutron_client.Client(token=token,
+                                            endpoint_url=self.network_service)
+            neutron.delete_subnet(subnet_id)
+        except Exception as ex:
+            raise Exception("Subnet % delete failed."
+                            " Error: %s" % (subnet_id, ex))
 
 
 class GBPClient(OpenstackApi):
