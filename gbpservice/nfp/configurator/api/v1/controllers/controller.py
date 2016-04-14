@@ -65,7 +65,6 @@ class Controller(rest.RestController):
 
         :param uservice
         e.g uservice = {'service_name': 'configurator',
-                        'host': 'localhost',
                         'topic': 'configurator',
                         'reporting_interval': '10',  # in seconds
                         'apis': ['CONFIGURATION', 'EVENT']
@@ -139,7 +138,7 @@ class Controller(rest.RestController):
                 routing_key = 'CONFIGURATION'
             for uservice in self.rpc_routing_table[routing_key]:
                 uservice.rpcclient.cast(self.method_name, body)
-                LOG.info('Sent RPC to %s %s' % (uservice.topic, uservice.host))
+                LOG.info('Sent RPC to %s' % (uservice.topic))
 
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
@@ -177,7 +176,7 @@ class Controller(rest.RestController):
                 routing_key = 'CONFIGURATION'
             for uservice in self.rpc_routing_table[routing_key]:
                 uservice.rpcclient.cast(self.method_name, body)
-                LOG.info('Sent RPC to %s %s' % (uservice.topic, uservice.host))
+                LOG.info('Sent RPC to %s' % (uservice.topic))
 
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
@@ -216,10 +215,9 @@ class RPCClient(object):
 
     API_VERSION = '1.0'
 
-    def __init__(self, topic, host):
+    def __init__(self, topic):
 
         self.topic = topic
-        self.host = host
         target = oslo_messaging.Target(
             topic=self.topic,
             version=self.API_VERSION)
@@ -233,7 +231,8 @@ class RPCClient(object):
         Returns: Notification data sent by configurator.
 
         """
-        cctxt = self.client.prepare(server=self.host)
+        cctxt = self.client.prepare(version=self.API_VERSION,
+                                    topic=self.topic)
         return cctxt.call(self, method_name)
 
     def cast(self, method_name, request_data):
@@ -248,7 +247,8 @@ class RPCClient(object):
         Returns: None.
 
         """
-        cctxt = self.client.prepare(server=self.host)
+        cctxt = self.client.prepare(version=self.API_VERSION,
+                                    topic=self.topic)
         return cctxt.cast(self,
                           method_name,
                           request_data=request_data)
@@ -277,9 +277,8 @@ class CloudService():
     def __init__(self, **kwargs):
         self.service_name = kwargs.get('service_name')
         self.topic = kwargs.get('topic')
-        self.host = kwargs.get('host')
         self.reporting_interval = kwargs.get('reporting_interval')
-        self.rpcclient = RPCClient(topic=self.topic, host=self.host)
+        self.rpcclient = RPCClient(topic=self.topic)
 
 
 """RMQConsumer for over the cloud services.
