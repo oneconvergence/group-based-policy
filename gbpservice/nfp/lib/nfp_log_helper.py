@@ -141,4 +141,4 @@ def make_dict_readable(dictionary, indent=2):
 
     Returns: dictionary in pretty print like format
     """
-    return json.dumps(dictionary, indent)
+    return json.dumps(dictionary, indent=indent)
