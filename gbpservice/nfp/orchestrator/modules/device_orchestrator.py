@@ -13,6 +13,7 @@
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.core.event import Event
+from gbpservice.nfp.core.poll import PollEventDesc
 from gbpservice.nfp.core.poll import poll_event_desc
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
@@ -133,7 +134,7 @@ class RpcHandler(object):
                            event_data=event_data)
 
 
-class DeviceOrchestrator(object):
+class DeviceOrchestrator(PollEventDesc):
     """device Orchestrator For Network Services
 
     This class handles the orchestration of Network Function Device lifecycle.
@@ -204,7 +205,6 @@ class DeviceOrchestrator(object):
         event_handler_mapping = {
             "CREATE_NETWORK_FUNCTION_DEVICE": (
                 self.create_network_function_device),
-            "DEVICE_SPAWNING": self.check_device_is_up,
             "DEVICE_UP": self.perform_health_check,
             "DEVICE_HEALTHY": self.plug_interfaces,
             "CONFIGURE_DEVICE": self.create_device_configuration,
@@ -219,7 +219,6 @@ class DeviceOrchestrator(object):
             #    self.delete_device), # should we wait for
             # this, or simply delete device
             "DELETE_DEVICE": self.delete_device,
-            "DEVICE_BEING_DELETED": self.check_device_deleted,
             "DELETE_CONFIGURATION": self.delete_device_configuration,
             "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
             "DEVICE_CONFIGURATION_FAILED": self.handle_device_config_failed,
@@ -233,16 +232,6 @@ class DeviceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        try:
-            event_handler = self.event_method_mapping(event.id)
-            event_handler(event)
-        except Exception as e:
-            LOG.exception(_LE("Unhandled exception in handle event for event: "
-                            "%(event_id)s %(error)s"), {'event_id': event.id,
-                                                        'error': e})
-
-    def handle_poll_event(self, event):
-        LOG.debug("NSO handle_poll_event called for event ID: %s" % (event.id))
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
@@ -738,7 +727,7 @@ class DeviceOrchestrator(object):
             self._create_event(event_id='DEVICE_DELETED',
                                event_data=device)
 
-    @poll_event_desc(event='DEVICE_BEING_DELETED', spacing=20)
+    @poll_event_desc(event='DEVICE_BEING_DELETED', spacing=2)
     def check_device_deleted(self, event):
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
