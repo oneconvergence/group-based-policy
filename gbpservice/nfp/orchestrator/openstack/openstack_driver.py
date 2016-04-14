@@ -842,8 +842,7 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    def remove_router_interface(self, token, router_id, subnet_id,
-                                interface_info):
+    def remove_router_interface(self, token, router_id, interface_info):
         """
         :param token:
         :param router_id:
