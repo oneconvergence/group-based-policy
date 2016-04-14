@@ -16,6 +16,8 @@ from oslo_log import log as logging
 import pecan
 from pecan import rest
 import requests
+import subprocess
+import time
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
@@ -51,6 +53,8 @@ class Controller(rest.RestController):
                 "Failed to initialize Controller class  %s." %
                 str(err).capitalize())
             LOG.error(msg)
+        self.vm_port = '8080'
+        self.max_retries = 12
 
     def _push_notification(self, context, request_info, result, config_data):
         global notifications
@@ -76,6 +80,19 @@ class Controller(rest.RestController):
 
         notifications.append(response)
 
+    def _verify_vm_reachability(self, vm_ip, vm_port):
+        reachable = False
+        command = 'nc ' + vm_ip + ' ' + vm_port + ' -z'
+        for _ in range(self.max_retries):
+            try:
+                subprocess.check_output(command, stderr=subprocess.STDOUT,
+                                        shell=True)
+                reachable = True
+                break
+            except Exception:
+                time.sleep(5)
+        return reachable
+
     @pecan.expose(method='GET', content_type='application/json')
     def get(self):
         """Method of REST server to handle request get_notifications.
@@ -99,7 +116,8 @@ class Controller(rest.RestController):
             else:
                 for ip in cache_ips:
                     notification_response = requests.get(
-                        'http://' + str(ip) + ':8080/v1/nfp/get_notifications')
+                        'http://' + str(ip) + ':' + self.vm_port +
+                        '/v1/nfp/get_notifications')
                     notification = jsonutils.loads(notification_response.text)
                     notifications.extend(notification)
                     cache_ips.remove(ip)
@@ -150,9 +168,14 @@ class Controller(rest.RestController):
                 LOG.info(msg)
                 device_ip = request_info['device_ip']
                 ip = str(device_ip)
-                requests.post(
-                    'http://' + ip + ':8080/v1/nfp/' + self.method_name,
-                    data=jsonutils.dumps(body))
+                is_vm_reachable = self._verify_vm_reachability(ip,
+                                                               self.vm_port)
+                if is_vm_reachable:
+                    requests.post(
+                        'http://' + ip + ':' + self.vm_port + '/v1/nfp/' +
+                        self.method_name, data=jsonutils.dumps(body))
+                else:
+                    raise Exception('VM is not reachable')
                 cache_ips.add(device_ip)
             else:
                 service_type = body['info'].get('service_type')
@@ -202,9 +225,14 @@ class Controller(rest.RestController):
                 LOG.info(msg)
                 device_ip = request_info['device_ip']
                 ip = str(device_ip)
-                requests.post(
-                    'http://' + ip + ':8080/v1/nfp/' + self.method_name,
-                    data=jsonutils.dumps(body))
+                is_vm_reachable = self._verify_vm_reachability(ip,
+                                                               self.vm_port)
+                if is_vm_reachable:
+                    requests.post(
+                        'http://' + ip + ':' + self.vm_port + '/v1/nfp/' +
+                        self.method_name, data=jsonutils.dumps(body))
+                else:
+                    raise Exception('VM is not reachable')
                 cache_ips.add(device_ip)
             else:
                 service_type = body['info'].get('service_type')
