@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
 import oslo_serialization.jsonutils as jsonutils
-import subprocess
 
 from neutron.agent.common import config
 from neutron.common import rpc as n_rpc
@@ -19,12 +19,11 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 import pecan
-from pecan import rest
+from pecan import rest, conf
+import pika
 
 LOG = logging.getLogger(__name__)
-TOPIC = 'configurator'
 n_rpc.init(cfg.CONF)
-base_mode_notifications = []
 
 """Implements all the APIs Invoked by HTTP requests.
 
@@ -42,9 +41,15 @@ class Controller(rest.RestController):
 
     def __init__(self, method_name):
         try:
-            self.host = subprocess.check_output(
-                'hostname', shell=True).rstrip()
-            self.rpcclient = RPCClient(topic=TOPIC, host=self.host)
+            self.services = conf['cloud_services']
+            self.rpc_routing_table = {}
+            for service in self.services:
+                self._entry_to_rpc_routing_table(service)
+
+            nsd_controller = conf['nsd_controller']
+            self.rmqconsumer = RMQConsumer(nsd_controller['host'],
+                                           nsd_controller['notification_queue']
+                                           )
             self.method_name = method_name
             super(Controller, self).__init__()
         except Exception as err:
@@ -53,38 +58,29 @@ class Controller(rest.RestController):
                 str(err).capitalize())
             LOG.error(msg)
 
-    def _push_notification(self, context, request_info, result):
-        response = {
-            'receiver': 'service_orchestrator',
-            'resource': 'heat',
-            'method': 'network_function_device_notification',
-            'kwargs': [
-                {
-                    'context': context,
-                    'resource': 'heat',
-                    'request_info': request_info,
-                    'result': result
-                }
-            ]
-        }
+    def _entry_to_rpc_routing_table(self, service):
+        """Prepares routing table based on the uservice configuration.
+           This routing table is used to route the rpcs to all interested
+           uservices. Key used for routing is the uservice[apis].
 
-        base_mode_notifications.append(response)
+        :param uservice
+        e.g uservice = {'service_name': 'configurator',
+                        'topic': 'configurator',
+                        'reporting_interval': '10',  # in seconds
+                        'apis': ['CONFIGURATION', 'EVENT']
+                        }
+        Returns: None
 
-    def _is_base_mode(self, body):
-        service_type = body['info'].get('service_type')
+        Prepares: self.rpc_routing_table
+            e.g self.rpc_routing_table = {'CONFIGURATION': [rpc_client, ...],
+                                          'EVENT': [rpc_client, ...]
+                                          }
+        """
+        for api in service['apis']:
+            if api not in self.rpc_routing_table:
+                self.rpc_routing_table[api] = []
 
-        if (service_type != "heat"):
-            return False
-
-        # Assuming config list will have only one element
-        config_data = body['config'][0]
-        context = config_data['kwargs']['context']
-        request_info = config_data['kwargs']['request_info']
-
-        # Only heat is supported presently
-        result = "unhandled"
-        self._push_notification(context, request_info, result)
-        return True
+            self.rpc_routing_table[api].append(CloudService(**service))
 
     @pecan.expose(method='GET', content_type='application/json')
     def get(self):
@@ -97,26 +93,22 @@ class Controller(rest.RestController):
 
         """
 
-        global base_mode_notifications
-
         try:
-            notification_data = self.rpcclient.call()
-            msg = ("NOTIFICATION_DATA sent to config_agent %s"
-                   % notification_data)
-            LOG.info(msg)
-
-            if (len(base_mode_notifications) != 0):
-                msg = ("BASE MODE NOTIFICATION_DATA sent to config_agent %s"
-                       % base_mode_notifications)
+            if self.method_name == 'get_notifications':
+                notification_data = jsonutils.dumps(
+                    self.rmqconsumer.pull_notifications())
+                msg = ("NOTIFICATION_DATA sent to config_agent %s"
+                       % notification_data)
                 LOG.info(msg)
-                notification_data += base_mode_notifications
-                base_mode_notifications = []
-
-            return jsonutils.dumps(notification_data)
+                return notification_data
+            elif self.method_name == 'get_requests':
+                """TODO(pritam): handle this
+                """
+                return jsonutils.dumps({})
         except Exception as err:
             pecan.response.status = 400
-            msg = ("Failed to get notification_data  %s."
-                   % str(err).capitalize())
+            msg = ("Failed to get handle request=%s. Reason=%s."
+                   % (self.method_name, str(err).capitalize()))
             LOG.error(msg)
             error_data = self._format_description(msg)
             return jsonutils.dumps(error_data)
@@ -140,10 +132,14 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            if self._is_base_mode(body):
-                return
+            if self.method_name == 'network_function_event':
+                routing_key = 'VISIBILITY'
+            else:
+                routing_key = 'CONFIGURATION'
+            for uservice in self.rpc_routing_table[routing_key]:
+                uservice.rpcclient.cast(self.method_name, body)
+                LOG.info('Sent RPC to %s' % (uservice.topic))
 
-            self.rpcclient.cast(self.method_name, body)
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
         except Exception as err:
@@ -174,7 +170,14 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            self.rpcclient.cast(self.method_name, body)
+            if self.method_name == 'network_function_event':
+                routing_key = 'VISIBILITY'
+            else:
+                routing_key = 'CONFIGURATION'
+            for uservice in self.rpc_routing_table[routing_key]:
+                uservice.rpcclient.cast(self.method_name, body)
+                LOG.info('Sent RPC to %s' % (uservice.topic))
+
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
         except Exception as err:
@@ -212,16 +215,15 @@ class RPCClient(object):
 
     API_VERSION = '1.0'
 
-    def __init__(self, topic, host):
+    def __init__(self, topic):
 
         self.topic = topic
-        self.host = host
         target = oslo_messaging.Target(
             topic=self.topic,
             version=self.API_VERSION)
         self.client = n_rpc.get_client(target)
 
-    def call(self):
+    def call(self, method_name):
         """Method for sending call request on behalf of REST Controller.
 
         This method sends an RPC call to configurator.
@@ -229,9 +231,9 @@ class RPCClient(object):
         Returns: Notification data sent by configurator.
 
         """
-        cctxt = self.client.prepare(server=self.host)
-        return cctxt.call(self,
-                          'get_notifications')
+        cctxt = self.client.prepare(version=self.API_VERSION,
+                                    topic=self.topic)
+        return cctxt.call(self, method_name)
 
     def cast(self, method_name, request_data):
         """Method for sending cast request on behalf of REST Controller.
@@ -245,7 +247,8 @@ class RPCClient(object):
         Returns: None.
 
         """
-        cctxt = self.client.prepare(server=self.host)
+        cctxt = self.client.prepare(version=self.API_VERSION,
+                                    topic=self.topic)
         return cctxt.cast(self,
                           method_name,
                           request_data=request_data)
@@ -262,3 +265,67 @@ class RPCClient(object):
 
         """
         return {}
+
+
+""" CloudService keeps all information of uservice along with initialized
+    RPCClient object using which rpc is routed to over the cloud service.
+"""
+
+
+class CloudService():
+
+    def __init__(self, **kwargs):
+        self.service_name = kwargs.get('service_name')
+        self.topic = kwargs.get('topic')
+        self.reporting_interval = kwargs.get('reporting_interval')
+        self.rpcclient = RPCClient(topic=self.topic)
+
+
+"""RMQConsumer for over the cloud services.
+
+This class access rabbitmq's 'configurator-notifications' queue
+to pull all the notifications came from over the cloud services.
+"""
+
+
+class RMQConsumer(object):
+
+    def __init__(self, rabbitmq_host, queue):
+        self.rabbitmq_host = rabbitmq_host
+        self.queue = queue
+        self.create_connection()
+
+    def create_connection(self):
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host=self.rabbitmq_host))
+
+    def pull_notifications(self):
+        notifications = []
+        msgs_acknowledged = False
+        try:
+            self.channel = self.connection.channel()
+            self.queue_declared = self.channel.queue_declare(queue=self.queue,
+                                                             durable=True)
+            pending_msg_count = self.queue_declared.method.message_count
+            log = ('[notifications queue:%s, pending notifications:%s]'
+                   % (self.queue, pending_msg_count))
+            for i in range(pending_msg_count):
+                method, properties, body = self.channel.basic_get(self.queue)
+                notifications.append(ast.literal_eval(body))
+
+            # Acknowledge all messages delivery
+            if pending_msg_count > 0:
+                self.channel.basic_ack(delivery_tag=method.delivery_tag,
+                                       multiple=True)
+                msgs_acknowledged = True
+
+            self.channel.close()
+            return notifications
+        except pika.exceptions.ConnectionClosed:
+            self.create_connection()
+            self.pull_notifications()
+        except pika.exceptions.ChannelClosed:
+            if msgs_acknowledged is False:
+                self.pull_notifications()
+            else:
+                return notifications

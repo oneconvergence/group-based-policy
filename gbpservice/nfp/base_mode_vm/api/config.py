@@ -28,15 +28,15 @@ app = {
 }
 
 logging = {
-    'root': {'level': 'INFO', 'handlers': ['console', 'logfile']},
+    'root': {'level': 'INFO', 'handlers': ['console']},
     'loggers': {
         'pecanlog': {'level': 'INFO',
-                     'handlers': ['console', 'logfile'],
+                     'handlers': ['console'],
                      'propagate': False},
         'pecan': {'level': 'INFO',
-                  'handlers': ['console', 'logfile'],
+                  'handlers': ['console'],
                   'propagate': False},
-        'py.warnings': {'handlers': ['console', 'logfile']},
+        'py.warnings': {'handlers': ['console']},
         '__force_dict__': True
     },
     'handlers': {
@@ -44,11 +44,6 @@ logging = {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'color'
-        },
-        'logfile': {
-            'class': 'logging.FileHandler',
-            'filename': '/var/log/nfp/nfp_pecan.log',
-            'level': 'INFO'
         }
     },
     'formatters': {
@@ -61,27 +56,9 @@ logging = {
             'format': ('%(asctime)s [%(padded_color_levelname)s] [%(name)s]'
                        '[%(threadName)s] %(message)s'),
             '__force_dict__': True
-        }
-    }
+                 }
+                 }
 }
-
-cloud_services = [
-    {'service_name': 'configurator',
-     'topic': 'configurator',
-     'reporting_interval': '10',  # in seconds
-     'apis': ['CONFIGURATION']
-     },
-
-    {'service_name': 'visibility',
-     'topic': 'visibility',
-     'reporting_interval': '10',  # in seconds
-     'apis': ['VISIBILITY']
-     },
-]
-
-nsd_controller = {'host': '127.0.0.1',  # pull notifications from 'host'
-                  'notification_queue': 'configurator-notifications'
-                  }
 
 # Custom Configurations must be in Python dictionary format::
 #

@@ -254,6 +254,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         transport.parse_service_flavor_string = mock.MagicMock(return_value=
                                                     {'device_type': 'VM',
                                                      'service_vendor': 'vyos'})
+        tag_str = 'heat_config'
         # with mock.patch.object(
         #    self.service_orchestrator.config_driver, "delete") as mock_delete:
         self.service_orchestrator.delete_network_function(
@@ -272,7 +273,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             'network_function_details': network_function_details
         }
         mock_rpc.assert_called_once_with(
-            network_function_data, service_config)
+            network_function_data, service_config, tag_str)
         # request_data = {
         #     'tenant_id': network_function['tenant_id'],
         #     'heat_stack_id': network_function['heat_stack_id'],
@@ -615,6 +616,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         transport.parse_service_flavor_string = mock.MagicMock(return_value=
                                                     {'device_type': 'VM',
                                                      'service_vendor': 'vyos'})
+        tag_str = 'heat_config'
         self.assertEqual([nfi['id']],
                          network_function['network_function_instances'])
         # with mock.patch.object(
@@ -636,7 +638,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             'network_function_details': network_function_details
         }
         mock_rpc.assert_called_once_with(
-            network_function_data, service_config)
+            network_function_data, service_config, tag_str)
         # event_data = {
         #     'tenant_id': network_function['tenant_id'],
         #     'heat_stack_id': network_function['heat_stack_id'],
@@ -801,6 +803,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                 self.context, network_function_id, policy_target_group)
         db_nf = self.nfp_db.get_network_function(
             self.session, nfi['network_function_id'])
+        tag_str = 'heat_config'
         self.assertIsNotNone(db_nf['heat_stack_id'])
         service_config = db_nf['service_config']
         network_function_details = (
@@ -811,7 +814,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             'consumer_ptg': policy_target_group
         }
         mock_create_rpc.assert_called_once_with(
-            network_function_data, service_config
+            network_function_data, service_config, tag_str
         )
         # mock_handle_consumer_ptg_added.assert_called_once_with(
         #     mock.ANY, policy_target_group)
@@ -847,6 +850,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                 self.context, network_function_id, policy_target_group)
         db_nf = self.nfp_db.get_network_function(
             self.session, nfi['network_function_id'])
+        tag_str = 'heat_config'
         self.assertIsNotNone(db_nf['heat_stack_id'])
         service_config = db_nf['service_config']
         network_function_details = (
@@ -857,7 +861,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             'consumer_ptg': policy_target_group
         }
         mock_delete_rpc.assert_called_once_with(
-            network_function_data, service_config
+            network_function_data, service_config, tag_str
         )
         # mock_handle_consumer_ptg_removed.assert_called_once_with(
         #     mock.ANY, policy_target_group)

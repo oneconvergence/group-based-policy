@@ -9,18 +9,18 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-from gbpservice.nfp.config_orchestrator.agent import common
+import ast
 from gbpservice.nfp.common import constants as const
+from gbpservice.nfp.config_orchestrator.agent import common
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.proxy_agent.lib import topics
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
-from neutron import context as n_context
 from oslo_log import helpers as log_helpers
-from oslo_log import log
 import oslo_messaging as messaging
+from oslo_log import log
 
 LOG = log.getLogger(__name__)
+
 
 """
 RPC handler for Loadbalancer service
@@ -127,26 +127,56 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
                 'members': db_data.get_members(**args),
                 'health_monitors': db_data.get_health_monitors(**args)}
 
+    def _prepare_request_data(self, context, vip):
+        request_data = None
+        try:
+            if vip is not None:
+                vip_desc = ast.literal_eval(vip['description'])
+                request_data = common.get_network_function_map(
+                    context, vip_desc['network_function_id'])
+                # Adding Service Type #
+                request_data.update({"service_type": "loadbalancer",
+                                     "vip_id": vip['id']})
+        except Exception as e:
+            LOG.error(e)
+            return request_data
+        return request_data
+
+    @log_helpers.log_method_call
     def update_status(self, context, **kwargs):
         kwargs = kwargs['kwargs']
-        rpcClient = transport.RPCClient(topics.LB_NFP_PLUGIN_TOPIC)
+        rpcClient = transport.RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt = rpcClient.client.prepare(
             version=const.LOADBALANCER_RPC_API_VERSION)
         msg = ("NCO received LB's update_status API, making an update_status "
                "RPC call to plugin for %s: %s with status %s" % (
-                            kwargs['obj_type'], kwargs['obj_id'],
-                            kwargs['status']))
+                   kwargs['obj_type'], kwargs['obj_id'],
+                   kwargs['status']))
         LOG.info(msg)
         rpcClient.cctxt.cast(context, 'update_status',
                              obj_type=kwargs['obj_type'],
                              obj_id=kwargs['obj_id'],
                              status=kwargs['status'])
+        if kwargs['obj_type'] == 'vip':
+            vip = kwargs['vip']
+            request_data = self._prepare_request_data(context, vip)
+            LOG.info("%s : %s " % (request_data, vip))
+            # Sending An Event for visiblity #
+            data = {'resource': None,
+                    'context': context}
+            data['resource'] = {'eventtype': 'SERVICE',
+                                'eventid': 'SERVICE_CREATED',
+                                'eventdata': request_data}
+            ev = self._sc.new_event(id='SERVICE_CREATE',
+                                    key='SERVICE_CREATE', data=data)
+            self._sc.post_event(ev)
 
+    @log_helpers.log_method_call
     def update_pool_stats(self, context, **kwargs):
         kwargs = kwargs['kwargs']
-        rpcClient = transport.RPCClient(topics.LB_NFP_PLUGIN_TOPIC)
-        rpcClient.cctxt = rpcClient.client.prepare(version=
-            const.LOADBALANCER_RPC_API_VERSION)
+        rpcClient = transport.RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt = rpcClient.client.prepare(
+            version=const.LOADBALANCER_RPC_API_VERSION)
         msg = ("NCO received LB's update_pool_stats API, making an "
                "update_pool_stats RPC call to plugin for updating"
                "pool: %s stats" % (kwargs['obj_id']))
@@ -155,3 +185,20 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
                              pool_id=kwargs['pool_id'],
                              stats=kwargs['stats'],
                              host=kwargs['host'])
+
+    @log_helpers.log_method_call
+    def vip_deleted(self, context, **kwargs):
+        LOG.info(kwargs)
+        kwargs = kwargs['kwargs']
+        vip = kwargs['vip']
+        request_data = self._prepare_request_data(context, vip)
+        LOG.info("%s : %s " % (request_data, vip))
+        # Sending An Event for visiblity #
+        data = {'resource': None,
+                'context': context}
+        data['resource'] = {'eventtype': 'SERVICE',
+                            'eventid': 'SERVICE_DELETED',
+                            'eventdata': request_data}
+        ev = self._sc.new_event(id='SERVICE_DELETE',
+                                key='SERVICE_DELETE', data=data)
+        self._sc.post_event(ev)

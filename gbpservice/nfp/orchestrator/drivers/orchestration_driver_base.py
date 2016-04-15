@@ -373,12 +373,12 @@ class OrchestrationDriverBase(object):
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.PROVIDER:
                         port_id = network_handler.get_port_id(
-                                                        token, interface['id'])
+                                                        token, port['id'])
                         interfaces_to_attach.append({'port': port_id})
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.CONSUMER:
                         port_id = network_handler.get_port_id(
-                                                        token, interface['id'])
+                                                        token, port['id'])
                         interfaces_to_attach.append({'port': port_id})
         except Exception:
             self._increment_stats_counter('port_details_get_failures')
@@ -399,7 +399,7 @@ class OrchestrationDriverBase(object):
         except Exception:
             self._increment_stats_counter('instance_launch_failures')
             LOG.error(_LE('Failed to create %s instance')
-                      % (device_data['compute_policy']))
+                      % (device_data['service_details']['device_type']))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -429,7 +429,7 @@ class OrchestrationDriverBase(object):
             except Exception:
                 self._increment_stats_counter('instance_delete_failures')
                 LOG.error(_LE('Failed to delete %s instance')
-                          % (device_data['compute_policy']))
+                          % (device_data['service_details']['device_type']))
             self._decrement_stats_counter('instances')
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
@@ -501,7 +501,7 @@ class OrchestrationDriverBase(object):
         except Exception:
             self._increment_stats_counter('instance_delete_failures')
             LOG.error(_LE('Failed to delete %s instance')
-                      % (device_data['compute_policy']))
+                      % (device_data['service_details']['device_type']))
         else:
             self._decrement_stats_counter('instances')
 
@@ -558,7 +558,7 @@ class OrchestrationDriverBase(object):
         except Exception:
             self._increment_stats_counter('instance_details_get_failures')
             LOG.error(_LE('Failed to get %s instance details')
-                      % (device_data['compute_policy']))
+                      % (device_data['service_details']['device_type']))
             return None  # TODO(RPM): should we raise an Exception here?
 
         return device['status']

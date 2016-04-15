@@ -9,12 +9,11 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
+import ast
 from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.proxy_agent.lib import topics
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from neutron_fwaas.db.firewall import firewall_db
-from neutron import context as n_context
 from oslo_log import helpers as log_helpers
 from oslo_log import log
 import oslo_messaging as messaging
