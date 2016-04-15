@@ -144,7 +144,7 @@ class APIHandler(object):
         table = False
         remote_connection = {}
         remote_connections = []
-        keys = ['clientCN', 'remoteip', 'tunnelip', 'in', 'out']
+        keys = ['clientCN', 'remoteip', 'tunnelip', 'in', 'out', 'connected_since']
 
         try:
             for line in raw_stats.split('\n'):
@@ -152,7 +152,9 @@ class APIHandler(object):
                     table = True
                 elif len(line.split()) >= 5 and table and "---" not in line:
                     value_list = line.split()[:-5]
+                    connected_since = " ".join(line.split()[5:])
                     clients = filter(lambda value: value.strip(), value_list)
+                    clients.append(connected_since)
                     remote_connection = dict(zip(keys, clients))
                     remote_connections.append(remote_connection)
 
