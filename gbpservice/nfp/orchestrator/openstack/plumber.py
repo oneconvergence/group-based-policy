@@ -25,9 +25,6 @@ class SCPlumber():
     def ports_state_down(self, ports):
         self.plumber.make_ports_down(ports)
 
-    def delete_stitching(self):
-        pass
-
     def clear_all_extraroutes(self, router_id):
         # cli - neutron router-update xyz --routes action=clear
         self.plumber.clear_router_routes(router_id)

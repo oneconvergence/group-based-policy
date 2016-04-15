@@ -1156,7 +1156,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         try:
             if not tenant_conns:
                 msg = "Adding default route for stitching network"
-                LOG.debug()
+                LOG.debug(msg)
                 gateway_ip = self._get_stitching_gw_from_desc(conn)
                 RestApi(mgmt_fip).post("add-stitching-route",
                                    {'gateway_ip': gateway_ip})
