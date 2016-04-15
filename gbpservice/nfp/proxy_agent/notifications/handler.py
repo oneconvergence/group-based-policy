@@ -68,6 +68,15 @@ class NotificationHandler(object):
         else:
             self._update_status_lb(**kwargs)
 
+    def ipsec_site_connection_deleted(self, resource, **kwargs):
+        rpcClient = RPCClient(a_topics.VPN_NFP_CONFIGAGENT_TOPIC)
+        context = kwargs.get('context')
+        rpc_ctx = n_context.Context.from_dict(context)
+        del kwargs['context']
+        rpcClient.cctxt.cast(rpc_ctx, 'ipsec_site_connection_deleted',
+                             id=kwargs['resource_id'])
+
+
     def _update_status_vpn(self, **kwargs):
         rpcClient = RPCClient(a_topics.VPN_NFP_CONFIGAGENT_TOPIC)
         context = kwargs.get('context')
