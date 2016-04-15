@@ -10,13 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-supported_service_types = ['firewall', 'vpn', 'loadbalancer', None]
-invalid_service_type = 'invalid'
-SUCCESS = 'SUCCESS'
-FAILED = 'FAILED'
-ORCHESTRATOR = 'orchestrator'
-EVENT_STASH = 'STASH_EVENT'
-EVENT_PROCESS_BATCH = 'PROCESS_BATCH'
-NFD_NOTIFICATION = 'network_function_device_notification'
-RABBITMQ_HOST = '127.0.0.1'  # send notifications to 'RABBITMQ_HOST'
-NOTIFICATION_QUEUE = 'configurator-notifications'
+import pecan
+
+
+def setup_app(config):
+
+    app_conf = dict(config.app)
+
+    return pecan.make_app(
+        app_conf.pop('root'),
+        logging=getattr(config, 'logging', {}),
+        **app_conf
+    )

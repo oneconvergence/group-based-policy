@@ -12,7 +12,9 @@
 
 from gbpservice.nfp.lib import transport as common
 import mock
+from neutron.common import rpc as n_rpc
 from neutron import context as ctx
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 import unittest
 
@@ -73,6 +75,7 @@ class TestContext(object):
 class CommonLibarayTest(unittest.TestCase):
 
     def setUp(self):
+        n_rpc.init(cfg.CONF)
         self.imprt_rc = 'gbpservice.nfp.proxy_agent.lib.RestClientOverUnix'
 
     def _cast(self, context, method, **kwargs):

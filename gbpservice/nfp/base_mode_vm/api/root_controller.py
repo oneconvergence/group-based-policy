@@ -10,13 +10,22 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-supported_service_types = ['firewall', 'vpn', 'loadbalancer', None]
-invalid_service_type = 'invalid'
-SUCCESS = 'SUCCESS'
-FAILED = 'FAILED'
-ORCHESTRATOR = 'orchestrator'
-EVENT_STASH = 'STASH_EVENT'
-EVENT_PROCESS_BATCH = 'PROCESS_BATCH'
-NFD_NOTIFICATION = 'network_function_device_notification'
-RABBITMQ_HOST = '127.0.0.1'  # send notifications to 'RABBITMQ_HOST'
-NOTIFICATION_QUEUE = 'configurator-notifications'
+import pecan
+from v1 import controllers
+
+
+class RootController(object):
+    """This is root controller that forward the request to __init__.py
+    file inside controller folder inside v1
+
+    """
+
+    v1 = controllers.V1Controller()
+
+    @pecan.expose()
+    def get(self):
+        # TODO(blogan): once a decision is made on how to do versions, do that
+        # here
+        return {'versions': [{'status': 'CURRENT',
+                              'updated': '2014-12-11T00:00:00Z',
+                              'id': 'v1'}]}

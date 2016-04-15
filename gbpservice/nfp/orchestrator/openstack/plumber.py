@@ -204,7 +204,8 @@ class NeutronPlumber():
     def make_ports_down(self, ports):
         token = self.keystone.get_admin_token()
         for port in ports:
-            self.neutron.update_port(token, port, admin_state_up=False)
+            self.neutron.delete_port(token, port)
+            # self.neutron.update_port(token, port, admin_state_up=False)
 
     def undo_plumbing(self, **kwargs):
         subnet_id = kwargs['subnet_id']

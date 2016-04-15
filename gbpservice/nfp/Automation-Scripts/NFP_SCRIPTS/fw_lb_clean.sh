@@ -5,8 +5,8 @@ source /home/stack/devstack/openrc neutron service
 echo "Make sure that policy-targets associated to PTGs are deleted!!"
 
 # Delete PTG
-gbp group-delete fw_lb-consumer
 gbp group-delete fw_lb-provider
+gbp group-delete fw_lb-consumer
 
 # Delete network service policy
 gbp network-service-policy-delete fw_lb_nsp

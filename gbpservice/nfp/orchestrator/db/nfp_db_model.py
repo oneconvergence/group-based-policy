@@ -101,6 +101,7 @@ class PortInfo(BASE, HasId, HasTenant):
                                   nfp_constants.MASTER_PORT,
                                   name='port_role'),
                           nullable=True)
+    extra_attributes = sa.Column(sa.TEXT, nullable=True)
 
 
 class NetworkInfo(BASE, HasId, HasTenant):

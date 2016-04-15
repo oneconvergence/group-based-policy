@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.lib import transport
 from neutron.common import constants as n_constants
 from neutron.common import rpc as n_rpc
 from neutron.common import topics as n_topics
@@ -87,3 +89,64 @@ def get_networks(context, host):
     cctxt = client.prepare(version='1.1')
     return cctxt.call(context, 'get_active_networks_info',
                       host=host)
+
+
+def _prepare_structure(network_function_details, ports_info,
+                       mngmt_port_info, monitor_port_info):
+    return {'nfi_ports_map': {
+        network_function_details[
+            'network_function_instance'][
+            'id']: ports_info},
+            'nfi_nfd_map': {
+                network_function_details[
+                    'network_function_instance'][
+                    'id']: {
+                    'nfd': network_function_details[
+                        'network_function_device'],
+                    'nfd_mgmt_port': mngmt_port_info,
+                    'nfd_monitoring_port': None,
+                    'nfd_monitoring_port_network': network_function_details[
+                        'network_function_device'][
+                            'monitoring_port_network']}},
+            'nfi': [network_function_details['network_function_instance']],
+            'nf': network_function_details['network_function']
+            }
+
+
+def get_network_function_map(context, network_function_id):
+    request_data = None
+    try:
+        rpc_nso_client = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+        network_function_details = rpc_nso_client.cctxt.call(
+                                       context,
+                                       'get_network_function_details',
+                                       network_function_id=network_function_id)
+        ports_info = []
+        for id in network_function_details[
+                'network_function_instance']['port_info']:
+            port_info = rpc_nso_client.cctxt.call(context,
+                                                  'get_port_info',
+                                                  port_id=id)
+            ports_info.append(port_info)
+        mngmt_port_info = rpc_nso_client.cctxt.call(
+                              context,
+                              'get_port_info',
+                              port_id=network_function_details[
+                                  'network_function_device'][
+                                  'mgmt_port_id'])
+        monitor_port_id = network_function_details[
+            'network_function_device']['monitoring_port_id']
+        monitor_port_info = None
+        if monitor_port_id is not None:
+            monitor_port_info = rpc_nso_client.cctxt.call(
+                                    context,
+                                    'get_port_info',
+                                    port_id=monitor_port_id)
+
+        request_data = _prepare_structure(network_function_details, ports_info,
+                                          mngmt_port_info, monitor_port_info)
+        LOG.info(request_data)
+    except Exception as e:
+        LOG.error(e)
+        return request_data
+    return request_data

@@ -46,7 +46,8 @@ class FwaasRpcSender(agent_base.AgentBaseEventHandler):
         super(FwaasRpcSender, self).__init__(sc, drivers, rpcmgr)
         self.host = host
 
-    def set_firewall_status(self, context, firewall_id, status):
+    def firewall_configuration_create_complete(self, context, firewall_id,
+                                               status, firewall=None):
         """ Enqueues the response from FwaaS operation to neutron plugin.
 
         :param context: Neutron context
@@ -57,15 +58,17 @@ class FwaasRpcSender(agent_base.AgentBaseEventHandler):
 
         msg = {'receiver': const.NEUTRON,
                'resource': const.SERVICE_TYPE,
-               'method': 'set_firewall_status',
+               'method': 'firewall_configuration_create_complete',
                'kwargs': {'context': context,
                           'host': self.host,
                           'firewall_id': firewall_id,
-                          'status': status}
+                          'status': status,
+                          'firewall': firewall}
                }
         self.notify._notification(msg)
 
-    def firewall_deleted(self, context, firewall_id):
+    def firewall_configuration_delete_complete(self, context, firewall_id,
+                                               status, firewall=None):
         """ Enqueues the response from FwaaS operation to neutron plugin.
 
         :param context: Neutron context
@@ -75,10 +78,12 @@ class FwaasRpcSender(agent_base.AgentBaseEventHandler):
 
         msg = {'receiver': const.NEUTRON,
                'resource': const.SERVICE_TYPE,
-               'method': 'firewall_deleted',
+               'method': 'firewall_configuration_delete_complete',
                'kwargs': {'context': context,
                           'host': self.host,
-                          'firewall_id': firewall_id}
+                          'status': status,
+                          'firewall_id': firewall_id,
+                          'firewall': firewall}
                }
         self.notify._notification(msg)
 
@@ -235,38 +240,41 @@ class FWaasEventHandler(object):
         context = ev.data.get('context')
         firewall = ev.data.get('firewall')
         host = ev.data.get('host')
-
+        res = (const.STATUS_ERROR, firewall)
         if ev.id == const.FIREWALL_CREATE_EVENT:
             if not self._is_firewall_rule_exists(firewall):
                 msg = ("Firewall status set to ACTIVE")
                 LOG.debug(msg)
-                return self.plugin_rpc.set_firewall_status(
-                    context, firewall['id'], const.STATUS_ACTIVE)
+                return self.plugin_rpc.firewall_configuration_create_complete(
+                    context, firewall['id'], const.STATUS_ACTIVE, firewall)
             # Added to handle in service vm agents. VM agent will add
             # default DROP rule.
             # if not self._is_firewall_rule_exists(firewall):
-            #     self.plugin_rpc.set_firewall_status(
+            #     self.plugin_rpc.firewall_configuration_create_complete(
             #         context, firewall['id'], const.STATUS_ACTIVE)
             try:
-                status = self.method(context, firewall, host)
+                res = self.method(context, firewall, host)
             except Exception as err:
-                self.plugin_rpc.set_firewall_status(
-                    context, firewall['id'], const.STATUS_ERROR)
+                self.plugin_rpc.firewall_configuration_create_complete(
+                    context, firewall['id'], const.STATUS_ERROR,
+                    firewall=res[1])
                 msg = ("Failed to configure Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
             else:
-                self.plugin_rpc.set_firewall_status(
-                    context, firewall['id'], status)
-                msg = ("Configured Firewall and status set to %s" % status)
+                self.plugin_rpc.firewall_configuration_create_complete(
+                    context, firewall['id'], status=res[0], firewall=res[1])
+                msg = ("Configured Firewall and status set to %s" % res[0])
                 LOG.info(msg)
 
         elif ev.id == const.FIREWALL_DELETE_EVENT:
             if not self._is_firewall_rule_exists(firewall):
-                return self.plugin_rpc.firewall_deleted(context,
-                                                        firewall['id'])
+                return self.plugin_rpc.firewall_configuration_delete_complete(
+                    context, firewall['id'], const.STATUS_SUCCESS,
+                    firewall=res[1])
             try:
-                status = self.method(context, firewall, host)
+                res = self.method(context, firewall, host)
+                status = res[0]
             except requests.ConnectionError:
                 # FIXME It can't be correct everytime
                 msg = ("There is a connection error for firewall %r of "
@@ -275,44 +283,46 @@ class FWaasEventHandler(object):
                        "broken. For now marking that as delete."
                        % (firewall['id'], firewall['tenant_id']))
                 LOG.warning(msg)
-                self.plugin_rpc.firewall_deleted(context, firewall['id'])
+                self.plugin_rpc.firewall_configuration_delete_complete(
+                    context, firewall['id'], status=res[0], firewall=res[1])
 
             except Exception as err:
                 # TODO(VIKASH) Is it correct to raise ? As the subsequent
                 # attempt to clean will only re-raise the last one.And it
                 # can go on and on and may not be ever recovered.
-                self.plugin_rpc.set_firewall_status(
-                    context, firewall['id'], const.STATUS_ERROR)
+                self.plugin_rpc.firewall_configuration_delete_complete(
+                    context, firewall['id'], const.STATUS_ERROR,
+                    firewall=res[1])
                 msg = ("Failed to delete Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
-                # raise(err)
             else:
                 if status == const.STATUS_ERROR:
-                    self.plugin_rpc.set_firewall_status(
-                        context, firewall['id'], status)
+                    self.plugin_rpc.firewall_configuration_delete_complete(
+                        context, firewall['id'], status, firewall=res[1])
                 else:
                     msg = ("Firewall %r deleted of tenant: %r" % (
                            firewall['id'], firewall['tenant_id']))
                     LOG.info(msg)
-                    self.plugin_rpc.firewall_deleted(
-                        context, firewall['id'])
+                    self.plugin_rpc.firewall_configuration_delete_complete(
+                        context, firewall['id'], status, firewall=res[1])
 
         elif ev.id == const.FIREWALL_UPDATE_EVENT:
             if not self._is_firewall_rule_exists(firewall):
-                return self.plugin_rpc.set_firewall_status(
-                    context, firewall['id'], const.STATUS_ACTIVE)
+                return self.plugin_rpc.firewall_configuration_create_complete(
+                    context, firewall['id'], const.STATUS_ACTIVE, firewall)
             try:
-                status = self.method(context, firewall, host)
+                res = self.method(context, firewall, host)
+                status = res[0]
             except Exception as err:
-                self.plugin_rpc.set_firewall_status(
-                    context, firewall['id'], 'ERROR')
+                self.plugin_rpc.firewall_configuration_create_complete(
+                    context, firewall['id'], 'ERROR', firewall=res[1])
                 msg = ("Failed to update Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
             else:
-                self.plugin_rpc.set_firewall_status(
-                    context, firewall['id'], status)
+                self.plugin_rpc.firewall_configuration_create_complete(
+                    context, firewall['id'], status, firewall=res[1])
                 msg = ("Updated Firewall and status set to %s" % status)
                 LOG.info(msg)
         else:
@@ -345,7 +355,7 @@ def events_init(sc, drivers, rpcmgr):
 
 
 def load_drivers():
-    """Imports all the driver files.
+    """Imports all the driver files corresponding to this agent.
 
     Returns: Dictionary of driver objects with a specified service type and
     vendor name

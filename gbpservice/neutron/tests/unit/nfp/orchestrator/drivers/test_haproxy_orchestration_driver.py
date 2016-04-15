@@ -143,6 +143,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                        'service_vendor': 'haproxy',
                        'management_network_info': {'id': '2'},
                        'service_details': {'device_type': 'xyz'},
+                       'name': 'LOADBALANCER.haproxy.1.2',
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'},
@@ -256,7 +257,8 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
 
         device_data = {'id': '1',
                        'tenant_id': '2',
-                       'service_details': {'device_type': 'xyz'},
+                       'service_details': {'device_type': 'xyz',
+                                           'service_type': 'firewall'},
                        'network_model': 'gbp',
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
@@ -274,7 +276,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                           driver.plug_network_function_device_interfaces,
                           device_data)
 
-        device_data['service_details'] = {'device_type': 'nova'}
+        device_data['service_details']['device_type'] = 'nova'
 
         self.assertTrue(driver.plug_network_function_device_interfaces(
                                                                 device_data),

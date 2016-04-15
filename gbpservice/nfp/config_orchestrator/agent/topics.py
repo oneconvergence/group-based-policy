@@ -23,3 +23,5 @@ GC_NFP_PLUGIN_TOPIC = 'nfp-configurator-ndo'
 
 NFP_NSO_TOPIC = "nfp-service-orchestrator"
 
+NFP_L3_AGENT = 'nfp-l3-agent'
+

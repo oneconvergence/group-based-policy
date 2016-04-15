@@ -10,6 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+FIREWALL = 'firewall'
+LOADBALANCER = 'loadbalancer'
+VPN = 'vpn'
+
 GBP_MODE = "gbp"
 NEUTRON_MODE = "neutron"
 NOVA_MODE = "nova"
@@ -35,12 +39,23 @@ PENDING_CREATE = "PENDING_CREATE"
 PENDING_UPDATE = "PENDING_UPDATE"
 PENDING_DELETE = "PENDING_DELETE"
 ERROR = "ERROR"
+SUCCESS = "SUCCESS"
 
 HEAT_CONFIG_TAG = 'heat_config'
 CONFIG_INIT_TAG = 'config_init'
-ANSIBLE_TAG =  'ansible'
+ANSIBLE_TAG = 'ansible'
 
 COMPLETED = "COMPLETED"
 IN_PROGRESS = "IN_PROGRESS"
 
+CONFIG_SCRIPT = 'config_script'
+
+CONFIG_TAG_RESOURCE_MAP = {
+    HEAT_CONFIG_TAG: 'heat',
+    CONFIG_INIT_TAG: 'config_init',
+    ANSIBLE_TAG: 'ansible'}
+
 LOADBALANCER_RPC_API_VERSION = "2.0"
+
+NFP_NEUTRON_RENDERER_TOPIC = 'nfp_neutron_renderer_topic'
+NOOPS_ORCHESTRATION = 'noops_orchestration'
