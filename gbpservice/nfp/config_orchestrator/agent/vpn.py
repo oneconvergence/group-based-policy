@@ -13,11 +13,11 @@ import eventlet
 from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.lib import transport
-from neutron.common import exceptions as n_exec
 from neutron_vpnaas.db.vpn import vpn_db
 from oslo_log import helpers as log_helpers
-from oslo_log import log as logging
 import oslo_messaging as messaging
+from oslo_log import log as logging
+from neutron_lib import exceptions as n_exec
 
 LOG = logging.getLogger(__name__)
 

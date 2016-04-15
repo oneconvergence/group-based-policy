@@ -84,7 +84,7 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                                     page_reverse=page_reverse)
 
     def _set_port_info_for_nfi(self, session, network_function_instance_db,
-                               network_function_instance, is_update=False):
+                               network_function_instance):
         nfi_db = network_function_instance_db
         port_info = network_function_instance.get('port_info')
         if not port_info:
@@ -97,7 +97,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                     id=port['id'],
                     port_model=port['port_model'],
                     port_classification=port.get('port_classification'),
-                    port_role=port.get('port_role'))
+                    port_role=port.get('port_role'),
+                    extra_attributes=port.get('extra_attributes'))
                 if is_update:
                     session.merge(port_info_db)
                 else:
@@ -481,7 +482,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             'id': port_info['id'],
             'port_classification': port_info['port_classification'],
             'port_model': port_info['port_model'],
-            'port_role': port_info['port_role']
+            'port_role': port_info['port_role'],
+            'extra_attributes': port_info['extra_attributes']
         }
         return res
 

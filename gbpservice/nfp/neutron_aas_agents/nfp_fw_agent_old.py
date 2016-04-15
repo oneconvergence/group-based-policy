@@ -1,9 +1,11 @@
+import ast
+
 import eventlet
 
 eventlet.monkey_patch()
 
+import sys
 from oslo_config import cfg
-from oslo_log import log as logging
 from neutron.agent.common import config
 from neutron.common import config as common_config
 from neutron import service as neutron_service
@@ -11,10 +13,10 @@ from oslo_service import service
 from neutron_fwaas.services.firewall.agents import firewall_agent_api as api
 from neutron import manager, context
 from neutron.agent import rpc as agent_rpc
-# from neutron.common import rpc as n_rpc
+from oslo_log import log as logging
 import fw_agent_const
-import ast
-import sys
+
+LOG = logging.getLogger(__name__)
 
 OPTS = [
     cfg.StrOpt('driver',
@@ -26,8 +28,6 @@ OPTS = [
 ]
 
 GROUP_OPTS = cfg.OptGroup(name='ocfwaas', title='OC FW OPTIONS')
-
-LOG = logging.getLogger(__name__)
 
 
 class OCNFPFirewallAgentApi(api.FWaaSPluginApiMixin):
@@ -42,25 +42,24 @@ class OCNFPFirewallAgentApi(api.FWaaSPluginApiMixin):
 
 
 class NFPFirewallAgentService(manager.Manager):
-    RPC_API_VERSION = '1.0'
+    RPC_API_VERSION = '1.2'
 
     def __init__(self, host=None):
         self.drivers = dict()
         self.host = host
         super(NFPFirewallAgentService, self).__init__(host=self.host)
         self.fwaas_drivers = cfg.CONF.ocfwaas.driver
-        self.oc_fw_plugin_rpc = OCNFPFirewallAgentApi(
-            fw_agent_const.OC_FW_PLUGIN_TOPIC, cfg.CONF.host)
         # self.oc_fw_plugin_rpc = api.FWaaSPluginApiMixin(
         #     fw_agent_const.OC_FW_PLUGIN_TOPIC, cfg.CONF.host)
+        self.oc_fw_plugin_rpc = OCNFPFirewallAgentApi(
+            fw_agent_const.OC_FW_PLUGIN_TOPIC, cfg.CONF.host)
         self.context = context.get_admin_context_without_session()
-        # self.oc_fwaas_enabled = cfg.CONF.ocfwaas.enabled
-        self.oc_fwaas_enabled = True
+        self.oc_fwaas_enabled = cfg.CONF.ocfwaas.enabled
         self.agent_state = None
         self.use_call = True
         self.state_rpc = agent_rpc.PluginReportStateAPI(
             fw_agent_const.OC_FW_PLUGIN_TOPIC)
-        # self.report_interval = cfg.CONF.ocfwaas.oc_report_interval
+        self.report_interval = cfg.CONF.ocfwaas.oc_report_interval
 
         if not self.oc_fwaas_enabled:
             msg = "FWaaS not enabled in configuration file"
@@ -77,7 +76,7 @@ class NFPFirewallAgentService(manager.Manager):
             # self.endpoints = [FwAgent_SM_Callbacks(self)]
             # self.conn = n_rpc.create_connection(new=True)
             # self.conn.create_consumer(
-            #    fw_agent_const.SM_RPC_TOPIC, self.endpoints, fanout=False)
+            #     local_constants.SM_RPC_TOPIC, self.endpoints, fanout=False)
             # self.conn.consume_in_threads()
 
     def init_host(self):
@@ -118,27 +117,23 @@ class NFPFirewallAgentService(manager.Manager):
         :return:
         """
         if func_name.lower() == 'create_firewall':
-            routers = self.get_router_interfaces(context, fw['add-router-ids'])
-            return self.oc_fw_plugin_rpc.set_firewall_status(
-                context, fw['id'], "ACTIVE")
             # Added to handle in service vm agents. VM agent will add
             # default DROP rule.
             # if not self._is_firewall_rule_exists(fw):
             #     self.oc_fw_plugin_rpc.set_firewall_status(
-            #         context, fw['id'], fw_agent_const.STATUS_ACTIVE)
+            #         context, fw['id'], constants.STATUS_ACTIVE)
             try:
                 floating_ip, vendor = self.get_firewall_attributes(fw)
                 status = self.drivers[vendor].configure_firewall(
                     floating_ip, fw)
             except Exception:
                 self.oc_fw_plugin_rpc.set_firewall_status(
-                    context, fw['id'], fw_agent_const.STATUS_ERROR)
+                    context, fw['id'], constants.STATUS_ERROR)
             else:
                 self.oc_fw_plugin_rpc.set_firewall_status(
                     context, fw['id'], status)
 
         elif func_name.lower() == 'delete_firewall':
-            return self.oc_fw_plugin_rpc.firewall_deleted(context, fw['id'])
             if not self._is_firewall_rule_exists(fw):
                 return self.oc_fw_plugin_rpc.firewall_deleted(context,
                                                               fw['id'])
@@ -160,10 +155,10 @@ class NFPFirewallAgentService(manager.Manager):
                 # attempt to clean will only re-raise the last one.And it
                 # can go on and on and may not be ever recovered.
                 self.oc_fw_plugin_rpc.set_firewall_status(
-                    context, fw['id'], fw_agent_const.STATUS_ERROR)
+                    context, fw['id'], constants.STATUS_ERROR)
                 # raise(e)
             else:
-                if status == fw_agent_const.STATUS_ERROR:
+                if status == constants.STATUS_ERROR:
                     self.oc_fw_plugin_rpc.set_firewall_status(
                         context, fw['id'], status)
                 else:
@@ -174,7 +169,7 @@ class NFPFirewallAgentService(manager.Manager):
         elif func_name.lower() == 'update_firewall':
             if not self._is_firewall_rule_exists(fw):
                 return self.oc_fw_plugin_rpc.set_firewall_status(
-                    context, fw['id'], fw_agent_const.STATUS_ACTIVE)
+                    context, fw['id'], constants.STATUS_ACTIVE)
             try:
                 floating_ip, vendor = self.get_firewall_attributes(fw)
                 status = self.drivers[vendor].update_firewall(
@@ -189,8 +184,7 @@ class NFPFirewallAgentService(manager.Manager):
         else:
             raise Exception("Wrong call")
 
-    @staticmethod
-    def get_firewall_attributes(firewall):
+    def get_firewall_attributes(self, firewall):
         description = ast.literal_eval(firewall["description"])
         if not description.get('vm_management_ip'):
             raise
@@ -201,17 +195,15 @@ class NFPFirewallAgentService(manager.Manager):
         return description['vm_management_ip'], description[
             'service_vendor'].upper()
 
-    @staticmethod
-    def _is_firewall_rule_exists(fw):
+    def _is_firewall_rule_exists(self, fw):
         if not fw['firewall_rule_list']:
             return False
         else:
             return True
 
-    def get_router_interfaces(self, context, router_ids):
-        interfaces = self.oc_fw_plugin_rpc.get_router_details(context,
-                                                              router_ids)
-        return interfaces
+    def get_routers_details(self, router_ids):
+        interfaces = self.oc_fw_plugin_rpc.get_router_interfaces_details(
+            router_ids)
 
     def agent_updated(self, context, admin_state_up, host):
         pass
@@ -249,9 +241,6 @@ def main():
         binary='nfp-fw-agent',
         topic=fw_agent_const.NFP_FW_AGENT,
         report_interval=cfg.CONF.AGENT.report_interval,
-        manager='neutron_fwaas.services.firewall.agents.nfp_fw.nfp_fw_agent'
-                '.NFPFirewallAgentService')
+        manager='neutron_fwaas.services.firewall.agents.nfp_fw.nfp_fw_agent.'
+                'NFPFirewallAgentService')
     service.launch(cfg.CONF, server).wait()
-
-
-main()
