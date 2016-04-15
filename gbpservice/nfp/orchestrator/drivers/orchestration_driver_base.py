@@ -402,7 +402,7 @@ class OrchestrationDriverBase(object):
         except Exception:
             self._increment_stats_counter('instance_launch_failures')
             LOG.error(_LE(log_meta_data + 'Failed to create %s instance')
-                      % (device_data['compute_policy']))
+                      % (device_data['service_details']['device_type']))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -433,7 +433,7 @@ class OrchestrationDriverBase(object):
             except Exception:
                 self._increment_stats_counter('instance_delete_failures')
                 LOG.error(_LE(log_meta_data + 'Failed to delete %s instance')
-                          % (device_data['compute_policy']))
+                          % (device_data['service_details']['device_type']))
             self._decrement_stats_counter('instances')
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
@@ -505,7 +505,7 @@ class OrchestrationDriverBase(object):
         except Exception:
             self._increment_stats_counter('instance_delete_failures')
             LOG.error(_LE('Failed to delete %s instance')
-                      % (device_data['compute_policy']))
+                      % (device_data['service_details']['device_type']))
         else:
             self._decrement_stats_counter('instances')
 
@@ -562,7 +562,7 @@ class OrchestrationDriverBase(object):
         except Exception:
             self._increment_stats_counter('instance_details_get_failures')
             LOG.error(_LE('Failed to get %s instance details')
-                      % (device_data['compute_policy']))
+                      % (device_data['service_details']['device_type']))
             return None  # TODO(RPM): should we raise an Exception here?
 
         return device['status']
