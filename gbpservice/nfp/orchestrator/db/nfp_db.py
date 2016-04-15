@@ -97,7 +97,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                     id=port['id'],
                     port_model=port['port_model'],
                     port_classification=port.get('port_classification'),
-                    port_role=port.get('port_role'))
+                    port_role=port.get('port_role'),
+                    extra_attributes=port.get('extra_attributes'))
                 session.add(port_info_db)
                 session.flush()  # Any alternatives for flush ??
                 assoc = nfp_db_model.NSIPortAssociation(
@@ -344,6 +345,12 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                                     marker_obj=marker_obj,
                                     page_reverse=page_reverse)
 
+    def update_port_info(self, session, port_id, port_info):
+        with session.begin(subtransactions=True):
+            port_info_db = self._get_port_info(session, port_id)
+            port_info_db.update(port_info)
+        return self._make_port_info_dict(port_info_db)
+
     def get_port_info(self, session, port_id, fields=None):
         port_info = self._get_port_info(session, port_id)
         return self._make_port_info_dict(port_info, fields)
@@ -378,7 +385,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
             'id': port_info['id'],
             'port_classification': port_info['port_classification'],
             'port_model': port_info['port_model'],
-            'port_role': port_info['port_role']
+            'port_role': port_info['port_role'],
+            'extra_attributes': port_info['extra_attributes']
         }
         return res
 

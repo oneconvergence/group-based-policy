@@ -12,11 +12,16 @@
 
 FW_NFP_CONFIGAGENT_TOPIC = 'nfp-firewall-agent'
 LB_NFP_CONFIGAGENT_TOPIC = 'nfp-lbaas-agent'
-VPN_NFP_CONFIGAGENT_TOPIC = 'nfp-vpn_agent'
-NFP_NSO_TOPIC = "nfp-service-orchestrator"
+VPN_NFP_CONFIGAGENT_TOPIC = 'nfp-vpn-agent'
 
 FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
 LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'
 VPN_NFP_PLUGIN_TOPIC = 'vpn_plugin'
 DEVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-ndo'
 SERVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-nso'
+GC_NFP_PLUGIN_TOPIC = 'nfp-configurator-ndo'
+
+NFP_NSO_TOPIC = "nfp-service-orchestrator"
+
+NFP_L3_AGENT = 'nfp-l3-agent'
+

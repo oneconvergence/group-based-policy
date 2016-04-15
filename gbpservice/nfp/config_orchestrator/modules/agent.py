@@ -10,15 +10,18 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.config_orchestrator.agent import firewall as fw
-from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
-from gbpservice.nfp.config_orchestrator.agent import \
-    otc_service_events as otc_se
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
-from gbpservice.nfp.config_orchestrator.agent import vpn as vp
+from oslo_log import log as logging
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.config_orchestrator.agent import firewall as fw
+from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.agent import vpn as vp
 from oslo_config import cfg
+from gbpservice.nfp.config_orchestrator.agent.l3 import NFPL3Agent
+
+
+LOG = logging.getLogger(__name__)
 
 
 def rpc_init(sc, conf):
@@ -68,7 +71,40 @@ def rpc_init(sc, conf):
         report_state=vpn_report_state
     )
 
-    sc.register_rpc_agents([fwagent, lbagent, vpnagent])
+    nfp_l3_mgr = NFPL3Agent(conf, sc)
+    nfp_l3_agent = RpcAgent(sc, host=cfg.CONF.host,
+                            topic=a_topics.NFP_L3_AGENT, manager=nfp_l3_mgr)
+
+    sc.register_rpc_agents([fwagent, nfp_l3_agent])
+    # sc.register_rpc_agents([fwagent, lbagent, vpnagent, nfp_l3_agent])
+
+
+def events_init(controller, config, nfp_agents_obj):
+    vpn_events = ['VPN_SERVICE_LAUNCHED', 'VPN_SERVICE_DELETED',
+                  'VPN_SERVICE_ERRED']
+    firewall_events = ['FW_INSTANCE_SPAWNING', 'FW_SERVICE_DELETE_IN_PROGRESS',
+                       'FW_SERVICE_ERRED', 'ROUTERS_UPDATED',
+                       'FW_INSTANCE_SPAWNING']
+    events_to_register = []
+    # for event in vpn_events:
+    #   events_to_register.append(
+    #        Event(id=event, handler=nfp_agents_obj.vpn_agent))
+    for event in firewall_events:
+        events_to_register.append(
+                Event(id=event, handler=nfp_agents_obj.fw_agent))
+    controller.register_events(events_to_register)
+
 
 def nfp_module_init(sc, conf):
     rpc_init(sc, conf)
+    events_init(sc, conf, NFPAgents(sc, conf))
+
+
+class NFPAgents(object):
+
+    def __init__(self, controller, config):
+        self._controller = controller
+        self._config = config
+        # self.vpn_agent = vp.VpnAgent()
+        self.fw_agent = fw.FwAgent(self._config, self._controller)
+        self.nfp_l3_agent = NFPL3Agent(sc=self._controller, conf=self._config)

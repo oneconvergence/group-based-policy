@@ -1,7 +1,7 @@
 
+from netaddr import IPNetwork
 from openstack_driver import KeystoneClient
 from openstack_driver import NeutronClient
-from oslo_config import cfg
 from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
@@ -13,16 +13,17 @@ class SCPlumber():
     def __init__(self, conf):
         self.plumber = NeutronPlumber(conf)
 
-    def get_stitching_port(self, tenant_id, router_id=None,
+    def get_stitching_info(self, tenant_id, router_id=None,
                            fip_required=False):
-        # find network with this name in this tenant
-        # If network not present, create a new one
         # create a port for hotplug with port security disabled
         # assign fip if needed
         # After successful operation, return port details.
         stitching_port_info = self.plumber.create_stitching_for_svc(
             tenant_id, router_id, fip_required)
         return stitching_port_info
+
+    def ports_state_down(self, ports):
+        self.plumber.make_ports_down(ports)
 
     def delete_stitching(self):
         pass
@@ -38,6 +39,9 @@ class SCPlumber():
                                          stitching_interface_ip)
         else:
             self.plumber.delete_extra_route(router_id, peer_cidrs)
+
+    def unplug_router_interface(self, **kwargs):
+        self.plumber.remove_router_interface(**kwargs)
 
 
 class NeutronPlumber():
@@ -113,39 +117,43 @@ class NeutronPlumber():
             LOG.error(err)
             raise Exception(err)
 
+    def _get_new_subnet_cidr(self, token, tenant_id):
+        filters = {'name': "stitching_subnet-%s" % tenant_id,
+                   'fields': ['cidr']}
+        ip_pool = IPNetwork('172.16.0.0/24')
+        subnet_cidrs = self.neutron.get_subnets(token, filters=filters)
+        ipsubnet_list = [IPNetwork(i['cidr']) for i in subnet_cidrs]
+        subnets = ip_pool.subnet(29)
+        for cidr in subnets:
+            if cidr not in ipsubnet_list:
+                return cidr
+        err = ("Unable to create new subnet in tenant %s, "
+               "Subnet cidrs for tenant exhausted" % tenant_id)
+        raise Exception(err)
+
     def _create_stitching_network(self, token, tenant_id):
         name = "stitching_net-%s" % tenant_id
         attrs = {"name": name}
         stitching_net = self.neutron.create_network(
             token, self.conf.keystone_authtoken.admin_tenant_id, attrs=attrs)
-        cidr = "192.168.0.0/26"  # TODO:kedar - get it from config
+        cidr = self._get_new_subnet_cidr(token, tenant_id)
         attrs = {"network_id": stitching_net['id'], "cidr": cidr,
-                 "ip_version": 4}
+                 "ip_version": 4, 'name': "stitching_subnet-%s" % tenant_id}
         stitching_subnet = self.neutron.create_subnet(
             token, self.conf.keystone_authtoken.admin_tenant_id, attrs=attrs)
         return [stitching_net], stitching_subnet
 
     def _check_stitching_network(self, token, tenant_id, router_id):
-        stitching_nw_name = "stitching_net-%s" % tenant_id
-        filters = {'name': stitching_nw_name}
-        stitching_subnet = None
-        stitching_net = self.neutron.get_networks(token, filters=filters)
+        stitching_net, stitching_subnet = self._create_stitching_network(
+            token, tenant_id)
         if not stitching_net:
-            stitching_net, stitching_subnet = self._create_stitching_network(
-                token, tenant_id)
-        if len(stitching_net) > 1:
-            err = ("tenant %s has more than one network with name '%s'" %
-                   (tenant_id, stitching_nw_name))
+            err = ("Unable to create stitching network for tenant %s" %
+                   tenant_id)
             LOG.error(err)
             raise Exception(err)
 
         net_id = stitching_net[0]['id']
-        if not stitching_subnet:
-            subnet_id = stitching_net[0]['subnets'][0]
-            stitching_subnet = self.neutron.get_subnet(token,
-                                                       subnet_id)['subnet']
-        else:
-            subnet_id = stitching_subnet['id']
+        subnet_id = stitching_subnet['id']
         cidr = stitching_subnet['cidr']
         gateway_ip = stitching_subnet['gateway_ip']
         if router_id:
@@ -177,7 +185,8 @@ class NeutronPlumber():
         token = self.keystone.get_admin_token()
         net_id, cidr, gateway_ip = self._check_stitching_network(
             token, tenant_id, router_id)
-        attrs = {'port_security_enabled': False}
+        attrs = {'port_security_enabled': False,
+                 'name': 'nfp-owned-stitching-port'}
         # stitching port belongs to services tenant, so tenant_id is not set
         hotplug_port = self.neutron.create_port(token, "", net_id,
                                                 attrs)
@@ -194,3 +203,26 @@ class NeutronPlumber():
                 "floating_ip": stitching_fip,
                 "gateway": gateway_ip,
                 "cidr": cidr}
+
+    def make_ports_down(self, ports):
+        token = self.keystone.get_admin_token()
+        for port in ports:
+            self.neutron.delete_port(token, port)
+            # self.neutron.update_port(token, port, admin_state_up=False)
+
+    def remove_router_interface(self, **kwargs):
+        subnet_id = kwargs['subnet_id']
+        port_id = kwargs['port_id']
+        network_id = kwargs['network_id']
+        router_id = kwargs['router_id']
+        token = self.keystone.get_admin_token()
+        # delete stitching port
+        self.neutron.delete_port(token, port_id)
+        # delete router interface
+        interface_info = {'subnet_id': subnet_id}
+        self.neutron.remove_router_interface(token, router_id,
+                                             interface_info)
+        # delete SUBNET
+        self.neutron.delete_subnet(token, subnet_id)
+        # delete NETWORK
+        self.neutron.delete_network(token, network_id)
