@@ -122,7 +122,7 @@ class Controller(rest.RestController):
                                         shell=True)
 
             msg = ("Request data:: %s" % config_data)
-            LOG.error(msg)
+            LOG.debug(msg)
             result = "success"
             self._push_notification(context, request_info,
                                     result, config_data)
