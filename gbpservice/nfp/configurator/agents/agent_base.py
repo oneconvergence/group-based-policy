@@ -10,10 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import pika
+import oslo_messaging as messaging
 
 from gbpservice.nfp.configurator.lib import constants as const
+from neutron.common import rpc as n_rpc
 from oslo_log import log as logging
+from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
 
@@ -101,16 +103,15 @@ class AgentBaseRPCManager(object):
 
 class AgentBaseNotification(object):
 
+    API_VERSION = '1.0'
+
     def __init__(self, sc):
         self.sc = sc
-        self.queue = const.NOTIFICATION_QUEUE
-        self.rabbitmq_host = const.RABBITMQ_HOST
-        self.create_connection()
-
-    def create_connection(self):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                                                  host=self.rabbitmq_host,
-                                                  heartbeat_interval=0))
+        self.topic = const.NOTIFICATION_QUEUE
+        n_rpc.init(cfg.CONF)
+        target = messaging.Target(topic=self.topic,
+                                  version=self.API_VERSION)
+        self.client = n_rpc.get_client(target)
 
     def _notification(self, data):
         """Enqueues notification event into rabbitmq's
@@ -124,26 +125,11 @@ class AgentBaseNotification(object):
         Returns: None
 
         """
+        ctxt = self.client.prepare()
+        ctxt.cast(self, 'configurator_notifications', data=data)
 
-        try:
-            self.channel = self.connection.channel()
-            self.channel.queue_declare(queue=self.queue,
-                                       # make queue persistent
-                                       durable=True
-                                       )
-            body = str(data)
-            self.channel.basic_publish(exchange='',
-                                       routing_key=self.queue,
-                                       body=body,
-                                       properties=pika.BasicProperties(
-                                           # make msg persistent
-                                           delivery_mode=2
-                                       ))
-            self.channel.close()
-        except Exception as e:
-            self.connection.close()
-            self.create_connection()
-            self._notification(data)
+    def to_dict(self):
+        return {}
 
 
 class AgentBaseEventHandler(object):

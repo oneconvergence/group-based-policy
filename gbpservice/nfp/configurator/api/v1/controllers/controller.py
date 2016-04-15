@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import ast
+import json
 import oslo_serialization.jsonutils as jsonutils
 
 from neutron.agent.common import config
@@ -306,12 +306,17 @@ class RMQConsumer(object):
             self.channel = self.connection.channel()
             self.queue_declared = self.channel.queue_declare(queue=self.queue,
                                                              durable=True)
+            self.channel.queue_bind(self.queue, 'neutron')
             pending_msg_count = self.queue_declared.method.message_count
             log = ('[notifications queue:%s, pending notifications:%s]'
                    % (self.queue, pending_msg_count))
+            LOG.info(log)
             for i in range(pending_msg_count):
                 method, properties, body = self.channel.basic_get(self.queue)
-                notifications.append(ast.literal_eval(body))
+                json_body = json.loads(body)
+                notification = (json.loads(json_body['oslo.message'])
+                                ['args']['data'])
+                notifications.append(notification)
 
             # Acknowledge all messages delivery
             if pending_msg_count > 0:
@@ -322,10 +327,13 @@ class RMQConsumer(object):
             self.channel.close()
             return notifications
         except pika.exceptions.ConnectionClosed:
+            LOG.error("Caught ConnectionClosed exception."
+                      "Creating new connection")
             self.create_connection()
-            self.pull_notifications()
+            return notifications
         except pika.exceptions.ChannelClosed:
+            LOG.error("Caught ChannelClosed exception.")
             if msgs_acknowledged is False:
-                self.pull_notifications()
+                return self.pull_notifications()
             else:
                 return notifications
