@@ -118,26 +118,18 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     @log_helpers.log_method_call
     def update_status(self, context, **kwargs):
-        kwargs = kwargs['kwargs']
+        status = kwargs['kwargs']['status']
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        msg = ("NCO received VPN's update_status API,"
-               "making an update_status RPC call to plugin for %s object"
-               "with status %s" % (kwargs['obj_id'], kwargs['status']))
-        LOG.info(msg)
         rpcClient.cctxt.cast(context, 'update_status',
-                             kwargs=kwargs)
+                             status=status)
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     @log_helpers.log_method_call
     def ipsec_site_conn_deleted(self, context, **kwargs):
-        kwargs = kwargs['kwargs']
+        resource_id = kwargs['kwargs']['resource_id']
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
-               "making an ipsec_site_conn_deleted RPC call to plugin for "
-               "%s object" % (kwargs['obj_id']))
-        LOG.info(msg)
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
-                             kwargs=kwargs)
+                             resource_id=resource_id)
 
 
     def validate_and_process_vpn_create_service_request(self, context,

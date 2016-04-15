@@ -1416,6 +1416,7 @@ class SOHelper(object):
                                           nw_function_info.get('service_type'))
         # self.pre_process_service_delete(service_orchestrator,
         # nw_function_info)
+        # REVISIT: kedar service[0]['id'] ?
         return service_orchestrator.delete_network_function(
                 context, service['id'])
 
@@ -1686,7 +1687,7 @@ class SOHelper(object):
                    'router_id': extra_attr['router_id'],
                    'subnet_id': extra_attr['subnet_id'],
                    'network_id': extra_attr['network_id']}
-            self.sc_plumber.unplug_router_interface(**vpn)
+            self.sc_plumber.undo_plumbing(**vpn)
         elif service_type.lower() == "firewall":
             cons_extra_attr = ast.literal_eval(consumer_port[
                                                   'extra_attributes'])
@@ -1699,7 +1700,7 @@ class SOHelper(object):
                         'router_id': router_id,
                         'subnet_id': cons_extra_attr['subnet_id'],
                         'network_id': cons_extra_attr['network_id']}
-            self.sc_plumber.unplug_router_interface(**firewall)
+            self.sc_plumber.undo_plumbing(**firewall)
             self.sc_plumber.ports_state_down([provider_port['id']])
 
 
