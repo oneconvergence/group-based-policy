@@ -9,7 +9,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 import ast
 
 from neutron._i18n import _LE
@@ -401,6 +400,7 @@ class ServiceOrchestrator(object):
 
     def __init__(self, controller, config):
         self._controller = controller
+        self._config = config
         self.db_handler = nfp_db.NFPDbBase()
         self.gbpclient = openstack_driver.GBPClient(config)
         self.keystoneclient = openstack_driver.KeystoneClient(config)
@@ -521,19 +521,8 @@ class ServiceOrchestrator(object):
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
-            if original_event:
-                event = self._controller.new_event(
-                    id=event_id, data=event_data,
-                    serialize=original_event.serialize,
-                    binding_key=original_event.binding_key,
-                    key=original_event.desc.uid)
-            else:
-                # Same module API, so calling corresponding function
-                # directly.
-                event = self._controller.new_event(
-                    id=event_id,
-                    data=event_data)
-            self.handle_event(event)
+            self._controller.post_event(event)
+        self._log_event_created(event_id, event_data)
 
     def _get_base_mode_support(self, service_profile_id):
         admin_token = self.keystoneclient.get_admin_token()
@@ -656,7 +645,6 @@ class ServiceOrchestrator(object):
                   'service_provider': service_vendor})
 
     def create_network_function(self, context, network_function_info):
-        # For neutron mode, we have handle port creation here
         self._validate_create_service_input(context, network_function_info)
         # GBP or Neutron
         mode = network_function_info['network_function_mode']
@@ -1860,7 +1848,8 @@ class NSOConfiguratorRpcApi(object):
 
 class SOHelper(object):
     def __init__(self, conf):
-        self.sc_plumber = SCPlumber(conf)
+        self._conf = conf
+        self.sc_plumber = SCPlumber(self._conf)
 
     def process_update_network_function_request(self, context,
                                                 service_orchestrator,
@@ -2163,7 +2152,7 @@ class SOHelper(object):
                    'router_id': extra_attr['router_id'],
                    'subnet_id': extra_attr['subnet_id'],
                    'network_id': extra_attr['network_id']}
-            self.sc_plumber.unplug_router_interface(**vpn)
+            self.sc_plumber.undo_plumbing(**vpn)
         elif service_type.lower() == "firewall":
             cons_extra_attr = ast.literal_eval(consumer_port[
                                                   'extra_attributes'])
@@ -2176,7 +2165,7 @@ class SOHelper(object):
                         'router_id': router_id,
                         'subnet_id': cons_extra_attr['subnet_id'],
                         'network_id': cons_extra_attr['network_id']}
-            self.sc_plumber.unplug_router_interface(**firewall)
+            self.sc_plumber.undo_plumbing(**firewall)
             self.sc_plumber.ports_state_down([provider_port['id']])
 
 

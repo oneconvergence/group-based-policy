@@ -116,20 +116,25 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         return core_context_dict
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    @log_helpers.log_method_call
     def update_status(self, context, **kwargs):
         status = kwargs['kwargs']['status']
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+        msg = ("NCO received VPN's update_status API,"
+               "making an update_status RPC call to plugin for %s object"
+               "with status %s" % (kwargs['obj_id'], kwargs['status']))
+        LOG.info(msg)
         rpcClient.cctxt.cast(context, 'update_status',
                              status=status)
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    @log_helpers.log_method_call
     def ipsec_site_conn_deleted(self, context, **kwargs):
         resource_id = kwargs['kwargs']['resource_id']
-        LOG.error("kwargs are %s" % kwargs)
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
-                "making an ipsec_site_conn_deleted RPC call to plugin for "
-                "%s object" % (kwargs['obj_id']))
+               "making an ipsec_site_conn_deleted RPC call to plugin for "
+               "%s object" % (kwargs['obj_id']))
         LOG.info(msg)
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
                              resource_id=resource_id)
