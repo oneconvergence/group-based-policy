@@ -75,7 +75,7 @@ def rpc_init(sc, conf):
     nfp_l3_agent = RpcAgent(sc, host=cfg.CONF.host,
                             topic=a_topics.NFP_L3_AGENT, manager=nfp_l3_mgr)
 
-    sc.register_rpc_agents([fwagent, nfp_l3_agent])
+    sc.register_rpc_agents([fwagent, vpnagent, nfp_l3_agent])
     # sc.register_rpc_agents([fwagent, lbagent, vpnagent, nfp_l3_agent])
 
 
