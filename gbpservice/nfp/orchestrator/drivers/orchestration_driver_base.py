@@ -500,7 +500,7 @@ class OrchestrationDriverBase(object):
                 self.compute_handler_nova.delete_instance(
                                                 token,
                                                 self._get_admin_tenant_id(
-                                                                    token=token),
+                                                                token=token),
                                                 device_data['id'])
             except Exception:
                 self._increment_stats_counter('instance_delete_failures')
@@ -509,7 +509,7 @@ class OrchestrationDriverBase(object):
             else:
                 self._decrement_stats_counter('instances')
         else:
-            # device instance deletion is done, delete remaining resources 
+            # device instance deletion is done, delete remaining resources
             try:
                 self._delete_interfaces(device_data,
                                         [device_data['mgmt_port_id']],
