@@ -497,8 +497,6 @@ class DeviceOrchestrator(PollEventDesc):
         is_device_up = (
             orchestration_driver.get_network_function_device_status(device))
         if is_device_up == nfp_constants.ACTIVE:
-            self._controller.poll_event_done(event)
-
             # create event DEVICE_UP
             self._create_event(event_id='DEVICE_UP',
                                event_data=device,
@@ -507,8 +505,6 @@ class DeviceOrchestrator(PollEventDesc):
                                                    'DEVICE_UP')
             return STOP_POLLING
         elif is_device_up == nfp_constants.ERROR:
-            self._controller.poll_event_done(event)
-
             # create event DEVICE_NOT_UP
             self._create_event(event_id='DEVICE_NOT_UP',
                                event_data=device,
