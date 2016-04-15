@@ -152,6 +152,10 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         cfg.CONF.set_override("auth_version", "v1", group="keystone_authtoken")
         self.service_orchestrator = nso.ServiceOrchestrator(self.controller,
                                                             cfg.CONF)
+        self.service_orchestrator.config_driver.\
+            parse_template_config_string = (mock.Mock(return_value=
+                                                      ('heat_config',
+                                                       'template')))
 
     @mock.patch.object(
         openstack_driver.KeystoneClient, "get_admin_token")
