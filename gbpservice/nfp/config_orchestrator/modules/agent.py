@@ -80,15 +80,15 @@ def rpc_init(sc, conf):
 
 
 def events_init(controller, config, nfp_agents_obj):
-    vpn_events = ['VPN_SERVICE_LAUNCHED', 'VPN_SERVICE_DELETED',
+    vpn_events = ['VPN_SERVICE_SPAWNING', 'VPN_SERVICE_DELETE_IN_PROGRESS',
                   'VPN_SERVICE_ERRED']
     firewall_events = ['FW_INSTANCE_SPAWNING', 'FW_SERVICE_DELETE_IN_PROGRESS',
                        'FW_SERVICE_ERRED', 'ROUTERS_UPDATED',
                        'FW_INSTANCE_SPAWNING']
     events_to_register = []
-    # for event in vpn_events:
-    #   events_to_register.append(
-    #        Event(id=event, handler=nfp_agents_obj.vpn_agent))
+    for event in vpn_events:
+        events_to_register.append(
+                Event(id=event, handler=nfp_agents_obj.vpn_agent))
     for event in firewall_events:
         events_to_register.append(
                 Event(id=event, handler=nfp_agents_obj.fw_agent))
@@ -105,6 +105,6 @@ class NFPAgents(object):
     def __init__(self, controller, config):
         self._controller = controller
         self._config = config
-        # self.vpn_agent = vp.VpnAgent()
+        self.vpn_agent = vp.VpnAgent()
         self.fw_agent = fw.FwAgent(self._config, self._controller)
         self.nfp_l3_agent = NFPL3Agent(sc=self._controller, conf=self._config)
