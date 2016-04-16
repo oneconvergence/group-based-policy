@@ -46,9 +46,9 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         context_dict = context.to_dict()
         context_dict.update({'service_info': db})
         kwargs.update({'context': context_dict})
-        resource = resource_data['rsrc_type']
-        reason = resource_data['reason']
-        body = common. prepare_request_data(resource, kwargs, "vpn")
+        resource = kwargs.get('rsrc_type')
+        reason = kwargs.get('reason')
+        body = common.prepare_request_data(resource, kwargs, "vpn")
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                reason)
@@ -81,21 +81,18 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     def update_status(self, context, **kwargs):
         kwargs = kwargs['kwargs']
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        msg = ("NCO received VPN's update_status API,"
-               "making an update_status RPC call to plugin for %s object"
-               "with status %s" % (kwargs['obj_id'], kwargs['status']))
-        LOG.info(msg)
-        rpcClient.cctxt.cast(context, 'update_status',
-                             kwargs=kwargs)
+        # msg = ("NCO received VPN's update_status API,"
+        #       "making an update_status RPC call to plugin for %s object"
+        #       "with status %s" % (kwargs['obj_id'], kwargs['status']))
+        # LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'update_status', status=kwargs)
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     @log_helpers.log_method_call
-    def ipsec_site_conn_deleted(self, context, **kwargs):
-        kwargs = kwargs['kwargs']
+    def ipsec_site_connection_deleted(self, context, resource_id):
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
-               "making an ipsec_site_conn_deleted RPC call to plugin for "
-               "%s object" % (kwargs['obj_id']))
-        LOG.info(msg)
-        rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
-                             kwargs=kwargs)
+        # msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
+        #       "making an ipsec_site_conn_deleted RPC call to plugin for "
+        #       "%s object" % (kwargs['obj_id']))
+        # LOG.info(msg)
+        rpcClient.cctxt.cast(context, 'ipsec_site_connection_deleted', id=resource_id)

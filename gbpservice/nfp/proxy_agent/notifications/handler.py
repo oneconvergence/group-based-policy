@@ -74,7 +74,7 @@ class NotificationHandler(object):
         rpc_ctx = n_context.Context.from_dict(context)
         del kwargs['context']
         rpcClient.cctxt.cast(rpc_ctx, 'ipsec_site_connection_deleted',
-                             id=kwargs['resource_id'])
+                             resource_id=kwargs['resource_id'])
 
 
     def _update_status_vpn(self, **kwargs):

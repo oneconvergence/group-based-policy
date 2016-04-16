@@ -831,7 +831,7 @@ class HeatDriver(object):
                         ';stitching_cidr=' + stitching_cidr +
                         ';stitching_gateway=' + stitching_subnet[
                             'gateway_ip'] +
-                        ';mgmt_gw_ip=' + mgmt_gw_ip,
+                        ';mgmt_gw_ip=' + mgmt_gw_ip +
                         ';network_function_id=' + network_function['id'])
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(

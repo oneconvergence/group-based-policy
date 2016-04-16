@@ -397,8 +397,6 @@ class VpnGenericConfigDriver(object):
 
         Returns: None
         """
-        LOG.error("%%%% clear_routes &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
-        LOG.error(kwargs)
         active_configured = False
 
         stitching_url = const.request_url % (kwargs['vm_mgmt_ip'],
@@ -685,8 +683,6 @@ class VpnGenericConfigDriver(object):
 
         Returns: None
         """
-        LOG.error("%%%% clear_interfaces &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
-        LOG.error(kwargs)
         active_configured = False
         try:
             result_static_ips = self._clear_static_ips(kwargs)
@@ -932,17 +928,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         msg = "IPSec: Pushing ipsec configuration %s" % conn
         LOG.info(msg)
         conn['tunnel_local_cidr'] = tunnel_local_cidr
-        '''
-        gateway_ip = self._get_stitching_gw_from_desc(conn)
-        msg = ("%s Adding a default route for stitching interface"
-               % conn['id'])
-        LOG.info(msg)
-        status = RestApi(mgmt_fip).post("add-stitching-route",
-                               {'gateway_ip': gateway_ip})
-        LOG.error('&&&&&&&&&&&&&&&&&&')
-        LOG.error(status)
-        LOG.error(conn)
-        '''
         self._ipsec_conn_correct_enc_algo(svc_context['siteconns'][0])
         RestApi(mgmt_fip).post("create-ipsec-site-conn", svc_context)
         self._init_state(context, conn)
@@ -1096,7 +1081,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         """
 
         try:
-            LOG.error('8888888888888888888888888888')
             gateway_ip = self._get_stitching_gw_from_desc(conn)
             LOG.error(gateway_ip)
             url = const.request_url % (mgmt_fip,
@@ -1105,11 +1089,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             data = jsonutils.dumps({'gateway_ip': gateway_ip})
             resp = requests.delete(url, data=data, timeout=self.timeout)
             LOG.error(resp)
-            '''
-            RestApi(mgmt_fip).delete(
-                "delete-stitching-route",
-                {'gateway_ip': gateway_ip})
-            '''
             RestApi(mgmt_fip).delete(
                 "delete-ipsec-site-conn",
                 {'peer_address': conn['peer_address']})
@@ -1262,8 +1241,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
         tenant_conns = self._ipsec_get_tenant_conns(
             context, mgmt_fip, conn, on_delete=True)
-        LOG.error('7777777777777777777777777777777')
-        LOG.error(tenant_conns)
         try:
             if tenant_conns:
                 self._ipsec_delete_tunnel(

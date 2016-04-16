@@ -189,7 +189,6 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         """
         if ev.id == 'VPN_SYNC':
             self._sc.poll_event(ev)
-            # wrong, as this event has to be closed at the end of the last conn
 
         if ev.id == 'VPNSERVICE_UPDATED':
             try:
@@ -234,17 +233,6 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
                                              key='VPN_SYNC', data=arg_dict)
                     self._sc.post_event(ev1)
                 break
-            '''
-            if context['operation_status']:
-                for item in t_context['service_info']['ipsec_site_conns']:
-                    if item['id'] == kwargs['resource']['id']:
-                        item['status'] = 'INIT'
-                arg_dict = {'context': t_context,
-                            'kwargs': t_kwargs}
-                ev1 = self._sc.new_event(id='VPN_SYNC',
-                                         key='VPN_SYNC', data=arg_dict)
-                self._sc.post_event(ev1)
-            '''
         except Exception as err:
             msg = ("Failed to update VPN service. %s" % str(err).capitalize())
             LOG.error(msg)
