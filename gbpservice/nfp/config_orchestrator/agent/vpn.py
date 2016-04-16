@@ -12,8 +12,10 @@
 import eventlet
 from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.core.poll import poll_event_desc, PollEventDesc
 from gbpservice.nfp.lib import transport
 from neutron_vpnaas.db.vpn import vpn_db
+from neutron._i18n import _LI
 from oslo_log import helpers as log_helpers
 import oslo_messaging as messaging
 from oslo_log import log as logging
@@ -30,7 +32,7 @@ class VPNServiceCreateFailed(n_exec.NeutronException):
     message = "VPN Service Creation Failed"
 
 
-class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
+class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin, PollEventDesc):
     RPC_API_VERSION = '1.0'
     target = messaging.Target(version=RPC_API_VERSION)
 
@@ -38,6 +40,50 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         self._conf = conf
         self._sc = sc
         super(VpnAgent, self).__init__()
+
+    def event_method_mapping(self, event_id):
+        event_handler_mapping = {
+            'VPN_SERVICE_SPAWNING': self.wait_for_device_ready,
+            'VPN_SERVICE_DELETE_IN_PROGRESS':
+                self.validate_and_process_vpn_delete_service_request
+        }
+
+        if event_id not in event_handler_mapping:
+            raise Exception("Invalid Event ID")
+        else:
+            return event_handler_mapping[event_id]
+
+    def _create_event(self, event_id, event_data=None, is_poll_event=False,
+                      serialize=False, binding_key=None, key=None,
+                      max_times=10):
+        if is_poll_event:
+            ev = self._sc.new_event(
+                    id=event_id, data=event_data, serialize=serialize,
+                    binding_key=binding_key, key=key)
+            LOG.debug("poll event started for %s" % ev.id)
+            self._sc.poll_event(ev, max_times=max_times)
+        else:
+            ev = self._sc.new_event(id=event_id, data=event_data)
+            self._sc.post_event(ev)
+        self._log_event_created(event_id, event_data)
+
+    def poll_event_cancel(self, event):
+        LOG.info(_LI("Poll event %(event_id)s cancelled."),
+                 {'event_id': event.id})
+        # (VK) - Kedar fill the ERROR logic returned to VPM plugin here.
+        if event.id == "VPN_SERVICE_SPAWNING":
+            pass
+        elif event.id == "VPN_SERVICE_DELETE_IN_PROGRESS":
+            data = event.data
+            context = data['context']
+            vpnsvc_status = [{
+                'id': data['resource']['id'],
+                'status': "ERROR",
+                'updated_pending_status': True,
+                'ipsec_site_connections': {}}]
+            vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+            vpn_plugin.cctxt.cast(context, 'update_status',
+                                  status=vpnsvc_status)
 
     @log_helpers.log_method_call
     def vpnservice_updated(self, context, **kwargs):
@@ -49,7 +95,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                         context, kwargs)
                 if kwargs['rsrc_type'] == 'ipsec_site_connection':
                     if ('status' in nw_fun_info['nw_func'] and
-                        nw_fun_info['nw_func']["status"] == "ACTIVE"):
+                            nw_fun_info['nw_func']["status"] == "ACTIVE"):
                         kwargs['resource']['description'] = nw_fun_info[
                             'nw_func']['description']
                         self.call_configurator(context, kwargs)
@@ -61,18 +107,24 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                         filters={'service_id': [kwargs['resource'][
                                                     'vpnservice_id']]})
                     if nw_func:
-                        kwargs['resource']['description'] = nw_func[0]['description']
+                        kwargs['resource']['description'] = nw_func[0][
+                            'description']
                     self.call_configurator(context, kwargs)
                 else:
-                    self.validate_and_process_vpn_delete_service_request(
-                        context, kwargs)
+                    kwargs.update({'context': context})
+                    self._create_event(
+                        event_id='VPN_SERVICE_DELETE_IN_PROGRESS',
+                        event_data=kwargs,
+                        is_poll_event=True,
+                        serialize=True,
+                        binding_key=kwargs['resource']['id'])
         else:
             if (kwargs['reason'] == 'delete' and 
                     kwargs['rsrc_type'] == 'vpn_service'):
                 vpn_plugin = transport.RPCClient(
                     a_topics.VPN_NFP_PLUGIN_TOPIC)
                 vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
-                                      id=resource_data['resource']['id'])
+                                      id=kwargs['resource']['id'])
             else:
                 self.call_configurator(context, kwargs)
 
@@ -139,7 +191,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
                              resource_id=resource_id)
 
-
     def validate_and_process_vpn_create_service_request(self, context,
                                                         resource_data):
         """
@@ -152,13 +203,14 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         if resource_data['rsrc_type'].lower() == 'vpn_service':
             nw_function_info = self.prepare_request_data_for_orch(
                 context, resource_data['resource']['id'], resource_data)
-            nw_func = self.wait_for_device_ready(context, nw_function_info)
-            vpnsvc_status = [{
-                'id': resource_data['resource']['id'],
-                'status': nw_func['status'],
-                'updated_pending_status':True,
-                'ipsec_site_connections':{}}]
-            vpn_plugin.cctxt.cast(context, 'update_status', status=vpnsvc_status)
+            nw_func = rpcc.cctxt.call(context,
+                                      'neutron_update_nw_function_config',
+                                      network_function=nw_function_info)
+            nw_function_info.update({'nw_func': nw_func, 'context': context})
+            self._create_event(event_id='VPN_SERVICE_SPAWNING',
+                               event_data=nw_function_info, is_poll_event=True,
+                               serialize=True,
+                               binding_key=resource_data['resource']['id'])
         else:
             nw_function_info = self.prepare_request_data_for_orch(
                 context, resource_data['resource']['vpnservice_id'],
@@ -220,69 +272,50 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                                      resource_data=resource)
         return network_function_info
 
-    @staticmethod
-    def wait_for_device_ready(context, nw_function_info_data):
+    @poll_event_desc(event="VPN_SERVICE_SPAWNING", spacing=30)
+    def wait_for_device_ready(self, event):
+        nw_function_info_data = event.data
+        context = nw_function_info_data['context']
+        nw_func = nw_function_info_data['nw_func']
         rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
-        nw_func = rpcc.cctxt.call(context, 'neutron_update_nw_function_config',
-                                  network_function=nw_function_info_data)
-        try:
-            nw_func
-        except NameError:
-            raise NameError()
-        time_waited = 5
-        while time_waited < 300:
-            nw_func = rpcc.cctxt.call(context, 'get_network_function',
-                                      network_function_id=nw_func['id'])
-            if nw_func['status'] == "ACTIVE":
-                return nw_func
-            elif nw_func['status'] == "ERROR":
-                return nw_func
-            eventlet.sleep(time_waited)
-            time_waited += 5
-        nw_function_info_data["status"] = "ERROR"
-        return nw_function_info_data
+        nw_func = rpcc.cctxt.call(context, 'get_network_function',
+                                  network_function_id=nw_func['id'])
+        # (VK) - Kedar check for data sent back to plugin ???
+        if nw_func['status'] == "ACTIVE":
+            vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+            self._sc.poll_event_done(event)
+            vpnsvc_status = [{
+                'id': nw_function_info_data['resource_data']['resource']['id'],
+                'status': nw_func['status'],
+                'updated_pending_status': True,
+                'ipsec_site_connections': {}}]
+            vpn_plugin.cctxt.cast(context, 'update_status',
+                                  status=vpnsvc_status)
+        elif nw_func['status'] == "ERROR":
+            vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+            self._sc.poll_event_done(event)
+            vpnsvc_status = [{
+                'id': nw_function_info_data['resource_data']['resource']['id'],
+                'status': nw_func['status'],
+                'updated_pending_status': True,
+                'ipsec_site_connections': {}}]
+            vpn_plugin.cctxt.cast(context, 'update_status',
+                                  status=vpnsvc_status)
 
-    def validate_and_process_vpn_delete_service_request(self, context,
-                                                        resource_data):
+    @poll_event_desc(event="VPN_SERVICE_DELETE_IN_PROGRESS", spaciing=30)
+    def validate_and_process_vpn_delete_service_request(self, event):
+        data = event.data
+        context = data['context']
+        resource_data = data['kwargs']
         rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
-        vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         nw_func = rpcc.cctxt.call(context, 'get_network_functions',
                                   filters={'service_id': [resource_data[
                                            'resource']['id']]})
         if not nw_func:
+            self._sc.poll_event_done(event)
+            vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
             vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
                                   id=resource_data['resource']['id'])
-            return
-        else:
-            rpcc.cctxt.call(context, 'delete_network_function',
-                            network_function_id=nw_func[0]['id'])
-            try:
-                self.wait_for_device_delete(context, nw_func[0]['id'],
-                                            rpcc)
-            except VPNServiceDeleteFailed, err:
-                LOG.error("Exception %s" % err)
-                status = 'ERROR'
-            else:
-                vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
-                                      id=resource_data['resource']['id'])
-                return
-        LOG.error("Delete of vpnservice %s failed" % resource_data)
-        vpnsvc_status = [{
-                'id': resource_data['resource']['id'],
-                'status': status,
-                'updated_pending_status':True,
-                'ipsec_site_connections':{}}]
-        vpn_plugin.cctxt.cast(context, 'update_status', status=vpnsvc_status)
-
-    @staticmethod
-    def wait_for_device_delete(context, nw_fun_id, rpcc):
-        time_waited = 5
-        while time_waited < 300:
-            nw_func = rpcc.cctxt.call(context, 'get_network_function',
-                                      network_function_id=nw_fun_id)
-            if not nw_func:
-                return
-        raise VPNServiceDeleteFailed()
 
     @staticmethod
     def _is_network_function_mode_neutron(kwargs):
@@ -293,5 +326,9 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         else:
             return True
 
-
+    @staticmethod
+    def _log_event_created(event_id, event_data):
+        LOG.info(_LI("VPN Agent created event %(event_name)s with "
+                     "event data %(event_data)s"), {
+                     'event_name': event_id, 'event_data': event_data})
 
