@@ -532,7 +532,6 @@ class HeatDriver(object):
             fw_policy_key=fw_policy_key)
 
         if consumer_ptgs:
-            provider_cidr = None
             filters = {'id': consumer_ptgs}
             consumer_ptgs_details = self.gbp_client.get_policy_target_groups(
                 auth_token, filters)
@@ -1158,10 +1157,12 @@ class HeatDriver(object):
 
         try:
             stack = heatclient.create(stack_name, stack_template, stack_params)
-        except Exception:
+        except Exception as err:
             LOG.error(_LE("Heat stack creation failed for template : "
-                          "%(template)s and stack parameters : %(params)s") %
-                      {'template': stack_template, 'params': stack_params})
+                          "%(template)s and stack parameters : %(params)s "
+                          "with Error: %(error)s") %
+                      {'template': stack_template, 'params': stack_params,
+                       'error': err})
             return None
 
         stack_id = stack['stack']['id']
@@ -1182,10 +1183,11 @@ class HeatDriver(object):
             if not heatclient:
                 return None
             heatclient.delete(stack_id)
-        except Exception:
+        except Exception as err:
             # Log the error and continue with VM delete in case of *aas
             # cleanup failure
-            LOG.exception(_LE("Cleaning up the service chain stack failed"))
+            LOG.exception(_LE("Cleaning up the service chain stack failed "
+                              "with Error: %(error)s"), {'error': err})
             return None
         return stack_id
 
