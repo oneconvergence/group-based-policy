@@ -18,6 +18,7 @@ from oslo_log import log as logging
 from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
+n_rpc.init(cfg.CONF)
 
 """Implements base class for all service agents.
 
@@ -108,10 +109,8 @@ class AgentBaseNotification(object):
     def __init__(self, sc):
         self.sc = sc
         self.topic = const.NOTIFICATION_QUEUE
-        n_rpc.init(cfg.CONF)
-        target = messaging.Target(topic=self.topic,
-                                  version=self.API_VERSION)
-        self.client = n_rpc.get_client(target)
+        self.target = messaging.Target(topic=self.topic,
+                                       version=self.API_VERSION)
 
     def _notification(self, data):
         """Enqueues notification event into rabbitmq's
@@ -125,7 +124,8 @@ class AgentBaseNotification(object):
         Returns: None
 
         """
-        ctxt = self.client.prepare()
+        client = n_rpc.get_client(self.target)
+        ctxt = client.prepare()
         ctxt.cast(self, 'configurator_notifications', data=data)
 
     def to_dict(self):
