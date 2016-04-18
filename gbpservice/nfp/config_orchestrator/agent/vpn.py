@@ -32,7 +32,7 @@ class VPNServiceCreateFailed(n_exec.NeutronException):
     message = "VPN Service Creation Failed"
 
 
-class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin, PollEventDesc):
+class VpnAgent(PollEventDesc, vpn_db.VPNPluginDb):
     RPC_API_VERSION = '1.0'
     target = messaging.Target(version=RPC_API_VERSION)
 
@@ -94,8 +94,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin, PollEventDesc):
                     self.validate_and_process_vpn_create_service_request(
                         context, kwargs)
                 if kwargs['rsrc_type'] == 'ipsec_site_connection':
-                    if ('status' in nw_fun_info['nw_func'] and
-                            nw_fun_info['nw_func']["status"] == "ACTIVE"):
+                    if ('nw_func' in nw_fun_info and
+                            nw_fun_info["nw_func"]["status"] == "ACTIVE"):
                         kwargs['resource']['description'] = nw_fun_info[
                             'nw_func']['description']
                         self.call_configurator(context, kwargs)
@@ -152,7 +152,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin, PollEventDesc):
         kwargs.update({'context': context_dict})
         resource = kwargs.get('rsrc_type')
         reason = kwargs.get('reason')
-        body = common. prepare_request_data(resource, kwargs, "vpn")
+        body = common.prepare_request_data(resource, kwargs, "vpn")
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                reason)
@@ -269,7 +269,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin, PollEventDesc):
                 network_function_info['service_profile_id'] = field.split(
                     '=')[1]
         if not 'service_profile_id' in network_function_info:
-            raise
+            err = ("Service profile id must be specified in description")
+            raise Exception(err)
         network_function_info.update(network_function_mode='neutron',
                                      tenant_id=resource['tenant_id'],
                                      service_type=vpn_data.get('rsrc_type'),
@@ -290,7 +291,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin, PollEventDesc):
             vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
             self._sc.poll_event_done(event)
             vpnsvc_status = [{
-                'id': nw_function_info_data['resource_data']['resource']['id'],
+                'id': nw_function_info_data['resource_data']['id'],
                 'status': nw_func['status'],
                 'updated_pending_status': True,
                 'ipsec_site_connections': {}}]
@@ -307,11 +308,11 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin, PollEventDesc):
             vpn_plugin.cctxt.cast(context, 'update_status',
                                   status=vpnsvc_status)
 
-    @poll_event_desc(event="VPN_SERVICE_DELETE_IN_PROGRESS", spaciing=30)
+    @poll_event_desc(event="VPN_SERVICE_DELETE_IN_PROGRESS", spacing=30)
     def validate_and_process_vpn_delete_service_request(self, event):
         data = event.data
         context = data['context']
-        resource_data = data['kwargs']
+        resource_data = data
         rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
         nw_func = rpcc.cctxt.call(context, 'get_network_functions',
                                   filters={'service_id': [resource_data[

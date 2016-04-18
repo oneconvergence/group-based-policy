@@ -1543,6 +1543,7 @@ class SOHelper(object):
                 service_orchestrator.db_session, u_port)
             if _port['port_classification'] == \
                     nfp_constants.CONSUMER:
+                stitching_port_id = _port['id']
                 admin_token = service_orchestrator.keystoneclient \
                     .get_admin_token()
                 gateway_ip = service_orchestrator.neutronclient.get_port(
@@ -1564,8 +1565,8 @@ class SOHelper(object):
         stitching_extra_attributes.update(
                 subnet_cidr=nw_function_info['resource_data']['peer_cidrs'])
         service_orchestrator.db_handler.update_port_info(
-                service_orchestrator.db_session, dict(extra_attributes=str(
-                        stitching_extra_attributes)))
+                service_orchestrator.db_session, stitching_port_id,
+                dict(extra_attributes=str(stitching_extra_attributes)))
         nw_function_info["ipsec_service_status"] = "ACTIVE"
         return nw_function_info
 

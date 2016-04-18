@@ -349,7 +349,7 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         with session.begin(subtransactions=True):
             port_info_db = self._get_port_info(session, port_id)
             port_info_db.update(port_info)
-        return self._make_port_info_dict(port_info_db)
+        return self._make_port_info_dict(port_info_db, None)
 
     def get_port_info(self, session, port_id, fields=None):
         port_info = self._get_port_info(session, port_id)
