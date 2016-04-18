@@ -112,6 +112,19 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin, PollEventDesc):
                     self.call_configurator(context, kwargs)
                 else:
                     kwargs.update({'context': context})
+                    filters = {'service_id': [kwargs['rsrc_id']]}
+                    rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+                    nw_function = rpcc.cctxt.call(
+                            context, 'get_network_functions', filters=filters)
+                    if not nw_function:
+                        vpn_plugin = transport.RPCClient(
+                                a_topics.VPN_NFP_PLUGIN_TOPIC)
+                        vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
+                                              id=kwargs['rsrc_id'])
+                        return
+                    rpcc.cctxt.cast(context,
+                                    'delete_network_function',
+                                    network_function_id=nw_function[0]['id'])
                     self._create_event(
                         event_id='VPN_SERVICE_DELETE_IN_PROGRESS',
                         event_data=kwargs,

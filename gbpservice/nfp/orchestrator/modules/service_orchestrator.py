@@ -1295,6 +1295,15 @@ class ServiceOrchestrator(object):
         nfi_id = request_data['network_function_instance_id']
         nfi = self.db_handler.get_network_function_instance(
             self.db_session, nfi_id)
+        # REVISIT(VK) wacky wacky
+        network_function = self.db_handler.get_network_function(
+            self.db_session, nfi['network_function_id'])
+        if network_function['description']:
+            service_type = ast.literal_eval(network_function[
+                                                'description'])['service_type']
+            SOHelper(self._config).unplumb_action(
+                    self.db_handler, self.db_session, nfi['port_info'],
+                    service_type)
         self.db_handler.delete_network_function_instance(
             self.db_session, nfi_id)
         network_function = self.db_handler.get_network_function(
