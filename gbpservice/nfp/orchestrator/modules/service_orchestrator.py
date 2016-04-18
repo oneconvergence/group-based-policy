@@ -208,6 +208,32 @@ class RpcHandler(object):
         return service_orchestrator.get_port_info(port_id)
 
     @log_helpers.log_method_call
+    def neutron_update_nw_function_config(self, context, network_function):
+        """
+        RPC cast().
+        :param context:
+        :param network_function:
+        :return:
+        """
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        neutron_handler = SOHelper(self.conf)
+        return neutron_handler.process_update_network_function_request(
+            context, service_orchestrator, network_function)
+
+    @log_helpers.log_method_call
+    def neutron_delete_nw_function_config(self, context, network_function):
+        """
+        RPC cast()
+        :param context:
+        :param network_function:
+        :return:
+        """
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        neutron_handler = SOHelper(self.conf)
+        return neutron_handler.process_delete_network_function_request(context,
+                        service_orchestrator, network_function)
+
+    @log_helpers.log_method_call
     def admin_down_interfaces(self, port_ids):
         neutron_handler = SOHelper(self.conf)
         neutron_handler.admin_down_interfaces(port_ids)
