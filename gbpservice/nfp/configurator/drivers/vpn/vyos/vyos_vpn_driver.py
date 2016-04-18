@@ -423,6 +423,7 @@ class VpnGenericConfigDriver(object):
         LOG.info(msg)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
+
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
                    " %r. ERROR: %r" % (kwargs['vm_mgmt_ip'], err))
@@ -627,7 +628,7 @@ class VpnGenericConfigDriver(object):
 
         url = const.request_url % (active_fip,
                                    const.CONFIGURATION_SERVER_PORT,
-                                   'add_static_ip')
+                                   'del_static_ip')
         data = jsonutils.dumps(static_ips_info)
 
         msg = ("Initiating POST request to remove static IPs for primary "
@@ -1272,13 +1273,10 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             msg = ("Failed to check if IPSEC state is changed. %s"
                    % str(err).capitalize())
             LOG.error(msg)
-            # continue
         if changed:
             self.agent.update_status(
                 context, self._update_conn_status(conn,
                                                   state))
-        LOG.error("%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-        LOG.error(state)
         return state
 
     def vpnservice_updated(self, context, kwargs):
