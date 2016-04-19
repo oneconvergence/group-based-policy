@@ -10,15 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import oslo_messaging as messaging
-
 from gbpservice.nfp.configurator.lib import constants as const
-from neutron.common import rpc as n_rpc
 from oslo_log import log as logging
-from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
-n_rpc.init(cfg.CONF)
 
 """Implements base class for all service agents.
 
@@ -95,41 +90,25 @@ class AgentBaseRPCManager(object):
                 **sa_req_list[0]['kwargs'])
 
 
-""" RMQPublisher for under the cloud services.
-
-    This class acts as publisher to publish all the notification events to
-    under the cloud services on rabbitmq's 'configurator-notifications'queue.
-"""
-
-
 class AgentBaseNotification(object):
-
-    API_VERSION = '1.0'
 
     def __init__(self, sc):
         self.sc = sc
-        self.topic = const.NOTIFICATION_QUEUE
-        self.target = messaging.Target(topic=self.topic,
-                                       version=self.API_VERSION)
 
     def _notification(self, data):
-        """Enqueues notification event into rabbitmq's
-           'configurator-notifications' queue
+        """Enqueues notification event into notification queue
 
-        These events are enqueued into 'configurator-notifications' queue
-        and are retrieved when get_notifications() API lands on configurator.
+        These events are enqueued into notification queue and are retrieved
+        when get_notifications() API lands on configurator.
 
         :param data: Event data blob
 
         Returns: None
 
         """
-        client = n_rpc.get_client(self.target)
-        ctxt = client.prepare()
-        ctxt.cast(self, 'configurator_notifications', data=data)
-
-    def to_dict(self):
-        return {}
+        event = self.sc.new_event(
+                id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
+        self.sc.stash_event(event)
 
 
 class AgentBaseEventHandler(object):
