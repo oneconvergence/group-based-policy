@@ -20,7 +20,7 @@ function nfp_configure_neutron {
 # Process contract
 if is_service_enabled nfp-group-policy; then
     if [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
-        sed -i "s/source \/opt\/stack\/gbp\/devstack\/lib\/gbp/source \/opt\/stack\/gbp-plugin\/devstack\/lib\/gbp" /opt/stack/gbp-plugin/devstack/settings
+        sed -i 's/source $DEST\/gbp\/devstack\/lib\/gbp/source $DEST\/gbp-plugin\/devstack\/lib\/gbp/g' /opt/stack/gbp-plugin/devstack/settings
         echo_summary "Preparing $NFP"
     elif [[ "$1" == "stack" && "$2" == "install" ]]; then
         echo_summary "Installing $NFP"
