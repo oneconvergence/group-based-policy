@@ -32,7 +32,7 @@ class VPNServiceCreateFailed(n_exec.NeutronException):
     message = "VPN Service Creation Failed"
 
 
-class VpnAgent(PollEventDesc, vpn_db.VPNPluginDb):
+class VpnAgent(PollEventDesc):
     RPC_API_VERSION = '1.0'
     target = messaging.Target(version=RPC_API_VERSION)
 
@@ -144,11 +144,12 @@ class VpnAgent(PollEventDesc, vpn_db.VPNPluginDb):
     def call_configurator(self, context, kwargs):
         resource_data = kwargs.get('resource')
         # Collecting db entry required by configurator.
-        db = self._context(context, resource_data['tenant_id'])
+        db = VPNPluginDbHelper(self._conf)
+        db_data = db._context(context, resource_data['tenant_id'])
         # Addind service_info to neutron context and sending
         # dictionary format to the configurator.
         context_dict = context.to_dict()
-        context_dict.update({'service_info': db})
+        context_dict.update({'service_info': db_data})
         kwargs.update({'context': context_dict})
         resource = kwargs.get('rsrc_type')
         reason = kwargs.get('reason')
@@ -156,29 +157,6 @@ class VpnAgent(PollEventDesc, vpn_db.VPNPluginDb):
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                reason)
-
-    def _context(self, context, tenant_id):
-        if context.is_admin:
-            tenant_id = context.tenant_id
-        filters = {'tenant_id': [tenant_id]}
-        db = self._get_vpn_context(context, filters)
-        db.update(self._get_core_context(context, filters))
-        return db
-
-    def _get_vpn_context(self, context, filters):
-        args = {'context': context, 'filters': filters}
-        db_data = super(VpnAgent, self)
-        return {'vpnservices': db_data.get_vpnservices(**args),
-                'ikepolicies': db_data.get_ikepolicies(**args),
-                'ipsecpolicies': db_data.get_ipsecpolicies(**args),
-                'ipsec_site_conns': db_data.get_ipsec_site_connections(**args)}
-
-    def _get_core_context(self, context, filters):
-        core_context_dict = common.get_core_context(context,
-                                                    filters,
-                                                    self._conf.host)
-        del core_context_dict['ports']
-        return core_context_dict
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     @log_helpers.log_method_call
@@ -346,3 +324,32 @@ class VpnAgent(PollEventDesc, vpn_db.VPNPluginDb):
                      "event data %(event_data)s"), {
                      'event_name': event_id, 'event_data': event_data})
 
+
+class VPNPluginDbHelper(vpn_db.VPNPluginDb):
+    def __init__(self, conf):
+        super(VPNPluginDbHelper, self).__init__()
+        self._conf = conf
+
+    def _context(self, context, tenant_id):
+        if context.is_admin:
+            tenant_id = context.tenant_id
+        filters = {'tenant_id': [tenant_id]}
+        db = self._get_vpn_context(context, filters)
+        db.update(self._get_core_context(context, filters))
+        return db
+
+    def _get_vpn_context(self, context, filters):
+        args = {'context': context, 'filters': filters}
+        #db_data = vpn_db.VPNPluginDb.__init__(self)
+        db_data = super(VPNPluginDbHelper, self)
+        return {'vpnservices': db_data.get_vpnservices(**args),
+                'ikepolicies': db_data.get_ikepolicies(**args),
+                'ipsecpolicies': db_data.get_ipsecpolicies(**args),
+                'ipsec_site_conns': db_data.get_ipsec_site_connections(**args)}
+
+    def _get_core_context(self, context, filters):
+        core_context_dict = common.get_core_context(context,
+                                                    filters,
+                                                    self._conf.host)
+        del core_context_dict['ports']
+        return core_context_dict
