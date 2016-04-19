@@ -238,6 +238,11 @@ class RpcHandler(object):
         neutron_handler = SOHelper(self.conf)
         neutron_handler.admin_down_interfaces(port_ids)
 
+    @log_helpers.log_method_call
+    def remove_subnet_route(self, router_id, subnet_cidr):
+        neutron_handler = SOHelper(self.conf)
+        neutron_handler.remove_subnet_routes(router_id, subnet_cidr)
+
 
 class RpcHandlerConfigurator(object):
     """RPC Handler for Configurator to NFP.
@@ -1738,6 +1743,9 @@ class SOHelper(object):
                         'network_id': cons_extra_attr['network_id']}
             self.sc_plumber.undo_plumbing(**firewall)
             self.sc_plumber.ports_state_down([provider_port['id']])
+
+    def remove_subnet_routes(self, router_id, subnet_cidr):
+        self.sc_plumber.plumber.delete_extra_route(router_id, subnet_cidr)
 
 
 
