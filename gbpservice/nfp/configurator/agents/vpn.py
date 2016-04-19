@@ -17,6 +17,7 @@ from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 from gbpservice.nfp.core import controller as main
 from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.configurator.drivers.base import base_driver
 import os
 from oslo_log import log as logging
 import oslo_messaging as messaging
@@ -331,7 +332,7 @@ def load_drivers(sc):
     plugin_rpc = VpnaasRpcSender(sc)
 
     for service_type, driver_name in drivers.iteritems():
-        driver_obj = driver_name(plugin_rpc)
+        driver_obj = driver_name()
         drivers[service_type] = driver_obj
 
     return drivers
@@ -390,6 +391,8 @@ def init_agent(cm, sc, conf):
 
     try:
         register_service_agent(cm, sc, conf)
+        bdobj = base_driver.BaseDriver()
+        bdobj.register_agent_object_with_driver('agent', VpnaasRpcSender(sc))
     except Exception as err:
         msg = ("VPNaas service agent registration unsuccessful. %s"
                % (str(err).capitalize()))
@@ -409,3 +412,4 @@ def init_agent_complete(cm, sc, conf):
     """
     msg = " vpn agent init complete"
     LOG.info(msg)
+

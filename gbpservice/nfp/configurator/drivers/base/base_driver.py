@@ -48,6 +48,9 @@ class BaseDriver(object):
     def clear_healthmonitor(self, context, kwargs):
         return SUCCESS
 
+    def register_agent_object_with_driver(self, name, agent_obj):
+        setattr(BaseDriver, name, agent_obj)
+
     def _check_vm_health(self, command):
         """Ping based basic HM support provided by BaseDriver.
            Service provider can override the method implementation
