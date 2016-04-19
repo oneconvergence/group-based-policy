@@ -2162,7 +2162,7 @@ class SOHelper(object):
         if service_type.lower() == "vpn":
             extra_attr = ast.literal_eval(consumer_port['extra_attributes'])
             self.sc_plumber.plumber.delete_extra_route(
-                    extra_attr['router_id'], extra_attr['subnet_cidr'])
+                    extra_attr['router_id'], extra_attr.get('subnet_cidr', []))
             vpn = {'port_id': consumer_port['id'],
                    'router_id': extra_attr['router_id'],
                    'subnet_id': extra_attr['subnet_id'],

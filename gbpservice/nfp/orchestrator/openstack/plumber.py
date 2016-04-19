@@ -212,6 +212,10 @@ class NeutronPlumber():
         network_id = kwargs['network_id']
         router_id = kwargs['router_id']
         token = self.keystone.get_admin_token()
+        fip = self.neutron.get_floating_ips(token, port_id=port_id)
+        if fip:
+            # delete the fip
+            self.neutron.delete_floatingip(token, fip[0]['id'])
         # delete stitching port
         self.neutron.delete_port(token, port_id)
         # delete router interface
