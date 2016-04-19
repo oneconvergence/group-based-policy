@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 rest_timeout = [
     cfg.IntOpt(
         'VPN.rest_timeout',
-        default=30,
+        default=360,
         help="rest api timeout")]
 
 cfg.CONF.register_opts(rest_timeout)
@@ -766,8 +766,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     service_type = const.SERVICE_TYPE
 
-    def __init__(self, agent_context):
-        self.agent = agent_context
+    def __init__(self):
         self.handlers = {
             'vpn_service': {
                 'create': self.create_vpn_service},
@@ -954,7 +953,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         tunnel['peer_address'] = conn['peer_address']
         tunnel['local_cidr'] = tunnel_local_cidr
         tunnel['peer_cidrs'] = conn['peer_cidrs']
-
         RestApi(mgmt_fip).post("create-ipsec-site-tunnel", tunnel)
         self._init_state(context, conn)
 
