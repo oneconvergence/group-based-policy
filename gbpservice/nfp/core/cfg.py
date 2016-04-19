@@ -27,16 +27,21 @@ es_openstack_opts = [
     cfg.StrOpt('auth_protocol',
                default='http', help='Auth protocol used.'),
     cfg.IntOpt('auth_port',
-               default='5000', help='Auth protocol used.'),
+               default='5000', help='Auth PORT used.'),
     cfg.IntOpt('bind_port',
-               default='9696', help='Auth protocol used.'),
+               default='9696', help='Neutron bind port used.'),
     cfg.StrOpt('auth_version',
-               default='v2.0', help='Auth protocol used.'),
+               default='v2.0', help='Auth version used.'),
     cfg.StrOpt('auth_uri',
                default='', help='Auth URI.'),
-    cfg.StrOpt('internet_ext_network',
-               help="External net with internet"),
 ]
+
+PLUMBER_OPTS = [
+                cfg.StrOpt('internet_ext_network',
+                           help='External network id with internet'),
+                cfg.StrOpt('management_net_id',
+                           help='Management network id'),
+                ]
 
 OPTS = [
     cfg.IntOpt(

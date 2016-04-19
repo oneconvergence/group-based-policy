@@ -35,7 +35,6 @@ LOG = logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
-mgmt_nw = '' # set this from config
 
 
 def rpc_init(controller, config):
@@ -386,6 +385,7 @@ class ServiceOrchestrator(object):
         self.config_driver = heat_driver.HeatDriver(config)
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = NSOConfiguratorRpcApi(neutron_context, config)
+        self.mgmt_nw = self._config.plumber.management_net_id
 
     @property
     def db_session(self):
@@ -565,7 +565,7 @@ class ServiceOrchestrator(object):
             }
         else:
             management_network_info = dict(
-                id=mgmt_nw, port_model=nfp_constants.NEUTRON_PORT)
+                id=self.mgmt_nw, port_model=nfp_constants.NEUTRON_PORT)
 
         create_network_function_instance_request = {
             'network_function': network_function,
@@ -1492,7 +1492,7 @@ class SOHelper(object):
 
             nw_function_info['management_network_info'] = dict(
                 # id=self.config.NEUTRON_SERVICE_MGMT_NW,
-                id=mgmt_nw,
+                id=self.mgmt_nw,
                 port_model=nfp_constants.NEUTRON_PORT
             )
             admin_token = service_orchestrator.keystoneclient.get_admin_token()
@@ -1620,7 +1620,7 @@ class SOHelper(object):
         )
         nw_function_info['management_network_info'] = dict(
                 # id=self.config.NEUTRON_SERVICE_MGMT_NW,
-                id='mgmt_nw',
+                id=self.mgmt_nw,
                 port_model=nfp_constants.NEUTRON_PORT
         )
         provider_port = {'id': nw_function_info['service_info'][0]['port'][
