@@ -131,13 +131,15 @@ class NeutronPlumber():
     def _create_stitching_network(self, token, tenant_id):
         name = "stitching_net-%s" % tenant_id
         attrs = {"name": name}
+        admin_tenant_id = self.keystone.get_tenant_id(
+            token, self.conf.keystone_authtoken.admin_tenant_name)
         stitching_net = self.neutron.create_network(
-            token, self.conf.keystone_authtoken.admin_tenant_id, attrs=attrs)
+            token, admin_tenant_id, attrs=attrs)
         cidr = self._get_new_subnet_cidr(token, tenant_id)
         attrs = {"network_id": stitching_net['id'], "cidr": cidr,
                  "ip_version": 4, 'name': "stitching_subnet-%s" % tenant_id}
         stitching_subnet = self.neutron.create_subnet(
-            token, self.conf.keystone_authtoken.admin_tenant_id, attrs=attrs)
+            token, admin_tenant_id, attrs=attrs)
         return [stitching_net], stitching_subnet
 
     def _check_stitching_network(self, token, tenant_id, router_id):
@@ -191,7 +193,7 @@ class NeutronPlumber():
         #                           hotplug_port['id'])
         stitching_fip = None
         if fip_required:
-            floating_net_id = self.conf.keystone_authtoken.internet_ext_network
+            floating_net_id = self.conf.plumber.internet_ext_network
             self._check_router_gateway(token, floating_net_id, router_id)
             stitching_fip = self.neutron.create_floatingip(
                 token, floating_net_id,

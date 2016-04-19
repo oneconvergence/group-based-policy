@@ -557,7 +557,8 @@ def common_init():
     oslo_config.CONF.register_opts(nfp_config.OPTS)
     oslo_config.CONF.register_opts(
         nfp_config.es_openstack_opts, "keystone_authtoken")
-
+    oslo_config.CONF.register_opts(nfp_config.PLUMBER_OPTS,
+                                   "plumber")
     # Since other imports are registering the logging configuration
     # parameters, these are overridden to make sure that the core
     # configuration parameters are effective.
