@@ -10,8 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import pika
-
 from gbpservice.nfp.configurator.lib import constants as const
 from oslo_log import log as logging
 
@@ -92,58 +90,25 @@ class AgentBaseRPCManager(object):
                 **sa_req_list[0]['kwargs'])
 
 
-""" RMQPublisher for under the cloud services.
-
-    This class acts as publisher to publish all the notification events to
-    under the cloud services on rabbitmq's 'configurator-notifications'queue.
-"""
-
-
 class AgentBaseNotification(object):
 
     def __init__(self, sc):
         self.sc = sc
-        self.queue = const.NOTIFICATION_QUEUE
-        self.rabbitmq_host = const.RABBITMQ_HOST
-        self.create_connection()
-
-    def create_connection(self):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                                                  host=self.rabbitmq_host,
-                                                  heartbeat_interval=0))
 
     def _notification(self, data):
-        """Enqueues notification event into rabbitmq's
-           'configurator-notifications' queue
+        """Enqueues notification event into notification queue
 
-        These events are enqueued into 'configurator-notifications' queue
-        and are retrieved when get_notifications() API lands on configurator.
+        These events are enqueued into notification queue and are retrieved
+        when get_notifications() API lands on configurator.
 
         :param data: Event data blob
 
         Returns: None
 
         """
-
-        try:
-            self.channel = self.connection.channel()
-            self.channel.queue_declare(queue=self.queue,
-                                       # make queue persistent
-                                       durable=True
-                                       )
-            body = str(data)
-            self.channel.basic_publish(exchange='',
-                                       routing_key=self.queue,
-                                       body=body,
-                                       properties=pika.BasicProperties(
-                                           # make msg persistent
-                                           delivery_mode=2
-                                       ))
-            self.channel.close()
-        except Exception as e:
-            self.connection.close()
-            self.create_connection()
-            self._notification(data)
+        event = self.sc.new_event(
+                id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
+        self.sc.stash_event(event)
 
 
 class AgentBaseEventHandler(object):

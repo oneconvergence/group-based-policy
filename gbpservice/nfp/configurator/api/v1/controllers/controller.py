@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import ast
 import oslo_serialization.jsonutils as jsonutils
 
 from neutron.agent.common import config
@@ -20,7 +19,6 @@ from oslo_log import log as logging
 import oslo_messaging
 import pecan
 from pecan import rest, conf
-import pika
 
 LOG = logging.getLogger(__name__)
 n_rpc.init(cfg.CONF)
@@ -46,10 +44,6 @@ class Controller(rest.RestController):
             for service in self.services:
                 self._entry_to_rpc_routing_table(service)
 
-            nsd_controller = conf['nsd_controller']
-            self.rmqconsumer = RMQConsumer(nsd_controller['host'],
-                                           nsd_controller['notification_queue']
-                                           )
             self.method_name = method_name
             super(Controller, self).__init__()
         except Exception as err:
@@ -95,16 +89,14 @@ class Controller(rest.RestController):
 
         try:
             if self.method_name == 'get_notifications':
-                notification_data = jsonutils.dumps(
-                    self.rmqconsumer.pull_notifications())
+                routing_key = 'CONFIGURATION'
+                uservice = self.rpc_routing_table[routing_key]
+                notification_data = uservice[0].rpcclient.call(
+                                                            self.method_name)
                 msg = ("NOTIFICATION_DATA sent to config_agent %s"
                        % notification_data)
                 LOG.info(msg)
-                return notification_data
-            elif self.method_name == 'get_requests':
-                """TODO(pritam): handle this
-                """
-                return jsonutils.dumps({})
+                return jsonutils.dumps(notification_data)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to get handle request=%s. Reason=%s."
@@ -279,53 +271,3 @@ class CloudService():
         self.topic = kwargs.get('topic')
         self.reporting_interval = kwargs.get('reporting_interval')
         self.rpcclient = RPCClient(topic=self.topic)
-
-
-"""RMQConsumer for over the cloud services.
-
-This class access rabbitmq's 'configurator-notifications' queue
-to pull all the notifications came from over the cloud services.
-"""
-
-
-class RMQConsumer(object):
-
-    def __init__(self, rabbitmq_host, queue):
-        self.rabbitmq_host = rabbitmq_host
-        self.queue = queue
-        self.create_connection()
-
-    def create_connection(self):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host=self.rabbitmq_host))
-
-    def pull_notifications(self):
-        notifications = []
-        msgs_acknowledged = False
-        try:
-            self.channel = self.connection.channel()
-            self.queue_declared = self.channel.queue_declare(queue=self.queue,
-                                                             durable=True)
-            pending_msg_count = self.queue_declared.method.message_count
-            log = ('[notifications queue:%s, pending notifications:%s]'
-                   % (self.queue, pending_msg_count))
-            for i in range(pending_msg_count):
-                method, properties, body = self.channel.basic_get(self.queue)
-                notifications.append(ast.literal_eval(body))
-
-            # Acknowledge all messages delivery
-            if pending_msg_count > 0:
-                self.channel.basic_ack(delivery_tag=method.delivery_tag,
-                                       multiple=True)
-                msgs_acknowledged = True
-
-            self.channel.close()
-            return notifications
-        except pika.exceptions.ConnectionClosed:
-            self.create_connection()
-            self.pull_notifications()
-        except pika.exceptions.ChannelClosed:
-            if msgs_acknowledged is False:
-                self.pull_notifications()
-            else:
-                return notifications
