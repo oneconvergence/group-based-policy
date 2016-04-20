@@ -21,6 +21,9 @@ import time
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
+NFP_SERVICE_LIST = ['heat', 'ansible']
+SUCCESS_RESULTS = ['unhandled', 'success']
+FAILURE = 'failure'
 
 """Implements all the APIs Invoked by HTTP requests.
 
@@ -30,8 +33,6 @@ Implements following HTTP methods.
 
 """
 
-NFP_SERVICE_LIST = ['heat', 'ansible']
-UNHANDLED = 'unhandled'
 notifications = []
 cache_ips = set()
 
@@ -54,11 +55,17 @@ class Controller(rest.RestController):
         global notifications
         resource = config_data['resource']
 
+        if result.lower() in SUCCESS_RESULTS:
+            data = {'status_code': result}
+        else:
+            data = {'status_code': FAILURE,
+                    'error_msg': result}
+
         response = {'info': {'service_type': service_type,
                              'context': context},
                     'notification': [{
                           'resource': resource,
-                          'data': {'status_code': UNHANDLED}}]
+                          'data': data}]
                     }
 
         notifications.append(response)
@@ -91,7 +98,7 @@ class Controller(rest.RestController):
         try:
             if not cache_ips:
                 notification_data = jsonutils.dumps(notifications)
-                msg = ("NOTIFICATION_DATA sent to config_orchestrator %s"
+                msg = ("Notification sent. Notification Data: %s"
                        % notification_data)
                 LOG.info(msg)
                 notifications = []
@@ -107,7 +114,7 @@ class Controller(rest.RestController):
                     if ip not in cache_ips:
                         break
                 notification_data = jsonutils.dumps(notifications)
-                msg = ("NOTIFICATION_DATA sent to config_orchestrator %s"
+                msg = ("Notification sent. Notification Data: %s"
                        % notification_data)
                 LOG.info(msg)
                 notifications = []
@@ -143,8 +150,10 @@ class Controller(rest.RestController):
 
             # Assuming config list will have only one element
             config_data = body['config'][0]
-            context = body['info']['context']
-            service_type = body['info']['service_type']
+            info_data = body['info']
+
+            context = info_data['context']
+            service_type = info_data['service_type']
             resource = config_data['resource']
 
             if 'device_ip' in context:
@@ -167,7 +176,7 @@ class Controller(rest.RestController):
                     self._push_notification(context,
                                             result, config_data, service_type)
                 else:
-                    result = "error"
+                    result = "Unsupported resource type"
                     self._push_notification(context,
                                             result, config_data, service_type)
         except Exception as err:

@@ -22,6 +22,7 @@ import time
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
+SUCCESS = 'SUCCESS'
 
 """Implements all the APIs Invoked by HTTP requests.
 
@@ -46,14 +47,11 @@ class Controller(rest.RestController):
                 str(err).capitalize())
             LOG.error(msg)
 
-    def _push_notification(self, context, result, config_data, service_type):
-        resource = config_data['resource']
-
+    def _push_notification(self, context, notification_data,
+                           config_data, service_type):
         response = {'info': {'service_type': service_type,
                              'context': context},
-                    'notification': [{
-                          'resource': resource,
-                          'data': {'status_code': result}}]
+                    'notification': notification_data
                     }
 
         notifications.append(response)
@@ -92,19 +90,27 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            # Assuming config list will have only one element
-            config_data = body['config'][0]
-            service_type = body['info']['service_type']
-            if body['config'][0]['resource'] == 'interfaces':
-                generic_config_data = body['config']
-                routes_info = generic_config_data[1]	# routes
-                self._add_routes(routes_info)
-            context = body['info']['context']
+            msg = ("Request data:: %s" % body)
+            LOG.debug(msg)
 
-            if (body['config'][0]['resource'] == 'ansible') or (body['config'][0]['resource'] == 'heat'):
+            # Assuming config list will have only one element
+            config_datas = body['config']
+            service_type = body['info']['service_type']
+            notification_data = []
+
+            for config_data in config_datas:
+                resource = config_data['resource']
+                if resource == 'routes':
+                    self._add_routes(config_data)
+                notification_data.append(
+                            {'resource': resource,
+                             'data': {'status_code': SUCCESS}})
+
+            if (config_data['resource'] == 'ansible') or (
+                                            config_data['resource'] == 'heat'):
                 service_config = config_data['resource_data']['config_string']
                 service_config = str(service_config)
-                if (body['config'][0]['resource'] == 'ansible'):
+                if (config_data['resource'] == 'ansible'):
                     config_str = service_config.lstrip('ansible:')
                 else:
                     config_str = service_config.lstrip('heat_config:')
@@ -112,12 +118,13 @@ class Controller(rest.RestController):
                 command = "sudo python " + fw_rule_file + "'" + config_str + "'"
                 subprocess.check_output(command, stderr=subprocess.STDOUT,
                                         shell=True)
+                notification_data.append(
+                            {'resource': config_data['resource'],
+                             'data': {'status_code': SUCCESS}})
 
-            msg = ("Request data:: %s" % config_data)
-            LOG.debug(msg)
-            result = "success"
-            self._push_notification(context,
-                                    result, config_data, service_type)
+            context = body['info']['context']
+            self._push_notification(context, notification_data,
+                                    config_data, service_type)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."
@@ -130,6 +137,7 @@ class Controller(rest.RestController):
     def put(self, **body):
         try:
             body = None
+            notification_data = []
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
@@ -138,9 +146,11 @@ class Controller(rest.RestController):
             context = body['info']['context']
             service_type = body['info']['service_type']
 
-            result = "success"
-            self._push_notification(context,
-                                    result, config_data, service_type)
+            notification_data.append(
+                        {'resource': config_data['resource'],
+                         'data': {'status_code': SUCCESS}})
+            self._push_notification(context, notification_data,
+                                    config_data, service_type)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP put request %s %s."
@@ -169,6 +179,7 @@ class Controller(rest.RestController):
             source_interface = self._get_if_name_by_cidr(cidr)
             try:
                 interface_number_string = source_interface.split("eth",1)[1]
+                routing_table_number = 20 + int(interface_number_string)
             except IndexError:
                 LOG.error("Retrieved wrong interface %s for configuring "
                              "routes" %(source_interface))

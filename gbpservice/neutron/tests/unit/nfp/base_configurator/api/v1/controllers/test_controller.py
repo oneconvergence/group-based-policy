@@ -20,6 +20,10 @@ import webtest
 
 from gbpservice.nfp.base_configurator.api import root_controller
 
+ERROR = 'error'
+UNHANDLED = 'unhandled'
+FAILURE = 'failure'
+
 """This class contains  unittest cases for REST server of configurator.
 
 This class tests success and failure cases for all the HTTP requests which
@@ -43,12 +47,19 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         """
         RootController = root_controller.RootController()
         self.app = webtest.TestApp(pecan.make_app(RootController))
-        self.data = {'info': {'service_type': 'heat'}, 'config': [
-            {'resource': 'heat', 'kwargs': {'context': 'context',
-                                            'request_info': 'request_info'}}]}
-        self.data_error = {'info': {'service_type': 'others'}, 'config': [
-            {'resource': 'heat', 'kwargs': {'context': 'context',
-                                            'request_info': 'request_info'}}]}
+        self.data = {'info': {'service_type': 'firewall',
+                              'service_vendor': '',
+                              'context': {'foo': 'foo'}},
+                     'config': [{'resource': 'heat',
+                                 'resource_data': {'some_data': 'some_value'}}]
+                     }
+        self.data_error = {'info': {'service_type': 'firewall',
+                                    'service_vendor': '',
+                                    'context': {'foo': 'foo'}},
+                           'config': [{'resource': 'non-heat',
+                                       'resource_data': {
+                                            'some_data': 'some_value'}}]
+                           }
 
     def post_create_network_function_config_with_heat(self):
         """Tests HTTP post request create_network_function_device_config.
@@ -104,34 +115,27 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         Returns: none
 
         """
-        context = self.data.get('config')[0]['kwargs']['context']
-        request_info = self.data.get('config')[0]['kwargs']['request_info']
-        response_unhandled = {
-            'receiver': 'service_orchestrator',
-            'resource': 'heat',
-            'method': 'network_function_device_notification',
-            'kwargs': [
-                {
-                    'context': context,
-                    'resource': 'heat',
-                    'request_info': request_info,
-                    'result': 'error'
-                }
-            ]
-        }
-        response_error = {
-            'receiver': 'service_orchestrator',
-            'resource': 'heat',
-            'method': 'network_function_device_notification',
-            'kwargs': [
-                {
-                    'context': context,
-                    'resource': 'heat',
-                    'request_info': request_info,
-                    'result': 'error'
-                }
-            ]
-        }
+        config_data = self.data['config'][0]
+        info_data = self.data['info']
+        service_type = info_data['service_type']
+        notification_context = self.data['info']['context']
+        resource = config_data['resource']
+        response_unhandled = {'info': {'service_type': service_type,
+                                       'context': notification_context},
+                              'notification': [{
+                                        'resource': resource,
+                                        'data': {
+                                            'status_code': UNHANDLED}}]
+                              }
+        response_error = {'info': {'service_type': service_type,
+                                   'context': notification_context},
+                          'notification': [{
+                                    'resource': 'non-heat',
+                                    'data': {
+                                        'status_code': FAILURE,
+                                        'error_msg': (
+                                            'Unsupported resource type')}}]
+                          }
         self.post_create_network_function_config_with_heat()
         self.post_delete_network_function_config_with_heat()
         self.post_create_network_function_config_with_others()
