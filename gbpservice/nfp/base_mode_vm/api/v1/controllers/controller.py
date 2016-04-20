@@ -13,9 +13,12 @@
 import oslo_serialization.jsonutils as jsonutils
 import subprocess
 
+import netaddr
+import netifaces
 from oslo_log import log as logging
 import pecan
 from pecan import rest
+import time
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
@@ -36,11 +39,6 @@ class Controller(rest.RestController):
     def __init__(self, method_name):
         try:
             self.method_name = "network_function_device_notification"
-            self.resource_map = {
-                ('interfaces', 'healthmonitor', 'routes'): 'orchestrator',
-                ('heat', 'ansible'): 'service_orchestrator',
-                ('firewall', 'lb', 'vpn'): 'neutron'
-            }
             super(Controller, self).__init__()
         except Exception as err:
             msg = (
@@ -48,26 +46,15 @@ class Controller(rest.RestController):
                 str(err).capitalize())
             LOG.error(msg)
 
-    def _push_notification(self, context, request_info, result, config_data):
+    def _push_notification(self, context, result, config_data, service_type):
         resource = config_data['resource']
-        receiver = ''
-        for key in self.resource_map.keys():
-            if resource in key:
-                receiver = self.resource_map[key]
 
-        response = {
-            'receiver': receiver,
-            'resource': resource,
-            'method': self.method_name,
-            'kwargs': [
-                {
-                    'context': context,
-                    'resource': resource,
-                    'request_info': request_info,
-                    'result': result
-                }
-            ]
-        }
+        response = {'info': {'service_type': service_type,
+                             'context': context},
+                    'notification': [{
+                          'resource': resource,
+                          'data': {'status_code': result}}]
+                    }
 
         notifications.append(response)
 
@@ -107,25 +94,30 @@ class Controller(rest.RestController):
 
             # Assuming config list will have only one element
             config_data = body['config'][0]
-            context = config_data['kwargs']['context']
-            request_info = config_data['kwargs']['request_info']
+            service_type = body['info']['service_type']
+            if body['config'][0]['resource'] == 'interfaces':
+                generic_config_data = body['config']
+                routes_info = generic_config_data[1]	# routes
+                self._add_routes(routes_info)
+            context = body['info']['context']
 
-            if config_data['resource'] == 'ansible':
-                nfd = request_info['network_function_data']
-                nf_data = nfd['network_function_details']
-                service_config = nf_data['network_function']['service_config']
+            if (body['config'][0]['resource'] == 'ansible') or (body['config'][0]['resource'] == 'heat'):
+                service_config = config_data['resource_data']['config_string']
                 service_config = str(service_config)
-                ansible = service_config.lstrip('ansible:')
+                if (body['config'][0]['resource'] == 'ansible'):
+                    config_str = service_config.lstrip('ansible:')
+                else:
+                    config_str = service_config.lstrip('heat_config:')
                 fw_rule_file = "/home/ubuntu/configure_fw_rules.py "
-                command = "sudo python " + fw_rule_file + "'" + ansible + "'"
+                command = "sudo python " + fw_rule_file + "'" + config_str + "'"
                 subprocess.check_output(command, stderr=subprocess.STDOUT,
                                         shell=True)
 
             msg = ("Request data:: %s" % config_data)
             LOG.debug(msg)
             result = "success"
-            self._push_notification(context, request_info,
-                                    result, config_data)
+            self._push_notification(context,
+                                    result, config_data, service_type)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."
@@ -143,12 +135,12 @@ class Controller(rest.RestController):
 
             # Assuming config list will have only one element
             config_data = body['config'][0]
-            context = config_data['kwargs']['context']
-            request_info = config_data['kwargs']['request_info']
+            context = body['info']['context']
+            service_type = body['info']['service_type']
 
             result = "success"
-            self._push_notification(context, request_info,
-                                    result, config_data)
+            self._push_notification(context,
+                                    result, config_data, service_type)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP put request %s %s."
@@ -167,3 +159,65 @@ class Controller(rest.RestController):
 
         error_data = {'failure_desc': {'msg': msg}}
         return error_data
+
+
+    def _add_routes(self, route_info):
+        source_cidrs = route_info['resource_data']['source_cidrs']
+        consumer_cidr = route_info['resource_data']['destination_cidr']
+        gateway_ip = route_info['resource_data']['gateway_ip']
+        for cidr in source_cidrs:
+            source_interface = self._get_if_name_by_cidr(cidr)
+            try:
+                interface_number_string = source_interface.split("eth",1)[1]
+            except IndexError:
+                LOG.error("Retrieved wrong interface %s for configuring "
+                             "routes" %(source_interface))
+            routing_table_number = 20 + int(interface_number_string)
+            ip_rule_command = "ip rule add from %s table %s" %(
+                cidr, routing_table_number)
+            out1 = subprocess.Popen(ip_rule_command, shell=True,
+                                    stdout=subprocess.PIPE).stdout.read()
+            ip_rule_command = "ip rule add to %s table main" %(cidr)
+            out2 = subprocess.Popen(ip_rule_command, shell=True,
+                                    stdout=subprocess.PIPE).stdout.read()
+            ip_route_command = "ip route add table %s default via %s" %(
+                                    routing_table_number, gateway_ip)
+            out3 = subprocess.Popen(ip_route_command, shell=True,
+                                    stdout=subprocess.PIPE).stdout.read()
+            output = "%s\n%s\n%s" %(out1, out2, out3)
+            LOG.info("Static route configuration result: %s" %(output))
+
+
+
+    def _get_if_name_by_cidr(self, cidr):
+        interfaces = netifaces.interfaces()
+        retry_count = 0
+        while True:
+            all_interfaces_have_ip = True
+            for interface in interfaces:
+                inet_list = netifaces.ifaddresses(interface).get(
+                    netifaces.AF_INET)
+                if not inet_list:
+                    all_interfaces_have_ip = False
+                for inet_info in inet_list or []:
+                    netmask = inet_info.get('netmask')
+                    ip_address = inet_info.get('addr')
+                    subnet_prefix = cidr.split("/")
+                    if (ip_address == subnet_prefix[0] and
+                        (len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
+                        return interface
+                    ip_address_netmask = '%s/%s' %(ip_address, netmask)
+                    interface_cidr = netaddr.IPNetwork(ip_address_netmask)                    
+                    if str(interface_cidr.cidr) == cidr:
+                        return interface
+            # Sometimes the hotplugged interface takes time to get IP
+            if not all_interfaces_have_ip:
+                if retry_count < 10:
+                    time.sleep(3)
+                    retry_count = retry_count + 1
+                    continue
+                else:
+                    raise Exception("Some of the interfaces do not have "
+                                    "IP Address")
+
+
