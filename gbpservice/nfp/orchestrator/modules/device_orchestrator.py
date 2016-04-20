@@ -826,7 +826,7 @@ class NDOConfiguratorRpcApi(object):
                 'nfi_id': (
                            device['network_function_instance_id']),
                 'nfd_id': device['id'],
-                'requester': 'device_orch',
+                'requester': nfp_constants.DEVICE_ORCHESTRATOR,
                 'operation': operation
         }
         nfd_ip = device['mgmt_ip_address']
