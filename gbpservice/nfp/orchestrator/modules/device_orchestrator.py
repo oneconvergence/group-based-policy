@@ -837,7 +837,11 @@ class NDOConfiguratorRpcApi(object):
         request_info = self._get_request_info(device_data, operation)
         if not config_params:
             return None
-        config_params['info']['context'] = request_info
+        config_params['info'] = {
+            'service_type': device_data['service_details']['service_type'],
+            'service_vendor': device_data['service_details']['service_vendor'],
+            'context': request_info
+        }
 
     def create_network_function_device_config(self, device_data,
                                               config_params):
