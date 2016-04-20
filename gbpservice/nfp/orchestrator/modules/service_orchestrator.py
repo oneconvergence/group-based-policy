@@ -255,7 +255,6 @@ class RpcHandlerConfigurator(object):
             else:
                 ev = self._controller.new_event(id=event_id, data=event_data)
             self._controller.post_event(ev)
-            event = ev
         self._log_event_created(event_id, event_data)
 
     @log_helpers.log_method_call
@@ -519,13 +518,13 @@ class ServiceOrchestrator(object):
                                  operation='consumer_remove')
 
     def pt_add_user_config(self, network_function_data,
-                                      service_config_str):
+                           service_config_str):
         self.update_consumer_ptg(network_function_data,
                                  service_config_str,
                                  operation='policy_target_add')
 
     def pt_remove_user_config(self, network_function_data,
-                                         service_config):
+                              service_config):
         self.update_consumer_ptg(network_function_data,
                                  service_config,
                                  operation='policy_target_remove')
@@ -1059,7 +1058,6 @@ class ServiceOrchestrator(object):
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        LOG.info(_LI("heat_stack_id : %(heat)s") % {'heat': config_id})
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data, is_poll_event=True)
 
@@ -1299,7 +1297,7 @@ class NSOConfiguratorRpcApi(object):
             'nfi_id': (network_function_instance['id']
                        if network_function_instance else ''),
             'nfd_id': None,
-            'requester': 'service_orch',
+            'requester': nfp_constants.SERVICE_ORCHESTRATOR,
             'operation': operation
         }
         if operation in ['consumer_add', 'consumer_remove']:
@@ -1325,7 +1323,6 @@ class NSOConfiguratorRpcApi(object):
                                  service_config, config_tag):
         config_params = {
             'info': {
-                'version': 'v1',
                 'context': None,
                 'service_type': user_config_data['service_type'].lower(),
                 'service_vendor': None

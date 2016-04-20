@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+PROXY_AGENT_TOPIC = 'nfp-proxy-agent-topic'
 SERVICE_ORCH_TOPIC = 'nfp-nso-notification-topic'
 DEVICE_ORCH_TOPIC = 'nfp-ndo-notification-topic'
 CONFIG_ORCH_TOPIC = 'nfp-nco-notification-topic'
