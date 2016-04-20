@@ -373,7 +373,6 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         reply = driver.get_network_function_device_config_info(device_data)
         self.assertIsInstance(reply, dict, msg='')
         self.assertTrue('info' in reply)
-        self.assertTrue('version' in reply['info'])
         self.assertTrue('config' in reply)
 
 
