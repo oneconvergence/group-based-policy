@@ -106,8 +106,10 @@ class Controller(rest.RestController):
                             {'resource': resource,
                              'data': {'status_code': SUCCESS}})
 
-                if (config_data['resource'] in ['ansible', 'heat', 'custom_json']):
-                    service_config = config_data['resource_data']['config_string']
+                if (config_data['resource'] in ['ansible', 'heat',
+                                                'custom_json']):
+                    service_config = config_data['resource_data'][
+                                                 'config_string']
                     service_config = str(service_config)
                     if config_data['resource'] == 'ansible':
                         config_str = service_config.lstrip('ansible:')
@@ -258,11 +260,12 @@ class Controller(rest.RestController):
                 if rule.get('destination_port'):
                     destination_port = rule['destination_port']
                 if protocol == 'tcp':
-                    rule_info['service'] = protocol + '/' + str(destination_port)
+                    rule_info['service'] = (protocol + '/' +
+                                            str(destination_port))
                 else:
                     rule_info['service'] = protocol
                 rules_list.append(rule_info)
 
-        return jsonutils.dumps(rules_list)
+        return jsonutils.dumps({'rules': rules_list})
 
 
