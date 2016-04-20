@@ -255,6 +255,7 @@ class RpcHandlerConfigurator(object):
             else:
                 ev = self._controller.new_event(id=event_id, data=event_data)
             self._controller.post_event(ev)
+            event = ev
         self._log_event_created(event_id, event_data)
 
     @log_helpers.log_method_call
@@ -291,10 +292,10 @@ class RpcHandlerConfigurator(object):
                     event_id = self.rpc_event_mapping[resource][5]
                 break
             else:
-                if operation == 'create':
-                    event_id = 'CONFIG_APPLIED'
-                elif operation == 'delete':
+                if operation == 'delete':
                     event_id = 'USER_CONFIG_DELETED'
+                else:
+                    event_id = 'CONFIG_APPLIED'
         nf_id = request_info.pop('nf_id')
         nfi_id = request_info.pop('nfi_id')
         nfd_id = request_info.pop('nfd_id')
@@ -517,13 +518,13 @@ class ServiceOrchestrator(object):
                                  service_config_str,
                                  operation='consumer_remove')
 
-    def policy_target_add_user_config(self, network_function_data,
+    def pt_add_user_config(self, network_function_data,
                                       service_config_str):
         self.update_consumer_ptg(network_function_data,
                                  service_config_str,
                                  operation='policy_target_add')
 
-    def policy_target_remove_user_config(self, network_function_data,
+    def pt_remove_user_config(self, network_function_data,
                                          service_config):
         self.update_consumer_ptg(network_function_data,
                                  service_config,
@@ -908,13 +909,10 @@ class ServiceOrchestrator(object):
 
     def handle_config_applied(self, event):
         event_data = event.data
-        network_function_id = event_data['network_function_details'
-                                         ]['network_function']['id']
-        network_function_instance = event_data['network_function_details'
-                                               ].get(
-                                                   'network_function_instance')
-        if network_function_instance:
-            network_function_instance_id = network_function_instance['id']
+        network_function_id = event_data['network_function_id']
+        network_function_instance_id = event_data.get(
+            'network_function_instance_id')
+        if network_function_instance_id:
             nfi = {
                 'status': nfp_constants.ACTIVE,
             }
@@ -1036,10 +1034,8 @@ class ServiceOrchestrator(object):
             'policy_target': policy_target,
             'service_type': service_type
         }
-        tag_str, _ = self.config_driver.\
-            parse_template_config_string(service_config)
-        self.configurator_rpc.policy_target_add_user_config(
-            network_function_data, service_config, tag_str)
+        self.pt_add_user_config(network_function_data,
+                                service_config)
 
     def policy_target_add_user_config(self, event):
         request_data = event.data
@@ -1098,8 +1094,8 @@ class ServiceOrchestrator(object):
             'policy_target': policy_target,
             'service_type': service_type
         }
-        self.policy_target_remove_user_config(network_function_data,
-                                              service_config)
+        self.pt_remove_user_config(network_function_data,
+                                   service_config)
 
     def policy_target_remove_user_config(self, event):
         request_data = event.data
