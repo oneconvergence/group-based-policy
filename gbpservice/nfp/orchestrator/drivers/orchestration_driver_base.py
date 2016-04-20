@@ -369,12 +369,12 @@ class OrchestrationDriverBase(object):
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.PROVIDER:
                         port_id = network_handler.get_port_id(
-                                                        token, interface['id'])
+                                                        token, port['id'])
                         interfaces_to_attach.append({'port': port_id})
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.CONSUMER:
                         port_id = network_handler.get_port_id(
-                                                        token, interface['id'])
+                                                        token, port['id'])
                         interfaces_to_attach.append({'port': port_id})
         except Exception:
             self._increment_stats_counter('port_details_get_failures')
@@ -574,7 +574,8 @@ class OrchestrationDriverBase(object):
                  exceptions.HotplugNotSupported
         """
         if not self.supports_hotplug:
-            raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
+            return True
+#            raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
 
         if (
             any(key not in device_data
@@ -655,7 +656,8 @@ class OrchestrationDriverBase(object):
                  exceptions.HotplugNotSupported
         """
         if not self.supports_hotplug:
-            raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
+            return False
+#            raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
 
         if (
             any(key not in device_data

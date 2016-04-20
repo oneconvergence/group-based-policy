@@ -1,0 +1,33 @@
+/* This module is used to store and manage the license
+Key locally and persistently */
+
+
+LICENSE KEY MANAGEMENT LOCALLY
+================================================
+
+1) ADD NEW KEY
+=================================================
+	$ python key_management.py -k <key>
+	
+		OR
+	$ python key_management.py --key <key>
+
+2) LIST DOWN THE KEY STATUS
+=================================================
+	$ python key_management.py -l
+
+
+3) GET THE KEY
+=================================================
+	$ python key_management.py -g
+
+4) DELETE THE KEY
+==================================================
+	$ python key_management.py -d <key>
+
+5) ADD POOL OF KEYS FROM FILE
+==================================================
+    $ python key_management -f <file_name_containing_keys>
+
+    Note :- file contain only keys one per line.
+

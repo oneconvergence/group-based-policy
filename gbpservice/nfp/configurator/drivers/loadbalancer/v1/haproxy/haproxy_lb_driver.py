@@ -17,6 +17,9 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
                                                     haproxy_rest_client)
 from gbpservice.nfp.configurator.lib import lb_constants
 from oslo_log import log as logging
+from oslo_config import cfg
+from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy.f5_lb import f5_init
+from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy.bigip.icontrol_driver import iControlDriver
 
 DRIVER_NAME = 'loadbalancer'
 PROTOCOL_MAP = {
@@ -35,6 +38,70 @@ REQUEST_TIMEOUT = 10
 
 LOG = logging.getLogger(__name__)
 
+# configuration options useful to all drivers
+OPTS = [
+    cfg.StrOpt(
+        'f5_bigip_lbaas_device_driver',
+        default=('f5.oslbaasv1agent.drivers.bigip'
+                 '.icontrol_driver.iControlDriver'),
+        help=_('The driver used to provision BigIPs'),
+    ),
+    cfg.BoolOpt(
+        'l2_population',
+        default=False,
+        help=_('Use L2 Populate service for fdb entries on the BIG-IP')
+    ),
+    cfg.BoolOpt(
+        'f5_global_routed_mode',
+        default=False,
+        help=_('Disable all L2 and L3 integration in favor or global routing')
+    ),
+    cfg.BoolOpt(
+        'use_namespaces',
+        default=True,
+        help=_('Allow overlapping IP addresses for tenants')
+    ),
+    cfg.BoolOpt(
+        'f5_snat_mode',
+        default=True,
+        help=_('use SNATs, not direct routed mode')
+    ),
+    cfg.IntOpt(
+        'f5_snat_addresses_per_subnet',
+        default='1',
+        help=_('Interface and VLAN for the VTEP overlay network')
+    ),
+    cfg.StrOpt(
+        'static_agent_configuration_data',
+        default=None,
+        help=_(
+            'static name:value entries to add to the agent configurations')
+    ),
+    cfg.IntOpt(
+        'service_resync_interval',
+        default=300,
+        help=_('Number of seconds between service refresh check')
+    ),
+    cfg.StrOpt(
+        'environment_prefix', default='',
+        help=_('The object name prefix for this environment'),
+    ),
+    cfg.BoolOpt(
+        'environment_specific_plugin', default=False,
+        help=_('Use environment specific plugin topic')
+    ),
+    cfg.IntOpt(
+        'environment_group_number',
+        default=1,
+        help=_('Agent group number for it environment')
+    ),
+    cfg.DictOpt(
+        'capacity_policy', default={},
+        help=_('Metrics to measure capacity and their limits.')
+    )
+]
+
+cfg.CONF.register_opts(OPTS)
 
 class HaproxyOnVmDriver(base_driver.BaseDriver):
     service_type = 'loadbalancer'
@@ -42,7 +109,34 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
 
     def __init__(self, plugin_rpc=None):
         self.plugin_rpc = plugin_rpc
+        self.conf = cfg
+        self.iDriver = {}
+        self.do_init(self.conf)
 
+    def do_init(self, conf):
+        LOG.info('Initializing LbaasAgentManager')
+        self.conf = conf
+
+        # create the cache of provisioned services
+        #self.last_resync = datetime.datetime.now()
+        #self.needs_resync = False
+        #self.plugin_rpc = None
+
+     #   if conf.service_resync_interval:
+     #       self.service_resync_interval = 300
+
+     #   agent_configurations = \
+     #       {'environment_prefix': self.conf.environment_prefix,
+     #       'environment_group_number': self.conf.environment_group_number,
+     #       'global_routed_mode': self.conf.f5_global_routed_mode}
+
+     #   if self.conf.static_agent_configuration_data:
+     #       entries = \
+     #           str(self.conf.static_agent_configuration_data).split(',')
+     #       for entry in entries:
+     #           nv = entry.strip().split(':')
+     #           if len(nv) > 1:
+     #               agent_configurations[nv[0]] = nv[1]
     def _get_rest_client(self, ip_addr):
         client = haproxy_rest_client.HttpRequests(
                             ip_addr, lb_constants.HAPROXY_AGENT_LISTEN_PORT,
@@ -523,6 +617,7 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
     def create_vip(self, vip, context):
         msg = (" create vip [vip=%s ]" % (vip))
         LOG.info(msg)
+
         try:
             device_addr = self._get_device_for_pool(vip['pool_id'], context)
             logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'],
@@ -800,6 +895,53 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
                    % (str(health_monitor), pool_id))
             LOG.info(msg)
 
+    def configure_routes(self, context, kwargs):
+        LOG.info(" ROUTES PRINT ARGUMENTS %s" % kwargs)
+        return 'SUCCESS'
+
+    def clear_routes(self, context, kwargs):
+        LOG.info("CLEAR ROUTES PRINT ARGUMENTS %s" % kwargs)
+        return 'SUCCESS'
+
+    def configure_interfaces(self, context, kwargs):
+        # Do licensing part here F5
+        # Using this function to get iControlDriver object,
+        LOG.info("PRINTING THE ARGS FIRST %s" % kwargs)
+        data_port_ip = kwargs.get('provider_ip')
+        fip = kwargs.get('mgmt_ip')
+        # ABHI TODO: Port count is supplied in args
+        # So making count to 2 as of management port + data port
+        port_cnt = 2
+
+        # Configuring f5 service vm
+        try:
+            f5_init.F5conf(fip, data_port_ip, port_cnt)
+        except Exception:
+            LOG.error(("Error while initializing F5 VM "
+                            "mgmt_floating_ip %s service port data_ip %s" % (
+                            fip, data_port_ip)))
+            return 'FAILED'
+        LOG.info("DONE F5 CONFIG")
+
+        self.conf.icontrol_hostname = fip
+        # Need to pass multiple fips in case of HA.
+        icontrol_hostnames = [fip]
+        iDriver_obj = iControlDriver(self.conf, icontrol_hostnames, opts_override=True)
+
+        #Store iDriver object
+        f5_driver_name = '%s_%s' % (fip, kwargs.get('service_vendor'))
+        msg = "CREATED ICONTROL DRIVER %s" % f5_driver_name
+        LOG.info(msg)
+        self.iDriver[f5_driver_name] = iDriver_obj
+
+        return 'SUCCESS'
+
+    def clear_interfaces(self, context, kwargs):
+        LOG.info("CLEAR INTERFACE %s" % kwargs)
+        return 'SUCCESS'
+
+'''
+#   Let health check be ping based
     def configure_healthmonitor(self, context, kwargs):
         """Overriding BaseDriver's configure_healthmonitor().
            It does netcat to HAPROXY_AGENT_LISTEN_PORT 1234.
@@ -816,3 +958,4 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
         port = str(lb_constants.HAPROXY_AGENT_LISTEN_PORT)
         command = 'nc ' + ip + ' ' + port + ' -z'
         return self._check_vm_health(command)
+'''

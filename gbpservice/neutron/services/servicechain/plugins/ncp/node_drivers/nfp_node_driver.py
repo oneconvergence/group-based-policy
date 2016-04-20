@@ -243,7 +243,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
     SUPPORTED_SERVICE_TYPES = [
         pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN]
     SUPPORTED_SERVICE_VENDOR_MAPPING = {
-        pconst.LOADBALANCER: ["haproxy"],
+        pconst.LOADBALANCER: ["haproxy", "f5"],
         pconst.FIREWALL: ["vyos"],
         pconst.VPN: ["vyos"],
     }

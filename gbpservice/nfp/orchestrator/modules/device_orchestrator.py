@@ -266,7 +266,11 @@ class DeviceOrchestrator(object):
                     binding_key=original_event.binding_key,
                     key=original_event.desc.uid)
                 LOG.debug("poll event started for %s" % (ev.id))
-                self._controller.poll_event(ev, max_times=10)
+                if ev.id == 'DEVICE_SPAWNING':
+                    self._controller.poll_event(ev, max_times=50)
+                else:
+                    self._controller.poll_event(ev, max_times=10)
+#                self._controller.poll_event(ev, max_times=10)
             else:
                 ev = self._controller.new_event(id=event_id, data=event_data)
                 self._controller.post_event(ev)

@@ -241,6 +241,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                    "to handle task: %s for service type: %s. "
                    % (os.getpid(), ev.id, str(service_type)))
             LOG.debug(msg)
+            LOG.info(msg)
 
             driver = self._get_driver(service_type)
 
