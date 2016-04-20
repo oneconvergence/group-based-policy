@@ -1864,6 +1864,7 @@ class SOHelper(object):
     def __init__(self, conf):
         self._conf = conf
         self.sc_plumber = SCPlumber(self._conf)
+        self.mgmt_nw = self._conf.plumber.management_net_id
 
     def process_update_network_function_request(self, context,
                                                 service_orchestrator,
