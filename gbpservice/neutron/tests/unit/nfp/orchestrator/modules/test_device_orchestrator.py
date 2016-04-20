@@ -47,7 +47,7 @@ class DummyEvent(object):
                                     ]
         self.data['interfaces_in_use'] = 1
         self.data['reference_count'] = ref_count
-        self.data['service_vendor'] = 'vyos'
+        self.data['service_details'] = {'service_vendor': 'vyos'}
 
 
 class HaproxyDummyDriver(object):
@@ -149,7 +149,8 @@ class NDORpcApiTestCase(unittest.TestCase):
              'network_function_instance_id': 'network_function_instance_id',
              'network_function_device_id': 'network_function_instance_id',
              'mgmt_ip_address': 'mgmt-ip',
-             'service_details': {'service_type': 'service_type'}}
+             'service_details': {'service_type': 'service_type',
+                                 'service_vendor': 'service_vendor'}}
         config_params = {'info': {'service_type': ''},
                          'config': [{'kwargs': {}}]}
         transport.send_request_to_configurator = mock.MagicMock(
@@ -174,7 +175,8 @@ class NDORpcApiTestCase(unittest.TestCase):
              'network_function_instance_id': 'network_function_instance_id',
              'network_function_device_id': 'network_function_instance_id',
              'mgmt_ip_address': 'mgmt-ip',
-             'service_details': {'service_type': 'service_type'}}
+             'service_details': {'service_type': 'service_type',
+                                 'service_vendor': 'service_vendor'}}
         config_params = {'info': {'service_type': ''},
                          'config': [{'kwargs': {}}]}
         transport.send_request_to_configurator = mock.MagicMock(
@@ -422,6 +424,7 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
                                            orig_event_data['id'],
                                            orig_event_data)
 
+    """
     @mock.patch.object(nfpdb.NFPDbBase, 'delete_network_function_device')
     def test_device_delete(self, mock_delete_nsd):
         ndo_handler = self._initialize_ndo_handler()
@@ -442,6 +445,7 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
                                            self.event.data['id'])
         ndo_handler._create_event.assert_called_with(event_id=event_id,
                                              event_data=orig_event_data)
+    """
 
     def test_handle_device_create_error(self):
         ndo_handler = self._initialize_ndo_handler()
