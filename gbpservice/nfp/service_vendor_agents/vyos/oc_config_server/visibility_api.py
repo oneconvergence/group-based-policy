@@ -85,9 +85,13 @@ class APIHandler(object):
                         rule = dict(zip(rule_keys, words))
                         firewall['rules'].append(rule)
                 elif table and status == "Active":
+                    command = ('/opt/vyatta/bin/vyatta-show-firewall.pl "all_all" ' +
+                               '/opt/vyatta/share/xsl/show_firewall_detail.xsl')
+                    show_fw_data = self.run_command(command)
+                    firewall = self.add_protocol_and_dest_port_info(firewall, show_fw_data)
+                    logger.info("packed firewall \n %s" % firewall)
                     firewalls.append(firewall)
-                    firewall = {}
-                    table = False
+                    break;
 
         except KeyError as keyerr:
             logger.error('Unable to Parse Firewall Stats Data, ' + 
@@ -98,6 +102,44 @@ class APIHandler(object):
                     'IndexError: {}'.format(inderr))
 
         return firewalls
+
+    def add_protocol_and_dest_port_info(self, firewall, show_fw_data):
+        firewall_started = False
+        firewall_info_started = False
+        firewall_matcher = "Active on (" + firewall['interface']
+        firewall_info_end = "-------------"
+        firewall_info = []
+        for line in show_fw_data.split('\n'):
+            if "IPv4 Firewall" in line:
+                firewall_started = True 
+            if firewall_matcher in line:
+                firewall_info_started = True
+            if firewall_started and firewall_info_started:
+                firewall_info.append(line)
+            if firewall_started and firewall_info_started and firewall_info_end in line:
+                break;
+        try:
+            for rule in firewall.get('rules', None):
+                for index, stats in enumerate(firewall_info):
+                    if stats is not '':
+                        extract_stats = stats.split()
+                    if rule['rulepriority'] in extract_stats[0]:
+                        rule['protocol'] = extract_stats[2]
+                        for key in firewall_info[index + 1].split():
+                            if "dpt:" in key:
+                                rule['dest_port'] = key.split(':')[1]
+                                break;
+                        break;
+
+        except KeyError as keyerr:
+            logger.error('Unable to Parse Firewall Stats Data, ' +
+                    'KeyError: {}'.format(keyerr))
+
+        except IndexError as inderr:
+            logger.error('Unable to Parse Firewall Stats Data, ' +
+                    'IndexError: {}'.format(inderr))
+
+        return firewall
 
     def parse_vpn_s2s(self, raw_stats):
         s2s_connection = {}
