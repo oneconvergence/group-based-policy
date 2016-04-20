@@ -132,7 +132,7 @@ class VpnAgent(PollEventDesc):
                         serialize=True,
                         binding_key=kwargs['resource']['id'])
         else:
-            if (kwargs['reason'] == 'delete' and 
+            if (kwargs['reason'] == 'delete' and
                     kwargs['rsrc_type'] == 'vpn_service'):
                 vpn_plugin = transport.RPCClient(
                     a_topics.VPN_NFP_PLUGIN_TOPIC)
@@ -202,7 +202,7 @@ class VpnAgent(PollEventDesc):
                 nw_func = rpcc.cctxt.call(
                             context, 'neutron_update_nw_function_config',
                             network_function=nw_function_info)
-            except Exception, err:
+            except Exception:
                 vpnconn_status = [{
                     'id': resource_data['resource']['vpnservice_id'],
                     'status':'ACTIVE',
@@ -246,7 +246,7 @@ class VpnAgent(PollEventDesc):
             if 'service_profile_id' in field:
                 network_function_info['service_profile_id'] = field.split(
                     '=')[1]
-        if not 'service_profile_id' in network_function_info:
+        if 'service_profile_id' not in network_function_info:
             err = ("Service profile id must be specified in description")
             raise Exception(err)
         network_function_info.update(network_function_mode='neutron',
