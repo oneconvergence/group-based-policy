@@ -735,13 +735,13 @@ class OrchestrationDriverBase(object):
         :returns: dict -- It has the following scheme
         {
             'info': {
-                'version': <int>
+                'service_type': <str>,
+                'service_vendor': <str>, 
             },
             'config': [
                 {
                     'resource': 'healthmonitor',
-                    'kwargs': {
-                        'service_type': <str>,
+                    'resource_data': {
                         ...
                     }
                 }
@@ -758,17 +758,18 @@ class OrchestrationDriverBase(object):
 
         return {
             'info': {
-                'version': 1
+                'service_vendor': (device_data['service_details'
+                                               ]['service_vendor'].lower()),
+                'service_type': (device_data['service_details'
+                                             ]['service_type'].lower())
             },
             'config': [
                 {
                     'resource': 'healthmonitor',
-                    'kwargs': {
+                    'resource_data': {
                         'vmid': device_data['id'],
                         'mgmt_ip': device_data['mgmt_ip_address'],
-                        'periodicity': 'initial',
-                        'service_type': (device_data['service_details'
-                                                     ]['service_type'].lower())
+                        'periodicity': 'initial'
                     }
                 }
             ]

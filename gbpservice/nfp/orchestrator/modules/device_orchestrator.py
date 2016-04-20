@@ -105,14 +105,15 @@ class RpcHandler(object):
         self._log_event_created(event_id, event_data)
 
     # RPC APIs status notification from Configurator
-    def network_function_device_notification(self, context, notification_data):
-        responses = notification_data.get('kwargs')
-
+    def network_function_notification(self, context, notification_data):
+        info = notification_data.get('info')
+        responses = notification_data.get('notification')
+        request_info = info.get('context')
+        operation = request_info.get('operation')
         for response in responses:
             resource = response.get('resource')
-            request_info = response.get('request_info')
-            result = response.get('result')
-            operation = request_info['operation']
+            data = response.get('data')
+            result = data.get('status_code')
 
             is_delete_request = True if operation == 'delete' else False
 
@@ -129,6 +130,12 @@ class RpcHandler(object):
                     event_id = self.rpc_event_mapping[resource][2]
                 break
 
+        nf_id = request_info.pop('nf_id')
+        nfi_id = request_info.pop('nfi_id')
+        nfd_id = request_info.pop('nfd_id')
+        request_info['network_function_id'] = nf_id
+        request_info['network_function_instance_id'] = nfi_id
+        request_info['network_function_device_id'] = nfd_id
         event_data = request_info
         event_data['id'] = request_info['network_function_device_id']
         self._create_event(event_id=event_id,
@@ -819,10 +826,11 @@ class NDOConfiguratorRpcApi(object):
 
     def _get_request_info(self, device, operation):
         request_info = {
-                'network_function_id': device['network_function_id'],
-                'network_function_instance_id': (
-                                device['network_function_instance_id']),
-                'network_function_device_id': device['id'],
+                'nf_id': device['network_function_id'],
+                'nfi_id': (
+                           device['network_function_instance_id']),
+                'nfd_id': device['id'],
+                'requester': 'device_orch',
                 'operation': operation
         }
         nfd_ip = device['mgmt_ip_address']
@@ -833,8 +841,7 @@ class NDOConfiguratorRpcApi(object):
         request_info = self._get_request_info(device_data, operation)
         if not config_params:
             return None
-        for config in config_params.get('config'):
-            config['kwargs']['request_info'] = request_info
+        config_params['info']['context'] = request_info
 
     def create_network_function_device_config(self, device_data,
                                               config_params):

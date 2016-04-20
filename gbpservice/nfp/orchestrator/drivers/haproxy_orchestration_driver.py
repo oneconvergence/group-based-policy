@@ -45,20 +45,19 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
         :returns: dict -- It has the following scheme
         {
             'info': {
-                'version': <int>
+                'service_type': <str>,
+                'service_vendor': <str>,
             },
             'config': [
                 {
                     'resource': 'interfaces',
-                    'kwargs': {
-                        'service_type': <str>,
+                    'resource_data': {
                         ...
                     }
                 },
                 {
                     'resource': 'routes',
-                    'kwargs': {
-                        'service_type': <str>,
+                    'resource_data': {
                         ...
                     }
                 }
@@ -126,39 +125,36 @@ class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):
 
         return {
             'info': {
-                'version': 1
+                'service_vendor': (device_data['service_details'
+                                               ]['service_vendor'].lower()),
+                'service_type': (device_data['service_details'
+                                             ]['service_type'].lower())
             },
             'config': [
                 {
                     'resource': 'interfaces',
-                    'kwargs': {
+                    'resource_data': {
                         'mgmt_ip': device_data['mgmt_ip_address'],
-                        'service_vendor': device_data['service_vendor'],
                         'provider_ip': provider_ip,
                         'provider_cidr': provider_cidr,
-                        'provider_interface_position': 2,
+                        'provider_interface_index': 2,
                         'stitching_ip': consumer_ip,
                         'stitching_cidr': consumer_cidr,
-                        'stitching_interface_position': 3,
+                        'stitching_interface_index': 3,
                         'provider_mac': provider_mac,
                         'stitching_mac': consumer_mac,
-                        'service_type': (device_data['service_details'][
-                            'service_type'].lower())
                     }
                 },
                 {
                     'resource': 'routes',
-                    'kwargs': {
+                    'resource_data': {
                         'mgmt_ip': device_data['mgmt_ip_address'],
-                        'service_vendor': device_data['service_vendor'],
                         'source_cidrs': ([provider_cidr, consumer_cidr]
                                          if consumer_cidr
                                          else [provider_cidr]),
                         'destination_cidr': consumer_cidr,
                         'gateway_ip': consumer_gateway_ip,
-                        'provider_interface_position': 2,
-                        'service_type': (device_data['service_details'][
-                            'service_type'].lower())
+                        'provider_interface_index': 2
                     }
                 }
             ]
