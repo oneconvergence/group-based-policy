@@ -736,7 +736,7 @@ class OrchestrationDriverBase(object):
         {
             'info': {
                 'service_type': <str>,
-                'service_vendor': <str>, 
+                'service_vendor': <str>,
             },
             'config': [
                 {

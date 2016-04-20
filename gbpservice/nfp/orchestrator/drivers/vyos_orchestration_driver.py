@@ -46,7 +46,7 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
         {
             'info': {
                 'service_type': <str>,
-                'service_vendor': <str>, 
+                'service_vendor': <str>,
             },
             'config': [
                 {
