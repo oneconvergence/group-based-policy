@@ -111,12 +111,14 @@ class Controller(rest.RestController):
                     service_config = str(service_config)
                     if config_data['resource'] == 'ansible':
                         config_str = service_config.lstrip('ansible:')
+                        rules = config_str
                     elif config_data['resource'] == 'heat':
                         config_str = service_config.lstrip('heat_config:')
+                        rules = self._get_rules_from_config(config_str)
                     elif config_data['resource'] == 'custom_json':
                         config_str = service_config.lstrip('custom_json:')
+                        rules = config_str
 
-                rules = self._get_rules_from_config(config_str)
                 fw_rule_file = "/home/ubuntu/configure_fw_rules.py "
                 command = "sudo python " + fw_rule_file + "'" + rules + "'"
                 subprocess.check_output(command, stderr=subprocess.STDOUT,
@@ -220,7 +222,7 @@ class Controller(rest.RestController):
                         (len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
                         return interface
                     ip_address_netmask = '%s/%s' %(ip_address, netmask)
-                    interface_cidr = netaddr.IPNetwork(ip_address_netmask)                    
+                    interface_cidr = netaddr.IPNetwork(ip_address_netmask)
                     if str(interface_cidr.cidr) == cidr:
                         return interface
             # Sometimes the hotplugged interface takes time to get IP
@@ -242,7 +244,7 @@ class Controller(rest.RestController):
                               yaml.load(config_str))
         except Exception:
             return config_str
-        
+
         resources = stack_template['resources']
         for resource in resources:
             if resources[resource]['type'] == 'OS::Neutron::FirewallRule':
