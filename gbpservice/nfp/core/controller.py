@@ -11,6 +11,8 @@
 #    under the License.
 
 import eventlet
+eventlet.monkey_patch()
+
 import multiprocessing
 import operator
 import os
@@ -36,8 +38,6 @@ from gbpservice.nfp.core import rpc as nfp_rpc
 LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
 identify = nfp_common.identify
-
-eventlet.monkey_patch()
 
 
 """Implements table of registered event handlers. """
@@ -389,7 +389,7 @@ class Controller(object):
                 "no worker attached, dropping" % (event.identify()))
         else:
             pipe = self._worker_pipe_map[event.desc.worker_attached]
-            LOG(LOGGER, 'ERROR', "%s - timedoutevent -"
+            LOG(LOGGER, 'DEBUG', "%s - timedoutevent -"
                 "to worker:%d" % (
                     event.identify(), event.desc.worker_attached))
             self._pipe_send(pipe, event)
