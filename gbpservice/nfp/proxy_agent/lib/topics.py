@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-CONFIG_AGENT_PROXY = 'nfp-config-agent-proxy'
-SERVICE_ORCH_TOPIC = 'nfp-configurator-nso'
-DEVICE_ORCH_TOPIC = 'nfp-configurator-ndo'
-CONFIG_ORCH_TOPIC = 'nfp-configurator-nco'
+SERVICE_ORCH_TOPIC = 'nfp-nso-notification-topic'
+DEVICE_ORCH_TOPIC = 'nfp-ndo-notification-topic'
+CONFIG_ORCH_TOPIC = 'nfp-nco-notification-topic'

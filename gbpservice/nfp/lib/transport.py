@@ -55,6 +55,9 @@ oslo_config.CONF.register_opts(rest_opts, "REST")
 oslo_config.CONF.register_opts(rpc_opts, "RPC")
 n_rpc.init(cfg.CONF)
 
+UNIX_REST = 'unix_rest'
+TCP_REST = 'tcp_rest'
+
 """ Common Class for restClient exceptions """
 
 
@@ -185,7 +188,7 @@ def send_request_to_configurator(conf, context, body,
                 {'neutron_context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
 
-    if conf.backend == 'tcp_rest':
+    if conf.backend == TCP_REST:
         try:
             rc = RestApi(conf.REST.rest_server_ip, conf.REST.rest_server_port)
             resp = rc.post(method_name, body, method_type.upper())
@@ -196,7 +199,7 @@ def send_request_to_configurator(conf, context, body,
             LOG(LOGGER, 'ERROR', "%s -> POST request failed.Reason: %s" % (
                 method_name, rce))
 
-    elif conf.backend == 'unix_rest':
+    elif conf.backend == UNIX_REST:
         try:
             resp, content = unix_rc.post(method_name,
                                          body=body)
@@ -230,7 +233,7 @@ def get_response_from_configurator(conf):
     """
     # This function reads configuration data and decides
     # method (tcp_rest/ unix_rest/ rpc) for get response from configurator.
-    if conf.backend == 'tcp_rest':
+    if conf.backend == TCP_REST:
         try:
             rc = RestApi(conf.REST.rest_server_ip, conf.REST.rest_server_port)
             resp = rc.get('get_notifications')
@@ -242,7 +245,7 @@ def get_response_from_configurator(conf):
                     rce))
             return rce
 
-    elif conf.backend == 'unix_rest':
+    elif conf.backend == UNIX_REST:
         try:
             resp, content = unix_rc.get('get_notifications')
             content = jsonutils.loads(content)
