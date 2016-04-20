@@ -12,6 +12,7 @@
 
 import exceptions
 
+from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import RestClientOverUnix as unix_rc
 
@@ -181,7 +182,8 @@ def send_request_to_configurator(conf, context, body,
     elif network_function_event:
         method_name = 'network_function_event'
     else:
-        if (body['config'][0]['resource'] in ['heat', 'ansible']):
+        if (body['config'][0]['resource'] in
+                    nfp_constants.CONFIG_TAG_RESOURCE_MAP.values())):
             body['config'][0]['resource_data'].update(
                 {'neutron_context': context.to_dict()})
             body['info']['context'].update(
