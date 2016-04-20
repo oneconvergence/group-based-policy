@@ -28,7 +28,7 @@ def _log_info(logger, msg):
 
 
 def _log_debug(logger, msg):
-    logger.info(msg)
+    logger.debug(msg)
 
 
 def _log_error(logger, msg):
