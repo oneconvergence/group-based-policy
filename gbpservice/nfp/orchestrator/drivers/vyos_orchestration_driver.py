@@ -38,16 +38,12 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
                                                 network_handler=None):
         """ Get the configuration information for NFD
 
-        :param device_data: NFD device
+        :param device_data: NFD
         :type device_data: dict
 
         :returns: None -- On Failure
         :returns: dict -- It has the following scheme
         {
-            'info': {
-                'service_type': <str>,
-                'service_vendor': <str>,
-            },
             'config': [
                 {
                     'resource': 'interfaces',
@@ -68,13 +64,18 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
         """
         if (
             any(key not in device_data
-                for key in ['service_vendor',
-                            'network_model',
+                for key in ['service_details',
                             'mgmt_ip_address',
-                            'ports',
-                            'service_details',
-                            'network_function_id',
-                            'tenant_id']) or
+                            'ports']) or
+
+            type(device_data['service_details']) is not dict or
+
+            any(key not in device_data['service_details']
+                for key in ['service_vendor',
+                            'device_type',
+                            'network_mode']) or
+
+            type(device_data['ports']) is not list or
 
             any(key not in port
                 for port in device_data['ports']
@@ -126,12 +127,6 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
                     return None
 
         return {
-            'info': {
-                'service_vendor': (device_data['service_details'
-                                               ]['service_vendor'].lower()),
-                'service_type': (device_data['service_details'
-                                             ]['service_type'].lower())
-            },
             'config': [
                 {
                     'resource': 'interfaces',
@@ -149,8 +144,6 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
                             'active_provider_mac': provider_mac,
                             'active_stitching_mac': consumer_mac,
                             'active_fip': device_data['mgmt_ip_address'],
-                            'service_id': device_data['network_function_id'],
-                            'tenant_id': device_data['tenant_id']
                         }
                     }
                 },
