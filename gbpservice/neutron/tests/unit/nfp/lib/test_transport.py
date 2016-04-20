@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.lib import transport as common
+from gbpservice.nfp.lib import transport
 import mock
 from neutron.common import rpc as n_rpc
 from neutron import context as ctx
@@ -66,7 +66,8 @@ class TestContext(object):
         # creating a test context
         variables = {}
         variables['context'] = self.get_context()
-        variables['body'] = {'config': [{'kwargs': {}}]}
+        variables['body'] = {'info': {'context': {}},
+                             'config': []}
         variables['method_type'] = 'CREATE'
         variables['device_config'] = True
         return variables
@@ -76,7 +77,7 @@ class CommonLibarayTest(unittest.TestCase):
 
     def setUp(self):
         n_rpc.init(cfg.CONF)
-        self.imprt_rc = 'gbpservice.nfp.proxy_agent.lib.RestClientOverUnix'
+        self.imprt_rc = 'gbpservice.nfp.lib.RestClientOverUnix'
 
     def _cast(self, context, method, **kwargs):
         return
@@ -93,10 +94,13 @@ class CommonLibarayTest(unittest.TestCase):
         return MockResponse()
 
     def _uget(self, path):
-        return(200, " ")
+        return(200, "")
 
     def _post(self, path, body, method_type):
-        return (200, '')
+        return (200, "")
+
+    def _upost(self, path, body, delete=False):
+        return (200, "")
 
     def test_rpc_send_request_to_configurator(self):
 
@@ -106,15 +110,16 @@ class CommonLibarayTest(unittest.TestCase):
             test_context = TestContext().get_test_context()
             conf = Map(backend='rpc', RPC=Map(topic='topic'))
 
-            common.send_request_to_configurator(conf,
-                                                test_context['context'],
-                                                test_context['body'],
-                                                test_context['method_type'],
-                                                test_context['device_config'])
+            transport.\
+                send_request_to_configurator(conf,
+                                             test_context['context'],
+                                             test_context['body'],
+                                             test_context['method_type'],
+                                             test_context['device_config'])
 
     def test_tcp_rest_send_request_to_configurator(self):
 
-        with mock.patch.object(common.RestApi, 'post') as mock_post:
+        with mock.patch.object(transport.RestApi, 'post') as mock_post:
             mock_post.side_effect = self._post
 
             test_context = TestContext().get_test_context()
@@ -122,15 +127,31 @@ class CommonLibarayTest(unittest.TestCase):
                        REST=Map(rest_server_ip='0.0.0.0',
                                 rest_server_port=5672))
 
-            common.send_request_to_configurator(conf,
-                                                test_context['context'],
-                                                test_context['body'],
-                                                test_context['method_type'],
-                                                test_context['device_config'])
+            transport.\
+                send_request_to_configurator(conf,
+                                             test_context['context'],
+                                             test_context['body'],
+                                             test_context['method_type'],
+                                             test_context['device_config'])
+
+    def test_unix_rest_send_request_to_configurator(self):
+
+        with mock.patch(self.imprt_rc + '.post') as mock_post:
+            mock_post.side_effect = self._upost
+
+            test_context = TestContext().get_test_context()
+            conf = Map(backend='unix_rest')
+
+            transport.\
+                send_request_to_configurator(conf,
+                                             test_context['context'],
+                                             test_context['body'],
+                                             test_context['method_type'],
+                                             test_context['device_config'])
 
     def test_tcp_rest_get_response_from_configurator(self):
 
-        with mock.patch.object(common.RestApi, 'get') as mock_get,\
+        with mock.patch.object(transport.RestApi, 'get') as mock_get,\
                 mock.patch.object(jsonutils, 'loads') as mock_loads:
             mock_get.side_effect = self._get
             mock_loads.return_value = True
@@ -139,7 +160,7 @@ class CommonLibarayTest(unittest.TestCase):
                        REST=Map(rest_server_ip='0.0.0.0',
                                 rest_server_port=5672))
 
-            common.get_response_from_configurator(conf)
+            transport.get_response_from_configurator(conf)
 
     def test_unix_rest_get_response_from_configurator(self):
 
@@ -150,7 +171,7 @@ class CommonLibarayTest(unittest.TestCase):
 
             conf = Map(backend='unix_rest')
 
-            common.get_response_from_configurator(conf)
+            transport.get_response_from_configurator(conf)
 
 if __name__ == '__main__':
     unittest.main()

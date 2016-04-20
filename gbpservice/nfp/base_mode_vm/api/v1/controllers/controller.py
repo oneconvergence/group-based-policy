@@ -106,16 +106,19 @@ class Controller(rest.RestController):
                             {'resource': resource,
                              'data': {'status_code': SUCCESS}})
 
-            if (config_data['resource'] == 'ansible') or (
-                                            config_data['resource'] == 'heat'):
-                service_config = config_data['resource_data']['config_string']
-                service_config = str(service_config)
-                if (config_data['resource'] == 'ansible'):
-                    config_str = service_config.lstrip('ansible:')
-                else:
-                    config_str = service_config.lstrip('heat_config:')
+                if (config_data['resource'] in ['ansible', 'heat', 'custom_json']):
+                    service_config = config_data['resource_data']['config_string']
+                    service_config = str(service_config)
+                    if config_data['resource'] == 'ansible':
+                        config_str = service_config.lstrip('ansible:')
+                    elif config_data['resource'] == 'heat':
+                        config_str = service_config.lstrip('heat_config:')
+                    elif config_data['resource'] == 'custom_json':
+                        config_str = service_config.lstrip('custom_json:')
+
+                rules = self._get_rules_from_config(config_str)
                 fw_rule_file = "/home/ubuntu/configure_fw_rules.py "
-                command = "sudo python " + fw_rule_file + "'" + config_str + "'"
+                command = "sudo python " + fw_rule_file + "'" + rules + "'"
                 subprocess.check_output(command, stderr=subprocess.STDOUT,
                                         shell=True)
                 notification_data.append(
@@ -179,7 +182,6 @@ class Controller(rest.RestController):
             source_interface = self._get_if_name_by_cidr(cidr)
             try:
                 interface_number_string = source_interface.split("eth",1)[1]
-                routing_table_number = 20 + int(interface_number_string)
             except IndexError:
                 LOG.error("Retrieved wrong interface %s for configuring "
                              "routes" %(source_interface))
@@ -230,5 +232,35 @@ class Controller(rest.RestController):
                 else:
                     raise Exception("Some of the interfaces do not have "
                                     "IP Address")
+
+
+    def _get_rules_from_config(self, config_str):
+        rules_list = []
+        try:
+            stack_template = (jsonutils.loads(config_str) if
+                              config_str.startswith('{') else
+                              yaml.load(config_str))
+        except Exception:
+            return config_str
+        
+        resources = stack_template['resources']
+        for resource in resources:
+            if resources[resource]['type'] == 'OS::Neutron::FirewallRule':
+                rule_info = {}
+                destination_port = ''
+                rule = resources[resource]['properties']
+                action = rule['action']
+                protocol = rule['protocol']
+                rule_info['action'] = 'log'
+                rule_info['name'] = protocol
+                if rule.get('destination_port'):
+                    destination_port = rule['destination_port']
+                if protocol == 'tcp':
+                    rule_info['service'] = protocol + '/' + str(destination_port)
+                else:
+                    rule_info['service'] = protocol
+                rules_list.append(rule_info)
+
+        return jsonutils.dumps(rules_list)
 
 

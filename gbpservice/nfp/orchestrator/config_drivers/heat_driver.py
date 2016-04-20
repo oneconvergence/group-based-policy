@@ -853,7 +853,8 @@ class HeatDriver(object):
         service_config = tag_str = ''
         for tag_str in [nfp_constants.HEAT_CONFIG_TAG,
                         nfp_constants.CONFIG_INIT_TAG,
-                        nfp_constants.ANSIBLE_TAG]:
+                        nfp_constants.ANSIBLE_TAG,
+                        nfp_constants.CUSTOM_JSON]:
             try:
                 service_config = config_str.split(tag_str + ':')[1]
                 break

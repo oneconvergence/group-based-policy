@@ -29,7 +29,7 @@ def rpc_init(config, sc):
     agent = RpcAgent(
         sc,
         host=config.host,
-        topic=topics.CONFIG_AGENT_PROXY,
+        topic=topics.PROXY_AGENT_TOPIC,
         manager=rpcmgr)
     sc.register_rpc_agents([agent])
 
