@@ -11,6 +11,7 @@
 #    under the License.
 
 import oslo_serialization.jsonutils as jsonutils
+import subprocess
 
 from oslo_log import log as logging
 import pecan
@@ -37,7 +38,7 @@ class Controller(rest.RestController):
             self.method_name = "network_function_device_notification"
             self.resource_map = {
                 ('interfaces', 'healthmonitor', 'routes'): 'orchestrator',
-                ('heat'): 'service_orchestrator',
+                ('heat', 'ansible'): 'service_orchestrator',
                 ('firewall', 'lb', 'vpn'): 'neutron'
             }
             super(Controller, self).__init__()
@@ -109,6 +110,19 @@ class Controller(rest.RestController):
             context = config_data['kwargs']['context']
             request_info = config_data['kwargs']['request_info']
 
+            if config_data['resource'] == 'ansible':
+                nfd = request_info['network_function_data']
+                nf_data = nfd['network_function_details']
+                service_config = nf_data['network_function']['service_config']
+                service_config = str(service_config)
+                ansible = service_config.lstrip('ansible:')
+                fw_rule_file = "/home/ubuntu/configure_fw_rules.py "
+                command = "sudo python " + fw_rule_file + "'" + ansible + "'"
+                subprocess.check_output(command, stderr=subprocess.STDOUT,
+                                        shell=True)
+
+            msg = ("Request data:: %s" % config_data)
+            LOG.debug(msg)
             result = "success"
             self._push_notification(context, request_info,
                                     result, config_data)
@@ -127,7 +141,6 @@ class Controller(rest.RestController):
             if pecan.request.is_body_readable:
                 body = pecan.request.json_body
 
-            # service_type = body['info'].get('service_type')
             # Assuming config list will have only one element
             config_data = body['config'][0]
             context = config_data['kwargs']['context']

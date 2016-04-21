@@ -182,7 +182,7 @@ def send_request_to_configurator(conf, context, body,
     elif network_function_event:
         method_name = 'network_function_event'
     else:
-        if (body['config'][0]['resource'] == 'heat'):
+        if (body['config'][0]['resource'] in ['ansible', 'heat']):
             body['config'][0]['kwargs'].update({'context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
 
