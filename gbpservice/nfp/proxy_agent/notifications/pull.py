@@ -13,13 +13,24 @@
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import poll as core_pt
 import gbpservice.nfp.lib.transport as transport
-from gbpservice.nfp.proxy_agent.notifications import handler as nh
+from gbpservice.nfp.proxy_agent.lib import topics as a_topics
 
-from oslo_log import log as logging
+from neutron import context as n_context
 
+from oslo_log import log as oslo_logging
 
-LOGGER = logging.getLogger(__name__)
+import sys
+import traceback
+
+LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
+
+ResourceMap = {
+    'device_orch': a_topics.DEVICE_ORCH_TOPIC,
+    'service_orch': a_topics.SERVICE_ORCH_TOPIC,
+    'nas_service': a_topics.CONFIG_ORCH_TOPIC
+}
+
 
 """Periodic Class to pull notification from configurator"""
 
@@ -34,20 +45,18 @@ class PullNotification(core_pt.PollEventDesc):
         self._sc.poll_event(ev)
 
     def _method_handler(self, notification):
-        # Method handles notification as per resource,receiver and method
-        mod = nh.NotificationHandler()
-        mod_method = getattr(mod, notification['method'])
-        reciever = notification['receiver']
-        if reciever == 'device_orchestrator' or reciever == 'orchestrator':
-            mod_method(notification['resource'],
-                       notification['kwargs'])
-
-        elif reciever == 'service_orchestrator':
-            mod_method(notification['resource'],
-                       notification['kwargs'],
-                       device=False)
-        else:
-            mod_method(notification['resource'], **notification['kwargs'])
+        # Method handles notification as per resource, resource_type and method
+        try:
+            requester = notification['info']['context']['requester']
+            topic = ResourceMap[requester]
+            context = notification['info']['context']['neutron_context']
+            rpcClient = transport.RPCClient(topic)
+            rpc_ctx = n_context.Context.from_dict(context)
+            rpcClient.cctxt.cast(rpc_ctx,
+                                 'network_function_notification',
+                                 notification_data=notification)
+        except Exception as e:
+            raise Exception(e)
 
     @core_pt.poll_event_desc(event='PULL_NOTIFICATIONS', spacing=1)
     def pull_notifications(self, ev):
@@ -65,14 +74,15 @@ class PullNotification(core_pt.PollEventDesc):
                 try:
                     self._method_handler(notification)
                 except AttributeError:
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
                     LOG(LOGGER, 'ERROR',
-                        "AttributeError while handling message %s " % (
-                            notification))
+                        "AttributeError while handling message %s : %s " % (
+                            notification, traceback.format_exception(
+                                exc_type, exc_value, exc_traceback)))
+
                 except Exception as e:
-                    # import sys
-                    # import traceback
-                    # exc_type, exc_value, exc_traceback = sys.exc_info()
-                    # print traceback.format_exception(exc_type, exc_value,
-                    #                                 exc_traceback)
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
                     LOG(LOGGER, 'ERROR', "Generic exception (%s) \
-                       while handling message (%s)" % (e, notification))
+                       while handling message (%s) : %s" % (
+                        e, notification, traceback.format_exception(
+                            exc_type, exc_value, exc_traceback)))

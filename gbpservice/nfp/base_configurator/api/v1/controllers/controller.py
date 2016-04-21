@@ -21,6 +21,9 @@ import time
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
+NFP_SERVICE_LIST = ['heat', 'ansible']
+SUCCESS_RESULTS = ['unhandled', 'success']
+FAILURE = 'failure'
 
 """Implements all the APIs Invoked by HTTP requests.
 
@@ -39,14 +42,6 @@ class Controller(rest.RestController):
     def __init__(self, method_name):
         try:
             self.method_name = method_name
-            self.supported_service_types = ['config_script',
-                                            'firewall',
-                                            'loadbalancer', 'vpn']
-            self.resource_map = {
-                ('interfaces', 'healthmonitor', 'routes'): 'orchestrator',
-                ('heat'): 'service_orchestrator',
-                ('firewall', 'lb', 'vpn'): 'neutron'
-            }
             super(Controller, self).__init__()
         except Exception as err:
             msg = (
@@ -54,29 +49,24 @@ class Controller(rest.RestController):
                 str(err).capitalize())
             LOG.error(msg)
         self.vm_port = '8080'
-        self.max_retries = 12
+        self.max_retries = 24
 
-    def _push_notification(self, context, request_info, result, config_data):
+    def _push_notification(self, context, result, config_data, service_type):
         global notifications
         resource = config_data['resource']
-        receiver = ''
-        for key in self.resource_map.keys():
-            if resource in key:
-                receiver = self.resource_map[key]
 
-        response = {
-            'receiver': receiver,
-            'resource': resource,
-            'method': 'network_function_device_notification',
-            'kwargs': [
-                {
-                    'context': context,
-                    'resource': resource,
-                    'request_info': request_info,
-                    'result': result
-                }
-            ]
-        }
+        if result.lower() in SUCCESS_RESULTS:
+            data = {'status_code': result}
+        else:
+            data = {'status_code': FAILURE,
+                    'error_msg': result}
+
+        response = {'info': {'service_type': service_type,
+                             'context': context},
+                    'notification': [{
+                          'resource': resource,
+                          'data': data}]
+                    }
 
         notifications.append(response)
 
@@ -108,7 +98,7 @@ class Controller(rest.RestController):
         try:
             if not cache_ips:
                 notification_data = jsonutils.dumps(notifications)
-                msg = ("NOTIFICATION_DATA sent to config_agent %s"
+                msg = ("Notification sent. Notification Data: %s"
                        % notification_data)
                 LOG.info(msg)
                 notifications = []
@@ -124,7 +114,7 @@ class Controller(rest.RestController):
                     if ip not in cache_ips:
                         break
                 notification_data = jsonutils.dumps(notifications)
-                msg = ("NOTIFICATION_DATA sent to config_agent %s"
+                msg = ("Notification sent. Notification Data: %s"
                        % notification_data)
                 LOG.info(msg)
                 notifications = []
@@ -160,13 +150,16 @@ class Controller(rest.RestController):
 
             # Assuming config list will have only one element
             config_data = body['config'][0]
-            context = config_data['kwargs']['context']
-            request_info = config_data['kwargs']['request_info']
+            info_data = body['info']
 
-            if 'device_ip' in request_info:
+            context = info_data['context']
+            service_type = info_data['service_type']
+            resource = config_data['resource']
+
+            if 'device_ip' in context:
                 msg = ("POSTING DATA TO VM :: %s" % body)
                 LOG.info(msg)
-                device_ip = request_info['device_ip']
+                device_ip = context['device_ip']
                 ip = str(device_ip)
                 is_vm_reachable = self._verify_vm_reachability(ip,
                                                                self.vm_port)
@@ -178,15 +171,14 @@ class Controller(rest.RestController):
                     raise Exception('VM is not reachable')
                 cache_ips.add(device_ip)
             else:
-                service_type = body['info'].get('service_type')
-                if (service_type == "config_init"):
+                if (resource in NFP_SERVICE_LIST):
                     result = "unhandled"
-                    self._push_notification(context, request_info,
-                                            result, config_data)
+                    self._push_notification(context,
+                                            result, config_data, service_type)
                 else:
-                    result = "error"
-                    self._push_notification(context, request_info,
-                                            result, config_data)
+                    result = "Unsupported resource type"
+                    self._push_notification(context,
+                                            result, config_data, service_type)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."
@@ -218,12 +210,14 @@ class Controller(rest.RestController):
 
             # Assuming config list will have only one element
             config_data = body['config'][0]
-            context = config_data['kwargs']['context']
-            request_info = config_data['kwargs']['request_info']
-            if 'device_ip' in request_info:
+            context = body['info']['context']
+            service_type = body['info']['service_type']
+            resource = config_data['resource']
+
+            if 'device_ip' in context:
                 msg = ("PUTTING DATA TO VM :: %s" % body)
                 LOG.info(msg)
-                device_ip = request_info['device_ip']
+                device_ip = context['device_ip']
                 ip = str(device_ip)
                 is_vm_reachable = self._verify_vm_reachability(ip,
                                                                self.vm_port)
@@ -235,15 +229,14 @@ class Controller(rest.RestController):
                     raise Exception('VM is not reachable')
                 cache_ips.add(device_ip)
             else:
-                service_type = body['info'].get('service_type')
-                if (service_type == "config_init"):
+                if (resource in NFP_SERVICE_LIST):
                     result = "unhandled"
-                    self._push_notification(context, request_info,
-                                            result, config_data)
+                    self._push_notification(context,
+                                            result, config_data, service_type)
                 else:
                     result = "error"
-                    self._push_notification(context, request_info,
-                                            result, config_data)
+                    self._push_notification(context,
+                                            result, config_data, service_type)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."
