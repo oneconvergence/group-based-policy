@@ -36,7 +36,8 @@ Implements following HTTP methods.
 """
 
 notifications = []
-
+FW_SCRIPT_PATH = ("/home/ubuntu/reference_configurator/" +
+                  "scripts/configure_fw_rules.py")
 
 class Controller(rest.RestController):
 
@@ -121,8 +122,9 @@ class Controller(rest.RestController):
                         config_str = service_config.lstrip('custom_json:')
                         rules = config_str
 
-                    fw_rule_file = "/home/ubuntu/configure_fw_rules.py "
-                    command = "sudo python " + fw_rule_file + "'" + rules + "'"
+                    fw_rule_file = FW_SCRIPT_PATH
+                    command = ("sudo python " + fw_rule_file + " '" +
+                               rules + "'")
                     subprocess.check_output(command, stderr=subprocess.STDOUT,
                                             shell=True)
                 notification_data.append(
