@@ -771,7 +771,7 @@ class ServiceOrchestrator(object):
                                         level='Audit',
                                         event_category='Service',
                                         event='Create')
-
+	request_data['log_meta_data'] = log_meta_data
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True)

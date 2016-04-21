@@ -83,10 +83,10 @@ def prepare_log_meta_data(nf=None, log_meta_data=None,
                like EventCategory, Events, Level etc
                e.g log_meta_dat = '[TenantID:tid, ServiceChainID:scid,
                                 ServiceInstanceID:siid, ServiceType:FIREWALL,
-                                ServiceProvider:vyos]'
+                                ServiceProvider:vyos] - '
             """
 
-            string = log_meta_data[1:-1].replace(" ", "")
+            string = log_meta_data.replace(" ", "")[1:-2]
             nf = dict(kv.split(":") for kv in string.split(","))
 
             log_info_nf_content = {
