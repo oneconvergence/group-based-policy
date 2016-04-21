@@ -102,9 +102,6 @@ class Controller(rest.RestController):
                 resource = config_data['resource']
                 if resource == 'routes':
                     self._add_routes(config_data)
-                notification_data.append(
-                            {'resource': resource,
-                             'data': {'status_code': SUCCESS}})
 
                 if (config_data['resource'] in ['ansible', 'heat',
                                                 'custom_json']):
@@ -121,10 +118,10 @@ class Controller(rest.RestController):
                         config_str = service_config.lstrip('custom_json:')
                         rules = config_str
 
-                fw_rule_file = "/home/ubuntu/configure_fw_rules.py "
-                command = "sudo python " + fw_rule_file + "'" + rules + "'"
-                subprocess.check_output(command, stderr=subprocess.STDOUT,
-                                        shell=True)
+                    fw_rule_file = "/home/ubuntu/configure_fw_rules.py "
+                    command = "sudo python " + fw_rule_file + "'" + rules + "'"
+                    subprocess.check_output(command, stderr=subprocess.STDOUT,
+                                            shell=True)
                 notification_data.append(
                             {'resource': config_data['resource'],
                              'data': {'status_code': SUCCESS}})
