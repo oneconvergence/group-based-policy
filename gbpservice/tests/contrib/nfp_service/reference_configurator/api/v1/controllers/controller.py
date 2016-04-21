@@ -39,6 +39,7 @@ notifications = []
 FW_SCRIPT_PATH = ("/home/ubuntu/reference_configurator/" +
                   "scripts/configure_fw_rules.py")
 
+
 class Controller(rest.RestController):
 
     def __init__(self, method_name):
