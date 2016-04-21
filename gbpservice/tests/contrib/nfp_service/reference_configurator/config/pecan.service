@@ -5,7 +5,7 @@ After=network.target auditd.service
 [Service]
 Type=forking
 Restart=always
-ExecStart=/usr/bin/nfp-pecan
+ExecStart=/home/ubuntu/reference_configurator/bin/nfp-pecan
 KillMode=process
 Restart=on-failure
 
