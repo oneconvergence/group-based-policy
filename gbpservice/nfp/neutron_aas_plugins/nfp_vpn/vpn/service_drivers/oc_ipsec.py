@@ -103,19 +103,16 @@ class OCIPsecVpnDriverCallBack(object):
 
     def update_status(self, context, **status):
         """Update status of vpnservices."""
-        LOG.error("###################################################################################### update status kwargs %s" %status)
         plugin = self.driver.service_plugin
         plugin.update_status_by_agent(context, status['status'])
 
     def ipsec_site_conn_deleted(self, context, **resource_id):
         """ Delete ipsec connection notification from driver."""
-        LOG.error("###################################################################################### conn deleted kwargs %s" %resource_id)
         resource_id = resource_id['resource_id']
         plugin = self.driver.service_plugin
         plugin._delete_ipsec_site_connection(context, resource_id)
 
     def vpnservice_deleted(self, context, **kwargs):
-        LOG.error("###################################################################################### vpnservice deleted kwargs %s" %kwargs)
         vpnservice_id = kwargs['id']
         plugin = self.driver.service_plugin
         plugin._delete_vpnservice(context, vpnservice_id)
@@ -329,8 +326,8 @@ class OCIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
         return service_vendor
 
     def create_ipsec_site_connection(self, context, ipsec_site_connection):
-        service_vendor = self._get_service_vendor(context,
-                          ipsec_site_connection['vpnservice_id'])
+        service_vendor = self._get_service_vendor(
+            context, ipsec_site_connection['vpnservice_id'])
         self.agent_rpc.vpnservice_updated(
             context,
             ipsec_site_connection['vpnservice_id'],
@@ -344,8 +341,8 @@ class OCIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
                                      context,
                                      old_ipsec_site_connection,
                                      ipsec_site_connection):
-        service_vendor = self._get_service_vendor(context,
-                          ipsec_site_connection['vpnservice_id'])
+        service_vendor = self._get_service_vendor(
+            context, ipsec_site_connection['vpnservice_id'])
         self.agent_rpc.vpnservice_updated(
             context,
             ipsec_site_connection['vpnservice_id'],
@@ -358,8 +355,8 @@ class OCIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
             reason='update', service_vendor=service_vendor)
 
     def delete_ipsec_site_connection(self, context, ipsec_site_connection):
-        service_vendor = self._get_service_vendor(context,
-                          ipsec_site_connection['vpnservice_id'])
+        service_vendor = self._get_service_vendor(
+            context, ipsec_site_connection['vpnservice_id'])
         self.agent_rpc.vpnservice_updated(
             context,
             ipsec_site_connection['vpnservice_id'],
@@ -388,7 +385,6 @@ class OCIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
         pass
 
     def create_vpnservice(self, context, vpnservice):
-        LOG.error(_('KEDAR KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK'))
         service_vendor = self._get_service_vendor(context,
                                                   vpnservice['id'])
         self.agent_rpc.vpnservice_updated(
@@ -404,7 +400,6 @@ class OCIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
         pass
 
     def delete_vpnservice(self, context, vpnservice):
-        LOG.error("$$$$$$$$$$$$$$$$$$$$$$$$ delete vpnsvc %s" % vpnservice)
         service_vendor = self._get_service_vendor(context,
                                                   vpnservice['id'])
         self.agent_rpc.vpnservice_updated(
@@ -469,7 +464,7 @@ class OCVpnValidator(vpn_validator.VpnReferenceValidator):
     def _ipsec_validate_tunnels(self,
                                 context,
                                 ipsec_siteconn):
-        #Get the conns for this tenant
+        # Get the conns for this tenant
         filters = {
             'tenant_id': [context.tenant_id],
             'vpnservice_id': [ipsec_siteconn['vpnservice_id']],
@@ -489,7 +484,7 @@ class OCVpnValidator(vpn_validator.VpnReferenceValidator):
                         peer_cidr=pcidr)
 
     def validate_vpnservice(self, context, vpnservice):
-        #Validate subnet id to be valid
+        # Validate subnet id to be valid
         self._vpnsvc_validate_subnet_id(
             context, vpnservice['subnet_id'])
 
@@ -506,8 +501,8 @@ class OCVpnValidator(vpn_validator.VpnReferenceValidator):
             self._check_vpnsvc_state(
                 context, vpnservice)
 
-        #Check if this conn has overlapping tunnel def
-        #with other conns for same tenant + same vpn service
+        # Check if this conn has overlapping tunnel def
+        # with other conns for same tenant + same vpn service
         if ipsec_sitecon.get("id", None):
             self._ipsec_validate_tunnels(context, ipsec_sitecon)
 
