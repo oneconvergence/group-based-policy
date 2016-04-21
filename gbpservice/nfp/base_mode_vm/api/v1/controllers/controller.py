@@ -15,10 +15,13 @@ import subprocess
 
 import netaddr
 import netifaces
+from oslo_log._i18n import _LE
+from oslo_log._i18n import _LI
 from oslo_log import log as logging
 import pecan
 from pecan import rest
 import time
+import yaml
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
@@ -174,34 +177,33 @@ class Controller(rest.RestController):
         error_data = {'failure_desc': {'msg': msg}}
         return error_data
 
-
     def _add_routes(self, route_info):
         source_cidrs = route_info['resource_data']['source_cidrs']
-        consumer_cidr = route_info['resource_data']['destination_cidr']
+        #consumer_cidr = route_info['resource_data']['destination_cidr']
         gateway_ip = route_info['resource_data']['gateway_ip']
         for cidr in source_cidrs:
             source_interface = self._get_if_name_by_cidr(cidr)
             try:
-                interface_number_string = source_interface.split("eth",1)[1]
+                interface_number_string = source_interface.split("eth", 1)[1]
             except IndexError:
-                LOG.error("Retrieved wrong interface %s for configuring "
-                             "routes" %(source_interface))
+                LOG.error(_LE("Retrieved wrong interface %(interface)s for "
+                          "configuring routes") %
+                          {'interface': source_interface})
             routing_table_number = 20 + int(interface_number_string)
-            ip_rule_command = "ip rule add from %s table %s" %(
+            ip_rule_command = "ip rule add from %s table %s" % (
                 cidr, routing_table_number)
             out1 = subprocess.Popen(ip_rule_command, shell=True,
                                     stdout=subprocess.PIPE).stdout.read()
-            ip_rule_command = "ip rule add to %s table main" %(cidr)
+            ip_rule_command = "ip rule add to %s table main" % (cidr)
             out2 = subprocess.Popen(ip_rule_command, shell=True,
                                     stdout=subprocess.PIPE).stdout.read()
-            ip_route_command = "ip route add table %s default via %s" %(
+            ip_route_command = "ip route add table %s default via %s" % (
                                     routing_table_number, gateway_ip)
             out3 = subprocess.Popen(ip_route_command, shell=True,
                                     stdout=subprocess.PIPE).stdout.read()
-            output = "%s\n%s\n%s" %(out1, out2, out3)
-            LOG.info("Static route configuration result: %s" %(output))
-
-
+            output = "%s\n%s\n%s" % (out1, out2, out3)
+            LOG.info(_LI("Static route configuration result: %(output)s") %
+                     {'output': output})
 
     def _get_if_name_by_cidr(self, cidr):
         interfaces = netifaces.interfaces()
@@ -220,7 +222,7 @@ class Controller(rest.RestController):
                     if (ip_address == subnet_prefix[0] and
                         (len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
                         return interface
-                    ip_address_netmask = '%s/%s' %(ip_address, netmask)
+                    ip_address_netmask = '%s/%s' % (ip_address, netmask)
                     interface_cidr = netaddr.IPNetwork(ip_address_netmask)
                     if str(interface_cidr.cidr) == cidr:
                         return interface
@@ -233,7 +235,6 @@ class Controller(rest.RestController):
                 else:
                     raise Exception("Some of the interfaces do not have "
                                     "IP Address")
-
 
     def _get_rules_from_config(self, config_str):
         rules_list = []
@@ -250,7 +251,7 @@ class Controller(rest.RestController):
                 rule_info = {}
                 destination_port = ''
                 rule = resources[resource]['properties']
-                action = rule['action']
+                #action = rule['action']
                 protocol = rule['protocol']
                 rule_info['action'] = 'log'
                 rule_info['name'] = protocol
@@ -264,5 +265,3 @@ class Controller(rest.RestController):
                 rules_list.append(rule_info)
 
         return jsonutils.dumps({'rules': rules_list})
-
-
