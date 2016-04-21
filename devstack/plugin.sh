@@ -52,7 +52,7 @@ if is_service_enabled group-policy; then
         echo_summary "Installing $GBP"
         if [[ $ENABLE_NFP = True ]]; then
             echo_summary "Installing $NFP"
-            prepare_nfp_image_builder
+            [[ $DISABLE_BUILD_IMAGE = False ]] && prepare_nfp_image_builder
         fi
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         echo_summary "Configuring $GBP"
@@ -77,7 +77,7 @@ if is_service_enabled group-policy; then
         echo_summary "Initializing $GBP"
         if [[ $ENABLE_NFP = True ]]; then
             echo_summary "Initializing $NFP"
-            create_nfp_image
+            [[ $DISABLE_BUILD_IMAGE = False ]] && create_nfp_image
             assign_user_role_credential
             create_nfp_gbp_resources
             get_router_namespace
