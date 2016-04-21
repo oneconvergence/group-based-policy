@@ -35,14 +35,14 @@ def dib():
 
     # configures elements
     for element in dib['elements']:
-        image_name = image_name + '_'  + element
+        image_name = image_name + '_' + element
         dib_args.append(element)
         # root login enabled, set password environment varaible
         if element == 'root-passwd':
             os.environ['DIB_PASSWORD'] = dib['root_password']
         if element == 'nfp-reference-configurator':
             # set environment variable, needed by 'extra-data.d'
-            service_dir = cur_dir + '../'
+            service_dir = cur_dir + '/gbpservice/tests/contrib/nfp_service/'
             service_dir = os.path.realpath(service_dir)
             os.environ['SERVICE_GIT_PATH'] = service_dir
 
@@ -68,7 +68,7 @@ def dib():
     ret = subprocess.call(dib_args)
     if not ret:
         image_path = os.path.realpath('./') + '/' + image_name
-        print "Image location: %s" % image_path 
+        print "Image location: %s" % image_path
         with open("/tmp/nfp_image_path", "w") as f:
             f.write(image_path)
 
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print "ERROR: Invalid Usage"
         print "Usage:\n\t%s <json config file>" % sys.argv[0]
-	print "\twhere: <json config file> contains all the configuration"
+        print "\twhere: <json config file> contains all the configuration"
         exit()
 
     # save PWD
@@ -94,4 +94,3 @@ if __name__ == "__main__":
 
     # run Disk Image Builder to create VM image
     dib()
-
