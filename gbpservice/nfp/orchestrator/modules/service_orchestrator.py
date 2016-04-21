@@ -35,7 +35,6 @@ LOG = logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
-mgmt_nw = '' # set this from config
 
 
 def rpc_init(controller, config):
@@ -238,6 +237,11 @@ class RpcHandler(object):
         neutron_handler = SOHelper(self.conf)
         neutron_handler.admin_down_interfaces(port_ids)
 
+    @log_helpers.log_method_call
+    def remove_subnet_route(self, router_id, subnet_cidr):
+        neutron_handler = SOHelper(self.conf)
+        neutron_handler.remove_subnet_routes(router_id, subnet_cidr)
+
 
 class RpcHandlerConfigurator(object):
     """RPC Handler for Configurator to NFP.
@@ -381,6 +385,7 @@ class ServiceOrchestrator(object):
         self.config_driver = heat_driver.HeatDriver(config)
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = NSOConfiguratorRpcApi(neutron_context, config)
+        self.mgmt_nw = self._config.plumber.management_net_id
 
     @property
     def db_session(self):
@@ -560,7 +565,7 @@ class ServiceOrchestrator(object):
             }
         else:
             management_network_info = dict(
-                id=mgmt_nw, port_model=nfp_constants.NEUTRON_PORT)
+                id=self.mgmt_nw, port_model=nfp_constants.NEUTRON_PORT)
 
         create_network_function_instance_request = {
             'network_function': network_function,
@@ -1415,6 +1420,7 @@ class SOHelper(object):
     def __init__(self, conf):
         self._conf = conf
         self.sc_plumber = SCPlumber(self._conf)
+        self.mgmt_nw = self._conf.plumber.management_net_id
 
     def process_update_network_function_request(self, context,
                                                 service_orchestrator,
@@ -1487,7 +1493,7 @@ class SOHelper(object):
 
             nw_function_info['management_network_info'] = dict(
                 # id=self.config.NEUTRON_SERVICE_MGMT_NW,
-                id=mgmt_nw,
+                id=self.mgmt_nw,
                 port_model=nfp_constants.NEUTRON_PORT
             )
             admin_token = service_orchestrator.keystoneclient.get_admin_token()
@@ -1615,7 +1621,7 @@ class SOHelper(object):
         )
         nw_function_info['management_network_info'] = dict(
                 # id=self.config.NEUTRON_SERVICE_MGMT_NW,
-                id='mgmt_nw',
+                id=self.mgmt_nw,
                 port_model=nfp_constants.NEUTRON_PORT
         )
         provider_port = {'id': nw_function_info['service_info'][0]['port'][
@@ -1718,7 +1724,7 @@ class SOHelper(object):
         if service_type.lower() == "vpn":
             extra_attr = ast.literal_eval(consumer_port['extra_attributes'])
             self.sc_plumber.plumber.delete_extra_route(
-                    extra_attr['router_id'], extra_attr['subnet_cidr'])
+                    extra_attr['router_id'], extra_attr.get('subnet_cidr', []))
             vpn = {'port_id': consumer_port['id'],
                    'router_id': extra_attr['router_id'],
                    'subnet_id': extra_attr['subnet_id'],
@@ -1738,6 +1744,9 @@ class SOHelper(object):
                         'network_id': cons_extra_attr['network_id']}
             self.sc_plumber.undo_plumbing(**firewall)
             self.sc_plumber.ports_state_down([provider_port['id']])
+
+    def remove_subnet_routes(self, router_id, subnet_cidr):
+        self.sc_plumber.plumber.delete_extra_route(router_id, subnet_cidr)
 
 
 
