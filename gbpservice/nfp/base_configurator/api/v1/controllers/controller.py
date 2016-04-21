@@ -49,7 +49,7 @@ class Controller(rest.RestController):
                 str(err).capitalize())
             LOG.error(msg)
         self.vm_port = '8080'
-        self.max_retries = 12
+        self.max_retries = 24
 
     def _push_notification(self, context, result, config_data, service_type):
         global notifications
