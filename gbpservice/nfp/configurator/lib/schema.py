@@ -84,9 +84,7 @@ interfaces = {'mgmt_ip': "",
               'stitching_mac': "",
               'rule_info': {'active_provider_mac': "",
                             'active_stitching_mac': "",
-                            'active_fip': "",
-                            'service_id': "",
-                            'tenant_id': ""
+                            'active_fip': ""
                             },
               }
 
@@ -97,9 +95,7 @@ interfaces = {'mgmt_ip': "",
 
 interfaces_rule_info = {'active_provider_mac': "",
                         'active_stitching_mac': "",
-                        'active_fip': "",
-                        'service_id': "",
-                        'tenant_id': ""
+                        'active_fip': ""
                         }
 
 
