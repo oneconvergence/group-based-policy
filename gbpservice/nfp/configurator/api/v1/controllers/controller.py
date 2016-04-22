@@ -18,7 +18,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 import pecan
-from pecan import rest, conf
+from pecan import rest
 
 LOG = logging.getLogger(__name__)
 n_rpc.init(cfg.CONF)
@@ -39,7 +39,7 @@ class Controller(rest.RestController):
 
     def __init__(self, method_name):
         try:
-            self.services = conf['cloud_services']
+            self.services = pecan.conf['cloud_services']
             self.rpc_routing_table = {}
             for service in self.services:
                 self._entry_to_rpc_routing_table(service)
@@ -130,7 +130,8 @@ class Controller(rest.RestController):
                 routing_key = 'CONFIGURATION'
             for uservice in self.rpc_routing_table[routing_key]:
                 uservice.rpcclient.cast(self.method_name, body)
-                LOG.info('Sent RPC to %s' % (uservice.topic))
+                msg = ('Sent RPC to %s' % (uservice.topic))
+                LOG.info(msg)
 
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
@@ -168,7 +169,8 @@ class Controller(rest.RestController):
                 routing_key = 'CONFIGURATION'
             for uservice in self.rpc_routing_table[routing_key]:
                 uservice.rpcclient.cast(self.method_name, body)
-                LOG.info('Sent RPC to %s' % (uservice.topic))
+                msg = ('Sent RPC to %s' % (uservice.topic))
+                LOG.info(msg)
 
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
@@ -264,7 +266,7 @@ class RPCClient(object):
 """
 
 
-class CloudService():
+class CloudService(object):
 
     def __init__(self, **kwargs):
         self.service_name = kwargs.get('service_name')
