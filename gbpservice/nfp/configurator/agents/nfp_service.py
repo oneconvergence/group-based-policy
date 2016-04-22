@@ -16,7 +16,7 @@ import oslo_messaging as messaging
 from oslo_log import log as logging
 
 from gbpservice.nfp.configurator.agents import agent_base
-from gbpservice.nfp.configurator.lib import config_script_constants as const
+from gbpservice.nfp.configurator.lib import nfp_service_constants as const
 from gbpservice.nfp.configurator.lib import utils as load_driver
 from gbpservice.nfp.core import event as nfp_event
 
@@ -47,7 +47,7 @@ class ConfigScriptRpcManager(agent_base.AgentBaseRPCManager):
 
         super(ConfigScriptRpcManager, self).__init__(sc, conf)
 
-    def run_config_script(self, context, kwargs):
+    def run_nfp_service(self, context, resource_data):
         """ Receives request to execute config script.
 
         :param context: RPC context
@@ -59,12 +59,12 @@ class ConfigScriptRpcManager(agent_base.AgentBaseRPCManager):
         LOG.debug(msg)
 
         arg_dict = {'context': context,
-                    'kwargs': kwargs}
-        ev = self.sc.new_event(id=const.CREATE_CONFIG_SCRIPT_EVENT,
+                    'resource_data': resource_data}
+        ev = self.sc.new_event(id=const.CREATE_NFP_SERVICE_EVENT,
                                data=arg_dict, key=None)
         self.sc.post_event(ev)
 
-""" Handler class which invokes config_script driver methods
+""" Handler class which invokes nfp_service driver methods
 
 Worker processes dequeue the worker queues and invokes the
 appropriate handler class methods for ConfigScript methods.
@@ -97,7 +97,7 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
         return self.drivers[driver_id]
 
     def handle_event(self, ev):
-        """ Demultiplexes the config_script request to appropriate
+        """ Demultiplexes the nfp_service request to appropriate
         driver methods.
 
         :param ev: Event object sent from process model event handler
@@ -105,10 +105,10 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
         """
 
         try:
-            context = ev.data['context']
-            resource = context['resource']
-            kwargs = ev.data['kwargs']
-            request_info = kwargs['request_info']
+            agent_info = ev.data['context']
+            notification_context = agent_info['context']
+            resource = agent_info['resource']
+            resource_data = ev.data['resource_data']
 
             msg = ("Worker process with ID: %s starting to "
                    "handle task: %s of type ConfigScript. "
@@ -118,27 +118,30 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
             driver = self._get_driver()
             self.method = getattr(driver, "run_%s" % resource)
 
-            result = self.method(context, kwargs)
+            result = self.method(notification_context, resource_data)
         except Exception as err:
             result = const.ERROR_RESULT
             msg = ("Failed to handle event: %s. %s"
                    % (ev.id, str(err).capitalize()))
             LOG.error(msg)
         finally:
-            notification_data = {
-                'receiver': 'service_orchestrator',
-                'resource': resource,
-                'method': 'network_function_device_notification',
-                'kwargs': [
-                    {
-                        'context': context,
-                        'resource': resource,
-                        'request_info': request_info,
-                        'result': result
-                    }
-                ]
-            }
-            self.notify._notification(notification_data)
+            del agent_info['notification_data']
+            del agent_info['service_vendor']
+            service_type = agent_info.pop('service_type')
+
+            if result in const.UNHANDLED_RESULT:
+                data = {'status_code': const.UNHANDLED_RESULT}
+            else:
+                data = {'status_code': const.FAILURE,
+                        'error_msg': result}
+
+            msg = {'info': {'service_type': service_type,
+                            'context': notification_context},
+                   'notification': [{'resource': resource,
+                                     'data': data}]
+                   }
+
+            self.notify._notification(msg)
 
 
 def events_init(sc, drivers, rpcmgr):
@@ -156,7 +159,7 @@ def events_init(sc, drivers, rpcmgr):
     """
 
     event = nfp_event.Event(
-                id=const.CREATE_CONFIG_SCRIPT_EVENT,
+                id=const.CREATE_NFP_SERVICE_EVENT,
                 handler=ConfigScriptEventHandler(sc, drivers, rpcmgr))
     sc.register_events([event])
 

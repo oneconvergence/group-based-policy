@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.configurator.lib import constants
+from gbpservice.nfp.configurator.lib import constants as const
 from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
@@ -77,15 +77,13 @@ class ServiceAgentDemuxer(object):
         # Get service type based on the fact that for some request data
         # formats the 'type' key is absent. Check for invalid types
         service_type = request_data['info'].get('service_type')
-        if (service_type not in constants.supported_service_types):
-            return constants.invalid_service_type
-        elif not service_type:
-            service_type = 'generic_config'
-            return service_type
+        if (service_type not in const.supported_service_types):
+            return const.invalid_service_type
         else:
             return service_type
 
-    def get_service_agent_info(self, operation, service_type, request_data):
+    def get_service_agent_info(self, operation, service_type,
+                               request_data, is_generic_config):
         """Prepares information for service agent consumption.
 
         :param operation: create/delete/update
@@ -105,45 +103,53 @@ class ServiceAgentDemuxer(object):
         """
 
         sa_info_list = []
+        service_vendor = request_data['info']['service_vendor']
+        if str(service_vendor) == 'None':
+            service_vendor = 'vyos'
 
         for config_data in request_data['config']:
             sa_info = {}
-            if service_type in constants.supported_service_types:
-                sa_info.update({'service_type': service_type})
-                if service_type == 'firewall':
-                    method = operation + '_' + config_data['resource']
-                elif service_type == 'vpn':
-                    method = 'vpnservice_updated'
-                elif service_type == 'loadbalancer':
-                    method = operation + '_' + config_data['resource']
-                elif service_type == 'config_script':
-                    method = 'run' + '_' + service_type
-            else:
-                sa_info.update({'service_type': 'generic'})
-                if operation == 'create':
-                    method = 'configure_' + config_data['resource']
-                elif operation == 'delete':
-                    method = 'clear_' + config_data['resource']
-                elif operation == 'update':
-                    method = 'update_' + config_data['resource']
-                else:
-                    return None
 
-            sa_info.update({'method': method})
-            sa_info.update({'resource': config_data['resource']})
+            resource_map = {
+                'firewall': (operation + '_' + config_data['resource']),
+                'vpn': ('vpnservice_updated'),
+                'loadbalancer': (operation + '_' + config_data['resource']),
+                'nfp_service': ('run' + '_' + const.NFP_SERVICE),
+                'generic_config': {
+                           'create': ('configure_' + config_data['resource']),
+                           'update': ('update_' + config_data['resource']),
+                           'delete': ('clear_' + config_data['resource'])}}
 
-            data = config_data['kwargs']
+            context = request_data['info']['context']
+
+            data = config_data['resource_data']
             if not data:
                 return None
 
-            context = config_data['kwargs']['context']
-            sa_info.update({'context': context})
-            del config_data['kwargs']['context']
-            if ('generic' in sa_info['service_type'] or
-                    'config_script' in sa_info['service_type']):
-                sa_info.update({'kwargs': {'kwargs': data}})
+            resource = config_data['resource']
+            is_nfp_svc = True if resource in const.NFP_SERVICE_LIST else False
+
+            if is_generic_config:
+                method = resource_map[const.GENERIC_CONFIG][operation]
             else:
-                sa_info.update({'kwargs': data})
+                if is_nfp_svc:
+                    service_type = const.NFP_SERVICE
+                method = resource_map[service_type]
+
+            sa_info.update({'method': method,
+                            'resource_data': data,
+                            'agent_info': {
+                                   'context': context,
+                                   'service_vendor': service_vendor.lower(),
+                                   'service_type': service_type.lower(),
+                                   'resource': resource.lower()},
+                            'is_generic_config': is_generic_config})
+
             sa_info_list.append(sa_info)
 
-        return sa_info_list
+        if is_nfp_svc:
+            service_type = const.NFP_SERVICE
+        elif is_generic_config:
+            service_type = const.GENERIC_CONFIG
+
+        return sa_info_list, service_type

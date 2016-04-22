@@ -10,10 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-supported_service_types = ['firewall', 'vpn', 'loadbalancer',
-                           'config_script', None]
+supported_service_types = ['firewall', 'vpn', 'loadbalancer']
+NFP_SERVICE_LIST = ['heat', 'ansible']
 invalid_service_type = 'invalid'
+NFP_SERVICE = 'nfp_service'
 SUCCESS = 'SUCCESS'
+FAILURE = 'FAILURE'
+GENERIC_CONFIG = 'generic_config'
 FAILED = 'FAILED'
 ORCHESTRATOR = 'orchestrator'
 EVENT_STASH = 'STASH_EVENT'

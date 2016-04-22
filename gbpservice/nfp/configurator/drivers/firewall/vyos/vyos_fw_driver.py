@@ -61,9 +61,9 @@ class FwGenericConfigDriver(object):
                     stitching_cidr=kwargs.get('stitching_cidr'),
                     stitching_mac=kwargs.get('stitching_mac'),
                     provider_interface_position=kwargs.get(
-                                            'provider_interface_position'),
+                                            'provider_interface_index'),
                     stitching_interface_position=kwargs.get(
-                                            'stitching_interface_position'))
+                                            'stitching_interface_index'))
         active_fip = rule_info['active_fip']
 
         url = const.request_url % (active_fip,
@@ -357,14 +357,14 @@ class FwGenericConfigDriver(object):
 
         """
 
-        vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
+        mgmt_ip = kwargs.get('mgmt_ip')
         source_cidrs = kwargs.get('source_cidrs')
         gateway_ip = kwargs.get('gateway_ip')
 
         # REVISIT(VK): This was all along bad way, don't know why at all it
         # was done like this.
 
-        url = const.request_url % (vm_mgmt_ip, const.CONFIGURATION_SERVER_PORT,
+        url = const.request_url % (mgmt_ip, const.CONFIGURATION_SERVER_PORT,
                                    'add-source-route')
         active_configured = False
         route_info = []
@@ -373,19 +373,19 @@ class FwGenericConfigDriver(object):
                                'gateway_ip': gateway_ip})
         data = jsonutils.dumps(route_info)
         msg = ("Initiating POST request to configure route of "
-               "primary service at: %r" % vm_mgmt_ip)
+               "primary service at: %r" % mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.post(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
-                   "%r. ERROR: %r" % (vm_mgmt_ip, str(err).capitalize()))
+                   "%r. ERROR: %r" % (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while configuring "
                    "route of service at: %r ERROR: %r" %
-                   (vm_mgmt_ip, str(err).capitalize()))
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
 
@@ -393,7 +393,7 @@ class FwGenericConfigDriver(object):
             message = jsonutils.loads(resp.text)
             if message.get("status", False):
                 msg = ("Route configured successfully for VYOS"
-                       " service at: %r" % vm_mgmt_ip)
+                       " service at: %r" % mgmt_ip)
                 LOG.info(msg)
                 active_configured = True
             else:
@@ -425,32 +425,32 @@ class FwGenericConfigDriver(object):
 
         """
 
-        vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
+        mgmt_ip = kwargs.get('mgmt_ip')
         source_cidrs = kwargs.get('source_cidrs')
 
         # REVISIT(VK): This was all along bad way, don't know why at all it
         # was done like this.
         active_configured = False
-        url = const.request_url % (vm_mgmt_ip, const.CONFIGURATION_SERVER_PORT,
+        url = const.request_url % (mgmt_ip, const.CONFIGURATION_SERVER_PORT,
                                    'delete-source-route')
         route_info = []
         for source_cidr in source_cidrs:
             route_info.append({'source_cidr': source_cidr})
         data = jsonutils.dumps(route_info)
         msg = ("Initiating DELETE route request to primary service at: %r"
-               % vm_mgmt_ip)
+               % mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   " %r. ERROR: %r" % (vm_mgmt_ip, err))
+                   " %r. ERROR: %r" % (mgmt_ip, err))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while deleting "
                    " route of service at: %r ERROR: %r"
-                   % (vm_mgmt_ip, err))
+                   % (mgmt_ip, err))
             LOG.error(msg)
             return msg
 
@@ -478,6 +478,7 @@ initialized. Also, only this driver class is exposed to the agent.
 
 class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
     service_type = const.SERVICE_TYPE
+    service_vendor = const.VYOS
 
     def __init__(self):
         self.timeout = cfg.CONF.rest_timeout
@@ -564,8 +565,8 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         msg = ("Processing create firewall request in FWaaS Driver "
                "for Firewall ID: %s." % firewall['id'])
         LOG.debug(msg)
-        vm_mgmt_ip = self._get_firewall_attribute(firewall)
-        url = const.request_url % (vm_mgmt_ip,
+        mgmt_ip = self._get_firewall_attribute(firewall)
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'configure-firewall-rule')
         msg = ("Initiating POST request for FIREWALL ID: %r Tenant ID:"
@@ -622,8 +623,8 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
         """
 
-        vm_mgmt_ip = self._get_firewall_attribute(firewall)
-        url = const.request_url % (vm_mgmt_ip,
+        mgmt_ip = self._get_firewall_attribute(firewall)
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'update-firewall-rule')
         msg = ("Initiating UPDATE request. URL: %s" % url)
@@ -656,8 +657,8 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
         """
 
-        vm_mgmt_ip = self._get_firewall_attribute(firewall)
-        url = const.request_url % (vm_mgmt_ip,
+        mgmt_ip = self._get_firewall_attribute(firewall)
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'delete-firewall-rule')
         msg = ("Initiating DELETE request. URL: %s" % url)
