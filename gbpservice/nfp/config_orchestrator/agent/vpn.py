@@ -46,9 +46,20 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             desc.update({s_ele[0]: s_ele[1]})
         return desc
 
+    def _prepare_resource_context_dicts(self, context, tenant_id):
+        # Prepare context_dict
+        ctx_dict = context.to_dict()
+        # Collecting db entry required by configurator.
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
+        db = self._context(context, tenant_id)
+        rsrc_ctx_dict = copy.deepcopy(ctx_dict)
+        rsrc_ctx_dict.update({'service_info': db})
+        return ctx_dict, rsrc_ctx_dict
+
     def _data_wrapper(self, context, tenant_id, **kwargs):
-        ctx_dict, rsrc_ctx_dict = common.\
-            prepare_resource_context_dicts(context, tenant_id)
+        ctx_dict, rsrc_ctx_dict = self.\
+            _prepare_resource_context_dicts(context, tenant_id)
         nfp_context = {'neutron_context': ctx_dict,
                        'requester': 'nas_service'}
         if resource.lower() == 'ipsec_site_connection':
@@ -118,6 +129,17 @@ class VpnNotifier(object):
             return request_data
         return request_data
 
+    def _trigger_service_event(self, context, event_type, event_id,
+                               request_data):
+        event_data = {'resource': None,
+                      'context': context}
+        event_data['resource'] = {'eventtype': event_type,
+                                  'eventid': event_id,
+                                  'eventdata': request_data}
+        ev = self._sc.new_event(id=event_id,
+                                key=event_id, data=event_data)
+        self._sc.post_event(ev)
+
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     # TODO(akash): Event for service create/delete not implemented here
     # Need to do that
@@ -144,8 +166,8 @@ class VpnNotifier(object):
                                                       ipsec_id, service_type)
             LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-            common.trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                         request_data)
+            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
+                                        request_data)
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
@@ -169,5 +191,5 @@ class VpnNotifier(object):
                                                   ipsec_id, service_type)
         LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-        common.trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
-                                     request_data)
+        self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
+                                    request_data)

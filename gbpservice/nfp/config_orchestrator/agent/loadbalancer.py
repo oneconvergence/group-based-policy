@@ -64,9 +64,20 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         db.update(self._get_core_context(context, filters))
         return db
 
+    def _prepare_resource_context_dicts(self, context, tenant_id):
+        # Prepare context_dict
+        ctx_dict = context.to_dict()
+        # Collecting db entry required by configurator.
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
+        db = self._context(context, tenant_id)
+        rsrc_ctx_dict = copy.deepcopy(ctx_dict)
+        rsrc_ctx_dict.update({'service_info': db})
+        return ctx_dict, rsrc_ctx_dict
+
     def _data_wrapper(self, context, tenant_id, name, reason, **kwargs):
-        ctx_dict, rsrc_ctx_dict = common.\
-            prepare_resource_context_dicts(context, tenant_id)
+        ctx_dict, rsrc_ctx_dict = self.\
+            _prepare_resource_context_dicts(context, tenant_id)
         nfp_context = {'neutron_context': ctx_dict,
                        'requester': 'nas_service'}
         if name.lower() == 'vip':
@@ -154,6 +165,17 @@ class LoadbalancerNotifier(object):
             return request_data
         return request_data
 
+    def _trigger_service_event(self, context, event_type, event_id,
+                               request_data):
+        event_data = {'resource': None,
+                      'context': context}
+        event_data['resource'] = {'eventtype': event_type,
+                                  'eventid': event_id,
+                                  'eventdata': request_data}
+        ev = self._sc.new_event(id=event_id,
+                                key=event_id, data=event_data)
+        self._sc.post_event(ev)
+
     def update_status(self, context, notification_data):
         notification = notification_data['notification'][0]
         notification_info = notification_data['info']
@@ -184,8 +206,8 @@ class LoadbalancerNotifier(object):
             LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
             # Sending An Event for visiblity
-            common.trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                         request_data)
+            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
+                                        request_data)
 
     def update_pool_stats(self, context, notification_data):
         notification = notification_data['notification'][0]
@@ -218,5 +240,5 @@ class LoadbalancerNotifier(object):
         LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
         # Sending An Event for visiblity
-        common.trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
-                                     request_data)
+        self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
+                                    request_data)
