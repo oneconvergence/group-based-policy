@@ -11,27 +11,36 @@
 #    under the License.
 
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
+
 from neutron.common import constants as n_constants
 from neutron.common import rpc as n_rpc
 from neutron.common import topics as n_topics
-from oslo_log import log as logging
+
+from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 
-LOG = logging.getLogger(__name__)
-Version = 'v1'  # v1/v2/v3#
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
+
+# Version = 'v1'  # v1/v2/v3#
 
 
-def prepare_request_data(resource, kwargs, service_type):
+def prepare_request_data(context, resource, resource_type,
+                         resource_data, service_vendor=None):
 
     request_data = {'info': {
-        'version': Version,
-        'service_type': service_type
+        # Commenting version, may be need to remove later
+        # 'version': Version,
+        'context': context,
+        'service_type': resource_type,
+        'service_vendor': service_vendor  # Just keeping None for now.
     },
 
         'config': [{
             'resource': resource,
-            'kwargs': kwargs
+            'resource_data': resource_data
         }]
     }
 
@@ -54,7 +63,8 @@ def _filter_data(routers, networks, filters):
         ports = network['ports']
         for subnet in subnets:
             if subnet['tenant_id'] == tenant_id:
-                _filtered_subnets.append({'id': subnet['id']})
+                _filtered_subnets.append({'id': subnet['id'],
+                                          'cidr': subnet['cidr']})
         for port in ports:
             if port['tenant_id'] == tenant_id:
                 _filtered_ports.append({'id': port['id'],
@@ -117,9 +127,9 @@ def get_network_function_map(context, network_function_id):
     try:
         rpc_nso_client = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
         network_function_details = rpc_nso_client.cctxt.call(
-                                       context,
-                                       'get_network_function_details',
-                                       network_function_id=network_function_id)
+            context,
+            'get_network_function_details',
+            network_function_id=network_function_id)
         ports_info = []
         for id in network_function_details[
                 'network_function_instance']['port_info']:
@@ -128,24 +138,48 @@ def get_network_function_map(context, network_function_id):
                                                   port_id=id)
             ports_info.append(port_info)
         mngmt_port_info = rpc_nso_client.cctxt.call(
-                              context,
-                              'get_port_info',
-                              port_id=network_function_details[
-                                  'network_function_device'][
-                                  'mgmt_port_id'])
+            context,
+            'get_port_info',
+            port_id=network_function_details[
+                'network_function_device'][
+                'mgmt_port_id'])
         monitor_port_id = network_function_details[
             'network_function_device']['monitoring_port_id']
         monitor_port_info = None
         if monitor_port_id is not None:
             monitor_port_info = rpc_nso_client.cctxt.call(
-                                    context,
-                                    'get_port_info',
-                                    port_id=monitor_port_id)
+                context,
+                'get_port_info',
+                port_id=monitor_port_id)
 
         request_data = _prepare_structure(network_function_details, ports_info,
                                           mngmt_port_info, monitor_port_info)
-        LOG.info(request_data)
+        LOG(LOGGER, 'INFO', " %s " % (request_data))
     except Exception as e:
-        LOG.error(e)
+        LOG(LOGGER, 'ERROR', " %s " % (e))
         return request_data
     return request_data
+
+
+def trigger_service_event(self, context, event_type, event_id,
+                          request_data):
+    event_data = {'resource': None,
+                  'context': context}
+    event_data['resource'] = {'eventtype': event_type,
+                              'eventid': event_id,
+                              'eventdata': request_data}
+    ev = self._sc.new_event(id=event_id,
+                            key=event_id, data=event_data)
+    self._sc.post_event(ev)
+
+
+def prepare_resource_context_dicts(self, context, tenant_id):
+    # Prepare context_dict
+    ctx_dict = context.to_dict()
+    # Collecting db entry required by configurator.
+    # Addind service_info to neutron context and sending
+    # dictionary format to the configurator.
+    db = self._context(context, tenant_id)
+    rsrc_ctx_dict = copy.deepcopy(ctx_dict)
+    rsrc_ctx_dict.update({'service_info': db})
+    return ctx_dict, rsrc_ctx_dict
