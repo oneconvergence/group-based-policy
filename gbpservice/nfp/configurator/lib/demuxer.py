@@ -76,7 +76,7 @@ class ServiceAgentDemuxer(object):
 
         # Get service type based on the fact that for some request data
         # formats the 'type' key is absent. Check for invalid types
-        service_type = request_data['info'].get('service_type')
+        service_type = request_data['info'].get('service_type').lower()
         if (service_type not in const.supported_service_types):
             return const.invalid_service_type
         else:

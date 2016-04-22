@@ -72,25 +72,21 @@ class FwGenericConfigDriver(object):
         data = jsonutils.dumps(static_ips_info)
 
         msg = ("Initiating POST request to add static IPs for primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" %
-               (rule_info['service_id'], rule_info['tenant_id'],
-                active_fip))
+               "service at: %r" % active_fip)
         LOG.info(msg)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "%r. ERROR: %r" %
+                   (active_fip, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened  while adding "
-                   "static IPs for primary service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+            msg = ("Unexpected ERROR happened while adding "
+                   "static IPs for primary service at: %r. "
+                   "ERROR: %r" %
+                   (active_fip, str(err).capitalize()))
             LOG.error(msg)
             return msg
 
@@ -107,9 +103,7 @@ class FwGenericConfigDriver(object):
             LOG.error(msg)
             return msg
 
-        msg = ("Static IPs successfully added for SERVICE ID: %r"
-               " of tenant: %r" % (rule_info['service_id'],
-                                   rule_info['tenant_id']))
+        msg = ("Static IPs successfully added.")
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
@@ -153,25 +147,20 @@ class FwGenericConfigDriver(object):
                                    const.CONFIGURATION_SERVER_PORT, 'add_rule')
         data = jsonutils.dumps(active_rule_info)
         msg = ("Initiating POST request to add persistent rule to primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" % (
-                    rule_info['service_id'], rule_info['tenant_id'],
-                    active_fip))
+               "service at: %r" % active_fip)
         LOG.info(msg)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "%r. ERROR: %r" %
+                   (active_fip, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while adding "
-                   "persistent rule of primary service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "persistent rule of primary service at: %r. ERROR: %r" %
+                   (active_fip, str(err).capitalize()))
             LOG.error(msg)
             return msg
 
@@ -187,9 +176,7 @@ class FwGenericConfigDriver(object):
             LOG.error(msg)
             return msg
 
-        msg = ("Persistent rule successfully added for SERVICE ID: %r"
-               " of tenant: %r" % (rule_info['service_id'],
-                                   rule_info['tenant_id']))
+        msg = ("Persistent rule successfully added.")
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
@@ -222,25 +209,20 @@ class FwGenericConfigDriver(object):
         data = jsonutils.dumps(static_ips_info)
 
         msg = ("Initiating POST request to remove static IPs for primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" %
-               (rule_info['service_id'], rule_info['tenant_id'],
-                active_fip))
+               "service at: %r" % active_fip)
         LOG.info(msg)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "%r. ERROR: %r" %
+                   (active_fip, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while removing "
-                   "static IPs for primary service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "static IPs for primary service at: %r. ERROR: %r" %
+                   (active_fip, str(err).capitalize()))
             LOG.error(msg)
             return msg
 
@@ -257,9 +239,7 @@ class FwGenericConfigDriver(object):
             LOG.error(msg)
             return msg
 
-        msg = ("Static IPs successfully removed for SERVICE ID: %r"
-               " of tenant: %r" % (rule_info['service_id'],
-                                   rule_info['tenant_id']))
+        msg = ("Static IPs successfully removed.")
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
@@ -300,9 +280,7 @@ class FwGenericConfigDriver(object):
 
         active_fip = rule_info['active_fip']
 
-        msg = ("Initiating DELETE persistent rule for SERVICE ID: %r of "
-               "tenant: %r " %
-               (rule_info['service_id'], rule_info['tenant_id']))
+        msg = ("Initiating DELETE persistent rule.")
         LOG.info(msg)
         url = const.request_url % (active_fip,
                                    const.CONFIGURATION_SERVER_PORT,
@@ -312,18 +290,15 @@ class FwGenericConfigDriver(object):
             data = jsonutils.dumps(active_rule_info)
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+            msg = ("Failed to establish connection to service at: %r. "
+                   "ERROR: %r" %
+                   (active_fip, str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while deleting "
-                   "persistent rule of service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "persistent rule of service at: %r. ERROR: %r" %
+                   (active_fip, str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
 
@@ -338,9 +313,7 @@ class FwGenericConfigDriver(object):
             msg = ("Error deleting persistent rule. URL: %r" % url)
             LOG.error(msg)
             raise Exception(msg)
-        msg = ("Persistent rule successfully deleted for SERVICE ID: %r"
-               " of tenant: %r " % (rule_info['service_id'],
-                                    rule_info['tenant_id']))
+        msg = ("Persistent rule successfully deleted.")
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
