@@ -103,9 +103,12 @@ class ServiceAgentDemuxer(object):
         """
 
         sa_info_list = []
+        vendor_map = {const.FIREWALL: const.VYOS,
+                      const.LOADBALANCER: const.HAPROXY}
+
         service_vendor = request_data['info']['service_vendor']
         if str(service_vendor) == 'None':
-            service_vendor = 'vyos'
+            service_vendor = vendor_map[service_type]
 
         for config_data in request_data['config']:
             sa_info = {}

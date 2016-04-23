@@ -64,7 +64,7 @@ class LBaasRpcSender(data_filter.Filter):
                'notification': [{'resource': agent_info['resource'],
                                  'data': {'obj_type': obj_type,
                                           'obj_id': obj_id,
-                                          'method': 'update_status',
+                                          'notification_type': 'update_status',
                                           'status': status,
                                           obj_type: obj}}]
                }
@@ -82,7 +82,8 @@ class LBaasRpcSender(data_filter.Filter):
                'notification': [{'resource': 'pool',
                                  'data': {'pool_id': pool_id,
                                           'stats': stats,
-                                          'method': 'update_pool_stats',
+                                          'notification_type': (
+                                                        'update_pool_stats'),
                                           'pool': pool_id}}]
                }
         self.notify._notification(msg)
@@ -100,7 +101,7 @@ class LBaasRpcSender(data_filter.Filter):
                'notification': [{'resource': agent_info['resource'],
                                  'data': {'vip_id': vip['id'],
                                           'vip': vip,
-                                          'method': 'vip_deleted',
+                                          'notification_type': 'vip_deleted',
                                           'status': status}}]
                }
         self.notify._notification(msg)
@@ -512,14 +513,15 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         try:
             if operation == 'create':
                 driver_name = data['driver_name']
-                if driver_name not in self.drivers:
+                driver_id = driver_name + service_vendor
+                if (driver_id) not in self.drivers.keys():
                     msg = ('No device driver on agent: %s.' % (driver_name))
                     LOG.error(msg)
                     self.plugin_rpc.update_status('pool', pool['id'],
                                                   lb_constants.ERROR,
                                                   agent_info, pool)
                     return
-                driver = self.drivers[driver_name]
+                driver = self.drivers[driver_id]
                 driver.create_pool(pool, context)
                 LBaaSEventHandler.instance_mapping[pool['id']] = driver_name
             elif operation == 'update':
@@ -649,7 +651,8 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                               spacing=60)
     def collect_stats(self, ev):
         for pool_id, driver_name in LBaaSEventHandler.instance_mapping.items():
-            driver = self.drivers[driver_name]
+            driver_id = lb_constants.SERVICE_TYPE + driver_name
+            driver = self.drivers[driver_id]
             try:
                 stats = driver.get_stats(pool_id)
                 if stats:
