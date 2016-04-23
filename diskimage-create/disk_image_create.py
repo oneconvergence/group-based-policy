@@ -43,7 +43,8 @@ def dib():
     image_name = conf['ubuntu_release']['release']
 
     # basic elements
-    dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu', 'devuser']
+    dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu', 'devuser',
+                'dhcp-all-interfaces']
 
     # create user
     os.environ['DIB_DEV_USER_USERNAME'] = 'ubuntu'
@@ -74,6 +75,14 @@ def dib():
     image_name = image_name + '_' + timestamp
     dib_args.append('-o')
     dib_args.append(str(image_name))
+
+    # set environment variable, needed by 'extra-data.d'
+    os.environ['NFP_IMAGE_NAME'] = image_name
+    if 'nfp-reference-configurator' in dib['elements']:
+        os.environ['SSH_RSS_KEY'] = (
+            "%s/output/%s" % (cur_dir, image_name))
+        os.environ['DIB_DEV_USER_AUTHORIZED_KEYS'] = (
+            "%s.pub" % os.environ['SSH_RSS_KEY'])
 
     os.chdir(cur_dir)
     out_dir = 'output'
