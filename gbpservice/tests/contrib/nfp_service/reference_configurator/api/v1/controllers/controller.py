@@ -182,8 +182,8 @@ class Controller(rest.RestController):
 
     def _add_routes(self, route_info):
         source_cidrs = route_info['resource_data']['source_cidrs']
-        # consumer_cidr = route_info['resource_data']['destination_cidr']
         gateway_ip = route_info['resource_data']['gateway_ip']
+        default_route_commands = []
         for cidr in source_cidrs:
             source_interface = self._get_if_name_by_cidr(cidr)
             try:
@@ -202,11 +202,15 @@ class Controller(rest.RestController):
                                     stdout=subprocess.PIPE).stdout.read()
             ip_route_command = "ip route add table %s default via %s" % (
                                     routing_table_number, gateway_ip)
-            out3 = subprocess.Popen(ip_route_command, shell=True,
-                                    stdout=subprocess.PIPE).stdout.read()
-            output = "%s\n%s\n%s" % (out1, out2, out3)
+            default_route_commands.append(ip_route_command)
+            output = "%s\n%s" % (out1, out2)
             LOG.info(_LI("Static route configuration result: %(output)s") %
                      {'output': output})
+        for command in default_route_commands:
+            out = subprocess.Popen(command, shell=True,
+                                   stdout=subprocess.PIPE).stdout.read()
+            LOG.info(_LI("Static route configuration result: %(output)s") %
+                     {'output': out})
 
     def _get_if_name_by_cidr(self, cidr):
         interfaces = netifaces.interfaces()
