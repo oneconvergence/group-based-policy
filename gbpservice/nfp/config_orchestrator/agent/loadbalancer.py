@@ -11,6 +11,7 @@
 #    under the License.
 
 import ast
+import copy
 
 from gbpservice.nfp.common import constants as const
 from gbpservice.nfp.config_orchestrator.agent import common
@@ -40,6 +41,22 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         self._conf = conf
         self._sc = sc
         super(LbAgent, self).__init__()
+
+    def _filter_service_info_with_resource(self, db):
+        updated_db = {'subnets': [],
+                      'ports': []}
+        for pool in db['pools']:
+            psubnet_id = pool['subnet_id']
+            for subnet in db['subnets']:
+                if subnet['id'] == psubnet_id:
+                    updated_db['subnets'].append(subnet)
+        for vip in db['vips']:
+            vport_id = vip['port_id']
+            for port in db['ports']:
+                if port['id'] == vport_id:
+                    updated_db['ports'].append(port)
+        db.update(updated_db)
+        return db
 
     def _get_core_context(self, context, filters):
         core_context_dict = common.get_core_context(context,
@@ -72,6 +89,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         # dictionary format to the configurator.
         db = self._context(context, tenant_id)
         rsrc_ctx_dict = copy.deepcopy(ctx_dict)
+        db = self._filter_service_info_with_resource(db)
         rsrc_ctx_dict.update({'service_info': db})
         return ctx_dict, rsrc_ctx_dict
 
@@ -88,8 +106,8 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
                                 'vip_id': vip_id})
         resource_type = 'loadbalancer'
         resource = name
-        resource_data = {resource: kwargs[resource],
-                         'neutron_context': rsrc_ctx_dict}
+        resource_data = {'neutron_context': rsrc_ctx_dict}
+        resource_data.update(**kwargs)
         body = common.prepare_request_data(nfp_context, resource,
                                            resource_type, resource_data)
         return body
@@ -100,7 +118,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         transport.send_request_to_configurator(self._conf,
                                                context, body, "CREATE")
 
-    def _delete(self, context, tenant_id, name, resource_data):
+    def _delete(self, context, tenant_id, name, **kwargs):
         body = self._data_wrapper(context, tenant_id, name,
                                   'DELETE', **kwargs)
         transport.send_request_to_configurator(self._conf,

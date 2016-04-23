@@ -59,7 +59,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
             tenant_id = context.tenant_id
         filters = {'tenant_id': [tenant_id]}
         db = self._get_firewall_context(context, filters)
-        db.update(self._get_core_context(context, filters))
+        # db.update(self._get_core_context(context, filters))
         return db
 
     def _prepare_resource_context_dicts(self, context, tenant_id):
