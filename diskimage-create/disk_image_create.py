@@ -43,7 +43,11 @@ def dib():
     image_name = conf['ubuntu_release']['release']
 
     # basic elements
-    dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu', 'debs']
+    dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu', 'devuser']
+
+    # create user
+    os.environ['DIB_DEV_USER_USERNAME'] = 'ubuntu'
+    os.environ['DIB_DEV_USER_SHELL'] = '/bin/bash'
 
     # configures elements
     for element in dib['elements']:
@@ -54,7 +58,7 @@ def dib():
             os.environ['DIB_PASSWORD'] = dib['root_password']
         if element == 'nfp-reference-configurator':
             # set environment variable, needed by 'extra-data.d'
-            service_dir = cur_dir + '/gbpservice/tests/contrib/nfp_service/'
+            service_dir = cur_dir + '/../gbpservice/tests/contrib/nfp_service/'
             service_dir = os.path.realpath(service_dir)
             os.environ['SERVICE_GIT_PATH'] = service_dir
 
@@ -77,9 +81,10 @@ def dib():
         os.makedirs(out_dir)
     os.chdir(out_dir)
     print("DIB-ARGS: %r" % dib_args)
+
     ret = subprocess.call(dib_args)
     if not ret:
-        image_path = os.path.realpath('./') + '/' + image_name
+        image_path = os.path.realpath('./') + '/' + image_name + '.qcow2'
         print("Image location: %s" % image_path)
         with open("/tmp/nfp_image_path", "w") as f:
             f.write(image_path)
