@@ -1,8 +1,20 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 #! /usr/bin/python
 
 import datetime
-import json
 import os
+from oslo_serialization import jsonutils
 import subprocess
 import sys
 
@@ -15,7 +27,7 @@ def parse_json(j_file):
     global conf
 
     with open(j_file) as json_data:
-        conf = json.load(json_data)
+        conf = jsonutils.load(json_data)
     return
 
 
@@ -31,7 +43,11 @@ def dib():
     image_name = conf['ubuntu_release']['release']
 
     # basic elements
-    dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu', 'debs']
+    dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu', 'devuser']
+
+    # create user
+    os.environ['DIB_DEV_USER_USERNAME'] = 'ubuntu'
+    os.environ['DIB_DEV_USER_SHELL'] = '/bin/bash'
 
     # configures elements
     for element in dib['elements']:
@@ -42,7 +58,7 @@ def dib():
             os.environ['DIB_PASSWORD'] = dib['root_password']
         if element == 'nfp-reference-configurator':
             # set environment variable, needed by 'extra-data.d'
-            service_dir = cur_dir + '/gbpservice/tests/contrib/nfp_service/'
+            service_dir = cur_dir + '/../gbpservice/tests/contrib/nfp_service/'
             service_dir = os.path.realpath(service_dir)
             os.environ['SERVICE_GIT_PATH'] = service_dir
 
@@ -64,11 +80,12 @@ def dib():
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
     os.chdir(out_dir)
-    print "DIB-ARGS: ", dib_args
+    print("DIB-ARGS: %r" % dib_args)
+
     ret = subprocess.call(dib_args)
     if not ret:
-        image_path = os.path.realpath('./') + '/' + image_name
-        print "Image location: %s" % image_path
+        image_path = os.path.realpath('./') + '/' + image_name + '.qcow2'
+        print("Image location: %s" % image_path)
         with open("/tmp/nfp_image_path", "w") as f:
             f.write(image_path)
 
@@ -76,9 +93,9 @@ def dib():
 if __name__ == "__main__":
 
     if len(sys.argv) != 2:
-        print "ERROR: Invalid Usage"
-        print "Usage:\n\t%s <json config file>" % sys.argv[0]
-        print "\twhere: <json config file> contains all the configuration"
+        print("ERROR: Invalid Usage")
+        print("Usage:\n\t%s <json config file>" % sys.argv[0])
+        print("\twhere: <json config file> contains all the configuration")
         exit()
 
     # save PWD
