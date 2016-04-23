@@ -108,7 +108,7 @@ class ServiceAgentDemuxer(object):
 
         service_vendor = request_data['info']['service_vendor']
         if str(service_vendor) == 'None':
-            service_vendor = vendor_map(service_type)
+            service_vendor = vendor_map[service_type]
 
         for config_data in request_data['config']:
             sa_info = {}
