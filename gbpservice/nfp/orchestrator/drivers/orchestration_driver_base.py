@@ -31,9 +31,10 @@ LOG = logging.getLogger(__name__)
 def _set_network_handler(f):
     def wrapped(self, *args, **kwargs):
         device_data = args[0]
-        network_model = device_data.get('network_model')
-        if network_model:
-            kwargs['network_handler'] = self.network_handlers[network_model]
+        if device_data.get('service_details'):
+            network_mode = device_data['service_details'].get('network_mode')
+            if network_mode:
+                kwargs['network_handler'] = self.network_handlers[network_mode]
         return f(self, *args, **kwargs)
     return wrapped
 
@@ -140,7 +141,8 @@ class OrchestrationDriverBase(object):
 
         return {'id': mgmt_interface['id'],
                 'port_model': (nfp_constants.GBP_PORT
-                               if device_data['network_model'] ==
+                               if device_data['service_details'][
+                                                        'network_mode'] ==
                                nfp_constants.GBP_MODE
                                else nfp_constants.NEUTRON_PORT),
                 'port_classification': nfp_constants.MANAGEMENT,
@@ -181,7 +183,7 @@ class OrchestrationDriverBase(object):
     def get_network_function_device_sharing_info(self, device_data):
         """ Get filters for NFD sharing
 
-        :param device_data: NFD device
+        :param device_data: NFD data
         :type device_data: dict
 
         :returns: None -- when device sharing is not supported
@@ -198,15 +200,23 @@ class OrchestrationDriverBase(object):
         if not self._is_device_sharing_supported():
             return None
 
-        if any(key not in device_data
-               for key in ['tenant_id',
-                           'service_details']):
+        if (
+            any(key not in device_data
+                for key in ['tenant_id',
+                            'service_details']) or
+
+            type(device_data['service_details']) is not dict or
+
+            any(key not in device_data['service_details']
+                for key in ['service_vendor'])
+        ):
             raise exceptions.IncompleteData()
 
         return {
                 'filters': {
                     'tenant_id': [device_data['tenant_id']],
-                    'service_vendor': [device_data['service_vendor']],
+                    'service_vendor': [device_data['service_details'][
+                                                        'service_vendor']],
                     'status': [nfp_constants.ACTIVE]
                 }
         }
@@ -216,12 +226,12 @@ class OrchestrationDriverBase(object):
 
         :param devices: NFDs
         :type devices: list
-        :param device_data: NFD device
+        :param device_data: NFD data
         :type device_data: dict
 
         :returns: None -- when device sharing is not supported, or
                           when no device is eligible for sharing
-        :return: dict -- NFD device which is eligible for sharing
+        :return: dict -- NFD which is eligible for sharing
 
         :raises: exceptions.IncompleteData
         """
@@ -266,24 +276,28 @@ class OrchestrationDriverBase(object):
                                        network_handler=None):
         """ Create a NFD
 
-        :param device_data: NFD device
+        :param device_data: NFD data
         :type device_data: dict
 
         :returns: None -- when there is a failure in creating NFD
-        :return: dict -- NFD device created
+        :return: dict -- NFD created
 
         :raises: exceptions.IncompleteData,
                  exceptions.ComputePolicyNotSupported
         """
         if (
             any(key not in device_data
-                for key in ['tenant_id',
-                            'service_vendor',
-                            'service_details',
-                            'network_model',
+                for key in ['service_details',
                             'name',
                             'management_network_info',
                             'ports']) or
+
+            type(device_data['service_details']) is not dict or
+
+            any(key not in device_data['service_details']
+                for key in ['service_vendor',
+                            'device_type',
+                            'network_mode']) or
 
             any(key not in device_data['management_network_info']
                 for key in ['id']) or
@@ -338,11 +352,11 @@ class OrchestrationDriverBase(object):
             image_name = device_data['service_details']['image_name']
         else:
             LOG.info(_LI(log_meta_data + "No image name provided in service"
-                         " profile's service flavor field, image will be"
-                         " selected based on service vendor's name:%s")
-                     % (device_data['service_vendor']))
-            image_name = device_data['service_vendor']
-        image_name = '%s' % image_name.lower()
+                         "profile's service flavor field, image will be"
+                         "selected based on service vendor's name : %s")
+                     % (device_data['service_details']['service_vendor']))
+            image_name = device_data['service_details']['service_vendor']
+            image_name = '%s' % image_name.lower()
         try:
             image_id = self.compute_handler_nova.get_image_id(
                     token,
@@ -429,7 +443,7 @@ class OrchestrationDriverBase(object):
                                             token,
                                             self._get_admin_tenant_id(
                                                                 token=token),
-                                            device_data['id'])
+                                            instance_id)
             except Exception:
                 self._increment_stats_counter('instance_delete_failures')
                 LOG.error(_LE(log_meta_data + 'Failed to delete %s instance')
@@ -454,7 +468,7 @@ class OrchestrationDriverBase(object):
                                        network_handler=None):
         """ Delete the NFD
 
-        :param device_data: NFD device
+        :param device_data: NFD
         :type device_data: dict
 
         :returns: None -- Both on success and Failure
@@ -464,10 +478,15 @@ class OrchestrationDriverBase(object):
         """
         if (
             any(key not in device_data
-                for key in ['tenant_id',
-                            'service_details',
-                            'network_model',
+                for key in ['service_details',
                             'mgmt_port_id']) or
+
+            type(device_data['service_details']) is not dict or
+
+            any(key not in device_data['service_details']
+                for key in ['service_vendor',
+                            'device_type',
+                            'network_mode']) or
 
             type(device_data['mgmt_port_id']) is not dict or
 
@@ -483,8 +502,7 @@ class OrchestrationDriverBase(object):
             nfp_constants.NOVA_MODE
         ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=device_data['service_details'][
-                                                                'device_type'])
+                compute_policy=device_data['service_details']['device_type'])
 
         try:
             token = (device_data['token']
@@ -527,7 +545,7 @@ class OrchestrationDriverBase(object):
                                            ignore_failure=False):
         """ Get the status of NFD
 
-        :param device_data: NFD device
+        :param device_data: NFD
         :type device_data: dict
 
         :returns: None -- On failure
@@ -536,10 +554,18 @@ class OrchestrationDriverBase(object):
         :raises: exceptions.IncompleteData,
                  exceptions.ComputePolicyNotSupported
         """
-        if any(key not in device_data
-               for key in ['id',
-                           'tenant_id',
-                           'service_details']):
+        if (
+            any(key not in device_data
+                for key in ['id',
+                            'service_details']) or
+
+            type(device_data['service_details']) is not dict or
+
+            any(key not in device_data['service_details']
+                for key in ['service_vendor',
+                            'device_type',
+                            'network_mode'])
+        ):
             raise exceptions.IncompleteData()
 
         if (
@@ -547,8 +573,7 @@ class OrchestrationDriverBase(object):
             nfp_constants.NOVA_MODE
         ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=device_data['service_details'][
-                                                                'device_type'])
+                compute_policy=device_data['service_details']['device_type'])
 
         try:
             token = (device_data['token']
@@ -580,25 +605,30 @@ class OrchestrationDriverBase(object):
                                                 network_handler=None):
         """ Attach the network interfaces for NFD
 
-        :param device_data: NFD device
+        :param device_data: NFD
         :type device_data: dict
 
         :returns: bool -- False on failure and True on Success
 
         :raises: exceptions.IncompleteData,
-                 exceptions.ComputePolicyNotSupported,
-                 exceptions.HotplugNotSupported
+                 exceptions.ComputePolicyNotSupported
         """
         if not self.supports_hotplug:
-            raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
+            # Nothing to do here.
+            return True
 
         if (
             any(key not in device_data
                 for key in ['id',
-                            'tenant_id',
                             'service_details',
-                            'network_model',
                             'ports']) or
+
+            type(device_data['service_details']) is not dict or
+
+            any(key not in device_data['service_details']
+                for key in ['service_vendor',
+                            'device_type',
+                            'network_mode']) or
 
             type(device_data['ports']) is not list or
 
@@ -615,8 +645,7 @@ class OrchestrationDriverBase(object):
             nfp_constants.NOVA_MODE
         ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=device_data['service_details'][
-                                                                'device_type'])
+                compute_policy=device_data['service_details']['device_type'])
 
         try:
             token = (device_data['token']
@@ -633,7 +662,7 @@ class OrchestrationDriverBase(object):
                 if port['port_classification'] == nfp_constants.PROVIDER:
                     if (
                         device_data['service_details']['service_type'].lower()
-                        in [nfp_constants.FIREWALL]
+                        in [nfp_constants.FIREWALL.lower()]
                     ):
                         network_handler.set_promiscuos_mode(token, port['id'])
                     port_id = network_handler.get_port_id(token, port['id'])
@@ -647,7 +676,7 @@ class OrchestrationDriverBase(object):
                 if port['port_classification'] == nfp_constants.CONSUMER:
                     if (
                         device_data['service_details']['service_type'].lower()
-                        in [nfp_constants.FIREWALL]
+                        in [nfp_constants.FIREWALL.lower()]
                     ):
                         network_handler.set_promiscuos_mode(token, port['id'])
                     port_id = network_handler.get_port_id(token, port['id'])
@@ -669,25 +698,30 @@ class OrchestrationDriverBase(object):
                                                   network_handler=None):
         """ Detach the network interfaces for NFD
 
-        :param device_data: NFD device
+        :param device_data: NFD
         :type device_data: dict
 
         :returns: bool -- False on failure and True on Success
 
         :raises: exceptions.IncompleteData,
-                 exceptions.ComputePolicyNotSupported,
-                 exceptions.HotplugNotSupported
+                 exceptions.ComputePolicyNotSupported
         """
         if not self.supports_hotplug:
-            raise exceptions.HotplugNotSupported(vendor=self.service_vendor)
+            # Nothing to do here.
+            return True
 
         if (
             any(key not in device_data
                 for key in ['id',
-                            'tenant_id',
                             'service_details',
-                            'network_model',
                             'ports']) or
+
+            type(device_data['service_details']) is not dict or
+
+            any(key not in device_data['service_details']
+                for key in ['service_vendor',
+                            'device_type',
+                            'network_mode']) or
 
             any(key not in port
                 for port in device_data['ports']
@@ -702,8 +736,7 @@ class OrchestrationDriverBase(object):
             nfp_constants.NOVA_MODE
         ):
             raise exceptions.ComputePolicyNotSupported(
-                                compute_policy=device_data['service_details'][
-                                                                'device_type'])
+                compute_policy=device_data['service_details']['device_type'])
 
         try:
             token = (device_data['token']
@@ -733,19 +766,15 @@ class OrchestrationDriverBase(object):
     def get_network_function_device_healthcheck_info(self, device_data):
         """ Get the health check information for NFD
 
-        :param device_data: NFD device
+        :param device_data: NFD
         :type device_data: dict
 
         :returns: dict -- It has the following scheme
         {
-            'info': {
-                'version': <int>
-            },
             'config': [
                 {
                     'resource': 'healthmonitor',
-                    'kwargs': {
-                        'service_type': <str>,
+                    'resource_data': {
                         ...
                     }
                 }
@@ -754,25 +783,21 @@ class OrchestrationDriverBase(object):
 
         :raises: exceptions.IncompleteData
         """
-        if any(key not in device_data
-               for key in ['id',
-                           'mgmt_ip_address',
-                           'service_details']):
+        if (
+            any(key not in device_data
+                for key in ['id',
+                            'mgmt_ip_address'])
+        ):
             raise exceptions.IncompleteData()
 
         return {
-            'info': {
-                'version': 1
-            },
             'config': [
                 {
                     'resource': 'healthmonitor',
-                    'kwargs': {
+                    'resource_data': {
                         'vmid': device_data['id'],
                         'mgmt_ip': device_data['mgmt_ip_address'],
-                        'periodicity': 'initial',
-                        'service_type': (device_data['service_details'
-                                                     ]['service_type'].lower())
+                        'periodicity': 'initial'
                     }
                 }
             ]

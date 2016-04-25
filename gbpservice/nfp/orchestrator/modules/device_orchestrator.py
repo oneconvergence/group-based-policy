@@ -18,8 +18,8 @@ import oslo_messaging as messaging
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.core.event import Event
-from gbpservice.nfp.core.poll import PollEventDesc
 from gbpservice.nfp.core.poll import poll_event_desc
+from gbpservice.nfp.core.poll import PollEventDesc
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
 from gbpservice.nfp.lib import nfp_log_helper
@@ -109,14 +109,15 @@ class RpcHandler(object):
             self._controller.post_event(ev)
 
     # RPC APIs status notification from Configurator
-    def network_function_device_notification(self, context, notification_data):
-        responses = notification_data.get('kwargs')
-
+    def network_function_notification(self, context, notification_data):
+        info = notification_data.get('info')
+        responses = notification_data.get('notification')
+        request_info = info.get('context')
+        operation = request_info.get('operation')
         for response in responses:
             resource = response.get('resource')
-            request_info = response.get('request_info')
-            result = response.get('result')
-            operation = request_info['operation']
+            data = response.get('data')
+            result = data.get('status_code')
 
             is_delete_request = True if operation == 'delete' else False
 
@@ -133,6 +134,12 @@ class RpcHandler(object):
                     event_id = self.rpc_event_mapping[resource][2]
                 break
 
+        nf_id = request_info.pop('nf_id')
+        nfi_id = request_info.pop('nfi_id')
+        nfd_id = request_info.pop('nfd_id')
+        request_info['network_function_id'] = nf_id
+        request_info['network_function_instance_id'] = nfi_id
+        request_info['network_function_device_id'] = nfd_id
         event_data = request_info
         event_data['id'] = request_info['network_function_device_id']
         self._create_event(event_id=event_id,
@@ -299,7 +306,7 @@ class DeviceOrchestrator(PollEventDesc):
                          " on Compute"))
             device = ev.data
             orchestration_driver = self._get_orchestration_driver(
-                                                device['service_vendor'])
+                device['service_details']['service_vendor'])
             device_id = device['id']
             del device['id']
             orchestration_driver.delete_network_function_device(device)
@@ -378,7 +385,7 @@ class DeviceOrchestrator(PollEventDesc):
     def _get_device_to_reuse(self, device_data, dev_sharing_info):
         device_filters = dev_sharing_info['filters']
         orchestration_driver = self._get_orchestration_driver(
-                                        device_data['service_vendor'])
+            device_data['service_details']['service_vendor'])
 
         devices = self._get_network_function_devices(device_filters)
 
@@ -390,7 +397,6 @@ class DeviceOrchestrator(PollEventDesc):
         device_data = {}
         network_function = nfd_request.get('network_function')
         network_function_instance = nfd_request['network_function_instance']
-        service_vendor = nfd_request['service_details'].get('service_vendor')
         service_details = nfd_request['service_details']
         device_data['name'] = network_function_instance['name']
         device_data['share_existing_device'] = (
@@ -414,14 +420,13 @@ class DeviceOrchestrator(PollEventDesc):
 
         device_data['ports'] = nsi_port_info
 
-        if service_vendor:
-            device_data['service_vendor'] = service_vendor
-        if service_details:
-            device_data['service_details'] = service_details
+        device_data['service_details'] = service_details
         if nsi_port_info[0]['port_model'] == nfp_constants.GBP_PORT:
-            device_data['network_model'] = nfp_constants.GBP_MODE
+            device_data['service_details']['network_mode'] = (
+                nfp_constants.GBP_MODE)
         else:
-            device_data['network_model'] = nfp_constants.NEUTRON_MODE
+            device_data['service_details']['network_mode'] = (
+                nfp_constants.NEUTRON_MODE)
         device_data['log_meta_data'] = nfd_request.get('log_meta_data')
         return device_data
 
@@ -447,7 +452,7 @@ class DeviceOrchestrator(PollEventDesc):
 
         device_data = self._get_device_data(nfd_request)
         orchestration_driver = self._get_orchestration_driver(
-                                    device_data['service_vendor'])
+            device_data['service_details']['service_vendor'])
         dev_sharing_info = (
             orchestration_driver.get_network_function_device_sharing_info(
                 device_data))
@@ -519,7 +524,7 @@ class DeviceOrchestrator(PollEventDesc):
         device = event.data
 
         orchestration_driver = self._get_orchestration_driver(
-            device['service_vendor'])
+            device['service_details']['service_vendor'])
         is_device_up = (
             orchestration_driver.get_network_function_device_status(device))
         if is_device_up == nfp_constants.ACTIVE:
@@ -551,7 +556,7 @@ class DeviceOrchestrator(PollEventDesc):
         # The driver tells which protocol / port to monitor ??
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
-            device['service_vendor'])
+            device['service_details']['service_vendor'])
         hm_req = (
             orchestration_driver.get_network_function_device_healthcheck_info(
                                                                 device))
@@ -593,12 +598,10 @@ class DeviceOrchestrator(PollEventDesc):
             admin_token, network_function['service_profile_id'])
         service_details = transport.parse_service_flavor_string(
                                         service_profile['service_flavor'])
-        service_vendor = service_details['service_vendor']
 
         device_info.update({
                     'network_function_instance': network_function_instance})
         device_info.update({'id': network_function_device_id})
-        device_info.update({'service_vendor': service_vendor})
         service_details.update({'service_type': self._get_service_type(
                                  network_function['service_profile_id'])})
         device_info.update({'service_details': service_details})
@@ -628,7 +631,7 @@ class DeviceOrchestrator(PollEventDesc):
         LOG.info(_LI(log_meta_data + " HEALTH_CHECK_COMPLETED for"
                      " device %s ") % (device['id']))
         orchestration_driver = self._get_orchestration_driver(
-            device['service_vendor'])
+            device['service_details']['service_vendor'])
         _ifaces_plugged_in = (
             orchestration_driver.plug_network_function_device_interfaces(
                 device))
@@ -646,7 +649,7 @@ class DeviceOrchestrator(PollEventDesc):
     def create_device_configuration(self, event):
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
-            device['service_vendor'])
+            device['service_details']['service_vendor'])
         config_params = (
             orchestration_driver.get_network_function_device_config_info(
                                                                     device))
@@ -706,7 +709,7 @@ class DeviceOrchestrator(PollEventDesc):
     def delete_device_configuration(self, event):
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
-            device['service_vendor'])
+            device['service_details']['service_vendor'])
         config_params = (
             orchestration_driver.get_network_function_device_config_info(
                                                                 device))
@@ -726,7 +729,7 @@ class DeviceOrchestrator(PollEventDesc):
         device = self._prepare_device_data(device_info)
         device['log_meta_data'] = log_meta_data
         orchestration_driver = self._get_orchestration_driver(
-            device['service_vendor'])
+            device['service_details']['service_vendor'])
 
         is_interface_unplugged = (
             orchestration_driver.unplug_network_function_device_interfaces(
@@ -748,7 +751,7 @@ class DeviceOrchestrator(PollEventDesc):
                          if 'log_meta_data' in event.data else '')
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
-            device['service_vendor'])
+            device['service_details']['service_vendor'])
 
         self._decrement_device_ref_count(device)
         device_ref_count = device['reference_count']
@@ -776,7 +779,7 @@ class DeviceOrchestrator(PollEventDesc):
     def check_device_deleted(self, event):
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
-            device['service_vendor'])
+            device['service_details']['service_vendor'])
         status = orchestration_driver.get_network_function_device_status(
                         device, ignore_failure=True)
         if not status:
@@ -893,10 +896,11 @@ class NDOConfiguratorRpcApi(object):
 
     def _get_request_info(self, device, operation):
         request_info = {
-                'network_function_id': device['network_function_id'],
-                'network_function_instance_id': (
-                                device['network_function_instance_id']),
-                'network_function_device_id': device['id'],
+                'nf_id': device['network_function_id'],
+                'nfi_id': (
+                           device['network_function_instance_id']),
+                'nfd_id': device['id'],
+                'requester': nfp_constants.DEVICE_ORCHESTRATOR,
                 'operation': operation,
                 'log_meta_data': device.get('log_meta_data')
         }
@@ -908,8 +912,11 @@ class NDOConfiguratorRpcApi(object):
         request_info = self._get_request_info(device_data, operation)
         if not config_params:
             return None
-        for config in config_params.get('config'):
-            config['kwargs']['request_info'] = request_info
+        config_params['info'] = {
+            'service_type': device_data['service_details']['service_type'],
+            'service_vendor': device_data['service_details']['service_vendor'],
+            'context': request_info
+        }
 
     def create_network_function_device_config(self, device_data,
                                               config_params):
