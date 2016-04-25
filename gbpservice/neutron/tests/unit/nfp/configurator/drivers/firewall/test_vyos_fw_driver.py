@@ -41,7 +41,7 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
             self.driver = fw_dvr.FwGenericConfigDriver()
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True}
-        self.kwargs = self.fo._fake_kwargs()
+        self.kwargs = self.fo._fake_resource_data()
 
     def test_configure_interfaces(self):
         """ Implements test case for configure interfaces method
