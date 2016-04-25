@@ -92,23 +92,26 @@ class VpnaasRpcSender(data_filter.Filter):
         This method call updates status attribute of
         VPNServices.
         """
-        msg = {'receiver': const.NEUTRON.lower(),
-               'resource': const.SERVICE_TYPE,
-               'method': 'update_status',
-               'kwargs': {'context': context,
-                          'status': status}
+        msg = {'info': {'service_type': const.SERVICE_TYPE,
+                        'context': context['agent_info']['context']},
+               'notification': [{
+                     'resource': context['agent_info']['resource'],
+                     'data': {'status': status,
+                              'notification_type': (
+                                    'update_status')}}]
                }
         self._notify._notification(msg)
 
     def ipsec_site_conn_deleted(self, context, resource_id):
         """ Notify VPNaaS plugin about delete of ipsec-site-conn """
 
-        msg = {'receiver': const.NEUTRON.lower(),
-               'resource': const.SERVICE_TYPE,
-               'method': 'ipsec_site_connection_deleted',
-               'kwargs': {'context': context,
-                          'resource_id': resource_id}
-               }
+        msg = {'info': {'service_type': const.SERVICE_TYPE,
+                        'context': context['agent_info']['context']},
+               'notification': [{
+                     'resource': context['agent_info']['resource'],
+                     'data': {'status': status,
+                              'notification_type': (
+                                    'ipsec_site_conn_deleted')}}]
         self._notify._notification(msg)
 
 """ Implements VPNaasRpcManager class which receives requests
@@ -141,16 +144,16 @@ class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
 
         super(VPNaasRpcManager, self).__init__(conf, sc)
 
-    def vpnservice_updated(self, context, **kwargs):
+    def vpnservice_updated(self, context, **resource_data):
         """Registers the VPNaas plugin events to update the vpn configurations.
 
         :param context: dictionary, confined to the specific service type.
-        :param kwargs: dictionary, confined to the specific operation type.
+        :param resource_data: dictionary, confined to the specific operation type.
 
         Returns: None
         """
         arg_dict = {'context': context,
-                    'kwargs': kwargs}
+                    'resource_data': resource_data}
         ev = self.sc.new_event(id='VPNSERVICE_UPDATED', data=arg_dict)
         self.sc.post_event(ev)
 
@@ -218,18 +221,18 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         Returns: None.
         """
         context = ev.data.get('context')
-        kwargs = ev.data.get('kwargs')
+        resource_data = ev.data.get('resource_data')
         msg = "Vpn service updated from server side"
         LOG.debug(msg)
 
         try:
-            driver.vpnservice_updated(context, kwargs)
+            driver.vpnservice_updated(context, resource_data)
 
             for item in context['service_info']['ipsec_site_conns']:
-                if item['id'] == kwargs['resource']['id'] and kwargs['reason'] == 'create':
+                if item['id'] == resource_data['resource']['id'] and resource_data['reason'] == 'create':
                     # item['status'] = 'INIT'
                     arg_dict = {'context': context,
-                            'kwargs': kwargs}
+                            'resource_data': resource_data}
                     ev1 = self._sc.new_event(id='VPN_SYNC',
                                              key='VPN_SYNC', data=arg_dict)
                     self._sc.post_event(ev1)
@@ -237,11 +240,11 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         except Exception as err:
             msg = ("Failed to update VPN service. %s" % str(err).capitalize())
             LOG.error(msg)
-        reason = kwargs.get('reason')
-        rsrc = kwargs.get('rsrc_type')
+        reason = resource_data.get('reason')
+        rsrc = resource_data.get('rsrc_type')
 
         if (reason == 'delete' and rsrc == 'ipsec_site_connection'):
-            conn = kwargs['resource']
+            conn = resource_data['resource']
             resource_id = conn['id']
             self._plugin_rpc.ipsec_site_conn_deleted(context,
                                                      resource_id=resource_id)
@@ -289,7 +292,7 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         """
 
         context = ev.data.get('context')
-        kwargs = ev.data.get('kwargs')
+        resource_data = ev.data.get('resource_data')
         s2s_contexts = self._plugin_rpc.get_vpn_servicecontext(context)
         site_conn = s2s_contexts[0]['siteconns'][0]
         state = self._sync_ipsec_conns(context, s2s_contexts[0])
