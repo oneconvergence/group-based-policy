@@ -10,9 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.config_script'
-SERVICE_TYPE = 'config_script'
-CREATE_CONFIG_SCRIPT_EVENT = 'CREATE_CONFIG_SCRIPT'
+DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.nfp_service'
+SERVICE_TYPE = 'nfp_service'
+CREATE_NFP_SERVICE_EVENT = 'CREATE_NFP_SERVICE'
 UNHANDLED_RESULT = 'unhandled'
 ERROR_RESULT = 'error'
 HEAT_RESOURCE = 'HEAT'
+NFP_SERVICE = 'nfp_service'
+SUCCESS = 'SUCCESS'
+FAILURE = 'FAILURE'
