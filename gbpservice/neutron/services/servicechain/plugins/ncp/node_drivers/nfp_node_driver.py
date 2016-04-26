@@ -398,8 +398,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             context.current_node['id'],
             context.instance['id'])
 
-        if not any(network_function_map, context.original_node.get('config'),
-                   context.current_node.get('config')):
+        if not any([network_function_map, context.original_node.get('config'),
+                    context.current_node.get('config')]):
             return
 
         network_function_id = network_function_map.network_function_id
