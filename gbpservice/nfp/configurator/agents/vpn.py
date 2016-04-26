@@ -109,9 +109,10 @@ class VpnaasRpcSender(data_filter.Filter):
                         'context': context['agent_info']['context']},
                'notification': [{
                      'resource': context['agent_info']['resource'],
-                     'data': {'status': status,
+                     'data': {'resource_id': resource_id,
                               'notification_type': (
                                     'ipsec_site_conn_deleted')}}]
+               }
         self._notify._notification(msg)
 
 """ Implements VPNaasRpcManager class which receives requests
@@ -180,7 +181,7 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
 
     def _get_driver(self):
 
-        driver_id = const.SERVICE_TYPE
+        driver_id = const.SERVICE_TYPE + const.SERVICE_VENDOR
         return self._drivers[driver_id]
 
     def handle_event(self, ev):
@@ -229,8 +230,9 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
             driver.vpnservice_updated(context, resource_data)
 
             for item in context['service_info']['ipsec_site_conns']:
-                if item['id'] == resource_data['resource']['id'] and resource_data['reason'] == 'create':
-                    # item['status'] = 'INIT'
+                if item['id'] == resource_data['resource']['id'] and (
+                                           resource_data['reason'] == 'create'):
+                    item['status'] = 'INIT'
                     arg_dict = {'context': context,
                             'resource_data': resource_data}
                     ev1 = self._sc.new_event(id='VPN_SYNC',
@@ -415,4 +417,3 @@ def init_agent_complete(cm, sc, conf):
     """
     msg = " vpn agent init complete"
     LOG.info(msg)
-

@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 rest_timeout = [
     cfg.IntOpt(
         'rest_timeout',
-        default=60,
+        default=360,
         help=("rest api timeout"))]
 cfg.CONF.register_opts(rest_timeout)
 

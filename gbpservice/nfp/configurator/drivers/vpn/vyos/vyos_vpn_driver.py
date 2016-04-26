@@ -610,16 +610,18 @@ class VpnGenericConfigDriver(object):
         # was done like this.
 
         # adding stitching gateway route
-        stitching_url = const.request_url % (kwargs['vm_mgmt_ip'],
+        stitching_url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'add-stitching-route')
-        st_data = jsonutils.dumps({'gateway_ip': kwargs['gateway_ip']})
+        st_data = jsonutils.dumps({'gateway_ip': gateway_ip})
         try:
             resp = requests.post(stitching_url, data=st_data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
-                   "%r. ERROR: %r" % (kwargs['vm_mgmt_ip'],
+                   "%r. ERROR: %r" % (mgmt_ip,
                                       str(err).capitalize()))
+            LOG.error(msg)
+            return msg
 
         url = const.request_url % (mgmt_ip, const.CONFIGURATION_SERVER_PORT,
                                    'add-source-route')
@@ -682,19 +684,21 @@ class VpnGenericConfigDriver(object):
 
         """
         # clear the static stitching gateway route
-        stitching_url = const.request_url % (kwargs['vm_mgmt_ip'],
+        mgmt_ip = resource_data.get('mgmt_ip')
+        source_cidrs = resource_data.get('source_cidrs')
+
+        stitching_url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'delete-stitching-route')
-        st_data = jsonutils.dumps({'gateway_ip': kwargs['gateway_ip']})
+        st_data = jsonutils.dumps({'gateway_ip': resource_data.get('gateway_ip')})
         try:
             resp = requests.post(stitching_url, data=st_data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
-                   "%r. ERROR: %r" % (kwargs['vm_mgmt_ip'],
+                   "%r. ERROR: %r" % (mgmt_ip,
                                       str(err).capitalize()))
-
-        mgmt_ip = resource_data.get('mgmt_ip')
-        source_cidrs = resource_data.get('source_cidrs')
+            LOG.error(msg)
+            return msg
 
         # REVISIT(VK): This was all along bad way, don't know why at all it
         # was done like this.
@@ -743,6 +747,7 @@ requests from VPNaas Plugin.
 class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     service_type = const.SERVICE_TYPE
+    service_vendor = const.SERVICE_VENDOR
 
     def __init__(self):
         self.handlers = {
@@ -812,12 +817,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         for item in context['service_info']['ipsec_site_conns']:
             if item['id'] == conn['id']:
                 item['status'] = const.STATE_INIT
-
-    def _get_stitching_gw_from_desc(self, conn):
-        desc = conn['description']
-        tokens = desc.split(';')
-        stitching_gw = tokens[7].split('=')[1]
-        return stitching_gw
 
     def _get_fip_from_vpnsvc(self, vpn_svc):
         svc_desc = vpn_svc['description']
@@ -1058,14 +1057,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         """
 
         try:
-            gateway_ip = self._get_stitching_gw_from_desc(conn)
-            LOG.error(gateway_ip)
-            url = const.request_url % (mgmt_fip,
-                                   const.CONFIGURATION_SERVER_PORT,
-                                   'delete-stitching-route')
-            data = jsonutils.dumps({'gateway_ip': gateway_ip})
-            resp = requests.delete(url, data=data, timeout=self.timeout)
-            LOG.error(resp)
+
             RestApi(mgmt_fip).delete(
                 "delete-ipsec-site-conn",
                 {'peer_address': conn['peer_address']})
@@ -1115,26 +1107,26 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         vm_mgmt_ip = tokens[0].split('=')[1]
         return vm_mgmt_ip
 
-    def create_vpn_service(self, context, kwargs):
+    def create_vpn_service(self, context, resource_data):
 
-        svc = kwargs.get('resource')
+        svc = resource_data.get('resource')
         msg = "Validating VPN service %s " % svc
         LOG.info(msg)
         validator = VPNServiceValidator(self.agent)
         validator.validate(context, svc)
 
-    def create_ipsec_conn(self, context, kwargs):
+    def create_ipsec_conn(self, context, resource_data):
         """
         Implements functions to make update ipsec configuration in service VM.
 
         :param context: context dictionary of vpn service type
-        :param kwargs: dicionary of a specific operation type, which was sent
+        :param resource_data: dicionary of a specific operation type, which was sent
         from neutron plugin
 
         Returns: None
         """
 
-        conn = kwargs.get('resource')
+        conn = resource_data.get('resource')
         mgmt_fip = self._get_vm_mgmt_ip_from_desc(conn)
         msg = "IPsec: create siteconnection %s" % conn
         LOG.info(msg)
@@ -1188,30 +1180,30 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             LOG.error(msg)
             self._error_state(context, conn, msg)
 
-    def update_ipsec_conn(self, context, kwargs):
+    def update_ipsec_conn(self, context, resource_data):
         """
         Implements functions to make update ipsec configuration in service VM.
 
         :param context: context dictionary of vpn service type
-        :param kwargs: dicionary of a specific operation type, which was sent
+        :param resource_data: dicionary of a specific operation type, which was sent
         from neutron plugin
 
         Returns: None
         """
         pass
 
-    def delete_ipsec_conn(self, context, kwargs):
+    def delete_ipsec_conn(self, context, resource_data):
         """
         Implements functions to make delete ipsec configuration in service VM.
 
         :param context: context dictionary of vpn service type
-        :param kwargs: dicionary of a specific operation type, which was sent
+        :param resource_data: dicionary of a specific operation type, which was sent
         from neutron plugin
 
         Returns: None
         """
 
-        conn = kwargs.get('resource')
+        conn = resource_data.get('resource')
         msg = "IPsec: delete siteconnection %s" % conn
         LOG.info(msg)
         mgmt_fip = self._get_vm_mgmt_ip_from_desc(conn)
@@ -1255,29 +1247,29 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                                                   state))
         return state
 
-    def vpnservice_updated(self, context, kwargs):
+    def vpnservice_updated(self, context, resource_data):
         """
         Demultiplexes the different methods to update the configurations
 
         :param context: context dictionary of vpn service type
-        :param kwargs: dicionary of a specific operation type, which was sent
+        :param resource_data: dicionary of a specific operation type, which was sent
         from neutron plugin
 
         Returns: None
         """
         msg = ("Handling VPN service update notification '%s'",
-               kwargs.get('reason', ''))
+               resource_data.get('reason', ''))
         LOG.info(msg)
 
-        resource = kwargs.get('resource')
+        resource = resource_data.get('resource')
         tenant_id = resource['tenant_id']
         # Synchronize the update operation per tenant.
         # Resources under tenant have inter dependencies.
 
         @lockutils.synchronized(tenant_id)
-        def _vpnservice_updated(context, kwargs):
-            reason = kwargs.get('reason')
-            rsrc = kwargs.get('rsrc_type')
+        def _vpnservice_updated(context, resource_data):
+            reason = resource_data.get('reason')
+            rsrc = resource_data.get('rsrc_type')
 
             if rsrc not in self.handlers.keys():
                 raise UnknownResourceException(rsrc=rsrc)
@@ -1285,22 +1277,22 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             if reason not in self.handlers[rsrc].keys():
                 raise UnknownReasonException(reason=reason)
 
-            self.handlers[rsrc][reason](context, kwargs)
+            self.handlers[rsrc][reason](context, resource_data)
 
-        return _vpnservice_updated(context, kwargs)
+        return _vpnservice_updated(context, resource_data)
 
-    def configure_healthmonitor(self, context, kwargs):
+    def configure_healthmonitor(self, context, resource_data):
         """Overriding BaseDriver's configure_healthmonitor().
            It does netcat to CONFIGURATION_SERVER_PORT  8888.
            Configuration agent runs inside service vm.Once agent is up and
            reachable, service vm is assumed to be active.
            :param context - context
-           :param kwargs - kwargs coming from orchestrator
+           :param resource_data - resource_data coming from orchestrator
 
            Returns: SUCCESS/FAILED
 
         """
-        ip = kwargs.get('mgmt_ip')
+        ip = resource_data.get('mgmt_ip')
         port = str(const.CONFIGURATION_SERVER_PORT)
         command = 'nc ' + ip + ' ' + port + ' -z'
         return self._check_vm_health(command)
