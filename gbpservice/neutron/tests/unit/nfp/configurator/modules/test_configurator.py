@@ -142,6 +142,7 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
             mock.patch.object(rpc_mgr,
                               '_get_service_agent_instance',
                               return_value=agent):
+
             if operation == 'create':
                 rpc_mgr.create_network_function_device_config(
                                     self.fo.context, request_data_actual)
@@ -149,14 +150,20 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
                 rpc_mgr.delete_network_function_device_config(
                                     self.fo.context, request_data_actual)
 
-            context = request_data_expected['config'][0]['kwargs'][
-                                                                    'context']
-            context.update({'notification_data': {}})
-            context.update(
+            context = request_data_expected['info']['context']
+
+            agent_info = {}
+            agent_info.update(
                     {'resource': request_data_expected['config'][0][
-                                                                'resource']})
-            del request_data_expected['config'][0]['kwargs']['context']
-            kwargs = request_data_expected['config'][0]['kwargs']
+                                                                'resource'],
+                     'service_type': request_data_expected['info'][
+                                                            'service_type'],
+                     'service_vendor': request_data_expected['info'][
+                                                            'service_vendor'],
+                     'context': context,
+                     'notification_data': {}
+                     })
+            resource_data = request_data_expected['config'][0]['resource_data']
             if batch:
                 sa_req_list = self.fo.fake_sa_req_list()
                 if operation == 'delete':
@@ -167,8 +174,8 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
                          'notification_data': {}
                         }
             else:
-                args_dict = {'context': context,
-                             'kwargs': kwargs}
+                args_dict = {'context': agent_info,
+                             'resource_data': resource_data}
             mock_sc_event.assert_called_with(id=method,
                                              data=args_dict, key=None)
             mock_sc_rpc_event.assert_called_with('foo')

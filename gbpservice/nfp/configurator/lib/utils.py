@@ -33,7 +33,7 @@ class ConfiguratorUtils(object):
            select that class as driver class
 
         @param pkg : package
-        e.g pkg = 'gbpservice.nfp.configurator.drivers.firewall'
+        e.g pkg = 'gbpservice.neutron.nsf.configurator.drivers.firewall'
 
         Returns: driver_objects dictionary
                e.g driver_objects = {'loadbalancer': <driver class object>}
@@ -68,8 +68,8 @@ class ConfiguratorUtils(object):
                     key = ''
                     if hasattr(class_obj, 'service_type'):
                         key += class_obj.service_type
-                    if hasattr(class_obj, 'vendor'):
-                        key += class_obj.vendor
+                    if hasattr(class_obj, 'service_vendor'):
+                        key += class_obj.service_vendor
                     if key:
                         driver_objects[key] = class_obj
 
@@ -79,7 +79,7 @@ class ConfiguratorUtils(object):
         """Load all the agents inside pkg.
 
         @param pkg : package
-        e.g pkg = 'gbpservice.nfp.configurator.agents'
+        e.g pkg = 'gbpservice.neutron.nsf.configurator.agents'
 
         Returns: imported_service_agents list
 
