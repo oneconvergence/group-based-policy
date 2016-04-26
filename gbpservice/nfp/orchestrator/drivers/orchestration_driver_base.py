@@ -285,6 +285,7 @@ class OrchestrationDriverBase(object):
         :raises: exceptions.IncompleteData,
                  exceptions.ComputePolicyNotSupported
         """
+        log_meta_data = device_data.get('log_meta_data', "")
         if (
             any(key not in device_data
                 for key in ['service_details',
@@ -319,8 +320,6 @@ class OrchestrationDriverBase(object):
             raise exceptions.ComputePolicyNotSupported(
                                 compute_policy=device_data['service_details'][
                                                                 'device_type'])
-        log_meta_data = (device_data.get('log_meta_data')
-                         if 'log_meta_data' in device_data else '')
         try:
             interfaces = self._get_interfaces_for_device_create(
                     device_data,
@@ -352,8 +351,8 @@ class OrchestrationDriverBase(object):
             image_name = device_data['service_details']['image_name']
         else:
             LOG.info(_LI(log_meta_data + "No image name provided in service"
-                         "profile's service flavor field, image will be"
-                         "selected based on service vendor's name : %s")
+                         " profile's service flavor field, image will be"
+                         " selected based on service vendor's name : %s")
                      % (device_data['service_details']['service_vendor']))
             image_name = device_data['service_details']['service_vendor']
             image_name = '%s' % image_name.lower()
@@ -476,6 +475,8 @@ class OrchestrationDriverBase(object):
         :raises: exceptions.IncompleteData,
                  exceptions.ComputePolicyNotSupported
         """
+
+        log_meta_data = device_data.get('log_meta_data', "")
         if (
             any(key not in device_data
                 for key in ['service_details',
@@ -510,7 +511,8 @@ class OrchestrationDriverBase(object):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for device deletion'))
+            LOG.error(_LE(log_meta_data +
+                          'Failed to get token for device deletion'))
             return None
 
         if device_data.get('id'):
@@ -526,7 +528,7 @@ class OrchestrationDriverBase(object):
                                                 device_data['id'])
             except Exception:
                 self._increment_stats_counter('instance_delete_failures')
-                LOG.error(_LE('Failed to delete %s instance')
+                LOG.error(_LE(log_meta_data + 'Failed to delete %s instance')
                           % (device_data['service_details']['device_type']))
             else:
                 self._decrement_stats_counter('instances')
@@ -537,7 +539,8 @@ class OrchestrationDriverBase(object):
                                         [device_data['mgmt_port_id']],
                                         network_handler=network_handler)
             except Exception:
-                LOG.error(_LE('Failed to delete the management data port(s)'))
+                LOG.error(_LE(log_meta_data +
+                              'Failed to delete the management data port(s)'))
             else:
                 self._decrement_stats_counter('management_interfaces')
 
@@ -554,6 +557,8 @@ class OrchestrationDriverBase(object):
         :raises: exceptions.IncompleteData,
                  exceptions.ComputePolicyNotSupported
         """
+
+        log_meta_data = device_data.get('log_meta_data', "")
         if (
             any(key not in device_data
                 for key in ['id',
@@ -581,7 +586,8 @@ class OrchestrationDriverBase(object):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for get device status'
+            LOG.error(_LE(log_meta_data +
+                          'Failed to get token for get device status'
                           ' operation'))
             return None
 
@@ -594,7 +600,7 @@ class OrchestrationDriverBase(object):
             if ignore_failure:
                 return None
             self._increment_stats_counter('instance_details_get_failures')
-            LOG.error(_LE('Failed to get %s instance details')
+            LOG.error(_LE(log_meta_data + 'Failed to get %s instance details')
                       % (device_data['service_details']['device_type']))
             return None  # TODO(RPM): should we raise an Exception here?
 
@@ -613,6 +619,8 @@ class OrchestrationDriverBase(object):
         :raises: exceptions.IncompleteData,
                  exceptions.ComputePolicyNotSupported
         """
+
+        log_meta_data = device_data.get('log_meta_data', "")
         if not self.supports_hotplug:
             # Nothing to do here.
             return True
@@ -653,7 +661,8 @@ class OrchestrationDriverBase(object):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for plug interface to device'
+            LOG.error(_LE(log_meta_data +
+                          'Failed to get token for plug interface to device'
                           ' operation'))
             return False  # TODO(RPM): should we raise an Exception here?
 
@@ -688,7 +697,8 @@ class OrchestrationDriverBase(object):
                     break
         except Exception:
             self._increment_stats_counter('interface_plug_failures')
-            LOG.error(_LE('Failed to plug interface(s) to the device'))
+            LOG.error(_LE(log_meta_data + 
+                          'Failed to plug interface(s) to the device'))
             return False  # TODO(RPM): should we raise an Exception here?
         else:
             return True
@@ -706,6 +716,8 @@ class OrchestrationDriverBase(object):
         :raises: exceptions.IncompleteData,
                  exceptions.ComputePolicyNotSupported
         """
+
+        log_meta_data = device_data.get('log_meta_data', "")
         if not self.supports_hotplug:
             # Nothing to do here.
             return True
@@ -744,7 +756,8 @@ class OrchestrationDriverBase(object):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for unplug interface from'
+            LOG.error(_LE(log_meta_data +
+                          'Failed to get token for unplug interface from'
                           ' device operation'))
             return False  # TODO(RPM): should we raise an Exception here?
 
@@ -758,7 +771,8 @@ class OrchestrationDriverBase(object):
                             port_id)
         except Exception:
             self._increment_stats_counter('interface_unplug_failures')
-            LOG.error(_LE('Failed to unplug interface(s) from the device'))
+            LOG.error(_LE(log_meta_data +
+                          'Failed to unplug interface(s) from the device'))
             return False  # TODO(RPM): should we raise an Exception here?
         else:
             return True
