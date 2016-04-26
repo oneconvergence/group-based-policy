@@ -13,7 +13,7 @@
 from oslo_log import helpers as log_helpers
 from oslo_log import log
 
-from gbpservice.nfp.configurator.lib import constants
+from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.configurator.lib import demuxer
 from gbpservice.nfp.configurator.lib import schema_validator
 from gbpservice.nfp.configurator.lib import utils
@@ -58,7 +58,8 @@ class ConfiguratorRpcManager(object):
 
         return self.cm.sa_instances[service_type]
 
-    def _invoke_service_agent(self, operation, request_data):
+    def _invoke_service_agent(self, operation,
+                              request_data, is_generic_config=False):
         """Maps and invokes an RPC call to a service agent method.
 
         Takes help of de-multiplexer to get service type and corresponding
@@ -71,13 +72,13 @@ class ConfiguratorRpcManager(object):
         Returns: None
 
         """
-        if not self.sv.decode(request_data):
+        if not self.sv.decode(request_data, is_generic_config):
             msg = ("Decode failed for request_data=%s" % (request_data))
             raise Exception(msg)
 
         # Retrieves service type from RPC data
         service_type = self.demuxer.get_service_type(request_data)
-        if (constants.invalid_service_type == service_type):
+        if (const.invalid_service_type == service_type):
             msg = ("Configurator received invalid service type %s." %
                    service_type)
             raise Exception(msg)
@@ -85,10 +86,9 @@ class ConfiguratorRpcManager(object):
         # Retrieves service agent information from RPC data
         # Format of sa_req_list:
         # [{'method': <m1>, 'kwargs': <rpc_data1>}, {}, ... ]
-        sa_req_list = self.demuxer.get_service_agent_info(
-                                                    operation,
-                                                    service_type,
-                                                    request_data)
+        sa_req_list, service_type = self.demuxer.get_service_agent_info(
+                                            operation, service_type,
+                                            request_data, is_generic_config)
         if not sa_req_list:
             msg = ("Configurator received invalid data format for service"
                    " type %s. Data format: %r" % (service_type, request_data))
@@ -140,7 +140,7 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            self._invoke_service_agent('create', request_data)
+            self._invoke_service_agent('create', request_data, True)
         except Exception as err:
             msg = ("Failed to create network device configuration. %s" %
                    str(err).capitalize())
@@ -163,7 +163,7 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            self._invoke_service_agent('delete', request_data)
+            self._invoke_service_agent('delete', request_data, True)
         except Exception as err:
             msg = ("Failed to delete network device configuration. %s" %
                    str(err).capitalize())
@@ -186,7 +186,7 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
-            self._invoke_service_agent('update', request_data)
+            self._invoke_service_agent('update', request_data, True)
         except Exception as err:
             msg = ("Failed to update network device configuration. %s" %
                    str(err).capitalize())

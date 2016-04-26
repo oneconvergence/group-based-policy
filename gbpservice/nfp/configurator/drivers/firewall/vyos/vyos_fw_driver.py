@@ -39,58 +39,53 @@ class FwGenericConfigDriver(object):
     def __init__(self):
         self.timeout = cfg.CONF.rest_timeout
 
-    def _configure_static_ips(self, kwargs):
+    def _configure_static_ips(self, resource_data):
         """ Configure static IPs for provider and stitching interfaces
         of service VM.
 
         Issues REST call to service VM for configuration of static IPs.
 
-        :param kwargs: a dictionary of firewall rules and objects
+        :param resource_data: a dictionary of firewall rules and objects
         send by neutron plugin
 
         Returns: SUCCESS/Failure message with reason.
 
         """
 
-        rule_info = kwargs.get('rule_info')
         static_ips_info = dict(
-                    provider_ip=kwargs.get('provider_ip'),
-                    provider_cidr=kwargs.get('provider_cidr'),
-                    provider_mac=kwargs.get('provider_mac'),
-                    stitching_ip=kwargs.get('stitching_ip'),
-                    stitching_cidr=kwargs.get('stitching_cidr'),
-                    stitching_mac=kwargs.get('stitching_mac'),
-                    provider_interface_position=kwargs.get(
-                                            'provider_interface_position'),
-                    stitching_interface_position=kwargs.get(
-                                            'stitching_interface_position'))
-        active_fip = rule_info['active_fip']
+                    provider_ip=resource_data.get('provider_ip'),
+                    provider_cidr=resource_data.get('provider_cidr'),
+                    provider_mac=resource_data.get('provider_mac'),
+                    stitching_ip=resource_data.get('stitching_ip'),
+                    stitching_cidr=resource_data.get('stitching_cidr'),
+                    stitching_mac=resource_data.get('stitching_mac'),
+                    provider_interface_position=resource_data.get(
+                                            'provider_interface_index'),
+                    stitching_interface_position=resource_data.get(
+                                            'stitching_interface_index'))
+        mgmt_ip = resource_data['mgmt_ip']
 
-        url = const.request_url % (active_fip,
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'add_static_ip')
         data = jsonutils.dumps(static_ips_info)
 
         msg = ("Initiating POST request to add static IPs for primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" %
-               (rule_info['service_id'], rule_info['tenant_id'],
-                active_fip))
+               "service at: %r" % mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "%r. ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened  while adding "
-                   "static IPs for primary service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+            msg = ("Unexpected ERROR happened while adding "
+                   "static IPs for primary service at: %r. "
+                   "ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
 
@@ -107,13 +102,11 @@ class FwGenericConfigDriver(object):
             LOG.error(msg)
             return msg
 
-        msg = ("Static IPs successfully added for SERVICE ID: %r"
-               " of tenant: %r" % (rule_info['service_id'],
-                                   rule_info['tenant_id']))
+        msg = ("Static IPs successfully added.")
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
-    def configure_interfaces(self, context, kwargs):
+    def configure_interfaces(self, context, resource_data):
         """ Configure interfaces for the service VM.
 
         Calls static IP configuration function and implements
@@ -121,7 +114,7 @@ class FwGenericConfigDriver(object):
         Issues REST call to service VM for configuration of interfaces.
 
         :param context: neutron context
-        :param kwargs: a dictionary of firewall rules and objects
+        :param resource_data: a dictionary of firewall rules and objects
         send by neutron plugin
 
         Returns: SUCCESS/Failure message with reason.
@@ -129,7 +122,7 @@ class FwGenericConfigDriver(object):
         """
 
         try:
-            result_static_ips = self._configure_static_ips(kwargs)
+            result_static_ips = self._configure_static_ips(resource_data)
         except Exception as err:
             msg = ("Failed to add static IPs. Error: %s" % err)
             LOG.error(msg)
@@ -141,37 +134,30 @@ class FwGenericConfigDriver(object):
                 msg = ("Added static IPs. Result: %s" % result_static_ips)
                 LOG.info(msg)
 
-        rule_info = kwargs.get('rule_info')
+        rule_info = dict(
+            provider_mac=resource_data['provider_mac'],
+            stitching_mac=resource_data['stitching_mac'])
 
-        active_rule_info = dict(
-            provider_mac=rule_info['active_provider_mac'],
-            stitching_mac=rule_info['active_stitching_mac'])
+        mgmt_ip = resource_data['mgmt_ip']
 
-        active_fip = rule_info['active_fip']
-
-        url = const.request_url % (active_fip,
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT, 'add_rule')
-        data = jsonutils.dumps(active_rule_info)
+        data = jsonutils.dumps(rule_info)
         msg = ("Initiating POST request to add persistent rule to primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" % (
-                    rule_info['service_id'], rule_info['tenant_id'],
-                    active_fip))
+               "service at: %r" % mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "%r. ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while adding "
-                   "persistent rule of primary service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "persistent rule of primary service at: %r. ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
 
@@ -187,60 +173,52 @@ class FwGenericConfigDriver(object):
             LOG.error(msg)
             return msg
 
-        msg = ("Persistent rule successfully added for SERVICE ID: %r"
-               " of tenant: %r" % (rule_info['service_id'],
-                                   rule_info['tenant_id']))
+        msg = ("Persistent rule successfully added.")
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
-    def _clear_static_ips(self, kwargs):
+    def _clear_static_ips(self, resource_data):
         """ Clear static IPs for provider and stitching
         interfaces of the service VM.
 
         Issues REST call to service VM for deletion of static IPs.
 
-        :param kwargs: a dictionary of firewall rules and objects
+        :param resource_data: a dictionary of firewall rules and objects
         send by neutron plugin
 
         Returns: SUCCESS/Failure message with reason.
 
         """
 
-        rule_info = kwargs.get('rule_info')
         static_ips_info = dict(
-                    provider_ip=kwargs.get('provider_ip'),
-                    provider_cidr=kwargs.get('provider_cidr'),
-                    provider_mac=kwargs.get('provider_mac'),
-                    stitching_ip=kwargs.get('stitching_ip'),
-                    stitching_cidr=kwargs.get('stitching_cidr'),
-                    stitching_mac=kwargs.get('stitching_mac'))
-        active_fip = rule_info['active_fip']
+                    provider_ip=resource_data.get('provider_ip'),
+                    provider_cidr=resource_data.get('provider_cidr'),
+                    provider_mac=resource_data.get('provider_mac'),
+                    stitching_ip=resource_data.get('stitching_ip'),
+                    stitching_cidr=resource_data.get('stitching_cidr'),
+                    stitching_mac=resource_data.get('stitching_mac'))
+        mgmt_ip = resource_data['mgmt_ip']
 
-        url = const.request_url % (active_fip,
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'del_static_ip')
         data = jsonutils.dumps(static_ips_info)
 
         msg = ("Initiating POST request to remove static IPs for primary "
-               "service with SERVICE ID: %r of tenant: %r at: %r" %
-               (rule_info['service_id'], rule_info['tenant_id'],
-                active_fip))
+               "service at: %r" % mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   "%r of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "%r. ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while removing "
-                   "static IPs for primary service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "static IPs for primary service at: %r. ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
 
@@ -257,13 +235,11 @@ class FwGenericConfigDriver(object):
             LOG.error(msg)
             return msg
 
-        msg = ("Static IPs successfully removed for SERVICE ID: %r"
-               " of tenant: %r" % (rule_info['service_id'],
-                                   rule_info['tenant_id']))
+        msg = ("Static IPs successfully removed.")
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
-    def clear_interfaces(self, context, kwargs):
+    def clear_interfaces(self, context, resource_data):
         """ Clear interfaces for the service VM.
 
         Calls static IP clear function and implements
@@ -271,7 +247,7 @@ class FwGenericConfigDriver(object):
         Issues REST call to service VM for deletion of interfaces.
 
         :param context: neutron context
-        :param kwargs: a dictionary of firewall rules and objects
+        :param resource_data: a dictionary of firewall rules and objects
         send by neutron plugin
 
         Returns: SUCCESS/Failure message with reason.
@@ -279,7 +255,7 @@ class FwGenericConfigDriver(object):
         """
 
         try:
-            result_static_ips = self._clear_static_ips(kwargs)
+            result_static_ips = self._clear_static_ips(resource_data)
         except Exception as err:
             msg = ("Failed to remove static IPs. Error: %s" % err)
             LOG.error(msg)
@@ -292,38 +268,31 @@ class FwGenericConfigDriver(object):
                        "Result: %s" % result_static_ips)
                 LOG.info(msg)
 
-        rule_info = kwargs.get('rule_info')
+        rule_info = dict(
+            provider_mac=resource_data['provider_mac'],
+            stitching_mac=resource_data['stitching_mac'])
 
-        active_rule_info = dict(
-            provider_mac=rule_info['active_provider_mac'],
-            stitching_mac=rule_info['active_stitching_mac'])
+        mgmt_ip = resource_data['mgmt_ip']
 
-        active_fip = rule_info['active_fip']
-
-        msg = ("Initiating DELETE persistent rule for SERVICE ID: %r of "
-               "tenant: %r " %
-               (rule_info['service_id'], rule_info['tenant_id']))
+        msg = ("Initiating DELETE persistent rule.")
         LOG.info(msg)
-        url = const.request_url % (active_fip,
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'delete_rule')
 
         try:
-            data = jsonutils.dumps(active_rule_info)
+            data = jsonutils.dumps(rule_info)
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+            msg = ("Failed to establish connection to service at: %r. "
+                   "ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while deleting "
-                   "persistent rule of service at: %r "
-                   "of SERVICE ID: %r of tenant: %r . ERROR: %r" %
-                   (active_fip, rule_info['service_id'],
-                    rule_info['tenant_id'], str(err).capitalize()))
+                   "persistent rule of service at: %r. ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             raise Exception(err)
 
@@ -338,33 +307,31 @@ class FwGenericConfigDriver(object):
             msg = ("Error deleting persistent rule. URL: %r" % url)
             LOG.error(msg)
             raise Exception(msg)
-        msg = ("Persistent rule successfully deleted for SERVICE ID: %r"
-               " of tenant: %r " % (rule_info['service_id'],
-                                    rule_info['tenant_id']))
+        msg = ("Persistent rule successfully deleted.")
         LOG.info(msg)
         return const.STATUS_SUCCESS
 
-    def configure_routes(self, context, kwargs):
+    def configure_routes(self, context, resource_data):
         """ Configure routes for the service VM.
 
         Issues REST call to service VM for configuration of routes.
 
         :param context: neutron context
-        :param kwargs: a dictionary of firewall rules and objects
+        :param resource_data: a dictionary of firewall rules and objects
         send by neutron plugin
 
         Returns: SUCCESS/Failure message with reason.
 
         """
 
-        vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
-        source_cidrs = kwargs.get('source_cidrs')
-        gateway_ip = kwargs.get('gateway_ip')
+        mgmt_ip = resource_data.get('mgmt_ip')
+        source_cidrs = resource_data.get('source_cidrs')
+        gateway_ip = resource_data.get('gateway_ip')
 
         # REVISIT(VK): This was all along bad way, don't know why at all it
         # was done like this.
 
-        url = const.request_url % (vm_mgmt_ip, const.CONFIGURATION_SERVER_PORT,
+        url = const.request_url % (mgmt_ip, const.CONFIGURATION_SERVER_PORT,
                                    'add-source-route')
         active_configured = False
         route_info = []
@@ -373,19 +340,19 @@ class FwGenericConfigDriver(object):
                                'gateway_ip': gateway_ip})
         data = jsonutils.dumps(route_info)
         msg = ("Initiating POST request to configure route of "
-               "primary service at: %r" % vm_mgmt_ip)
+               "primary service at: %r" % mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.post(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
-                   "%r. ERROR: %r" % (vm_mgmt_ip, str(err).capitalize()))
+                   "%r. ERROR: %r" % (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while configuring "
                    "route of service at: %r ERROR: %r" %
-                   (vm_mgmt_ip, str(err).capitalize()))
+                   (mgmt_ip, str(err).capitalize()))
             LOG.error(msg)
             return msg
 
@@ -393,7 +360,7 @@ class FwGenericConfigDriver(object):
             message = jsonutils.loads(resp.text)
             if message.get("status", False):
                 msg = ("Route configured successfully for VYOS"
-                       " service at: %r" % vm_mgmt_ip)
+                       " service at: %r" % mgmt_ip)
                 LOG.info(msg)
                 active_configured = True
             else:
@@ -412,45 +379,45 @@ class FwGenericConfigDriver(object):
             return ("Failed to configure source route. Response code: %s."
                     "Response Content: %r" % (resp.status_code, resp.content))
 
-    def clear_routes(self, context, kwargs):
+    def clear_routes(self, context, resource_data):
         """ Clear routes for the service VM.
 
         Issues REST call to service VM for deletion of routes.
 
         :param context: neutron context
-        :param kwargs: a dictionary of firewall rules and objects
+        :param resource_data: a dictionary of firewall rules and objects
         send by neutron plugin
 
         Returns: SUCCESS/Failure message with reason.
 
         """
 
-        vm_mgmt_ip = kwargs.get('vm_mgmt_ip')
-        source_cidrs = kwargs.get('source_cidrs')
+        mgmt_ip = resource_data.get('mgmt_ip')
+        source_cidrs = resource_data.get('source_cidrs')
 
         # REVISIT(VK): This was all along bad way, don't know why at all it
         # was done like this.
         active_configured = False
-        url = const.request_url % (vm_mgmt_ip, const.CONFIGURATION_SERVER_PORT,
+        url = const.request_url % (mgmt_ip, const.CONFIGURATION_SERVER_PORT,
                                    'delete-source-route')
         route_info = []
         for source_cidr in source_cidrs:
             route_info.append({'source_cidr': source_cidr})
         data = jsonutils.dumps(route_info)
         msg = ("Initiating DELETE route request to primary service at: %r"
-               % vm_mgmt_ip)
+               % mgmt_ip)
         LOG.info(msg)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to primary service at: "
-                   " %r. ERROR: %r" % (vm_mgmt_ip, err))
+                   " %r. ERROR: %r" % (mgmt_ip, err))
             LOG.error(msg)
             return msg
         except requests.exceptions.RequestException as err:
             msg = ("Unexpected ERROR happened  while deleting "
                    " route of service at: %r ERROR: %r"
-                   % (vm_mgmt_ip, err))
+                   % (mgmt_ip, err))
             LOG.error(msg)
             return msg
 
@@ -478,6 +445,7 @@ initialized. Also, only this driver class is exposed to the agent.
 
 class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
     service_type = const.SERVICE_TYPE
+    service_vendor = const.VYOS
 
     def __init__(self):
         self.timeout = cfg.CONF.rest_timeout
@@ -564,8 +532,8 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         msg = ("Processing create firewall request in FWaaS Driver "
                "for Firewall ID: %s." % firewall['id'])
         LOG.debug(msg)
-        vm_mgmt_ip = self._get_firewall_attribute(firewall)
-        url = const.request_url % (vm_mgmt_ip,
+        mgmt_ip = self._get_firewall_attribute(firewall)
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'configure-firewall-rule')
         msg = ("Initiating POST request for FIREWALL ID: %r Tenant ID:"
@@ -622,8 +590,8 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
         """
 
-        vm_mgmt_ip = self._get_firewall_attribute(firewall)
-        url = const.request_url % (vm_mgmt_ip,
+        mgmt_ip = self._get_firewall_attribute(firewall)
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'update-firewall-rule')
         msg = ("Initiating UPDATE request. URL: %s" % url)
@@ -656,8 +624,8 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
         """
 
-        vm_mgmt_ip = self._get_firewall_attribute(firewall)
-        url = const.request_url % (vm_mgmt_ip,
+        mgmt_ip = self._get_firewall_attribute(firewall)
+        url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'delete-firewall-rule')
         msg = ("Initiating DELETE request. URL: %s" % url)
