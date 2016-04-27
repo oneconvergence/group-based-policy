@@ -111,17 +111,6 @@ class FirewallNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _trigger_service_event(self, context, event_type, event_id,
-                               request_data):
-        event_data = {'resource': None,
-                      'context': context}
-        event_data['resource'] = {'eventtype': event_type,
-                                  'eventid': event_id,
-                                  'eventdata': request_data}
-        ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data)
-        self._sc.post_event(ev)
-
     def _prepare_request_data(self, context, nf_id, fw_mac, service_type):
         request_data = None
         try:
@@ -157,11 +146,15 @@ class FirewallNotifier(object):
                              status=status)
 
         # Sending An Event for visiblity #
-        request_data = self._prepare_request_data(context, nf_id,
-                                                  fw_mac, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s" % (request_data, nf_id))
-        self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                    request_data)
+        event_data = {'context' : context,
+                      'nf_id' : nf_id,
+                      'fw_mac' : fw_mac,
+                      'service_type': service_type
+                     }
+        ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
+                               key=nf_id,
+                               data=event_data, max_times=24)
+        self._sc.poll_event(ev)
 
     def firewall_deleted(self, context, notification_data):
         notification = notification_data['notification'][0]

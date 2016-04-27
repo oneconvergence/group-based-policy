@@ -183,17 +183,6 @@ class LoadbalancerNotifier(object):
             return request_data
         return request_data
 
-    def _trigger_service_event(self, context, event_type, event_id,
-                               request_data):
-        event_data = {'resource': None,
-                      'context': context}
-        event_data['resource'] = {'eventtype': event_type,
-                                  'eventid': event_id,
-                                  'eventdata': request_data}
-        ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data)
-        self._sc.post_event(ev)
-
     def update_status(self, context, notification_data):
         notification = notification_data['notification'][0]
         notification_info = notification_data['info']
@@ -219,13 +208,17 @@ class LoadbalancerNotifier(object):
         if obj_type.lower() == 'vip':
             nf_id = notification_info['context']['network_function_id']
             vip_id = notification_info['context']['vip_id']
-            request_data = self._prepare_request_data(context, nf_id,
-                                                      vip_id, service_type)
-            LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-            # Sending An Event for visiblity
-            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                        request_data)
+            #sending notification to visibility
+            event_data = {'context' : context,
+                          'nf_id' : nf_id,
+                          'vip_id' : vip_id,
+                          'service_type': service_type
+                         }
+            ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
+                                   key='SERVICE_CREATE_PENDING',
+                                   data=event_data)
+            self._sc.poll_event(ev)
 
     def update_pool_stats(self, context, notification_data):
         notification = notification_data['notification'][0]
