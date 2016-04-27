@@ -901,7 +901,17 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         svc_context['service']['cidr'] = self._get_stitching_cidr(conn)
         msg = "IPSec: Pushing ipsec configuration %s" % conn
         LOG.info(msg)
+        peer_cidrs_2ton = conn['peer_cidrs'][1:]
+        conn['peer_cidrs'] = [conn['peer_cidrs'][0]]
         RestApi(mgmt_fip).post("create-ipsec-site-conn", svc_context)
+
+        if peer_cidrs_2ton:
+            tunnel = {}
+            tunnel['peer_address'] = conn['peer_address']
+            tunnel['local_cidr'] = tunnel_local_cidr
+            tunnel['peer_cidrs'] = peer_cidrs_2ton
+            RestApi(mgmt_fip).post("create-ipsec-site-tunnel", tunnel)
+
         self._init_state(context, conn)
 
     def _ipsec_create_tunnel(self, context, mgmt_fip, conn):
