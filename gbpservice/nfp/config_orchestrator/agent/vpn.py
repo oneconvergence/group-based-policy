@@ -39,8 +39,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         self._sc = sc
         super(VpnAgent, self).__init__()
 
-    def _get_dict_desc_from_string(self, vpn_svc):
-        svc_desc = vpn_svc['description'].split(";")
+    def _get_dict_desc_from_string(self, vpn_desc):
+        svc_desc = vpn_desc.split(";")
         desc = {}
         for ele in svc_desc:
             s_ele = ele.split("=")
@@ -59,6 +59,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         return ctx_dict, rsrc_ctx_dict
 
     def _data_wrapper(self, context, tenant_id, **kwargs):
+        resource_type = 'vpn'
+        resource = kwargs['rsrc_type']
         ctx_dict, rsrc_ctx_dict = self.\
             _prepare_resource_context_dicts(context, tenant_id)
         nfp_context = {'neutron_context': ctx_dict,
@@ -71,11 +73,9 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             nfp_context.update(
                 {'network_function_id': nf_id,
                  'ipsec_site_connection_id': ipsec_site_connection_id})
-        resource_type = 'vpn'
-        resource = kwargs['rsrc_type']
-        resource_data = kwargs.update({'neutron_context': rsrc_ctx_dict})
+        kwargs.update({'neutron_context': rsrc_ctx_dict})
         body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
+                                           resource_type, kwargs)
         return body
 
     @log_helpers.log_method_call
@@ -126,7 +126,7 @@ class VpnNotifier(object):
             # Adding Service Type #
             request_data.update({"service_type": service_type,
                                  "ipsec_site_connection_id": ipsec_id})
-        except Exception as e:
+        except Exception:
             return request_data
         return request_data
 
