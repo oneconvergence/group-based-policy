@@ -118,6 +118,11 @@ class HaproxyAgent():
                                '%s' % parent_resource)
         return methodToCall(body)
 
+    def rsyslog_client_config(self, body):
+        methodToCall = getattr(self.haproxy_driver,
+                               'configure_rsyslog_as_client')
+        return methodToCall(body)
+
     def server(self, environ, start_response):
         data = "Haproxy Agent: No resource specified in the URL path"
         result = None
@@ -145,7 +150,8 @@ class HaproxyAgent():
             params = parse_qs(params)
             url_parts = url.path.split('/')
             parent_resource = self.get_parent_resource(url_parts)
-            if parent_resource not in ['frontend', 'backend', 'stats', 'sync', 'setup_ha']:
+            if parent_resource not in ['frontend', 'backend', 'stats', 'sync',
+                     'setup_ha', 'configure-rsyslog-as-client']:
                 err = Exception()
                 err.message = "Invalid resource name '%s'" % parent_resource
                 return self.return_error(err, start_response)
@@ -156,6 +162,8 @@ class HaproxyAgent():
                         result = self.sync_config(parent_resource, data)
                     elif parent_resource == 'setup_ha':
                         result = self.setup_ha(parent_resource, data)
+                    elif parent_resource == 'configure-rsyslog-as-client':
+                        result = self.rsyslog_client_config(data)
                     else:
                         result = self.create_method(parent_resource, data)
                 except Exception, err:
