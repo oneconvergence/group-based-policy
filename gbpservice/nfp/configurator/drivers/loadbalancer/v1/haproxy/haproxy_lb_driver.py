@@ -38,6 +38,7 @@ LOG = logging.getLogger(__name__)
 
 class HaproxyOnVmDriver(base_driver.BaseDriver):
     service_type = 'loadbalancer'
+    service_vendor = 'haproxy'
     pool_to_device = {}
 
     def __init__(self, plugin_rpc=None):

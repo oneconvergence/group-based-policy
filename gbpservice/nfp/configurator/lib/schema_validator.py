@@ -24,7 +24,7 @@ LOG = log.getLogger(__name__)
 
 class SchemaValidator(object):
 
-    def decode(self, request_data):
+    def decode(self, request_data, is_generic_config):
         """ Validate request data against resource schema.
 
         :param: request_data
@@ -38,11 +38,10 @@ class SchemaValidator(object):
                 return False
 
             if ('service_type' in request_data['info'] and
-                    'version' in request_data['info']):
-                service_type = request_data['info']['service_type']
-            elif ('service_type' not in request_data['info'] and
-                    'version' in request_data['info']):
-                service_type = 'generic'
+                    'service_vendor' in request_data['info'] and
+                    'context' in request_data['info']):
+                service_type = 'generic_config' if is_generic_config else (
+                                    request_data['info']['service_type'])
             elif not self.validate_schema(request_data['info'],
                                           schema.request_data_info):
                 return False
@@ -53,7 +52,7 @@ class SchemaValidator(object):
                     return False
 
                 resource_type = config['resource']
-                resource = config['kwargs']
+                resource = config['resource_data']
 
                 """Do not validate kwargs for
                    1) *aaS apis
@@ -61,7 +60,8 @@ class SchemaValidator(object):
                       interfaces and routes
                 """
                 if (service_type in schema.skip_kwargs_validation_for or
-                        (resource['service_type'] == 'loadbalancer' and
+                        (request_data['info'][
+                                'service_type'] == 'loadbalancer' and
                             resource_type != 'healthmonitor')):
                         continue
 

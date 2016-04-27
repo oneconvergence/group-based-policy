@@ -10,26 +10,28 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import eventlet
+eventlet.monkey_patch()
+
 import argparse
 import ConfigParser
+
 from gbpservice.nfp.core import common as nfp_common
 import os
-import Queue
-from Queue import Empty
 import socket
 import sys
-import threading
 import time
 
+from oslo_config import cfg
 from oslo_log import log as logging
 
-from neutron.common import config as n_common_config
+logging.register_options(cfg.CONF)
 
 LOGGER = logging.getLogger(__name__)
 LOG = nfp_common.log
 
 # Queue of proxy connections which workers will handle
-ConnQ = Queue.Queue(maxsize=0)
+ConnQ = eventlet.queue.Queue(maxsize=0)
 
 tcp_open_connection_count = 0
 tcp_close_connection_count = 0
@@ -135,19 +137,27 @@ ADT for proxy connection
 
 class Connection(object):
 
-    def __init__(self, conf, socket):
+    def __init__(self, conf, socket, type='unix'):
         self._socket = socket
         self._idle_wait = conf.idle_min_wait_timeout
         self._idle_timeout = conf.idle_max_wait_timeout
         self._idle_count_max = (self._idle_timeout / self._idle_wait)
         self._idle_count = 0
+        self._start_time = time.time()
+        self._end_time = time.time()
+        self.type = type
 
     def _tick(self):
         self._idle_count += 1
 
     def _timedout(self):
         if self._idle_count > self._idle_count_max:
-            raise ConnectionIdleTimeOut
+            self._end_time = time.time()
+            raise ConnectionIdleTimeOut(
+                "Connection (%d) - stime (%s) - etime (%s) - "
+                "idle_count (%d) idle_count_max(%d)" % (
+                    self.identify(), self._start_time,
+                    self._end_time, self._idle_count, self._idle_count_max))
 
     def idle(self):
         self._tick()
@@ -155,9 +165,15 @@ class Connection(object):
 
     def idle_reset(self):
         self._idle_count = 0
+        self._start_time = time.time()
+
+    def _wait(self, timeout):
+        if self.type == 'unix':
+            eventlet.sleep(timeout)
+        self._socket.settimeout(timeout)
 
     def recv(self):
-        self._socket.settimeout(self._idle_wait)
+        self._wait(self._idle_wait)
         try:
             data = self._socket.recv(1024)
             if data and len(data):
@@ -166,12 +182,15 @@ class Connection(object):
             self.idle()
         except socket.timeout:
             self.idle()
+        except socket.error:
+            self.idle()
         return None
 
     def send(self, data):
         self._socket.send(data)
 
     def close(self):
+        LOG(LOGGER, 'DEBUG', "Closing Socket - %d" % (self.identify()))
         self._socket.close()
 
     def identify(self):
@@ -188,8 +207,10 @@ TCP Client Socket
 class ProxyConnection(object):
 
     def __init__(self, conf, unix_socket, tcp_socket):
-        self._unix_conn = Connection(conf, unix_socket)
-        self._tcp_conn = Connection(conf, tcp_socket)
+        self._unix_conn = Connection(conf, unix_socket, type='unix')
+        self._tcp_conn = Connection(conf, tcp_socket, type='tcp')
+        LOG(LOGGER, 'DEBUG', "New Proxy - Unix - %d, TCP - %d" % (
+            self._unix_conn.identify(), self._tcp_conn.identify()))
 
     def close(self):
         self._unix_conn.close()
@@ -205,7 +226,8 @@ class ProxyConnection(object):
             self._proxy(self._unix_conn, self._tcp_conn)
             self._proxy(self._tcp_conn, self._unix_conn)
             return True
-        except Exception:
+        except Exception as exc:
+            LOG(LOGGER, 'DEBUG', "%s" % (exc))
             self._unix_conn.close()
             self._tcp_conn.close()
             return False
@@ -235,11 +257,12 @@ class Worker(object):
         while True:
             try:
                 pc = ConnQ.get()
-                if pc.run():
-                    ConnQ.put(pc)
-            except Empty:
+                call = True
+                while call:
+                    call = pc.run()
+            except eventlet.queue.Empty:
                 pass
-            time.sleep(0)
+            eventlet.sleep(0)
 
 
 """
@@ -263,9 +286,7 @@ class Proxy(object):
         """Run each worker in new thread"""
 
         for i in range(self.conf.worker_threads):
-            t = threading.Thread(target=Worker().run)
-            t.daemon = True
-            t.start()
+            eventlet.spawn_n(Worker().run)
         while True:
             self.server.listen()
 
@@ -283,10 +304,13 @@ class Proxy(object):
 
 
 def main(argv):
-    n_common_config.setup_logging()
+    cfg.CONF(args=sys.argv[1:])
+    logging.setup(cfg.CONF, 'nfp')
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-config-file', "--config-file", action="store", dest='config_file')
+    parser.add_argument(
+        '-log-file', "--log-file", action="store", dest='log_file')
     args = parser.parse_args(sys.argv[1:])
     conf = Configuration(args.config_file)
     Proxy(conf).start()

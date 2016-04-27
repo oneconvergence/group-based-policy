@@ -12,6 +12,7 @@
 
 from gbpservice.nfp.config_orchestrator.agent import firewall as fw
 from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
+from gbpservice.nfp.config_orchestrator.agent import notification_handler as nh
 from gbpservice.nfp.config_orchestrator.agent import \
     otc_service_events as otc_se
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
@@ -68,15 +69,23 @@ def rpc_init(sc, conf):
         report_state=vpn_report_state
     )
 
-    sc.register_rpc_agents([fwagent, lbagent, vpnagent])
+    nhrpcmgr = nh.NotificationAgent(conf, sc)
+    notificationagent = RpcAgent(
+        sc,
+        host=cfg.CONF.host,
+        topic=a_topics.CONFIG_ORCH_TOPIC,
+        manager=nhrpcmgr,
+    )
+
+    sc.register_rpc_agents([fwagent, lbagent, vpnagent, notificationagent])
 
 
 def events_init(sc, conf):
     """Register event with its handler."""
     evs = [
-        Event(id='SERVICE_CREATE',
+        Event(id='SERVICE_CREATED',
               handler=otc_se.OTCServiceEventsHandler(sc, conf)),
-        Event(id='SERVICE_DELETE',
+        Event(id='SERVICE_DELETED',
               handler=otc_se.OTCServiceEventsHandler(sc, conf))]
 
     sc.register_events(evs)
