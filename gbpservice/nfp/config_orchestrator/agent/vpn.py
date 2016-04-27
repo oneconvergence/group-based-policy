@@ -149,7 +149,6 @@ class VpnNotifier(object):
     def update_status(self, context, notification_data):
         resource_data = notification_data['notification'][0]['data']
         notification_info = notification_data['info']
-        resource_data = notification['data']
         status = resource_data['status']
         msg = ("NCO received VPN's update_status API,"
                "making an update_status RPC call to plugin for object"
@@ -178,7 +177,6 @@ class VpnNotifier(object):
     def ipsec_site_conn_deleted(self, context, notification_data):
         resource_data = notification_data['notification'][0]['data']
         notification_info = notification_data['info']
-        resource_data = notification['data']
         resource_id = resource_data['resource_id']
         msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
                "making an ipsec_site_conn_deleted RPC call to plugin for "
