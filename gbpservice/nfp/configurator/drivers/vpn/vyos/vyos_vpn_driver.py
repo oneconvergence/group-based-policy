@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 rest_timeout = [
     cfg.IntOpt(
         'VPN.rest_timeout',
-        default=360,
+        default=240,
         help="rest api timeout")]
 
 cfg.CONF.register_opts(rest_timeout)
