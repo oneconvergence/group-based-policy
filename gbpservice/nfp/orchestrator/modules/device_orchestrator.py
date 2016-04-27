@@ -109,10 +109,16 @@ class RpcHandler(object):
 
     # RPC APIs status notification from Configurator
     def network_function_notification(self, context, notification_data):
+        log_meta_data = nfp_log_helper.get_log_meta_data(
+                                                notification_data,
+                                                nfp_log_helper.ORCHESTRATOR)
         info = notification_data.get('info')
         responses = notification_data.get('notification')
         request_info = info.get('context')
         operation = request_info.get('operation')
+        LOG.info(log_meta_data + "Received Notification data:\n%s"
+                 % (nfp_log_helper.make_dict_readable(notification_data)))
+
         for response in responses:
             resource = response.get('resource')
             data = response.get('data')

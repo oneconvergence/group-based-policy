@@ -177,12 +177,12 @@ def send_request_to_configurator(conf, context, body,
     """
     # This function reads configuration data and decides
     # method (tcp_rest/rpc) for sending request to configurator.
-    log_meta_data = ""
+    log_meta_data = nfp_log_helper.get_log_meta_data(
+                                            body,
+                                            nfp_log_helper.TRANSPORT_LIB)
     if device_config:
         method_name = method_type.lower() + '_network_function_device_config'
         body['info']['context'].update({'neutron_context': context.to_dict()})
-        log_meta_data = body['config'][0]['resource_data'].get('log_meta_data',
-                                                               "")
     elif network_function_event:
         method_name = 'network_function_event'
     else:
@@ -193,8 +193,6 @@ def send_request_to_configurator(conf, context, body,
             body['info']['context'].update(
                 {'neutron_context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
-        log_meta_data = body['config'][0]['resource_data'].get('log_meta_data',
-                                                               "")
 
     if conf.backend == TCP_REST:
         try:
@@ -202,24 +200,26 @@ def send_request_to_configurator(conf, context, body,
                          conf.REST.rest_server_port)
             resp = rc.post(method_name, body, method_type.upper())
             LOG(LOGGER, 'INFO', log_meta_data +
-                "%s -> POST response: (%s) body: \n%s"
+                "%s -> TCP_REST POST response: (%s) body: \n%s"
                 % (method_name, resp, nfp_log_helper.make_dict_readable(body)))
         except RestClientException as rce:
             LOG(LOGGER, 'ERROR', log_meta_data +
-                "%s -> POST request failed.Reason: %s" % (method_name, rce))
+                "%s -> TCP_REST POST request failed.Reason:%s, body:\n%s"
+                % (method_name, rce, nfp_log_helper.make_dict_readable(body)))
 
     elif conf.backend == UNIX_REST:
         try:
             resp, content = unix_rc.post(method_name,
                                          body=body)
             LOG(LOGGER, 'INFO', log_meta_data +
-                "%s -> POST response: (%s) body : \n%s"
+                "%s -> UNIX_REST POST response: (%s) body : \n%s"
                 % (method_name, content,
                    nfp_log_helper.make_dict_readable(body)))
 
         except unix_rc.RestClientException as rce:
             LOG(LOGGER, 'ERROR', log_meta_data +
-                "%s -> request failed . Reason %s " % (method_name, rce))
+                "%s -> UNIX_REST POST request failed.Reason:%s, body:\n%s"
+                % (method_name, rce, nfp_log_helper.make_dict_readable(body)))
 
     else:
         rpcClient = RPCClient(conf.RPC.topic)
@@ -251,6 +251,8 @@ def get_response_from_configurator(conf):
                          conf.REST.rest_server_port)
             resp = rc.get('get_notifications')
             rpc_cbs_data = jsonutils.loads(resp.content)
+            LOG(LOGGER, 'INFO', "TCP_REST get_notifications response:%s"
+                % (nfp_log_helper.make_dict_readable(rpc_cbs_data)))
             return rpc_cbs_data
         except RestClientException as rce:
             LOG(LOGGER, 'ERROR',
@@ -269,8 +271,8 @@ def get_response_from_configurator(conf):
         try:
             resp, content = unix_rc.get('get_notifications')
             content = jsonutils.loads(content)
-            LOG(LOGGER, 'INFO', "get_notification -> GET response: (%s)" %
-                (content))
+            LOG(LOGGER, 'INFO', "UNIX_REST get_notifications response:%s"
+                % (nfp_log_helper.make_dict_readable(content)))
             return content
         except unix_rc.RestClientException as rce:
             LOG(LOGGER, 'ERROR',

@@ -13,6 +13,7 @@
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import poll as core_pt
 import gbpservice.nfp.lib.transport as transport
+import gbpservice.nfp.lib.nfp_log_helper as nfp_log_helper
 from gbpservice.nfp.proxy_agent.lib import topics as a_topics
 
 from neutron import context as n_context
@@ -47,6 +48,9 @@ class PullNotification(core_pt.PollEventDesc):
     def _method_handler(self, notification):
         # Method handles notification as per resource, resource_type and method
         try:
+            log_meta_data = nfp_log_helper.get_log_meta_data(
+                                            notification,
+                                            nfp_log_helper.PROXY_AGENT)
             requester = notification['info']['context']['requester']
             topic = ResourceMap[requester]
             context = notification['info']['context']['neutron_context']
@@ -55,6 +59,11 @@ class PullNotification(core_pt.PollEventDesc):
             rpcClient.cctxt.cast(rpc_ctx,
                                  'network_function_notification',
                                  notification_data=notification)
+
+            LOGGER.info(log_meta_data + "Sent Notification to %s on topic:%s."
+                        " Notification data:\n%s"
+                        % (requester, topic,
+                           nfp_log_helper.make_dict_readable(notification)))
         except Exception as e:
             raise Exception(e)
 

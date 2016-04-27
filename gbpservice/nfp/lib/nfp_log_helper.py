@@ -18,6 +18,16 @@ from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 
+PECAN = 'pecan'
+CONFIGURATOR = 'configurator'
+ORCHESTRATOR = 'orchestrator'
+PROXY_AGENT = 'proxy_agent'
+CONFIG_ORCHESTRATOR = 'config_orchestrator'
+TRANSPORT_LIB = 'transport'
+
+otc_modules = [PECAN, CONFIGURATOR]
+utc_modules = [ORCHESTRATOR, PROXY_AGENT, CONFIG_ORCHESTRATOR, TRANSPORT_LIB]
+
 
 def prepare_log_meta_data(nf=None, log_meta_data=None,
                           level=None, event_category=None,
@@ -130,7 +140,87 @@ def prepare_log_meta_data(nf=None, log_meta_data=None,
     except Exception as err:
         LOG.error(_LE("Error while generating LOG. %s."
                       % str(err).capitalize()))
-        raise err
+        return ''
+
+
+def get_log_meta_data(request_data, module):
+    """Fetch log_meta_data.
+    - over the cloud modules will get 'log_meta_data' from
+      body['config'][0]['resource_data'].
+    - under the cloud modules will get 'log_meta_data' from
+      body['info']['context']
+
+    :param request_data - request_data
+    :param module - module_name e.g 1) pecan, configurator
+                                    2) proxy_agent, config_orchestrator,
+                                       orchestrator
+
+    request_data for generic config apis
+    request_data = {
+            "info": {
+                "service_type": "",
+                "service_vendor": "",
+                "context": {
+                    "requester": "",
+                    "operation": "",
+                    "log_meta_data": ""
+                }
+            },
+            "config": [{
+                "resource": "",
+                "resource_data": {
+                    "key": "value",
+                    .
+                    .
+                    .
+                    "log_meta_data":"" <======== log_meta_data comes here
+                }
+            }]
+        }
+
+    request_data for neutron *aaS apis
+    request_data = {
+            "info": {
+                "service_type": "",
+                "service_vendor": "",
+                "context": {
+                    "requester": "",
+                    "operation": "",
+                    "log_meta_data": ""
+                }
+            },
+            "config": [{
+                "resource": "",
+                "resource_data": {
+                    "neutron_context": {
+                        "service_info": {},
+                        "log_meta_data": "" <======== log_meta_data comes here
+                    }
+                    .
+                    .
+                    "key": "value"
+                }
+            }]
+        }
+    """
+    log_meta_data = ""
+    try:
+        if module in otc_modules:
+            """Look for meta data assuming it is generic config request"""
+            log_meta_data = (request_data['config'][0]
+                             ['resource_data'].get("log_meta_data", ""))
+            if log_meta_data == "":
+                """Look for meta data assuming it is *aaS request"""
+                log_meta_data = (request_data['config'][0]['resource_data']
+                                 ['neutron_context'].get("log_meta_data", ""))
+        elif module in utc_modules:
+            log_meta_data = (request_data['info']
+                             ['context'].get("log_meta_data", ""))
+        else:
+            LOG.error("Wrong module name:%s passed " % (module))
+    except Exception:
+        pass
+    return log_meta_data
 
 
 def make_dict_readable(dictionary, indent=2):
