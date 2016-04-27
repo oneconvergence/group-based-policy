@@ -1397,7 +1397,7 @@ class NSOConfiguratorRpcApi(object):
                                                       config_tag)
         self._update_params(user_config_data,
                             config_params, operation='pt_add')
-        LOG.info(_LI("Sending Policy Target remove heat config request to "
+        LOG.info(_LI("Sending Policy Target add heat config request to "
                      "configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
