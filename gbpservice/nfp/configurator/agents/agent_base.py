@@ -10,10 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import oslo_messaging as messaging
+
 from gbpservice.nfp.configurator.lib import constants as const
+from neutron.common import rpc as n_rpc
 from oslo_log import log as logging
+from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
+n_rpc.init(cfg.CONF)
 
 """Implements base class for all service agents.
 
@@ -100,25 +105,32 @@ class AgentBaseRPCManager(object):
                                 agent_info, sa_req_list[0]['resource_data'])
 
 
+""" Sends notification events to under the cloud services.
+    It does rpc.cast() on const.NOTIFICATION_TOPIC.
+"""
+
+
 class AgentBaseNotification(object):
+
+    API_VERSION = '1.0'
 
     def __init__(self, sc):
         self.sc = sc
+        self.topic = const.NOTIFICATION_TOPIC
+        target = messaging.Target(topic=self.topic,
+                                  version=self.API_VERSION)
+        self.client = n_rpc.get_client(target)
 
     def _notification(self, data):
-        """Enqueues notification event into notification queue
-
-        These events are enqueued into notification queue and are retrieved
-        when get_notifications() API lands on configurator.
-
+        """Sends notification event
         :param data: Event data blob
-
         Returns: None
-
         """
-        event = self.sc.new_event(
-                id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
-        self.sc.stash_event(event)
+        ctxt = self.client.prepare()
+        ctxt.cast(self, 'configurator_notifications', data=data)
+
+    def to_dict(self):
+        return {}
 
 
 class AgentBaseEventHandler(object):

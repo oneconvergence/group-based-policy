@@ -79,6 +79,10 @@ cloud_services = [
      },
 ]
 
+nsd_controller = {'host': '127.0.0.1',  # pull notifications from 'host'
+                  'notification_queue': 'configurator-notifications'
+                  }
+
 # Custom Configurations must be in Python dictionary format::
 #
 # foo = {'bar':'baz'}
