@@ -205,6 +205,16 @@ class RpcHandler(object):
         service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.get_port_info(port_id)
 
+    @log_helpers.log_method_call
+    def get_network_function_context(self, context, network_function_instance_id):
+        '''Invoked in an RPC Call.
+
+        Return the Network function context
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        return service_orchestrator.get_network_function_context(
+            network_function_instance_id)
+
 
 class RpcHandlerConfigurator(object):
 
@@ -1271,6 +1281,31 @@ class ServiceOrchestrator(object):
                 network_function_device)
         return network_function_details
 
+    def get_network_function_context(self, network_function_instance_id):
+        nf_instance = self.db_handler.get_network_function_instance(
+            self.db_session, network_function_instance_id)
+        nf_id = nf_instance['network_function_id']
+        network_function_details = self.get_network_function_details(nf_id)
+
+        ports_info = []
+        for id in network_function_details[
+                'network_function_instance']['port_info']:
+            port_info = self.get_port_info(id)
+            ports_info.append(port_info)
+        mngmt_port_info = self.get_port_info(
+                                   network_function_details[
+                                   'network_function_device']['mgmt_port_id'])
+        monitor_port_id = network_function_details[
+            'network_function_device']['monitoring_port_id']
+        monitor_port_info = None
+        if monitor_port_id is not None:
+            monitor_port_info = self.get_port_info(monitor_port_id)
+
+        nf_context={'network_function_details': network_function_details,
+                    'ports_info': ports_info,
+                    'mngmt_port_info':  mngmt_port_info,
+                    'monitor_port_info': monitor_port_info}
+        return nf_context
 
 class NSOConfiguratorRpcApi(object):
 
