@@ -126,7 +126,7 @@ class RpcHandler(object):
                                 config):
         '''Update Network Function Configuration.
 
-        Invoked in an RPC cast. A notification has to be sent back once the
+        Invoked in an RPC call. A notification has to be sent back once the
         operation is completed, and GBP has the status update support
         '''
         service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
@@ -224,11 +224,11 @@ class RpcHandlerConfigurator(object):
         self.rpc_event_mapping = {
             'heat': ['APPLY_USER_CONFIG',
                      'DELETE_USER_CONFIG',
+                     'UPDATE_USER_CONFIG',
                      'POLICY_TARGET_ADD',
                      'POLICY_TARGET_REMOVE',
                      'CONSUMER_ADD',
-                     'CONSUMER_REMOVE',
-                     'UPDATE_USER_CONFIG']
+                     'CONSUMER_REMOVE']
         }
 
     def _log_event_created(self, event_id, event_data):
@@ -277,22 +277,22 @@ class RpcHandlerConfigurator(object):
             if result.lower() != 'success':
                 if operation == 'create':
                     event_id = self.rpc_event_mapping[resource][0]
-                elif operation == 'update':
-                    event_id = self.rpc_event_mapping[resource][6]
                 elif operation == 'delete':
                     event_id = self.rpc_event_mapping[resource][1]
+                elif operation == 'update':
+                    event_id = self.rpc_event_mapping[resource][2]
                 elif operation == 'pt_add':
                     serialize = True
-                    event_id = self.rpc_event_mapping[resource][2]
+                    event_id = self.rpc_event_mapping[resource][3]
                 elif operation == 'pt_remove':
                     serialize = True
-                    event_id = self.rpc_event_mapping[resource][3]
+                    event_id = self.rpc_event_mapping[resource][4]
                 elif operation == 'consumer_add':
                     serialize = True
-                    event_id = self.rpc_event_mapping[resource][4]
+                    event_id = self.rpc_event_mapping[resource][5]
                 else:
                     serialize = True
-                    event_id = self.rpc_event_mapping[resource][5]
+                    event_id = self.rpc_event_mapping[resource][6]
                 break
             else:
                 if operation == 'delete':
@@ -614,7 +614,6 @@ class ServiceOrchestrator(object):
     def update_network_function(self, context, network_function_id,
                                 user_config):
         # Handle config update
-        user_config = jsonutils.dumps(user_config)
         self.db_handler.update_network_function(
             self.db_session, network_function_id,
             {'service_config': user_config,

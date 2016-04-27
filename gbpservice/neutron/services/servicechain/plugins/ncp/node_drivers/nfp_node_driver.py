@@ -387,8 +387,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         self._set_node_instance_network_function_map(
             context.plugin_session, context.current_node['id'],
             context.instance['id'], network_function_id)
-        self._wait_for_network_function_create_completion(
-            context, network_function_id)
+        self._wait_for_network_function_operation_completion(
+            context, network_function_id, operation='create')
 
     def update(self, context):
         context._plugin_context = self._get_resource_owner_context(
@@ -405,8 +405,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         network_function_id = network_function_map.network_function_id
         self._update(context, network_function_id)
 
-        self._wait_for_network_function_update_completion(
-            context, network_function_id)
+        self._wait_for_network_function_operation_completion(
+            context, network_function_id, operation='update')
 
 
     def delete(self, context):
@@ -523,11 +523,15 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                       {'network_function': network_function_id})
             raise NodeInstanceDeleteFailed()
 
-    def _wait_for_network_function_create_completion(self, context,
-                                                     network_function_id):
+    def _wait_for_network_function_operation_completion(self, context,
+                                                        network_function_id,
+                                                        operation):
         time_waited = 0
         network_function = None
-        while time_waited < cfg.CONF.nfp_node_driver.service_create_timeout:
+        # timeout = getattr(cfg.CONF.nfp_node_driver, 'service_' +
+        #                   operation.lower() + '_timeout')
+        timeout = cfg.CONF.nfp_node_driver.service_create_timeout
+        while time_waited < timeout:
             network_function = self.nfp_notifier.get_network_function(
                 context.plugin_context, network_function_id)
             if not network_function:
@@ -536,7 +540,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 time_waited = time_waited + 5
                 continue
             else:
-                LOG.info(_LI("Create network function result: "
+                LOG.info(_LI(operation + " network function result: "
                              "%(network_function)s"),
                          {'network_function': network_function})
             if (network_function['status'] == 'ACTIVE' or
@@ -546,40 +550,14 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             time_waited = time_waited + 5
 
         if network_function['status'] != 'ACTIVE':
-            LOG.error(_LE("Create network function %(network_function)s "
+            LOG.error(_LE(operation + "network function %(network_function)s "
                           "failed. Status: %(status)s"),
                       {'network_function': network_function_id,
                        'status': network_function['status']})
-            raise NodeInstanceCreateFailed()
-
-    def _wait_for_network_function_update_completion(self, context,
-                                                     network_function_id):
-        time_waited = 0
-        network_function = None
-        while time_waited < cfg.CONF.nfp_node_driver.service_create_timeout:
-            network_function = self.nfp_notifier.get_network_function(
-                context.plugin_context, network_function_id)
-            if not network_function:
-                LOG.error(_LE("Failed to retrieve network function"))
-                eventlet.sleep(5)
-                time_waited = time_waited + 5
-                continue
-            else:
-                LOG.info(_LI("update network function result: "
-                             "%(network_function)s"),
-                         {'network_function': network_function})
-            if (network_function['status'] == 'ACTIVE' or
-                network_function['status'] == 'ERROR'):
-                break
-            eventlet.sleep(5)
-            time_waited = time_waited + 5
-
-        if network_function['status'] != 'ACTIVE':
-            LOG.error(_LE("Update network function %(network_function)s "
-                          "failed. Status: %(status)s"),
-                      {'network_function': network_function_id,
-                       'status': network_function['status']})
-            raise NodeInstanceUpdateFailed()
+            if operation.lower() == 'create':
+                raise NodeInstanceCreateFailed()
+            elif operation.lower() == 'update':
+                raise NodeInstanceUpdateFailed()
 
     def _is_service_target(self, policy_target):
         if policy_target['name'] and (policy_target['name'].startswith(
@@ -618,20 +596,18 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             return plugin_context
 
     def _update(self, context, network_function_id):
-        if (context.original_node and
-            context.original_node['config'] != context.current_node['config']):
+        if (context.original_node['config'] != context.current_node['config']):
             try:
                 self.nfp_notifier.update_network_function(
                     context=context.plugin_context,
                     network_function_id=network_function_id,
-                    config=context.current_node)
+                    config=context.current_node['config'])
             except Exception:
                 LOG.exception(_LE("Update Network service Failed for "
                                   "network function: %(nf_id)s"),
                              {'nf_id': network_function_id})
         else:
             LOG.info(_LI("No action to take on update"))
-            return
 
     def _get_service_targets(self, context):
         service_type = context.current_profile['service_type']
