@@ -14,9 +14,9 @@ import ast
 import copy
 
 from gbpservice.nfp.config_orchestrator.agent import common
+from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 
 from neutron_fwaas.db.firewall import firewall_db
 
@@ -59,6 +59,8 @@ class FwAgent(firewall_db.Firewall_db_mixin):
             tenant_id = context.tenant_id
         filters = {'tenant_id': [tenant_id]}
         db = self._get_firewall_context(context, filters)
+        # Commenting below as ports,subnets and routers data not need
+        # by firewall with present configurator
         # db.update(self._get_core_context(context, filters))
         return db
 
@@ -130,7 +132,7 @@ class FirewallNotifier(object):
             # Adding Service Type #
             request_data.update({"service_type": service_type,
                                  "fw_mac": fw_mac})
-        except:
+        except Exception:
             return request_data
         return request_data
 
