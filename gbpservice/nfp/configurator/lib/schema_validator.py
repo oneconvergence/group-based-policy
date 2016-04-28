@@ -12,6 +12,7 @@
 
 from oslo_log import log
 
+from gbpservice.nfp.configurator.lib import constants as const
 import gbpservice.nfp.configurator.lib.schema as schema
 LOG = log.getLogger(__name__)
 
@@ -40,8 +41,7 @@ class SchemaValidator(object):
             if ('service_type' in request_data['info'] and
                     'service_vendor' in request_data['info'] and
                     'context' in request_data['info']):
-                service_type = 'generic_config' if is_generic_config else (
-                                    request_data['info']['service_type'])
+                pass
             elif not self.validate_schema(request_data['info'],
                                           schema.request_data_info):
                 return False
@@ -59,10 +59,10 @@ class SchemaValidator(object):
                    2) generic config of loadbalancer for resource
                       interfaces and routes
                 """
-                if (service_type in schema.skip_kwargs_validation_for or
+                if (not is_generic_config or
                         (request_data['info'][
-                                'service_type'] == 'loadbalancer' and
-                            resource_type != 'healthmonitor')):
+                                'service_type'] == const.LOADBALANCER and
+                            resource_type != const.HEALTHMONITOR)):
                         continue
 
                 resource_schema = getattr(schema, resource_type)

@@ -87,8 +87,14 @@ class AgentBaseRPCManager(object):
             # demux and response data in agent to neutron_context in *aaS
             if not sa_req_list[0]['is_generic_config'] and not (
                         agent_info['resource'] in const.NFP_SERVICE_LIST):
+                # Here, we overload the neutron context with agent_info
+                # dict which contains the API context in addition to other
+                # fields like service type, service vendor, resource etc.
+                # We construct this agent_info dict inside the demuxer library
                 sa_req_list[0]['resource_data']['neutron_context'].update(
                                                     {'agent_info': agent_info})
+                # When calling the *aaS or NFPService agents, we rename the
+                # "neutron context" passed in the resource data to "context"
                 sa_req_list[0]['resource_data']['context'] = sa_req_list[0][
                                         'resource_data'].pop('neutron_context')
                 getattr(self, sa_req_list[0]['method'])(
@@ -157,6 +163,7 @@ class AgentBaseEventHandler(object):
                 resource_data = request['resource_data']
                 agent_info = request['agent_info']
                 resource = agent_info['resource']
+                # agent_info contains the API context.
                 context = agent_info['context']
                 service_vendor = agent_info['service_vendor']
                 service_type = agent_info['service_type']

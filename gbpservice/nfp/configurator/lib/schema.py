@@ -34,14 +34,6 @@
 """
 
 
-skip_kwargs_validation_for = [
-                                'firewall',
-                                'vpn',
-                                'loadbalancer',
-                                'nfp_service'
-                             ]
-
-
 """ Request data schema.
 """
 
