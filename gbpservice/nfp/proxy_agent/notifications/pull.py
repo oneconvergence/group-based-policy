@@ -28,7 +28,8 @@ LOG = nfp_common.log
 ResourceMap = {
     'device_orch': a_topics.DEVICE_ORCH_TOPIC,
     'service_orch': a_topics.SERVICE_ORCH_TOPIC,
-    'nas_service': a_topics.CONFIG_ORCH_TOPIC
+    'nas_service': a_topics.CONFIG_ORCH_TOPIC,
+    'visibility': a_topics.CONFIG_ORCH_TOPIC
 }
 
 

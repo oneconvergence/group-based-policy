@@ -74,13 +74,13 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         return ctx_dict, rsrc_ctx_dict
 
     def _data_wrapper(self, context, firewall, host, reason):
-        # Fetch nf_id from description of the resource
+        # Fetch nf_instance_id from description of the resource
         firewall_desc = ast.literal_eval(firewall['description'])
         fw_mac = firewall_desc['provider_ptg_info'][0]
-        nf_id = firewall_desc['network_function_id']
+        nf_instance_id = firewall_desc['network_function_instance_id']
         ctx_dict, rsrc_ctx_dict = self._prepare_resource_context_dicts(
             context, firewall['tenant_id'])
-        nfp_context = {'network_function_id': nf_id,
+        nfp_context = {'network_function_instance_id': nf_instance_id,
                        'neutron_context': ctx_dict,
                        'fw_mac': fw_mac,
                        'requester': 'nas_service'}
@@ -111,36 +111,14 @@ class FirewallNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _trigger_service_event(self, context, event_type, event_id,
-                               request_data):
-        event_data = {'resource': None,
-                      'context': context}
-        event_data['resource'] = {'eventtype': event_type,
-                                  'eventid': event_id,
-                                  'eventdata': request_data}
-        ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data)
-        self._sc.post_event(ev)
-
-    def _prepare_request_data(self, context, nf_id, fw_mac, service_type):
-        request_data = None
-        try:
-            request_data = common.get_network_function_map(
-                context, nf_id)
-            # Adding Service Type #
-            request_data.update({"service_type": service_type,
-                                 "fw_mac": fw_mac})
-        except:
-            return request_data
-        return request_data
-
     def set_firewall_status(self, context, notification_data):
         notification = notification_data['notification'][0]
         notification_info = notification_data['info']
         resource_data = notification['data']
         firewall_id = resource_data['firewall_id']
         status = resource_data['status']
-        nf_id = notification_info['context']['network_function_id']
+        nf_instance_id = notification_info['context'][
+            'network_function_instance_id']
         fw_mac = notification_info['context']['fw_mac']
         service_type = notification_info['service_type']
         msg = ("Config Orchestrator received "
@@ -157,18 +135,24 @@ class FirewallNotifier(object):
                              status=status)
 
         # Sending An Event for visiblity #
-        request_data = self._prepare_request_data(context, nf_id,
-                                                  fw_mac, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s" % (request_data, nf_id))
-        self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                    request_data)
+        request_data = {'nf_instance_id': nf_instance_id,
+                        'fw_mac': fw_mac,
+                        'service_type': service_type,
+                        'neutron_resource_id': firewall_id,
+                        'context': context,
+                        'eventid': 'SERVICE_CREATED'
+                        }
+        event = self.sc.new_event(
+            id='STASH_EVENT', key='STASH_EVENT', data=request_data)
+        self.sc.stash_event(event)
 
     def firewall_deleted(self, context, notification_data):
         notification = notification_data['notification'][0]
         notification_info = notification_data['info']
         resource_data = notification['data']
         firewall_id = resource_data['firewall_id']
-        nf_id = notification_info['context']['network_function_id']
+        nf_instance_id = notification_info['context'][
+            'network_function_instance_id']
         fw_mac = notification_info['context']['fw_mac']
         service_type = notification_info['service_type']
 
@@ -184,8 +168,13 @@ class FirewallNotifier(object):
                              firewall_id=firewall_id)
 
         # Sending An Event for visiblity #
-        request_data = self._prepare_request_data(context, nf_id,
-                                                  fw_mac, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
-        self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
-                                    request_data)
+        request_data = {'nf_instance_id': nf_instance_id,
+                        'fw_mac': fw_mac,
+                        'service_type': service_type,
+                        'context': context,
+                        'neutron_resource_id': firewall_id,
+                        'eventid': 'SERVICE_DELETED'
+                        }
+        event = self.sc.new_event(
+            id='STASH_EVENT', key='STASH_EVENT', data=request_data)
+        self.sc.stash_event(event)

@@ -86,6 +86,12 @@ def events_init(sc, conf):
         Event(id='SERVICE_CREATED',
               handler=otc_se.OTCServiceEventsHandler(sc, conf)),
         Event(id='SERVICE_DELETED',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
+        Event(id='SERVICE_CREATE_PENDING',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
+        Event(id='PULL_BULK_DATA',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
+        Event(id='SERVICE_OPERATION_POLL_EVENT',
               handler=otc_se.OTCServiceEventsHandler(sc, conf))]
 
     sc.register_events(evs)
@@ -94,3 +100,9 @@ def events_init(sc, conf):
 def nfp_module_init(sc, conf):
     rpc_init(sc, conf)
     events_init(sc, conf)
+
+
+def nfp_module_post_init(sc, conf):
+    ev = sc.new_event(id='SERVICE_OPERATION_POLL_EVENT',
+                      key='SERVICE_OPERATION_POLL_EVENT')
+    sc.post_event(ev)

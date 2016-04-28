@@ -100,9 +100,9 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
                        'requester': 'nas_service'}
         if name.lower() == 'vip':
             vip_desc = ast.literal_eval(kwargs['vip']['description'])
-            nf_id = vip_desc['network_function_id']
+            nf_instance_id = vip_desc['network_function_instance_id']
             vip_id = kwargs['vip']['id']
-            nfp_context.update({'network_function_id': nf_id,
+            nfp_context.update({'network_function_instance_id': nf_instance_id,
                                 'vip_id': vip_id})
         resource_type = 'loadbalancer'
         resource = name
@@ -171,29 +171,6 @@ class LoadbalancerNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _prepare_request_data(self, context, nf_id, vip_id, service_type):
-        request_data = None
-        try:
-            request_data = common.get_network_function_map(
-                context, nf_id)
-            # Adding Service Type #
-            request_data.update({"service_type": service_type,
-                                 "vip_id": vip_id})
-        except Exception as e:
-            return request_data
-        return request_data
-
-    def _trigger_service_event(self, context, event_type, event_id,
-                               request_data):
-        event_data = {'resource': None,
-                      'context': context}
-        event_data['resource'] = {'eventtype': event_type,
-                                  'eventid': event_id,
-                                  'eventdata': request_data}
-        ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data)
-        self._sc.post_event(ev)
-
     def update_status(self, context, notification_data):
         notification = notification_data['notification'][0]
         notification_info = notification_data['info']
@@ -217,15 +194,21 @@ class LoadbalancerNotifier(object):
                              status=status)
 
         if obj_type.lower() == 'vip':
-            nf_id = notification_info['context']['network_function_id']
+            nf_instance_id = notification_info['context'][
+                'network_function_instance_id']
             vip_id = notification_info['context']['vip_id']
-            request_data = self._prepare_request_data(context, nf_id,
-                                                      vip_id, service_type)
-            LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-            # Sending An Event for visiblity
-            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                        request_data)
+            # sending notification to visibility
+            event_data = {'context': context,
+                          'nf_instance_id': nf_instance_id,
+                          'vip_id': vip_id,
+                          'service_type': service_type,
+                          'neutron_resource_id': vip_id,
+                          'eventid': 'SERVICE_CREATED'
+                          }
+            event = self.sc.new_event(
+                id='STASH_EVENT', key='STASH_EVENT', data=request_data)
+            self.sc.stash_event(event)
 
     def update_pool_stats(self, context, notification_data):
         notification = notification_data['notification'][0]
@@ -250,13 +233,20 @@ class LoadbalancerNotifier(object):
 
     def vip_deleted(self, context, notification_data):
         notification_info = notification_data['info']
-        nf_id = notification_info['context']['network_function_id']
+        nf_instance_id = notification_info['context'][
+            'network_function_instance_id']
         vip_id = notification_info['context']['vip_id']
         service_type = notification_info['service_type']
-        request_data = self._prepare_request_data(context, nf_id,
-                                                  vip_id, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
         # Sending An Event for visiblity
-        self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
-                                    request_data)
+        event_data = {'context': context,
+                      'nf_instance_id': nf_instance_id,
+                      'vip_id': vip_id,
+                      'service_type': service_type,
+                      'neutron_resource_id': vip_id,
+                      'eventid': 'SERVICE_CREATED'
+                      }
+
+        event = self.sc.new_event(
+            id='STASH_EVENT', key='STASH_EVENT', data=event_data)
+        self.sc.stash_event(event)

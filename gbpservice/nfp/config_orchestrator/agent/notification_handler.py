@@ -42,12 +42,15 @@ class NotificationAgent(object):
     def network_function_notification(self, context, notification_data):
         try:
             resource_data = notification_data['notification'][0]['data']
-            handler = ServicetypeToHandlerMap[notification_data[
-                'info']['service_type']](self._conf, self._sc)
-            method = getattr(handler, resource_data['notification_type'])
-            # Need to decide on the name of the key
-            method(context, notification_data)
-
+            if notification_data['info']['service_type'] is not None:
+                handler = ServicetypeToHandlerMap[notification_data[
+                    'info']['service_type']](self._conf, self._sc)
+                method = getattr(handler, resource_data['notification_type'])
+                # Need to decide on the name of the key
+                method(context, notification_data)
+            else:
+                self._handle_notification_from_visibility(
+                    context, notification_data)
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             LOG(LOGGER, 'ERROR',
@@ -57,3 +60,13 @@ class NotificationAgent(object):
                     traceback.format_exception(
                         exc_type, exc_value,
                         exc_traceback)))
+
+    def _handle_notification_from_visibility(self, context, notification_data):
+        # Handle notification from visibility by an event
+        event_data = {'context': context,
+                      'notification_data': notification_data,
+                      }
+        ev = self._sc.new_event(id='PULL_BULK_DATA',
+                                key='PULL_BULK_DATA',
+                                data=event_data)
+        self._sc.post_event(ev)

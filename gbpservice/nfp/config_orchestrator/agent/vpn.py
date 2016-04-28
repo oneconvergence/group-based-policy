@@ -40,7 +40,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         super(VpnAgent, self).__init__()
 
     def _get_dict_desc_from_string(self, vpn_svc):
-        svc_desc = vpn_svc['description'].split(";")
+        svc_desc = vpn_svc.split(";")
         desc = {}
         for ele in svc_desc:
             s_ele = ele.split("=")
@@ -63,19 +63,19 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             _prepare_resource_context_dicts(context, tenant_id)
         nfp_context = {'neutron_context': ctx_dict,
                        'requester': 'nas_service'}
+        resource_type = 'vpn'
+        resource = kwargs['rsrc_type']
         if resource.lower() == 'ipsec_site_connection':
             ipsec_desc = self._get_dict_desc_from_string(kwargs[
                 'resource']['description'])
-            nf_id = ipsec_desc['network_function_id']
+            nf_instance_id = ipsec_desc['network_function_instance_id']
             ipsec_site_connection_id = kwargs['rsrc_id']
             nfp_context.update(
-                {'network_function_id': nf_id,
+                {'network_function_instance_id': nf_instance_id,
                  'ipsec_site_connection_id': ipsec_site_connection_id})
-        resource_type = 'vpn'
-        resource = kwargs['rsrc_type']
-        resource_data = kwargs.update({'neutron_context': rsrc_ctx_dict})
+        kwargs.update({'neutron_context': rsrc_ctx_dict})
         body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
+                                           resource_type, kwargs)
         return body
 
     @log_helpers.log_method_call
@@ -117,30 +117,6 @@ class VpnNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _prepare_request_data(self, context, nf_id,
-                              ipsec_id, service_type):
-        request_data = None
-        try:
-            request_data = common.get_network_function_map(
-                context, nf_id)
-            # Adding Service Type #
-            request_data.update({"service_type": service_type,
-                                 "ipsec_site_connection_id": ipsec_id})
-        except Exception as e:
-            return request_data
-        return request_data
-
-    def _trigger_service_event(self, context, event_type, event_id,
-                               request_data):
-        event_data = {'resource': None,
-                      'context': context}
-        event_data['resource'] = {'eventtype': event_type,
-                                  'eventid': event_id,
-                                  'eventdata': request_data}
-        ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data)
-        self._sc.post_event(ev)
-
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     # TODO(akash): Event for service create/delete not implemented here
     # Need to do that
@@ -160,15 +136,23 @@ class VpnNotifier(object):
         # Sending An Event for visiblity
         if notification['resource'].lower() is\
                 'ipsec_site_connection':
-            nf_id = notification_info['context']['network_function_id']
+            nf_instance_id = notification_info['context'][
+                'network_function_instance_id']
             ipsec_id = notification_info['context']['ipsec_site_connection_id']
             service_type = notification_info['service_type']
-            request_data = self._prepare_request_data(context, nf_id,
-                                                      ipsec_id, service_type)
-            LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                        request_data)
+            # Sending An Event for visiblity
+            event_data = {'context': context,
+                          'nf_instance_id': nf_instance_id,
+                          'ipsec_site_connection_id': ipsec_id,
+                          'service_type': service_type,
+                          'neutron_resource_id': ipsec_id,
+                          'eventid': 'SERVICE_CREATED'
+                          }
+
+            event = self.sc.new_event(
+                id='STASH_EVENT', key='STASH_EVENT', data=event_data)
+            self.sc.stash_event(event)
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
@@ -185,12 +169,20 @@ class VpnNotifier(object):
                              id=resource_id)
 
         # Sending An Event for visiblity
-        nf_id = notification_info['context']['network_function_id']
+        nf_instance_id = notification_info[
+            'context']['network_function_instance_id']
         ipsec_id = notification_info['context']['ipsec_site_connection_id']
         service_type = notification_info['service_type']
-        request_data = self._prepare_request_data(context, nf_id,
-                                                  ipsec_id, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-        self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
-                                    request_data)
+        # Sending An Event for visiblity
+        event_data = {'context': context,
+                      'nf_instance_id': nf_instance_id,
+                      'ipsec_site_connection_id': ipsec_id,
+                      'service_type': service_type,
+                      'neutron_resource_id': ipsec_id,
+                      'eventid': 'SERVICE_DELETED'
+                      }
+
+        event = self.sc.new_event(
+            id='STASH_EVENT', key='STASH_EVENT', data=event_data)
+        self.sc.stash_event(event)
