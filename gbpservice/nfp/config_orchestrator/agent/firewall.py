@@ -111,7 +111,7 @@ class FirewallNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _prepare_request_data(self, context, nf_instance_id,
+    def _prepare_request_data(self, context, nf_instance_id, resource_id,
                               fw_mac, service_type):
         request_data = None
         try:
@@ -119,7 +119,8 @@ class FirewallNotifier(object):
                 context, nf_instance_id)
             # Adding Service Type #
             request_data.update({"service_type": service_type,
-                                 "fw_mac": fw_mac})
+                                 "fw_mac": fw_mac,
+                                 "neutron_resource_id": resource_id})
         except:
             return request_data
         return request_data
@@ -151,7 +152,8 @@ class FirewallNotifier(object):
         event_data = {'context' : context,
                       'nf_instance_id' : nf_instance_id,
                       'fw_mac' : fw_mac,
-                      'service_type': service_type
+                      'service_type': service_type,
+                      'resource_id' : firewall_id,
                      }
         ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
                                key=nf_instance_id,
@@ -165,6 +167,7 @@ class FirewallNotifier(object):
         firewall_id = resource_data['firewall_id']
         nf_instance_id = notification_info['context'][
                                            'network_function_instance_id']
+        resource_id = resource_data['firewall_id']
         fw_mac = notification_info['context']['fw_mac']
         service_type = notification_info['service_type']
 
@@ -181,6 +184,7 @@ class FirewallNotifier(object):
 
         # Sending An Event for visiblity #
         request_data = self._prepare_request_data(context, nf_instance_id,
+                                                  resource_id,
                                                   fw_mac, service_type)
         LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_instance_id))
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',

@@ -70,6 +70,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
         if event_data.has_key('fw_mac'):
             request_data = self.fw_agent._prepare_request_data(event_data['context'],
                                                        event_data['nf_instance_id'],
+                                                       event_data['resource_id'],
                                                        event_data['fw_mac'],
                                                        event_data['service_type'])
             msg = ("%s : %s " % (request_data, event_data['fw_mac']))
@@ -78,6 +79,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
         if event_data.has_key('vip_id'):
             request_data = self.lb_agent._prepare_request_data(event_data['context'],
                                                        event_data['nf_instance_id'],
+                                                       event_data['resource_id'],
                                                        event_data['vip_id'],
                                                        event_data['service_type'])
             msg = ("%s : %s " % (request_data, event_data['vip_id']))
@@ -86,6 +88,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
         if event_data.has_key('ipsec_id'):
             request_data = self.vpn_agent._prepare_request_data(event_data['context'],
                                                        event_data['nf_instance_id'],
+                                                       event_data['resource_id'],
                                                        event_data['ipsec_id'],
                                                        event_data['service_type'])
             msg = ("%s : %s " % (request_data, event_data['ipsec_id']))
