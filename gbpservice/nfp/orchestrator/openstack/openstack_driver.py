@@ -133,9 +133,6 @@ class KeystoneClient(OpenstackApi):
             keystone resources.
         """
         keystone_conf = self.config.keystone_authtoken
-        keystone_conf.admin_user = 'neutron'
-        keystone_conf.admin_password = 'admin_pass'
-        keystone_conf.admin_tenant_name = 'service'
 
         v2client = identity_client.Client(
             username=keystone_conf.admin_user,

@@ -347,9 +347,12 @@ class HeatDriver(object):
 
     def _get_member_ips(self, auth_token, ptg):
         member_addresses = []
-        policy_targets = self.gbp_client.get_policy_targets(
-            auth_token,
-            filters={'id': ptg.get("policy_targets")})
+        if ptg.get("policy_targets"):
+            policy_targets = self.gbp_client.get_policy_targets(
+                auth_token,
+                filters={'id': ptg.get("policy_targets")})
+        else:
+            return member_addresses
         for policy_target in policy_targets:
             if not self._is_service_target(policy_target):
                 port_id = policy_target.get("port_id")
