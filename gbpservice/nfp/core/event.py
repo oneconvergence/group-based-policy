@@ -10,275 +10,309 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
 import multiprocessing
-import os
-import time
 import uuid as pyuuid
 
 from oslo_log import log as oslo_logging
 
 from gbpservice.nfp.core import common as nfp_common
-from gbpservice.nfp.core import threadpool as nfp_tp
+from gbpservice.nfp.core import module as nfp_api
+from gbpservice.nfp.core import sequencer as nfp_seq
 
 LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
 identify = nfp_common.identify
 
-"""Descriptor of event. """
+"""Event Types """
+SCHEDULE_EVENT = 'schedule_event'
+POLL_EVENT = 'poll_event'
+STASH_EVENT = 'stash_event'
+EVENT_EXPIRED = 'event_expired'
+
+"""Event Flag """
+EVENT_NEW = 'new_event'
+EVENT_COMPLETE = 'event_done'
+EVENT_ACK = 'event_ack'
+
+"""Sequencer status. """
+SequencerEmpty = nfp_seq.SequencerEmpty
+SequencerBusy = nfp_seq.SequencerBusy
+
+deque = collections.deque
+
+"""Defines poll descriptor of an event.
+
+    Holds all of the polling information of an
+    event.
+"""
+
+
+class PollDesc(object):
+
+    def __init__(self, **kwargs):
+        # Spacing of the event, event will timeout @this spacing.
+        self.spacing = kwargs.get('spacing')
+        # Max times event can be polled, is autocancelled after.
+        self.max_times = kwargs.get('max_times')
+        # Reference to original event, UUID.
+        self.ref = kwargs.get('ref')
+
+"""Defines the descriptor of an event.
+
+    Holds the metadata for an event. Useful
+    for event processing. Not exposed to nfp modules.
+"""
 
 
 class EventDesc(object):
 
     def __init__(self, **kwargs):
-        # Unique id of the event, generated if not passed.
-        self.uid = kwargs.get('key', pyuuid.uuid4())
-        # Poll descriptor of the event.
-        self.poll_event = None
-        # Worker handling this event.
-        self.worker_attached = None
-        # When this event was last run
-        self.last_run = None
+        # Unique id of the event, use what user passed or
+        # generate a new unique id.
+        self.uuid = kwargs.get('key', pyuuid.uuid4())
+        # see 'Event Types'
+        self.type = kwargs.get('type')
+        # see 'Event Flag'
+        self.flag = kwargs.get('flag')
+        # PID of worker which is handling this event
+        self.worker = kwargs.get('worker')
+        # Polling descriptor of event
+        self.poll_desc = kwargs.get('poll_desc')
 
-        if not self.uid:
-            self.uid = pyuuid.uuid4()
+"""Defines the event structure.
 
-"""Definition of an 'EVENT' in NFP framework.
-
-    NFP modules instantiates object of this class to define and
-    create internal events.
+    Nfp modules need to create object of the class
+    to create an event.
 """
 
 
 class Event(object):
 
     def __init__(self, **kwargs):
-        # ID of the event, can be same for multiple events
+        # ID of event as passed by module
         self.id = kwargs.get('id')
-        # Module context, not decoded by core
-        self.data = kwargs.get('data', None)
-        # Handler used only @the time of registration
-        self.handler = kwargs.get('handler', None)
-        # To serialize this event.
-        self.serialize = kwargs.get('serialize', False)
-        # Events with same binding_key are related.
-        self.binding_key = kwargs.get('binding_key', None)
-        # Lifetime of event in seconds
+        # Data blob
+        self.data = kwargs.get('data')
+        # Whether to sequence this event w.r.t
+        # other related events.
+        self.sequence = kwargs.get('serialize', False)
+        # Unique key to be associated with the event
+        self.key = kwargs.get('key')
+        # Binding key to define relation between
+        # different events.
+        self.binding_key = kwargs.get('binding_key')
+        # Handler of the event.
+        self.handler = kwargs.get('handler')
+        # Lifetime of the event in seconds.
         self.lifetime = kwargs.get('lifetime', 0)
-        # Max number of times this event can be polled.
-        # Default, till stopped or forever.
-        self.max_times = -1
+
+        # Prepare the base descriptor
+        if self.key:
+            desc = EventDesc(**{'key': self.key})
+        else:
+            desc = EventDesc()
+        self.desc = desc
+
+        cond = self.sequence is True and self.binding_key is None
+        assert not cond
 
     def identify(self):
         if hasattr(self, 'desc'):
-            return "(Event -> id=%s,key=%s)" % (self.id, self.desc.uid)
+            return "uuid=%s,id=%s,type=%s,flag=%s" % (
+                self.desc.uuid, self.id, self.desc.type, self.desc.flag)
+        return "id=%s" % (self.id)
+
+"""Table of event handler's.
+
+    Maintains cache of every module's event handlers.
+    Also, maintains the polling against event_id
+    which are provided as decorators.
+"""
+
+
+class NfpEventHandlers(object):
+
+    def __init__(self):
+        # {'event.id': [(event_handler, poll_handler, spacing)]
+        self._event_desc_table = {}
+
+    def _log_meta(self, event_id, event_handler=None):
+        if event_handler:
+            return "(event_id - %s) - (event_handler - %s)" % (
+                event_id, identify(event_handler))
         else:
-            return "(Event -> id=%s,key=%s)" % (self.id, '')
+            return "(event_id - %s) - (event_handler - None)" % (event_id)
 
-"""Handles the sequencing of related events.
+    def register(self, event_id, event_handler):
+        """Registers a handler for event_id.
 
-    If Event needs to be sequenced it is queued otherwise
-    it is scheduled. Caller will fetch the sequenced events
-    waiting to be scheduled in subsequent calls.
-"""
-
-
-class EventSequencer(object):
-
-    def __init__(self, sc):
-        self._sc = sc
+            Also fetches the decorated poll handlers if any
+            for the event and caches it.
         """
-        sequenced events are stored in following format :
-        {'binding_key':{'in_use':True, 'queue':[]}}
-        """
-        self._sequencer_map = {}
-
-    def get(self):
-        """Get an event from the sequencer map.
-
-            Invoked by workers to get the first event in sequencer map.
-            Since it is a FIFO, first event could be waiting long to be
-            scheduled.
-            Loops over copy of sequencer map and returns the first waiting
-            event.
-        """
-        seq_map = self._sequencer_map
-        for bkey, val in seq_map.iteritems():
-            in_use = val['in_use']
-            if not in_use and val['queue']:
-                # Return the first element of the
-                # queue in first free sequencer.
-                # should not pop here, event done will
-                # remove it. useful in restart cases later.
-                event = val['queue'][0]
-                val['in_use'] = True
-                LOG(LOGGER, 'DEBUG', "%s - sequencer_get - returning"
-                    % (event.identify()))
-                return event
-
-    def add(self, event):
-        """Add the event to the sequencer.
-
-            Checks if there is already a related event scheduled,
-            if not, will not queue the event. If yes, then will
-            queue this event.
-            Returns True(queued)/False(not queued).
-        """
-        queued = False
+        if not isinstance(event_handler, nfp_api.NfpEventHandler):
+            LOG(LOGGER, 'ERROR', "%s - Handler is not"
+                "instance of NfpEventHandler" %
+                (self._log_meta(event_id, event_handler)))
+            return
         try:
-            seq_map = self._sequencer_map[event.binding_key]
-            seq_map['queue'].append(event)
-            queued = True
-            LOG(LOGGER, 'DEBUG', "%s - sequencer_add - an event"
-                "already in progress, queueing" % (event.identify()))
-        except KeyError as err:
-            self._sequencer_map[event.binding_key] = {
-                'in_use': True, 'queue': [event]}
-            err = err
-            LOG(LOGGER, 'DEBUG',
-                "%s - sequencer_add - first event "
-                "in sequence, scheduling it" % (event.identify()))
-        return queued
+            poll_desc_table = event_handler.get_poll_desc_table()
+            poll_handler = poll_desc_table[event_id]
+            spacing = poll_handler._spacing
+        except KeyError:
+            # Default the poll handler and spacing values
+            poll_handler = event_handler.handle_poll_event
+            spacing = 0
 
-    def copy(self):
-        """Returns the copy of sequencer_map to caller.
+        try:
+            self._event_desc_table[event_id].append(
+                (event_handler, poll_handler, spacing))
+        except KeyError:
+            self._event_desc_table[event_id] = [
+                (event_handler, poll_handler, spacing)]
 
-            Used by the caller to iterate over the sequencer /
-            read operations.
-        """
-        copy = dict(self._sequencer_map)
-        return copy
+        LOG(LOGGER, 'DEBUG', "%s - Registered handler" %
+            (self._log_meta(event_id, event_handler)))
 
-    def remove(self, event):
-        """Removes an event from sequencer map.
+    def get_event_handler(self, event_id):
+        """Get the handler for the event_id. """
+        eh = None
+        try:
+            eh = self._event_desc_table[event_id][0][0]
+        finally:
+            LOG(LOGGER, 'DEBUG', "%s - Returning event handler" %
+                (self._log_meta(event_id, eh)))
+            return eh
 
-            If this is the last related event in the map, then
-            the complete entry is deleted from sequencer map.
-        """
-        bkey = event.binding_key
-        self._sequencer_map[bkey]['queue'].remove(event)
-        self._sequencer_map[bkey]['in_use'] = False
-        LOG(LOGGER, 'DEBUG', "%s - sequencer - removed" % (
-            event.identify()))
+    def get_poll_handler(self, event_id):
+        """Get the poll handler for event_id. """
+        ph = None
+        try:
+            ph = self._event_desc_table[event_id][0][1]
+        finally:
+            LOG(LOGGER, 'DEBUG', "%s - Returning poll handler" %
+                (self._log_meta(event_id, ph)))
+            return ph
 
-    def delete_eventmap(self, event):
-        """Internal method to delete event map, if it is empty. """
-        seq_map = self._sequencer_map[event.binding_key]
-        if seq_map['queue'] == []:
-            LOG(LOGGER, 'DEBUG',
-                "sequencer - no events -"
-                "deleting entry - %s"
-                % (event.binding_key))
-            del self._sequencer_map[
-                event.desc.worker_attached][event.binding_key]
+    def get_poll_spacing(self, event_id):
+        """Return the spacing for event_id. """
+        spacing = 0
+        try:
+            spacing = self._event_desc_table[event_id][0][2]
+        finally:
+            LOG(LOGGER, 'DEBUG', "%s - Poll spacing %d" %
+                (self._log_meta(event_id), spacing))
+            return spacing
 
-"""Handles the processing of evens in event queue.
 
-    Executes in the context of worker process, runs in loop to fetch
-    the events and process them. As processing, invokes the registered
-    handler for the event.
+"""Manages the lifecycle of event of a process.
+
+    Each process (worker/distributor) is associated
+    with a event manager. Event manager pulls events
+    from the pipe, caches it, sequences & dispatches
+    the events.
 """
 
 
-class EventQueueHandler(object):
+class NfpEventManager(object):
 
-    def __init__(self, sc, conf, pipe, ehs, modules):
-        # Pool of green threads per process
+    def __init__(self, conf, controller, sequencer, pipe=None, pid=-1):
         self._conf = conf
-        self._tpool = nfp_tp.ThreadPool()
+        self._controller = controller
+        # PID of process to which this event manager is associated
+        self._pid = pid
+        # Duplex pipe to read & write events
         self._pipe = pipe
-        self._ehs = ehs
-        self._nfp_modules = modules
-        self._sc = sc
+        # Cache of UUIDs of events which are dispatched to
+        # the worker which is handled by this em.
+        self._cache = deque()
+        # Load on this event manager - num of events pending to be completed
+        self._load = 0
 
-    def _get(self):
-        """Internal function to get an event for processing.
+    def _log_meta(self, event=None):
+        if event:
+            return "(event - %s) - (event_manager - %d)" % (
+                event.identify(), self._pid)
+        else:
+            return "(event_manager - %d" % (self._pid)
 
-            First checks in sequencer map - these events could be
-            waiting for long.
-            If no events, then fetch the events from event_queue -
-            listener process adds events into this queue.
-            Returns the event to be processed.
+    def _wait_for_events(self, pipe, timeout=0.01):
+        """Wait & pull event from the pipe.
+
+            Wait till timeout for the first event and then
+            pull as many as available.
+            Returns: Events[] pulled from pipe.
         """
-        # Check if any event can be pulled from serialize_map - this evs may be
-        # waiting long enough
-        event = self._sc.sequencer_get_event()
-        if not event:
-            try:
-                if self._pipe.poll(0.1):
-                    event = self._pipe.recv()
-            except multiprocessing.TimeoutError as err:
-                err = err
-                pass
-            if event:
-                # If this event needs to be serialized and is first event
-                # then the same is returned back, otherwise None is
-                # returned. If event need not be serialized then it is
-                # returned.
-                event = self._sc.sequencer_put_event(event)
-        return event
+        events = []
+        try:
+            while pipe.poll(timeout):
+                timeout = 0
+                events.append(pipe.recv())
+        except multiprocessing.TimeoutError as err:
+            LOG(LOGGER, 'EXCEPTION', "%s" % (err))
+        return events
 
-    def _dispatch_poll_event(self, eh, ev):
-        """Internal function to handle the poll event.
+    def init_from_event_manager(self, em):
+        """Initialize from existing event manager.
 
-            Poll task adds the timedout events to the worker process.
-            This method handles such timedout events in worker context.
-            Invoke the decorated timeout handler for the event, if any.
-            (or) invoke the default 'handle_poll_event' method of registered
-            handler.
-            """
-        t = self._tpool.dispatch(self._sc.poll_event_timedout, eh, ev)
-        LOG(LOGGER, 'DEBUG',
-            "%s - dispatch poll event - "
-            "to event handler: %s - "
-            "in thread: %s"
-            % (ev.identify(), identify(eh), t.identify()))
+            Invoked when an event manager has to take over
+            existing event manager.
 
-    def run(self, pipe):
-        """Worker process loop to fetch & process events from event queue.
-
-            Gets the events from event queue which is
-            python multiprocessing.queue.
-            Listener process adds events into this queue for worker process
-            to handle it.
-            Handles 3 different type of events -
-            a) POLL_EVENT - Event added by poller due to timeout.
-            b) POLL_EVENT_CANCELLED - Event added by poller due to event
-                getting cancelled as it timedout configured number of
-                max times.
-            c) EVENT - Internal event added by listener process.
+            Whole cache is replaced and events are replayed.
+            This is used in case where a worker dies, dead
+            workers event manager is assigned to new worker.
         """
-        LOG(LOGGER, 'INFO',
-            "%d - worker started" % (os.getpid()))
-        # Update my identity on my copy of controller
-        self._sc._process_name = 'worker-process'
-        # Update my pid in worker map
-        self._sc._worker_pipe_map[os.getpid()] = pipe
-        # Initialize the nfp modules again from worker.
-        # This is because modules are initializing some contexts
-        # in module_init which is invoked before starting workers,
-        # forked workers get the copy of such contexts, and module
-        # logic end up using stale contexts.
-        # Better to initialize again and ignore re registrations.
-        self._sc.modules_init(self._nfp_modules)
-        while True:
-            event = self._get()
-            if event:
-                LOG(LOGGER, 'DEBUG',
-                    "%s - worker - got new event" % (event.identify()))
-                eh = self._ehs.get(event)
-                if not event.desc.poll_event:
-                    t = self._tpool.dispatch(eh.handle_event, event)
-                    LOG(LOGGER, 'DEBUG', "%s - dispatch internal event -"
-                        "to event handler:%s - "
-                        "in thread:%s" % (
-                            event.identify(),
-                            identify(eh), t.identify()))
-                else:
-                    self._dispatch_poll_event(eh, event)
-            time.sleep(0)  # Yield the CPU
+        # Replay all the events from cache.
+        self._cache = em._cache
 
+    def get_pending_events(self):
+        return list(self._cache)
 
-def load_nfp_symbols(namespace):
-    nfp_common.load_nfp_symbols(namespace)
+    def get_load(self):
+        """Return current load on the manager."""
+        return self._load
 
-load_nfp_symbols(globals())
+    def pop_event(self, event):
+        """Pop the passed event from cache.
+
+            Is called when an event is complete/cancelled.
+            If the event was sequenced, then sequencer is
+            released to schedule next event.
+
+            Removes event from cache.
+        """
+        LOG(LOGGER, 'DEBUG', "%s - pop event" % (self._log_meta(event)))
+        try:
+            self._cache.remove(event.desc.uuid)
+            self._load -= 1
+        except ValueError as verr:
+            verr = verr
+            LOG(LOGGER, 'ERROR', "%s - event not in cache" %
+                (self._log_meta(event)))
+
+    def dispatch_event(self, event, event_type=None,
+                       inc_load=True, cache=True):
+        """Dispatch event to the worker.
+
+            Sends the event to worker through pipe.
+            Increments load if event_type is SCHEDULED event,
+            poll_event does not contribute to load.
+        """
+        LOG(LOGGER, 'DEBUG', "%s - Dispatching to worker %d" %
+            (self._log_meta(event), self._pid))
+        # Update the worker information in the event.
+        event.desc.worker = self._pid
+        # Update the event with passed type
+        if event_type:
+            event.desc.type = event_type
+        # Send to the worker
+        self._controller.pipe_send(self._pipe, event)
+
+        self._load = (self._load + 1) if inc_load else self._load
+        # Add to the cache
+        if cache:
+            self._cache.append(event.desc.uuid)
+
+    def event_watcher(self, timeout=0.01):
+        """Watch for events. """
+        return self._wait_for_events(self._pipe, timeout=timeout)

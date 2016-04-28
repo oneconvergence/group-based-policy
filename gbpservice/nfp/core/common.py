@@ -10,53 +10,48 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import collections
+import os
 import pdb
-import Queue
 import sys
-import sys
+import time
 
-deque = collections.deque
+from oslo_config import cfg as oslo_cfg
+from oslo_log import log as oslo_logging
+
+oslo_logging.register_options(oslo_cfg.CONF)
+
+
+def init():
+    """Initialize logging. """
+    product_name = "nfp"
+    oslo_logging.setup(oslo_cfg.CONF, product_name)
 
 
 def log(logger, level, msg):
-    eval('_log_%s' % (level.lower()))(logger, msg)
+    """ Abstract method for logging. """
+    core_msg = "(nfp/core/pid=%d)" % (os.getpid())
+    core_msg += msg
+    eval('_log_%s' % (level.lower()))(logger, core_msg)
 
 
-def _log_info(logger, msg):
-    logger.info(msg)
+def _log_info(log, msg):
+    log.info(msg)
 
 
-def _log_debug(logger, msg):
-    logger.debug(msg)
+def _log_debug(log, msg):
+    log.debug(msg)
 
 
-def _log_error(logger, msg):
-    logger.error(msg)
+def _log_error(log, msg):
+    log.error(msg)
 
 
-def _log_warn(logger, msg):
-    logger.warn(msg)
+def _log_warn(log, msg):
+    log.warn(msg)
 
 
-def _log_exception(logger, msg):
-    logger.exception(msg)
-
-
-class ForkedPdb(pdb.Pdb):
-
-    """A Pdb subclass that may be used
-    from a forked multiprocessing child
-
-    """
-
-    def interaction(self, *args, **kwargs):
-        _stdin = sys.stdin
-        try:
-            sys.stdin = file('/dev/stdin')
-            pdb.Pdb.interaction(self, *args, **kwargs)
-        finally:
-            sys.stdin = _stdin
+def _log_exception(log, msg):
+    log.exception(msg)
 
 
 def _is_class(obj):
@@ -85,98 +80,42 @@ def _name(obj):
 
 
 def identify(obj):
-    """Helper method to display identify an object.
+    """Helper method to display identity an object.
 
     Useful for logging. Decodes based on the type of obj.
     Supports 'class' & 'method' types for now.
+
+    :param obj: Object (Class/Method supported.)
+    Returns: String. Identification of the object.
     """
+    prefix = obj._NAME_ if hasattr(obj, '_NAME_') else ''
     try:
-        return "(%s)" % (_name(obj))
+        return "([%s] %s)" % (prefix, _name(obj))
     except Exception:
-        """Some unknown type, returning empty """
+        # Some unknown type, returning empty
         return ""
 
 
-def load_nfp_symbols(namespace):
-    namespace['identify'] = identify
-    namespace['log_info'] = _log_info
-    namespace['log_debug'] = _log_debug
-    namespace['log_error'] = _log_error
-    namespace['log_exception'] = _log_exception
+def time_stamp():
+    """Current time stamp in milliseconds.
+
+    Returns: time stamp in milliseconds.
+    """
+    _time_ms = lambda: int(round(time.time() * 1000.0))
+    return _time_ms()
 
 
-"""Wrapper class over python deque.
+class ForkedPdb(pdb.Pdb):
 
-    Implements firsinfirsout logic.
-    New methods to support 'get' more than one element,
-    'copy' the queue, 'remove' multiple messages are added.
-"""
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
 
+    """
 
-class NfpFifo(object):
-
-    class Empty(Exception):
-
-        """Exception raised when queue is empty and dequeue is attempted.
-        """
-        pass
-
-    class Full(Exception):
-
-        """Exception raised when queue is full and enqueue is attempted.
-        """
-        pass
-
-    def __init__(self, sc, maxsize=-1):
-        self._sc = sc
-        self._size = sys.maxint if maxsize == -1 else maxsize
-        self._queue = deque()
-
-    def _qsize(self):
-        return len(self._queue)
-
-    def _is_empty(self):
-        if not self._qsize():
-            raise Queue.Empty()
-
-    def _is_full(self):
-        if self._size == self._qsize():
-            raise Queue.Full()
-
-    def _pop(self, out):
-        self._is_empty()
-        out.append(self._queue.popleft())
-        return out
-
-    def put(self, msg):
-        """Puts a message in queue. """
-        self._is_full()
-        self._queue.append(msg)
-
-    def get(self, limit=sys.maxint):
-        """Get max requested number of messages.
-
-            If there are less messages in the queue than requested,
-            then available number of messages are returned.
-        """
-        msgs = []
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
         try:
-            for i in range(0, limit):
-                msgs = self._pop(msgs)
-        except Queue.Empty:
-            pass
+            sys.stdin = file('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
         finally:
-            return msgs
-
-    def copy(self):
-        """Return the copy of queue. """
-        qu = list(self._queue)
-        return qu
-
-    def remove(self, msgs):
-        """Remove list of messages from the fifo """
-        try:
-            for msg in msgs:
-                self._queue.remove(msg)
-        except ValueError as err:
-            err = err
+            sys.stdin = _stdin

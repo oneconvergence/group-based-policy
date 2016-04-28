@@ -18,8 +18,7 @@ import oslo_messaging as messaging
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.core.event import Event
-from gbpservice.nfp.core.poll import poll_event_desc
-from gbpservice.nfp.core.poll import PollEventDesc
+from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
@@ -94,9 +93,9 @@ class RpcHandler(object):
         if is_poll_event:
             ev = self._controller.new_event(
                 id=event_id, data=event_data,
-                serialize=original_event.serialize,
+                serialize=original_event.sequence,
                 binding_key=original_event.binding_key,
-                key=original_event.desc.uid)
+                key=original_event.desc.uuid)
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
@@ -142,7 +141,7 @@ class RpcHandler(object):
                            event_data=event_data)
 
 
-class DeviceOrchestrator(PollEventDesc):
+class DeviceOrchestrator(nfp_api.NfpEventHandler):
     """device Orchestrator For Network Services
 
     This class handles the orchestration of Network Function Device lifecycle.
@@ -261,9 +260,9 @@ class DeviceOrchestrator(PollEventDesc):
             if is_poll_event:
                 ev = self._controller.new_event(
                     id=event_id, data=event_data,
-                    serialize=original_event.serialize,
+                    serialize=original_event.sequence,
                     binding_key=original_event.binding_key,
-                    key=original_event.desc.uid)
+                    key=original_event.desc.uuid)
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:

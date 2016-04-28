@@ -20,7 +20,7 @@ from gbpservice.nfp.configurator.lib import (
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
-from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import module as nfp_api
 
 LOG = logging.getLogger(__name__)
 
@@ -164,8 +164,7 @@ invoked by core service controller.
 """
 
 
-class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
-                                nfp_poll.PollEventDesc):
+class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
     def __init__(self, sc, drivers, rpcmgr):
         super(GenericConfigEventHandler, self).__init__(
                                         sc, drivers, rpcmgr)
@@ -259,8 +258,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
             if (resource_data.get('periodicity') == gen_cfg_const.INITIAL and
                     result == common_const.SUCCESS):
                 notification_data = self._prepare_notification_data(ev, result)
-                self.sc.poll_event_done(ev)
                 self.notify._notification(notification_data)
+				return {'poll': False}
             elif resource_data.get('periodicity') == gen_cfg_const.FOREVER:
                 if result == common_const.FAILED:
                     """If health monitoring fails continuously for 5 times
@@ -273,8 +272,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                         notification_data = self._prepare_notification_data(
                                                                     ev,
                                                                     result)
-                        self.sc.poll_event_done(ev)
                         self.notify._notification(notification_data)
+                        return {'poll': False}
                 elif result == common_const.SUCCESS:
                     """set fail_count to 0 if it had failed earlier even once
                     """
@@ -284,8 +283,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                that particular service vm's health monitor
             """
             notification_data = self._prepare_notification_data(ev, result)
-            self.sc.poll_event_done(ev)
             self.notify._notification(notification_data)
+            return {'poll': False}
         else:
             """For other events, irrespective of result send notification"""
             notification_data = self._prepare_notification_data(ev, result)
@@ -346,7 +345,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         notification_data = self._prepare_notification_data(ev, result)
         self.notify._notification(notification_data)
 
-    @nfp_poll.poll_event_desc(
+    @nfp_api.poll_event_desc(
                             event=gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
                             spacing=5)
     def handle_configure_healthmonitor(self, ev):

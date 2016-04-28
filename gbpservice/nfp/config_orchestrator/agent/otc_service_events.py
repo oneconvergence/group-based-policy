@@ -11,7 +11,7 @@
 #    under the License.
 
 from gbpservice.nfp.core import common as nfp_common
-from gbpservice.nfp.core import poll as core_pt
+from gbpservice.nfp.core import module as nfp_api
 import gbpservice.nfp.lib.transport as transport
 
 from oslo_log import log as oslo_logging
@@ -23,7 +23,7 @@ LOG = nfp_common.log
 """Periodic Class to service events for visiblity."""
 
 
-class OTCServiceEventsHandler(core_pt.PollEventDesc):
+class OTCServiceEventsHandler(nfp_api.NfpEventHandler):
 
     def __init__(self, sc, conf):
         self._sc = sc

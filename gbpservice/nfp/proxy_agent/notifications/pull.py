@@ -11,7 +11,7 @@
 #    under the License.
 
 from gbpservice.nfp.core import common as nfp_common
-from gbpservice.nfp.core import poll as core_pt
+from gbpservice.nfp.core import module as nfp_api
 import gbpservice.nfp.lib.transport as transport
 from gbpservice.nfp.proxy_agent.lib import topics as a_topics
 
@@ -35,7 +35,7 @@ ResourceMap = {
 """Periodic Class to pull notification from configurator"""
 
 
-class PullNotification(core_pt.PollEventDesc):
+class PullNotification(nfp_api.NfpEventHandler):
 
     def __init__(self, sc, conf):
         self._sc = sc
@@ -58,7 +58,7 @@ class PullNotification(core_pt.PollEventDesc):
         except Exception as e:
             raise Exception(e)
 
-    @core_pt.poll_event_desc(event='PULL_NOTIFICATIONS', spacing=1)
+    @nfp_api.poll_event_desc(event='PULL_NOTIFICATIONS', spacing=10)
     def pull_notifications(self, ev):
         """Pull and handle notification from configurator."""
         notifications = transport.get_response_from_configurator(self._conf)
