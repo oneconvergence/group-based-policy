@@ -68,14 +68,6 @@ class SchemaValidator(object):
                 resource_schema = getattr(schema, resource_type)
                 if not self.validate_schema(resource, resource_schema):
                     return False
-
-                if 'rule_info' in resource:
-                    interface_rule_info = resource['rule_info']
-                    interface_rule_info_schema = schema.interfaces_rule_info
-
-                    if not self.validate_schema(interface_rule_info,
-                                                interface_rule_info_schema):
-                        return False
         except Exception as e:
             LOG.error(e)
             return False
