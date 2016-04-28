@@ -139,12 +139,7 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
                         'stitching_cidr': consumer_cidr,
                         'stitching_interface_index': 3,
                         'provider_mac': provider_mac,
-                        'stitching_mac': consumer_mac,
-                        'rule_info':{
-                            'active_provider_mac': provider_mac,
-                            'active_stitching_mac': consumer_mac,
-                            'active_fip': device_data['mgmt_ip_address'],
-                        }
+                        'stitching_mac': consumer_mac
                     }
                 },
                 {
