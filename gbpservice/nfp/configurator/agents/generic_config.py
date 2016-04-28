@@ -245,7 +245,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         # other information like service vendor, type etc..
         agent_info = ev.data['context']
         context = agent_info['context']
-        service_type = agent_info['service_type']
+        service_type = agent_info['resource_type']
         service_vendor = agent_info['service_vendor']
 
         try:
@@ -318,7 +318,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         # processing function. To keep the context unchanged, delete the
         # notification_data before invoking driver API.
         notification_data = agent_info['notification_data']
-        service_type = agent_info['service_type']
+        service_type = agent_info['resource_type']
         resource = agent_info['resource']
 
         if result in common_const.SUCCESS:
