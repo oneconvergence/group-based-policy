@@ -108,7 +108,7 @@ class ReportStateTask(oslo_periodic_task.PeriodicTasks):
         pulse.start(
             interval=1, initial_delay=None)
 
-    @oslo_periodic_task.periodic_task(spacing=5)
+    @oslo_periodic_task.periodic_task(spacing=10)
     def report_state(self, context):
         # trigger the state reporting
         self._controller.report_state()

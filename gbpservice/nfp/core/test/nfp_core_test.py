@@ -38,7 +38,7 @@ def nfp_module_init(controller, conf):
 def module_test(controller, conf):
     event = controller.create_event(
         id='EVENT_ID_1', data='Ahmed',
-        sequence=True, binding_key='EVENT_ID_1', lifetime=30)
+        serialize=True, binding_key='EVENT_ID_1', lifetime=30)
     controller.post_event(event)
 
 
@@ -55,18 +55,18 @@ class EventsHandler(nfp_api.NfpEventHandler):
             self._controller.poll_event(event, max_times=10, spacing=1)
             event = self._controller.create_event(
                 id='EVENT_ID_2', data='Ahmed',
-                sequence=True, binding_key='EVENT_ID_1', lifetime=40)
+                serialize=True, binding_key='EVENT_ID_1', lifetime=40)
             self._controller.post_event(event)
         elif event.id == 'EVENT_ID_2':
             self._controller.poll_event(event, max_times=10)
             event = self._controller.create_event(
                 id='EVENT_ID_3', data='Ahmed',
-                sequence=True, binding_key='EVENT_ID_3', lifetime=30)
+                serialize=True, binding_key='EVENT_ID_1', lifetime=30)
             self._controller.post_event(event)
         elif event.id == 'EVENT_ID_3':
             event = self._controller.create_event(
                 id='EVENT_ID_4', data='Ahmed',
-                sequence=True, binding_key='EVENT_ID_3', lifetime=10)
+                serialize=True, binding_key='EVENT_ID_1', lifetime=10)
             self._controller.post_event(event)
 
     def handle_poll_event(self, event):

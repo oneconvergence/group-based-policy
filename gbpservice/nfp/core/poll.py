@@ -39,7 +39,7 @@ class NfpPollHandler(Scheduler):
         """Run to find timedout event. """
         q = self._queue
         timefunc = self.timefunc
-        # delayfunc = self.delayfunc
+        #delayfunc = self.delayfunc
         pop = heapq.heappop
         if q:
             time, priority, action, argument = checked_event = q[0]
@@ -52,7 +52,7 @@ class NfpPollHandler(Scheduler):
                 # by another thread after we last looked at q[0].
                 if event is checked_event:
                     action(*argument)
-                    # delayfunc(0)   # Let other threads run
+                    #delayfunc(0)   # Let other threads run
                 else:
                     heapq.heappush(q, event)
 
@@ -77,7 +77,7 @@ class PollingTask(oslo_periodic_task.PeriodicTasks):
         pulse.start(
             interval=1, initial_delay=None)
 
-    @oslo_periodic_task.periodic_task(spacing=0)
+    @oslo_periodic_task.periodic_task(spacing=1)
     def poll(self, context):
         # invoke the common class to handle event timeouts
         self._controller.poll()

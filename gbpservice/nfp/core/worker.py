@@ -128,6 +128,7 @@ class NfpWorker(Service):
             eh.event_cancelled(event, 'MAX_TIMED_OUT')
 
     def _handle_poll_event(self, event):
+        ret = {}
         event.desc.poll_desc.max_times -= 1
         poll_handler = self.event_handlers.get_poll_handler(event.id)
         event_handler = self.event_handlers.get_event_handler(event.id)

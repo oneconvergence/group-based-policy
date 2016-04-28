@@ -11,12 +11,15 @@
 #    under the License.
 
 import eventlet
+eventlet.monkey_patch()
+
 import multiprocessing
 import os
 import sys
 import time
 
 from oslo_log import log as oslo_logging
+from oslo_service import service as oslo_service
 
 from gbpservice.nfp.core import cfg as nfp_cfg
 from gbpservice.nfp.core import common as nfp_common
@@ -24,15 +27,16 @@ from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import launcher as nfp_launcher
 from gbpservice.nfp.core import manager as nfp_manager
 from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import rpc as nfp_rpc
 from gbpservice.nfp.core import worker as nfp_worker
+
+from neutron.common import config
 
 LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
 PIPE = multiprocessing.Pipe
 PROCESS = multiprocessing.Process
 identify = nfp_common.identify
-
-eventlet.monkey_patch()
 
 """Implements NFP service.
 
@@ -68,10 +72,12 @@ class NfpService(object):
             self._event_handlers.register(event_desc.id, event_desc.handler)
 
     def register_rpc_agents(self, agents):
+        """Register rpc handlers with core. """
         for agent in agents:
             self._rpc_agents.append((agent,))
 
     def new_event(self, **kwargs):
+        """Define and return a new event. """
         return self.create_event(**kwargs)
 
     def create_event(self, **kwargs):
@@ -91,6 +97,7 @@ class NfpService(object):
         """
         handler = self._event_handlers.get_event_handler(event.id)
         assert handler, "No handler registered for event %s" % (event.id)
+        '''
         kwargs = {'type': nfp_event.SCHEDULE_EVENT,
                   'flag': nfp_event.EVENT_NEW,
                   'pid': os.getpid()}
@@ -98,12 +105,16 @@ class NfpService(object):
             kwargs.update({'key': event.key})
         desc = nfp_event.EventDesc(**kwargs)
         setattr(event, 'desc', desc)
+        '''
+        event.desc.type = nfp_event.SCHEDULE_EVENT
+        event.desc.flag = nfp_event.EVENT_NEW
+        event.desc.pid = os.getpid()
         return event
 
-    def poll_event(self, event, spacing=0, max_times=sys.maxint):
+    def poll_event(self, event, spacing=2, max_times=sys.maxint):
         """To poll for an event.
-            NfpModule will invoke this method to start polling of
-            an event. As a base class, it only does the polling
+
+            As a base class, it only does the polling
             descriptor preparation.
             NfpController class implements the required functionality.
         """
@@ -115,6 +126,16 @@ class NfpService(object):
         handler = self._event_handlers.get_poll_handler(event.id)
         assert handler, "No poll handler found for event %s" % (event.id)
 
+        '''
+        if not hasattr(event, 'desc'):
+            kwargs = {'type': nfp_event.SCHEDULE_EVENT,
+                      'flag': nfp_event.EVENT_NEW,
+                      'pid': os.getpid()}
+            if event.key:
+                kwargs.update({'key': event.key})
+            desc = nfp_event.EventDesc(**kwargs)
+            setattr(event, 'desc', desc)
+        '''
         refuuid = event.desc.uuid
         event = self._make_new_event(event)
         event.lifetime = 0
@@ -158,13 +179,14 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         nfp_launcher.NfpLauncher.__init__(self, conf)
         NfpService.__init__(self, conf)
 
+        # For book keeping
+        self._worker_process = {}
         self._conf = conf
         self._pipe = None
+
         self._manager = nfp_manager.NfpResourceManager(conf, self)
         self._worker = nfp_worker.NfpWorker(conf)
         self._poll_handler = nfp_poll.NfpPollHandler(conf)
-        # For book keeping
-        self._worker_process = {}
 
         # ID of process handling this controller obj
         self.PROCESS_TYPE = "distributor"
@@ -185,6 +207,16 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             self._manager.manager_run()
             eventlet.greenthread.sleep(0.01)
 
+    def _update_manager(self):
+        childs = self.get_childrens()
+        for pid, wrapper in childs.iteritems():
+            pipe = wrapper.child_pipe_map[pid]
+            # Inform 'Manager' class about the new_child.
+            self._manager.new_child(pid, pipe)
+
+    def _process_event(self, event):
+        self._manager.process_events([event])
+
     def get_childrens(self):
         # oslo_process.ProcessLauncher has this dictionary,
         # 'NfpLauncher' derives oslo_service.ProcessLauncher
@@ -199,10 +231,6 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             Returns: Multiprocess object.
         """
 
-        # REVISIT(MAK): Multiprocessing.Queue implements exchanger
-        # type model ? any process can generate
-        # message for any other ?
-        # Pipe allows one-one communication.
         parent_pipe, child_pipe = PIPE(duplex=True)
 
         # Registered event handlers of nfp module.
@@ -236,14 +264,14 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         super(NfpController, self).launch_service(
             self._worker, workers=workers)
 
-    def _update_manager(self):
-        childs = self.get_childrens()
-        for pid, wrapper in childs.iteritems():
-            pipe = wrapper.child_pipe_map[pid]
-            # Inform 'Manager' class about the new_child.
-            self._manager.new_child(pid, pipe)
 
     def post_launch(self):
+        """Post processing after workers launch.
+
+            Tasks which needs to run only on distributor
+            process and any other resources which are not
+            expected to be forked are initialized here.
+        """
         self._update_manager()
 
         # Launch rpc_agents
@@ -257,18 +285,24 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         # Oslo periodic task to poll for timer events
         nfp_poll.PollingTask(self._conf, self)
         # Oslo periodic task for state reporting
-        nfp_rpc.ReportStateTask(self._conf, self)
+        # nfp_rpc.ReportStateTask(self._conf, self)
 
 
     def poll_add(self, event, timeout, callback):
+        """Add an event to poller. """
         self._poll_handler.poll_add(
             event, timeout, callback)
 
     def poll(self):
+        """Invoked in periodic task to poll for timedout events. """
         self._poll_handler.run()
 
-    def _process_event(self, event):
-        self._manager.process_events([event])
+    def report_state(self):
+        """Invoked by report_task to report states of all agents. """
+        for agent in self._rpc_agents:
+            rpc_agent = itemgetter(0)(agent)
+            rpc_agent.report_state()
+
 
     def post_event(self, event):
         """Post a new event into the system.
@@ -296,7 +330,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
                 "processing event" % (event.identify()))
             self._manager.process_events([event])
 
-    def poll_event(self, event, spacing=0, max_times=sys.maxint):
+    def poll_event(self, event, spacing=2, max_times=sys.maxint):
         """Post a poll event into the system.
 
             Core will poll for this event to timeout, after
@@ -379,7 +413,12 @@ def load_nfp_modules(conf, controller):
                         pymodules += [pymodule]
                         LOG(LOGGER, 'DEBUG', "(module - %s) - Initialized" %
                             (identify(pymodule)))
-                    except AttributeError:
+                    except AttributeError as e:
+                        import sys
+                        import traceback
+                        exc_type, exc_value, exc_traceback = sys.exc_info()
+                        print traceback.format_exception(exc_type, exc_value,
+                                                         exc_traceback)
                         LOG(LOGGER, 'ERROR', "(module - %s) - "
                             "does not implement"
                             "nfp_module_init()" % (identify(pymodule)))
@@ -396,17 +435,13 @@ def load_nfp_modules(conf, controller):
     return pymodules
 
 
-def controller_init(conf):
-    nfp_controller = NfpController(conf)
+def controller_init(conf, nfp_controller):
     nfp_controller.launch(conf.workers)
     # Wait for conf.workers*1 + 1 secs for workers to comeup
     time.sleep(conf.workers * 1 + 1)
     nfp_controller.post_launch()
-    return nfp_controller
 
-
-def nfp_modules_init(conf, nfp_controller):
-    nfp_modules = load_nfp_modules(conf, nfp_controller)
+def nfp_modules_post_init(conf, nfp_modules, nfp_controller):
     for module in nfp_modules:
         try:
             module.nfp_module_post_init(nfp_controller, conf)
@@ -414,21 +449,24 @@ def nfp_modules_init(conf, nfp_controller):
             LOG(LOGGER, 'DEBUG', "(module - %s) - "
                 "does not implement"
                 "nfp_module_post_init(), ignoring" % (identify(module)))
-    return nfp_modules
 
 
 def main():
     conf = nfp_cfg.init(sys.argv[1:])
     nfp_common.init()
-    nfp_controller = controller_init(conf)
-    # Init all nfp modules from path configured
-    nfp_modules = nfp_modules_init(conf, nfp_controller)
-    eventlet.spawn_n(unit_test_task, nfp_modules, nfp_controller, conf)
+    nfp_controller = NfpController(conf)
+    # Load all nfp modules from path configured
+    nfp_modules = load_nfp_modules(conf, nfp_controller)
+    # Init the controller, launch required contexts
+    controller_init(conf, nfp_controller)
+    # post_init of each module
+    nfp_modules_post_init(conf, nfp_modules, nfp_controller)
+    #eventlet.spawn_n(self_test_task, nfp_modules, nfp_controller, conf)
     # Wait for every exec context to complete
     nfp_controller.wait()
 
 
-def unit_test_task(modules, controller, conf):
+def self_test_task(modules, controller, conf):
     while True:
         for module in modules:
             module.module_test(controller, conf)

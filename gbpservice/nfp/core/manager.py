@@ -36,10 +36,13 @@ def IS_SCHEDULED_NEW_EVENT(event):
     return event.desc.type == nfp_event.SCHEDULE_EVENT and \
         event.desc.flag == nfp_event.EVENT_NEW
 
-
+'''
 def IS_SCHEDULED_EVENT_COMPLETE(event):
     return event.desc.type == nfp_event.SCHEDULE_EVENT and \
         event.desc.flag == nfp_event.EVENT_COMPLETE
+'''
+def IS_EVENT_COMPLETE(event):
+    return event.desc.flag == nfp_event.EVENT_COMPLETE
 
 
 """Manages the forked childs.
@@ -213,7 +216,7 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
 
     def _non_schedule_event(self, event):
         if event.desc.type == nfp_event.POLL_EVENT:
-            LOG(LOGGER, 'ERROR',
+            LOG(LOGGER, 'DEBUG',
                 "(event - %s) - polling for event, spacing(%d)" %
                 (event.identify(), event.desc.poll_desc.spacing))
             # If the poll event is new -> create one in cache,
@@ -254,12 +257,12 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
 
         """
         for event in events:
-            LOG(LOGGER, 'ERROR', "%s - processing event" % (event.identify()))
+            LOG(LOGGER, 'DEBUG', "%s - processing event" % (event.identify()))
             if IS_SCHEDULED_EVENT_ACK(event):
                 self._scheduled_event_ack(event)
             elif IS_SCHEDULED_NEW_EVENT(event):
                 self._scheduled_new_event(event)
-            elif IS_SCHEDULED_EVENT_COMPLETE(event):
+            elif IS_EVENT_COMPLETE(event):
                 self._scheduled_event_complete(event)
             else:
                 self._non_schedule_event(event)
@@ -300,7 +303,7 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
         pending_event_ids = event_manager.get_pending_events()
         for event_id in pending_event_ids:
             try:
-                LOG(LOGGER, 'ERROR', "%s - replaying event" % (event_id))
+                LOG(LOGGER, 'INFO', "%s - replaying event" % (event_id))
                 event_manager.dispatch_event(
                     self._event_cache[event_id], cache=False)
             except KeyError as kerr:
@@ -348,12 +351,12 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
 
     def _event_life_timedout(self, event):
         """Callback for poller when event expires. """
-        LOG(LOGGER, 'ERROR', "(event - %s) - expired" % (event.identify()))
+        LOG(LOGGER, 'DEBUG', "(event - %s) - expired" % (event.identify()))
         self._scheduled_event_complete(event, expired=True)
 
     def _event_timedout(self, event):
         """Callback for poller when event timesout. """
-        LOG(LOGGER, 'ERROR', "(event - %s) - timedout" % (event.identify()))
+        LOG(LOGGER, 'DEBUG', "(event - %s) - timedout" % (event.identify()))
         try:
             ref_event = self._event_cache[event.desc.poll_desc.ref]
             evmanager = self._get_event_manager(ref_event.desc.worker)

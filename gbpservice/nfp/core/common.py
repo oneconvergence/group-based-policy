@@ -80,7 +80,7 @@ def _name(obj):
 
 
 def identify(obj):
-    """Helper method to display identify an object.
+    """Helper method to display identity an object.
 
     Useful for logging. Decodes based on the type of obj.
     Supports 'class' & 'method' types for now.

@@ -41,9 +41,6 @@ SequencerBusy = nfp_seq.SequencerBusy
 
 deque = collections.deque
 
-"""Helper methods to decode event. """
-
-
 """Defines poll descriptor of an event.
 
     Holds all of the polling information of an
@@ -109,6 +106,13 @@ class Event(object):
         self.handler = kwargs.get('handler')
         # Lifetime of the event in seconds.
         self.lifetime = kwargs.get('lifetime', 0)
+
+        # Prepare the base descriptor
+        if self.key:
+            desc = EventDesc(**{'key': self.key})
+        else:
+            desc = EventDesc()
+        self.desc = desc
 
         cond = self.sequence is True and self.binding_key is None
         assert not cond
@@ -265,7 +269,7 @@ class NfpEventManager(object):
         return list(self._cache)
 
     def get_load(self):
-        """Return current load of the manager."""
+        """Return current load on the manager."""
         return self._load
 
     def pop_event(self, event):
@@ -294,7 +298,7 @@ class NfpEventManager(object):
             Increments load if event_type is SCHEDULED event,
             poll_event does not contribute to load.
         """
-        LOG(LOGGER, 'ERROR', "%s - Dispatching to worker %d" %
+        LOG(LOGGER, 'DEBUG', "%s - Dispatching to worker %d" %
             (self._log_meta(event), self._pid))
         # Update the worker information in the event.
         event.desc.worker = self._pid
