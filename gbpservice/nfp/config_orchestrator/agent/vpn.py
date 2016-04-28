@@ -130,17 +130,6 @@ class VpnNotifier(object):
             return request_data
         return request_data
 
-    def _trigger_service_event(self, context, event_type, event_id,
-                               request_data):
-        event_data = {'resource': None,
-                      'context': context}
-        event_data['resource'] = {'eventtype': event_type,
-                                  'eventid': event_id,
-                                  'eventdata': request_data}
-        ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data)
-        self._sc.post_event(ev)
-
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     # TODO(akash): Event for service create/delete not implemented here
     # Need to do that
@@ -164,12 +153,16 @@ class VpnNotifier(object):
                                                'network_function_instance_id']
             ipsec_id = notification_info['context']['ipsec_site_connection_id']
             service_type = notification_info['service_type']
-            request_data = self._prepare_request_data(context, nf_instance_id,
-                                                      ipsec_id, service_type)
-            LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_instance_id))
 
-            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                        request_data)
+            event_data = {'context' : context,
+                          'nf_instance_id' : nf_instance_id,
+                          'ipsec_id' : ipsec_id,
+                          'service_type':service_type
+                         }
+            ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
+                                   key='SERVICE_CREATE_PENDING',
+                                   data=event_data)
+            self._sc.poll_event(ev)
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
