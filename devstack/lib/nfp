@@ -1,6 +1,7 @@
 #!/bin/bash
 
 NFPSERVICE_DIR=$DEST/gbp
+DISK_IMAGE_DIR=$DEST/gbp/gbpservice/tests/contrib
 TOP_DIR=$PWD
 
 NEUTRON_CONF_DIR=/etc/neutron
@@ -10,8 +11,9 @@ NFP_CONF_DIR=/etc/nfp
 echo "TOP-DIR-NFP : $PWD"
 
 function prepare_nfp_image_builder {
-    setup_develop $NFPSERVICE_DIR
-    sudo -H -E pip install -r $NFPSERVICE_DIR/diskimage-create/requirements.txt
+    #setup_develop $NFPSERVICE_DIR
+    sudo -H -E pip install -r $DISK_IMAGE_DIR/diskimage-create/requirements.txt
+    sudo apt-get install -y --force-yes qemu-utils
 }
 
 function init_nfpgbpservice {
@@ -30,14 +32,20 @@ function install_nfpgbpservice {
 }
 
 function create_nfp_image {
-    TOKEN=$(openstack token issue | grep ' id ' | get_field 2)
-    die_if_not_set $LINENO TOKEN "Keystone failed to get token."
-
-    $NFPSERVICE_DIR/diskimage-create/disk_image_create.py $NFPSERVICE_DIR/diskimage-create/config.json
+    TOP_DIR=$TOP_DIR
+    sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/conf.json
     BUILT_IMAGE_PATH=$(cat /tmp/nfp_image_path)
     upload_image file://$BUILT_IMAGE_PATH $TOKEN
-
-    nova flavor-create m1.nfp-reference-configurator 1000 512 3 1
+    #source $TOP_DIR/openrc neutron service
+    # unset DOMAIN vars for v2 API
+    OS_USER_DOMAIN_ID_BKUP=${OS_USER_DOMAIN_ID}
+    OS_USER_DOMAIN_ID=''
+    OS_PROJECT_DOMAIN_ID_BKUP=${OS_PROJECT_DOMAIN_ID}
+    OS_PROJECT_DOMAIN_ID=''
+    nova flavor-create m1.nfp-tiny 1000 512 3 1
+    # revert (set back) DOMAIN vars
+    OS_USER_DOMAIN_ID=${OS_USER_DOMAIN_ID_BKUP}
+    OS_PROJECT_DOMAIN_ID=${OS_PROJECT_DOMAIN_ID_BKUP}
 }
 
 function assign_user_role_credential {
@@ -79,7 +87,6 @@ function namespace_delete {
 }
 
 function namespace_create {
-
     TOP_DIR=$TOP_DIR
     #doing it in namespace_delete, so no need to do it again
     #source $1/openrc neutron service
@@ -116,7 +123,7 @@ function namespace_create {
         echo "Neutron port creation failed (check source) "
         exit 0
     else
-        echo "New Neuteon Port Created on Service management network with ip =$new_ip"
+        echo "New Neutron Port Created on Service management network with ip =$new_ip"
     fi
     new_ip_cidr+="$new_ip/24"
     sleep 2
@@ -139,9 +146,9 @@ function namespace_create {
     #get tag_id  form port in ovs-bridge
     tag_id=`sudo ovs-vsctl list port $port | grep "tag" | tail -n 1 | awk '{print $3}'`
 
-    sudo ovs-vsctl set port pt1 tag=$tag_id     
+    sudo ovs-vsctl set port pt1 tag=$tag_id
 
-    #up the both ports 
+    #up the both ports
     sudo ip netns exec nfp-proxy ip link set pt0 up
     sudo ip netns exec nfp-proxy ip link set lo up
     sudo ip link set pt1 up
@@ -151,34 +158,32 @@ function namespace_create {
     then
         echo "nfp-proxy namespcace creation success and reaching to $2"
     else
-        echo "Fails reaching to $2" 
+        echo "Fails reaching to $2"
     fi
 
     sudo ip netns exec nfp-proxy /usr/bin/nfp_proxy --config-file=/etc/nfp_proxy.ini
 }
 
 function create_nfp_gbp_resources {
-   
    TOP_DIR=$TOP_DIR
    source $TOP_DIR/openrc neutron service
 
-   if [[ $DISABLE_BUILD_IMAGE = False ]]; then 
+   if [[ $DISABLE_BUILD_IMAGE = False ]]; then
        IMAGE_PATH=$(cat /tmp/nfp_image_path)
        IMAGE_NAME=`basename "$IMAGE_PATH"`
        IMAGE_NAME_FLAT="${IMAGE_NAME%.*}"
-       FLAVOR=m1.nfp-reference-configurator
+       FLAVOR=m1.nfp-tiny
    else
        IMAGE_NAME_FLAT="reference_configurator_image"
        FLAVOR=m1.small
    fi
    gbp network-service-policy-create --network-service-params type=ip_pool,name=vip_ip,value=nat_pool svc_mgmt_fip_policy
-   gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base-mode-lb
-   gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base-mode-fw
+   gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=None --vendor NFP base_mode_lb
+   gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
    gbp group-create svc_management_ptg --service_management True
 }
 
 function get_router_namespace {
-    
     TOP_DIR=$TOP_DIR
     source $TOP_DIR/openrc neutron service
 
@@ -191,7 +196,6 @@ function get_router_namespace {
 }
 
 function copy_nfp_files_and_start_process {
-
     TOP_DIR=$TOP_DIR
     cd /opt/stack/gbp/gbpservice/nfp
     sudo cp -r  bin/nfp /usr/bin/
@@ -209,12 +213,13 @@ function copy_nfp_files_and_start_process {
     sudo sed -i "s/rest_server_port= *.*/rest_server_port=8080/g" /etc/nfp_proxy.ini
     ipnetns_router=`sudo ip netns |grep $RouterId`
 
+    sed -i 's#source.*#source '$TOP_DIR'/openrc demo demo#g' /opt/stack/gbp/devstack/exercises/nfp_service/*.sh
     source $TOP_DIR/functions-common
 
     echo "Starting orchestrator  >>>> under screen named : orchestrator"
     run_process orchestrator "sudo /usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orch_agent.ini --log-file /opt/stack/logs/nfp_orchestrator.log"
     sleep 1
-   
+
     echo "Starting proxy_agent  >>>> under screen named : proxy_agent"
     run_process proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
     sleep 1
@@ -226,7 +231,7 @@ function copy_nfp_files_and_start_process {
     cd base_configurator/api
     sudo python setup.py develop
     echo "Starting base_configurator  >>>> under screen named : base_configurator"
-    run_process base_configurator "cd /opt/stack/gbp/gbpservice/nfp/base_configurator/api;sudo ip netns exec nfp-proxy pecan serve config.py" 
+    run_process base_configurator "cd /opt/stack/gbp/gbpservice/nfp/base_configurator/api;sudo ip netns exec nfp-proxy pecan serve config.py"
     sleep 1
 
     echo "Running gbp-db-manage"
@@ -236,5 +241,4 @@ function copy_nfp_files_and_start_process {
     gbp-db-manage --config-file /etc/neutron/neutron.conf upgrade head
     sleep 2
     echo "Configuration success ... "
-
 }
