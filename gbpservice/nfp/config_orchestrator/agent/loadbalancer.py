@@ -179,7 +179,7 @@ class LoadbalancerNotifier(object):
             # Adding Service Type #
             request_data.update({"service_type": service_type,
                                  "vip_id": vip_id})
-        except Exception as e:
+        except Exception:
             return request_data
         return request_data
 

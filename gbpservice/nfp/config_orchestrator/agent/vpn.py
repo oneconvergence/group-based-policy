@@ -40,7 +40,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         super(VpnAgent, self).__init__()
 
     def _get_dict_desc_from_string(self, vpn_svc):
-        svc_desc = vpn_svc['description'].split(";")
+        svc_desc = vpn_svc.split(";")
         desc = {}
         for ele in svc_desc:
             s_ele = ele.split("=")
@@ -59,10 +59,13 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         return ctx_dict, rsrc_ctx_dict
 
     def _data_wrapper(self, context, tenant_id, **kwargs):
+
         ctx_dict, rsrc_ctx_dict = self.\
             _prepare_resource_context_dicts(context, tenant_id)
         nfp_context = {'neutron_context': ctx_dict,
                        'requester': 'nas_service'}
+        resource_type = 'vpn'
+        resource = kwargs['rsrc_type']
         if resource.lower() == 'ipsec_site_connection':
             ipsec_desc = self._get_dict_desc_from_string(kwargs[
                 'resource']['description'])
@@ -71,9 +74,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             nfp_context.update(
                 {'network_function_id': nf_id,
                  'ipsec_site_connection_id': ipsec_site_connection_id})
-        resource_type = 'vpn'
-        resource = kwargs['rsrc_type']
-        resource_data = kwargs.update({'neutron_context': rsrc_ctx_dict})
+        kwargs.update({'neutron_context': rsrc_ctx_dict})
+        resource_data = kwargs
         body = common.prepare_request_data(nfp_context, resource,
                                            resource_type, resource_data)
         return body
@@ -126,7 +128,7 @@ class VpnNotifier(object):
             # Adding Service Type #
             request_data.update({"service_type": service_type,
                                  "ipsec_site_connection_id": ipsec_id})
-        except Exception as e:
+        except Exception:
             return request_data
         return request_data
 
@@ -145,9 +147,8 @@ class VpnNotifier(object):
     # TODO(akash): Event for service create/delete not implemented here
     # Need to do that
     def update_status(self, context, notification_data):
-        notification = notification_data['notification'][0]['data']
+        resource_data = notification_data['notification'][0]['data']
         notification_info = notification_data['info']
-        resource_data = notification['data']
         status = resource_data['status']
         msg = ("NCO received VPN's update_status API,"
                "making an update_status RPC call to plugin for object"
@@ -158,7 +159,7 @@ class VpnNotifier(object):
                              status=status)
 
         # Sending An Event for visiblity
-        if notification['resource'].lower() is\
+        if resource_data['resource'].lower() is\
                 'ipsec_site_connection':
             nf_id = notification_info['context']['network_function_id']
             ipsec_id = notification_info['context']['ipsec_site_connection_id']
@@ -172,9 +173,8 @@ class VpnNotifier(object):
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
-        notification = notification_data['notification'][0]['data']
+        resource_data = notification_data['notification'][0]['data']
         notification_info = notification_data['info']
-        resource_data = notification['data']
         resource_id = resource_data['resource_id']
         msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
                "making an ipsec_site_conn_deleted RPC call to plugin for "

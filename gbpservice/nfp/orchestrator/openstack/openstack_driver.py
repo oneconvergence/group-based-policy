@@ -133,9 +133,6 @@ class KeystoneClient(OpenstackApi):
             keystone resources.
         """
         keystone_conf = self.config.keystone_authtoken
-        keystone_conf.admin_user = 'neutron'
-        keystone_conf.admin_password = 'admin_pass'
-        keystone_conf.admin_tenant_name = 'service'
 
         v2client = identity_client.Client(
             username=keystone_conf.admin_user,
@@ -820,7 +817,7 @@ class GBPClient(OpenstackApi):
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
             return gbp.update_policy_target_group(
-                        body=policy_target_group_info)['policy_target_group']
+                        ptg_id, body=policy_target_group_info)['policy_target_group']
         except Exception as ex:
             err = ("Failed to update policy target group. Error :: %s" % (ex))
             LOG.error(err)
