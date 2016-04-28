@@ -515,7 +515,7 @@ class HaproxyDriver:
         OP_SUCCESS = { 'status' : True }
         try:
             ip = config['server_ip']
-            port = config['server_port']
+            port = str(config['server_port'])
             if self.is_configured(ip, port):
                 return OP_SUCCESS
             config_command = ['sed',
