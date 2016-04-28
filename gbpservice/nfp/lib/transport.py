@@ -260,8 +260,9 @@ def get_response_from_configurator(conf):
         try:
             resp, content = unix_rc.get('get_notifications')
             content = jsonutils.loads(content)
-            LOG(LOGGER, 'INFO', "get_notification -> GET response: (%s)" %
-                (content))
+            if content:
+                LOG(LOGGER, 'INFO', "get_notification -> GET response: (%s)" %
+                    (content))
             return content
         except unix_rc.RestClientException as rce:
             LOG(LOGGER, 'ERROR',
