@@ -224,8 +224,8 @@ class FWaasEventHandler(object):
                    % (os.getpid(), ev.id))
             LOG.debug(msg)
 
-            # The context we have here in ev.data is the neutron context that
-            # we renamed to context in the agent_base. This erstwhile
+            # The context here in ev.data is the neutron context that was
+            # renamed to context in the agent_base. This erstwhile
             # neutron context contains the agent info which in turn contains
             # the API context alongside other relevant information like
             # service vendor and type. Agent info is constructed inside
