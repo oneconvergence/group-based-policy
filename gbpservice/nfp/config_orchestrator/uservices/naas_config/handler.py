@@ -54,6 +54,7 @@ class NaasNotificationHandler(object):
                 key=resource_data[
                 'notification_type'].upper(),
                 data=request_data)
+            self.sc.post_event(event)
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             LOG(LOGGER, 'ERROR',

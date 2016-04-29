@@ -137,7 +137,7 @@ def get_network_function_map(context, network_function_instance_id):
         request_data = _prepare_structure(network_function_details, ports_info,
                                           mngmt_port_info, monitor_port_info)
         LOG(LOGGER, 'INFO', " %s " % (request_data))
+        return request_data
     except Exception as e:
         LOG(LOGGER, 'ERROR', " %s " % (e))
         return request_data
-    return request_data

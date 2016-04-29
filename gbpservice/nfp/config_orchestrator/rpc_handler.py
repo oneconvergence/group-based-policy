@@ -32,11 +32,10 @@ class RpcHandler(object):
 
     def __init__(self, conf, sc):
         super(RpcHandler, self).__init__()
-        self._conf = conf
+        self.conf = conf
         self.sc = sc
 
     def network_function_notification(self, context, notification_data):
-        LOG(LOGGER, "ERROR", "******************** coming here ****************")
         try:
             if notification_data['info']['service_type'] is not None:
                 handler = nas_handler.\

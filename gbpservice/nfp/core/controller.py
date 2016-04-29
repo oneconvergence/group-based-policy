@@ -322,6 +322,7 @@ class Controller(object):
             Executor: distributor-process
         """
         events = []
+        '''
         if self._process_name == 'distributor-process':
             # wait sometime for first event in the queue
             timeout = 0.1
@@ -333,6 +334,15 @@ class Controller(object):
                 pass
         else:
             LOG(LOGGER, 'ERROR', "worker cannot pull stashed events")
+        '''
+        timeout = 0.1
+        try:
+            event = self._stashq.get(timeout=timeout)
+            events.append(event)
+            timeout = 0
+        except Queue.Empty:
+            pass
+
         return events
 
     def sequencer_put_event(self, event):

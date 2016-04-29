@@ -1,6 +1,6 @@
 from oslo_config import cfg
 
-from gbpservice.nfp.config_orchestrator.agent import topics
+from gbpservice.nfp.config_orchestrator.common import topics
 import neutron_fwaas.extensions
 from neutron_fwaas.services.firewall import fwaas_plugin as ref_fw_plugin
 

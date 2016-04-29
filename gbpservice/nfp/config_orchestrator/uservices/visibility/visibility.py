@@ -14,7 +14,8 @@ import time
 
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import poll as core_pt
-import gbpservice.nfp.lib.transport as transport
+from gbpservice.nfp.lib import transport
+from gbpservice.nfp.config_orchestrator.common import common
 
 from neutron_fwaas.db.firewall import firewall_db
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
@@ -78,7 +79,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         elif ev.id == 'SERVICE_OPERATION_POLL_EVENT':
             self._sc.poll_event(ev)
 
-    def _get_all_data(data):
+    def _get_all_data(self, data):
         notification_data = data['notification_data']
         notification = notification_data['notification'][0]
         notification_info = notification_data['info']
@@ -103,7 +104,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                         'eventid': 'SERVICE_CREATE_PENDING'
                         }
         event = self._sc.new_event(
-            id='STASH_EVENT', key='STASH_EVENT', data=data)
+            id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
 
     def _handle_firewall_deleted(self, data):
@@ -124,7 +125,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                         'eventid': 'SERVICE_DELETED'
                         }
         event = self._sc.new_event(
-            id='STASH_EVENT', key='STASH_EVENT', data=data)
+            id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
 
     def _handle_vip_deleted(self, data):
@@ -144,7 +145,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                         'eventid': 'SERVICE_DELETED'
                         }
         event = self._sc.new_event(
-            id='STASH_EVENT', key='STASH_EVENT', data=data)
+            id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
 
     def _handler_vpn_update_status(context, notification_info,
@@ -159,15 +160,15 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
             service_type = notification_info['service_type']
 
             # Sending An Event for visiblity
-            event_data = {'context': context,
-                          'nf_instance_id': nf_instance_id,
-                          'ipsec_site_connection_id': ipsec_id,
-                          'service_type': service_type,
-                          'neutron_resource_id': ipsec_id,
-                          'eventid': 'SERVICE_CREATE_PENDING'
-                          }
+            request_data = {'context': context,
+                            'nf_instance_id': nf_instance_id,
+                            'ipsec_site_connection_id': ipsec_id,
+                            'service_type': service_type,
+                            'neutron_resource_id': ipsec_id,
+                            'eventid': 'SERVICE_CREATE_PENDING'
+                            }
             event = self._sc.new_event(
-                id='STASH_EVENT', key='STASH_EVENT', data=data)
+                id='STASH_EVENT', key='STASH_EVENT', data=request_data)
             self._sc.stash_event(event)
 
     def _handler_loadbalancer_update_status(self, context,
@@ -187,7 +188,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                             'eventid': 'SERVICE_CREATE_PENDING'
                             }
             event = self._sc.new_event(
-                id='STASH_EVENT', key='STASH_EVENT', data=data)
+                id='STASH_EVENT', key='STASH_EVENT', data=request_data)
             self._sc.stash_event(event)
 
     def _handle_update_status(self, data):
@@ -223,7 +224,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                         'eventid': 'SERVICE_DELETED'
                         }
         event = self._sc.new_event(
-            id='STASH_EVENT', key='STASH_EVENT', data=data)
+            id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
 
     def _handle_create_service(self, data):
@@ -345,17 +346,17 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         request_data = None
         try:
             nf_instance_id = event_data.pop('nf_instance_id')
-            context = event_data['context']
+            context = event_data.pop('context')
             request_data = common.get_network_function_map(
                 context, nf_instance_id)
-            event_data.update(resource_data)
+            event_data.update(request_data)
         except Exception as e:
             return event_data
-        return event_data
+        return event_data, context
 
-    def _trigger_service_event(self, event_data, event_type):
+    def _trigger_service_event(self, context, event_data, event_type):
         new_event_data = {'resource': None,
-                          'context': event_data.pop('context')}
+                          'context': context}
         new_event_data['resource'] = {'eventtype': 'SERVICE',
                                       'eventid': event_type,
                                       'eventdata': event_data}
@@ -368,17 +369,21 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
     @core_pt.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=5)
     def create_sevice_pending_event(self, ev):
         event_data = ev.data
-        updated_event_data = self._prepare_request_data(event_data)
-        LOG(LOGGER, 'INFO', '%s' % (updated_event_data))
-        if updated_event_data['nf']['status'] == 'ACTIVE':
-            self._trigger_service_event(updated_event_data, 'SERVICE_CREATED')
-            self._sc.poll_event_done(ev)
+        try:
+            updated_event_data, context = self._prepare_request_data(
+                event_data)
+            LOG(LOGGER, 'INFO', '%s' % (updated_event_data))
+            if updated_event_data['nf']['status'] == 'ACTIVE':
+                self._trigger_service_event(
+                    context, updated_event_data, 'SERVICE_CREATED')
+                self._sc.poll_event_done(ev)
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', 'Failed : %s Reason : %s' % (event_data, e))
 
     @core_pt.poll_event_desc(event='SERVICE_OPERATION_POLL_EVENT', spacing=5)
     def service_operation_poll_stash_event(self, ev):
-        LOG(LOGGER, 'ERROR', "Stash Queue")
         events = self._sc.get_stashed_events()
-        LOG(LOGGER, 'ERROR', "Stash Queue is: %s" %events)
+        LOG(LOGGER, 'ERROR', "Stash Queue is: %s" % events)
         for event in events:
             data = event.data
             eventid = data.pop('eventid')
@@ -389,7 +394,12 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                 self._sc.poll_event(new_event)
 
             elif eventid == "SERVICE_DELETED":
-                updated_event_data = self._prepare_request_data(data)
-                LOG(LOGGER, 'INFO', '%s' % (updated_event_data))
-                self._trigger_service_event(updated_event_data, eventid)
+                try:
+                    updated_event_data, context = self._prepare_request_data(
+                        data)
+                    LOG(LOGGER, 'INFO', '%s' % (updated_event_data))
+                    self._trigger_service_event(
+                        context, updated_event_data, eventid)
+                except Exception as e:
+                    LOG(LOGGER, 'ERROR', 'Failed : %s Reason : %s' % (data, e))
             time.sleep(0)

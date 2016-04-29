@@ -14,6 +14,7 @@ from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.config_orchestrator.uservices.visibility import (
     visibility)
 
+
 def event_init(sc, conf):
     evs = [
         Event(id='VISIBILITY_EVENT',
