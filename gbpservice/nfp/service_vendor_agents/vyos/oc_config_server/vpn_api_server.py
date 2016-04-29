@@ -104,6 +104,24 @@ class VPNHandler(configOpts):
         session.commit()
         session.save()
         time.sleep(2)
+
+        tunnel = {}
+        tunnel['peer_address'] = siteconn['peer_address']
+        tunnel['local_cidr'] = siteconn['lcidr']
+        tunnel['peer_cidr'] = siteconn['pcidr']
+        try:
+            status, state = vpnhandler().get_ipsec_site_tunnel_state(tunnel)
+            break
+        except:
+            proc = subprocess.Popen('sudo rm -rf /var/run/pluto.pid; restart vpn',
+                                    shell=True, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+            try:
+                status, state = vpnhandler().get_ipsec_site_tunnel_state(tunnel)
+            except:
+                LOG.error('error occured in restarting pluto')
+                return OP_FAILED
+
         session.teardown_config_session()
         return OP_SUCCESS
 

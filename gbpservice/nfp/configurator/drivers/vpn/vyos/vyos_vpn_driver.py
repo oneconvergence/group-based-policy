@@ -25,14 +25,6 @@ from oslo_serialization import jsonutils
 
 LOG = logging.getLogger(__name__)
 
-rest_timeout = [
-    cfg.IntOpt(
-        'VPN.rest_timeout',
-        default=240,
-        help="rest api timeout")]
-
-cfg.CONF.register_opts(rest_timeout)
-
 
 class UnknownReasonException(Exception):
     message = "Unsupported rpcreason '%(reason)s' from plugin "

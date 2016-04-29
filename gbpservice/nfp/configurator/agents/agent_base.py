@@ -15,6 +15,13 @@ from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 
+rest_timeout = [
+    cfg.IntOpt(
+        'rest_timeout',
+        default=240,
+        help=("rest api timeout"))]
+cfg.CONF.register_opts(rest_timeout)
+
 """Implements base class for all service agents.
 
 Common methods for service agents are implemented in this class. Configurator
