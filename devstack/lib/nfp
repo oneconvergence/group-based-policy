@@ -36,16 +36,8 @@ function create_nfp_image {
     sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/conf.json
     BUILT_IMAGE_PATH=$(cat /tmp/nfp_image_path)
     upload_image file://$BUILT_IMAGE_PATH $TOKEN
-    #source $TOP_DIR/openrc neutron service
-    # unset DOMAIN vars for v2 API
-    OS_USER_DOMAIN_ID_BKUP=${OS_USER_DOMAIN_ID}
-    OS_USER_DOMAIN_ID=''
-    OS_PROJECT_DOMAIN_ID_BKUP=${OS_PROJECT_DOMAIN_ID}
-    OS_PROJECT_DOMAIN_ID=''
-    nova flavor-create m1.nfp-tiny 1000 512 3 1
-    # revert (set back) DOMAIN vars
-    OS_USER_DOMAIN_ID=${OS_USER_DOMAIN_ID_BKUP}
-    OS_PROJECT_DOMAIN_ID=${OS_PROJECT_DOMAIN_ID_BKUP}
+
+    openstack --os-cloud=devstack-admin flavor create --ram 512 --disk 3 --vcpus 1 m1.nfp-tiny
 }
 
 function assign_user_role_credential {
