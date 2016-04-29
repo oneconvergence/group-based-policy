@@ -131,6 +131,17 @@ class VpnNotifier(object):
             return request_data
         return request_data
 
+    def _trigger_service_event(self, context, event_type, event_id,
+                               request_data):
+        event_data = {'resource': None,
+                      'context': context}
+        event_data['resource'] = {'eventtype': event_type,
+                                  'eventid': event_id,
+                                  'eventdata': request_data}
+        ev = self._sc.new_event(id=event_id,
+                                key=event_id, data=event_data)
+        self._sc.post_event(ev)
+
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     # TODO(akash): Event for service create/delete not implemented here
     # Need to do that

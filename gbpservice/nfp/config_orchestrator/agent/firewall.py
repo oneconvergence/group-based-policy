@@ -111,6 +111,17 @@ class FirewallNotifier(object):
         self._sc = sc
         self._conf = conf
 
+    def _trigger_service_event(self, context, event_type, event_id,
+                               request_data):
+        event_data = {'resource': None,
+                      'context': context}
+        event_data['resource'] = {'eventtype': event_type,
+                                  'eventid': event_id,
+                                  'eventdata': request_data}
+        ev = self._sc.new_event(id=event_id,
+                                key=event_id, data=event_data)
+        self._sc.post_event(ev)
+
     def _prepare_request_data(self, context, nf_instance_id, resource_id,
                               fw_mac, service_type):
         request_data = None
