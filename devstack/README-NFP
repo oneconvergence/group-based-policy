@@ -23,16 +23,16 @@ Fresh Installation Steps:
 
 (7) Test firewall with traffic from consumer VM.
 
-(8) Delete members created in the consumer and provider groups in step 6.
-
-(9) Delete the test chain.
-    # cd /opt/stack/gbp/devstack/exercises/nfp_service
-    # bash fw_base_vm_clean.sh
-
-(10) Log-in into service VM
+(8) Log-in into service VM
     # cd /opt/stack/gbp/gbpservice/tests/contrib/diskimage-create/output
     # sudo ip netns exec nfp-proxy /bin/bash
     # ssh -i ./nfp_reference_service_<timestamp> ubuntu@<nfp_service mgmt-ip>
+
+(9) Delete members created in the consumer and provider groups in step 6.
+
+(10) Delete the test chain.
+     # cd /opt/stack/gbp/devstack/exercises/nfp_service
+     # bash fw_base_vm_clean.sh
 
 Re-installation Steps:
 ======================
