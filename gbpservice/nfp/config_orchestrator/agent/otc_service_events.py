@@ -11,6 +11,7 @@
 #    under the License.
 
 import ast
+import time
 
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import poll as core_pt
@@ -129,35 +130,41 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
     def _get_firewall_bulk_data(self, context, firewalls):
         fw_request_data_list = []
         for firewall in firewalls:
-            firewall_desc = ast.literal_eval(firewall['description'])
-            fw_mac = firewall_desc['provider_ptg_info'][0]
-            nf_instance_id = firewall_desc['network_function_instance_id']
-            service_type = 'firewall'
-            request_data = {'nf_instance_id': nf_instance_id,
-                            'fw_mac': fw_mac,
-                            'service_type': service_type,
-                            'neutron_resource_id': firewall['id'],
-                            'context': context,
-                            'eventid': 'SERVICE_CREATED'
-                            }
-            fw_request_data_list.append(request_data)
+            try:
+                firewall_desc = ast.literal_eval(firewall['description'])
+                fw_mac = firewall_desc['provider_ptg_info'][0]
+                nf_instance_id = firewall_desc['network_function_instance_id']
+                service_type = 'firewall'
+                request_data = {'nf_instance_id': nf_instance_id,
+                                'fw_mac': fw_mac,
+                                'service_type': service_type,
+                                'neutron_resource_id': firewall['id'],
+                                'context': context,
+                                'eventid': 'SERVICE_CREATED'
+                                }
+                fw_request_data_list.append(request_data)
+            except Exception as e:
+                LOG(LOGGER, 'ERROR', "firewall desc : %s " e)
         return fw_request_data_list
 
     def _get_vip_bulk_data(self, context, vips):
         vip_request_data_list = []
         for vip in vips:
-            vip_desc = ast.literal_eval(vip['description'])
-            nf_instance_id = vip_desc['network_function_instance_id']
-            vip_id = vip['id']
-            service_type = 'loadbalancer'
-            request_data = {'nf_instance_id': nf_instance_id,
-                            'vip_id': fw_mac,
-                            'service_type': service_type,
-                            'neutron_resource_id': vip_id,
-                            'context': context,
-                            'eventid': 'SERVICE_CREATED'
-                            }
-            vip_request_data_list.append(request_data)
+            try:
+                vip_desc = ast.literal_eval(vip['description'])
+                nf_instance_id = vip_desc['network_function_instance_id']
+                vip_id = vip['id']
+                service_type = 'loadbalancer'
+                request_data = {'nf_instance_id': nf_instance_id,
+                                'vip_id': fw_mac,
+                                'service_type': service_type,
+                                'neutron_resource_id': vip_id,
+                                'context': context,
+                                'eventid': 'SERVICE_CREATED'
+                                }
+                vip_request_data_list.append(request_data)
+            except Exception as e:
+                LOG(LOGGER, 'ERROR', "vip desc : %s " e)
         return vip_request_data_list
 
     def _get_dict_desc_from_string(self, vpn_svc):
@@ -172,18 +179,23 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                                              ipsec_site_connections):
         ipsec_request_data_list = []
         for ipsec_site_connection in ipsec_site_connections:
-            ipsec_desc = self._get_dict_desc_from_string(
-                ipsec_site_connection['description'])
-            nf_instance_id = ipsec_desc['network_function_instance_id']
-            ipsec_id = ipsec_site_connection['id']
-            service_type = 'vpn'
-            event_data = {'context': context,
-                          'nf_instance_id': nf_instance_id,
-                          'ipsec_site_connection_id': ipsec_id,
-                          'service_type': service_type,
-                          'neutron_resource_id': ipsec_site_connection['id'],
-                          'eventid': 'SERVICE_DELETED'
-                          }
+            try:
+                ipsec_desc = self._get_dict_desc_from_string(
+                    ipsec_site_connection['description'])
+                nf_instance_id = ipsec_desc['network_function_instance_id']
+                ipsec_id = ipsec_site_connection['id']
+                service_type = 'vpn'
+                request_data = {'context': context,
+                                'nf_instance_id': nf_instance_id,
+                                'ipsec_site_connection_id': ipsec_id,
+                                'service_type': service_type,
+                                'neutron_resource_id': (
+                                    ipsec_site_connection['id']),
+                                'eventid': 'SERVICE_DELETED'
+                                }
+                ipsec_request_data_list.append(request_data)
+            except Exception as e:
+                LOG(LOGGER, 'ERROR', "ipsec desc : %s " e)
 
     def _pull_bulk_data(self, data):
         try:
@@ -217,6 +229,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
     @core_pt.poll_event_desc(event='SERVICE_OPERATION_POLL_EVENT', spacing=5)
     def service_operation_poll_stash_event(self, ev):
         events = self.sc.get_stashed_events()
+        time.sleep(0)
         for event in events:
             data = event.data
 
