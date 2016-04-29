@@ -14,8 +14,8 @@ import ast
 import copy
 
 from gbpservice.nfp.common import constants as const
-from gbpservice.nfp.config_orchestrator.agent import common
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.common import common
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
 
@@ -173,12 +173,10 @@ class LoadbalancerNotifier(object):
 
     def update_status(self, context, notification_data):
         notification = notification_data['notification'][0]
-        notification_info = notification_data['info']
         resource_data = notification['data']
         obj_type = resource_data['obj_type']
         obj_id = resource_data['obj_id']
         status = resource_data['status']
-        service_type = notification_info['service_type']
         msg = ("NCO received LB's update_status API, making an update_status "
                "RPC call to plugin for %s: %s with status %s" % (
                    obj_type, obj_id, status))
@@ -192,23 +190,6 @@ class LoadbalancerNotifier(object):
                              obj_type=obj_type,
                              obj_id=obj_id,
                              status=status)
-
-        if obj_type.lower() == 'vip':
-            nf_instance_id = notification_info['context'][
-                'network_function_instance_id']
-            vip_id = notification_info['context']['vip_id']
-
-            # sending notification to visibility
-            event_data = {'context': context,
-                          'nf_instance_id': nf_instance_id,
-                          'vip_id': vip_id,
-                          'service_type': service_type,
-                          'neutron_resource_id': vip_id,
-                          'eventid': 'SERVICE_CREATED'
-                          }
-            event = self.sc.new_event(
-                id='STASH_EVENT', key='STASH_EVENT', data=request_data)
-            self.sc.stash_event(event)
 
     def update_pool_stats(self, context, notification_data):
         notification = notification_data['notification'][0]
@@ -232,21 +213,4 @@ class LoadbalancerNotifier(object):
                              host=host)
 
     def vip_deleted(self, context, notification_data):
-        notification_info = notification_data['info']
-        nf_instance_id = notification_info['context'][
-            'network_function_instance_id']
-        vip_id = notification_info['context']['vip_id']
-        service_type = notification_info['service_type']
-
-        # Sending An Event for visiblity
-        event_data = {'context': context,
-                      'nf_instance_id': nf_instance_id,
-                      'vip_id': vip_id,
-                      'service_type': service_type,
-                      'neutron_resource_id': vip_id,
-                      'eventid': 'SERVICE_CREATED'
-                      }
-
-        event = self.sc.new_event(
-            id='STASH_EVENT', key='STASH_EVENT', data=event_data)
-        self.sc.stash_event(event)
+        pass

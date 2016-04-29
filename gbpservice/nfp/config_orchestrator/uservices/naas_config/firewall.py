@@ -13,10 +13,10 @@
 import ast
 import copy
 
-from gbpservice.nfp.config_orchestrator.agent import common
+from gbpservice.nfp.config_orchestrator.common import common
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
 
 from neutron_fwaas.db.firewall import firewall_db
 
@@ -117,10 +117,7 @@ class FirewallNotifier(object):
         resource_data = notification['data']
         firewall_id = resource_data['firewall_id']
         status = resource_data['status']
-        nf_instance_id = notification_info['context'][
-            'network_function_instance_id']
-        fw_mac = notification_info['context']['fw_mac']
-        service_type = notification_info['service_type']
+
         msg = ("Config Orchestrator received "
                "firewall_configuration_create_complete API, making an "
                "set_firewall_status RPC call for firewall: %s & status "
@@ -134,27 +131,11 @@ class FirewallNotifier(object):
                              firewall_id=firewall_id,
                              status=status)
 
-        # Sending An Event for visiblity #
-        request_data = {'nf_instance_id': nf_instance_id,
-                        'fw_mac': fw_mac,
-                        'service_type': service_type,
-                        'neutron_resource_id': firewall_id,
-                        'context': context,
-                        'eventid': 'SERVICE_CREATED'
-                        }
-        event = self.sc.new_event(
-            id='STASH_EVENT', key='STASH_EVENT', data=request_data)
-        self.sc.stash_event(event)
-
     def firewall_deleted(self, context, notification_data):
         notification = notification_data['notification'][0]
         notification_info = notification_data['info']
         resource_data = notification['data']
         firewall_id = resource_data['firewall_id']
-        nf_instance_id = notification_info['context'][
-            'network_function_instance_id']
-        fw_mac = notification_info['context']['fw_mac']
-        service_type = notification_info['service_type']
 
         msg = ("Config Orchestrator received "
                "firewall_configuration_delete_complete API, making an "
@@ -166,15 +147,3 @@ class FirewallNotifier(object):
         rpcClient.cctxt.cast(context, 'firewall_deleted',
                              host=resource_data['host'],
                              firewall_id=firewall_id)
-
-        # Sending An Event for visiblity #
-        request_data = {'nf_instance_id': nf_instance_id,
-                        'fw_mac': fw_mac,
-                        'service_type': service_type,
-                        'context': context,
-                        'neutron_resource_id': firewall_id,
-                        'eventid': 'SERVICE_DELETED'
-                        }
-        event = self.sc.new_event(
-            id='STASH_EVENT', key='STASH_EVENT', data=request_data)
-        self.sc.stash_event(event)

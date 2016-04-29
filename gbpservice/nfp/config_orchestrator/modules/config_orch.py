@@ -9,17 +9,18 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-from gbpservice.nfp.config_orchestrator.agent import firewall as fw
-from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
-from gbpservice.nfp.config_orchestrator.agent import notification_handler as nh
-from gbpservice.nfp.config_orchestrator.agent import \
-    otc_service_events as otc_se
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
-from gbpservice.nfp.config_orchestrator.agent import vpn as vp
-from gbpservice.nfp.core.event import Event
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
+from gbpservice.nfp.config_orchestrator.uservices.naas_config import (
+    firewall as fw)
+from gbpservice.nfp.config_orchestrator.uservices.naas_config import (
+    loadbalancer as lb)
+from gbpservice.nfp.config_orchestrator.uservices.naas_config import vpn
 from gbpservice.nfp.core.rpc import RpcAgent
 from oslo_config import cfg
+from gbpservice.nfp.config_orchestrator.uservices.visibility import (
+    handler as visibility_handler)
+from gbpservice.nfp.config_orchestrator import rpc_handler
+from gbpservice.nfp.core.event import Event
 
 
 def rpc_init(sc, conf):
@@ -60,7 +61,7 @@ def rpc_init(sc, conf):
         'start_flag': True,
         'report_interval': conf.reportstate_interval
     }
-    vpnrpcmgr = vp.VpnAgent(conf, sc)
+    vpnrpcmgr = vpn.VpnAgent(conf, sc)
     vpnagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
@@ -69,31 +70,20 @@ def rpc_init(sc, conf):
         report_state=vpn_report_state
     )
 
-    nhrpcmgr = nh.NotificationAgent(conf, sc)
-    notificationagent = RpcAgent(
+    rpchandler = rpc_handler.RpcHandler(conf, sc)
+    rpcagent = RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=a_topics.CONFIG_ORCH_TOPIC,
-        manager=nhrpcmgr,
+        manager=rpchandler,
     )
 
-    sc.register_rpc_agents([fwagent, lbagent, vpnagent, notificationagent])
+    sc.register_rpc_agents([fwagent, lbagent, vpnagent, rpcagent])
 
 
 def events_init(sc, conf):
     """Register event with its handler."""
-    evs = [
-        Event(id='SERVICE_CREATED',
-              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
-        Event(id='SERVICE_DELETED',
-              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
-        Event(id='SERVICE_CREATE_PENDING',
-              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
-        Event(id='PULL_BULK_DATA',
-              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
-        Event(id='SERVICE_OPERATION_POLL_EVENT',
-              handler=otc_se.OTCServiceEventsHandler(sc, conf))]
-
+    evs = visibility_handler.event_init(sc, conf)
     sc.register_events(evs)
 
 

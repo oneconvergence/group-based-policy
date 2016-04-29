@@ -11,8 +11,8 @@
 #    under the License.
 
 import copy
-from gbpservice.nfp.config_orchestrator.agent import common
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.common import common
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
 
@@ -117,12 +117,8 @@ class VpnNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
-    # TODO(akash): Event for service create/delete not implemented here
-    # Need to do that
     def update_status(self, context, notification_data):
         notification = notification_data['notification'][0]['data']
-        notification_info = notification_data['info']
         resource_data = notification['data']
         status = resource_data['status']
         msg = ("NCO received VPN's update_status API,"
@@ -133,31 +129,8 @@ class VpnNotifier(object):
         rpcClient.cctxt.cast(context, 'update_status',
                              status=status)
 
-        # Sending An Event for visiblity
-        if notification['resource'].lower() is\
-                'ipsec_site_connection':
-            nf_instance_id = notification_info['context'][
-                'network_function_instance_id']
-            ipsec_id = notification_info['context']['ipsec_site_connection_id']
-            service_type = notification_info['service_type']
-
-            # Sending An Event for visiblity
-            event_data = {'context': context,
-                          'nf_instance_id': nf_instance_id,
-                          'ipsec_site_connection_id': ipsec_id,
-                          'service_type': service_type,
-                          'neutron_resource_id': ipsec_id,
-                          'eventid': 'SERVICE_CREATED'
-                          }
-
-            event = self.sc.new_event(
-                id='STASH_EVENT', key='STASH_EVENT', data=event_data)
-            self.sc.stash_event(event)
-
-    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
         notification = notification_data['notification'][0]['data']
-        notification_info = notification_data['info']
         resource_data = notification['data']
         resource_id = resource_data['resource_id']
         msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
@@ -167,22 +140,3 @@ class VpnNotifier(object):
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
                              id=resource_id)
-
-        # Sending An Event for visiblity
-        nf_instance_id = notification_info[
-            'context']['network_function_instance_id']
-        ipsec_id = notification_info['context']['ipsec_site_connection_id']
-        service_type = notification_info['service_type']
-
-        # Sending An Event for visiblity
-        event_data = {'context': context,
-                      'nf_instance_id': nf_instance_id,
-                      'ipsec_site_connection_id': ipsec_id,
-                      'service_type': service_type,
-                      'neutron_resource_id': ipsec_id,
-                      'eventid': 'SERVICE_DELETED'
-                      }
-
-        event = self.sc.new_event(
-            id='STASH_EVENT', key='STASH_EVENT', data=event_data)
-        self.sc.stash_event(event)

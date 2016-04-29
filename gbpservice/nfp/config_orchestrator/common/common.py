@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
 
@@ -23,8 +23,6 @@ import oslo_messaging as messaging
 
 LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
-
-# Version = 'v1'  # v1/v2/v3#
 
 
 def prepare_request_data(context, resource, resource_type,

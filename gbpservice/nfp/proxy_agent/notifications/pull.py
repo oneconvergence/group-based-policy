@@ -50,9 +50,12 @@ class PullNotification(core_pt.PollEventDesc):
         try:
             requester = notification['info']['context']['requester']
             topic = ResourceMap[requester]
-            context = notification['info']['context']['neutron_context']
+            if requester == 'visibility':
+                rpc_ctx = n_context.get_admin_context()
+            else:
+                context = notification['info']['context']['neutron_context']
+                rpc_ctx = n_context.Context.from_dict(context)
             rpcClient = transport.RPCClient(topic)
-            rpc_ctx = n_context.Context.from_dict(context)
             rpcClient.cctxt.cast(rpc_ctx,
                                  'network_function_notification',
                                  notification_data=notification)
