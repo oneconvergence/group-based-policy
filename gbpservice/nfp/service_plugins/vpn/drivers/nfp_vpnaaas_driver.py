@@ -103,7 +103,6 @@ class OCIPsecVpnDriverCallBack(object):
 
     def update_status(self, context, **status):
         """Update status of vpnservices."""
-        LOG.error("###################################################################################### update status kwargs %s" %status)
         status = status['status']
         if 'ipsec_site_connections' not in status[0]:
             status[0]['ipsec_site_connections'] = {}
@@ -112,17 +111,13 @@ class OCIPsecVpnDriverCallBack(object):
 
     def ipsec_site_conn_deleted(self, context, **resource_id):
         """ Delete ipsec connection notification from driver."""
-        LOG.error("###################################################################################### conn deleted kwargs %s" %resource_id)
         resource_id = resource_id['id']
         plugin = self.driver.service_plugin
-        LOG.error("  plugin  is  : %s" % plugin)
         plugin._delete_ipsec_site_connection(context, resource_id)
 
     def vpnservice_deleted(self, context, **kwargs):
-        LOG.error("###################################################################################### vpnservice deleted kwargs %s" %kwargs)
         vpnservice_id = kwargs['id']
         plugin = self.driver.service_plugin
-        LOG.error(plugin)
         plugin._delete_vpnservice(context, vpnservice_id)
 
     def update_ipsec_site_conn_description(self, context, conn_id,
@@ -335,7 +330,6 @@ class OCIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
 
     def create_ipsec_site_connection(self, context, ipsec_site_connection):
         
-        LOG.error(_('KKKKKKKKKKK create_ipsec_site_connection  KKKKK'))
         service_vendor = self._get_service_vendor(context,
                           ipsec_site_connection['vpnservice_id'])
         self.agent_rpc.vpnservice_updated(
@@ -395,7 +389,6 @@ class OCIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
         pass
 
     def create_vpnservice(self, context, vpnservice):
-        LOG.error(_('KEDAR KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK'))
         service_vendor = self._get_service_vendor(context,
                                                   vpnservice['id'])
         self.agent_rpc.vpnservice_updated(
@@ -411,7 +404,6 @@ class OCIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
         pass
 
     def delete_vpnservice(self, context, vpnservice):
-        LOG.error("$$$$$$$$$$$$$$$$$$$$$$$$ delete vpnsvc %s" % vpnservice)
         service_vendor = self._get_service_vendor(context,
                                                   vpnservice['id'])
         self.agent_rpc.vpnservice_updated(
@@ -522,4 +514,3 @@ class OCVpnValidator(vpn_validator.VpnReferenceValidator):
                                                 ipsec_sitecon,
                                                 prev_conn=None):
         pass
-
