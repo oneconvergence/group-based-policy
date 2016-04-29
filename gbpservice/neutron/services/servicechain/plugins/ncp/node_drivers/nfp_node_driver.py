@@ -387,8 +387,15 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         self._set_node_instance_network_function_map(
             context.plugin_session, context.current_node['id'],
             context.instance['id'], network_function_id)
-        self._wait_for_network_function_operation_completion(
-            context, network_function_id, operation='create')
+        try:
+            self._wait_for_network_function_operation_completion(
+                context, network_function_id, operation='create')
+        except NodeInstanceCreateFailed:
+            LOG.exception(_LE("Failed to create network function %(nf)s of "
+                              "service chain instance %(inst)s of %(tenant)s "
+                              ) % {'nf': network_function_id,
+                                   'inst': context.instance['id'],
+                                   'tenant': context.provider['tenant_id']})
 
     def update(self, context):
         context._plugin_context = self._get_resource_owner_context(
@@ -403,10 +410,20 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             return
 
         network_function_id = network_function_map.network_function_id
+        LOG.info(_LI("Initiating update network function - %(nf)s of service"
+                     " chain instance %(inst)s of tenant %(tenant)s") %
+                 {'nf': network_function_id,
+                  'inst': context.instance['id'], 'tenant': context.tenant_id})
         self._update(context, network_function_id)
-
-        self._wait_for_network_function_operation_completion(
-            context, network_function_id, operation='update')
+        try:
+            self._wait_for_network_function_operation_completion(
+                context, network_function_id, operation='update')
+        except NodeInstanceUpdateFailed:
+            LOG.exception(_LE("Failed to update network function %(nf)s of "
+                              "service chain instance %(inst)s of %(tenant)s "
+                              ) % {'nf': network_function_id,
+                                   'inst': context.instance['id'],
+                                   'tenant': context.tenant_id})
 
 
     def delete(self, context):
@@ -426,10 +443,23 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 context=context.plugin_context,
                 network_function_id=network_function_id)
         except Exception:
-            LOG.exception(_LE("Delete Network service Failed"))
-
-        self._wait_for_network_function_delete_completion(
-            context, network_function_id)
+            LOG.exception(_LE("Exception while delete network function - %("
+                              "nf)s of service chain instance - %(inst)s  "
+                              "failed for tenant %(tenant)s") %
+                          {'nf': network_function_id,
+                           'inst': context.instance['id'],
+                           'tenant': context.tenant_id})
+        try:
+            self._wait_for_network_function_delete_completion(
+                context, network_function_id)
+        except NodeInstanceDeleteFailed:
+            LOG.exception(_LE("Delete Network service - %(nf)s of service "
+                              "chain instance - %(inst)s  failed for tenant "
+                              "%(tenant)s. (Timed out).") %
+                          {'nf': network_function_id,
+                           'inst': context.instance['id'],
+                           'tenant': context.tenant_id})
+            raise
         self._delete_node_instance_network_function_map(
             context.plugin_session,
             context.current_node['id'],
@@ -543,8 +573,23 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 LOG.info(_LI(operation + " network function result: "
                              "%(network_function)s"),
                          {'network_function': network_function})
-            if (network_function['status'] == 'ACTIVE' or
-                network_function['status'] == 'ERROR'):
+            if network_function['status'] == 'ACTIVE':
+                LOG.info(_LI("%(op)s Network function - %(nf)s of service "
+                             "chain instance %(inst)s done succesfully for %("
+                             "tenant)s ")
+                         % {'nf': network_function_id, 'op': operation,
+                            'inst': context.instance['id'],
+                            'tenant': context.provider['tenant_id']})
+                break
+            elif network_function['status'] == 'ERROR':
+                LOG.exception(_LE("Error occurred while %(op)s Network "
+                                  "function - %(nf)s of service chain "
+                                  "instance %(inst)s for tenant %(tenant)s "
+                                  ) % {'nf': network_function_id,
+                                       'op': operation,
+                                       'inst': context.instance['id'],
+                                       'tenant': context.provider['tenant_id']}
+                              )
                 break
             eventlet.sleep(5)
             time_waited = time_waited + 5
@@ -685,6 +730,10 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
 
     def _create_network_function(self, context):
         sc_instance = context.instance
+        LOG.info(_LI("Initiating network function create of service "
+                     "chain instance %(sc_inst)s of tenant - %(tenant)s ")
+                 % {'tenant': context.provider['tenant_id'],
+                    'sc_inst': sc_instance['id']})
         service_targets = self._get_service_targets(context)
         if context.current_profile['service_type'] == pconst.LOADBALANCER:
             config_param_values = sc_instance.get('config_param_values', {})
