@@ -72,35 +72,6 @@ class OCIPsecVpnDriverCallBack(object):
     def create_rpc_dispatcher(self):
         return n_rpc.PluginRpcDispatcher([self])
 
-    def get_vpn_servicecontext(self, context, svctype, filters=None):
-        if svctype == const.SERVICE_TYPE_IPSEC:
-            return self._get_ipsec_site2site_contexts(context, filters)
-        elif svctype == const.SERVICE_TYPE_OPENVPN:
-            return self._get_ssl_vpn_contexts(context, filters)
-
-    def get_ipsec_conns(self, context, filters):
-        plugin = self.driver.service_plugin
-        ipsec_site_conns = plugin.get_ipsec_site_connections(
-            context,
-            filters=filters,
-            fields=None)
-        return ipsec_site_conns
-
-    def get_vpn_services(self, context, ids=None, filters=None):
-        plugin = self.driver.service_plugin
-        vpnservices = []
-
-        if ids:
-            for svc_id in ids:
-                vpnservice = plugin.get_vpnservice(context, svc_id)
-                vpnservices.append(vpnservice)
-        else:
-            if filters:
-                vpnservices = plugin.get_vpnservices(
-                    context, filters=filters)
-
-        return vpnservices
-
     def update_status(self, context, **status):
         """Update status of vpnservices."""
         status = status['status']
@@ -124,75 +95,6 @@ class OCIPsecVpnDriverCallBack(object):
                                            description):
         plugin = self.driver.service_plugin
         plugin.update_ipsec_site_connection(context, conn_id, description)
-
-    def _get_ipsec_site2site_contexts(self, context, filters=None):
-        """
-        filters =   {   'tenant_id': <value>,
-                        'vpnservice_id': <value>,
-                        'siteconn_id': <value>
-                    }
-                    'tenant_id' - To get s2s conns of that tenant
-                    'vpnservice_id' - To get s2s conns of that vpn service
-                    'siteconn_id' - To get a specific s2s conn
-
-        { 'vpnserviceid':
-            { 'service': <VPNServiceDbObject>,
-              'siteconns':  [   {
-                                'connection': <IPSECsiteconnectionsDbObject>,
-                                'ikepolicy': <IKEPolicyDbObject>,
-                                'ipsecpolicy': <IPSECPolicyDbObject>
-                                }
-                            ]
-            }
-        }
-        """
-        vpnservices = {}
-
-        plugin = self.driver.my_plugin
-        core_plugin = self.driver.core_plugin
-        s_filters = {}
-
-        if 'tenant_id' in filters:
-            s_filters['tenant_id'] = [filters['tenant_id']]
-        if 'vpnservice_id' in filters:
-            s_filters['vpnservice_id'] = [filters['vpnservice_id']]
-        if 'siteconn_id' in filters:
-            s_filters['id'] = [filters['siteconn_id']]
-        if 'peer_address' in filters:
-            s_filters['peer_address'] = [filters['peer_address']]
-
-        ipsec_site_conns = plugin.get_ipsec_site_connections(
-            context, filters=s_filters, fields=None)
-
-        for ipsec_site_conn in ipsec_site_conns:
-            vpnservice = plugin.get_vpnservice(
-                context, ipsec_site_conn['vpnservice_id'])
-
-            ikepolicy = plugin.get_ikepolicy(
-                context, ipsec_site_conn['ikepolicy_id'])
-
-            ipsecpolicy = plugin.get_ipsecpolicy(
-                context, ipsec_site_conn['ipsecpolicy_id'])
-
-            cidr = core_plugin.get_subnet(
-                context, vpnservice['subnet_id'])['cidr']
-
-            vpnservice['cidr'] = cidr
-
-            siteconn = {}
-            siteconn['connection'] = ipsec_site_conn
-            siteconn['ikepolicy'] = ikepolicy
-            siteconn['ipsecpolicy'] = ipsecpolicy
-            vpnserviceid = vpnservice['id']
-
-            if vpnserviceid not in vpnservices.keys():
-                vpnservices[vpnserviceid] = \
-                    {'service': vpnservice, 'siteconns': []}
-
-            vpnservices[vpnserviceid]['siteconns'].append(siteconn)
-
-        site2site_context = self.driver._make_vpnservice_context(vpnservices)
-        return site2site_context
 
 
 class OCIpsecVpnAgentApi(service_drivers.BaseIPsecVpnAgentApi):
@@ -329,7 +231,7 @@ class OCIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
         return service_vendor
 
     def create_ipsec_site_connection(self, context, ipsec_site_connection):
-        
+
         service_vendor = self._get_service_vendor(context,
                           ipsec_site_connection['vpnservice_id'])
         self.agent_rpc.vpnservice_updated(
