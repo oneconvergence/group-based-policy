@@ -25,12 +25,6 @@ from gbpservice.nfp.core import event as nfp_event
 
 LOG = logging.getLogger(__name__)
 
-rest_timeout = [
-    cfg.IntOpt(
-        'rest_timeout',
-        default=240,
-        help=("rest api timeout"))]
-cfg.CONF.register_opts(rest_timeout)
 
 """ Implements Fwaas response path to Neutron plugin.
 
@@ -224,6 +218,12 @@ class FWaasEventHandler(object):
                    % (os.getpid(), ev.id))
             LOG.debug(msg)
 
+            # The context here in ev.data is the neutron context that was
+            # renamed to context in the agent_base. This erstwhile
+            # neutron context contains the agent info which in turn contains
+            # the API context alongside other relevant information like
+            # service vendor and type. Agent info is constructed inside
+            # the demuxer library.
             service_vendor = ev.data['context']['agent_info']['service_vendor']
             driver = self._get_driver(service_vendor)
 

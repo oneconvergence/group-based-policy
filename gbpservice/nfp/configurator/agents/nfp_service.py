@@ -127,7 +127,7 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
         finally:
             del agent_info['notification_data']
             del agent_info['service_vendor']
-            service_type = agent_info.pop('service_type')
+            service_type = agent_info.pop('resource_type')
 
             if result in const.UNHANDLED_RESULT:
                 data = {'status_code': const.UNHANDLED_RESULT}
