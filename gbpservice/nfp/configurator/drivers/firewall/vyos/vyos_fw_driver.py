@@ -37,7 +37,7 @@ class FwGenericConfigDriver(object):
     """
 
     def __init__(self):
-        self.timeout = cfg.CONF.rest_timeout
+        self.timeout = const.REST_TIMEOUT
 
     def _configure_static_ips(self, resource_data):
         """ Configure static IPs for provider and stitching interfaces
@@ -448,7 +448,7 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
     service_vendor = const.VYOS
 
     def __init__(self):
-        self.timeout = cfg.CONF.rest_timeout
+        self.timeout = const.REST_TIMEOUT
         self.host = cfg.CONF.host
         self.context = context.get_admin_context_without_session()
 

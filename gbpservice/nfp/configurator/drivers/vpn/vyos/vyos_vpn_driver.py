@@ -25,14 +25,6 @@ from oslo_serialization import jsonutils
 
 LOG = logging.getLogger(__name__)
 
-rest_timeout = [
-    cfg.IntOpt(
-        'VPN.rest_timeout',
-        default=240,
-        help="rest api timeout")]
-
-cfg.CONF.register_opts(rest_timeout)
-
 
 class UnknownReasonException(Exception):
     message = "Unsupported rpcreason '%(reason)s' from plugin "
@@ -61,7 +53,7 @@ class RestApi(object):
 
     def __init__(self, vm_mgmt_ip):
         self.vm_mgmt_ip = vm_mgmt_ip
-        self.timeout = cfg.CONF.rest_timeout
+        self.timeout = const.REST_TIMEOUT
 
     def _dict_to_query_str(self, args):
         return '&'.join([str(k) + '=' + str(v) for k, v in args.iteritems()])
@@ -314,7 +306,7 @@ class VpnGenericConfigDriver(object):
     """
 
     def __init__(self):
-        self.timeout = cfg.CONF.rest_timeout
+        self.timeout = const.REST_TIMEOUT
 
 
     def _configure_static_ips(self, resource_data):

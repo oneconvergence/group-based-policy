@@ -25,12 +25,6 @@ from gbpservice.nfp.core import event as nfp_event
 
 LOG = logging.getLogger(__name__)
 
-rest_timeout = [
-    cfg.IntOpt(
-        'rest_timeout',
-        default=60,
-        help=("rest api timeout"))]
-cfg.CONF.register_opts(rest_timeout)
 
 """ Implements Fwaas response path to Neutron plugin.
 
