@@ -34,7 +34,7 @@ from vyos_policy_based_routes import RoutesConfigHandler as routes_handler
 from ha_config import VYOSHAConfig
 from vyos_exception import OCException
 from flask import jsonify
-from visibility_api import APIHandler as apihandler
+from log_forwarder import APIHandler as apihandler
 # sys.path.insert(0, dirname(dirname(abspath(__file__))))
 # sys.path.insert(0, (abspath(__file__)))
 

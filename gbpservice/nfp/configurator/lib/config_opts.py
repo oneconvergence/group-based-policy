@@ -16,12 +16,12 @@ opts = [
     cfg.StrOpt(
         'log_forward_ip_address',
         default=None,
-        help=('visibility VM IP address for log forwarding')),
+        help=('IP address to forward logs to')),
     cfg.IntOpt(
         'log_forward_port',
         default=514,
-        help=("visibility port to forward logs")),
+        help=("port to forward logs to")),
     cfg.StrOpt(
         'log_level',
         default='debug',
-        help=('log level for service VMs to forward logs'))]
+        help=('log level for logs forwarding'))]
