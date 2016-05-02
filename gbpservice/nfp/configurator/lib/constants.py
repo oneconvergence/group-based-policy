@@ -34,3 +34,4 @@ HAPROXY = 'haproxy'
 CREATE = 'create'
 UPDATE = 'update'
 DELETE = 'delete'
+UNHANDLED = "UNHANDLED"

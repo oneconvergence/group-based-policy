@@ -11,12 +11,15 @@
 #    under the License.
 
 import ast
+import requests
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
                                                     haproxy_rest_client)
+from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import lb_constants
 from oslo_log import log as logging
+from oslo_serialization import jsonutils
 
 DRIVER_NAME = 'loadbalancer'
 PROTOCOL_MAP = {
@@ -36,13 +39,136 @@ REQUEST_TIMEOUT = 10
 LOG = logging.getLogger(__name__)
 
 
-class HaproxyOnVmDriver(base_driver.BaseDriver):
+""" Loadbalancer generic configuration driver for handling device
+configuration requests.
+
+"""
+
+
+class LbGenericConfigDriver(object):
+    """
+    Driver class for implementing loadbalancer configuration
+    requests from Orchestrator.
+    """
+
+    def __init__(self, conf):
+        self.conf = conf
+        self.timeout = 30
+
+    def _configure_log_forwarding(self, url, mgmt_ip, port):
+        """ Configures log forwarding IP address in Service VMs.
+
+            :param url: url format that is used to invoke the Service VM API
+            :param mgmt_ip: management IP of the Service VM
+            :param port: port that is listened to by the Service VM agent
+
+            Returns: SUCCESS/Error msg
+
+        """
+
+        url = url % (mgmt_ip, port, 'configure-rsyslog-as-client')
+
+        visibility_vm_ip_address = self.conf.log_forward_ip_address
+        if not visibility_vm_ip_address:
+            msg = ("Log forwarding IP address not configured "
+                   "for service at %s." % mgmt_ip)
+            LOG.info(msg)
+            return common_const.UNHANDLED
+
+        data = dict(
+                server_ip=visibility_vm_ip_address,
+                server_port=self.conf.log_forward_port,
+                log_level=self.conf.log_level)
+        data = jsonutils.dumps(data)
+
+        msg = ("Initiating POST request to configure log forwarding "
+               "for service at: %r" % mgmt_ip)
+        LOG.info(msg)
+        try:
+            resp = requests.post(url, data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError as err:
+            msg = ("Failed to establish connection to service at: "
+                   "%r for configuring log forwarding. ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except requests.exceptions.RequestException as err:
+            msg = ("Unexpected ERROR happened while configuring "
+                   "log forwarding for service at: %r. "
+                   "ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response of configure log forward API, "
+                   "invalid JSON. URL: %r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if not result['status']:
+            msg = ("Error configuring log forwarding for service "
+                   "at %s. URL: %r. Reason: %s." %
+                   (mgmt_ip, url, result['reason']))
+            LOG.error(msg)
+            return msg
+
+        msg = ("Successfully configured log forwarding for "
+               "service at %s." % mgmt_ip)
+        LOG.info(msg)
+        return lb_constants.STATUS_SUCCESS
+
+    def configure_interfaces(self, context, resource_data):
+        """ Configure interfaces for the service VM.
+
+        Calls static IP configuration function and implements
+        persistent rule addition in the service VM.
+        Issues REST call to service VM for configuration of interfaces.
+
+        :param context: neutron context
+        :param resource_data: a dictionary of loadbalancer objects
+        send by neutron plugin
+
+        Returns: SUCCESS/Failure message with reason.
+
+        """
+
+        mgmt_ip = resource_data['mgmt_ip']
+
+        try:
+            result_log_forward = self._configure_log_forwarding(
+                lb_constants.REQUEST_URL, mgmt_ip,
+                lb_constants.HAPROXY_AGENT_LISTEN_PORT)
+        except Exception as err:
+            msg = ("Failed to configure log forwarding for service at %s. "
+                   "Error: %s" % (mgmt_ip, err))
+            LOG.error(msg)
+            return msg
+        else:
+            if result_log_forward == common_const.UNHANDLED:
+                pass
+            elif result_log_forward != lb_constants.STATUS_SUCCESS:
+                msg = ("Failed to configure log forwarding for service at %s. "
+                       "Error: %s" % (mgmt_ip, err))
+                LOG.error(msg)
+                return result_log_forward
+            else:
+                msg = ("Configured log forwarding for service at %s. "
+                       "Result: %s" % (mgmt_ip, result_log_forward))
+                LOG.info(msg)
+
+        return lb_constants.STATUS_SUCCESS
+
+
+class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
     service_type = 'loadbalancer'
     service_vendor = 'haproxy'
     pool_to_device = {}
 
-    def __init__(self, plugin_rpc=None):
+    def __init__(self, plugin_rpc=None, conf=None):
         self.plugin_rpc = plugin_rpc
+        super(HaproxyOnVmDriver, self).__init__(conf=conf)
 
     def _get_rest_client(self, ip_addr):
         client = haproxy_rest_client.HttpRequests(
