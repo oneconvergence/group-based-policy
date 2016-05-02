@@ -14,11 +14,11 @@ import ast
 import requests
 
 from neutron import context
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
+from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import fw_constants as const
 
 LOG = logging.getLogger(__name__)
@@ -36,8 +36,73 @@ class FwGenericConfigDriver(object):
     requests from Orchestrator.
     """
 
-    def __init__(self):
+    def __init__(self, conf):
+        self.conf = conf
         self.timeout = const.REST_TIMEOUT
+
+    def _configure_log_forwarding(self, url, mgmt_ip, port):
+        """ Configures log forwarding IP address in Service VMs.
+
+            :param url: url format that is used to invoke the Service VM API
+            :param mgmt_ip: management IP of the Service VM
+            :param port: port that is listened to by the Service VM agent
+
+            Returns: SUCCESS/Error msg
+
+        """
+
+        url = url % (mgmt_ip, port, 'configure-rsyslog-as-client')
+
+        visibility_vm_ip_address = self.conf.visibility_ip_address
+        if not visibility_vm_ip_address:
+            msg = ("Log forwarding IP address not configured "
+                   "for service at %s." % mgmt_ip)
+            LOG.info(msg)
+            return common_const.UNHANDLED
+
+        data = dict(
+                server_ip=visibility_vm_ip_address,
+                server_port=self.conf.log_forward_port,
+                log_level=self.conf.log_level)
+        data = jsonutils.dumps(data)
+
+        msg = ("Initiating POST request to configure log forwarding "
+               "for service at: %r" % mgmt_ip)
+        LOG.info(msg)
+        try:
+            resp = requests.post(url, data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError as err:
+            msg = ("Failed to establish connection to service at: "
+                   "%r for configuring log forwarding. ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except requests.exceptions.RequestException as err:
+            msg = ("Unexpected ERROR happened while configuring "
+                   "log forwarding for service at: %r. "
+                   "ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response of configure log forward API, "
+                   "invalid JSON. URL: %r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if not result['status']:
+            msg = ("Error configuring log forwarding for service "
+                   "at %s. URL: %r. Reason: %s." %
+                   (mgmt_ip, url, result['reason']))
+            LOG.error(msg)
+            return msg
+
+        msg = ("Successfully configured log forwarding for "
+               "service at %s." % mgmt_ip)
+        LOG.info(msg)
+        return const.STATUS_SUCCESS
 
     def _configure_static_ips(self, resource_data):
         """ Configure static IPs for provider and stitching interfaces
@@ -121,6 +186,29 @@ class FwGenericConfigDriver(object):
 
         """
 
+        mgmt_ip = resource_data['mgmt_ip']
+
+        try:
+            result_log_forward = self._configure_log_forwarding(
+                const.request_url, mgmt_ip, const.CONFIGURATION_SERVER_PORT)
+        except Exception as err:
+            msg = ("Failed to configure log forwarding for service at %s. "
+                   "Error: %s" % (mgmt_ip, err))
+            LOG.error(msg)
+            return msg
+        else:
+            if result_log_forward == common_const.UNHANDLED:
+                pass
+            elif result_log_forward != const.STATUS_SUCCESS:
+                msg = ("Failed to configure log forwarding for service at %s. "
+                       "Error: %s" % (mgmt_ip, err))
+                LOG.error(msg)
+                return result_log_forward
+            else:
+                msg = ("Configured log forwarding for service at %s. "
+                       "Result: %s" % (mgmt_ip, result_log_forward))
+                LOG.info(msg)
+
         try:
             result_static_ips = self._configure_static_ips(resource_data)
         except Exception as err:
@@ -137,8 +225,6 @@ class FwGenericConfigDriver(object):
         rule_info = dict(
             provider_mac=resource_data['provider_mac'],
             stitching_mac=resource_data['stitching_mac'])
-
-        mgmt_ip = resource_data['mgmt_ip']
 
         url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT, 'add_rule')
@@ -447,10 +533,12 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
     service_type = const.SERVICE_TYPE
     service_vendor = const.VYOS
 
-    def __init__(self):
+    def __init__(self, conf):
+        self.conf = conf
         self.timeout = const.REST_TIMEOUT
-        self.host = cfg.CONF.host
+        self.host = self.conf.host
         self.context = context.get_admin_context_without_session()
+        super(FwaasDriver, self).__init__(conf)
 
     def _get_firewall_attribute(self, firewall):
         """ Retrieves management IP from the firewall resource received

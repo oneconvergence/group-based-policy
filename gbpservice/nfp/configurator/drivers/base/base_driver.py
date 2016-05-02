@@ -25,7 +25,7 @@ FAILED = 'FAILED'
 
 
 class BaseDriver(object):
-    def __init__(self):
+    def __init__(self, conf):
         pass
 
     def configure_interfaces(self, context, kwargs):

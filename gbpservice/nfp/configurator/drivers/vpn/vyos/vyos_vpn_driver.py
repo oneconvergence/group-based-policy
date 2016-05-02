@@ -304,7 +304,8 @@ class VpnGenericConfigDriver(object):
     requests from Orchestrator.
     """
 
-    def __init__(self):
+    def __init__(self, conf):
+        self.conf = conf
         self.timeout = const.REST_TIMEOUT
 
 
@@ -740,7 +741,8 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
     service_type = const.SERVICE_TYPE
     service_vendor = const.SERVICE_VENDOR
 
-    def __init__(self):
+    def __init__(self, conf):
+        self.conf = conf
         self.handlers = {
             'vpn_service': {
                 'create': self.create_vpn_service},
@@ -748,7 +750,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 'create': self.create_ipsec_conn,
                 'update': self.update_ipsec_conn,
                 'delete': self.delete_ipsec_conn}}
-        super(VpnaasIpsecDriver, self).__init__()
+        super(VpnaasIpsecDriver, self).__init__(conf)
 
     def _update_conn_status(self, conn, status):
         """

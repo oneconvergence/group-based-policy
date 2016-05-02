@@ -192,7 +192,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
 
         """
 
-        return self.drivers[service_type + service_vendor]()
+        return self.drivers[service_type + service_vendor]
 
     def handle_event(self, ev):
         """Processes the generated events in worker context.
@@ -405,7 +405,7 @@ def events_init(sc, drivers, rpcmgr):
     sc.register_events(events)
 
 
-def load_drivers():
+def load_drivers(conf):
     """Imports all the driver files.
 
     Returns: Dictionary of driver objects with a specified service type and
@@ -414,7 +414,13 @@ def load_drivers():
     """
 
     cutils = utils.ConfiguratorUtils()
-    return cutils.load_drivers(gen_cfg_const.DRIVERS_DIR)
+    drivers = cutils.load_drivers(gen_cfg_const.DRIVERS_DIR)
+
+    for service_type, driver_name in drivers.iteritems():
+        driver_obj = driver_name(conf=conf)
+        drivers[service_type] = driver_obj
+
+    return drivers
 
 
 def register_service_agent(cm, sc, conf, rpcmgr):
@@ -442,7 +448,7 @@ def init_agent(cm, sc, conf):
     """
 
     try:
-        drivers = load_drivers()
+        drivers = load_drivers(conf)
     except Exception as err:
         msg = ("Generic configuration agent failed to load service drivers. %s"
                % (str(err).capitalize()))
