@@ -18,6 +18,7 @@ HAPROXY_CONFIG_FILE_ABS_PATH = '/etc/haproxy/haproxy.cfg'
 HAPROXY_PID_FILE_ABS_PATH = '/var/run/haproxy.pid'
 
 HAPROXY_SOCK_ABS_PATH = '/etc/haproxy/stats'
+HAPROXY_RSYSLOG_CONF_FILE_ABS_PATH = "/etc/rsyslog.d/haproxy.conf"
 
 
 class HaproxyDriver:
@@ -498,4 +499,47 @@ class HaproxyDriver:
                                         active_ip, standby_ip,
                                         priority, mgmt_interface)
 
+    def is_configured(self, ip, port):
+        config_to_check = "@" + ip + ":" + port
+        command = ['sudo', 'cat', HAPROXY_RSYSLOG_CONF_FILE_ABS_PATH]
+        status, output = commands.getstatusoutput(' '.join(command))
 
+        if status >= 0 and output:
+            for line in output.split('\n'):
+                if config_to_check in line:
+                    return True
+        return False
+
+    def configure_rsyslog_as_client(self, config):
+        OP_FAILED = { 'status' : False }
+        OP_SUCCESS = { 'status' : True }
+        try:
+            ip = config['server_ip']
+            port = str(config['server_port'])
+            if self.is_configured(ip, port):
+                return OP_SUCCESS
+            config_command = ['sed',
+                              '-i',
+                              "'1 i\*.* @" + ip + ":" + port + "' ",
+                              HAPROXY_RSYSLOG_CONF_FILE_ABS_PATH
+                            ]
+
+            status, output = commands.getstatusoutput(' '.join(config_command))
+            if status >= 0:
+                restart_command = ['service', 'rsyslog', 'restart']
+                status, output = commands.getstatusoutput(' '.join(
+                                            restart_command))
+                if status >= 0:
+                    return OP_SUCCESS
+                else:
+                    self.logger.error('failed to execute command : %s',
+                                    restart_command)
+                    return OP_FAILED
+            else:
+                self.logger.error('failed to execute command : %s',
+                                    config_command)
+                return OP_FAILED
+        except Exception, err:
+            self.logger.error('exception : %s and exception : %s',
+                             err, traceback.format_exc())
+            return OP_FAILED
