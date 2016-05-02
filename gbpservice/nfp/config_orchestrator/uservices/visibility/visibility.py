@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 import ast
+import copy
 import time
 
 from gbpservice.nfp.core import common as nfp_common
@@ -178,7 +179,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
             nf_instance_id = notification_info['context'][
                 'network_function_instance_id']
             vip_id = notification_info['context']['vip_id']
-
+            service_type = notification_info['service_type']
             # sending notification to visibility
             request_data = {'context': context,
                             'nf_instance_id': nf_instance_id,
@@ -195,12 +196,12 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         context, notification_info, resource_data = self.\
             _get_all_data(data)
         service_type = notification_info['service_type']
-        if service_type.lower == "loadbalancer":
+        if service_type.lower() == "loadbalancer":
             self._handler_loadbalancer_update_status(context,
                                                      notification_info,
                                                      resource_data)
 
-        elif service_type.lower == "vpn":
+        elif service_type.lower() == "vpn":
             self._handler_vpn_update_status(context,
                                             notification_info,
                                             resource_data)
@@ -368,7 +369,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
 
     @core_pt.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=5)
     def create_sevice_pending_event(self, ev):
-        event_data = ev.data
+        event_data = copy.deepcopy(ev.data)
         try:
             updated_event_data, context = self._prepare_request_data(
                 event_data)
@@ -385,7 +386,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         events = self._sc.get_stashed_events()
         LOG(LOGGER, 'ERROR', "Stash Queue is: %s" % events)
         for event in events:
-            data = event.data
+            data = copy.deepcopy(event.data)
             eventid = data.pop('eventid')
             if eventid == "SERVICE_CREATE_PENDING":
                 new_event = self._sc.new_event(id=eventid,
