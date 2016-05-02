@@ -117,7 +117,7 @@ class VpnNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _prepare_request_data(self, context, nf_instance_id, resource_id
+    def _prepare_request_data(self, context, nf_instance_id, resource_id,
                               ipsec_id, service_type):
         request_data = None
         try:
