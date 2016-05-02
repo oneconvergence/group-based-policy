@@ -29,7 +29,7 @@ from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
-
+from neutron.plugins.common import constants as pconst
 
 LOG = logging.getLogger(__name__)
 
@@ -280,6 +280,7 @@ class RpcHandlerConfigurator(object):
                 elif operation == 'delete':
                     event_id = self.rpc_event_mapping[resource][1]
                 elif operation == 'update':
+                    serialize = True
                     event_id = self.rpc_event_mapping[resource][2]
                 elif operation == 'pt_add':
                     serialize = True
@@ -680,7 +681,8 @@ class ServiceOrchestrator(object):
         request_data = {
             'heat_stack_id': network_function_info['heat_stack_id'],
             'tenant_id': network_function_info['tenant_id'],
-            'network_function_id': network_function_info['id']
+            'network_function_id': network_function_info['id'],
+            'action': 'delete'
         }
         if not heat_stack_id:
             self._create_event('USER_CONFIG_DELETE_FAILED',
@@ -778,10 +780,35 @@ class ServiceOrchestrator(object):
             request_data['network_function_id'])
         stack_id = network_function_details['network_function'
                                             ]['heat_stack_id']
+        network_function = network_function_details['network_function']
+        service_profile_id = network_function['service_profile_id']
+        service_type = self._get_service_type(service_profile_id)
+        if service_type == pconst.VPN or service_type == pconst.FIREWALL:
+            service_chain_id = network_function['service_chain_id']
+            admin_token = self.keystoneclient.get_admin_token()
+            servicechain_instance = self.gbpclient.get_servicechain_instance(
+                            admin_token,
+                            service_chain_id)
+            provider_ptg_id = servicechain_instance['provider_ptg_id']
+            provider_ptg = self.gbpclient.get_policy_target_group(
+                            admin_token,
+                            provider_ptg_id)
+            provider_tenant_id = provider_ptg['tenant_id']
+            stack_id = self.config_driver._stack_delete(stack_id,
+                            provider_tenant_id)
+            request_data = {
+                    'heat_stack_id': stack_id,
+                    'network_function_id': network_function['id'],
+                    'tenant_id': provider_tenant_id, 
+                    'action': 'update',
+            }
+            self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
+                                event_data=request_data,
+                                is_poll_event=True, original_event=event)
+
         # Heat driver to update stack
         request_data['heat_stack_id'] = self.config_driver.update_config(
             network_function_details, stack_id)
-        network_function = network_function_details['network_function']
         request_data['network_function_id'] = network_function['id']
 
         if not request_data['heat_stack_id']:
@@ -796,7 +823,7 @@ class ServiceOrchestrator(object):
             {'heat_stack_id': request_data['heat_stack_id']})
         self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
-                           is_poll_event=True)
+                           is_poll_event=True, original_event=event)
 
     def handle_device_create_failed(self, event):
         request_data = event.data
@@ -941,6 +968,9 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
+            if request_data['action'] == 'update':
+                self._controller.event_done(event)
+                return STOP_POLLING
             event_data = {
                 'network_function_id': request_data['network_function_id']
             }
