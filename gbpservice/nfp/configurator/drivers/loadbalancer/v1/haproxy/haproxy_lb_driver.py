@@ -68,7 +68,7 @@ class LbGenericConfigDriver(object):
 
         url = url % (mgmt_ip, port, 'configure-rsyslog-as-client')
 
-        visibility_vm_ip_address = self.conf.visibility_ip_address
+        visibility_vm_ip_address = self.conf.log_forward_ip_address
         if not visibility_vm_ip_address:
             msg = ("Log forwarding IP address not configured "
                    "for service at %s." % mgmt_ip)

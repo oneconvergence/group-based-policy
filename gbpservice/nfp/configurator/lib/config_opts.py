@@ -14,14 +14,14 @@ from oslo_config import cfg
 
 opts = [
     cfg.StrOpt(
-        'visibility_vm_ip_address',
+        'log_forward_ip_address',
         default=None,
         help=('visibility VM IP address for log forwarding')),
     cfg.IntOpt(
-        'visibility_port',
+        'log_forward_port',
         default=514,
         help=("visibility port to forward logs")),
     cfg.StrOpt(
         'log_level',
-        default='info',
+        default='debug',
         help=('log level for service VMs to forward logs'))]
