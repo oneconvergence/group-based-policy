@@ -158,6 +158,8 @@ def _get_frontend_dict(backend_cfg_lines):
                 frontend['option']['forwardfor'] = True
             if 'tcplog' in cfg_str:
                 frontend['option']['tcplog'] = True
+            if 'httplog' in cfg_str:
+                frontend['option']['httplog'] = True
         else:
             frontend[backend_cfg_key] = backend_cfg_value
     return {frontend_id: frontend}

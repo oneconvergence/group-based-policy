@@ -97,15 +97,18 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
         protocol = vip['protocol']
 
         frontend = {
-            'option': {
-                'tcplog': True
-            },
+            'option': {},
             'bind': '%s:%d' % (vip_ip, vip_port_number),
             'mode': PROTOCOL_MAP[protocol],
             'default_backend': "bck:%s" % vip['pool_id']
         }
         if vip['connection_limit'] >= 0:
             frontend.update({'maxconn': '%s' % vip['connection_limit']})
+        if protocol in [lb_constants.PROTOCOL_HTTP,
+                        lb_constants.PROTOCOL_HTTPS]:
+            frontend['option'].update({'httplog': True})
+        else:
+            frontend['option'].update({'tcplog': True})
         try:
             if protocol == lb_constants.PROTOCOL_HTTP:
                 frontend['option'].update({'forwardfor': True})
