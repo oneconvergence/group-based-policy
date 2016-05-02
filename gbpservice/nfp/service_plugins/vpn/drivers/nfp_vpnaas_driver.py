@@ -46,21 +46,20 @@ class OCIPsecVpnDriverCallBack(object):
     def __init__(self, driver):
         self.driver = driver
 
-    def update_status(self, context, **status):
+    def update_status(self, context, status):
         """Update status of vpnservices."""
-        status = status['status']
+        #status = status['status']
         if 'ipsec_site_connections' not in status[0]:
             status[0]['ipsec_site_connections'] = {}
         plugin = self.driver.service_plugin
         plugin.update_status_by_agent(context, status)
 
-    def ipsec_site_conn_deleted(self, context, **resource_id):
+    def ipsec_site_conn_deleted(self, context, resource_id):
         """ Delete ipsec connection notification from driver."""
         plugin = self.driver.service_plugin
-        plugin._delete_ipsec_site_connection(context, resource_id['id'])
+        plugin._delete_ipsec_site_connection(context, resource_id)
 
-    def vpnservice_deleted(self, context, **kwargs):
-        vpnservice_id = kwargs['id']
+    def vpnservice_deleted(self, context, vpnservice_id):
         plugin = self.driver.service_plugin
         plugin._delete_vpnservice(context, vpnservice_id)
 
