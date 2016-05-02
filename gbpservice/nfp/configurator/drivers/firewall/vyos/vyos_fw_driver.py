@@ -53,15 +53,15 @@ class FwGenericConfigDriver(object):
 
         url = url % (mgmt_ip, port, 'configure-rsyslog-as-client')
 
-        visibility_vm_ip_address = self.conf.log_forward_ip_address
-        if not visibility_vm_ip_address:
+        log_forward_ip_address = self.conf.log_forward_ip_address
+        if not log_forward_ip_address:
             msg = ("Log forwarding IP address not configured "
                    "for service at %s." % mgmt_ip)
             LOG.info(msg)
             return common_const.UNHANDLED
 
         data = dict(
-                server_ip=visibility_vm_ip_address,
+                server_ip=log_forward_ip_address,
                 server_port=self.conf.log_forward_port,
                 log_level=self.conf.log_level)
         data = jsonutils.dumps(data)
