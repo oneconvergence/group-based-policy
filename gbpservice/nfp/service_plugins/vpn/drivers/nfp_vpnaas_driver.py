@@ -5,7 +5,7 @@ from neutron.common import rpc as n_rpc
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron import manager
-from neutron_vpnaas.services.vpn.common import topics
+from gbpservice.nfp.config_orchestrator.agent import topics
 from neutron_vpnaas.services.vpn.plugin import VPNPlugin
 from neutron_vpnaas.services.vpn import service_drivers
 from neutron_vpnaas.services.vpn.service_drivers import base_ipsec
@@ -148,10 +148,10 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
 
         self.conn = n_rpc.create_connection(new=True)
         self.conn.create_consumer(
-            topics.IPSEC_DRIVER_TOPIC, self.endpoints, fanout=False)
+            topics.VPN_NFP_PLUGIN_TOPIC, self.endpoints, fanout=False)
         self.conn.consume_in_threads()
         self.agent_rpc = NFPIPsecVpnAgentApi(
-            topics.IPSEC_AGENT_TOPIC, BASE_VPN_VERSION, self)
+            topics.VPN_NFP_CONFIGAGENT_TOPIC, BASE_VPN_VERSION, self)
 
     def _get_service_vendor(self, context, vpnservice_id):
         vpnservice = self.service_plugin.get_vpnservice(
