@@ -355,6 +355,16 @@ class ServiceOrchestrator(object):
         self.config_driver = heat_driver.HeatDriver(config)
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = NSOConfiguratorRpcApi(neutron_context, config)
+        self.status_map = {
+                'pt_add': {'status': 'PT_ADD_IN_PROGRESS',
+                           'status_description': 'pt addition is in progress'},
+                'pt_remove': {'status': 'PT_REMOVE_IN_PROGRESS',
+                           'status_description': 'pt deletion is in progress'},
+                'ptg_add': {'status': 'PTG_ADD_IN_PROGRESS',
+                           'status_description': 'ptg addition is in progress'},
+                'ptg_remove': {'status': 'PTG_REMOVE_IN_PROGRESS',
+                           'status_description': 'ptg deletion is in progress'},
+                }
 
     @property
     def db_session(self):
@@ -1070,6 +1080,13 @@ class ServiceOrchestrator(object):
         return self.db_handler.get_network_functions(
             self.db_session, filters)
 
+    def _update_network_function_status(self, network_function_id, operation):
+        self.db_handler.update_network_function(
+            self.db_session,
+            network_function_id,
+            {'status': self.status_map[operation]['status'],
+             'status_description': self.status_map[operation]['status_description']})
+
     def handle_policy_target_added(self, context, network_function_id,
                                    policy_target):
         network_function = self.db_handler.get_network_function(
@@ -1093,6 +1110,7 @@ class ServiceOrchestrator(object):
                  'status_description': ("Config Update for Policy Target "
                                         "addition event failed")})
             return
+        self._update_network_function_status(network_function['id'], operation='pt_add')
         service_config = network_function['service_config']
         service_type = self._get_service_type(
             network_function['service_profile_id'])
@@ -1153,6 +1171,7 @@ class ServiceOrchestrator(object):
                  'status_description': ("Config Update for Policy Target "
                                         "removed event failed")})
             return
+        self._update_network_function_status(network_function['id'], operation='pt_remove')
         service_config = network_function['service_config']
         service_type = self._get_service_type(
             network_function['service_profile_id'])
