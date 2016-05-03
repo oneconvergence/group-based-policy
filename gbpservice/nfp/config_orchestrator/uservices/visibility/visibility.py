@@ -9,15 +9,19 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 import ast
 import copy
+import sys
 import time
+import traceback
 
+from gbpservice.nfp.config_orchestrator.common import common
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import poll as core_pt
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.config_orchestrator.common import common
 
+from neutron import context as n_context
 from neutron_fwaas.db.firewall import firewall_db
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from neutron_vpnaas.db.vpn import vpn_db
@@ -33,6 +37,10 @@ LOG = nfp_common.log
 
 class VisibilityEventsHandler(core_pt.PollEventDesc):
 
+    def __init__(self, sc, conf):
+        self._sc = sc
+        self._conf = conf
+
     class PullDbEntry(firewall_db.Firewall_db_mixin,
                       loadbalancer_db.LoadBalancerPluginDb,
                       vpn_db.VPNPluginDb,
@@ -40,23 +48,19 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                       ):
 
         def __init__(self):
-            super(PullDbEntry, self).__init__()
+            super(VisibilityEventsHandler.PullDbEntry, self).__init__()
 
         def get_firewalls(self, context):
-            db_data = super(PullDbEntry, self)
+            db_data = super(VisibilityEventsHandler.PullDbEntry, self)
             return db_data.get_firewalls(context)
 
         def get_vips(self, context):
-            db_data = super(PullDbEntry, self)
+            db_data = super(VisibilityEventsHandler.PullDbEntry, self)
             return db_data.get_vips(context)
 
         def get_ipsec_site_connections(self, context):
-            db_data = super(PullDbEntry, self)
-            return db_data.get_ipsec_site_conns(context)
-
-    def __init__(self, sc, conf):
-        self._sc = sc
-        self._conf = conf
+            db_data = super(VisibilityEventsHandler.PullDbEntry, self)
+            return db_data.get_ipsec_site_connections(context)
 
     def handle_event(self, ev):
         if ev.id == 'VISIBILITY_EVENT':
@@ -75,8 +79,6 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
             self._handle_create_service(ev.data)
         elif ev.id == 'SERVICE_DELETED':
             self._handle_delete_service(ev.data)
-        elif ev.id == 'PULL_BULK_DATA':
-            self._handle_pull_bulk_data(ev.data)
         elif ev.id == 'SERVICE_OPERATION_POLL_EVENT':
             self._sc.poll_event(ev)
 
@@ -104,6 +106,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                         'context': context,
                         'eventid': 'SERVICE_CREATE_PENDING'
                         }
+        LOG(LOGGER, 'INFO', "Stashing Event for data : %s" % (request_data))
         event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
@@ -125,6 +128,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                         'neutron_resource_id': firewall_id,
                         'eventid': 'SERVICE_DELETED'
                         }
+        LOG(LOGGER, 'INFO', "Stashing Event for data : %s" % (request_data))
         event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
@@ -145,14 +149,15 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                         'neutron_resource_id': vip_id,
                         'eventid': 'SERVICE_DELETED'
                         }
+        LOG(LOGGER, 'INFO', "Stashing Event for data : %s" % (request_data))
         event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
 
-    def _handler_vpn_update_status(context, notification_info,
+    def _handler_vpn_update_status(self, context, notification_info,
                                    resource_data):
         # Sending An Event for visiblity
-        if notification['resource'].lower() is\
+        if resource_data['resource'].lower() is\
                 'ipsec_site_connection':
             nf_instance_id = notification_info['context'][
                 'network_function_instance_id']
@@ -168,6 +173,8 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                             'neutron_resource_id': ipsec_id,
                             'eventid': 'SERVICE_CREATE_PENDING'
                             }
+            LOG(LOGGER, 'INFO', "Stashing Event for data : %s" % (
+                request_data))
             event = self._sc.new_event(
                 id='STASH_EVENT', key='STASH_EVENT', data=request_data)
             self._sc.stash_event(event)
@@ -188,6 +195,8 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                             'neutron_resource_id': vip_id,
                             'eventid': 'SERVICE_CREATE_PENDING'
                             }
+            LOG(LOGGER, 'INFO', "Stashing Event for data : %s" % (
+                request_data))
             event = self._sc.new_event(
                 id='STASH_EVENT', key='STASH_EVENT', data=request_data)
             self._sc.stash_event(event)
@@ -221,9 +230,10 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                         'nf_instance_id': nf_instance_id,
                         'ipsec_site_connection_id': ipsec_id,
                         'service_type': service_type,
-                        'neutron_resource_id': ipsec_id,
+                        'neutron_resource_id': resource_id,
                         'eventid': 'SERVICE_DELETED'
                         }
+        LOG(LOGGER, 'INFO', "Stashing Event for data : %s" % (request_data))
         event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
@@ -231,16 +241,18 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
     def _handle_create_service(self, data):
         context = data['context']
         resource = data['resource']
+        ctxt = n_context.Context.from_dict(context)
         transport.send_request_to_configurator(self._conf,
-                                               context, resource,
+                                               ctxt, resource,
                                                "CREATE",
                                                network_function_event=True)
 
     def _handle_delete_service(self, data):
         context = data['context']
         resource = data['resource']
+        ctxt = n_context.Context.from_dict(context)
         transport.send_request_to_configurator(self._conf,
-                                               context, resource,
+                                               ctxt, resource,
                                                "DELETE",
                                                network_function_event=True)
 
@@ -256,7 +268,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                                 'fw_mac': fw_mac,
                                 'service_type': service_type,
                                 'neutron_resource_id': firewall['id'],
-                                'context': context,
+                                'context': context.to_dict(),
                                 'eventid': 'SERVICE_CREATE_PENDING'
                                 }
                 fw_request_data_list.append(request_data)
@@ -273,10 +285,10 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                 vip_id = vip['id']
                 service_type = 'loadbalancer'
                 request_data = {'nf_instance_id': nf_instance_id,
-                                'vip_id': fw_mac,
+                                'vip_id': vip_id,
                                 'service_type': service_type,
                                 'neutron_resource_id': vip_id,
-                                'context': context,
+                                'context': context.to_dict(),
                                 'eventid': 'SERVICE_CREATE_PENDING'
                                 }
                 vip_request_data_list.append(request_data)
@@ -302,7 +314,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                 nf_instance_id = ipsec_desc['network_function_instance_id']
                 ipsec_id = ipsec_site_connection['id']
                 service_type = 'vpn'
-                request_data = {'context': context,
+                request_data = {'context': context.to_dict(),
                                 'nf_instance_id': nf_instance_id,
                                 'ipsec_site_connection_id': ipsec_id,
                                 'service_type': service_type,
@@ -313,11 +325,13 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                 ipsec_request_data_list.append(request_data)
             except Exception as e:
                 LOG(LOGGER, 'ERROR', "ipsec desc : %s " % e)
+        return ipsec_request_data_list
 
     def _handle_visibility_event(self, data):
         try:
-            context = data['context']
-            pull_db = PullDbEntry()
+            # context = data['context']
+            context = n_context.get_admin_context()
+            pull_db = self.PullDbEntry()
             firewalls = pull_db.get_firewalls(context)
             vips = pull_db.get_vips(context)
             ipsec_site_connections = pull_db.get_ipsec_site_connections(
@@ -333,25 +347,33 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                                           ipsec_site_connections))
 
             # Stashing all the event
+            if bulk_response_data == []:
+                LOG(LOGGER, 'INFO', "No Event to Stash")
+
             for response_data in bulk_response_data:
+                LOG(LOGGER, 'INFO', "Stashing Event for data : %s" %
+                    (response_data))
                 event = self._sc.new_event(
                     id='STASH_EVENT', key='STASH_EVENT', data=response_data)
                 self._sc.stash_event(event)
 
         except Exception as e:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
             LOG(LOGGER, 'ERROR',
-                "get_bulk_network_function_context failed : Reason %s " % (
-                    e))
+                "get_bulk_network_function_context failed : Reason %s  %s" % (
+                    e, traceback.format_exception(
+                        exc_type, exc_value, exc_traceback)))
 
     def _prepare_request_data(self, event_data):
         request_data = None
         try:
             nf_instance_id = event_data.pop('nf_instance_id')
             context = event_data.pop('context')
+            ctxt = n_context.Context.from_dict(context)
             request_data = common.get_network_function_map(
-                context, nf_instance_id)
+                ctxt, nf_instance_id)
             event_data.update(request_data)
-        except Exception as e:
+        except Exception:
             return event_data
         return event_data, context
 

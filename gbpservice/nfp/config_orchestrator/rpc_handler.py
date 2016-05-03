@@ -45,7 +45,7 @@ class RpcHandler(object):
             else:
                 handler = v_handler.\
                     VisibilityNotificationHandler(self.conf, self.sc)
-                hanlder.\
+                handler.\
                     handle_notification(context, notification_data)
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()

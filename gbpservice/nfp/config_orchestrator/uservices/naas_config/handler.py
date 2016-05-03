@@ -18,7 +18,6 @@ from gbpservice.nfp.config_orchestrator.uservices.naas_config.vpn\
 from gbpservice.nfp.core import common as nfp_common
 
 from oslo_log import log as oslo_logging
-import oslo_messaging as messaging
 
 import sys
 import traceback
@@ -46,7 +45,7 @@ class NaasNotificationHandler(object):
             # Handle RPC Event
             method(context, notification_data)
             # Handle Event
-            request_data = {'context': context,
+            request_data = {'context': context.to_dict(),
                             'notification_data': notification_data
                             }
             event = self.sc.new_event(id=resource_data[

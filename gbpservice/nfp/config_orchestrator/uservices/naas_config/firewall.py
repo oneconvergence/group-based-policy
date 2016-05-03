@@ -14,9 +14,9 @@ import ast
 import copy
 
 from gbpservice.nfp.config_orchestrator.common import common
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.config_orchestrator.common import topics as a_topics
 
 from neutron_fwaas.db.firewall import firewall_db
 
@@ -113,7 +113,6 @@ class FirewallNotifier(object):
 
     def set_firewall_status(self, context, notification_data):
         notification = notification_data['notification'][0]
-        notification_info = notification_data['info']
         resource_data = notification['data']
         firewall_id = resource_data['firewall_id']
         status = resource_data['status']
@@ -133,7 +132,6 @@ class FirewallNotifier(object):
 
     def firewall_deleted(self, context, notification_data):
         notification = notification_data['notification'][0]
-        notification_info = notification_data['info']
         resource_data = notification['data']
         firewall_id = resource_data['firewall_id']
 

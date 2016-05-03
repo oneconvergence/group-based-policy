@@ -10,9 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.config_orchestrator.uservices.visibility import (
     visibility)
+from gbpservice.nfp.core.event import Event
 
 
 def event_init(sc, conf):
@@ -46,11 +46,12 @@ class VisibilityNotificationHandler(object):
         self.conf = conf
         self.sc = sc
 
-    def handle_notification(context, notification_data):
+    def handle_notification(self, context, notification_data):
         # Handle Event
-        request_data = {'context': context,
+        request_data = {'context': context.to_dict(),
                         'notification_data': notification_data
                         }
         event = self.sc.new_event(id='VISIBILITY_EVENT',
                                   key='VISIBILITY_EVENT',
                                   data=request_data)
+        self.sc.post_event(event)

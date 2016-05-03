@@ -9,18 +9,19 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 from gbpservice.nfp.config_orchestrator.common import topics as a_topics
+from gbpservice.nfp.config_orchestrator import rpc_handler
 from gbpservice.nfp.config_orchestrator.uservices.naas_config import (
     firewall as fw)
 from gbpservice.nfp.config_orchestrator.uservices.naas_config import (
     loadbalancer as lb)
 from gbpservice.nfp.config_orchestrator.uservices.naas_config import vpn
-from gbpservice.nfp.core.rpc import RpcAgent
-from oslo_config import cfg
 from gbpservice.nfp.config_orchestrator.uservices.visibility import (
     handler as visibility_handler)
-from gbpservice.nfp.config_orchestrator import rpc_handler
-from gbpservice.nfp.core.event import Event
+
+from gbpservice.nfp.core.rpc import RpcAgent
+from oslo_config import cfg
 
 
 def rpc_init(sc, conf):
