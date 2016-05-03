@@ -357,7 +357,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
         Returns: None
 
         """
-        self._process_event(ev)
+        return self._process_event(ev)
 
 
 def events_init(sc, drivers, rpcmgr):
