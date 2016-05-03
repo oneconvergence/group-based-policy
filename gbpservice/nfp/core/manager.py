@@ -41,6 +41,8 @@ def IS_SCHEDULED_EVENT_COMPLETE(event):
     return event.desc.type == nfp_event.SCHEDULE_EVENT and \
         event.desc.flag == nfp_event.EVENT_COMPLETE
 '''
+
+
 def IS_EVENT_COMPLETE(event):
     return event.desc.flag == nfp_event.EVENT_COMPLETE
 

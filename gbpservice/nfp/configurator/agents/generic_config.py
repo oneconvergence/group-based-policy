@@ -259,7 +259,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler):
                     result == common_const.SUCCESS):
                 notification_data = self._prepare_notification_data(ev, result)
                 self.notify._notification(notification_data)
-				return {'poll': False}
+                return {'poll': False}
             elif resource_data.get('periodicity') == gen_cfg_const.FOREVER:
                 if result == common_const.FAILED:
                     """If health monitoring fails continuously for 5 times

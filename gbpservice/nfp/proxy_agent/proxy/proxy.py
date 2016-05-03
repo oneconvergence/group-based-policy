@@ -91,8 +91,7 @@ class UnixServer(object):
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         # Bind the socket to the port
-        LOG(LOGGER, 'INFO', (sys.stderr,
-                             'starting up on %s' % self.bind_path))
+        LOG(LOGGER, 'INFO', 'starting up on %s' % self.bind_path)
         self.socket.bind(self.bind_path)
         self.socket.listen(self.max_connections)
 
@@ -119,8 +118,7 @@ class TcpClient(object):
 
     def connect(self):
         sock = socket.socket()
-        LOG(LOGGER, 'INFO', (sys.stderr,
-                             'connecting to %s port %s' % self.server))
+        LOG(LOGGER, 'INFO', 'connecting to %s port %s' % self.server)
         sock.settimeout(self.conf.connect_max_wait_timeout)
         try:
             sock.connect(self.server)
@@ -146,6 +144,7 @@ class Connection(object):
         self._start_time = time.time()
         self._end_time = time.time()
         self.type = type
+        self.socket_id = self._socket.fileno()
 
     def _tick(self):
         self._idle_count += 1
@@ -170,7 +169,10 @@ class Connection(object):
     def _wait(self, timeout):
         if self.type == 'unix':
             eventlet.sleep(timeout)
-        self._socket.settimeout(timeout)
+            self._socket.settimeout(0.0)
+            self._socket.setblocking(0)
+        else:
+            self._socket.settimeout(timeout)
 
     def recv(self):
         self._wait(self._idle_wait)
@@ -187,14 +189,33 @@ class Connection(object):
         return None
 
     def send(self, data):
-        self._socket.send(data)
+        try:
+            self._socket.settimeout(2.0)
+            sent = self._socket.send(data)
+            if sent != len(data):
+                LOG(LOGGER, 'ERROR', "%s - sent %d, to send %s" %
+                    (self._socket.identify(), sent, len(data)))
+        except socket.timeout:
+            LOG(LOGGER, 'ERROR', "%s - send timedout" %
+                (self._socket.identify()))
+        except socket.error as serr:
+            LOG(LOGGER, 'ERROR', "%s - send socket error - %s" %
+                (self._socket.identify(), str(serr)))
+        except Exception as exc:
+            LOG(LOGGER, 'ERROR', "%s - send socket exception - %s" %
+                (self._socket.identify(), str(exc)))
 
     def close(self):
         LOG(LOGGER, 'DEBUG', "Closing Socket - %d" % (self.identify()))
-        self._socket.close()
+        try:
+            self._socket.shutdown(socket.SHUT_RDWR)
+            self._socket.close()
+        except Exception as exc:
+            LOG(LOGGER, 'ERROR', "%s - exception while closing - %s" %
+                (self._socket.identify(), str(exc)))
 
     def identify(self):
-        return self._socket.fileno()
+        return self.socket_id
 
 
 """

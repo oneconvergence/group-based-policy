@@ -54,7 +54,8 @@ class RpcAgent(n_rpc.Service):
 
     def report_state(self):
         if hasattr(self, '_report_state'):
-            LOG(LOGGER, 'DEBUG', "Agent (%s) reporting state" % (self.identify()))
+            LOG(LOGGER, 'DEBUG', "Agent (%s) reporting state" %
+                (self.identify()))
             self._report_state.report()
 
     def identify(self):
@@ -80,7 +81,8 @@ class ReportState(object):
 
     def report(self):
         try:
-            LOG(LOGGER, 'DEBUG', "Reporting state with data (%s)" % (self._data))
+            LOG(LOGGER, 'DEBUG', "Reporting state with data (%s)" %
+                (self._data))
             self._state_rpc.report_state(self._n_context, self._data)
             self._data.pop('start_flag', None)
         except AttributeError:

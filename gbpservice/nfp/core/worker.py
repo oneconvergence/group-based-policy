@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import eventlet
 import os
 import time
 
@@ -24,8 +23,6 @@ LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
 Service = oslo_service.Service
 identify = nfp_common.identify
-
-eventlet.monkey_patch()
 
 """Implements worker process.
 
@@ -122,10 +119,11 @@ class NfpWorker(Service):
 
     def _repoll(self, ret, event, eh):
         status = self._build_poll_status(ret, event)
-        if status['poll'] and event.desc.poll_desc.max_times:
-            self.pipe.send(status['event'])
-        else:
-            eh.event_cancelled(event, 'MAX_TIMED_OUT')
+        if status['poll']:
+            if event.desc.poll_desc.max_times:
+                self.pipe.send(status['event'])
+            else:
+                eh.event_cancelled(event, 'MAX_TIMED_OUT')
 
     def _handle_poll_event(self, event):
         ret = {}
@@ -136,7 +134,6 @@ class NfpWorker(Service):
             ret = poll_handler(event)
         except TypeError:
             ret = poll_handler(event_handler, event)
-        LOG(LOGGER, 'INFO', "@@@@ EVENT - %s - POLL_EVENT RET - %s @@@@" %(event.identify(), ret))
         self._repoll(ret, event, event_handler)
 
     def dispatch(self, handler, *args):
@@ -147,5 +144,5 @@ class NfpWorker(Service):
                 (self._log_meta(), identify(handler), th.ident))
         else:
             handler(*args)
-            LOG(LOGGER, 'ERROR', "%s - (handler - %s) - invoked" %
+            LOG(LOGGER, 'DEBUG', "%s - (handler - %s) - invoked" %
                 (self._log_meta(), identify(handler)))

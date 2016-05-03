@@ -14,8 +14,8 @@ import eventlet
 eventlet.monkey_patch()
 
 import multiprocessing
-import os
 import operator
+import os
 import Queue
 import sys
 import time
@@ -32,6 +32,8 @@ from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.core import rpc as nfp_rpc
 from gbpservice.nfp.core import worker as nfp_worker
 
+# REVISIT (MAK): Unused, but needed for orchestrator,
+# remove from here and add in orchestrator
 from neutron.common import config
 
 LOGGER = oslo_logging.getLogger(__name__)
@@ -77,7 +79,7 @@ class NfpService(object):
         """Register rpc handlers with core. """
         for agent in agents:
             self._rpc_agents.append((agent,))
-        LOG(LOGGER, 'DEBUG', "###  RPC AGENTS - %s ###" %(self._rpc_agents))
+        LOG(LOGGER, 'DEBUG', "###  RPC AGENTS - %s ###" % (self._rpc_agents))
 
     def new_event(self, **kwargs):
         """Define and return a new event. """
@@ -114,6 +116,7 @@ class NfpService(object):
         event.desc.pid = os.getpid()
         return event
 
+    # REVISIT (MAK): spacing=0, caller must explicitly specify
     def poll_event(self, event, spacing=2, max_times=sys.maxint):
         """To poll for an event.
 
@@ -243,7 +246,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         # event to module.
         proc = self._fork(args=(wrap.service, parent_pipe, child_pipe, self))
 
-        LOG(LOGGER, 'ERROR', "Forked a new child: %d"
+        LOG(LOGGER, 'INFO', "Forked a new child: %d"
             "Parent Pipe: % s, Child Pipe: % s" % (
                 proc.pid, str(parent_pipe), str(child_pipe)))
 
@@ -269,7 +272,6 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         super(NfpController, self).launch_service(
             self._worker, workers=workers)
 
-
     def post_launch(self):
         """Post processing after workers launch.
 
@@ -281,8 +283,9 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
 
         # Launch rpc_agents
         for index, rpc_agent in enumerate(self._rpc_agents):
-            #Use threads for launching service
-            launcher = oslo_service.launch(self._conf, rpc_agent[0], workers=None)
+            # Use threads for launching service
+            launcher = oslo_service.launch(
+                self._conf, rpc_agent[0], workers=None)
             self._rpc_agents[index] = rpc_agent + (launcher,)
 
         # One task to manage the resources - workers & events.
@@ -291,7 +294,6 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         nfp_poll.PollingTask(self._conf, self)
         # Oslo periodic task for state reporting
         nfp_rpc.ReportStateTask(self._conf, self)
-
 
     def poll_add(self, event, timeout, callback):
         """Add an event to poller. """
@@ -304,11 +306,9 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
 
     def report_state(self):
         """Invoked by report_task to report states of all agents. """
-        LOG(LOGGER, 'DEBUG', "===== REPORT STATE - RPC AGENTS - %s =====" %(self._rpc_agents))
         for agent in self._rpc_agents:
             rpc_agent = operator.itemgetter(0)(agent)
             rpc_agent.report_state()
-
 
     def post_event(self, event):
         """Post a new event into the system.
@@ -327,12 +327,12 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         LOG(LOGGER, 'DEBUG', "(event - %s) - New event" % (event.identify()))
         if self.PROCESS_TYPE == "worker":
             # Event posted in worker context, send it to parent process
-            LOG(LOGGER, 'ERROR', "(event - %s) - new event in worker"
+            LOG(LOGGER, 'DEBUG', "(event - %s) - new event in worker"
                 "posting to distributor process" % (event.identify()))
             # Send it to the distributor process
             self.pipe_send(self._pipe, event)
         else:
-            LOG(LOGGER, 'ERROR', "(event - %s) - new event in distributor"
+            LOG(LOGGER, 'DEBUG', "(event - %s) - new event in distributor"
                 "processing event" % (event.identify()))
             self._manager.process_events([event])
 
@@ -485,6 +485,7 @@ def controller_init(conf, nfp_controller):
     time.sleep(conf.workers * 1 + 1)
     nfp_controller.post_launch()
 
+
 def nfp_modules_post_init(conf, nfp_modules, nfp_controller):
     for module in nfp_modules:
         try:
@@ -505,7 +506,7 @@ def main():
     controller_init(conf, nfp_controller)
     # post_init of each module
     nfp_modules_post_init(conf, nfp_modules, nfp_controller)
-    #eventlet.spawn_n(self_test_task, nfp_modules, nfp_controller, conf)
+    # eventlet.spawn_n(self_test_task, nfp_modules, nfp_controller, conf)
     # Wait for every exec context to complete
     nfp_controller.wait()
 

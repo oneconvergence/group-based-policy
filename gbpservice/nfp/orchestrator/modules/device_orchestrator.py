@@ -493,7 +493,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                                is_poll_event=True,
                                original_event=event)
 
-    @poll_event_desc(event='DEVICE_SPAWNING', spacing=20)
+    @nfp_api.poll_event_desc(event='DEVICE_SPAWNING', spacing=20)
     def check_device_is_up(self, event):
         device = event.data
 
@@ -726,7 +726,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             self._create_event(event_id='DEVICE_DELETED',
                                event_data=device)
 
-    @poll_event_desc(event='DEVICE_BEING_DELETED', spacing=2)
+    @nfp_api.poll_event_desc(event='DEVICE_BEING_DELETED', spacing=2)
     def check_device_deleted(self, event):
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
