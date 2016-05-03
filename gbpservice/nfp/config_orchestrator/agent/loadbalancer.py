@@ -93,6 +93,13 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         rsrc_ctx_dict.update({'service_info': db})
         return ctx_dict, rsrc_ctx_dict
 
+    def _get_pool_desc(self, context, filters):
+        args = {'context': context, 'filters':filters}
+        db_data = super(LbAgent,self)
+        pool_desc =None
+        pool_desc = db_data.get_pools(**args)
+        return pool_desc
+
     def _data_wrapper(self, context, tenant_id, name, reason, **kwargs):
         ctx_dict, rsrc_ctx_dict = self.\
             _prepare_resource_context_dicts(context, tenant_id)
@@ -100,10 +107,27 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
                        'requester': 'nas_service'}
         if name.lower() == 'vip':
             vip_desc = ast.literal_eval(kwargs['vip']['description'])
-            nf_id = vip_desc['network_function_id']
+            nf_instance_id = vip_desc['network_function_instance_id']
             vip_id = kwargs['vip']['id']
-            nfp_context.update({'network_function_id': nf_id,
+            nfp_context.update({'network_function_instance_id': nf_instance_id,
                                 'vip_id': vip_id})
+        elif name.lower() == 'pool' :
+            pool_desc = ast.literal_eval(kwargs['pool']['description'])
+            nf_instance_id = pool_desc['network_function_instance_id']
+            nfp_context.update({'network_function_instance_id':
+                                                    nf_instance_id})
+        else:
+            #common code for health_monitor and member
+            pool_id = kwargs['pool_id']
+            filters = {'id':[pool_id]}
+            pool_desc = self._get_pool_desc(context, filters)
+            nf_insinsance = ast.literal_eval(pool_desc[0]['description'])
+            nf_instance_id = nf_insinsance['network_function_instance_id']
+            nfp_context.update({'network_function_instance_id':
+                                                    nf_instance_id})
+
+        rsrc_ctx_dict.update({'network_function_instance_id':
+                                              nf_instance_id})
         resource_type = 'loadbalancer'
         resource = name
         resource_data = {'neutron_context': rsrc_ctx_dict}
@@ -171,18 +195,6 @@ class LoadbalancerNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _prepare_request_data(self, context, nf_id, vip_id, service_type):
-        request_data = None
-        try:
-            request_data = common.get_network_function_map(
-                context, nf_id)
-            # Adding Service Type #
-            request_data.update({"service_type": service_type,
-                                 "vip_id": vip_id})
-        except Exception:
-            return request_data
-        return request_data
-
     def _trigger_service_event(self, context, event_type, event_id,
                                request_data):
         event_data = {'resource': None,
@@ -194,6 +206,20 @@ class LoadbalancerNotifier(object):
                                 key=event_id, data=event_data)
         self._sc.post_event(ev)
 
+    def _prepare_request_data(self, context, nf_instance_id, resource_id,
+                              vip_id, service_type):
+        request_data = None
+        try:
+            request_data = common.get_network_function_map(
+                context, nf_instance_id)
+            # Adding Service Type #
+            request_data.update({"service_type": service_type,
+                                 "vip_id": vip_id,
+                                 "neutron_resource_id": resource_id})
+        except Exception as e:
+            return request_data
+        return request_data
+
     def update_status(self, context, notification_data):
         notification = notification_data['notification'][0]
         notification_info = notification_data['info']
@@ -202,9 +228,11 @@ class LoadbalancerNotifier(object):
         obj_id = resource_data['obj_id']
         status = resource_data['status']
         service_type = notification_info['service_type']
-        msg = ("NCO received LB's update_status API, making an update_status "
+        nf_instance_id = notification_info['context'][
+                                           'network_function_instance_id']
+        msg = ("[%s] NCO received LB's update_status API, making an update_status "
                "RPC call to plugin for %s: %s with status %s" % (
-                   obj_type, obj_id, status))
+                   nf_instance_id, obj_type, obj_id, status))
         LOG(LOGGER, 'INFO', "%s" % (msg))
 
         # RPC call to plugin to update status of the resource
@@ -217,15 +245,21 @@ class LoadbalancerNotifier(object):
                              status=status)
 
         if obj_type.lower() == 'vip':
-            nf_id = notification_info['context']['network_function_id']
+            nf_instance_id = notification_info['context'][
+                                               'network_function_instance_id']
             vip_id = notification_info['context']['vip_id']
-            request_data = self._prepare_request_data(context, nf_id,
-                                                      vip_id, service_type)
-            LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-            # Sending An Event for visiblity
-            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                        request_data)
+            #sending notification to visibility
+            event_data = {'context' : context,
+                          'nf_instance_id' : nf_instance_id,
+                          'vip_id' : vip_id,
+                          'service_type': service_type,
+                          'resource_id' : vip_id
+                         }
+            ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
+                                   key='SERVICE_CREATE_PENDING',
+                                   data=event_data)
+            self._sc.poll_event(ev)
 
     def update_pool_stats(self, context, notification_data):
         notification = notification_data['notification'][0]
@@ -233,10 +267,12 @@ class LoadbalancerNotifier(object):
         pool_id = resource_data['pool_id']
         stats = resource_data['stats']
         host = resource_data['host']
-
-        msg = ("NCO received LB's update_pool_stats API, making an "
+        notification_info = notification_data['info']
+        nf_instance_id = notification_info['context'][
+                                           'network_function_instance_id']
+        msg = ("[%s] NCO received LB's update_pool_stats API, making an "
                "update_pool_stats RPC call to plugin for updating"
-               "pool: %s stats" % (pool_id))
+               "pool: %s stats" % (nf_instance_id, pool_id))
         LOG(LOGGER, 'INFO', '%s' % (msg))
 
         # RPC call to plugin to update stats of pool
@@ -250,12 +286,16 @@ class LoadbalancerNotifier(object):
 
     def vip_deleted(self, context, notification_data):
         notification_info = notification_data['info']
-        nf_id = notification_info['context']['network_function_id']
+        nf_instance_id = notification_info['context'][
+                                           'network_function_instance_id']
         vip_id = notification_info['context']['vip_id']
+        resource_id = notification_info['context']['vip_id']
         service_type = notification_info['service_type']
-        request_data = self._prepare_request_data(context, nf_id,
-                                                  vip_id, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
+        request_data = self._prepare_request_data(context, nf_instance_id,
+                                                  resource_id, vip_id,
+                                                  service_type)
+        log_msg = ("[%s] %s :%s" %(nf_instance_id,request_data,nf_instance_id))
+        LOG(LOGGER, 'INFO', "%s" % (log_msg))
 
         # Sending An Event for visiblity
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',

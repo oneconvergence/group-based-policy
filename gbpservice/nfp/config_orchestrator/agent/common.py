@@ -122,40 +122,26 @@ def _prepare_structure(network_function_details, ports_info,
             }
 
 
-def get_network_function_map(context, network_function_id):
+def get_network_function_map(context, network_function_instance_id):
     request_data = None
     try:
         rpc_nso_client = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
-        network_function_details = rpc_nso_client.cctxt.call(
+        nf_context = rpc_nso_client.cctxt.call(
             context,
-            'get_network_function_details',
-            network_function_id=network_function_id)
-        ports_info = []
-        for id in network_function_details[
-                'network_function_instance']['port_info']:
-            port_info = rpc_nso_client.cctxt.call(context,
-                                                  'get_port_info',
-                                                  port_id=id)
-            ports_info.append(port_info)
-        mngmt_port_info = rpc_nso_client.cctxt.call(
-            context,
-            'get_port_info',
-            port_id=network_function_details[
-                'network_function_device'][
-                'mgmt_port_id'])
-        monitor_port_id = network_function_details[
-            'network_function_device']['monitoring_port_id']
-        monitor_port_info = None
-        if monitor_port_id is not None:
-            monitor_port_info = rpc_nso_client.cctxt.call(
-                context,
-                'get_port_info',
-                port_id=monitor_port_id)
+            'get_network_function_context',
+            network_function_instance_id=network_function_instance_id)
+
+        network_function_details = nf_context['network_function_details']
+        ports_info = nf_context['ports_info']
+        mngmt_port_info = nf_context['mngmt_port_info']
+        monitor_port_info = nf_context['monitor_port_info']
 
         request_data = _prepare_structure(network_function_details, ports_info,
                                           mngmt_port_info, monitor_port_info)
-        LOG(LOGGER, 'INFO', " %s " % (request_data))
+        log_msg = ("[%s] %s" %(network_function_instance_id, request_data))
+        LOG(LOGGER, 'INFO', " %s " % (log_msg))
     except Exception as e:
-        LOG(LOGGER, 'ERROR', " %s " % (e))
+        log_msg = "[%s] %s" %(network_function_instance_id, e)
+        LOG(LOGGER, 'ERROR', " %s " % (log_msg))
         return request_data
     return request_data

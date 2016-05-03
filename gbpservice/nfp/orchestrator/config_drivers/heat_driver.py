@@ -76,7 +76,7 @@ cfg.CONF.register_opts(HEAT_DRIVER_OPTS,
 SC_METADATA = ('{"sc_instance":"%s", "floating_ip": "%s", '
                '"provider_interface_mac": "%s", '
                '"standby_provider_interface_mac": "%s",'
-               '"network_function_id": "%s"}')
+               '"network_function_instance_id": "%s"}')
 
 SVC_MGMT_PTG_NAME = (
     cfg.CONF.heat_driver.svc_management_ptg_name)
@@ -662,6 +662,7 @@ class HeatDriver(object):
     def _update_node_config(self, auth_token, tenant_id, service_profile,
                             service_chain_node, service_chain_instance,
                             provider, consumer_port, network_function,
+                            network_function_instance,
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
         provider_cidr = provider_subnet = None
@@ -735,7 +736,16 @@ class HeatDriver(object):
                                    mgmt_ip,
                                    provider_port_mac,
                                    standby_provider_port_mac,
-                                   network_function['id']))
+                                   network_function_instance['id']))
+                lb_resourec_desc = {'network_function_instance_id':
+                                        network_function_instance['id']}
+                lb_pool_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Pool')
+                stack_template[resources_key][lb_pool_key][properties_key][
+                    'description'] = str(lb_resourec_desc)
+
         elif service_type == pconst.FIREWALL:
             stack_template = self._update_firewall_template(
                 auth_token, provider, stack_template)
@@ -748,8 +758,8 @@ class HeatDriver(object):
                                  'provider_ptg_info': [provider_port_mac],
                                  'provider_cidr': provider_cidr,
                                  'service_vendor': service_vendor,
-                                 'network_function_id': network_function[
-                                     'id']}
+                                 'network_function_instance_id':
+                                       network_function_instance['id']}
 
                 fw_key = self._get_heat_resource_key(
                     stack_template[resources_key],
@@ -836,7 +846,8 @@ class HeatDriver(object):
                         ';stitching_gateway=' + stitching_subnet[
                             'gateway_ip'] +
                         ';mgmt_gw_ip=' + mgmt_gw_ip +
-                        ';network_function_id=' + network_function['id'])
+                        ';network_function_instance_id=' +
+                        network_function_instance['id'])
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
                     stack_template[resources_key],
@@ -1157,6 +1168,7 @@ class HeatDriver(object):
             auth_token, provider_tenant_id, service_profile,
             service_chain_node, service_chain_instance, provider,
             consumer_port, network_function_details['network_function'],
+            network_function_details['network_function_instance'],
             provider_port, mgmt_ip=mgmt_ip, consumer=consumer)
 
         if not stack_template and not stack_params:
@@ -1200,8 +1212,9 @@ class HeatDriver(object):
 
     def _update(self, auth_token, resource_owner_tenant_id, service_profile,
                 service_chain_node, service_chain_instance, provider,
-                consumer_port, network_function, provider_port, stack_id,
-                mgmt_ip=None, pt_added_or_removed=False):
+                consumer_port, network_function, network_function_instance,
+                provider_port, stack_id, mgmt_ip=None,
+                pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
         service_type = service_profile['service_type']
         service_details = transport.parse_service_flavor_string(
@@ -1222,8 +1235,8 @@ class HeatDriver(object):
         stack_template, stack_params = self._update_node_config(
             auth_token, provider_tenant_id, service_profile,
             service_chain_node, service_chain_instance, provider,
-            consumer_port, network_function, provider_port,
-            update=True, mgmt_ip=mgmt_ip)
+            consumer_port, network_function, network_function_instance,
+            provider_port, update=True, mgmt_ip=mgmt_ip)
         if not stack_template and not stack_params:
             return None
 
@@ -1332,6 +1345,8 @@ class HeatDriver(object):
                                 service_chain_instance, provider,
                                 consumer_port, network_function_details[
                                     'network_function'],
+                                network_function_details[
+                                     'network_function_instance'],
                                 provider_port,
                                 stack_id, mgmt_ip)
 
@@ -1363,6 +1378,8 @@ class HeatDriver(object):
                                         consumer_port,
                                         network_function_details[
                                             'network_function'],
+                                        network_function_details[
+                                            'network_function_instance'],
                                         provider_port, stack_id,
                                         mgmt_ip, pt_added_or_removed=True)
                 return stack_id
@@ -1396,6 +1413,8 @@ class HeatDriver(object):
                                         consumer_port,
                                         network_function_details[
                                             'network_function'],
+                                        network_function_details[
+                                            'network_function_instance'],
                                         provider_port, stack_id, mgmt_ip)
 
                 if not stack_id:

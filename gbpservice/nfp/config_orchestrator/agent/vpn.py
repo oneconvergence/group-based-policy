@@ -69,10 +69,10 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         if resource.lower() == 'ipsec_site_connection':
             ipsec_desc = self._get_dict_desc_from_string(kwargs[
                 'resource']['description'])
-            nf_id = ipsec_desc['network_function_id']
+            nf_instance_id = ipsec_desc['network_function_instance_id']
             ipsec_site_connection_id = kwargs['rsrc_id']
             nfp_context.update(
-                {'network_function_id': nf_id,
+                {'network_function_instance_id': nf_instance_id,
                  'ipsec_site_connection_id': ipsec_site_connection_id})
         kwargs.update({'neutron_context': rsrc_ctx_dict})
         resource_data = kwargs
@@ -119,16 +119,17 @@ class VpnNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _prepare_request_data(self, context, nf_id,
+    def _prepare_request_data(self, context, nf_instance_id, resource_id,
                               ipsec_id, service_type):
         request_data = None
         try:
             request_data = common.get_network_function_map(
-                context, nf_id)
+                context, nf_instance_id)
             # Adding Service Type #
             request_data.update({"service_type": service_type,
-                                 "ipsec_site_connection_id": ipsec_id})
-        except Exception:
+                                 "ipsec_site_connection_id": ipsec_id,
+                                 "neutron_resource_id" : resource_id})
+        except Exception as e:
             return request_data
         return request_data
 
@@ -161,15 +162,21 @@ class VpnNotifier(object):
         # Sending An Event for visiblity
         if resource_data['resource'].lower() is\
                 'ipsec_site_connection':
-            nf_id = notification_info['context']['network_function_id']
+            nf_instance_id = notification_info['context'][
+                                               'network_function_instance_id']
             ipsec_id = notification_info['context']['ipsec_site_connection_id']
             service_type = notification_info['service_type']
-            request_data = self._prepare_request_data(context, nf_id,
-                                                      ipsec_id, service_type)
-            LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                        request_data)
+            event_data = {'context' : context,
+                          'nf_instance_id' : nf_instance_id,
+                          'ipsec_id' : ipsec_id,
+                          'service_type':service_type,
+                          'resource_id' : ipsec_id
+                         }
+            ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
+                                   key='SERVICE_CREATE_PENDING',
+                                   data=event_data)
+            self._sc.poll_event(ev)
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
@@ -185,12 +192,14 @@ class VpnNotifier(object):
                              id=resource_id)
 
         # Sending An Event for visiblity
-        nf_id = notification_info['context']['network_function_id']
+        nf_instance_id = notification_info['context']['network_function_instance_id']
         ipsec_id = notification_info['context']['ipsec_site_connection_id']
+        resource_id = notification_info['context']['ipsec_site_connection_id']
         service_type = notification_info['service_type']
-        request_data = self._prepare_request_data(context, nf_id,
-                                                  ipsec_id, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
+        request_data = self._prepare_request_data(context, nf_instance_id,
+                                                  resource_id, ipsec_id,
+                                                  service_type)
+        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_instance_id))
 
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)
