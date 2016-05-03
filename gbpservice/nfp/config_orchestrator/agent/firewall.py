@@ -84,6 +84,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                        'neutron_context': ctx_dict,
                        'fw_mac': fw_mac,
                        'requester': 'nas_service'}
+        rsrc_ctx_dict.update({'network_function_instance_id': nf_instance_id})
         resource = resource_type = 'firewall'
         resource_data = {resource: firewall,
                          'host': host,
@@ -146,10 +147,10 @@ class FirewallNotifier(object):
                                          'network_function_instance_id']
         fw_mac = notification_info['context']['fw_mac']
         service_type = notification_info['service_type']
-        msg = ("Config Orchestrator received "
+        msg = ("[%s] Config Orchestrator received "
                "firewall_configuration_create_complete API, making an "
                "set_firewall_status RPC call for firewall: %s & status "
-               " %s" % (firewall_id, status))
+               " %s" % (nf_instance_id, firewall_id, status))
         LOG(LOGGER, 'INFO', '%s' % (msg))
 
         # RPC call to plugin to set firewall status
@@ -182,9 +183,9 @@ class FirewallNotifier(object):
         fw_mac = notification_info['context']['fw_mac']
         service_type = notification_info['service_type']
 
-        msg = ("Config Orchestrator received "
+        msg = ("[%s]""Config Orchestrator received "
                "firewall_configuration_delete_complete API, making an "
-               "firewall_deleted RPC call for firewall: %s" % (firewall_id))
+               "firewall_deleted RPC call for firewall: %s" % (nf_instance_id, firewall_id))
         LOG(LOGGER, 'INFO', '%s' % (msg))
 
         # RPC call to plugin to update firewall deleted
@@ -197,6 +198,7 @@ class FirewallNotifier(object):
         request_data = self._prepare_request_data(context, nf_instance_id,
                                                   resource_id,
                                                   fw_mac, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_instance_id))
+        log_msg = ("[%s] %s : %s " %(nf_instance_id,request_data,nf_instance_id))
+        LOG(LOGGER, 'INFO', "%s" % (log_msg))
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)

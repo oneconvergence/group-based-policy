@@ -734,6 +734,15 @@ class HeatDriver(object):
                                    provider_port_mac,
                                    standby_provider_port_mac,
                                    network_function_instance['id']))
+                lb_resourec_desc = {'network_function_instance_id':
+                                        network_function_instance['id']}
+                lb_pool_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Pool')
+                stack_template[resources_key][lb_pool_key][properties_key][
+                    'description'] = str(lb_resourec_desc)
+
         elif service_type == pconst.FIREWALL:
             stack_template = self._update_firewall_template(
                 auth_token, provider, stack_template)

@@ -73,7 +73,8 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                                                        event_data['resource_id'],
                                                        event_data['fw_mac'],
                                                        event_data['service_type'])
-            msg = ("%s : %s " % (request_data, event_data['fw_mac']))
+            msg = ("[%s] %s : %s " % (event_data['nf_instance_id'],
+                                      request_data, event_data['fw_mac']))
             LOG(LOGGER, 'INFO', '%s' % (msg))
 
         if event_data.has_key('vip_id'):
@@ -82,7 +83,8 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                                                        event_data['resource_id'],
                                                        event_data['vip_id'],
                                                        event_data['service_type'])
-            msg = ("%s : %s " % (request_data, event_data['vip_id']))
+            msg = ("[%s] %s : %s " % (event_data['nf_instance_id'],
+                                      request_data, event_data['vip_id']))
             LOG(LOGGER, 'INFO', '%s' % (msg))
 
         if event_data.has_key('ipsec_id'):
@@ -91,7 +93,8 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                                                        event_data['resource_id'],
                                                        event_data['ipsec_id'],
                                                        event_data['service_type'])
-            msg = ("%s : %s " % (request_data, event_data['ipsec_id']))
+            msg = ("[%s] %s : %s " % (event_data['nf_instance_id'],
+                                      request_data, event_data['ipsec_id']))
             LOG(LOGGER, 'INFO', '%s' % (msg))
 
 

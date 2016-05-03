@@ -138,8 +138,10 @@ def get_network_function_map(context, network_function_instance_id):
 
         request_data = _prepare_structure(network_function_details, ports_info,
                                           mngmt_port_info, monitor_port_info)
-        LOG(LOGGER, 'INFO', " %s " % (request_data))
+        log_msg = ("[%s] %s" %(network_function_instance_id, request_data))
+        LOG(LOGGER, 'INFO', " %s " % (log_msg))
     except Exception as e:
-        LOG(LOGGER, 'ERROR', " %s " % (e))
+        log_msg = "[%s] %s" %(network_function_instance_id, e)
+        LOG(LOGGER, 'ERROR', " %s " % (log_msg))
         return request_data
     return request_data
