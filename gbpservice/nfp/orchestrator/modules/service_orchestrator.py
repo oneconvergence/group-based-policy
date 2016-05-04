@@ -952,6 +952,7 @@ class ServiceOrchestrator(object):
                 request_data['network_function_id'],
                 updated_network_function)
             self._controller.event_done(event)
+            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'status': nfp_constants.ACTIVE}
@@ -964,7 +965,10 @@ class ServiceOrchestrator(object):
                 request_data['network_function_id'],
                 updated_network_function)
             self._controller.event_done(event)
+            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
+        elif config_status == nfp_constants.IN_PROGRESS:
+            return CONTINUE_POLLING
 
     def check_for_user_config_deleted(self, event):
         request_data = event.data
@@ -981,10 +985,12 @@ class ServiceOrchestrator(object):
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
             self._controller.event_done(event)
+            return STOP_POLLING
         if config_status == nfp_constants.ERROR:
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
             self._controller.event_done(event)
+            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'heat_stack_id': None}
@@ -1004,7 +1010,10 @@ class ServiceOrchestrator(object):
                 self._create_event('USER_CONFIG_DELETED',
                                    event_data=event_data,
                                    is_internal_event=True)
+            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
+        elif config_status == nfp_constants.IN_PROGRESS:
+            return CONTINUE_POLLING
 
     def handle_user_config_applied(self, event):
         request_data = event.data
