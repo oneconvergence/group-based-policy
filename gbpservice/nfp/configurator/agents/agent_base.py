@@ -12,7 +12,9 @@
 
 from gbpservice.nfp.configurator.lib import constants as const
 from oslo_log import log as logging
+import oslo_messaging as messaging
 
+from neutron.common import rpc as n_rpc
 LOG = logging.getLogger(__name__)
 
 """Implements base class for all service agents.
@@ -101,9 +103,18 @@ class AgentBaseRPCManager(object):
 
 
 class AgentBaseNotification(object):
+    API_VERSION = "1.0"
+    def __init__(self, topic):
+        #self.sc = sc
+        self.topic = topic
+        target = messaging.Target(topic=self.topic,
+                                  version=self.API_VERSION)
+        self.client = n_rpc.get_client(target)
+        self.cctxt = self.client.prepare(version=self.API_VERSION,
+                                         topic=self.topic)
 
-    def __init__(self, sc):
-        self.sc = sc
+    def to_dict(self):
+        return {}
 
     def _notification(self, data):
         """Enqueues notification event into notification queue
@@ -116,9 +127,11 @@ class AgentBaseNotification(object):
         Returns: None
 
         """
-        event = self.sc.new_event(
-                id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
-        self.sc.stash_event(event)
+        self.cctxt.cast(self, 'configurator-notifications',
+                        notification_data=[data])
+        #event = self.sc.new_event(
+        #        id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
+        #self.sc.stash_event(event)
 
 
 class AgentBaseEventHandler(object):
@@ -127,7 +140,7 @@ class AgentBaseEventHandler(object):
         self.sc = sc
         self.drivers = drivers
         self.rpcmgr = rpcmgr
-        self.notify = AgentBaseNotification(self.sc)
+        self.notify = AgentBaseNotification('configurator-notifications')
 
     def process_batch(self, ev):
         """Processes a request with multiple data blobs.
@@ -209,7 +222,6 @@ class AgentBaseEventHandler(object):
             if not success:
                 self.notify._notification(notification_data)
                 raise Exception(msg)
-
         self.notify._notification(notification_data)
 
 
