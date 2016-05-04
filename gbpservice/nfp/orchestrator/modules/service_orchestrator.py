@@ -1290,7 +1290,11 @@ class ServiceOrchestrator(object):
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
         if service_type == pconst.VPN or service_type == pconst.FIREWALL:
+<<<<<<< HEAD
             stack_id = self.config_driver.delete_config(
+=======
+            stack_id = self.config_driver._stack_delete(
+>>>>>>> Fixed consumer_add and consumer_remove with internal event
                                                 stack_id,
                                                 consumer_ptg['tenant_id'])
             request_data = {
@@ -1298,8 +1302,11 @@ class ServiceOrchestrator(object):
                     'network_function_id': network_function['id'],
                     'tenant_id': consumer_ptg['tenant_id'],
                     'action': 'update',
+<<<<<<< HEAD
                     'operation': request_data['operation'],
                     'consumer_ptg': request_data['consumer_ptg']
+=======
+>>>>>>> Fixed consumer_add and consumer_remove with internal event
             }
             self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
                                event_data=request_data,
@@ -1354,7 +1361,11 @@ class ServiceOrchestrator(object):
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
         if service_type == pconst.VPN or service_type == pconst.FIREWALL:
+<<<<<<< HEAD
             stack_id = self.config_driver.delete_config(
+=======
+            stack_id = self.config_driver._stack_delete(
+>>>>>>> Fixed consumer_add and consumer_remove with internal event
                                                 stack_id,
                                                 consumer_ptg['tenant_id'])
             request_data = {
@@ -1362,8 +1373,11 @@ class ServiceOrchestrator(object):
                     'network_function_id': network_function['id'],
                     'tenant_id': consumer_ptg['tenant_id'],
                     'action': 'update',
+<<<<<<< HEAD
                     'operation': request_data['operation'],
                     'consumer_ptg': request_data['consumer_ptg']
+=======
+>>>>>>> Fixed consumer_add and consumer_remove with internal event
             }
             self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
                                event_data=request_data,
