@@ -32,7 +32,7 @@ class BaseDriver(object):
 
     def configure_healthmonitor(self, context, kwargs):
         """Overriding BaseDriver's configure_healthmonitor().
-           It does netcat to CONFIGURATION_SERVER_PORT  8888.
+           It does netcat to the CONFIGURATION_SERVER_PORT of the Service VM.
            Configuration agent runs inside service vm.Once agent is up and
            reachable, service vm is assumed to be active.
            :param context - context
