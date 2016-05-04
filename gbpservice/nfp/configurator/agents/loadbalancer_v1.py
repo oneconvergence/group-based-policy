@@ -31,7 +31,8 @@ by driver class for sending response from driver to the LBaaS Neutron plugin.
 class LBaasRpcSender(data_filter.Filter):
 
     def __init__(self, sc):
-        self.notify = agent_base.AgentBaseNotification(sc)
+        self.notify = agent_base.AgentBaseNotification(
+            'configurator-notifications')
 
     def get_logical_device(self, pool_id, context):
         """ Calls data filter library to get logical device from pool_id.
