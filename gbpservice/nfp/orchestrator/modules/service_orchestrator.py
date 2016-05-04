@@ -375,6 +375,8 @@ class ServiceOrchestrator(object):
                 self.check_for_user_config_complete),
             "USER_CONFIG_APPLIED": self.handle_user_config_applied,
             "UPDATE_USER_CONFIG": self.handle_update_user_config,
+            "CONTINUE_UPDATE_USER_CONFIG": (
+                                    self.handle_continue_update_user_config),
             "UPDATE_USER_CONFIG_IN_PROGRESS": (
                 self.check_for_user_config_complete),
             "DELETE_USER_CONFIG": self.delete_user_config,
@@ -795,16 +797,28 @@ class ServiceOrchestrator(object):
                             provider_ptg_id)
             provider_tenant_id = provider_ptg['tenant_id']
             stack_id = self.config_driver._stack_delete(stack_id,
-                            provider_tenant_id)
+                                                        provider_tenant_id)
             request_data = {
                     'heat_stack_id': stack_id,
                     'network_function_id': network_function['id'],
-                    'tenant_id': provider_tenant_id, 
+                    'tenant_id': provider_tenant_id,
                     'action': 'update',
             }
             self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
-                                event_data=request_data,
-                                is_poll_event=True, original_event=event)
+                               event_data=request_data,
+                               is_poll_event=True, original_event=event)
+        else:
+            self._create_event('CONTINUE_UPDATE_USER_CONFIG',
+                               event_data=event.data,
+                               is_internal_event=True)
+
+    def handle_continue_update_user_config(self, event):
+        request_data = event.data
+        network_function_details = self.get_network_function_details(
+            request_data['network_function_id'])
+        stack_id = network_function_details['network_function'
+                                            ]['heat_stack_id']
+        network_function = network_function_details['network_function']
 
         # Heat driver to update stack
         request_data['heat_stack_id'] = self.config_driver.update_config(
@@ -922,7 +936,6 @@ class ServiceOrchestrator(object):
                 request_data['network_function_id'],
                 updated_network_function)
             self._controller.event_done(event)
-            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'status': nfp_constants.ACTIVE}
@@ -935,10 +948,7 @@ class ServiceOrchestrator(object):
                 request_data['network_function_id'],
                 updated_network_function)
             self._controller.event_done(event)
-            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == nfp_constants.IN_PROGRESS:
-            return CONTINUE_POLLING
 
     def check_for_user_config_deleted(self, event):
         request_data = event.data
@@ -955,12 +965,10 @@ class ServiceOrchestrator(object):
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
             self._controller.event_done(event)
-            return STOP_POLLING
         if config_status == nfp_constants.ERROR:
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
             self._controller.event_done(event)
-            return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
             updated_network_function = {'heat_stack_id': None}
@@ -968,20 +976,19 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            if request_data['action'] == 'update':
-                self._controller.event_done(event)
-                return STOP_POLLING
-            event_data = {
-                'network_function_id': request_data['network_function_id']
-            }
-            self._create_event('USER_CONFIG_DELETED',
-                               event_data=event_data,
-                               is_internal_event=True)
             self._controller.event_done(event)
-            return STOP_POLLING
+            if request_data['action'] == 'update':
+                self._create_event("CONTINUE_UPDATE_USER_CONFIG",
+                                   event_data=event_data,
+                                   is_internal_event=True)
+            else:
+                event_data = {
+                    'network_function_id': request_data['network_function_id']
+                }
+                self._create_event('USER_CONFIG_DELETED',
+                                   event_data=event_data,
+                                   is_internal_event=True)
             # Trigger RPC to notify the Create_Service caller with status
-        elif config_status == nfp_constants.IN_PROGRESS:
-            return CONTINUE_POLLING
 
     def handle_user_config_applied(self, event):
         request_data = event.data
