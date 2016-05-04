@@ -677,9 +677,9 @@ class HeatDriver(object):
             LOG.error(_LE("No provider cidr availabale"))
             return None, None
         service_type = service_profile['service_type']
-        service_vendor = service_profile['service_flavor']
         service_details = transport.parse_service_flavor_string(
             service_profile['service_flavor'])
+        service_vendor = service_details['service_vendor']
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
 
@@ -723,7 +723,7 @@ class HeatDriver(object):
             provider_cidr = ''
         standby_provider_port_mac = None
 
-        service_vendor = service_profile['service_flavor']
+        service_vendor = service_details['service_vendor']
         if service_type == pconst.LOADBALANCER:
             self._generate_pool_members(
                 auth_token, stack_template, config_param_values,
@@ -847,8 +847,7 @@ class HeatDriver(object):
                         ';stitching_gateway=' + stitching_subnet[
                             'gateway_ip'] +
                         ';mgmt_gw_ip=' + mgmt_gw_ip +
-                        ';network_function_id=' + network_function['id'] +
-                        ';service_vendor=' + service_vendor)
+                        ';network_function_id=' + network_function['id'])
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
                     stack_template[resources_key],
