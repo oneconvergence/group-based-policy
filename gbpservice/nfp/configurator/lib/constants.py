@@ -15,6 +15,7 @@ NFP_SERVICE_LIST = ['heat', 'ansible']
 invalid_service_type = 'invalid'
 NFP_SERVICE = 'nfp_service'
 SUCCESS = 'SUCCESS'
+FAILED = 'FAILED'
 FAILURE = 'FAILURE'
 GENERIC_CONFIG = 'generic_config'
 FAILED = 'FAILED'

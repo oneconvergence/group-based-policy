@@ -51,73 +51,8 @@ class LbGenericConfigDriver(object):
     requests from Orchestrator.
     """
 
-    def __init__(self, conf):
-        self.conf = conf
-        self.timeout = 30
-
-    def _configure_log_forwarding(self, url, mgmt_ip, port):
-        """ Configures log forwarding IP address in Service VMs.
-
-            :param url: url format that is used to invoke the Service VM API
-            :param mgmt_ip: management IP of the Service VM
-            :param port: port that is listened to by the Service VM agent
-
-            Returns: SUCCESS/Error msg
-
-        """
-
-        url = url % (mgmt_ip, port, 'configure-rsyslog-as-client')
-
-        log_forward_ip_address = self.conf.log_forward_ip_address
-        if not log_forward_ip_address:
-            msg = ("Log forwarding IP address not configured "
-                   "for service at %s." % mgmt_ip)
-            LOG.info(msg)
-            return common_const.UNHANDLED
-
-        data = dict(
-                server_ip=log_forward_ip_address,
-                server_port=self.conf.log_forward_port,
-                log_level=self.conf.log_level)
-        data = jsonutils.dumps(data)
-
-        msg = ("Initiating POST request to configure log forwarding "
-               "for service at: %r" % mgmt_ip)
-        LOG.info(msg)
-        try:
-            resp = requests.post(url, data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to service at: "
-                   "%r for configuring log forwarding. ERROR: %r" %
-                   (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-        except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened while configuring "
-                   "log forwarding for service at: %r. "
-                   "ERROR: %r" %
-                   (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-
-        try:
-            result = resp.json()
-        except ValueError as err:
-            msg = ("Unable to parse response of configure log forward API, "
-                   "invalid JSON. URL: %r. %r" % (url, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-        if not result['status']:
-            msg = ("Error configuring log forwarding for service "
-                   "at %s. URL: %r. Reason: %s." %
-                   (mgmt_ip, url, result['reason']))
-            LOG.error(msg)
-            return msg
-
-        msg = ("Successfully configured log forwarding for "
-               "service at %s." % mgmt_ip)
-        LOG.info(msg)
-        return lb_constants.STATUS_SUCCESS
+    def __init__(self):
+        pass
 
     def configure_interfaces(self, context, resource_data):
         """ Configure interfaces for the service VM.
@@ -139,7 +74,7 @@ class LbGenericConfigDriver(object):
         try:
             result_log_forward = self._configure_log_forwarding(
                 lb_constants.REQUEST_URL, mgmt_ip,
-                lb_constants.HAPROXY_AGENT_LISTEN_PORT)
+                self.port)
         except Exception as err:
             msg = ("Failed to configure log forwarding for service at %s. "
                    "Error: %s" % (mgmt_ip, err))
@@ -168,11 +103,14 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
 
     def __init__(self, plugin_rpc=None, conf=None):
         self.plugin_rpc = plugin_rpc
-        super(HaproxyOnVmDriver, self).__init__(conf=conf)
+        self.conf = conf
+        self.timeout = 30
+        self.port = lb_constants.HAPROXY_AGENT_LISTEN_PORT
+        super(HaproxyOnVmDriver, self).__init__()
 
     def _get_rest_client(self, ip_addr):
         client = haproxy_rest_client.HttpRequests(
-                            ip_addr, lb_constants.HAPROXY_AGENT_LISTEN_PORT,
+                            ip_addr, self.port,
                             REQUEST_RETRIES, REQUEST_TIMEOUT)
         return client
 
@@ -929,20 +867,3 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             msg = ("Deleted pool health monitor: %s with pool ID: %s"
                    % (str(health_monitor), pool_id))
             LOG.info(msg)
-
-    def configure_healthmonitor(self, context, kwargs):
-        """Overriding BaseDriver's configure_healthmonitor().
-           It does netcat to HAPROXY_AGENT_LISTEN_PORT 1234.
-           HaProxy agent runs inside service vm..Once agent is up and
-           reachable, service vm is assumed to be active.
-
-           :param context - context
-           :param kwargs - kwargs coming from orchestrator
-
-           Returns: SUCCESS/FAILED
-
-        """
-        ip = kwargs.get('mgmt_ip')
-        port = str(lb_constants.HAPROXY_AGENT_LISTEN_PORT)
-        command = 'nc ' + ip + ' ' + port + ' -z'
-        return self._check_vm_health(command)
