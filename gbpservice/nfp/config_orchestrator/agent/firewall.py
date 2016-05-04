@@ -80,6 +80,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         firewall_desc = ast.literal_eval(firewall['description'])
         fw_mac = firewall_desc['provider_ptg_info'][0]
         nf_id = firewall_desc['network_function_id']
+        service_vendor = firewall_desc['service_vendor']
         ctx_dict, rsrc_ctx_dict = self._prepare_resource_context_dicts(
             context, firewall['tenant_id'])
         nfp_context = {'network_function_id': nf_id,
@@ -91,7 +92,8 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                          'host': host,
                          'neutron_context': rsrc_ctx_dict}
         body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
+                                           resource_type, resource_data,
+                                           service_vendor)
         return body
 
     @log_helpers.log_method_call

@@ -93,23 +93,46 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         rsrc_ctx_dict.update({'service_info': db})
         return ctx_dict, rsrc_ctx_dict
 
+    def _get_pool_desc(self, context, pool_id):
+        args = {'context': context, 'id': pool_id}
+        db_data = super(LbAgent, self)
+        pool_desc = None
+        try:
+            pool = db_data.get_pool(**args)
+            pool_desc = pool['description']
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', e)
+        return pool_desc
+
     def _data_wrapper(self, context, tenant_id, name, reason, **kwargs):
         ctx_dict, rsrc_ctx_dict = self.\
             _prepare_resource_context_dicts(context, tenant_id)
         nfp_context = {'neutron_context': ctx_dict,
                        'requester': 'nas_service'}
+        service_vendor = None
         if name.lower() == 'vip':
             vip_desc = ast.literal_eval(kwargs['vip']['description'])
             nf_id = vip_desc['network_function_id']
             vip_id = kwargs['vip']['id']
+            service_vendor = vip_desc['service_vendor']
             nfp_context.update({'network_function_id': nf_id,
                                 'vip_id': vip_id})
+        elif name.lower() == 'pool':
+            pool_desc = ast.literal_eval(kwargs['pool']['description'])
+            service_vendor = pool_desc['service_vendor']
+        # else path for member and healthmonitor
+        # both will fetch service_vendor from pool description
+        else:
+            pool_id = kwargs['pool_id']
+            if self._get_pool_desc(context, pool_id):
+                service_vendor = pool_desc['service_vendor']
         resource_type = 'loadbalancer'
         resource = name
         resource_data = {'neutron_context': rsrc_ctx_dict}
         resource_data.update(**kwargs)
         body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
+                                           resource_type, resource_data,
+                                           service_vendor)
         return body
 
     def _post(self, context, tenant_id, name, **kwargs):

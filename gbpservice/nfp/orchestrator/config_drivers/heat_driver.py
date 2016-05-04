@@ -76,7 +76,8 @@ cfg.CONF.register_opts(HEAT_DRIVER_OPTS,
 SC_METADATA = ('{"sc_instance":"%s", "floating_ip": "%s", '
                '"provider_interface_mac": "%s", '
                '"standby_provider_interface_mac": "%s",'
-               '"network_function_id": "%s"}')
+               '"network_function_id": "%s",'
+               '"service_vendor": "%s"}')
 
 SVC_MGMT_PTG_NAME = (
     cfg.CONF.heat_driver.svc_management_ptg_name)
@@ -735,7 +736,17 @@ class HeatDriver(object):
                                    mgmt_ip,
                                    provider_port_mac,
                                    standby_provider_port_mac,
-                                   network_function['id']))
+                                   network_function['id'],
+                                   service_vendor))
+
+                lb_resourec_desc = {'service_vendor': service_vendor}
+                lb_pool_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Pool')
+                stack_template[resources_key][lb_pool_key][properties_key][
+                    'description'] = str(lb_resourec_desc)
+
         elif service_type == pconst.FIREWALL:
             stack_template = self._update_firewall_template(
                 auth_token, provider, stack_template)
@@ -836,7 +847,8 @@ class HeatDriver(object):
                         ';stitching_gateway=' + stitching_subnet[
                             'gateway_ip'] +
                         ';mgmt_gw_ip=' + mgmt_gw_ip +
-                        ';network_function_id=' + network_function['id'])
+                        ';network_function_id=' + network_function['id'] +
+                        ';service_vendor=' + service_vendor)
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
                     stack_template[resources_key],

@@ -66,18 +66,21 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                        'requester': 'nas_service'}
         resource_type = 'vpn'
         resource = kwargs['rsrc_type']
+        service_vendor = None
         if resource.lower() == 'ipsec_site_connection':
             ipsec_desc = self._get_dict_desc_from_string(kwargs[
                 'resource']['description'])
             nf_id = ipsec_desc['network_function_id']
             ipsec_site_connection_id = kwargs['rsrc_id']
+            service_vendor = ipsec_desc['service_vendor']
             nfp_context.update(
                 {'network_function_id': nf_id,
                  'ipsec_site_connection_id': ipsec_site_connection_id})
         kwargs.update({'neutron_context': rsrc_ctx_dict})
         resource_data = kwargs
         body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
+                                           resource_type, resource_data,
+                                           service_vendor)
         return body
 
     @log_helpers.log_method_call

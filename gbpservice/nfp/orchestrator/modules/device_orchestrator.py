@@ -416,6 +416,7 @@ class DeviceOrchestrator(PollEventDesc):
         else:
             device_data['service_details']['network_mode'] = (
                 nfp_constants.NEUTRON_MODE)
+        device_data['service_vendor'] = service_details['service_vendor']
         return device_data
 
     def _get_nsf_db_resource(self, resource_name, resource_id):
