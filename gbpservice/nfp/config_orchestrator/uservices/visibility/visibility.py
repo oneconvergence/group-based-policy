@@ -403,6 +403,11 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         except Exception as e:
             LOG(LOGGER, 'ERROR', 'Failed : %s Reason : %s' % (event_data, e))
 
+    def poll_event_cancel(self, event):
+        msg = ("Poll Event =%s got time out Event Data = %s " % (
+            event.id, event.data))
+        LOG(LOGGER, 'INFO', '%s' % (msg))
+
     @core_pt.poll_event_desc(event='SERVICE_OPERATION_POLL_EVENT', spacing=5)
     def service_operation_poll_stash_event(self, ev):
         events = self._sc.get_stashed_events()
@@ -413,7 +418,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
             if eventid == "SERVICE_CREATE_PENDING":
                 new_event = self._sc.new_event(id=eventid,
                                                key=eventid,
-                                               data=data)
+                                               data=data, max_times=24)
                 self._sc.poll_event(new_event)
 
             elif eventid == "SERVICE_DELETED":
