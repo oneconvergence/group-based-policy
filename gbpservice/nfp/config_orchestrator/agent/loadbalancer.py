@@ -124,7 +124,9 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         # both will fetch service_vendor from pool description
         else:
             pool_id = kwargs['pool_id']
-            if self._get_pool_desc(context, pool_id):
+            pool_desc = self._get_pool_desc(context, pool_id)
+            if pool_desc is not None:
+                pool_desc = ast.literal_eval(pool_desc)
                 service_vendor = pool_desc['service_vendor']
         resource_type = 'loadbalancer'
         resource = name
