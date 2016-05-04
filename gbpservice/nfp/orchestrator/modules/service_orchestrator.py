@@ -1085,7 +1085,8 @@ class ServiceOrchestrator(object):
             self.db_session,
             network_function_id,
             {'status': self.status_map[operation]['status'],
-             'status_description': self.status_map[operation]['status_description']})
+             'status_description': self.status_map[operation][
+                                            'status_description']})
 
     def handle_policy_target_added(self, context, network_function_id,
                                    policy_target):
@@ -1110,7 +1111,8 @@ class ServiceOrchestrator(object):
                  'status_description': ("Config Update for Policy Target "
                                         "addition event failed")})
             return
-        self._update_network_function_status(network_function['id'], operation='pt_add')
+        self._update_network_function_status(network_function['id'],
+                                             operation='pt_add')
         service_config = network_function['service_config']
         service_type = self._get_service_type(
             network_function['service_profile_id'])
@@ -1171,7 +1173,8 @@ class ServiceOrchestrator(object):
                  'status_description': ("Config Update for Policy Target "
                                         "removed event failed")})
             return
-        self._update_network_function_status(network_function['id'], operation='pt_remove')
+        self._update_network_function_status(network_function['id'],
+                                             operation='pt_remove')
         service_config = network_function['service_config']
         service_type = self._get_service_type(
             network_function['service_profile_id'])
@@ -1232,6 +1235,8 @@ class ServiceOrchestrator(object):
                  'status_description': ("Config Update for Consumer Policy"
                                         " Target Group Addition failed")})
             return
+        self._update_network_function_status(network_function['id'],
+                                             operation='ptg_add')
         service_config = network_function['service_config']
         service_type = self._get_service_type(
             network_function['service_profile_id'])
@@ -1292,6 +1297,8 @@ class ServiceOrchestrator(object):
                  'status_description': ("Config Update for Consumer Policy"
                                         " Target Group Removal failed")})
             return
+        self._update_network_function_status(network_function['id'],
+                                             operation='ptg_remove')
         service_config = network_function['service_config']
         service_type = self._get_service_type(
             network_function['service_profile_id'])
