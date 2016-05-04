@@ -127,7 +127,7 @@ class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
         finally:
             del agent_info['notification_data']
             del agent_info['service_vendor']
-            service_type = agent_info.pop('service_type')
+            service_type = agent_info.pop('resource_type')
 
             if result in const.UNHANDLED_RESULT:
                 data = {'status_code': const.UNHANDLED_RESULT}
@@ -164,7 +164,7 @@ def events_init(sc, drivers, rpcmgr):
     sc.register_events([event])
 
 
-def load_drivers():
+def load_drivers(conf):
     """Imports all the driver files corresponding to this agent.
 
     Returns: Dictionary of driver objects with a specified service type and
@@ -176,7 +176,7 @@ def load_drivers():
     drivers = ld.load_drivers(const.DRIVERS_DIR)
 
     for service_type, driver_name in drivers.iteritems():
-        driver_obj = driver_name()
+        driver_obj = driver_name(conf=conf)
         drivers[service_type] = driver_obj
 
     return drivers
@@ -207,7 +207,7 @@ def init_agent(cm, sc, conf):
     """
 
     try:
-        drivers = load_drivers()
+        drivers = load_drivers(conf)
     except Exception as err:
         msg = ("Config Script failed to load drivers. %s"
                % (str(err).capitalize()))

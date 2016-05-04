@@ -702,7 +702,7 @@ def events_init(sc, drivers, rpcmgr):
     sc.register_events(evs)
 
 
-def load_drivers(sc):
+def load_drivers(sc, conf):
     """Imports all the driver files.
 
     Returns: Dictionary of driver objects with a specified service type and/or
@@ -716,7 +716,7 @@ def load_drivers(sc):
 
     for service_type, dobj in drivers.iteritems():
         '''LB Driver constructor needs plugin_rpc as a param'''
-        instantiated_dobj = dobj(plugin_rpc)
+        instantiated_dobj = dobj(plugin_rpc=plugin_rpc, conf=conf)
         drivers[service_type] = instantiated_dobj
 
     return drivers
@@ -747,7 +747,7 @@ def init_agent(cm, sc, conf):
     """
 
     try:
-        drivers = load_drivers(sc)
+        drivers = load_drivers(sc, conf)
     except Exception as err:
         msg = ("Loadbalaner agent failed to load service drivers. %s"
                % (str(err).capitalize()))

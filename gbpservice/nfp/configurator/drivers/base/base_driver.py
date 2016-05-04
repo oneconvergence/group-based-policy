@@ -10,13 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log as logging
-
+import requests
 import subprocess
 
+from oslo_log import log as logging
+from oslo_serialization import jsonutils
+
+from gbpservice.nfp.configurator.lib import constants as const
+
 LOG = logging.getLogger(__name__)
-SUCCESS = 'SUCCESS'
-FAILED = 'FAILED'
 
 """Every service vendor must inherit this class. If any service vendor wants
    to add extra methods for their service, apart from below given, they should
@@ -25,28 +27,41 @@ FAILED = 'FAILED'
 
 
 class BaseDriver(object):
-    def __init__(self):
+    def __init__(self, conf):
         pass
 
-    def configure_interfaces(self, context, kwargs):
-        return SUCCESS
+    def configure_healthmonitor(self, context, resource_data):
+        """Checks if the Service VM is reachable.
 
-    def clear_interfaces(self, context, kwargs):
-        return SUCCESS
+           It does netcat to the CONFIGURATION_SERVER_PORT of the Service VM.
+           Configuration agent runs inside Service VM. Once agent is up and
+           reachable, Service VM is assumed to be active.
 
-    def configure_routes(self, context, kwargs):
-        return SUCCESS
+           :param context - context
+           :param resource_data - data coming from orchestrator
 
-    def clear_routes(self, context, kwargs):
-        return SUCCESS
+           Returns: SUCCESS/FAILED
 
-    def configure_healthmonitor(self, context, kwargs):
-        ip = kwargs.get('mgmt_ip')
-        command = 'ping -c5 ' + ip
+        """
+        ip = resource_data.get('mgmt_ip')
+        port = str(self.port)
+        command = 'nc ' + ip + ' ' + port + ' -z'
         return self._check_vm_health(command)
 
+    def configure_interfaces(self, context, kwargs):
+        return const.SUCCESS
+
+    def clear_interfaces(self, context, kwargs):
+        return const.SUCCESS
+
+    def configure_routes(self, context, kwargs):
+        return const.SUCCESS
+
+    def clear_routes(self, context, kwargs):
+        return const.SUCCESS
+
     def clear_healthmonitor(self, context, kwargs):
-        return SUCCESS
+        return const.SUCCESS
 
     def register_agent_object_with_driver(self, name, agent_obj):
         setattr(BaseDriver, name, agent_obj)
@@ -69,8 +84,72 @@ class BaseDriver(object):
             msg = ("VM health check failed. Command '%s' execution failed."
                    " Reason=%s" % (command, e))
             LOG.warn(msg)
-            return FAILED
+            return const.FAILED
         msg = ("VM Health check successful. Command '%s' executed"
                " successfully" % (command))
         LOG.debug(msg)
-        return SUCCESS
+        return const.SUCCESS
+
+    def _configure_log_forwarding(self, url, mgmt_ip, port):
+        """ Configures log forwarding IP address in Service VMs.
+
+            :param url: url format that is used to invoke the Service VM API
+            :param mgmt_ip: management IP of the Service VM
+            :param port: port that is listened to by the Service VM agent
+
+            Returns: SUCCESS/Error msg
+
+        """
+
+        url = url % (mgmt_ip, port, 'configure-rsyslog-as-client')
+
+        log_forward_ip_address = self.conf.log_forward_ip_address
+        if not log_forward_ip_address:
+            msg = ("Log forwarding IP address not configured "
+                   "for service at %s." % mgmt_ip)
+            LOG.info(msg)
+            return const.UNHANDLED
+
+        data = dict(
+                server_ip=log_forward_ip_address,
+                server_port=self.conf.log_forward_port,
+                log_level=self.conf.log_level)
+        data = jsonutils.dumps(data)
+
+        msg = ("Initiating POST request to configure log forwarding "
+               "for service at: %r" % mgmt_ip)
+        LOG.info(msg)
+        try:
+            resp = requests.post(url, data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError as err:
+            msg = ("Failed to establish connection to service at: "
+                   "%r for configuring log forwarding. ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except requests.exceptions.RequestException as err:
+            msg = ("Unexpected ERROR happened while configuring "
+                   "log forwarding for service at: %r. "
+                   "ERROR: %r" %
+                   (mgmt_ip, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response of configure log forward API, "
+                   "invalid JSON. URL: %r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if not result['status']:
+            msg = ("Error configuring log forwarding for service "
+                   "at %s. URL: %r. Reason: %s." %
+                   (mgmt_ip, url, result['reason']))
+            LOG.error(msg)
+            return msg
+
+        msg = ("Successfully configured log forwarding for "
+               "service at %s." % mgmt_ip)
+        LOG.info(msg)
+        return const.SUCCESS
