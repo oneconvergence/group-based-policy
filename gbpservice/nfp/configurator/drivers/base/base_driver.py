@@ -30,18 +30,20 @@ class BaseDriver(object):
     def __init__(self, conf):
         pass
 
-    def configure_healthmonitor(self, context, kwargs):
-        """Overriding BaseDriver's configure_healthmonitor().
+    def configure_healthmonitor(self, context, resource_data):
+        """Checks if the Service VM is reachable.
+
            It does netcat to the CONFIGURATION_SERVER_PORT of the Service VM.
-           Configuration agent runs inside service vm.Once agent is up and
-           reachable, service vm is assumed to be active.
+           Configuration agent runs inside Service VM. Once agent is up and
+           reachable, Service VM is assumed to be active.
+
            :param context - context
-           :param kwargs - kwargs coming from orchestrator
+           :param resource_data - data coming from orchestrator
 
            Returns: SUCCESS/FAILED
 
         """
-        ip = kwargs.get('mgmt_ip')
+        ip = resource_data.get('mgmt_ip')
         port = str(self.port)
         command = 'nc ' + ip + ' ' + port + ' -z'
         return self._check_vm_health(command)
