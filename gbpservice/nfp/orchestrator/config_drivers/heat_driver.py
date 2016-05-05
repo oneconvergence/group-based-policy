@@ -1145,18 +1145,6 @@ class HeatDriver(object):
             return None
         return stack_id
 
-    def _stack_delete(self, stack_id, provider_tenant_id):
-        auth_token, resource_owner_tenant_id =\
-                self._get_resource_owner_context()
-        heatclient = self._get_heat_client(resource_owner_tenant_id,
-                                        tenant_id=provider_tenant_id)
-        if not heatclient:
-            return None
-        if stack_id:
-            heatclient.delete(stack_id)
-            LOG.info(_LI("STACK_DELETE %(stack)s") % {'stack': stack_id})
-            return stack_id
-
     def _update(self, auth_token, resource_owner_tenant_id, service_profile,
                 service_chain_node, service_chain_instance, provider,
                 consumer_port, network_function, provider_port, stack_id,

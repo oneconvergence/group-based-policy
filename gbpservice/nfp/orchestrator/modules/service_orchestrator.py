@@ -796,13 +796,14 @@ class ServiceOrchestrator(object):
                             admin_token,
                             provider_ptg_id)
             provider_tenant_id = provider_ptg['tenant_id']
-            stack_id = self.config_driver._stack_delete(stack_id,
+            stack_id = self.config_driver.delete_config(stack_id,
                                                         provider_tenant_id)
             request_data = {
                     'heat_stack_id': stack_id,
                     'network_function_id': network_function['id'],
                     'tenant_id': provider_tenant_id,
                     'action': 'update',
+                    'operation': request_data['operation']
             }
             self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
                                event_data=request_data,
@@ -1001,7 +1002,7 @@ class ServiceOrchestrator(object):
             self._controller.event_done(event)
             if request_data['action'] == 'update':
                 self._create_event("CONTINUE_UPDATE_USER_CONFIG",
-                                   event_data=event_data,
+                                   event_data=request_data,
                                    is_internal_event=True)
             else:
                 event_data = {
@@ -1297,7 +1298,7 @@ class ServiceOrchestrator(object):
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
         if service_type == pconst.VPN or service_type == pconst.FIREWALL:
-            stack_id = self.config_driver._stack_delete(
+            stack_id = self.config_driver.delete_config(
                                                 stack_id,
                                                 consumer_ptg['tenant_id'])
             request_data = {
@@ -1305,6 +1306,8 @@ class ServiceOrchestrator(object):
                     'network_function_id': network_function['id'],
                     'tenant_id': consumer_ptg['tenant_id'],
                     'action': 'update',
+                    'operation': request_data['operation'],
+                    'consumer_ptg': request_data['consumer_ptg']
             }
             self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
                                event_data=request_data,
@@ -1359,7 +1362,7 @@ class ServiceOrchestrator(object):
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
         if service_type == pconst.VPN or service_type == pconst.FIREWALL:
-            stack_id = self.config_driver._stack_delete(
+            stack_id = self.config_driver.delete_config(
                                                 stack_id,
                                                 consumer_ptg['tenant_id'])
             request_data = {
@@ -1367,6 +1370,8 @@ class ServiceOrchestrator(object):
                     'network_function_id': network_function['id'],
                     'tenant_id': consumer_ptg['tenant_id'],
                     'action': 'update',
+                    'operation': request_data['operation'],
+                    'consumer_ptg': request_data['consumer_ptg']
             }
             self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
                                event_data=request_data,
