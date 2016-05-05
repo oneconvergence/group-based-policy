@@ -1,142 +1,93 @@
 {
-    "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "Creates new vpn service - ike + ipsec + vpn service + site-site connection",
-    "Parameters": {
-        "peer_address": {
-            "Default": "192.168.102.179",
-            "Description": "Address of peer in site-site connection",
-            "Type": "String"
-        },
-        "peer_id": {
-            "Default": "14.0.0.2",
-            "Description": "Id of the peer",
-            "Type": "String"
-        },
-        "VPNPeerCidr": {
-            "Default": "14.0.0.0/24",
-            "Description": "Remote CIDRs behind peer site",
-            "Type": "String"
-        },
-        "Subnet": {
-            "Default": "f18a9a74-9ee2-4331-b174-a8a1cd8a3efc",
-            "Description": "Subnet id on which vpn service is launched",
-            "Type": "String"
-        },
-        "ClientAddressPoolCidr": {
-            "Default": "192.168.200.0/24",
-            "Description": "Pool from which the ip address is allocated to all connected clients",
-            "Type": "String"
-        },
+    "description": "Creates new vpn service - ike + ipsec + vpn service + site-site connection(s)",
+    "heat_template_version": "2013-05-23",
+    "parameters": {
         "RouterId": {
-            "Default": "d0a0d631-7724-42c8-8688-bc0887f90a34",
-            "Description": "Router id",
-            "Type": "String"
+            "description": "Router ID",
+            "type": "string"
         },
         "ServiceDescription": {
-            "Default": "fip=192.168.20.192;tunnel_local_cidr=10.0.0.0/26",
-            "Description": "Give floating ip here after fip=",
-            "Type": "String"
+            "description": "fip;tunnel_local-cidr",
+            "type": "string"
+        },
+        "Subnet": {
+            "description": "Subnet id on which vpn service is launched",
+            "type": "string"
         }
     },
-    "Resources": {
-        "VPNService": {
-            "Type": "OS::Neutron::VPNService",
-            "Properties": {
-                "name": "VPNService",
-                "description": {
-                    "Ref": "ServiceDescription"
-                },
-                "admin_state_up": true,
-                "router_id": {
-                    "Ref": "RouterId"
-		},
-                "subnet_id": {
-                    "Ref": "Subnet"
-                }
-            }
-        },
+    "resources": {
         "IKEPolicy": {
-            "Type": "OS::Neutron::IKEPolicy",
-            "Properties": {
-                "name": "IKEPolicy",
-                "description": "My new IKE policy",
+            "properties": {
                 "auth_algorithm": "sha1",
                 "encryption_algorithm": "3des",
-                "phase1_negotiation_mode": "main",
+                "ike_version": "v1",
                 "lifetime": {
                     "units": "seconds",
                     "value": 3600
                 },
+                "name": "IKEPolicy",
                 "pfs": "group5",
-                "ike_version": "v1"
-            }
+                "phase1_negotiation_mode": "main"
+            },
+            "type": "OS::Neutron::IKEPolicy"
         },
         "IPsecPolicy": {
-            "Type": "OS::Neutron::IPsecPolicy",
-            "Properties": {
-                "name": "IPsecPolicy",
-                "description": "My new IPsec policy",
-                "transform_protocol": "esp",
-                "encapsulation_mode": "tunnel",
+            "properties": {
                 "auth_algorithm": "sha1",
+                "encapsulation_mode": "tunnel",
                 "encryption_algorithm": "3des",
                 "lifetime": {
                     "units": "seconds",
                     "value": 3600
                 },
-                "pfs": "group5"
-            }
+                "name": "IPsecPolicy",
+                "pfs": "group5",
+                "transform_protocol": "esp"
+            },
+            "type": "OS::Neutron::IPsecPolicy"
         },
-        "IPsecSiteConnection": {
-            "Type": "OS::Neutron::IPsecSiteConnection",
-            "Properties": {
-                "name": "IPsecSiteConnection",
-                "description": "My new VPN connection",
-                "peer_address": {
-                    "Ref": "peer_address"
+       "VPNService": {
+            "properties": {
+                "admin_state_up": "true",
+                "description": {
+                    "get_param": "ServiceDescription"
                 },
-                "peer_id": {
-                    "Ref": "peer_id"
+                "name": "VPNService",
+                "router_id": {
+                    "get_param": "RouterId"
                 },
-                "peer_cidrs": [
-                    {
-                        "Ref": "VPNPeerCidr"
-                    }
-                ],
-                "mtu": 1500,
+                "subnet_id": {
+                    "get_param": "Subnet"
+                }
+            },
+            "type": "OS::Neutron::VPNService"
+        },
+        "site_to_site_connection1": {
+            "properties": {
+                "admin_state_up": "true",
                 "dpd": {
                     "actions": "hold",
                     "interval": 30,
                     "timeout": 120
                 },
-                "psk": "secret",
-                "initiator": "bi-directional",
-                "admin_state_up": true,
                 "ikepolicy_id": {
-                    "Ref": "IKEPolicy"
+                    "get_resource": "IKEPolicy"
                 },
+                "initiator": "bi-directional",
                 "ipsecpolicy_id": {
-                    "Ref": "IPsecPolicy"
+                    "get_resource": "IPsecPolicy"
                 },
+                "mtu": 1500,
+                "name": "site_to_site_connection1",
+                "peer_address": "192.168.102.89",
+                "peer_cidrs": ["12.0.0.0/24"],
+                "peer_id": "12.0.0.3",
+                "psk": "secret",
                 "vpnservice_id": {
-                    "Ref": "VPNService"
+                    "get_resource": "VPNService"
                 }
-            }
-        },
-        "SSLVPNConnection": {
-            "Type": "OS::Neutron::SSLVPNConnection",
-            "Properties": {
-                "name": "vtun0",
-                "credential_id": "",
-                "client_address_pool_cidr": {
-                    "Ref": "ClientAddressPoolCidr"
-                },
-                "admin_state_up": true,
-                "vpnservice_id": {
-                    "Ref": "VPNService"
-                }
-            }
+            },
+            "type": "OS::Neutron::IPsecSiteConnection"
         }
     }
 }
-

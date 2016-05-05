@@ -11,12 +11,15 @@
 #    under the License.
 
 import ast
+import requests
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
                                                     haproxy_rest_client)
+from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import lb_constants
 from oslo_log import log as logging
+from oslo_serialization import jsonutils
 
 DRIVER_NAME = 'loadbalancer'
 PROTOCOL_MAP = {
@@ -36,17 +39,78 @@ REQUEST_TIMEOUT = 10
 LOG = logging.getLogger(__name__)
 
 
-class HaproxyOnVmDriver(base_driver.BaseDriver):
+""" Loadbalancer generic configuration driver for handling device
+configuration requests.
+
+"""
+
+
+class LbGenericConfigDriver(object):
+    """
+    Driver class for implementing loadbalancer configuration
+    requests from Orchestrator.
+    """
+
+    def __init__(self):
+        pass
+
+    def configure_interfaces(self, context, resource_data):
+        """ Configure interfaces for the service VM.
+
+        Calls static IP configuration function and implements
+        persistent rule addition in the service VM.
+        Issues REST call to service VM for configuration of interfaces.
+
+        :param context: neutron context
+        :param resource_data: a dictionary of loadbalancer objects
+        send by neutron plugin
+
+        Returns: SUCCESS/Failure message with reason.
+
+        """
+
+        mgmt_ip = resource_data['mgmt_ip']
+
+        try:
+            result_log_forward = self._configure_log_forwarding(
+                lb_constants.REQUEST_URL, mgmt_ip,
+                self.port)
+        except Exception as err:
+            msg = ("Failed to configure log forwarding for service at %s. "
+                   "Error: %s" % (mgmt_ip, err))
+            LOG.error(msg)
+            return msg
+        else:
+            if result_log_forward == common_const.UNHANDLED:
+                pass
+            elif result_log_forward != lb_constants.STATUS_SUCCESS:
+                msg = ("Failed to configure log forwarding for service at %s. "
+                       "Error: %s" % (mgmt_ip, err))
+                LOG.error(msg)
+                return result_log_forward
+            else:
+                msg = ("Configured log forwarding for service at %s. "
+                       "Result: %s" % (mgmt_ip, result_log_forward))
+                LOG.info(msg)
+
+        return lb_constants.STATUS_SUCCESS
+
+
+class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
     service_type = 'loadbalancer'
     service_vendor = 'haproxy'
     pool_to_device = {}
 
-    def __init__(self, plugin_rpc=None):
+    def __init__(self, plugin_rpc=None, conf=None):
         self.plugin_rpc = plugin_rpc
+        self.conf = conf
+        self.timeout = 30
+        self.port = lb_constants.HAPROXY_AGENT_LISTEN_PORT
+        super(HaproxyOnVmDriver, self).__init__()
 
     def _get_rest_client(self, ip_addr):
         client = haproxy_rest_client.HttpRequests(
-                            ip_addr, lb_constants.HAPROXY_AGENT_LISTEN_PORT,
+                            ip_addr, self.port,
                             REQUEST_RETRIES, REQUEST_TIMEOUT)
         return client
 
@@ -97,15 +161,18 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
         protocol = vip['protocol']
 
         frontend = {
-            'option': {
-                'tcplog': True
-            },
+            'option': {},
             'bind': '%s:%d' % (vip_ip, vip_port_number),
             'mode': PROTOCOL_MAP[protocol],
             'default_backend': "bck:%s" % vip['pool_id']
         }
         if vip['connection_limit'] >= 0:
             frontend.update({'maxconn': '%s' % vip['connection_limit']})
+        if protocol in [lb_constants.PROTOCOL_HTTP,
+                        lb_constants.PROTOCOL_HTTPS]:
+            frontend['option'].update({'httplog': True})
+        else:
+            frontend['option'].update({'tcplog': True})
         try:
             if protocol == lb_constants.PROTOCOL_HTTP:
                 frontend['option'].update({'forwardfor': True})
@@ -800,20 +867,3 @@ class HaproxyOnVmDriver(base_driver.BaseDriver):
             msg = ("Deleted pool health monitor: %s with pool ID: %s"
                    % (str(health_monitor), pool_id))
             LOG.info(msg)
-
-    def configure_healthmonitor(self, context, kwargs):
-        """Overriding BaseDriver's configure_healthmonitor().
-           It does netcat to HAPROXY_AGENT_LISTEN_PORT 1234.
-           HaProxy agent runs inside service vm..Once agent is up and
-           reachable, service vm is assumed to be active.
-
-           :param context - context
-           :param kwargs - kwargs coming from orchestrator
-
-           Returns: SUCCESS/FAILED
-
-        """
-        ip = kwargs.get('mgmt_ip')
-        port = str(lb_constants.HAPROXY_AGENT_LISTEN_PORT)
-        command = 'nc ' + ip + ' ' + port + ' -z'
-        return self._check_vm_health(command)

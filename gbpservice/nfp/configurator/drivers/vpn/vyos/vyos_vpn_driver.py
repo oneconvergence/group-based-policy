@@ -18,20 +18,11 @@ from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 
 from oslo_concurrency import lockutils
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
 
 LOG = logging.getLogger(__name__)
-
-rest_timeout = [
-    cfg.IntOpt(
-        'VPN.rest_timeout',
-        default=240,
-        help="rest api timeout")]
-
-cfg.CONF.register_opts(rest_timeout)
 
 
 class UnknownReasonException(Exception):
@@ -61,7 +52,7 @@ class RestApi(object):
 
     def __init__(self, vm_mgmt_ip):
         self.vm_mgmt_ip = vm_mgmt_ip
-        self.timeout = cfg.CONF.rest_timeout
+        self.timeout = const.REST_TIMEOUT
 
     def _dict_to_query_str(self, args):
         return '&'.join([str(k) + '=' + str(v) for k, v in args.iteritems()])
@@ -313,8 +304,9 @@ class VpnGenericConfigDriver(object):
     requests from Orchestrator.
     """
 
-    def __init__(self):
-        self.timeout = cfg.CONF.rest_timeout
+    def __init__(self, conf):
+        self.conf = conf
+        self.timeout = const.REST_TIMEOUT
 
 
     def _configure_static_ips(self, resource_data):
@@ -749,7 +741,8 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
     service_type = const.SERVICE_TYPE
     service_vendor = const.SERVICE_VENDOR
 
-    def __init__(self):
+    def __init__(self, conf):
+        self.conf = conf
         self.handlers = {
             'vpn_service': {
                 'create': self.create_vpn_service},
@@ -757,7 +750,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 'create': self.create_ipsec_conn,
                 'update': self.update_ipsec_conn,
                 'delete': self.delete_ipsec_conn}}
-        super(VpnaasIpsecDriver, self).__init__()
+        super(VpnaasIpsecDriver, self).__init__(conf)
 
     def _update_conn_status(self, conn, status):
         """

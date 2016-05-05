@@ -15,7 +15,7 @@ from oslo_log import log as logging
 import stevedore
 
 cfg.CONF.register_opt(cfg.StrOpt('drivers'),
-                      'oneconvergence_orchestration_drivers')
+                      'nfp_orchestration_drivers')
 
 LOG = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class ExtensionManager(stevedore.named.NamedExtensionManager):
     def __init__(self, sc_context, conf):
         super(ExtensionManager, self).__init__(
             'gbpservice.nfp.orchestrator.drivers',
-            cfg.CONF.oneconvergence_orchestration_drivers.drivers,
+            cfg.CONF.nfp_orchestration_drivers.drivers,
             invoke_on_load=True,
             invoke_kwds={'config': conf})
         self.drivers = dict()

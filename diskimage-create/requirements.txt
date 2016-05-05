@@ -1,5 +1,0 @@
-pep8
-pytz
-diskimage-builder
-dib-utils
-qemu-utils

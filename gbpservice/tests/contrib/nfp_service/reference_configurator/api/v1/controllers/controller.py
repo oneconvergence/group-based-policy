@@ -24,7 +24,6 @@ import time
 import yaml
 
 LOG = logging.getLogger(__name__)
-TOPIC = 'configurator'
 SUCCESS = 'SUCCESS'
 
 """Implements all the APIs Invoked by HTTP requests.
@@ -105,29 +104,15 @@ class Controller(rest.RestController):
 
             for config_data in config_datas:
                 resource = config_data['resource']
-                if resource == 'routes':
+                if resource == 'healthmonitor':
+                    self._configure_healthmonitor(config_data)
+                elif resource == 'interfaces':
+                    self._configure_interfaces(config_data)
+                elif resource == 'routes':
                     self._add_routes(config_data)
-
-                if (config_data['resource'] in ['ansible', 'heat',
+                elif (config_data['resource'] in ['ansible', 'heat',
                                                 'custom_json']):
-                    service_config = config_data['resource_data'][
-                                                 'config_string']
-                    service_config = str(service_config)
-                    if config_data['resource'] == 'ansible':
-                        config_str = service_config.lstrip('ansible:')
-                        rules = config_str
-                    elif config_data['resource'] == 'heat':
-                        config_str = service_config.lstrip('heat_config:')
-                        rules = self._get_rules_from_config(config_str)
-                    elif config_data['resource'] == 'custom_json':
-                        config_str = service_config.lstrip('custom_json:')
-                        rules = config_str
-
-                    fw_rule_file = FW_SCRIPT_PATH
-                    command = ("sudo python " + fw_rule_file + " '" +
-                               rules + "'")
-                    subprocess.check_output(command, stderr=subprocess.STDOUT,
-                                            shell=True)
+                    self._apply_user_config(config_data)
                 notification_data.append(
                             {'resource': config_data['resource'],
                              'data': {'status_code': SUCCESS}})
@@ -180,7 +165,20 @@ class Controller(rest.RestController):
         error_data = {'failure_desc': {'msg': msg}}
         return error_data
 
+    def _configure_healthmonitor(self, config_data):
+        LOG.info(_LI("Configures healthmonitor with configuration "
+                 "data : %(healthmonitor_data)s ") %
+                 {'healthmonitor_data': config_data})
+
+    def _configure_interfaces(self, config_data):
+        LOG.info(_LI("Configures interfaces with configuration "
+                 "data : %(interface_data)s ") %
+                 {'interface_data': config_data})
+
     def _add_routes(self, route_info):
+        LOG.info(_LI("Configuring routes with configuration "
+                 "data : %(route_data)s ") %
+                 {'route_data': route_info['resource_data']})
         source_cidrs = route_info['resource_data']['source_cidrs']
         gateway_ip = route_info['resource_data']['gateway_ip']
         default_route_commands = []
@@ -242,6 +240,31 @@ class Controller(rest.RestController):
                 else:
                     raise Exception("Some of the interfaces do not have "
                                     "IP Address")
+
+    def _apply_user_config(self, config_data):
+        LOG.info(_LI("Applying user config with configuration "
+                 "type : %(config_type)s and "
+                 "configuration data : %(config_data)s ") %
+                 {'config_type': config_data['resource'],
+                  'config_data': config_data['resource_data']})
+        service_config = config_data['resource_data'][
+                                     'config_string']
+        service_config = str(service_config)
+        if config_data['resource'] == 'ansible':
+            config_str = service_config.lstrip('ansible:')
+            rules = config_str
+        elif config_data['resource'] == 'heat':
+            config_str = service_config.lstrip('heat_config:')
+            rules = self._get_rules_from_config(config_str)
+        elif config_data['resource'] == 'custom_json':
+            config_str = service_config.lstrip('custom_json:')
+            rules = config_str
+
+        fw_rule_file = FW_SCRIPT_PATH
+        command = ("sudo python " + fw_rule_file + " '" +
+                   rules + "'")
+        subprocess.check_output(command, stderr=subprocess.STDOUT,
+                                shell=True)
 
     def _get_rules_from_config(self, config_str):
         rules_list = []

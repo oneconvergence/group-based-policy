@@ -13,6 +13,7 @@
 from oslo_log import helpers as log_helpers
 from oslo_log import log
 
+from gbpservice.nfp.configurator.lib import config_opts
 from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.configurator.lib import demuxer
 from gbpservice.nfp.configurator.lib import schema_validator
@@ -441,6 +442,7 @@ def nfp_module_init(sc, conf):
 
     # Initialize all the pre-loaded service agents
     try:
+        conf.register_opts(config_opts.opts)
         cm.init_service_agents(sc, conf)
     except Exception as err:
         msg = ("Failed to initialize configurator agent modules. %s."

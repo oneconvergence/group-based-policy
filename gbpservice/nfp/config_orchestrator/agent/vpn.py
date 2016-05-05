@@ -128,7 +128,7 @@ class VpnNotifier(object):
             # Adding Service Type #
             request_data.update({"service_type": service_type,
                                  "ipsec_site_connection_id": ipsec_id})
-        except Exception:
+        except Exception as e:
             return request_data
         return request_data
 
@@ -158,6 +158,7 @@ class VpnNotifier(object):
         rpcClient.cctxt.cast(context, 'update_status',
                              status=status)
 
+        '''
         # Sending An Event for visiblity
         if resource_data['resource'].lower() is\
                 'ipsec_site_connection':
@@ -170,20 +171,22 @@ class VpnNotifier(object):
 
             self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
                                         request_data)
+        '''
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
         resource_data = notification_data['notification'][0]['data']
         notification_info = notification_data['info']
-        resource_id = resource_data['resource_id']
+        ipsec_site_conn_id = resource_data['resource_id']
         msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
                "making an ipsec_site_conn_deleted RPC call to plugin for "
                " ipsec ")
         LOG(LOGGER, 'INFO', " %s " % (msg))
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
-                             id=resource_id)
+                             ipsec_site_conn_id=ipsec_site_conn_id)
 
+        '''
         # Sending An Event for visiblity
         nf_id = notification_info['context']['network_function_id']
         ipsec_id = notification_info['context']['ipsec_site_connection_id']
@@ -194,3 +197,5 @@ class VpnNotifier(object):
 
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)
+
+        '''

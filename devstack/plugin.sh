@@ -11,7 +11,7 @@ function gbp_configure_heat {
 }
 
 function gbp_configure_neutron {
-    iniset $NEUTRON_CONF group_policy policy_drivers "implicit_policy,resource_mapping"
+    iniset $NEUTRON_CONF group_policy policy_drivers "implicit_policy,resource_mapping,chain_mapping"
     iniset $NEUTRON_CONF group_policy extension_drivers "proxy_group"
     iniset $NEUTRON_CONF servicechain servicechain_drivers "simplechain_driver"
     iniset $NEUTRON_CONF node_composition_plugin node_plumber "stitching_plumber"
@@ -29,17 +29,16 @@ function gbp_configure_neutron {
 function nfp_configure_neutron {
     iniset $NEUTRON_CONF keystone_authtoken admin_tenant_name "service"
     iniset $NEUTRON_CONF keystone_authtoken admin_user "neutron"
-    iniset $NEUTRON_CONF keystone_authtoken admin_password "admin_pass"
+    iniset $NEUTRON_CONF keystone_authtoken admin_password $ADMIN_PASSWORD
     iniset $NEUTRON_CONF group_policy policy_drivers "implicit_policy,resource_mapping,chain_mapping"
     iniset $NEUTRON_CONF node_composition_plugin node_plumber "admin_owned_resources_apic_plumber"
     iniset $NEUTRON_CONF node_composition_plugin node_drivers "nfp_node_driver"
     iniset $NEUTRON_CONF admin_owned_resources_apic_tscp plumbing_resource_owner_user "neutron"
-    iniset $NEUTRON_CONF admin_owned_resources_apic_tscp plumbing_resource_owner_password "admin_pass"
+    iniset $NEUTRON_CONF admin_owned_resources_apic_tscp plumbing_resource_owner_password $ADMIN_PASSWORD
     iniset $NEUTRON_CONF admin_owned_resources_apic_tscp plumbing_resource_owner_tenant_name "service"
     iniset $NEUTRON_CONF group_policy_implicit_policy default_ip_pool "11.0.0.0/8"
     iniset $NEUTRON_CONF group_policy_implicit_policy default_proxy_ip_pool "192.169.0.0/16"
     iniset $NEUTRON_CONF group_policy_implicit_policy default_external_segment_name "default"
-    iniset $NEUTRON_CONF device_lifecycle_drivers drivers "haproxy, vyos"
     iniset $NEUTRON_CONF nfp_node_driver is_service_admin_owned "True"
     iniset $NEUTRON_CONF nfp_node_driver svc_management_ptg_name "svc_management_ptg"
 }
@@ -72,7 +71,7 @@ if is_service_enabled group-policy; then
         install_gbpheat
         install_gbpui
         stop_apache_server
-        start_apache_server
+	start_apache_server
     elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
         echo_summary "Initializing $GBP"
         if [[ $ENABLE_NFP = True ]]; then
