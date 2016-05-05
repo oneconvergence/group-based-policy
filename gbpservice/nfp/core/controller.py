@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
 import eventlet
 eventlet.monkey_patch()
 
@@ -19,6 +20,7 @@ import os
 import Queue
 import sys
 import time
+import zlib
 
 
 from neutron.agent.common import config as n_config
@@ -310,6 +312,7 @@ class Controller(object):
                 event.identify()))
         else:
             LOG(LOGGER, 'DEBUG', "%s - worker - stashed" % (event.identify()))
+            event.data = event.compress(event.data)
             self._stashq.put(event)
 
     def get_stashed_events(self):
@@ -327,6 +330,7 @@ class Controller(object):
             timeout = 0.1
             try:
                 event = self._stashq.get(timeout=timeout)
+                event.decompress()
                 events.append(event)
                 timeout = 0
             except Queue.Empty:

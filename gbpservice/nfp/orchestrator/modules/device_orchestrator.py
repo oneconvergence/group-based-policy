@@ -273,6 +273,7 @@ class DeviceOrchestrator(PollEventDesc):
         else:
             # Same module API, so calling corresponding function directly.
             event = self._controller.new_event(id=event_id, data=event_data)
+            event.decompress()
             self.handle_event(event)
 
     def poll_event_cancel(self, ev):

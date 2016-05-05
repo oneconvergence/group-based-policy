@@ -16,6 +16,7 @@ import gbpservice.nfp.lib.transport as transport
 
 from oslo_log import log as oslo_logging
 
+from neutron import context as n_context
 
 LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
@@ -41,13 +42,15 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                                  data['resource'])
 
     def _create_service(self, context, resource):
+        ctxt = n_context.Context.from_dict(context)
         transport.send_request_to_configurator(self._conf,
-                                               context, resource,
+                                               ctxt, resource,
                                                "CREATE",
                                                network_function_event=True)
 
     def _delete_service(self, context, resource):
+        ctxt = n_context.Context.from_dict(context)
         transport.send_request_to_configurator(self._conf,
-                                               context, resource,
+                                               ctxt, resource,
                                                "DELETE",
                                                network_function_event=True)

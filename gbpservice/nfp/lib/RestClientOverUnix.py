@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import zlib
 import exceptions
 
 from gbpservice.nfp.core import common as nfp_common
@@ -88,9 +89,13 @@ class UnixRestClient(object):
             path,
             None,
             ''))
+
+        body = zlib.compress(body)
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
+            if content != '':
+                content = zlib.decompress(content)
             LOG(LOGGER, 'INFO', "%s:%s" % (resp, content))
         except RestClientException as rce:
             LOG(LOGGER, 'ERROR', "ERROR : %s" % (rce))
@@ -136,7 +141,7 @@ def get(path):
     """Implements get method for unix restclient
     Return:Http Response
     """
-    headers = {'content-type': 'application/json'}
+    headers = {'content-type': 'application/octet-stream'}
     return UnixRestClient().send_request(path, 'GET', headers=headers)
 
 
@@ -144,7 +149,7 @@ def put(path, body):
     """Implements put method for unix restclient
     Return:Http Response
     """
-    headers = {'content-type': 'application/json'}
+    headers = {'content-type': 'application/octet-stream'}
     return UnixRestClient().\
         send_request(path, 'PUT', headers=headers, body=body)
 
@@ -156,7 +161,7 @@ def post(path, body, delete=False):
     # Method-Type added here,as DELETE/CREATE
     # both case are handled by post as delete also needs
     # to send data to the rest-unix-server.
-    headers = {'content-type': 'application/json'}
+    headers = {'content-type': 'application/octet-stream'}
     if delete:
         headers.update({'method-type': 'DELETE'})
     else:

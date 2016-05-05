@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import zlib
 import oslo_serialization.jsonutils as jsonutils
 
 from neutron.agent.common import config
@@ -76,7 +77,7 @@ class Controller(rest.RestController):
 
             self.rpc_routing_table[api].append(CloudService(**service))
 
-    @pecan.expose(method='GET', content_type='application/json')
+    @pecan.expose(method='GET', content_type='application/octet-stream')
     def get(self):
         """Method of REST server to handle request get_notifications.
 
@@ -92,20 +93,22 @@ class Controller(rest.RestController):
                 routing_key = 'CONFIGURATION'
                 uservice = self.rpc_routing_table[routing_key]
                 notification_data = uservice[0].rpcclient.call(
-                                                            self.method_name)
+                    self.method_name)
                 msg = ("NOTIFICATION_DATA sent to config_agent %s"
                        % notification_data)
                 LOG.info(msg)
-                return jsonutils.dumps(notification_data)
+                notifications = jsonutils.dumps(notification_data)
+                return zlib.compress(notifications)
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to get handle request=%s. Reason=%s."
                    % (self.method_name, str(err).capitalize()))
             LOG.error(msg)
             error_data = self._format_description(msg)
-            return jsonutils.dumps(error_data)
+            errors = jsonutils.dumps(error_data)
+            return zlib.compress(errors)
 
-    @pecan.expose(method='POST', content_type='application/json')
+    @pecan.expose(method='POST', content_type='application/octet-stream')
     def post(self, **body):
         """Method of REST server to handle all the post requests.
 
@@ -122,8 +125,9 @@ class Controller(rest.RestController):
         try:
             body = None
             if pecan.request.is_body_readable:
-                body = pecan.request.json_body
-
+                zippedBody = pecan.request.body
+                body = zlib.decompress(zippedBody)
+                body = jsonutils.loads(body)
             if self.method_name == 'network_function_event':
                 routing_key = 'VISIBILITY'
             else:
@@ -143,9 +147,10 @@ class Controller(rest.RestController):
             LOG.debug(extra_import)
             LOG.error(msg)
             error_data = self._format_description(msg)
-            return jsonutils.dumps(error_data)
+            errors = jsonutils.dumps(error_data)
+            return zlib.compress(errors)
 
-    @pecan.expose(method='PUT', content_type='application/json')
+    @pecan.expose(method='PUT', content_type='application/octet-stream')
     def put(self, **body):
         """Method of REST server to handle all the put requests.
 
@@ -161,8 +166,9 @@ class Controller(rest.RestController):
         try:
             body = None
             if pecan.request.is_body_readable:
-                body = pecan.request.json_body
-
+                zippedBody = pecan.request.body
+                body = zlib.decompress(zippedBody)
+                body = jsonutils.loads(body)
             if self.method_name == 'network_function_event':
                 routing_key = 'VISIBILITY'
             else:
@@ -180,7 +186,8 @@ class Controller(rest.RestController):
                    % (self.method_name, str(err).capitalize()))
             LOG.error(msg)
             error_data = self._format_description(msg)
-            return jsonutils.dumps(error_data)
+            errors = jsonutils.dumps(error_data)
+            return zlib.compress(errors)
 
     def _format_description(self, msg):
         """This methgod formats error description.
@@ -243,6 +250,7 @@ class RPCClient(object):
         """
         cctxt = self.client.prepare(version=self.API_VERSION,
                                     topic=self.topic)
+
         return cctxt.cast(self,
                           method_name,
                           request_data=request_data)
