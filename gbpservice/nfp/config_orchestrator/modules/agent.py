@@ -32,7 +32,7 @@ def rpc_init(sc, conf):
     )
 
     lb_report_state = {
-        'binary': 'oc-lb-agent',
+        'binary': 'NCO',
         'host': cfg.CONF.host,
         'topic': a_topics.LB_NFP_CONFIGAGENT_TOPIC,
         'plugin_topic': a_topics.LB_NFP_PLUGIN_TOPIC,
@@ -51,7 +51,7 @@ def rpc_init(sc, conf):
     )
 
     vpn_report_state = {
-        'binary': 'oc-vpn-agent',
+        'binary': 'NCO',
         'host': cfg.CONF.host,
         'topic': a_topics.VPN_NFP_CONFIGAGENT_TOPIC,
         'plugin_topic': a_topics.VPN_NFP_PLUGIN_TOPIC,

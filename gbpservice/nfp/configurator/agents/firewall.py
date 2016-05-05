@@ -14,7 +14,6 @@ import os
 import oslo_messaging as messaging
 import requests
 
-from oslo_config import cfg
 from oslo_log import log as logging
 
 from gbpservice.nfp.configurator.agents import agent_base
@@ -24,13 +23,6 @@ from gbpservice.nfp.core import event as nfp_event
 
 
 LOG = logging.getLogger(__name__)
-
-rest_timeout = [
-    cfg.IntOpt(
-        'rest_timeout',
-        default=240,
-        help=("rest api timeout"))]
-cfg.CONF.register_opts(rest_timeout)
 
 """ Implements Fwaas response path to Neutron plugin.
 
@@ -173,7 +165,7 @@ appropriate handler class methods for Fwaas methods.
 
 
 class FWaasEventHandler(object):
-    def __init__(self, sc, drivers, rpcmgr):
+    def __init__(self, sc, drivers, rpcmgr, conf):
         """ Instantiates class object.
 
         :param sc: Service Controller object that is used to communicate
@@ -184,8 +176,9 @@ class FWaasEventHandler(object):
         """
 
         self.sc = sc
+        self.conf = conf
         self.drivers = drivers
-        self.host = cfg.CONF.host
+        self.host = self.conf.host
         self.rpcmgr = rpcmgr
         self.plugin_rpc = FwaasRpcSender(sc, self.host,
                                          self.drivers, self.rpcmgr)
@@ -224,6 +217,12 @@ class FWaasEventHandler(object):
                    % (os.getpid(), ev.id))
             LOG.debug(msg)
 
+            # The context here in ev.data is the neutron context that was
+            # renamed to context in the agent_base. This erstwhile
+            # neutron context contains the agent info which in turn contains
+            # the API context alongside other relevant information like
+            # service vendor and type. Agent info is constructed inside
+            # the demuxer library.
             service_vendor = ev.data['context']['agent_info']['service_vendor']
             driver = self._get_driver(service_vendor)
 
@@ -333,7 +332,7 @@ class FWaasEventHandler(object):
             raise Exception(msg)
 
 
-def events_init(sc, drivers, rpcmgr):
+def events_init(sc, drivers, rpcmgr, conf):
     """Registers events with core service controller.
 
     All the events will come to handle_event method of class instance
@@ -353,11 +352,11 @@ def events_init(sc, drivers, rpcmgr):
     evs = []
     for event in event_id_list:
         evs.append(nfp_event.Event(id=event, handler=FWaasEventHandler(
-            sc, drivers, rpcmgr)))
+            sc, drivers, rpcmgr, conf)))
     sc.register_events(evs)
 
 
-def load_drivers():
+def load_drivers(conf):
     """Imports all the driver files corresponding to this agent.
 
     Returns: Dictionary of driver objects with a specified service type and
@@ -369,7 +368,7 @@ def load_drivers():
     drivers = ld.load_drivers(const.DRIVERS_DIR)
 
     for service_type, driver_name in drivers.iteritems():
-        driver_obj = driver_name()
+        driver_obj = driver_name(conf=conf)
         drivers[service_type] = driver_obj
 
     return drivers
@@ -400,7 +399,7 @@ def init_agent(cm, sc, conf):
     """
 
     try:
-        drivers = load_drivers()
+        drivers = load_drivers(conf)
     except Exception as err:
         msg = ("Fwaas failed to load drivers. %s"
                % (str(err).capitalize()))
@@ -412,7 +411,7 @@ def init_agent(cm, sc, conf):
 
     rpcmgr = FWaasRpcManager(sc, conf)
     try:
-        events_init(sc, drivers, rpcmgr)
+        events_init(sc, drivers, rpcmgr, conf)
     except Exception as err:
         msg = ("Fwaas Events initialization unsuccessful. %s"
                % (str(err).capitalize()))

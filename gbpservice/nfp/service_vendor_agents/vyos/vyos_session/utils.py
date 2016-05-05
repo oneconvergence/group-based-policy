@@ -2,6 +2,7 @@ import ConfigParser
 import subprocess
 import os
 import logging
+import logging.handlers as handlers
 
 # In production environment CONFIG_DIR should be /etc/pyatta/
 CONFIG_DIR = "/usr/share/vyos-oc"
@@ -67,6 +68,13 @@ def init_logger(logger):
     file_handler.setFormatter(formatter)
     # add the handlers to the logger
     logger.addHandler(file_handler)
+
+    formatter = logging.Formatter('vyos %(name)s %(funcName)s() %(levelname)s '
+                                  '%(message)s')
+    sys_handler = handlers.SysLogHandler(address=('localhost', 514))
+    sys_handler.setFormatter(formatter)
+    sys_handler.setLevel(logging.DEBUG)
+    logger.addHandler(sys_handler)
 
 
 def _run(cmd, output=False):

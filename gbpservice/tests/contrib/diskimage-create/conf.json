@@ -6,7 +6,7 @@
             "cache_path": "~/.cache/image-create",
             "elements": ["nfp-reference-configurator"]
         },
-	"ubuntu_release":
+    "ubuntu_release":
         {
             "release": "wily"
         }

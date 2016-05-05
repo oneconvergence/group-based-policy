@@ -14,7 +14,6 @@ import ast
 import requests
 
 from neutron import context
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
@@ -30,14 +29,14 @@ configuration requests.
 """
 
 
-class FwGenericConfigDriver(object):
+class FwGenericConfigDriver(base_driver.BaseDriver):
     """
     Driver class for implementing firewall configuration
     requests from Orchestrator.
     """
 
     def __init__(self):
-        self.timeout = cfg.CONF.rest_timeout
+        pass
 
     def _configure_static_ips(self, resource_data):
         """ Configure static IPs for provider and stitching interfaces
@@ -66,7 +65,7 @@ class FwGenericConfigDriver(object):
         mgmt_ip = resource_data['mgmt_ip']
 
         url = const.request_url % (mgmt_ip,
-                                   const.CONFIGURATION_SERVER_PORT,
+                                   self.port,
                                    'add_static_ip')
         data = jsonutils.dumps(static_ips_info)
 
@@ -121,6 +120,29 @@ class FwGenericConfigDriver(object):
 
         """
 
+        mgmt_ip = resource_data['mgmt_ip']
+
+        try:
+            result_log_forward = self._configure_log_forwarding(
+                const.request_url, mgmt_ip, self.port)
+        except Exception as err:
+            msg = ("Failed to configure log forwarding for service at %s. "
+                   "Error: %s" % (mgmt_ip, err))
+            LOG.error(msg)
+            return msg
+        else:
+            if result_log_forward == const.UNHANDLED:
+                pass
+            elif result_log_forward != const.STATUS_SUCCESS:
+                msg = ("Failed to configure log forwarding for service at %s. "
+                       "Error: %s" % (mgmt_ip, err))
+                LOG.error(msg)
+                return result_log_forward
+            else:
+                msg = ("Configured log forwarding for service at %s. "
+                       "Result: %s" % (mgmt_ip, result_log_forward))
+                LOG.info(msg)
+
         try:
             result_static_ips = self._configure_static_ips(resource_data)
         except Exception as err:
@@ -138,10 +160,8 @@ class FwGenericConfigDriver(object):
             provider_mac=resource_data['provider_mac'],
             stitching_mac=resource_data['stitching_mac'])
 
-        mgmt_ip = resource_data['mgmt_ip']
-
         url = const.request_url % (mgmt_ip,
-                                   const.CONFIGURATION_SERVER_PORT, 'add_rule')
+                                   self.port, 'add_rule')
         data = jsonutils.dumps(rule_info)
         msg = ("Initiating POST request to add persistent rule to primary "
                "service at: %r" % mgmt_ip)
@@ -200,7 +220,7 @@ class FwGenericConfigDriver(object):
         mgmt_ip = resource_data['mgmt_ip']
 
         url = const.request_url % (mgmt_ip,
-                                   const.CONFIGURATION_SERVER_PORT,
+                                   self.port,
                                    'del_static_ip')
         data = jsonutils.dumps(static_ips_info)
 
@@ -277,7 +297,7 @@ class FwGenericConfigDriver(object):
         msg = ("Initiating DELETE persistent rule.")
         LOG.info(msg)
         url = const.request_url % (mgmt_ip,
-                                   const.CONFIGURATION_SERVER_PORT,
+                                   self.port,
                                    'delete_rule')
 
         try:
@@ -331,7 +351,7 @@ class FwGenericConfigDriver(object):
         # REVISIT(VK): This was all along bad way, don't know why at all it
         # was done like this.
 
-        url = const.request_url % (mgmt_ip, const.CONFIGURATION_SERVER_PORT,
+        url = const.request_url % (mgmt_ip, self.port,
                                    'add-source-route')
         active_configured = False
         route_info = []
@@ -398,7 +418,7 @@ class FwGenericConfigDriver(object):
         # REVISIT(VK): This was all along bad way, don't know why at all it
         # was done like this.
         active_configured = False
-        url = const.request_url % (mgmt_ip, const.CONFIGURATION_SERVER_PORT,
+        url = const.request_url % (mgmt_ip, self.port,
                                    'delete-source-route')
         route_info = []
         for source_cidr in source_cidrs:
@@ -443,14 +463,17 @@ initialized. Also, only this driver class is exposed to the agent.
 """
 
 
-class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
+class FwaasDriver(FwGenericConfigDriver):
     service_type = const.SERVICE_TYPE
     service_vendor = const.VYOS
 
-    def __init__(self):
-        self.timeout = cfg.CONF.rest_timeout
-        self.host = cfg.CONF.host
+    def __init__(self, conf):
+        self.conf = conf
+        self.timeout = const.REST_TIMEOUT
+        self.host = self.conf.host
+        self.port = const.CONFIGURATION_SERVER_PORT
         self.context = context.get_admin_context_without_session()
+        super(FwaasDriver, self).__init__()
 
     def _get_firewall_attribute(self, firewall):
         """ Retrieves management IP from the firewall resource received
@@ -534,7 +557,7 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         LOG.debug(msg)
         mgmt_ip = self._get_firewall_attribute(firewall)
         url = const.request_url % (mgmt_ip,
-                                   const.CONFIGURATION_SERVER_PORT,
+                                   self.port,
                                    'configure-firewall-rule')
         msg = ("Initiating POST request for FIREWALL ID: %r Tenant ID:"
                " %r. URL: %s" % (firewall['id'], firewall['tenant_id'], url))
@@ -592,7 +615,7 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
         mgmt_ip = self._get_firewall_attribute(firewall)
         url = const.request_url % (mgmt_ip,
-                                   const.CONFIGURATION_SERVER_PORT,
+                                   self.port,
                                    'update-firewall-rule')
         msg = ("Initiating UPDATE request. URL: %s" % url)
         LOG.info(msg)
@@ -626,7 +649,7 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
 
         mgmt_ip = self._get_firewall_attribute(firewall)
         url = const.request_url % (mgmt_ip,
-                                   const.CONFIGURATION_SERVER_PORT,
+                                   self.port,
                                    'delete-firewall-rule')
         msg = ("Initiating DELETE request. URL: %s" % url)
         LOG.info(msg)
@@ -675,19 +698,3 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
             self._print_exception('Failure', resp.status_code, url,
                                   'create', resp.content)
             return const.STATUS_ERROR
-
-    def configure_healthmonitor(self, context, kwargs):
-        """Overriding BaseDriver's configure_healthmonitor().
-           It does netcat to CONFIGURATION_SERVER_PORT  8888.
-           Configuration agent runs inside service vm.Once agent is up and
-           reachable, service vm is assumed to be active.
-           :param context - context
-           :param kwargs - kwargs coming from orchestrator
-
-           Returns: SUCCESS/FAILED
-
-        """
-        ip = kwargs.get('mgmt_ip')
-        port = str(const.CONFIGURATION_SERVER_PORT)
-        command = 'nc ' + ip + ' ' + port + ' -z'
-        return self._check_vm_health(command)

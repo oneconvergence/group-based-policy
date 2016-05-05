@@ -31,7 +31,7 @@ class HeatDriver(base_driver.BaseDriver):
     service_type = const.SERVICE_TYPE
     resource_type = const.HEAT_RESOURCE
 
-    def __init__(self):
+    def __init__(self, conf):
         pass
 
     def run_heat(self, context, kwargs):
