@@ -93,12 +93,14 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         rsrc_ctx_dict.update({'service_info': db})
         return ctx_dict, rsrc_ctx_dict
 
-    def _get_pool_desc(self, context, filters):
-        args = {'context': context, 'filters':filters}
-        db_data = super(LbAgent,self)
-        pool_desc =None
-        pool_desc = db_data.get_pools(**args)
-        return pool_desc
+    def _get_pool(self, context, pool_id):
+        try:
+            db_data = super(LbAgent,self)
+            pool =None
+            pool = db_data.get_pool(context, pool_id)
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', e)
+        return pool
 
     def _data_wrapper(self, context, tenant_id, name, reason, **kwargs):
         ctx_dict, rsrc_ctx_dict = self.\
@@ -119,9 +121,8 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         else:
             #common code for health_monitor and member
             pool_id = kwargs['pool_id']
-            filters = {'id':[pool_id]}
-            pool_desc = self._get_pool_desc(context, filters)
-            nf_insinsance = ast.literal_eval(pool_desc[0]['description'])
+            pool_desc = self._get_pool(context, pool_id)
+            nf_insinsance = ast.literal_eval(pool_desc['description'])
             nf_instance_id = nf_insinsance['network_function_instance_id']
             nfp_context.update({'network_function_instance_id':
                                                     nf_instance_id})
