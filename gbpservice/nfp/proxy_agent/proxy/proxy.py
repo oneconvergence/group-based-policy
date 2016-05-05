@@ -146,6 +146,7 @@ class Connection(object):
         self._start_time = time.time()
         self._end_time = time.time()
         self.type = type
+        self.socket_id = self._socket.fileno()
 
     def _tick(self):
         self._idle_count += 1
@@ -170,13 +171,17 @@ class Connection(object):
     def _wait(self, timeout):
         if self.type == 'unix':
             eventlet.sleep(timeout)
-        self._socket.settimeout(timeout)
+            self._socket.settimeout(0.0)
+            self._socket.setblocking(0)
+        else:
+            self._socket.settimeout(timeout)
 
     def recv(self):
         self._wait(self._idle_wait)
         try:
             data = self._socket.recv(1024)
             if data and len(data):
+                LOG(LOGGER, 'ERROR', "socket - %d, length - %d" %(self.identify(), len(data)))
                 self.idle_reset()
                 return data
             self.idle()
@@ -187,14 +192,41 @@ class Connection(object):
         return None
 
     def send(self, data):
-        self._socket.send(data)
+        try:
+            self._socket.setblocking(1)
+            self._socket.settimeout(None)
+            sent = self._socket.send(data)
+            if not sent:
+                LOG(LOGGER, 'ERROR', "Send - socket %d - nothing sent - connection broken" %(self.identify()))
+                return
+        except Exception as exc:
+            LOG(LOGGER, 'ERROR', "Send - socket %d - exception - %s" %(self.identify(), exc))
+
+        """
+        while True:
+            try:
+                self._socket.settimeout(2.0)
+                sent = self._socket.send(data)
+                if not sent:
+                    LOG(LOGGER, 'ERROR', "Send - socket %d - nothing sent - connection broken" %(self.identify()))
+                    return
+            except socket.timeout:
+                LOG(LOGGER, 'ERROR', "Send - socket %d - timedout" %(self.identify()))
+            except Exception as exc:
+                LOG(LOGGER, 'ERROR', "Send - socket %d - exception - %s" %(self.identify(), exc))
+                return
+        """
 
     def close(self):
-        LOG(LOGGER, 'DEBUG', "Closing Socket - %d" % (self.identify()))
-        self._socket.close()
+        try:
+            LOG(LOGGER, 'ERROR', "Closing Socket - %d" % (self.identify()))
+            self._socket.shutdown(socket.SHUT_RDWR)
+            self._socket.close()
+        except Exception as exc:
+            LOG(LOGGER, 'ERROR', "Exception %s while closing socket %d" %(exc, self.identify()))
 
     def identify(self):
-        return self._socket.fileno()
+        return self.socket_id
 
 
 """
@@ -227,7 +259,7 @@ class ProxyConnection(object):
             self._proxy(self._tcp_conn, self._unix_conn)
             return True
         except Exception as exc:
-            LOG(LOGGER, 'DEBUG', "%s" % (exc))
+            LOG(LOGGER, 'ERROR', "%s" % (exc))
             self._unix_conn.close()
             self._tcp_conn.close()
             return False
