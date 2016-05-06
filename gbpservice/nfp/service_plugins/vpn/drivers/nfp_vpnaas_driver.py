@@ -11,6 +11,7 @@
 #    under the License.
 
 import socket
+import time
 
 from gbpservice.nfp.config_orchestrator.agent import topics
 from neutron_lib import exceptions
@@ -19,6 +20,7 @@ from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron import manager
 from neutron_vpnaas.services.vpn.plugin import VPNPlugin
+from neutron_vpnaas.services.vpn.plugin import VPNDriverPlugin
 from neutron_vpnaas.services.vpn import service_drivers
 from neutron_vpnaas.services.vpn.service_drivers import base_ipsec
 
@@ -29,6 +31,9 @@ LOG = logging.getLogger(__name__)
 
 BASE_VPN_VERSION = '1.0'
 AGENT_TYPE_VPN = 'NFP Vpn agent'
+ACTIVE = 'ACTIVE'
+ERROR = 'ERROR'
+TIMEOUT = 45
 
 
 class VPNAgentHostingServiceNotFound(exceptions.NeutronException):
@@ -69,6 +74,11 @@ class NFPIPsecVPNDriverCallBack(base_ipsec.IPsecVpnDriverCallBack):
         """ Delete ipsec connection notification from driver."""
         plugin = self.driver.service_plugin
         plugin._delete_ipsec_site_connection(context, ipsec_site_conn_id)
+
+    def vpnservice_deleted(self, context, **kwargs):
+        vpnservice_id = kwargs['id']
+        plugin = self.driver.service_plugin
+        plugin._delete_vpnservice(context, vpnservice_id)
 
 
 class NFPIPsecVpnAgentApi(base_ipsec.IPsecVpnAgentApi):
@@ -183,14 +193,46 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
         service_vendor = self._get_service_vendor(
                                     context,
                                     ipsec_site_connection['vpnservice_id'])
-        self.agent_rpc.vpnservice_updated(
-            context,
-            ipsec_site_connection['vpnservice_id'],
-            rsrc_type='ipsec_site_connection',
-            svc_type=self.service_type,
-            rsrc_id=ipsec_site_connection['id'],
-            resource=ipsec_site_connection,
-            reason='create', service_vendor=service_vendor)
+
+        starttime = endtime = time.time()
+        while(endtime - starttime) < TIMEOUT:
+            vpnservice = self.service_plugin.get_vpnservice(
+                                        context,
+                                        ipsec_site_connection['vpnservice_id'])
+            if vpnservice['status'] == ACTIVE:
+                self.agent_rpc.vpnservice_updated(
+                    context,
+                    ipsec_site_connection['vpnservice_id'],
+                    rsrc_type='ipsec_site_connection',
+                    svc_type=self.service_type,
+                    rsrc_id=ipsec_site_connection['id'],
+                    resource=ipsec_site_connection,
+                    reason='create', service_vendor=service_vendor)
+                break
+            elif vpnservice['status'] == ERROR:
+                LOG.error('updating ipsec_site_conn to ERROR state')
+                self._update_ipsec_conn_state(context, ipsec_site_connection)
+                break
+            time.sleep(5)
+            endtime = time.time()
+        else:
+            LOG.error('updating ipsec_site_conn to ERROR state')
+            self._update_ipsec_conn_state(context, ipsec_site_connection)
+
+    def _update_ipsec_conn_state(self, context, ipsec_site_connection):
+        vpnsvc_status = [{
+            'id': ipsec_site_connection['vpnservice_id'],
+            'status':ERROR,
+            'updated_pending_status':False,
+            'ipsec_site_connections':{
+                ipsec_site_connection['id']: {
+                    'status': ERROR,
+                    'updated_pending_status': True}}}]
+        driver = VPNDriverPlugin()._get_driver_for_ipsec_site_connection(
+                                                    context,
+                                                    ipsec_site_connection)
+        NFPIPsecVPNDriverCallBack(driver).update_status(context,
+                                                        vpnsvc_status)
 
     def delete_ipsec_site_connection(self, context, ipsec_site_connection):
         service_vendor = self._get_service_vendor(
@@ -216,3 +258,15 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
             rsrc_id=vpnservice['id'],
             resource=vpnservice,
             reason='create', service_vendor=service_vendor)
+
+    def delete_vpnservice(self, context, vpnservice):
+        service_vendor = self._get_service_vendor(context,
+                                                  vpnservice['id'])
+        self.agent_rpc.vpnservice_updated(
+            context,
+            vpnservice['id'],
+            rsrc_type='vpn_service',
+            svc_type=self.service_type,
+            rsrc_id=vpnservice['id'],
+            resource=vpnservice,
+            reason='delete', service_vendor=service_vendor)
