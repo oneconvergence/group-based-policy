@@ -79,9 +79,15 @@
                 },
                 "mtu": 1500,
                 "name": "site_to_site_connection1",
+<<<<<<< HEAD
                 "peer_address": "192.168.102.117",
                 "peer_cidrs": ["19.0.0.0/24"],
                 "peer_id": "19.0.0.3",
+=======
+                "peer_address": "192.168.102.89",
+                "peer_cidrs": ["12.0.0.0/24"],
+                "peer_id": "12.0.0.3",
+>>>>>>> 871db40... Initial commit to merge neutron_aas branch with the latest sc2.0 mitaka release code. Fw and vpn code changes which were made for neutron*aas are yet to be synched.
                 "psk": "secret",
                 "vpnservice_id": {
                     "get_resource": "VPNService"

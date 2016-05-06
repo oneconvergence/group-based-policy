@@ -161,7 +161,7 @@ class Filter(object):
         """
         return self._get_ipsec_site2site_contexts(context, filters)
 
-    def _get_ipsec_site2site_contexts(self, context, filters=None):
+    def _get_ipsec_site2site_contexts(self, context, filters={}):
         """ Get ipsec site to site context
         :param filters
         e.g {'tenant_id': <value>,

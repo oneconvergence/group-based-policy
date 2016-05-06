@@ -13,10 +13,7 @@
 DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.vpn'
 
 SERVICE_TYPE = 'vpn'
-<<<<<<< HEAD
 SERVICE_VENDOR = 'vyos'
-=======
->>>>>>> 72295a4... Adding a missing file in the merge
 
 STATE_PENDING = 'PENDING_CREATE'
 STATE_INIT = 'INIT'
@@ -31,10 +28,7 @@ STATUS_ERROR = "ERROR"
 STATUS_SUCCESS = "SUCCESS"
 
 CONFIGURATION_SERVER_PORT = 8888
-<<<<<<< HEAD
-REST_TIMEOUT = 90
-=======
->>>>>>> 72295a4... Adding a missing file in the merge
+REST_TIMEOUT = 240
 request_url = "http://%s:%s/%s"
 SUCCESS_CODES = [200, 201, 202, 203, 204]
 ERROR_CODES = [400, 404, 500]
