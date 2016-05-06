@@ -53,17 +53,22 @@ def rpc_init(controller, config):
 
 
 def events_init(controller, config, service_orchestrator):
-    events = ['DELETE_NETWORK_FUNCTION', 'CREATE_NETWORK_FUNCTION_INSTANCE',
-              'DELETE_NETWORK_FUNCTION_INSTANCE', 'DEVICE_CREATED',
-              'DEVICE_ACTIVE', 'DEVICE_DELETED', 'APPLY_USER_CONFIG',
-              'DELETE_USER_CONFIG', 'UPDATE_USER_CONFIG', 'POLICY_TARGET_ADD',
-              'POLICY_TARGET_REMOVE', 'CONSUMER_ADD', 'CONSUMER_REMOVE',
+    events = ['DELETE_NETWORK_FUNCTION',
+              'CREATE_NETWORK_FUNCTION_INSTANCE',
+              'DELETE_NETWORK_FUNCTION_INSTANCE',
+              'DEVICE_CREATED', 'DEVICE_ACTIVE', 'DEVICE_DELETED',
+              'DEVICE_CREATE_FAILED',
+              'APPLY_USER_CONFIG', 'DELETE_USER_CONFIG', 'UPDATE_USER_CONFIG',
+              'POLICY_TARGET_ADD', 'POLICY_TARGET_REMOVE',
+              'CONSUMER_ADD', 'CONSUMER_REMOVE',
               'APPLY_USER_CONFIG_IN_PROGRESS',
+              'UPDATE_USER_CONFIG_PREPARING_TO_START'
               'UPDATE_USER_CONFIG_IN_PROGRESS',
-              'DELETE_USER_CONFIG_IN_PROGRESS', 'USER_CONFIG_APPLIED',
-              'USER_CONFIG_DELETED', 'USER_CONFIG_DELETE_FAILED',
-              'DEVICE_CREATE_FAILED', 'USER_CONFIG_FAILED',
-              'UPDATE_USER_CONFIG_FAILED', 'CONFIG_APPLIED']
+              'UPDATE_USER_CONFIG_STILL_IN_PROGRESS'
+              'DELETE_USER_CONFIG_IN_PROGRESS',
+              'CONFIG_APPLIED', 'USER_CONFIG_APPLIED', 'USER_CONFIG_DELETED',
+              'USER_CONFIG_DELETE_FAILED', 'USER_CONFIG_UPDATE_FAILED',
+              'USER_CONFIG_FAILED']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -364,37 +369,37 @@ class ServiceOrchestrator(object):
     def event_method_mapping(self, event_id):
         event_handler_mapping = {
             "DELETE_NETWORK_FUNCTION": self.delete_network_function,
-            "DELETE_NETWORK_FUNCTION_INSTANCE": (
-                self.delete_network_function_instance),
             "CREATE_NETWORK_FUNCTION_INSTANCE": (
                 self.create_network_function_instance),
+            "DELETE_NETWORK_FUNCTION_INSTANCE": (
+                self.delete_network_function_instance),
             "DEVICE_CREATED": self.handle_device_created,
             "DEVICE_ACTIVE": self.handle_device_active,
+            "DEVICE_DELETED": self.handle_device_deleted,
+            "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
             "APPLY_USER_CONFIG": self.apply_user_config,
-            "APPLY_USER_CONFIG_IN_PROGRESS": (
-                self.check_for_user_config_complete),
-            "USER_CONFIG_APPLIED": self.handle_user_config_applied,
-            "UPDATE_USER_CONFIG": self.handle_update_user_config,
-            "UPDATE_USER_CONFIG_PREPARING_TO_START": self.check_for_user_config_deleted,
-            "UPDATE_USER_CONFIG_IN_PROGRESS": (
-                self.handle_continue_update_user_config),
-            "UPDATE_USER_CONFIG_STILL_IN_PROGRESS": (
-                self.check_for_user_config_complete),
             "DELETE_USER_CONFIG": self.delete_user_config,
-            "DELETE_USER_CONFIG_IN_PROGRESS": (
-                self.check_for_user_config_deleted),
-            "USER_CONFIG_DELETED": self.handle_user_config_deleted,
-            "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
+            "UPDATE_USER_CONFIG": self.handle_update_user_config,
             "POLICY_TARGET_ADD": self.policy_target_add_user_config,
             "POLICY_TARGET_REMOVE": self.policy_target_remove_user_config,
             "CONSUMER_ADD": self.consumer_ptg_add_user_config,
             "CONSUMER_REMOVE": self.consumer_ptg_remove_user_config,
-            "DEVICE_DELETED": self.handle_device_deleted,
-            "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
-            "USER_CONFIG_FAILED": self.handle_user_config_failed,
-            "UPDATE_USER_CONFIG_FAILED": (
-                self.handle_update_user_config_failed),
-            "CONFIG_APPLIED": self.handle_config_applied
+            "APPLY_USER_CONFIG_IN_PROGRESS": (
+                self.check_for_user_config_complete),
+            "UPDATE_USER_CONFIG_PREPARING_TO_START": (
+                self.check_for_user_config_deleted),
+            "UPDATE_USER_CONFIG_IN_PROGRESS": (
+                self.handle_continue_update_user_config),
+            "UPDATE_USER_CONFIG_STILL_IN_PROGRESS": (
+                self.check_for_user_config_complete),
+            "DELETE_USER_CONFIG_IN_PROGRESS": (
+                self.check_for_user_config_deleted),
+            "CONFIG_APPLIED": self.handle_config_applied,
+            "USER_CONFIG_APPLIED": self.handle_user_config_applied,
+            "USER_CONFIG_DELETED": self.handle_user_config_deleted,
+            "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
+            "USER_CONFIG_UPDATE_FAILED": self.handle_update_user_config_failed,
+            "USER_CONFIG_FAILED": self.handle_user_config_failed
         }
         if event_id not in event_handler_mapping:
             raise Exception("Invalid Event ID")
@@ -851,7 +856,7 @@ class ServiceOrchestrator(object):
             'network_function_details': network_function_details
         }
         if not config_id:
-            event_id = ('UPDATE_USER_CONFIG_FAILED'
+            event_id = ('USER_CONFIG_UPDATE_FAILED'
                         if request_data['operation'] == 'update'
                         else 'USER_CONFIG_FAILED')
             self._create_event(event_id,
