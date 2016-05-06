@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import zlib
 import oslo_serialization.jsonutils as jsonutils
 
 from neutron.agent.common import config
@@ -19,9 +18,8 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 import pecan
-from pecan import rest
-from pecan.hooks import PecanHook
-from pecan.hooks import HookController
+
+from base_controller import BaseController
 
 LOG = logging.getLogger(__name__)
 n_rpc.init(cfg.CONF)
@@ -38,25 +36,7 @@ call/cast to configurator and return response to config-agent
 """
 
 
-class DataEvaluatorHook(PecanHook):
-
-    def before(self, state):
-        try:
-            zippedBody = state.request.body
-            body = zlib.decompress(zippedBody)
-            body = jsonutils.loads(body)
-            state.request.json_body = body
-        except Exception as e:
-            LOG.error("Failed to process data ,Reason: %s", e)
-
-    def after(self, state):
-        data = state.response.body
-        state.response.body = zlib.compress(data)
-
-
-class Controller(rest.RestController, HookController):
-
-    __hooks__ = [DataEvaluatorHook()]
+class Controller(BaseController):
 
     def __init__(self, method_name):
         try:
