@@ -296,7 +296,6 @@ class PollQueueHandler(object):
 
         if poll:
             uevent.serialize = False
-            uevent.data = uevent.compress(uevent.data)
             return self._sc.poll_event(uevent, max_times=uevent.max_times)
 
     def _schedule(self, ev):

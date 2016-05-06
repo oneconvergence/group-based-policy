@@ -452,7 +452,6 @@ class ServiceOrchestrator(object):
         else:
             # Same module API, so calling corresponding function directly.
             event = self._controller.new_event(id=event_id, data=event_data)
-            event.decompress()
             self.handle_event(event)
 
     def _get_base_mode_support(self, service_profile_id):

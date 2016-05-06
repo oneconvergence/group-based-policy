@@ -58,7 +58,7 @@ class Event(object):
         # ID of the event, can be same for multiple events
         self.id = kwargs.get('id')
         # Module context, not decoded by core
-        self.data = self.compress(kwargs.get('data', None))
+        self.data = kwargs.get('data', None)
         # Handler used only @the time of registration
         self.handler = kwargs.get('handler', None)
         # To serialize this event.
@@ -70,25 +70,6 @@ class Event(object):
         # Max number of times this event can be polled.
         # Default, till stopped or forever.
         self.max_times = -1
-
-    def compress(self, data):
-        if data and not self.zipped:
-            self.zipped = True
-            return zlib.compress(str({'cdata': data}))
-        else:
-            return data
-
-    def decompress(self):
-        if self.data and self.zipped:
-            try:
-                data = ast.literal_eval(
-                    zlib.decompress(self.data))
-                self.data = data['cdata']
-                self.zipped = False
-            except Exception as e:
-                LOG(LOGGER, 'ERROR',
-                    "Failed to decompress event data : %s Reason: %s" % (
-                        self.data, e))
 
     def identify(self):
         if hasattr(self, 'desc'):
@@ -285,7 +266,7 @@ class EventQueueHandler(object):
         while True:
             event = self._get()
             if event:
-                event.decompress()
+                self._sc.decompress(event)
                 LOG(LOGGER, 'DEBUG',
                     "%s - worker - got new event" % (event.identify()))
                 eh = self._ehs.get(event)
