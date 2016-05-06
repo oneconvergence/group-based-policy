@@ -20,6 +20,8 @@ from oslo_log import log as logging
 import oslo_messaging
 import pecan
 from pecan import rest
+from pecan.hooks import PecanHook
+from pecan.hooks import HookController
 
 LOG = logging.getLogger(__name__)
 n_rpc.init(cfg.CONF)
@@ -36,7 +38,25 @@ call/cast to configurator and return response to config-agent
 """
 
 
-class Controller(rest.RestController):
+class DataEvaluatorHook(PecanHook):
+
+    def before(self, state):
+        try:
+            zippedBody = state.request.body
+            body = zlib.decompress(zippedBody)
+            body = jsonutils.loads(body)
+            state.request.json_body = body
+        except Exception as e:
+            LOG.error("Failed to process data ,Reason: %s", e)
+
+    def after(self, state):
+        data = state.response.body
+        state.response.body = zlib.compress(data)
+
+
+class Controller(rest.RestController, HookController):
+
+    __hooks__ = [DataEvaluatorHook()]
 
     def __init__(self, method_name):
         try:
@@ -77,7 +97,7 @@ class Controller(rest.RestController):
 
             self.rpc_routing_table[api].append(CloudService(**service))
 
-    @pecan.expose(method='GET', content_type='application/octet-stream')
+    @pecan.expose(method='GET', content_type='application/json')
     def get(self):
         """Method of REST server to handle request get_notifications.
 
@@ -97,18 +117,17 @@ class Controller(rest.RestController):
                 msg = ("NOTIFICATION_DATA sent to config_agent %s"
                        % notification_data)
                 LOG.info(msg)
-                notifications = jsonutils.dumps(notification_data)
-                return zlib.compress(notifications)
+                return jsonutils.dumps(notification_data)
+
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to get handle request=%s. Reason=%s."
                    % (self.method_name, str(err).capitalize()))
             LOG.error(msg)
             error_data = self._format_description(msg)
-            errors = jsonutils.dumps(error_data)
-            return zlib.compress(errors)
+            return jsonutils.dumps(error_data)
 
-    @pecan.expose(method='POST', content_type='application/octet-stream')
+    @pecan.expose(method='POST', content_type='application/json')
     def post(self, **body):
         """Method of REST server to handle all the post requests.
 
@@ -125,9 +144,7 @@ class Controller(rest.RestController):
         try:
             body = None
             if pecan.request.is_body_readable:
-                zippedBody = pecan.request.body
-                body = zlib.decompress(zippedBody)
-                body = jsonutils.loads(body)
+                body = pecan.request.json_body
             if self.method_name == 'network_function_event':
                 routing_key = 'VISIBILITY'
             else:
@@ -139,6 +156,7 @@ class Controller(rest.RestController):
 
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
+
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."
@@ -147,10 +165,9 @@ class Controller(rest.RestController):
             LOG.debug(extra_import)
             LOG.error(msg)
             error_data = self._format_description(msg)
-            errors = jsonutils.dumps(error_data)
-            return zlib.compress(errors)
+            return jsonutils.dumps(error_data)
 
-    @pecan.expose(method='PUT', content_type='application/octet-stream')
+    @pecan.expose(method='PUT', content_type='application/json')
     def put(self, **body):
         """Method of REST server to handle all the put requests.
 
@@ -166,9 +183,7 @@ class Controller(rest.RestController):
         try:
             body = None
             if pecan.request.is_body_readable:
-                zippedBody = pecan.request.body
-                body = zlib.decompress(zippedBody)
-                body = jsonutils.loads(body)
+                body = pecan.request.json_body
             if self.method_name == 'network_function_event':
                 routing_key = 'VISIBILITY'
             else:
@@ -177,17 +192,16 @@ class Controller(rest.RestController):
                 uservice.rpcclient.cast(self.method_name, body)
                 msg = ('Sent RPC to %s' % (uservice.topic))
                 LOG.info(msg)
-
             msg = ("Successfully served HTTP request %s" % self.method_name)
             LOG.info(msg)
+
         except Exception as err:
             pecan.response.status = 400
             msg = ("Failed to serve HTTP put request %s %s."
                    % (self.method_name, str(err).capitalize()))
             LOG.error(msg)
             error_data = self._format_description(msg)
-            errors = jsonutils.dumps(error_data)
-            return zlib.compress(errors)
+            return jsonutils.dumps(error_data)
 
     def _format_description(self, msg):
         """This methgod formats error description.
