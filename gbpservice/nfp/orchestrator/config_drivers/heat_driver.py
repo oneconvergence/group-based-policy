@@ -1176,19 +1176,6 @@ class HeatDriver(object):
 
         if stack_id:
             if service_type == pconst.VPN or service_type == pconst.FIREWALL:
-                #heatclient.delete(stack_id)
-                #try:
-                #    self._wait_for_stack_operation_complete(heatclient,
-                #                                            stack_id,
-                #                                            'delete')
-                #except Exception as err:
-                #    LOG.error(_LE("Stack deletion failed for STACK ID - "
-                #                  "%(stack_id)s for Tenant - %(tenant_id)s . "
-                #                  "ERROR - %(err)s") %
-                #              {'stack_id': stack_id,
-                #               'tenant_id': provider_tenant_id,
-                #               'err': str(err)})
-                #    return None
                 stack_name = ("stack_" + service_chain_instance['name'] +
                               service_chain_node['name'] +
                               service_chain_instance['id'][:8] +
@@ -1204,26 +1191,7 @@ class HeatDriver(object):
                            '- %r' % (provider_tenant_id, str(err)))
                     LOG.exception(_LE('%(msg)s') % {'msg': msg})
                     return None
-                #try:
-                #    self._wait_for_stack_operation_complete(
-                #        heatclient, stack["stack"]["id"], "create")
                 stack_id = stack["stack"]["id"]
-                #except Exception as err:
-                #    msg = ('Node update failed. There can be a chance if the '
-                #           'service is FIREWALL or VPN, the related '
-                #           'configuration would have been lost. Please check '
-                #           'with the ADMIN for issue of failure and '
-                #           're-initiate the update node once again.')
-                #    LOG.exception(_LE('%(msg)s NODE-ID: %(node_id)s '
-                #                      'INSTANCE-ID: %(instance_id)s '
-                #                      'TenantID: %(tenant_id)s . '
-                #                      'ERROR: %(err)s') %
-                #                  {'msg': msg,
-                #                   'node_id': service_chain_node['id'],
-                #                   'instance_id': service_chain_instance['id'],
-                #                   'tenant_id': provider_tenant_id,
-                #                   'err': str(err)})
-                    #return None
             else:
                 try:
                     heatclient.update(stack_id, stack_template, stack_params)
