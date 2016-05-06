@@ -74,6 +74,14 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             nfp_context.update(
                 {'network_function_instance_id': nf_instance_id,
                  'ipsec_site_connection_id': ipsec_site_connection_id})
+        else:
+            resourec_desc = self._get_dict_desc_from_string(kwargs[
+                'resource']['description'])
+            nf_instance_id = resourec_desc['nf_instance_id']
+            nfp_context.update(
+                {'network_function_instance_id': nf_instance_id})
+        rsrc_ctx_dict.update(
+                {'network_function_instance_id': nf_instance_id})
         kwargs.update({'neutron_context': rsrc_ctx_dict})
         resource_data = kwargs
         body = common.prepare_request_data(nfp_context, resource,
@@ -151,9 +159,11 @@ class VpnNotifier(object):
         resource_data = notification_data['notification'][0]['data']
         notification_info = notification_data['info']
         status = resource_data['status']
-        msg = ("NCO received VPN's update_status API,"
+        nf_instance_id = notification_info['context'][
+                                           'network_function_instance_id']
+        msg = ("[%s] NCO received VPN's update_status API,"
                "making an update_status RPC call to plugin for object"
-               "with status %s" % (status))
+               "with status %s" % (nf_instance_id, status))
         LOG(LOGGER, 'INFO', " %s " % (msg))
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt.cast(context, 'update_status',
@@ -183,23 +193,27 @@ class VpnNotifier(object):
         resource_data = notification_data['notification'][0]['data']
         notification_info = notification_data['info']
         resource_id = resource_data['resource_id']
-        msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
+        nf_instance_id = notification_info['context'][
+                                           'network_function_instance_id']
+        msg = ("[%s] NCO received VPN's ipsec_site_conn_deleted API,"
                "making an ipsec_site_conn_deleted RPC call to plugin for "
                " ipsec ")
-        LOG(LOGGER, 'INFO', " %s " % (msg))
+        LOG(LOGGER, 'INFO', " %s " % (nf_instance_id, msg))
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
                              id=resource_id)
 
         # Sending An Event for visiblity
-        nf_instance_id = notification_info['context']['network_function_instance_id']
         ipsec_id = notification_info['context']['ipsec_site_connection_id']
         resource_id = notification_info['context']['ipsec_site_connection_id']
         service_type = notification_info['service_type']
         request_data = self._prepare_request_data(context, nf_instance_id,
                                                   resource_id, ipsec_id,
                                                   service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_instance_id))
+        log_msg = ("[%s] %s : %s" %(nf_instance_id,
+                                    request_data,
+                                    nf_instance_id))
+        LOG(LOGGER, 'INFO', "%s" % (log_msg))
 
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)
