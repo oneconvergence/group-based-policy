@@ -1145,6 +1145,14 @@ class HeatDriver(object):
             return None
         return stack_id
 
+    def is_update_config_supported(self, service_type):
+        return (
+            False
+            if (service_type == pconst.VPN or
+                service_type == pconst.FIREWALL)
+            else True
+        )
+
     def _update(self, auth_token, resource_owner_tenant_id, service_profile,
                 service_chain_node, service_chain_instance, provider,
                 consumer_port, network_function, provider_port, stack_id,

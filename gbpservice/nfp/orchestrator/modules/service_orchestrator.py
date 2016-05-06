@@ -375,9 +375,10 @@ class ServiceOrchestrator(object):
                 self.check_for_user_config_complete),
             "USER_CONFIG_APPLIED": self.handle_user_config_applied,
             "UPDATE_USER_CONFIG": self.handle_update_user_config,
-            "CONTINUE_UPDATE_USER_CONFIG": (
-                                    self.handle_continue_update_user_config),
+            "UPDATE_USER_CONFIG_PREPARING_TO_START": self.check_for_user_config_deleted,
             "UPDATE_USER_CONFIG_IN_PROGRESS": (
+                self.handle_continue_update_user_config),
+            "UPDATE_USER_CONFIG_STILL_IN_PROGRESS": (
                 self.check_for_user_config_complete),
             "DELETE_USER_CONFIG": self.delete_user_config,
             "DELETE_USER_CONFIG_IN_PROGRESS": (
@@ -439,7 +440,16 @@ class ServiceOrchestrator(object):
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:
-                ev = self._controller.new_event(id=event_id, data=event_data)
+                if serialize:
+                    network_function_id = event_data['network_function_id']
+                    ev = self._controller.new_event(
+                        id=event_id, data=event_data,
+                        binding_key=network_function_id,
+                        key=network_function_id,
+                        serialize=True)
+                else:
+                    ev = self._controller.new_event(id=event_id,
+                                                    data=event_data)
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
@@ -785,7 +795,7 @@ class ServiceOrchestrator(object):
         network_function = network_function_details['network_function']
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
-        if service_type == pconst.VPN or service_type == pconst.FIREWALL:
+        if self.config_driver.is_update_config_supported(service_type):
             service_chain_id = network_function['service_chain_id']
             admin_token = self.keystoneclient.get_admin_token()
             servicechain_instance = self.gbpclient.get_servicechain_instance(
@@ -805,11 +815,11 @@ class ServiceOrchestrator(object):
                     'action': 'update',
                     'operation': request_data['operation']
             }
-            self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
+            self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,
                                is_poll_event=True, original_event=event)
         else:
-            self._create_event('CONTINUE_UPDATE_USER_CONFIG',
+            self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                                event_data=event.data,
                                is_internal_event=True)
 
@@ -847,12 +857,14 @@ class ServiceOrchestrator(object):
             self._create_event(event_id,
                                event_data=request_data,
                                is_internal_event=True)
+            if event.binding_key:
+                self._controller.event_done(event)
             return
         self.db_handler.update_network_function(
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
-        self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
+        self._create_event('UPDATE_USER_CONFIG_STILL_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
 
@@ -999,11 +1011,10 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            self._controller.event_done(event)
             if request_data['action'] == 'update':
-                self._create_event("CONTINUE_UPDATE_USER_CONFIG",
+                self._create_event("UPDATE_USER_CONFIG_IN_PROGRESS",
                                    event_data=request_data,
-                                   is_internal_event=True)
+                                   serialize=True)
             else:
                 event_data = {
                     'network_function_id': request_data['network_function_id']
@@ -1011,6 +1022,7 @@ class ServiceOrchestrator(object):
                 self._create_event('USER_CONFIG_DELETED',
                                    event_data=event_data,
                                    is_internal_event=True)
+                self._controller.event_done(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
@@ -1297,7 +1309,7 @@ class ServiceOrchestrator(object):
         network_function = network_function_details['network_function']
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
-        if service_type == pconst.VPN or service_type == pconst.FIREWALL:
+        if self.config_driver.is_update_config_supported(service_type):
             stack_id = self.config_driver.delete_config(
                                                 stack_id,
                                                 consumer_ptg['tenant_id'])
@@ -1309,11 +1321,11 @@ class ServiceOrchestrator(object):
                     'operation': request_data['operation'],
                     'consumer_ptg': request_data['consumer_ptg']
             }
-            self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
+            self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,
                                is_poll_event=True, original_event=event)
         else:
-            self._create_event('CONTINUE_UPDATE_USER_CONFIG',
+            self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                                event_data=event.data,
                                is_internal_event=True)
 
@@ -1361,7 +1373,7 @@ class ServiceOrchestrator(object):
         network_function = network_function_details['network_function']
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
-        if service_type == pconst.VPN or service_type == pconst.FIREWALL:
+        if self.config_driver.is_update_config_supported(service_type):
             stack_id = self.config_driver.delete_config(
                                                 stack_id,
                                                 consumer_ptg['tenant_id'])
@@ -1373,11 +1385,11 @@ class ServiceOrchestrator(object):
                     'operation': request_data['operation'],
                     'consumer_ptg': request_data['consumer_ptg']
             }
-            self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
+            self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,
                                is_poll_event=True, original_event=event)
         else:
-            self._create_event('CONTINUE_UPDATE_USER_CONFIG',
+            self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                                event_data=event.data,
                                is_internal_event=True)
 
