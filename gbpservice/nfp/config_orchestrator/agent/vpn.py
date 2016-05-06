@@ -69,7 +69,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         if resource.lower() == 'ipsec_site_connection':
             ipsec_desc = self._get_dict_desc_from_string(kwargs[
                 'resource']['description'])
-            nf_instance_id = ipsec_desc['network_function_instance_id']
+            nf_instance_id = ipsec_desc['nf_instance_id']
             ipsec_site_connection_id = kwargs['rsrc_id']
             nfp_context.update(
                 {'network_function_instance_id': nf_instance_id,
@@ -160,8 +160,8 @@ class VpnNotifier(object):
                              status=status)
 
         # Sending An Event for visiblity
-        if resource_data['resource'].lower() is\
-                'ipsec_site_connection':
+        _resource = ((notification_data['notification'][0]['resource']).lower())
+        if _resource == 'ipsec_site_connection':
             nf_instance_id = notification_info['context'][
                                                'network_function_instance_id']
             ipsec_id = notification_info['context']['ipsec_site_connection_id']
