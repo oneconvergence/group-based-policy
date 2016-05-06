@@ -10,8 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import pika
-
 from gbpservice.nfp.configurator.lib import constants as const
 from oslo_log import log as logging
 
@@ -83,67 +81,51 @@ class AgentBaseRPCManager(object):
                                    data=args_dict, key=None)
             self.sc.post_event(ev)
         else:
-            sa_req_list[0]['context'].update(
-                {'notification_data': notification_data})
-            sa_req_list[0]['context'].update(
-                {'resource': sa_req_list[0]['resource']})
-            getattr(self, sa_req_list[0]['method'])(
-                sa_req_list[0]['context'],
-                **sa_req_list[0]['kwargs'])
-
-
-""" RMQPublisher for under the cloud services.
-
-    This class acts as publisher to publish all the notification events to
-    under the cloud services on rabbitmq's 'configurator-notifications'queue.
-"""
+            agent_info = sa_req_list[0]['agent_info']
+            # Renaming the neutron context in resource data of *aaS to context.
+            # Adding agent_info which contains information required for
+            # demux and response data in agent to neutron_context in *aaS
+            if not sa_req_list[0]['is_generic_config'] and not (
+                        agent_info['resource'] in const.NFP_SERVICE_LIST):
+                # Here, the neutron context is overloaded with agent_info
+                # dict which contains the API context in addition to other
+                # fields like service type, service vendor, resource etc.
+                # The agent_info dict is constructed inside the demuxer library
+                sa_req_list[0]['resource_data']['neutron_context'].update(
+                                                    {'agent_info': agent_info})
+                # When calling the *aaS or NFPService agents, the
+                # "neutron context" passed inside the resource data is
+                # renamed to "context"
+                sa_req_list[0]['resource_data']['context'] = sa_req_list[0][
+                                        'resource_data'].pop('neutron_context')
+                getattr(self, sa_req_list[0]['method'])(
+                                            **sa_req_list[0]['resource_data'])
+            else:
+                sa_req_list[0]['agent_info'].update(
+                    {'notification_data': notification_data})
+                getattr(self, sa_req_list[0]['method'])(
+                                agent_info, sa_req_list[0]['resource_data'])
 
 
 class AgentBaseNotification(object):
 
     def __init__(self, sc):
         self.sc = sc
-        self.queue = const.NOTIFICATION_QUEUE
-        self.rabbitmq_host = const.RABBITMQ_HOST
-        self.create_connection()
-
-    def create_connection(self):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                                                  host=self.rabbitmq_host,
-                                                  heartbeat_interval=0))
 
     def _notification(self, data):
-        """Enqueues notification event into rabbitmq's
-           'configurator-notifications' queue
+        """Enqueues notification event into notification queue
 
-        These events are enqueued into 'configurator-notifications' queue
-        and are retrieved when get_notifications() API lands on configurator.
+        These events are enqueued into notification queue and are retrieved
+        when get_notifications() API lands on configurator.
 
         :param data: Event data blob
 
         Returns: None
 
         """
-
-        try:
-            self.channel = self.connection.channel()
-            self.channel.queue_declare(queue=self.queue,
-                                       # make queue persistent
-                                       durable=True
-                                       )
-            body = str(data)
-            self.channel.basic_publish(exchange='',
-                                       routing_key=self.queue,
-                                       body=body,
-                                       properties=pika.BasicProperties(
-                                           # make msg persistent
-                                           delivery_mode=2
-                                       ))
-            self.channel.close()
-        except Exception as e:
-            self.connection.close()
-            self.create_connection()
-            self._notification(data)
+        event = self.sc.new_event(
+                id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
+        self.sc.stash_event(event)
 
 
 class AgentBaseEventHandler(object):
@@ -178,24 +160,30 @@ class AgentBaseEventHandler(object):
                 # Process the first data blob from the request list.
                 # Get necessary parameters needed for driver method invocation.
                 method = request['method']
-                resource = request['resource']
-                kwargs = request['kwargs']
-                request_info = kwargs['kwargs']['request_info']
-                del kwargs['kwargs']['request_info']
-                context = request['context']
-                service_type = kwargs.get('kwargs').get('service_type')
+                is_generic_config = request['is_generic_config']
+                resource_data = request['resource_data']
+                agent_info = request['agent_info']
+                resource = agent_info['resource']
+                # agent_info contains the API context.
+                context = agent_info['context']
+                service_vendor = agent_info['service_vendor']
+                service_type = agent_info['resource_type']
+
+                if not is_generic_config:
+                    sa_req_list[0]['resource_data']['context'] = sa_req_list[
+                                    0]['resource_data'].pop('neutron_context')
 
                 # Get the service driver and invoke its method
-                driver = self._get_driver(service_type)
+                driver = self._get_driver(service_type, service_vendor)
 
                 # Service driver should return "success" on successful API
                 # processing. All other return values and exceptions are
                 # treated as failures.
-                result = getattr(driver, method)(context, **kwargs)
-                if result == 'SUCCESS':
-                    success = True
+                if is_generic_config:
+                    result = getattr(driver, method)(context, resource_data)
                 else:
-                    success = False
+                    result = getattr(driver, method)(**resource_data)
+                success = True if result == 'SUCCESS' else False
             except Exception as err:
                 result = ("Failed to process %s request. %s" %
                           (method, str(err).capitalize()))
@@ -203,20 +191,17 @@ class AgentBaseEventHandler(object):
             finally:
                 # Prepare success notification and populate notification
                 # data list
-                msg = {
-                    'receiver': const.ORCHESTRATOR,
-                    'resource': const.ORCHESTRATOR,
-                    'method': const.NFD_NOTIFICATION,
-                    'kwargs': [
-                        {
-                            'context': context,
-                            'resource': resource,
-                            'request_info': request_info,
-                            'result': result
-                        }
-                    ]
-                }
+                if result in const.SUCCESS:
+                    data = {'status_code': const.SUCCESS}
+                else:
+                    data = {'status_code': const.FAILURE,
+                            'error_msg': result}
 
+                msg = {'info': {'service_type': service_type,
+                                'context': context},
+                       'notification': [{'resource': resource,
+                                         'data': data}]
+                       }
                 # If the data processed is first one, then prepare notification
                 # dict. Otherwise, append the notification to the kwargs list.
                 # Whether it is a data batch or single data blob request,
@@ -225,13 +210,9 @@ class AgentBaseEventHandler(object):
                 if not notification_data:
                     notification_data.update(msg)
                 else:
-                    data = {
-                        'context': context,
-                        'resource': resource,
-                        'request_info': request_info,
-                        'result': result
-                    }
-                    notification_data['kwargs'].append(data)
+                    data = {'resource': resource,
+                            'data': data}
+                    notification_data['notification'].append(data)
 
             if not success:
                 self.notify._notification(notification_data)

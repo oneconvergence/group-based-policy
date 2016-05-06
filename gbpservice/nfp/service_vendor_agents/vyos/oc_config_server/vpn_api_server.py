@@ -236,10 +236,10 @@ class VPNHandler(configOpts):
 
     def _delete_ipsec_site_conn(self, peer_address):
         cmds = copy.deepcopy(IPSEC_SITE2SITE_COMMANDS)
-        #cmd = cmds['delete'][0]
+        cmd = cmds['delete'][0]
 
-        #cmd = cmd % peer_address
-        cmd = cmds['delete'][2]
+        cmd = cmd % peer_address
+        #cmd = cmds['delete'][2]
 
         self._set_commands([cmd])
 

@@ -193,7 +193,7 @@ class NeutronPlumber():
         #                           hotplug_port['id'])
         stitching_fip = None
         if fip_required:
-            floating_net_id = self.conf.plumber.internet_ext_network
+            floating_net_id = self.conf.plumber.internet_ext_network_id
             self._check_router_gateway(token, floating_net_id, router_id)
             stitching_fip = self.neutron.create_floatingip(
                 token, floating_net_id,

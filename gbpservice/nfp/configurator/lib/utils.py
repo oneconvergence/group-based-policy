@@ -68,8 +68,8 @@ class ConfiguratorUtils(object):
                     key = ''
                     if hasattr(class_obj, 'service_type'):
                         key += class_obj.service_type
-                    if hasattr(class_obj, 'vendor'):
-                        key += class_obj.vendor
+                    if hasattr(class_obj, 'service_vendor'):
+                        key += class_obj.service_vendor
                     if key:
                         driver_objects[key] = class_obj
 

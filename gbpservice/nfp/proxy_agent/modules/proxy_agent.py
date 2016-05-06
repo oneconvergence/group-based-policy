@@ -12,14 +12,14 @@
 
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core.rpc import RpcAgent
-from gbpservice.nfp.proxy_agent.lib import RestClientOverUnix as rc
+import gbpservice.nfp.lib.transport as transport
 from gbpservice.nfp.proxy_agent.lib import topics
 
 from oslo_log import helpers as log_helpers
-from oslo_log import log as logging
+from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
 
 
@@ -29,7 +29,7 @@ def rpc_init(config, sc):
     agent = RpcAgent(
         sc,
         host=config.host,
-        topic=topics.CONFIG_AGENT_PROXY,
+        topic=topics.PROXY_AGENT_TOPIC,
         manager=rpcmgr)
     sc.register_rpc_agents([agent])
 
@@ -53,82 +53,56 @@ class RpcHandler(object):
         """Method of rpc handler for create_network_function_config.
         Return: Http Response.
         """
-        try:
-            resp, content = rc.post(
-                'create_network_function_config', body=body)
-            LOG(LOGGER, 'INFO',
-                "create_network_function_config ->"
-                "POST response: (%s)" % (content))
-
-        except rc.RestClientException as rce:
-            LOG(LOGGER, 'ERROR',
-                "create_firewall -> POST request failed.Reason: %s" % (
-                    rce))
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "CREATE")
 
     @log_helpers.log_method_call
     def delete_network_function_config(self, context, body):
         """Method of rpc handler for delete_network_function_config.
         Return: Http Response.
         """
-        try:
-            resp, content = rc.post('delete_network_function_config',
-                                    body=body, delete=True)
-            LOG(LOGGER, 'INFO',
-                "delete_network_function_config -> POST response: (%s)"
-                % (content))
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "DELETE")
 
-        except rc.RestClientException as rce:
-            LOG(LOGGER, 'ERROR',
-                "delete_firewall -> DELETE request failed.Reason: %s" % (
-                    rce))
+    @log_helpers.log_method_call
+    def update_network_function_config(self, context, body):
+        """Method of rpc handler for delete_network_function_config.
+        Return: Http Response.
+        """
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "UPDATE")
+
+
 
     @log_helpers.log_method_call
     def create_network_function_device_config(self, context, body):
         """Method of rpc handler for create_network_function_device_config.
         Return: Http Response.
         """
-        try:
-            resp, content = rc.post('create_network_function_device_config',
-                                    body=body)
-            LOG(LOGGER, 'INFO',
-                "create_network_function_device_config ->"
-                "POST response: (%s)" % (content))
-
-        except rc.RestClientException as rce:
-            LOG(LOGGER, 'ERROR',
-                "create_network_function_device_config ->"
-                "request failed . Reason %s " % (rce))
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "CREATE",
+                                               device_config=True)
 
     @log_helpers.log_method_call
     def delete_network_function_device_config(self, context, body):
         """Method of rpc handler for delete_network_function_device_config.
         Return: Http Response.
         """
-        try:
-            resp, content = rc.post('delete_network_function_device_config',
-                                    body=body, delete=True)
-            LOG(LOGGER, 'INFO',
-                "delete_network_function_device_config ->"
-                "POST response: (%s)" % (content))
-
-        except rc.RestClientException as rce:
-            LOG(LOGGER, 'ERROR',
-                "delete_network_function_device_config ->"
-                "request failed.Reason %s " % (rce))
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "DELETE",
+                                               device_config=True)
 
     @log_helpers.log_method_call
     def network_function_event(self, context, body):
         """Method of rpc handler for create_service.
         Return: Http Response.
         """
-        try:
-            resp, content = rc.post('network_function_event',
-                                    body=body)
-            LOG(LOGGER, 'INFO',
-                "create_service ->"
-                "POST response: (%s)" % (content))
-
-        except rc.RestClientException as rce:
-            LOG(LOGGER, 'ERROR',
-                "network_function_event ->"
-                "request failed.Reason %s " % (rce))
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               "CREATE",
+                                               network_function_event=True)

@@ -37,7 +37,7 @@ es_openstack_opts = [
 ]
 
 PLUMBER_OPTS = [
-                cfg.StrOpt('internet_ext_network',
+                cfg.StrOpt('internet_ext_network_id',
                            help='External network id with internet'),
                 cfg.StrOpt('management_net_id',
                            help='Management network id'),

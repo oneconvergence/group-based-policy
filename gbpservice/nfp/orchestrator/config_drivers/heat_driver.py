@@ -347,9 +347,12 @@ class HeatDriver(object):
 
     def _get_member_ips(self, auth_token, ptg):
         member_addresses = []
-        policy_targets = self.gbp_client.get_policy_targets(
-            auth_token,
-            filters={'id': ptg.get("policy_targets")})
+        if ptg.get("policy_targets"):
+            policy_targets = self.gbp_client.get_policy_targets(
+                auth_token,
+                filters={'id': ptg.get("policy_targets")})
+        else:
+            return member_addresses
         for policy_target in policy_targets:
             if not self._is_service_target(policy_target):
                 port_id = policy_target.get("port_id")
@@ -512,29 +515,29 @@ class HeatDriver(object):
             stack_template['resources'], is_template_aws_version,
             'OS::Neutron::FirewallPolicy')[0]
 
+        provider_l2p_subnets = self.neutron_client.get_subnets(
+            auth_token,
+            filters={'id': provider['subnets']})
+        for subnet in provider_l2p_subnets:
+            if not subnet['name'].startswith(APIC_OWNED_RES):
+                provider_cidr = subnet['cidr']
+                break
+        if not provider_cidr:
+            LOG.error(_LE("Unable to get provider cidr for provider "
+                "policy target group %(provider_ptg)s") %
+                {"provider_ptg": provider})
+            return None
+
+        fw_template_properties = dict(
+            resources_key=resources_key, properties_key=properties_key,
+            is_template_aws_version=is_template_aws_version,
+            fw_rule_keys=fw_rule_keys,
+            fw_policy_key=fw_policy_key)
+
         if consumer_ptgs:
-            provider_cidr = None
             filters = {'id': consumer_ptgs}
             consumer_ptgs_details = self.gbp_client.get_policy_target_groups(
                 auth_token, filters)
-            provider_l2p_subnets = self.neutron_client.get_subnets(
-                auth_token,
-                filters={'id': provider['subnets']})
-            for subnet in provider_l2p_subnets:
-                if not subnet['name'].startswith(APIC_OWNED_RES):
-                    provider_cidr = subnet['cidr']
-                    break
-            if not provider_cidr:
-                LOG.error(_LE("Unable to get provider cidr for provider "
-                              "policy target group %(provider_ptg)s") %
-                          {"provider_ptg": provider})
-                return None
-
-            fw_template_properties = dict(
-                resources_key=resources_key, properties_key=properties_key,
-                is_template_aws_version=is_template_aws_version,
-                fw_rule_keys=fw_rule_keys,
-                fw_policy_key=fw_policy_key)
 
             # Revisit(Magesh): What is the name updated below ?? FW or Rule?
             # This seems to have no effect in UTs
@@ -819,17 +822,20 @@ class HeatDriver(object):
                     LOG.Error(_LE("Floating IP for VPN Service has been "
                                   "disassociated Manually"))
                     return None, None
-                stitching_port_fip = floatingips[0]['floating_ip_address']
+                for fip in floatingips:
+                    if consumer_port['fixed_ips'][0]['ip_address'] == fip['fixed_ip_address']:
+                        stitching_port_fip = fip['floating_ip_address']
+
                 desc = ('fip=' + mgmt_ip +
                         ";tunnel_local_cidr=" +
                         provider_cidr + ";user_access_ip=" +
                         stitching_port_fip + ";fixed_ip=" +
                         consumer_port['fixed_ips'][0]['ip_address'] +
-                        ';service_vendor=' + service_vendor +
+                        ';service_vendor=' + service_details['service_vendor'] +
                         ';stitching_cidr=' + stitching_cidr +
                         ';stitching_gateway=' + stitching_subnet[
                             'gateway_ip'] +
-                        ';mgmt_gw_ip=' + mgmt_gw_ip,
+                        ';mgmt_gw_ip=' + mgmt_gw_ip +
                         ';network_function_id=' + network_function['id'])
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
@@ -853,7 +859,8 @@ class HeatDriver(object):
         service_config = tag_str = ''
         for tag_str in [nfp_constants.HEAT_CONFIG_TAG,
                         nfp_constants.CONFIG_INIT_TAG,
-                        nfp_constants.ANSIBLE_TAG]:
+                        nfp_constants.ANSIBLE_TAG,
+                        nfp_constants.CUSTOM_JSON]:
             try:
                 service_config = config_str.split(tag_str + ':')[1]
                 break
@@ -1157,10 +1164,12 @@ class HeatDriver(object):
 
         try:
             stack = heatclient.create(stack_name, stack_template, stack_params)
-        except Exception:
+        except Exception as err:
             LOG.error(_LE("Heat stack creation failed for template : "
-                          "%(template)s and stack parameters : %(params)s") %
-                      {'template': stack_template, 'params': stack_params})
+                          "%(template)s and stack parameters : %(params)s "
+                          "with Error: %(error)s") %
+                      {'template': stack_template, 'params': stack_params,
+                       'error': err})
             return None
 
         stack_id = stack['stack']['id']
@@ -1181,10 +1190,11 @@ class HeatDriver(object):
             if not heatclient:
                 return None
             heatclient.delete(stack_id)
-        except Exception:
+        except Exception as err:
             # Log the error and continue with VM delete in case of *aas
             # cleanup failure
-            LOG.exception(_LE("Cleaning up the service chain stack failed"))
+            LOG.exception(_LE("Cleaning up the service chain stack failed "
+                              "with Error: %(error)s"), {'error': err})
             return None
         return stack_id
 

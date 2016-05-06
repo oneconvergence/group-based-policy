@@ -10,13 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-FW_NFP_CONFIGAGENT_TOPIC = 'nfp-firewall-agent'
-LB_NFP_CONFIGAGENT_TOPIC = 'nfp-lbaas-agent'
-VPN_NFP_CONFIGAGENT_TOPIC = 'nfp-vpn-agent'
-
-CONFIG_AGENT_PROXY = 'nfp-config-agent-proxy'
-FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
-LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'
-VPN_NFP_PLUGIN_TOPIC = 'vpn_plugin'
-DEVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-ndo'
-SERVICE_ORCHESTRATOR_TOPIC = 'nfp-configurator-nso'
+PROXY_AGENT_TOPIC = 'nfp-proxy-agent-topic'
+SERVICE_ORCH_TOPIC = 'nfp-nso-notification-topic'
+DEVICE_ORCH_TOPIC = 'nfp-ndo-notification-topic'
+CONFIG_ORCH_TOPIC = 'nfp-nco-notification-topic'
