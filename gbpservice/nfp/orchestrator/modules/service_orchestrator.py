@@ -795,7 +795,7 @@ class ServiceOrchestrator(object):
         network_function = network_function_details['network_function']
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
-        if self.config_driver.is_update_config_supported(service_type):
+        if not self.config_driver.is_update_config_supported(service_type):
             service_chain_id = network_function['service_chain_id']
             admin_token = self.keystoneclient.get_admin_token()
             servicechain_instance = self.gbpclient.get_servicechain_instance(
@@ -1309,7 +1309,7 @@ class ServiceOrchestrator(object):
         network_function = network_function_details['network_function']
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
-        if self.config_driver.is_update_config_supported(service_type):
+        if not self.config_driver.is_update_config_supported(service_type):
             stack_id = self.config_driver.delete_config(
                                                 stack_id,
                                                 consumer_ptg['tenant_id'])
@@ -1373,7 +1373,7 @@ class ServiceOrchestrator(object):
         network_function = network_function_details['network_function']
         service_profile_id = network_function['service_profile_id']
         service_type = self._get_service_type(service_profile_id)
-        if self.config_driver.is_update_config_supported(service_type):
+        if not self.config_driver.is_update_config_supported(service_type):
             stack_id = self.config_driver.delete_config(
                                                 stack_id,
                                                 consumer_ptg['tenant_id'])
