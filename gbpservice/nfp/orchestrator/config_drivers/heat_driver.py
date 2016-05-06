@@ -664,6 +664,7 @@ class HeatDriver(object):
                             provider, consumer_port, network_function,
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
+        nf_desc =None
         provider_cidr = provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
@@ -736,6 +737,7 @@ class HeatDriver(object):
                                    provider_port_mac,
                                    standby_provider_port_mac,
                                    network_function['id']))
+                nf_desc = str(config_param_values['service_chain_metadata'])
         elif service_type == pconst.FIREWALL:
             stack_template = self._update_firewall_template(
                 auth_token, provider, stack_template)
@@ -757,6 +759,7 @@ class HeatDriver(object):
                     'OS::Neutron::Firewall')
                 stack_template[resources_key][fw_key][properties_key][
                     'description'] = str(firewall_desc)
+                nf_desc = str(firewall_desc)
         elif service_type == pconst.VPN:
             # rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token,
             #    provider, update)
@@ -845,6 +848,9 @@ class HeatDriver(object):
                 for siteconn_key in siteconn_keys:
                     stack_template[resources_key][siteconn_key][
                         properties_key]['description'] = desc
+                nf_desc = str(desc)
+        network_function['description'] = network_function[
+                             'description'] + ';' + nf_desc
 
         for parameter in stack_template.get(parameters_key) or []:
             if parameter in config_param_values:

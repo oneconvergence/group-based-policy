@@ -776,7 +776,8 @@ class ServiceOrchestrator(object):
                   % (request_data['heat_stack_id']))
         self.db_handler.update_network_function(
             self.db_session, network_function['id'],
-            {'heat_stack_id': request_data['heat_stack_id']})
+            {'heat_stack_id': request_data['heat_stack_id'],
+             'description' :network_function['description']})
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True,
