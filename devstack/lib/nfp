@@ -196,7 +196,7 @@ function copy_nfp_files_and_start_process {
     sleep 1
 
     echo "Starting proxy server under Namespace : nfp-proxy namespace >>>> under screen named : proxy"
-    run_process proxy "source $TOP_DIR/lib/nfp;namespace_delete $TOP_DIR;namespace_create $TOP_DIR $IpAddr"
+    run_process proxy "source $NFPSERVICE_DIR/devstack/lib/nfp;namespace_delete $TOP_DIR;namespace_create $TOP_DIR $IpAddr"
     sleep 10
 
     echo "Starting config_orch  >>>> under screen named : config_orch"
@@ -224,7 +224,7 @@ function create_ext_net {
     EXT_NET_CIDR=$EXT_NET_CIDR
     EXT_NET_MASK=$EXT_NET_MASK
     
-    #source $TOP_DIR/openrc neutron service
+    source $TOP_DIR/openrc neutron service
     neutron net-create --router:external=true --shared $EXT_NET_NAME
     neutron subnet-create --ip_version 4 --gateway $EXT_NET_GATEWAY --name $EXT_NET_SUBNET_NAME --allocation-pool start=$EXT_NET_ALLOCATION_POOL_START,end=$EXT_NET_ALLOCATION_POOL_END $EXT_NET_NAME $EXT_NET_CIDR/$EXT_NET_MASK
     subnet_id=`neutron net-list | grep "$EXT_NET_NAME" | awk '{print $6}'`
