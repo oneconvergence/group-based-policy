@@ -75,8 +75,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             nf_desc = ast.literal_eval((nf['description'].split(';'))[1])
             nfp_context.update(
                 {'network_function_id': nf_id,
-                 'ipsec_site_connection_id': ipsec_site_connection_id,
-                 'description': nf_desc})
+                 'ipsec_site_connection_id': ipsec_site_connection_id})
+            kwargs['resource']['description'] = str(nf_desc)
         kwargs.update({'neutron_context': rsrc_ctx_dict})
         resource_data = kwargs
         body = common.prepare_request_data(nfp_context, resource,

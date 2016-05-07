@@ -114,17 +114,20 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
             vip_id = kwargs['vip']['id']
             nf = common.get_network_function_details(context,nf_id)
             nf_desc = ast.literal_eval((nf['description'].split(';'))[1])
+            kwargs['vip']['description'] = str(nf_desc)
+            print"@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+            print "%s" % (kwargs['vip']['description'])
+            print"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
             nfp_context.update({'network_function_id': nf_id,
-                                'vip_id': vip_id,
-                                'description': nf_desc})
+                                'vip_id': vip_id})
         """
         elif name.lower() == 'pool' :
             pool_desc = ast.literal_eval(kwargs['pool']['description'])
             nf_id = pool_desc['network_function_id']
             nf = common.get_network_function_details(context,nf_id)
             nf_desc = ast.literal_eval((nf['description'].split(';'))[1])
-            nfp_context.update({'network_function_id':nf_id,
-                                'description':nf_desc})
+            kwargs['pool']['description'] = nf_desc
+            nfp_context.update({'network_function_id':nf_id})
         else:
             #common code for health_monitor and member
             pool_id = kwargs['pool_id']
@@ -133,8 +136,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
             nf_id = resource_desc['network_function_id']
             nf = common.get_network_function_details(context,nf_id)
             nf_desc = ast.literal_eval((nf['description'].split(';'))[1])
-            nfp_context.update({'network_function_id':nf_id,
-                                'description':nf_desc})
+            nfp_context.update({'network_function_id':nf_id})
         """
 
         resource_type = 'loadbalancer'
