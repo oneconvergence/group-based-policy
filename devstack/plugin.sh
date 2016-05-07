@@ -60,8 +60,6 @@ function configure_nfp_firewall {
 if is_service_enabled group-policy; then
     if [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
         echo_summary "Preparing $GBP"
-		sed -i "s/export OS_USER_DOMAIN_ID=default/#export OS_USER_DOMAIN_ID=default/g"  stack.sh
-		sed -i "s/export OS_PROJECT_DOMAIN_ID=default/#export OS_PROJECT_DOMAIN_ID=default/g"  stack.sh
     elif [[ "$1" == "stack" && "$2" == "install" ]]; then
         echo_summary "Installing $GBP"
         if [[ $ENABLE_NFP = True ]]; then
