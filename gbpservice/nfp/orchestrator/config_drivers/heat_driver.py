@@ -665,6 +665,7 @@ class HeatDriver(object):
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
         nf_desc =None
+        common_desc = {'network_function_id': network_function['id']}
         provider_cidr = provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
@@ -731,13 +732,22 @@ class HeatDriver(object):
             config_param_values['Subnet'] = provider_subnet['id']
             config_param_values['service_chain_metadata'] = ""
             if not base_mode_support:
-                config_param_values['service_chain_metadata'] = (
-                    SC_METADATA % (service_chain_instance['id'],
-                                   mgmt_ip,
-                                   provider_port_mac,
-                                   standby_provider_port_mac,
-                                   network_function['id']))
-                nf_desc = str(config_param_values['service_chain_metadata'])
+                common_desc.update({'floating_ip': mgmt_ip})
+                config_param_values['service_chain_metadata']=str(common_desc)
+                nf_desc = str((SC_METADATA % (service_chain_instance['id'],
+                                          mgmt_ip,
+                                          provider_port_mac,
+                                          standby_provider_port_mac,
+                                          network_function['id'])))
+                
+                lb_pool_key = self._get_heat_resource_key( 
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Pool')
+                stack_template[resources_key][lb_pool_key][properties_key][
+                    'description'] = str(common_desc)
+                
+
         elif service_type == pconst.FIREWALL:
             stack_template = self._update_firewall_template(
                 auth_token, provider, stack_template)
@@ -758,7 +768,8 @@ class HeatDriver(object):
                     is_template_aws_version,
                     'OS::Neutron::Firewall')
                 stack_template[resources_key][fw_key][properties_key][
-                    'description'] = str(firewall_desc)
+                    'description'] = str(common_desc)
+
                 nf_desc = str(firewall_desc)
         elif service_type == pconst.VPN:
             # rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token,
@@ -840,6 +851,7 @@ class HeatDriver(object):
                             'gateway_ip'] +
                         ';mgmt_gw_ip=' + mgmt_gw_ip +
                         ';network_function_id=' + network_function['id'])
+                
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
                     stack_template[resources_key],
@@ -847,7 +859,8 @@ class HeatDriver(object):
                     'OS::Neutron::IPsecSiteConnection')
                 for siteconn_key in siteconn_keys:
                     stack_template[resources_key][siteconn_key][
-                        properties_key]['description'] = desc
+                        properties_key]['description'] = str(common_desc)
+                
                 nf_desc = str(desc)
         network_function['description'] = network_function[
                              'description'] + ';' + nf_desc

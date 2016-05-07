@@ -78,14 +78,21 @@ class FwAgent(firewall_db.Firewall_db_mixin):
     def _data_wrapper(self, context, firewall, host, reason):
         # Fetch nf_id from description of the resource
         firewall_desc = ast.literal_eval(firewall['description'])
-        fw_mac = firewall_desc['provider_ptg_info'][0]
+        print"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+        print"firewall des : %s" %(firewall_desc)
         nf_id = firewall_desc['network_function_id']
+        nf = common.get_network_function_details(context,nf_id)
+        nf_desc = ast.literal_eval((nf['description'].split(';'))[1])
+        fw_mac = nf_desc['provider_ptg_info'][0]
+        print"FW_MAC : %s" %(fw_mac)
+        print"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
         ctx_dict, rsrc_ctx_dict = self._prepare_resource_context_dicts(
             context, firewall['tenant_id'])
         nfp_context = {'network_function_id': nf_id,
                        'neutron_context': ctx_dict,
                        'fw_mac': fw_mac,
-                       'requester': 'nas_service'}
+                       'requester': 'nas_service',
+                        'descripton':nf_desc}
         resource = resource_type = 'firewall'
         resource_data = {resource: firewall,
                          'host': host,

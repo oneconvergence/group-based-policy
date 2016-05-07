@@ -71,9 +71,12 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'resource']['description'])
             nf_id = ipsec_desc['network_function_id']
             ipsec_site_connection_id = kwargs['rsrc_id']
+            nf = common.get_network_function_details(context, nf_id)
+            nf_desc = ast.literal_eval((nf['description'].split(';'))[1])
             nfp_context.update(
                 {'network_function_id': nf_id,
-                 'ipsec_site_connection_id': ipsec_site_connection_id})
+                 'ipsec_site_connection_id': ipsec_site_connection_id,
+                 'description': nf_desc})
         kwargs.update({'neutron_context': rsrc_ctx_dict})
         resource_data = kwargs
         body = common.prepare_request_data(nfp_context, resource,
@@ -158,10 +161,11 @@ class VpnNotifier(object):
         rpcClient.cctxt.cast(context, 'update_status',
                              status=status)
 
-        '''
+        
         # Sending An Event for visiblity
-        if resource_data['resource'].lower() is\
-                'ipsec_site_connection':
+        _resource = ((notification_data['notification'][0][
+                                       'resource']).lower())
+        if _resource  == 'ipsec_site_connection':
             nf_id = notification_info['context']['network_function_id']
             ipsec_id = notification_info['context']['ipsec_site_connection_id']
             service_type = notification_info['service_type']
@@ -171,7 +175,7 @@ class VpnNotifier(object):
 
             self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
                                         request_data)
-        '''
+        
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
@@ -186,7 +190,7 @@ class VpnNotifier(object):
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
                              ipsec_site_conn_id=ipsec_site_conn_id)
 
-        '''
+        
         # Sending An Event for visiblity
         nf_id = notification_info['context']['network_function_id']
         ipsec_id = notification_info['context']['ipsec_site_connection_id']
@@ -197,5 +201,3 @@ class VpnNotifier(object):
 
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)
-
-        '''

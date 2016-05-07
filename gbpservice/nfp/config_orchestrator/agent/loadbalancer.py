@@ -93,6 +93,16 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         rsrc_ctx_dict.update({'service_info': db})
         return ctx_dict, rsrc_ctx_dict
 
+    def _get_pool(self, context, pool_id):                                                                                                     
+        pool =None
+        try:
+            db_data = super(LbAgent,self)
+            pool = db_data.get_pool(context, pool_id)
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', e)
+        return pool
+
+
     def _data_wrapper(self, context, tenant_id, name, reason, **kwargs):
         ctx_dict, rsrc_ctx_dict = self.\
             _prepare_resource_context_dicts(context, tenant_id)
@@ -102,8 +112,31 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
             vip_desc = ast.literal_eval(kwargs['vip']['description'])
             nf_id = vip_desc['network_function_id']
             vip_id = kwargs['vip']['id']
+            nf = common.get_network_function_details(context,nf_id)
+            nf_desc = ast.literal_eval((nf['description'].split(';'))[1])
             nfp_context.update({'network_function_id': nf_id,
-                                'vip_id': vip_id})
+                                'vip_id': vip_id,
+                                'description': nf_desc})
+        """
+        elif name.lower() == 'pool' :
+            pool_desc = ast.literal_eval(kwargs['pool']['description'])
+            nf_id = pool_desc['network_function_id']
+            nf = common.get_network_function_details(context,nf_id)
+            nf_desc = ast.literal_eval((nf['description'].split(';'))[1])
+            nfp_context.update({'network_function_id':nf_id,
+                                'description':nf_desc})
+        else:
+            #common code for health_monitor and member
+            pool_id = kwargs['pool_id']
+            pool_desc = self._get_pool(context, pool_id)
+            resource_desc = ast.literal_eval(pool_desc['description'])
+            nf_id = resource_desc['network_function_id']
+            nf = common.get_network_function_details(context,nf_id)
+            nf_desc = ast.literal_eval((nf['description'].split(';'))[1])
+            nfp_context.update({'network_function_id':nf_id,
+                                'description':nf_desc})
+        """
+
         resource_type = 'loadbalancer'
         resource = name
         resource_data = {'neutron_context': rsrc_ctx_dict}
