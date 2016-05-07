@@ -745,7 +745,8 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         self.conf = conf
         self.handlers = {
             'vpn_service': {
-                'create': self.create_vpn_service},
+                'create': self.create_vpn_service,
+                'delete': self.delete_vpn_service},
             'ipsec_site_connection': {
                 'create': self.create_ipsec_conn,
                 'update': self.update_ipsec_conn,
@@ -1099,6 +1100,9 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         tokens = svc_desc.split(';')
         vm_mgmt_ip = tokens[0].split('=')[1]
         return vm_mgmt_ip
+
+    def delete_vpn_service(self, context, resource_data):
+        pass
 
     def create_vpn_service(self, context, resource_data):
 

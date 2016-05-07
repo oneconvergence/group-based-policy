@@ -21,7 +21,6 @@ from neutron.db import agentschedulers_db
 from neutron import manager
 from neutron_vpnaas.services.vpn.plugin import VPNPlugin
 from neutron_vpnaas.services.vpn.plugin import VPNDriverPlugin
-from neutron_vpnaas.services.vpn import service_drivers
 from neutron_vpnaas.services.vpn.service_drivers import base_ipsec
 
 from oslo_log import log as logging
@@ -33,7 +32,7 @@ BASE_VPN_VERSION = '1.0'
 AGENT_TYPE_VPN = 'NFP Vpn agent'
 ACTIVE = 'ACTIVE'
 ERROR = 'ERROR'
-TIMEOUT = 45
+TIMEOUT = 30
 
 
 class VPNAgentHostingServiceNotFound(exceptions.NeutronException):
@@ -74,11 +73,6 @@ class NFPIPsecVPNDriverCallBack(base_ipsec.IPsecVpnDriverCallBack):
         """ Delete ipsec connection notification from driver."""
         plugin = self.driver.service_plugin
         plugin._delete_ipsec_site_connection(context, ipsec_site_conn_id)
-
-    def vpnservice_deleted(self, context, **kwargs):
-        vpnservice_id = kwargs['id']
-        plugin = self.driver.service_plugin
-        plugin._delete_vpnservice(context, vpnservice_id)
 
 
 class NFPIPsecVpnAgentApi(base_ipsec.IPsecVpnAgentApi):
