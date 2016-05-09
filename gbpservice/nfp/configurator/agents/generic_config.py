@@ -56,7 +56,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
     def _send_event(self, context, resource_data, event_id, event_key=None):
         """Posts an event to framework.
 
-        :param context: RPC context dictionary
+        :param context: The agent info dictionary prepared in demuxer library
+         which contains the API context alongside other information.
         :param kwargs: Keyword arguments which are passed as data to event
         :param event_id: Unique identifier for the event
         :param event_key: Event key for serialization
@@ -72,7 +73,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
     def configure_interfaces(self, context, resource_data):
         """Enqueues event for worker to process configure interfaces request.
 
-        :param context: RPC context
+        :param context: The agent info dictionary prepared in demuxer library
+         which contains the API context alongside other information.
         :param kwargs: RPC Request data
 
         Returns: None
@@ -86,7 +88,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
     def clear_interfaces(self, context, resource_data):
         """Enqueues event for worker to process clear interfaces request.
 
-        :param context: RPC context
+        :param context: The agent info dictionary prepared in demuxer library
+         which contains the API context alongside other information.
         :param kwargs: RPC Request data
 
         Returns: None
@@ -100,7 +103,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
     def configure_routes(self, context, resource_data):
         """Enqueues event for worker to process configure routes request.
 
-        :param context: RPC context
+        :param context: The agent info dictionary prepared in demuxer library
+         which contains the API context alongside other information.
         :param kwargs: RPC Request data
 
         Returns: None
@@ -114,7 +118,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
     def clear_routes(self, context, resource_data):
         """Enqueues event for worker to process clear routes request.
 
-        :param context: RPC context
+        :param context: The agent info dictionary prepared in demuxer library
+         which contains the API context alongside other information.
         :param kwargs: RPC Request data
 
         Returns: None
@@ -128,7 +133,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
     def configure_healthmonitor(self, context, resource_data):
         """Enqueues event for worker to process configure healthmonitor request.
 
-        :param context: RPC context
+        :param context: The agent info dictionary prepared in demuxer library
+         which contains the API context alongside other information.
         :param kwargs: RPC Request data
 
         Returns: None
@@ -144,7 +150,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
     def clear_healthmonitor(self, context, resource_data):
         """Enqueues event for worker to process clear healthmonitor request.
 
-        :param context: RPC context
+        :param context: The agent info dictionary prepared in demuxer library
+         which contains the API context alongside other information.
         :param kwargs: RPC Request data
 
         Returns: None
@@ -187,7 +194,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
 
         """
 
-        return self.drivers[service_type + service_vendor]()
+        return self.drivers[service_type + service_vendor]
 
     def _prepare_log_meta_data(self, log_meta_data):
         kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(log_meta_data)
@@ -248,9 +255,12 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                                             ev.data.get("log_meta_data", ""))
         # Process single request data blob
         resource_data = ev.data['resource_data']
+        # The context inside ev.data is the agent info dictionary prepared
+        # in demuxer library which contains the API context alongside
+        # other information like service vendor, type etc..
         agent_info = ev.data['context']
         context = agent_info['context']
-        service_type = agent_info['service_type']
+        service_type = agent_info['resource_type']
         service_vendor = agent_info['service_vendor']
 
         try:
@@ -331,7 +341,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         # processing function. To keep the context unchanged, delete the
         # notification_data before invoking driver API.
         notification_data = agent_info['notification_data']
-        service_type = agent_info['service_type']
+        service_type = agent_info['resource_type']
         resource = agent_info['resource']
 
         if result in common_const.SUCCESS:
@@ -421,7 +431,7 @@ def events_init(sc, drivers, rpcmgr):
     sc.register_events(events)
 
 
-def load_drivers():
+def load_drivers(conf):
     """Imports all the driver files.
 
     Returns: Dictionary of driver objects with a specified service type and
@@ -430,7 +440,13 @@ def load_drivers():
     """
 
     cutils = utils.ConfiguratorUtils()
-    return cutils.load_drivers(gen_cfg_const.DRIVERS_DIR)
+    drivers = cutils.load_drivers(gen_cfg_const.DRIVERS_DIR)
+
+    for service_type, driver_name in drivers.iteritems():
+        driver_obj = driver_name(conf=conf)
+        drivers[service_type] = driver_obj
+
+    return drivers
 
 
 def register_service_agent(cm, sc, conf, rpcmgr):
@@ -458,7 +474,7 @@ def init_agent(cm, sc, conf):
     """
 
     try:
-        drivers = load_drivers()
+        drivers = load_drivers(conf)
     except Exception as err:
         msg = ("Generic configuration agent failed to load service drivers. %s"
                % (str(err).capitalize()))

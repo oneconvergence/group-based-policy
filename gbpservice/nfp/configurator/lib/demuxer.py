@@ -82,19 +82,19 @@ class ServiceAgentDemuxer(object):
         else:
             return service_type
 
-    def get_service_agent_info(self, operation, service_type,
+    def get_service_agent_info(self, operation, resource_type,
                                request_data, is_generic_config):
         """Prepares information for service agent consumption.
 
         :param operation: create/delete/update
-        :param service_type: firewall/vpn/loadbalancer/generic_config
+        :param resource_type: firewall/vpn/loadbalancer/generic_config
         :param request_data: API input data (format specified at top of file)
 
         Returns: List with the following format.
         sa_info_list [
             {
                 'context': <context dictionary>
-                'service_type': <firewall/vpn/loadbalancer/generic_config>
+                'resource_type': <firewall/vpn/loadbalancer/generic_config>
                 'method': <*aas RPC methods/generic configuration methods>
                 'kwargs' <kwargs taken from request data of API>
             }
@@ -104,24 +104,27 @@ class ServiceAgentDemuxer(object):
 
         sa_info_list = []
         vendor_map = {const.FIREWALL: const.VYOS,
-                      const.LOADBALANCER: const.HAPROXY}
+                      const.LOADBALANCER: const.HAPROXY,
+                      const.VPN: const.VYOS}
 
         service_vendor = request_data['info']['service_vendor']
         if str(service_vendor) == 'None':
-            service_vendor = vendor_map[service_type]
+            service_vendor = vendor_map[resource_type]
 
         for config_data in request_data['config']:
             sa_info = {}
 
-            resource_map = {
-                'firewall': (operation + '_' + config_data['resource']),
-                'vpn': ('vpnservice_updated'),
-                'loadbalancer': (operation + '_' + config_data['resource']),
-                'nfp_service': ('run' + '_' + const.NFP_SERVICE),
-                'generic_config': {
-                           'create': ('configure_' + config_data['resource']),
-                           'update': ('update_' + config_data['resource']),
-                           'delete': ('clear_' + config_data['resource'])}}
+            resource_type_to_method_map = {
+                const.FIREWALL: (operation + '_' + config_data['resource']),
+                const.VPN: ('vpnservice_updated'),
+                const.LOADBALANCER: (operation + '_' + config_data[
+                                                            'resource']),
+                const.NFP_SERVICE: ('run' + '_' + const.NFP_SERVICE),
+                const.GENERIC_CONFIG: {
+                           const.CREATE: ('configure_' + config_data[
+                                                                'resource']),
+                           const.UPDATE: ('update_' + config_data['resource']),
+                           const.DELETE: ('clear_' + config_data['resource'])}}
 
             context = request_data['info']['context']
 
@@ -133,26 +136,28 @@ class ServiceAgentDemuxer(object):
             is_nfp_svc = True if resource in const.NFP_SERVICE_LIST else False
 
             if is_generic_config:
-                method = resource_map[const.GENERIC_CONFIG][operation]
+                method = resource_type_to_method_map[
+                                        const.GENERIC_CONFIG][operation]
             else:
                 if is_nfp_svc:
-                    service_type = const.NFP_SERVICE
-                method = resource_map[service_type]
+                    resource_type = const.NFP_SERVICE
+                method = resource_type_to_method_map[resource_type]
 
             sa_info.update({'method': method,
                             'resource_data': data,
                             'agent_info': {
+                                   # This is the API context
                                    'context': context,
                                    'service_vendor': service_vendor.lower(),
-                                   'service_type': service_type.lower(),
+                                   'resource_type': resource_type.lower(),
                                    'resource': resource.lower()},
                             'is_generic_config': is_generic_config})
 
             sa_info_list.append(sa_info)
 
         if is_nfp_svc:
-            service_type = const.NFP_SERVICE
+            resource_type = const.NFP_SERVICE
         elif is_generic_config:
-            service_type = const.GENERIC_CONFIG
+            resource_type = const.GENERIC_CONFIG
 
-        return sa_info_list, service_type
+        return sa_info_list, resource_type

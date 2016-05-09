@@ -34,6 +34,7 @@ from vyos_policy_based_routes import RoutesConfigHandler as routes_handler
 from ha_config import VYOSHAConfig
 from vyos_exception import OCException
 from flask import jsonify
+from log_forwarder import APIHandler as apihandler
 # sys.path.insert(0, dirname(dirname(abspath(__file__))))
 # sys.path.insert(0, (abspath(__file__)))
 
@@ -458,6 +459,18 @@ def del_rule():
         return json.dumps(dict(status=False))
     else:
         return json.dumps(dict(status=True))
+
+
+@app.route('/configure-rsyslog-as-client', methods=['POST'])
+def configure_rsyslog_as_client():
+    try:
+        config_data = json.loads(request.data)
+        status = apihandler().configure_rsyslog_as_client(config_data)
+        return json.dumps(dict(status=status))
+    except Exception as ex:
+        err = ("Error while conifiguring rsyslog client. Reason: %s" % ex)
+        logger.error(err)
+        return json.dumps(dict(status=False, reason=err))
 
 
 def handler(signum, frame):

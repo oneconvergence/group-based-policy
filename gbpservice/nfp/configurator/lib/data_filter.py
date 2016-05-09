@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
+
 from gbpservice.nfp.configurator.lib import (
     filter_constants as constants)
 
@@ -145,7 +147,7 @@ class Filter(object):
 
         """
         service_info = context['service_info']
-        ipsec_conns = service_info['ipsec_site_conns']
+        ipsec_conns = copy.deepcopy(service_info['ipsec_site_conns'])
 
         return self.apply_filter(ipsec_conns, filters)
 
@@ -159,7 +161,7 @@ class Filter(object):
         """
         return self._get_ipsec_site2site_contexts(context, filters)
 
-    def _get_ipsec_site2site_contexts(self, context, filters=None):
+    def _get_ipsec_site2site_contexts(self, context, filters={}):
         """ Get ipsec site to site context
         :param filters
         e.g {'tenant_id': <value>,

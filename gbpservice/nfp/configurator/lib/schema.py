@@ -34,14 +34,6 @@
 """
 
 
-skip_kwargs_validation_for = [
-                                'firewall',
-                                'vpn',
-                                'loadbalancer',
-                                'nfp_service'
-                             ]
-
-
 """ Request data schema.
 """
 
@@ -81,22 +73,8 @@ interfaces = {'mgmt_ip': "",
               'stitching_cidr': "",
               'stitching_interface_index': "",
               'provider_mac': "",
-              'stitching_mac': "",
-              'rule_info': {'active_provider_mac': "",
-                            'active_stitching_mac': "",
-                            'active_fip': ""
-                            },
+              'stitching_mac': ""
               }
-
-
-""" Interfaces rule info schema.
-    This comes as one of the key in kwargs of interface resource.
-"""
-
-interfaces_rule_info = {'active_provider_mac': "",
-                        'active_stitching_mac': "",
-                        'active_fip': ""
-                        }
 
 
 """Routes resource schema.
