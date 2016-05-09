@@ -158,6 +158,7 @@ class Controller(object):
                 LOG(LOGGER, 'ERROR',
                     "Failed to decompress event data : %s Reason: %s" % (
                         event.data, e))
+                raise e
 
     def post_event(self, event):
         """API for NFP module to generate a new internal event.
