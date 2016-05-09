@@ -21,7 +21,7 @@ from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import fw_constants as const
 from gbpservice.nfp.configurator.lib import utils as load_driver
 from gbpservice.nfp.core import event as nfp_event
-
+from gbpservice.nfp.lib import nfp_log_helper
 
 LOG = logging.getLogger(__name__)
 
@@ -148,8 +148,9 @@ class FWaasRpcManager(agent_base.AgentBaseRPCManager):
         """ Receives request to update firewall from configurator
 
         """
-
-        msg = ("FwaasRpcReceiver received Update Firewall request.")
+        log_meta_data = context.get("log_meta_data", "")
+        msg = (log_meta_data + "FwaasRpcReceiver received Update Firewall"
+               " request.")
         LOG.debug(msg)
         self._create_event(context, firewall,
                            host, const.FIREWALL_UPDATE_EVENT)
@@ -158,8 +159,9 @@ class FWaasRpcManager(agent_base.AgentBaseRPCManager):
         """ Receives request to delete firewall from configurator
 
         """
-
-        msg = ("FwaasRpcReceiver received Delete Firewall request.")
+        log_meta_data = context.get("log_meta_data", "")
+        msg = (log_meta_data + "FwaasRpcReceiver received Delete Firewall"
+               " request.")
         LOG.debug(msg)
         self._create_event(context, firewall,
                            host, const.FIREWALL_DELETE_EVENT)
@@ -217,20 +219,19 @@ class FWaasEventHandler(object):
         :param ev: event object sent from process model event handler
 
         """
-
+        log_meta_data = ev.data['context'].get('log_meta_data', "")
         try:
-            msg = ("Worker process with ID: %s starting to "
-                   "handle task: %s of type firewall. "
-                   % (os.getpid(), ev.id))
-            LOG.debug(msg)
+            msg = (log_meta_data + "Handling event %s" % (ev.id))
+            LOG.info(msg)
 
             service_vendor = ev.data['context']['agent_info']['service_vendor']
             driver = self._get_driver(service_vendor)
 
             self.method = getattr(driver, "%s" % (ev.id.lower()))
             self.invoke_driver_for_plugin_api(ev)
+            msg = (log_meta_data + "Event %s handling done" % (ev.id))
         except Exception as err:
-            msg = ("Failed to perform the operation: %s. %s"
+            msg = (log_meta_data + "Failed to handle event: %s. %s"
                    % (ev.id, str(err).capitalize()))
             LOG.error(msg)
 
@@ -246,9 +247,16 @@ class FWaasEventHandler(object):
         firewall = ev.data.get('firewall')
         host = ev.data.get('host')
 
+        kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(
+                                            context.get('log_meta_data', ""))
+        kwargs['Level'] = 'Audit'
+        kwargs['EventCategory'] = 'Service'
+        kwargs['Event'] = 'ServiceConfig'
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
+
         if ev.id == const.FIREWALL_CREATE_EVENT:
             if not self._is_firewall_rule_exists(firewall):
-                msg = ("Firewall status set to ACTIVE")
+                msg = (log_meta_data + "Firewall status set to ACTIVE")
                 LOG.debug(msg)
                 return self.plugin_rpc.set_firewall_status(
                                 agent_info,
@@ -263,13 +271,16 @@ class FWaasEventHandler(object):
             except Exception as err:
                 self.plugin_rpc.set_firewall_status(
                     agent_info, firewall['id'], const.STATUS_ERROR)
-                msg = ("Failed to configure Firewall and status is "
-                       "changed to ERROR. %s." % str(err).capitalize())
+
+                msg = (log_meta_data + "Failed to configure Firewall and"
+                       " status is changed to ERROR. %s."
+                       % str(err).capitalize())
                 LOG.error(msg)
             else:
                 self.plugin_rpc.set_firewall_status(
                     agent_info, firewall['id'], status, firewall)
-                msg = ("Configured Firewall and status set to %s" % status)
+                msg = (log_meta_data + "Configured Firewall and status set"
+                       " to %s" % status)
                 LOG.info(msg)
 
         elif ev.id == const.FIREWALL_DELETE_EVENT:
@@ -280,7 +291,8 @@ class FWaasEventHandler(object):
                 status = self.method(context, firewall, host)
             except requests.ConnectionError:
                 # FIXME It can't be correct everytime
-                msg = ("There is a connection error for firewall %r of "
+                msg = (log_meta_data + "There is a connection error for "
+                       "firewall %r of "
                        "tenant %r. Assuming either there is serious "
                        "issue with VM or data path is completely "
                        "broken. For now marking that as delete."
@@ -295,8 +307,8 @@ class FWaasEventHandler(object):
                 # can go on and on and may not be ever recovered.
                 self.plugin_rpc.set_firewall_status(
                     agent_info, firewall['id'], const.STATUS_ERROR)
-                msg = ("Failed to delete Firewall and status is "
-                       "changed to ERROR. %s." % str(err).capitalize())
+                msg = (log_meta_data + "Failed to delete Firewall and status"
+                       " is changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
                 # raise(err)
             else:
@@ -304,8 +316,8 @@ class FWaasEventHandler(object):
                     self.plugin_rpc.set_firewall_status(
                         agent_info, firewall['id'], status)
                 else:
-                    msg = ("Firewall %r deleted of tenant: %r" % (
-                           firewall['id'], firewall['tenant_id']))
+                    msg = (log_meta_data + "Firewall %r deleted of tenant: %r"
+                           % (firewall['id'], firewall['tenant_id']))
                     LOG.info(msg)
                     self.plugin_rpc.firewall_deleted(
                         agent_info, firewall['id'], firewall)
@@ -320,16 +332,17 @@ class FWaasEventHandler(object):
             except Exception as err:
                 self.plugin_rpc.set_firewall_status(
                     agent_info, firewall['id'], const.STATUS_ERROR)
-                msg = ("Failed to update Firewall and status is "
-                       "changed to ERROR. %s." % str(err).capitalize())
+                msg = (log_meta_data + "Failed to update Firewall and status"
+                       " is changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
             else:
                 self.plugin_rpc.set_firewall_status(
                     agent_info, firewall['id'], status, firewall)
-                msg = ("Updated Firewall and status set to %s" % status)
+                msg = (log_meta_data + "Updated Firewall and status set to %s"
+                       % status)
                 LOG.info(msg)
         else:
-            msg = ("Wrong call to Fwaas event handler.")
+            msg = (log_meta_data + "Wrong call to Fwaas event handler.")
             raise Exception(msg)
 
 

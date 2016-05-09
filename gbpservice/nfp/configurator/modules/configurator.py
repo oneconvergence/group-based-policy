@@ -18,6 +18,7 @@ from gbpservice.nfp.configurator.lib import demuxer
 from gbpservice.nfp.configurator.lib import schema_validator
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import rpc
+from gbpservice.nfp.lib import nfp_log_helper
 
 AGENTS_PKG = 'gbpservice.nfp.configurator.agents'
 CONFIGURATOR_RPC_TOPIC = 'configurator'
@@ -72,15 +73,19 @@ class ConfiguratorRpcManager(object):
         Returns: None
 
         """
+        log_meta_data = nfp_log_helper.get_log_meta_data(
+                                            request_data,
+                                            nfp_log_helper.CONFIGURATOR)
         if not self.sv.decode(request_data, is_generic_config):
-            msg = ("Decode failed for request_data=%s" % (request_data))
+            msg = (log_meta_data + "Decode failed for request_data=%s"
+                   % (request_data))
             raise Exception(msg)
 
         # Retrieves service type from RPC data
         service_type = self.demuxer.get_service_type(request_data)
         if (const.invalid_service_type == service_type):
-            msg = ("Configurator received invalid service type %s." %
-                   service_type)
+            msg = (log_meta_data + "Configurator received invalid service type"
+                   " %s." % service_type)
             raise Exception(msg)
 
         # Retrieves service agent information from RPC data
@@ -90,14 +95,16 @@ class ConfiguratorRpcManager(object):
                                             operation, service_type,
                                             request_data, is_generic_config)
         if not sa_req_list:
-            msg = ("Configurator received invalid data format for service"
-                   " type %s. Data format: %r" % (service_type, request_data))
+            msg = (log_meta_data + "Configurator received invalid data format"
+                   " for service type %s. Data format: %r"
+                   % (service_type, request_data))
             raise Exception(msg)
 
         # Retrieves service agent instance using service type
         sa_instance = self._get_service_agent_instance(service_type)
         if not sa_instance:
-            msg = ("Failed to find agent with service type %s." % service_type)
+            msg = (log_meta_data + "Failed to find agent with service type %s"
+                   % service_type)
             raise Exception(msg)
 
         # Notification data list that needs to be returned after processing

@@ -488,7 +488,7 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         return description['vm_management_ip']
 
     def _print_exception(self, exception_type, err,
-                         url, operation, response=None):
+                         url, operation, log_meta_data="", response=None):
         """ Abstract class for printing log messages
 
         :param exception_type: Name of the exception as a string
@@ -503,27 +503,24 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
             msg = ("Error occurred while connecting to firewall "
                    "service at URL: %r. Firewall not %sd. %s. "
                    % (url, operation, str(err).capitalize()))
-            LOG.error(msg)
         elif exception_type == 'RequestException':
             msg = ("Unexpected error occurred while connecting to "
                    "firewall service at URL: %r. Firewall not %sd. %s"
                    % (url, operation, str(err).capitalize()))
-            LOG.error(msg)
         elif exception_type == 'ValueError':
             msg = ("Unable to parse the response. Invalid "
                    "JSON from URL: %r. Firewall not %sd. %s. %r"
                    % (url, operation, str(err).capitalize(), response))
-            LOG.error(msg)
         elif exception_type == 'UnexpectedError':
             msg = ("Unexpected error occurred while connecting to service "
                    "at URL: %r. Firewall not %sd. %s. %r"
                    % (url, operation, str(err).capitalize(), response))
-            LOG.error(msg)
         elif exception_type == 'Failure':
             msg = ("Firewall not %sd. URL: %r. Response "
                    "code from server: %r. %r"
                    % (operation, url, err, response))
-            LOG.error(msg)
+
+        LOG.error(log_meta_data + msg)
 
     def create_firewall(self, context, firewall, host):
         """ Implements firewall creation
@@ -537,53 +534,57 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         Returns: SUCCESS/Failure message with reason.
 
         """
-
-        msg = ("Processing create firewall request in FWaaS Driver "
-               "for Firewall ID: %s." % firewall['id'])
-        LOG.debug(msg)
+        log_meta_data = context.get("log_meta_data", "")
+        msg = (log_meta_data + "Processing create firewall request in FWaaS"
+               " Driver for Firewall ID: %s." % firewall['id'])
+        LOG.info(msg)
         mgmt_ip = self._get_firewall_attribute(firewall)
         url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'configure-firewall-rule')
-        msg = ("Initiating POST request for FIREWALL ID: %r Tenant ID:"
-               " %r. URL: %s" % (firewall['id'], firewall['tenant_id'], url))
+        msg = (log_meta_data + "Initiating POST request for FIREWALL ID: %r"
+               " Tenant ID: %r. URL: %s"
+               % (firewall['id'], firewall['tenant_id'], url))
         LOG.info(msg)
         data = jsonutils.dumps(firewall)
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
-            self._print_exception('ConnectionError', err, url, 'create')
+            self._print_exception('ConnectionError', err, url, 'create',
+                                  log_meta_data)
             raise requests.exceptions.ConnectionError(err)
         except requests.exceptions.RequestException as err:
-            self._print_exception('RequestException', err, url, 'create')
+            self._print_exception('RequestException', err, url, 'create',
+                                  log_meta_data)
             raise requests.exceptions.RequestException(err)
 
-        msg = ("POSTed the configuration to Service VM")
-        LOG.debug(msg)
         if resp.status_code in const.SUCCESS_CODES:
             try:
                 resp_payload = resp.json()
                 if resp_payload['config_success']:
-                    msg = ("Configured Firewall successfully. URL: %s"
-                           % url)
+                    msg = (log_meta_data + "Configured Firewall successfully."
+                           " URL: %s" % url)
                     LOG.info(msg)
                     return const.STATUS_ACTIVE
                 else:
                     self._print_exception('Failure',
                                           resp.status_code, url,
-                                          'create', resp.content)
+                                          'create', log_meta_data,
+                                          resp.content)
                     return const.STATUS_ERROR
             except ValueError as err:
                 self._print_exception('ValueError', err, url,
-                                      'create', resp.content)
+                                      'create', log_meta_data,
+                                      resp.content)
                 return const.STATUS_ERROR
             except Exception as err:
                 self._print_exception('UnexpectedError', err, url,
-                                      'create', resp.content)
+                                      'create', log_meta_data,
+                                      resp.content)
                 return const.STATUS_ERROR
         else:
             self._print_exception('Failure', resp.status_code, url,
-                                  'create', resp.content)
+                                  'create', log_meta_data, resp.content)
             return const.STATUS_ERROR
 
     def update_firewall(self, context, firewall, host):
@@ -598,26 +599,27 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         Returns: SUCCESS/Failure message with reason.
 
         """
-
+        log_meta_data = context.get("log_meta_data", "")
         mgmt_ip = self._get_firewall_attribute(firewall)
         url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'update-firewall-rule')
-        msg = ("Initiating UPDATE request. URL: %s" % url)
+        msg = (log_meta_data + "Initiating UPDATE request. URL: %s" % url)
         LOG.info(msg)
         data = jsonutils.dumps(firewall)
         try:
             resp = requests.put(url, data=data, timeout=self.timeout)
         except Exception as err:
-            self._print_exception('UnexpectedError', err, url, 'update')
+            self._print_exception('UnexpectedError', err, url, 'update',
+                                  log_meta_data)
             raise Exception(err)
         if resp.status_code == 200:
-            msg = ("Successful UPDATE request. URL: %s" % url)
+            msg = (log_meta_data + "Successful UPDATE request. URL: %s" % url)
             LOG.info(msg)
             return const.STATUS_ACTIVE
         else:
             self._print_exception('Failure', resp.status_code, url,
-                                  'create', resp.content)
+                                  'create', log_meta_data, resp.content)
             return const.STATUS_ERROR
 
     def delete_firewall(self, context, firewall, host):
@@ -632,21 +634,23 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         Returns: SUCCESS/Failure message with reason.
 
         """
-
+        log_meta_data = context.get("log_meta_data", "")
         mgmt_ip = self._get_firewall_attribute(firewall)
         url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT,
                                    'delete-firewall-rule')
-        msg = ("Initiating DELETE request. URL: %s" % url)
+        msg = (log_meta_data + "Initiating DELETE request. URL: %s" % url)
         LOG.info(msg)
         data = jsonutils.dumps(firewall)
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
-            self._print_exception('ConnectionError', err, url, 'delete')
+            self._print_exception('ConnectionError', err, url, 'delete',
+                                  log_meta_data)
             raise requests.exceptions.ConnectionError(err)
         except requests.exceptions.RequestException as err:
-            self._print_exception('RequestException', err, url, 'delete')
+            self._print_exception('RequestException', err, url, 'delete',
+                                  log_meta_data)
             raise requests.exceptions.RequestException(err)
 
         if resp.status_code in const.SUCCESS_CODES:
@@ -654,35 +658,35 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
             try:
                 resp_payload = resp.json()
                 if resp_payload['delete_success']:
-                    msg = ("Deleted Firewall successfully.")
+                    msg = (log_meta_data + "Deleted Firewall successfully.")
                     LOG.info(msg)
                     return const.STATUS_DELETED
                 elif not resp_payload['delete_success'] and \
                         resp_payload.get('message', '') == (
                                             const.INTERFACE_NOT_FOUND):
                     # VK: This is a special case.
-                    msg = ("Firewall not deleted, as interface is not "
-                           "available in firewall. Possibly got detached. "
+                    msg = (log_meta_data + "Firewall not deleted, as interface"
+                           "is not available in firewall.Possibly got detached"
                            " So marking this delete as success. URL: %r"
                            "Response Content: %r" % (url, resp.content))
                     LOG.error(msg)
                     return const.STATUS_SUCCESS
                 else:
-                    self._print_exception('Failure',
-                                          resp.status_code, url,
-                                          'delete', resp.content)
+                    self._print_exception('Failure', resp.status_code, url,
+                                          'delete', log_meta_data,
+                                          resp.content)
                     return const.STATUS_ERROR
             except ValueError as err:
                 self._print_exception('ValueError', err, url,
-                                      'delete', resp.content)
+                                      'delete', log_meta_data, resp.content)
                 return const.STATUS_ERROR
             except Exception as err:
                 self._print_exception('UnexpectedError', err, url,
-                                      'delete', resp.content)
+                                      'delete', log_meta_data, resp.content)
                 return const.STATUS_ERROR
         else:
             self._print_exception('Failure', resp.status_code, url,
-                                  'create', resp.content)
+                                  'create', log_meta_data, resp.content)
             return const.STATUS_ERROR
 
     def configure_healthmonitor(self, context, kwargs):
@@ -696,8 +700,7 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
            Returns: SUCCESS/FAILED
 
         """
-        log_meta_data = (kwargs['request_info']['log_meta_data']
-                         if 'log_meta_data' in kwargs['request_info'] else '')
+        log_meta_data = kwargs.get("log_meta_data", "")
         ip = kwargs.get('mgmt_ip')
         port = str(const.CONFIGURATION_SERVER_PORT)
         command = 'nc ' + ip + ' ' + port + ' -z'

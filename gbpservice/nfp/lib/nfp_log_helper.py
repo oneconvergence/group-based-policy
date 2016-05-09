@@ -29,105 +29,48 @@ otc_modules = [PECAN, CONFIGURATOR]
 utc_modules = [ORCHESTRATOR, PROXY_AGENT, CONFIG_ORCHESTRATOR, TRANSPORT_LIB]
 
 
-def prepare_log_meta_data(nf=None, log_meta_data=None,
-                          level=None, event_category=None,
-                          event=None, service_type=None,
-                          service_provider=None):
-    """Prepares log meta data string in a specific format
+def prepare_log_meta_data(kwargs):
+    """Prepares log meta data string in a specific format.
 
-    :param nf - network function object
-    :param log_meta_data - already existing log_meta_data string to restructure
-                           it along with other params like level,event etc
-    :param level - log level
-    :param event_category
-    :param event
-    :param service_type
-    :param service_provider
+    :param kwargs - kwargs which needs to be added in the meta data
 
     Returns log_meta_data
     """
 
     log_info_content = {
-        '00_level': (
-            ('Level:' + level)
-            if level
-            else ''),
-        '01_event_category': (
-            ('EventCategory:' + event_category)
-            if event_category
-            else ''),
-        '02_event': (
-            ('Event:' + event)
-            if event
-            else '')
+        '00_level': (('Level:' + kwargs["Level"])
+                     if kwargs.get("Level") else ""),
+
+        '01_event_category': (('EventCategory:' + kwargs["EventCategory"])
+                              if kwargs.get("EventCategory") else ""),
+
+        '02_event': (('Event:' + kwargs["Event"])
+                     if kwargs.get("Event") else ""),
+
+        '03_tenant_id': (('TenantID:' + kwargs["TenantID"])
+                         if kwargs.get("TenantID") else ""),
+
+        '04_service_chain_id': (
+                            ('ServiceChainID:' + kwargs['ServiceChainID'])
+                            if kwargs.get("ServiceChainID") else ""),
+
+        '05_service_instance_id': (
+                                ('ServiceInstanceID:' +
+                                 kwargs["ServiceInstanceID"])
+                                if kwargs.get("ServiceInstanceID")
+                                else ""),
+
+        '06_service_type': (('ServiceType:' + kwargs["ServiceType"])
+                            if kwargs.get("ServiceType") else ""),
+
+        '07_service_provider': (
+                            ('ServiceProvider:' + kwargs["ServiceProvider"]
+                             if kwargs.get("ServiceProvider") else ""))
     }
-    log_info_nf_content = {}
+
     try:
-        if nf:
-            log_info_nf_content = {
-                '03_tenant_id': (
-                    ('TenantID:' + nf['tenant_id'])
-                    if nf.get('tenant_id')
-                    else ''),
-                '04_service_chain_id': (
-                    ('ServiceChainID:' +
-                     nf['service_chain_id'])
-                    if nf.get('service_chain_id')
-                    else ''),
-                '05_service_chain_instance_id': (
-                    ('ServiceInstanceID:' +
-                     nf['id'])
-                    if nf.get('id')
-                    else ''),
-                '06_service_type': (
-                    ('ServiceType:' + service_type)
-                    if service_type
-                    else ''),
-                '07_service_provider': (
-                    ('ServiceProvider:' + service_provider)
-                    if service_provider
-                    else ''),
-            }
-        elif log_meta_data and log_meta_data != '':
-            """Reorganize the log_meta_data string along with new fields
-               like EventCategory, Events, Level etc
-               e.g log_meta_dat = '[TenantID:tid, ServiceChainID:scid,
-                                ServiceInstanceID:siid, ServiceType:FIREWALL,
-                                ServiceProvider:vyos] - '
-            """
-
-            string = log_meta_data.replace(" ", "")[1:-2]
-            nf = dict(kv.split(":") for kv in string.split(","))
-
-            log_info_nf_content = {
-                '03_tenant_id': (
-                    ('TenantID:' + nf['TenantID'])
-                    if nf.get('TenantID')
-                    else ''),
-                '04_service_chain_id': (
-                    ('ServiceChainID:' +
-                     nf['ServiceChainID'])
-                    if nf.get('ServiceChainID')
-                    else ''),
-                '05_service_chain_instance_id': (
-                    ('ServiceInstanceID:' +
-                     nf['ServiceInstanceID'])
-                    if nf.get('ServiceInstanceID')
-                    else ''),
-                '06_service_type': (
-                    ('ServiceType:' + nf['ServiceType'])
-                    if nf.get('ServiceType')
-                    else ''),
-                '07_service_provider': (
-                    ('ServiceProvider:' + nf['ServiceProvider'])
-                    if nf.get('ServiceProvider')
-                    else ''),
-            }
-
-        log_info_content.update(log_info_nf_content)
         log_info_content = OrderedDict(sorted(log_info_content.items(),
                                               key=lambda t: t[0]))
-
         log_msg = '['
         for content in log_info_content:
             if log_info_content.get(content):
@@ -141,6 +84,28 @@ def prepare_log_meta_data(nf=None, log_meta_data=None,
         LOG.error(_LE("Error while generating LOG. %s."
                       % str(err).capitalize()))
         return ''
+
+
+def get_kwargs_from_log_meta_data(log_meta_data):
+    """ Convert log_meta_data string to dictionary format
+
+        This function will be useful when want to add some more fields
+        to the existing log_meta_data string.
+        1) convert log_meta_data string to dictionary(kwargs) format using
+           this function
+        2) append new fields to this dictionary(kwargs) and prepare
+           log_meta_data by using preapre_log_meta_data(kwargs) function
+
+    :param log_meta_data - string
+
+    Returns kwargs - dictionary
+    """
+
+    kwargs = {}
+    if log_meta_data and log_meta_data != '':
+        string = log_meta_data.replace(" ", "")[1:-2]
+        kwargs = dict(kv.split(":") for kv in string.split(","))
+    return kwargs
 
 
 def get_log_meta_data(request_data, module):

@@ -578,19 +578,24 @@ class ServiceOrchestrator(object):
         network_function = self.db_handler.create_network_function(
             self.db_session, network_function)
 
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                            nf=network_function,
-                            service_type=service_profile['service_type'],
-                            service_provider=service_details['service_vendor'])
+        # LOG complete meta data first time
+        kwargs = {}
+        kwargs['ServiceType'] = service_profile['service_type']
+        kwargs['ServiceProvider'] = service_details['service_vendor']
+        kwargs['TenantID'] = network_function['tenant_id']
+        kwargs['ServiceChainID'] = network_function['service_chain_id']
+        kwargs['ServiceInstanceID'] = network_function['id']
+
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
+        LOG.info(log_meta_data + "Created Network Function.")
+
+        # Now onwards change log meta data and keep ServiceInstanceID only.
+        # This ID should be used for further log search
+        kwargs = {'ServiceInstanceID': network_function['id']}
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
 
         if (not service_details.get('service_vendor') or
                 not service_details.get('device_type')):
-
-            log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                                    log_meta_data=log_meta_data,
-                                    level='Alert',
-                                    event_category='Service',
-                                    event='Create')
 
             LOG.error(_LE(log_meta_data + "service_vendor or device_type not "
                           "provided in service profile's service flavor field."
@@ -641,18 +646,8 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         service_profile_id = network_function_info['service_profile_id']
 
-        admin_token = self.keystoneclient.get_admin_token()
-        service_profile = self.gbpclient.get_service_profile(
-                                        admin_token, service_profile_id)
-
-        service_details = transport.parse_service_flavor_string(
-                                        service_profile['service_flavor'])
-
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                        nf=network_function_info,
-                        service_type=service_profile['service_type'],
-                        service_provider=service_details['service_vendor']
-                        )
+        kwargs = {'ServiceInstanceID': network_function_info['id']}
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
 
         LOG.info(_LI(log_meta_data + "Received delete network_function"
                      " request"))
@@ -662,11 +657,15 @@ class ServiceOrchestrator(object):
                 not network_function_info['network_function_instances']):
             self.db_handler.delete_network_function(
                 self.db_session, network_function_id)
-            log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                                        log_meta_data=log_meta_data,
-                                        level='Audit',
-                                        event_category='Service',
-                                        event='Delete')
+
+            # TODO(pritam):
+            kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(
+                                                        log_meta_data)
+            kwargs['Level'] = 'Audit'
+            kwargs['EventCategory'] = 'Service'
+            kwargs['Event'] = 'Delete'
+            log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
+
             LOG.info(_LI(log_meta_data + "Deleted network_function:%s"
                          " from db. base_mode_support:%s,"
                          " network_function_instances:%s ")
@@ -700,7 +699,6 @@ class ServiceOrchestrator(object):
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
         network_function_info = network_function_details['network_function']
-        # log_meta_data = self._prepare_log_meta_data(network_function_info)
 
         if not network_function_info['heat_stack_id']:
             event_data = {
@@ -728,7 +726,7 @@ class ServiceOrchestrator(object):
                            event_data=request_data, is_poll_event=True)
 
     def create_network_function_instance(self, event):
-        log_meta_data = event.data.get('log_meta_data', "")
+        log_meta_data = event.data.get("log_meta_data", "")
         request_data = event.data
         name = '%s.%s' % (request_data['network_function']['name'],
                           request_data['network_function']['id'])
@@ -935,11 +933,14 @@ class ServiceOrchestrator(object):
                                         updated_network_function)
 
             if request_data.get("service_creation"):
-                log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                                                log_meta_data=log_meta_data,
-                                                level='Audit',
-                                                event_category='Service',
-                                                event='Create')
+                # TODO(pritam):
+                kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(
+                                                            log_meta_data)
+                kwargs['Level'] = 'Audit'
+                kwargs['EventCategory'] = 'Service'
+                kwargs['Event'] = 'Create'
+                log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
+
             LOG.info(_LI(log_meta_data + "User config applied successfully"))
             self._controller.event_done(event)
             return STOP_POLLING
@@ -1101,10 +1102,14 @@ class ServiceOrchestrator(object):
         network_function = self.db_handler.get_network_function(
             self.db_session, nfi['network_function_id'])
         if not network_function['network_function_instances']:
-            log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                            nf=network_function, level='Audit',
-                            event_category='Service',
-                            event='Delete')
+            # TODO(pritam):
+            kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(
+                                                        log_meta_data)
+            kwargs['Level'] = 'Audit'
+            kwargs['EventCategory'] = 'Service'
+            kwargs['Event'] = 'Delete'
+            log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
+
             self.db_handler.delete_network_function(
                 self.db_session, nfi['network_function_id'])
 

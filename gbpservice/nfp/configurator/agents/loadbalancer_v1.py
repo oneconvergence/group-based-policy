@@ -17,6 +17,8 @@ from gbpservice.nfp.configurator.lib import lb_constants
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.lib import nfp_log_helper
+
 from neutron import context
 from oslo_log import log as logging
 
@@ -143,6 +145,9 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
+        log_meta_data = data['context'].get("log_meta_data", "")
+        msg = (log_meta_data + "Received %s request" % (event_id.lower()))
+        LOG.info(msg)
         ev = self.sc.new_event(id=event_id, data=data)
         ev.key = key
         ev.serialize = serialize
@@ -436,18 +441,14 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         Returns: None
 
         """
-        msg = ("Handling event=%s" % (ev.id))
-        LOG.info(msg)
         try:
-            msg = ("Worker process with ID: %s starting "
-                   "to handle task: %s of topic: %s. "
-                   % (os.getpid(), ev.id, lb_constants.LBAAS_AGENT_RPC_TOPIC))
-            LOG.debug(msg)
-
+            log_meta_data = ev.data['context'].get("log_meta_data", "")
+            msg = (log_meta_data + "Handling event %s" % (ev.id))
+            LOG.info(msg)
             method = getattr(self, "_%s" % (ev.id.lower()))
             method(ev)
         except Exception as err:
-            msg = ("Failed to perform the operation: %s. %s"
+            msg = (log_meta_data + "Failed to handle event %s. Reason:%s"
                    % (ev.id, str(err).capitalize()))
             LOG.error(msg)
         finally:
@@ -457,9 +458,17 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 """
                 pass
             else:
-                msg = ("Calling event done for event=%s" % (ev.id))
+                msg = (log_meta_data + "Calling event done for event %s"
+                       % (ev.id))
                 LOG.info(msg)
                 self.sc.event_done(ev)
+
+    def _prepare_log_meta_data(self, log_meta_data):
+        kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(log_meta_data)
+        kwargs['Level'] = 'Audit'
+        kwargs['EventCategory'] = 'Service'
+        kwargs['Event'] = 'ServiceConfig'
+        return nfp_log_helper.prepare_log_meta_data(kwargs)
 
     def _handle_event_vip(self, ev, operation):
         data = ev.data
@@ -469,6 +478,10 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         service_vendor = agent_info['service_vendor']
         driver = self._get_driver(service_vendor)
 
+        # TODO(pritam): get log meta data from event context instead of neutron
+        # context
+        log_meta_data = self._prepare_log_meta_data(
+                                            context.get("log_meta_data", ""))
         try:
             if operation == 'create':
                 driver.create_vip(vip, context)
@@ -479,18 +492,26 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 driver.delete_vip(vip, context)
                 self.plugin_rpc.vip_deleted(vip,
                                             lb_constants.ACTIVE, agent_info)
+                msg = (log_meta_data + "Deleted vip %s" % (operation,
+                                                           vip['id']))
+                LOG.info(log_meta_data)
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                msg = ("Failed to delete vip %s" % (vip['id']))
+                msg = (log_meta_data + "Failed to delete vip %s" % (vip['id']))
                 self.plugin_rpc.vip_deleted(vip,
                                             lb_constants.ACTIVE, agent_info)
                 LOG.warn(msg)
             else:
+                msg = (log_meta_data + "Failed to %s vip %s"
+                       % (operation, vip['id']))
+                LOG.error(msg)
                 self.plugin_rpc.update_status('vip', vip['id'],
                                               lb_constants.ERROR,
                                               agent_info, vip)
         else:
+            msg = (log_meta_data + "Done %s vip %s" % (operation, vip['id']))
+            LOG.info(log_meta_data)
             self.plugin_rpc.update_status('vip', vip['id'],
                                           lb_constants.ACTIVE,
                                           agent_info, vip)
@@ -510,12 +531,18 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         pool = data['pool']
         agent_info = context.pop('agent_info')
         service_vendor = agent_info['service_vendor']
+
+        # TODO(pritam): get log meta data from event context instead of neutron
+        # context
+        log_meta_data = self._prepare_log_meta_data(
+                                            context.get("log_meta_data", ""))
         try:
             if operation == 'create':
                 driver_name = data['driver_name']
                 driver_id = driver_name + service_vendor
                 if (driver_id) not in self.drivers.keys():
-                    msg = ('No device driver on agent: %s.' % (driver_name))
+                    msg = (log_meta_data + 'No device driver:%s found on LB'
+                           ' agent for Pool:%s' % (driver_name, pool))
                     LOG.error(msg)
                     self.plugin_rpc.update_status('pool', pool['id'],
                                                   lb_constants.ERROR,
@@ -532,17 +559,26 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 driver = self._get_driver(service_vendor)  # pool['id'])
                 driver.delete_pool(pool, context)
                 del LBaaSEventHandler.instance_mapping[pool['id']]
+                msg = (log_meta_data + "Deleted pool %s" % (operation,
+                                                            pool['id']))
+                LOG.info(log_meta_data)
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                msg = ("Failed to delete pool %s" % (pool['id']))
+                msg = (log_meta_data + "Failed to delete pool %s"
+                       % (pool['id']))
                 LOG.warn(msg)
                 del LBaaSEventHandler.instance_mapping[pool['id']]
             else:
+                msg = (log_meta_data + "Failed to %s pool %s"
+                       % (operation, pool['id']))
+                LOG.error(msg)
                 self.plugin_rpc.update_status('pool', pool['id'],
                                               lb_constants.ERROR,
                                               agent_info, pool)
         else:
+            msg = (log_meta_data + "Done %s pool %s" % (operation, pool['id']))
+            LOG.info(msg)
             self.plugin_rpc.update_status('pool', pool['id'],
                                           lb_constants.ACTIVE,
                                           agent_info, pool)
@@ -563,6 +599,12 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         agent_info = ev.data['context'].pop('agent_info')
         service_vendor = agent_info['service_vendor']
         driver = self._get_driver(service_vendor)  # member['pool_id'])
+
+        # TODO(pritam): get log meta data from event context instead of neutron
+        # context
+        log_meta_data = self._prepare_log_meta_data(
+                                            context.get("log_meta_data", ""))
+
         try:
             if operation == 'create':
                 driver.create_member(member, context)
@@ -571,16 +613,26 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 driver.update_member(old_member, member, context)
             elif operation == 'delete':
                 driver.delete_member(member, context)
+                msg = (log_meta_data + "Deleted member %s" % (operation,
+                                                              member['id']))
+                LOG.info(log_meta_data)
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                msg = ("Failed to delete member %s" % (member['id']))
+                msg = (log_meta_data + "Failed to delete member %s"
+                       % (member['id']))
                 LOG.warn(msg)
             else:
+                msg = (log_meta_data + "Failed to %s member %s"
+                       % (operation, member['id']))
+                LOG.error(msg)
                 self.plugin_rpc.update_status('member', member['id'],
                                               lb_constants.ERROR,
                                               agent_info, member)
         else:
+            msg = (log_meta_data + "Done %s member %s" % (operation,
+                                                          member['id']))
+            LOG.info(msg)
             self.plugin_rpc.update_status('member', member['id'],
                                           lb_constants.ACTIVE,
                                           agent_info, member)
@@ -604,6 +656,12 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         driver = self._get_driver(service_vendor)  # (pool_id)
         assoc_id = {'pool_id': pool_id,
                     'monitor_id': health_monitor['id']}
+
+        # TODO(pritam): get log meta data from event context instead of neutron
+        # context
+        log_meta_data = self._prepare_log_meta_data(
+                                            context.get("log_meta_data", ""))
+
         try:
             if operation == 'create':
                 driver.create_pool_health_monitor(health_monitor, pool_id,
@@ -616,17 +674,26 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
             elif operation == 'delete':
                 driver.delete_pool_health_monitor(health_monitor, pool_id,
                                                   context)
+                msg = (log_meta_data + "Deleted pool health monitor %s"
+                       % (operation, health_monitor['id']))
+                LOG.info(log_meta_data)
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                msg = ("Failed to delete pool health monitor."
-                       " assoc_id: %s" % (assoc_id))
+                msg = (log_meta_data + "Failed to delete pool health monitor"
+                       " %s" % (health_monitor['id']))
                 LOG.warn(msg)
             else:
+                msg = (log_meta_data + "Failed to %s pool health monitor %s"
+                       % (operation, health_monitor['id']))
+                LOG.error(msg)
                 self.plugin_rpc.update_status(
                     'health_monitor', assoc_id, lb_constants.ERROR,
                     agent_info, health_monitor)
         else:
+            msg = (log_meta_data + "Done %s pool health monitor %s"
+                   % (operation, health_monitor['id']))
+            LOG.info(msg)
             self.plugin_rpc.update_status(
                 'health_monitor', assoc_id, lb_constants.ACTIVE,
                 agent_info, health_monitor)

@@ -484,11 +484,12 @@ class DeviceOrchestrator(PollEventDesc):
                 orchestration_driver.create_network_function_device(
                     device_data))
             if not driver_device_info:
-                log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                                        log_meta_data=log_meta_data,
-                                        level='Alert',
-                                        event_category='Service',
-                                        event='Resource')
+                kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(
+                                                            log_meta_data)
+                kwargs['Level'] = 'Audit'
+                kwargs['EventCategory'] = 'Service'
+                kwargs['Event'] = 'Create'
+                log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
 
                 LOG.error(_LE(log_meta_data + "Device creation failed."))
                 self._create_event(event_id='DEVICE_ERROR',
@@ -811,11 +812,13 @@ class DeviceOrchestrator(PollEventDesc):
 
     def handle_device_not_up(self, event):
         log_meta_data = event.data.get('log_meta_data', "")
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                            log_meta_data=log_meta_data,
-                            level='Audit',
-                            event_category='Service',
-                            event='Create')
+
+        kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(
+                                                    log_meta_data)
+        kwargs['Level'] = 'Audit'
+        kwargs['EventCategory'] = 'Service'
+        kwargs['Event'] = 'Create'
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
 
         device = event.data
         LOG.error(_LE(log_meta_data + "Device launch failed."
@@ -839,10 +842,13 @@ class DeviceOrchestrator(PollEventDesc):
 
     def handle_device_config_failed(self, event):
         log_meta_data = event.data.get('log_meta_data', "")
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                log_meta_data=log_meta_data,
-                event_category='ServiceConfig',
-                event='Create')
+        kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(
+                                                    log_meta_data)
+        kwargs['Level'] = 'Audit'
+        kwargs['EventCategory'] = 'ServiceConfig'
+        kwargs['Event'] = 'Create'
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
+
         device = event.data
         status = nfp_constants.ERROR
         desc = 'Configuring Device Failed.'
@@ -868,10 +874,12 @@ class DeviceOrchestrator(PollEventDesc):
 
     def handle_driver_error(self, event):
         log_meta_data = event.data.get('log_meta_data', "")
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                            log_meta_data=log_meta_data,
-                            event_category='Service',
-                            event='Resource')
+        kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(
+                                                    log_meta_data)
+        kwargs['Level'] = 'Audit'
+        kwargs['EventCategory'] = 'Service'
+        kwargs['Event'] = 'Create'
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
 
         device = event.data
         LOG.error(_LE(log_meta_data + "Exception occured in driver, driver"

@@ -21,6 +21,7 @@ from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.lib import nfp_log_helper
 
 LOG = logging.getLogger(__name__)
 
@@ -61,7 +62,8 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
         :param event_key: Event key for serialization
 
         """
-
+        log_meta_data = resource_data.get('log_meta_data', "")
+        LOG.info(log_meta_data + "Received RPC %s" % (event_id.lower()))
         arg_dict = {'context': context,
                     'resource_data': resource_data}
         ev = self.sc.new_event(id=event_id, data=arg_dict, key=event_key)
@@ -187,6 +189,13 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
 
         return self.drivers[service_type + service_vendor]()
 
+    def _prepare_log_meta_data(self, log_meta_data):
+        kwargs = nfp_log_helper.get_kwargs_from_log_meta_data(log_meta_data)
+        kwargs['Level'] = 'Audit'
+        kwargs['EventCategory'] = 'Service'
+        kwargs['Event'] = 'ServiceConfig'
+        return nfp_log_helper.prepare_log_meta_data(kwargs)
+
     def handle_event(self, ev):
         """Processes the generated events in worker context.
 
@@ -202,7 +211,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         Returns: None
 
         """
-        msg = ("Handling event ev.id %s" % (ev.id))
+        log_meta_data = ev.data.get('log_meta_data', "")
+        msg = (log_meta_data + "Handling event %s" % (ev.id))
         LOG.info(msg)
 
         # Process batch of request data blobs
@@ -224,13 +234,18 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                     self.sc.poll_event(ev)
             else:
                 self._process_event(ev)
+
+            msg = (log_meta_data + "Event %s handling done" % (ev.id))
+            LOG.info(msg)
         except Exception as err:
-            msg = ("Failed to process event %s, reason %s " % (ev.data, err))
+            msg = (log_meta_data + "Failed to process event %s, reason %s"
+                   % (ev.id, err))
             LOG.error(msg)
             return
 
     def _process_event(self, ev):
-        LOG.debug(" Handling event %s " % (ev.data))
+        log_meta_data = self._prepare_log_meta_data(
+                                            ev.data.get("log_meta_data", ""))
         # Process single request data blob
         resource_data = ev.data['resource_data']
         agent_info = ev.data['context']
@@ -239,25 +254,22 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         service_vendor = agent_info['service_vendor']
 
         try:
-            msg = ("Worker process with ID: %s starting "
-                   "to handle task: %s for service type: %s. "
-                   % (os.getpid(), ev.id, str(service_type)))
-            LOG.debug(msg)
-
             driver = self._get_driver(service_type, service_vendor)
 
             # Invoke service driver methods based on event type received
             result = getattr(driver, "%s" % ev.id.lower())(context,
                                                            resource_data)
         except Exception as err:
-            msg = ("Failed to process ev.id=%s, ev=%s reason=%s" %
-                   (ev.id, ev.data, err))
+            msg = (log_meta_data + "Failed to handle request %s. Reason=%s"
+                   % (ev.id.lower(), err))
             LOG.error(msg)
             result = common_const.FAILED
 
         if ev.id == gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR:
             if (resource_data.get('periodicity') == gen_cfg_const.INITIAL and
                     result == common_const.SUCCESS):
+                msg = (log_meta_data + "Health monitoring succeeded for %s "
+                       % (ev.data))
                 notification_data = self._prepare_notification_data(ev, result)
                 self.sc.poll_event_done(ev)
                 self.notify._notification(notification_data)
@@ -270,6 +282,9 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                                                             'fail_count') + 1
                     if (resource_data.get('fail_count') >=
                             gen_cfg_const.MAX_FAIL_COUNT):
+                        msg = (log_meta_data +
+                               'Health monitoring failed for: %s' % (ev.data))
+                        LOG.error(msg)
                         notification_data = self._prepare_notification_data(
                                                                     ev,
                                                                     result)
@@ -283,11 +298,19 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
             """Stop current poll event. event.key is vmid which will stop
                that particular service vm's health monitor
             """
+            msg = (log_meta_data +
+                   'Health monitoring cleared for: %s ' % (ev.data))
+            LOG.info(msg)
             notification_data = self._prepare_notification_data(ev, result)
             self.sc.poll_event_done(ev)
             self.notify._notification(notification_data)
         else:
             """For other events, irrespective of result send notification"""
+            msg = (log_meta_data + "%s %s" % (result, ev.id.lower()))
+            if result == common_const.FAILED:
+                LOG.error(msg)
+            else:
+                LOG.info(msg)
             notification_data = self._prepare_notification_data(ev, result)
             self.notify._notification(notification_data)
 
@@ -340,7 +363,10 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         Returns: None
 
         """
-        msg = ('Cancelled poll event. Event Data: %s ' % (ev.data))
+        log_meta_data = self._prepare_log_meta_data(
+                                            ev.data.get("log_meta_data", ""))
+        msg = (log_meta_data +
+               'Health monitoring failed for: %s ' % (ev.data))
         LOG.error(msg)
         result = common_const.FAILED
         notification_data = self._prepare_notification_data(ev, result)
