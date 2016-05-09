@@ -10,12 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import ast
 import multiprocessing
 import os
 import time
 import uuid as pyuuid
-import zlib
 
 from oslo_log import log as oslo_logging
 

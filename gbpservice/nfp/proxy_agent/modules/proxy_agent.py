@@ -75,8 +75,6 @@ class RpcHandler(object):
                                                context, body,
                                                "UPDATE")
 
-
-
     @log_helpers.log_method_call
     def create_network_function_device_config(self, context, body):
         """Method of rpc handler for create_network_function_device_config.
