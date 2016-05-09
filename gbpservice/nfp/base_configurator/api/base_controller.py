@@ -29,12 +29,14 @@ class ZipperHook(PecanHook):
             body = zlib.decompress(zippedBody)
             body = jsonutils.loads(body)
             state.request.json_body = body
+            state.request.content_type = "application/json"
         except Exception as e:
             LOG.error("Failed to process data ,Reason: %s", e)
 
     def after(self, state):
         data = state.response.body
         state.response.body = zlib.compress(data)
+        state.response.content_type = "application/octet-stream"
 
 
 class BaseController(rest.RestController, HookController):
