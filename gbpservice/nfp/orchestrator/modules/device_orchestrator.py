@@ -315,7 +315,10 @@ class DeviceOrchestrator(PollEventDesc):
             device_id = device['id']
             del device['id']
             orchestration_driver.delete_network_function_device(device)
-            self._delete_network_function_device_db(device_id)
+            try:
+                self._delete_network_function_device_db(device_id)
+            except:
+                pass
             # DEVICE_DELETED event for NSO
             self._create_event(event_id='DEVICE_DELETED',
                                event_data=device)
@@ -794,7 +797,10 @@ class DeviceOrchestrator(PollEventDesc):
             device_id = device['id']
             del device['id']
             orchestration_driver.delete_network_function_device(device)
-            self._delete_network_function_device_db(device_id)
+            try:
+                self._delete_network_function_device_db(device_id)
+            except:
+                pass
             # DEVICE_DELETED event for NSO
             self._create_event(event_id='DEVICE_DELETED',
                                event_data=device)

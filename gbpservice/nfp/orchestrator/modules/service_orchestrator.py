@@ -578,6 +578,25 @@ class ServiceOrchestrator(object):
                                  service_config,
                                  operation='policy_target_remove')
 
+    def _prepare_log_meta_data(self, network_function):
+        service_profile_id = network_function['service_profile_id']
+
+        admin_token = self.keystoneclient.get_admin_token()
+        service_profile = self.gbpclient.get_service_profile(
+            admin_token, service_profile_id)
+        service_details = transport.parse_service_flavor_string(
+            service_profile['service_flavor'])
+
+        # LOG complete meta data first time
+        kwargs = {}
+        kwargs['ServiceType'] = service_profile['service_type']
+        kwargs['ServiceProvider'] = service_details['service_vendor']
+        kwargs['TenantID'] = network_function['tenant_id']
+        kwargs['ServiceChainID'] = network_function['service_chain_id']
+        kwargs['ServiceInstanceID'] = network_function['id']
+        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
+        return log_meta_data
+
     def create_network_function(self, context, network_function_info):
         self._validate_create_service_input(context, network_function_info)
         # GBP or Neutron
@@ -610,21 +629,14 @@ class ServiceOrchestrator(object):
         network_function = self.db_handler.create_network_function(
             self.db_session, network_function)
 
-        # LOG complete meta data first time
-        kwargs = {}
-        kwargs['ServiceType'] = service_profile['service_type']
-        kwargs['ServiceProvider'] = service_details['service_vendor']
-        kwargs['TenantID'] = network_function['tenant_id']
-        kwargs['ServiceChainID'] = network_function['service_chain_id']
-        kwargs['ServiceInstanceID'] = network_function['id']
+        log_meta_data = self._prepare_log_meta_data(network_function)
+        LOG.info(log_meta_data + "Received Create Network Function Request")
 
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
-        LOG.info(log_meta_data + "Created Network Function.")
-
+        # TODO:(pritam) - Uncomment this code block
         # Now onwards change log meta data and keep ServiceInstanceID only.
         # This ID should be used for further log search
-        kwargs = {'ServiceInstanceID': network_function['id']}
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
+        # kwargs = {'ServiceInstanceID': network_function['id']}
+        # log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
 
         if (not service_details.get('service_vendor') or
                 not service_details.get('device_type')):
@@ -685,11 +697,12 @@ class ServiceOrchestrator(object):
             self.db_session, network_function_id)
         service_profile_id = network_function_info['service_profile_id']
 
-        kwargs = {'ServiceInstanceID': network_function_info['id']}
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
+        log_meta_data = self._prepare_log_meta_data(network_function_info)
+        LOG.info(log_meta_data + "Received Delete Network Function Request")
 
-        LOG.info(_LI(log_meta_data + "Received delete network_function"
-                     " request"))
+        # TODO:(pritam) Uncomment this block
+        # kwargs = {'ServiceInstanceID': network_function_info['id']}
+        # log_meta_data = nfp_log_helper.prepare_log_meta_data(kwargs)
 
         base_mode_support = self._get_base_mode_support(service_profile_id)
         if (not base_mode_support and
@@ -1226,8 +1239,7 @@ class ServiceOrchestrator(object):
         network_function_details = self.get_network_function_details(
             network_function_id)
 
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                                                        nf=network_function)
+        log_meta_data = self._prepare_log_meta_data(network_function)
 
         base_mode_support = self._get_base_mode_support(
             network_function['service_profile_id'])
@@ -1300,8 +1312,7 @@ class ServiceOrchestrator(object):
         network_function_details = self.get_network_function_details(
             network_function_id)
 
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                                                        nf=network_function)
+        log_meta_data = self._prepare_log_meta_data(network_function)
 
         base_mode_support = self._get_base_mode_support(
             network_function['service_profile_id'])
@@ -1374,8 +1385,7 @@ class ServiceOrchestrator(object):
         network_function_details = self.get_network_function_details(
             network_function_id)
 
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                                                        nf=network_function)
+        log_meta_data = self._prepare_log_meta_data(network_function)
 
         base_mode_support = self._get_base_mode_support(
             network_function['service_profile_id'])
@@ -1448,8 +1458,7 @@ class ServiceOrchestrator(object):
         network_function_details = self.get_network_function_details(
             network_function_id)
 
-        log_meta_data = nfp_log_helper.prepare_log_meta_data(
-                                                        nf=network_function)
+        log_meta_data = self._prepare_log_meta_data(network_function)
 
         base_mode_support = self._get_base_mode_support(
             network_function['service_profile_id'])
