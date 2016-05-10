@@ -76,7 +76,8 @@ cfg.CONF.register_opts(HEAT_DRIVER_OPTS,
 SC_METADATA = ('{"sc_instance":"%s", "floating_ip": "%s", '
                '"provider_interface_mac": "%s", '
                '"standby_provider_interface_mac": "%s",'
-               '"network_function_id": "%s"}')
+               '"network_function_id": "%s",'
+               '"service_vendor": "%s"}')
 
 SVC_MGMT_PTG_NAME = (
     cfg.CONF.heat_driver.svc_management_ptg_name)
@@ -678,9 +679,9 @@ class HeatDriver(object):
             LOG.error(_LE("No provider cidr availabale"))
             return None, None
         service_type = service_profile['service_type']
-        service_vendor = service_profile['service_flavor']
         service_details = transport.parse_service_flavor_string(
             service_profile['service_flavor'])
+        service_vendor = service_details['service_vendor']
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
 
@@ -724,7 +725,7 @@ class HeatDriver(object):
             provider_cidr = ''
         standby_provider_port_mac = None
 
-        service_vendor = service_profile['service_flavor']
+        service_vendor = service_details['service_vendor']
         if service_type == pconst.LOADBALANCER:
             self._generate_pool_members(
                 auth_token, stack_template, config_param_values,
@@ -738,7 +739,8 @@ class HeatDriver(object):
                                               mgmt_ip,
                                               provider_port_mac,
                                               standby_provider_port_mac,
-                                              network_function['id'])))
+                                              network_function['id'],
+                                              service_vendor)))
 
                 lb_pool_key = self._get_heat_resource_key(
                     stack_template[resources_key],

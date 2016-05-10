@@ -128,7 +128,8 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                          'host': host,
                          'neutron_context': rsrc_ctx_dict}
         body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
+                                           resource_type, resource_data,
+                                           description['service_vendor'])
         return body
 
     def _fetch_nf_from_resource_desc(self, desc):

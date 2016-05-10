@@ -170,7 +170,8 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         resource_data = {'neutron_context': rsrc_ctx_dict}
         resource_data.update(**kwargs)
         body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
+                                           resource_type, resource_data,
+                                           description['service_vendor'])
         return body
 
     def _post(self, context, tenant_id, name, nf, **kwargs):

@@ -106,13 +106,12 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         return ctx_dict, rsrc_ctx_dict
 
     def _data_wrapper(self, context, tenant_id, nf, **kwargs):
-        description = ast.literal_eval((nf['description'].split('\n'))[1])
+        description = self._get_dict_desc_from_string(
+            nf['description'].split('\n')[1])
         resource = kwargs['rsrc_type']
         resource_data = kwargs['resource']
         resource_data['description'] = str(description)
         if resource.lower() == 'ipsec_site_connection':
-            ipsec_desc = self._get_dict_desc_from_string(kwargs[
-                'resource']['description'])
             nfp_context = {'network_function_id': nf['id'],
                            'ipsec_site_connection_id': kwargs[
                                'rsrc_id']}
@@ -125,7 +124,8 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         resource_type = 'vpn'
         kwargs.update({'neutron_context': rsrc_ctx_dict})
         body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, kwargs)
+                                           resource_type, kwargs,
+                                           description['service_vendor'])
         return body
 
     def _fetch_nf_from_resource_desc(self, desc):
