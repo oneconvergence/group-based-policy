@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
 import eventlet
 eventlet.monkey_patch()
 
@@ -19,6 +20,7 @@ import os
 import Queue
 import sys
 import time
+import zlib
 
 
 from neutron.agent.common import config as n_config
@@ -101,6 +103,7 @@ class Controller(object):
         self._process_name = 'distributor-process'
         # To wait on an event to be complete.
         self._event = multiprocessing.Event()
+        #
         # Queue to stash events.
         self._stashq = multiprocessing.Queue()
 
@@ -138,6 +141,24 @@ class Controller(object):
         # self.rpc_agents.wait()
         for w in self._workers:
             w[0].join()
+
+    def compress(self, event):
+        if event.data and not event.zipped:
+            event.zipped = True
+            event.data = zlib.compress(str({'cdata': event.data}))
+
+    def decompress(self, event):
+        if event.data and event.zipped:
+            try:
+                data = ast.literal_eval(
+                    zlib.decompress(event.data))
+                event.data = data['cdata']
+                event.zipped = False
+            except Exception as e:
+                LOG(LOGGER, 'ERROR',
+                    "Failed to decompress event data : %s Reason: %s" % (
+                        event.data, e))
+                raise e
 
     def post_event(self, event):
         """API for NFP module to generate a new internal event.
@@ -310,6 +331,7 @@ class Controller(object):
                 event.identify()))
         else:
             LOG(LOGGER, 'DEBUG', "%s - worker - stashed" % (event.identify()))
+            self.compress(event)
             self._stashq.put(event)
 
     def get_stashed_events(self):
@@ -327,6 +349,7 @@ class Controller(object):
             timeout = 0.1
             try:
                 event = self._stashq.get(timeout=timeout)
+                self.decompress(event)
                 events.append(event)
                 timeout = 0
             except Queue.Empty:
@@ -495,11 +518,12 @@ class Controller(object):
         timer_ev.desc.worker_attached = event.desc.worker_attached
         self.poll_event(timer_ev, max_times=max_times)
 
-    def _pipe_send(self, pipe, data):
+    def _pipe_send(self, pipe, event):
         """Send data to a pipe.
 
         """
-        pipe.send(data)
+        self.compress(event)
+        pipe.send(event)
 
 
 def modules_import():

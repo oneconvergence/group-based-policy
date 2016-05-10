@@ -19,6 +19,8 @@ import requests
 import subprocess
 import time
 
+from base_controller import BaseController
+
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
 NFP_SERVICE_LIST = ['heat', 'ansible']
@@ -37,7 +39,7 @@ notifications = []
 cache_ips = set()
 
 
-class Controller(rest.RestController):
+class Controller(BaseController):
 
     def __init__(self, method_name):
         try:
@@ -64,8 +66,8 @@ class Controller(rest.RestController):
         response = {'info': {'service_type': service_type,
                              'context': context},
                     'notification': [{
-                          'resource': resource,
-                          'data': data}]
+                        'resource': resource,
+                        'data': data}]
                     }
 
         notifications.append(response)

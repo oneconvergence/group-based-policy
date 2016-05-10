@@ -128,14 +128,14 @@ class VpnNotifier(object):
             # Adding Service Type #
             request_data.update({"service_type": service_type,
                                  "ipsec_site_connection_id": ipsec_id})
-        except Exception as e:
+        except Exception:
             return request_data
         return request_data
 
     def _trigger_service_event(self, context, event_type, event_id,
                                request_data):
         event_data = {'resource': None,
-                      'context': context}
+                      'context': context.to_dict()}
         event_data['resource'] = {'eventtype': event_type,
                                   'eventid': event_id,
                                   'eventdata': request_data}
@@ -158,7 +158,6 @@ class VpnNotifier(object):
         rpcClient.cctxt.cast(context, 'update_status',
                              status=status)
 
-        '''
         # Sending An Event for visiblity
         if resource_data['resource'].lower() is\
                 'ipsec_site_connection':
@@ -171,7 +170,6 @@ class VpnNotifier(object):
 
             self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
                                         request_data)
-        '''
 
     # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
@@ -186,7 +184,6 @@ class VpnNotifier(object):
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
                              ipsec_site_conn_id=ipsec_site_conn_id)
 
-        '''
         # Sending An Event for visiblity
         nf_id = notification_info['context']['network_function_id']
         ipsec_id = notification_info['context']['ipsec_site_connection_id']
@@ -197,5 +194,3 @@ class VpnNotifier(object):
 
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)
-
-        '''
