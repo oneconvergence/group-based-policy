@@ -234,7 +234,7 @@ class OrchestrationDriver(object):
         image_name = device_data['service_details']['image_name']
         try:
             vendor_data = self._get_vendor_data(device_data)
-            LOG.info(_LI("Vendor data, specified in image: %(vendor_data)s"), 
+            LOG.info(_LI("Vendor data, specified in image: %(vendor_data)s"),
                      {'vendor_data': vendor_data})
             if vendor_data:
                 self._update_self_with_vendor_data(vendor_data,
@@ -249,7 +249,7 @@ class OrchestrationDriver(object):
         except Exception:
             LOG.error(_LE("Error while getting metadata for image name: %s,"
                           " proceeding with default values")
-                      % (image_name)) 
+                      % (image_name))
 
     def get_network_function_device_sharing_info(self, device_data):
         """ Get filters for NFD sharing
