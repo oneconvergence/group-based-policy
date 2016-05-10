@@ -49,7 +49,7 @@ class OrchestrationDriver(object):
     Launches the VM with all the management and data ports and a new VM
     is launched for each Network Service Instance
     """
-    def __init__(self, config, supports_device_sharing=False,
+    def __init__(self, config, supports_device_sharing=True,
                  supports_hotplug=True, max_interfaces=5):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
