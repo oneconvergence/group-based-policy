@@ -15,6 +15,12 @@ from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.config_orchestrator.agent import firewall as fw
 from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
+<<<<<<< HEAD
+=======
+from gbpservice.nfp.config_orchestrator.agent import notification_handler as nh
+from gbpservice.nfp.config_orchestrator.agent import \
+    otc_service_events as otc_se
+>>>>>>> 68767fe8aef41ea79b00f8c3d6ffa108f4cea508
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.config_orchestrator.agent import vpn as vp
 from oslo_config import cfg
@@ -34,7 +40,7 @@ def rpc_init(sc, conf):
     )
 
     lb_report_state = {
-        'binary': 'oc-lb-agent',
+        'binary': 'NCO',
         'host': cfg.CONF.host,
         'topic': a_topics.LB_NFP_CONFIGAGENT_TOPIC,
         'plugin_topic': a_topics.LB_NFP_PLUGIN_TOPIC,
@@ -53,7 +59,7 @@ def rpc_init(sc, conf):
     )
 
     vpn_report_state = {
-        'binary': 'oc-vpn-agent',
+        'binary': 'NCO',
         'host': cfg.CONF.host,
         'topic': a_topics.VPN_NFP_CONFIGAGENT_TOPIC,
         'plugin_topic': a_topics.VPN_NFP_PLUGIN_TOPIC,
@@ -71,13 +77,35 @@ def rpc_init(sc, conf):
         report_state=vpn_report_state
     )
 
+<<<<<<< HEAD
     nfp_l3_mgr = NFPL3Agent(conf, sc)
     nfp_l3_agent = RpcAgent(sc, host=cfg.CONF.host,
                             topic=a_topics.NFP_L3_AGENT, manager=nfp_l3_mgr)
+=======
+    nhrpcmgr = nh.NotificationAgent(conf, sc)
+    notificationagent = RpcAgent(
+        sc,
+        host=cfg.CONF.host,
+        topic=a_topics.CONFIG_ORCH_TOPIC,
+        manager=nhrpcmgr,
+    )
+
+    sc.register_rpc_agents([fwagent, lbagent, vpnagent, notificationagent])
+>>>>>>> 68767fe8aef41ea79b00f8c3d6ffa108f4cea508
 
     sc.register_rpc_agents([fwagent, vpnagent, nfp_l3_agent])
     # sc.register_rpc_agents([fwagent, lbagent, vpnagent, nfp_l3_agent])
 
+<<<<<<< HEAD
+=======
+def events_init(sc, conf):
+    """Register event with its handler."""
+    evs = [
+        Event(id='SERVICE_CREATED',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
+        Event(id='SERVICE_DELETED',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf))]
+>>>>>>> 68767fe8aef41ea79b00f8c3d6ffa108f4cea508
 
 def events_init(controller, config, nfp_agents_obj):
     vpn_events = ['VPN_SERVICE_SPAWNING', 'VPN_SERVICE_DELETE_IN_PROGRESS',

@@ -12,6 +12,7 @@
 
 from oslo_log import log
 
+from gbpservice.nfp.configurator.lib import constants as const
 import gbpservice.nfp.configurator.lib.schema as schema
 LOG = log.getLogger(__name__)
 
@@ -24,7 +25,7 @@ LOG = log.getLogger(__name__)
 
 class SchemaValidator(object):
 
-    def decode(self, request_data):
+    def decode(self, request_data, is_generic_config):
         """ Validate request data against resource schema.
 
         :param: request_data
@@ -38,11 +39,9 @@ class SchemaValidator(object):
                 return False
 
             if ('service_type' in request_data['info'] and
-                    'version' in request_data['info']):
-                service_type = request_data['info']['service_type']
-            elif ('service_type' not in request_data['info'] and
-                    'version' in request_data['info']):
-                service_type = 'generic'
+                    'service_vendor' in request_data['info'] and
+                    'context' in request_data['info']):
+                pass
             elif not self.validate_schema(request_data['info'],
                                           schema.request_data_info):
                 return False
@@ -53,29 +52,22 @@ class SchemaValidator(object):
                     return False
 
                 resource_type = config['resource']
-                resource = config['kwargs']
+                resource = config['resource_data']
 
                 """Do not validate kwargs for
                    1) *aaS apis
                    2) generic config of loadbalancer for resource
                       interfaces and routes
                 """
-                if (service_type in schema.skip_kwargs_validation_for or
-                        (resource['service_type'] == 'loadbalancer' and
-                            resource_type != 'healthmonitor')):
+                if (not is_generic_config or
+                        (request_data['info'][
+                                'service_type'] == const.LOADBALANCER and
+                            resource_type != const.HEALTHMONITOR)):
                         continue
 
                 resource_schema = getattr(schema, resource_type)
                 if not self.validate_schema(resource, resource_schema):
                     return False
-
-                if 'rule_info' in resource:
-                    interface_rule_info = resource['rule_info']
-                    interface_rule_info_schema = schema.interfaces_rule_info
-
-                    if not self.validate_schema(interface_rule_info,
-                                                interface_rule_info_schema):
-                        return False
         except Exception as e:
             LOG.error(e)
             return False

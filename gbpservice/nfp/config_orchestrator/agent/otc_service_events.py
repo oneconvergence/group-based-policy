@@ -13,10 +13,12 @@
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import poll as core_pt
 import gbpservice.nfp.lib.transport as transport
-from oslo_log import log as logging
 
+from oslo_log import log as oslo_logging
 
-LOGGER = logging.getLogger(__name__)
+from neutron import context as n_context
+
+LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
 
 """Periodic Class to service events for visiblity."""
@@ -29,26 +31,26 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
         self._conf = conf
 
     def handle_event(self, ev):
-        if ev.id == 'SERVICE_CREATE':
+        if ev.id == 'SERVICE_CREATED':
             data = ev.data
             self._create_service(data['context'],
                                  data['resource'])
 
-        elif ev.id == 'SERVICE_DELETE':
+        elif ev.id == 'SERVICE_DELETED':
             data = ev.data
             self._delete_service(data['context'],
                                  data['resource'])
 
     def _create_service(self, context, resource):
+        ctxt = n_context.Context.from_dict(context)
         transport.send_request_to_configurator(self._conf,
-                                               context, resource,
+                                               ctxt, resource,
                                                "CREATE",
-                                               False,
-                                               True)
+                                               network_function_event=True)
 
     def _delete_service(self, context, resource):
+        ctxt = n_context.Context.from_dict(context)
         transport.send_request_to_configurator(self._conf,
-                                               context, resource,
+                                               ctxt, resource,
                                                "DELETE",
-                                               False,
-                                               True)
+                                               network_function_event=True)

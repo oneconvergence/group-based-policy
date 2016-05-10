@@ -347,9 +347,12 @@ class HeatDriver(object):
 
     def _get_member_ips(self, auth_token, ptg):
         member_addresses = []
-        policy_targets = self.gbp_client.get_policy_targets(
-            auth_token,
-            filters={'id': ptg.get("policy_targets")})
+        if ptg.get("policy_targets"):
+            policy_targets = self.gbp_client.get_policy_targets(
+                auth_token,
+                filters={'id': ptg.get("policy_targets")})
+        else:
+            return member_addresses
         for policy_target in policy_targets:
             if not self._is_service_target(policy_target):
                 port_id = policy_target.get("port_id")
@@ -819,17 +822,20 @@ class HeatDriver(object):
                     LOG.Error(_LE("Floating IP for VPN Service has been "
                                   "disassociated Manually"))
                     return None, None
-                stitching_port_fip = floatingips[0]['floating_ip_address']
+                for fip in floatingips:
+                    if consumer_port['fixed_ips'][0]['ip_address'] == fip['fixed_ip_address']:
+                        stitching_port_fip = fip['floating_ip_address']
+
                 desc = ('fip=' + mgmt_ip +
                         ";tunnel_local_cidr=" +
                         provider_cidr + ";user_access_ip=" +
                         stitching_port_fip + ";fixed_ip=" +
                         consumer_port['fixed_ips'][0]['ip_address'] +
-                        ';service_vendor=' + service_vendor +
+                        ';service_vendor=' + service_details['service_vendor'] +
                         ';stitching_cidr=' + stitching_cidr +
                         ';stitching_gateway=' + stitching_subnet[
                             'gateway_ip'] +
-                        ';mgmt_gw_ip=' + mgmt_gw_ip,
+                        ';mgmt_gw_ip=' + mgmt_gw_ip +
                         ';network_function_id=' + network_function['id'])
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
@@ -853,7 +859,8 @@ class HeatDriver(object):
         service_config = tag_str = ''
         for tag_str in [nfp_constants.HEAT_CONFIG_TAG,
                         nfp_constants.CONFIG_INIT_TAG,
-                        nfp_constants.ANSIBLE_TAG]:
+                        nfp_constants.ANSIBLE_TAG,
+                        nfp_constants.CUSTOM_JSON]:
             try:
                 service_config = config_str.split(tag_str + ':')[1]
                 break

@@ -274,6 +274,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                 network_function['id']))
         service_config = network_function['service_config']
         network_function_data = {
+            'service_type': mock.ANY,
             'network_function_details': network_function_details
         }
         mock_rpc.assert_called_once_with(
@@ -362,8 +363,14 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
     @mock.patch.object(
         nso.ServiceOrchestrator, "_create_event")
     @mock.patch.object(
+        openstack_driver.KeystoneClient, "get_admin_token")
+    @mock.patch.object(
+        openstack_driver.GBPClient, "get_service_profile")
+    @mock.patch.object(
         nso.NSOConfiguratorRpcApi, "create_network_function_user_config")
     def test_event_handle_device_active(self, mock_create_rpc,
+                                        mock_service_profile,
+                                        mock_admin_token,
                                         mock_create_event):
         nfd = self.create_network_function_device()
         nfi = self.create_network_function_instance(create_nfd=False)
@@ -639,6 +646,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                 network_function['id']))
         service_config = network_function['service_config']
         network_function_data = {
+            'service_type': mock.ANY,
             'network_function_details': network_function_details
         }
         mock_rpc.assert_called_once_with(
@@ -814,6 +822,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             self.service_orchestrator.get_network_function_details(
                 db_nf['id']))
         network_function_data = {
+            'service_type': mock.ANY,
             'network_function_details': network_function_details,
             'consumer_ptg': policy_target_group
         }
@@ -861,6 +870,7 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             self.service_orchestrator.get_network_function_details(
                 db_nf['id']))
         network_function_data = {
+            'service_type': mock.ANY,
             'network_function_details': network_function_details,
             'consumer_ptg': policy_target_group
         }

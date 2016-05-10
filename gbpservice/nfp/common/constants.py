@@ -41,9 +41,13 @@ PENDING_DELETE = "PENDING_DELETE"
 ERROR = "ERROR"
 SUCCESS = "SUCCESS"
 
+DEVICE_ORCHESTRATOR = "device_orch"
+SERVICE_ORCHESTRATOR = "service_orch"
+
 HEAT_CONFIG_TAG = 'heat_config'
 CONFIG_INIT_TAG = 'config_init'
 ANSIBLE_TAG = 'ansible'
+CUSTOM_JSON = 'custom_json'
 
 COMPLETED = "COMPLETED"
 IN_PROGRESS = "IN_PROGRESS"
@@ -53,7 +57,8 @@ CONFIG_SCRIPT = 'config_script'
 CONFIG_TAG_RESOURCE_MAP = {
     HEAT_CONFIG_TAG: 'heat',
     CONFIG_INIT_TAG: 'config_init',
-    ANSIBLE_TAG: 'ansible'}
+    ANSIBLE_TAG: 'ansible',
+    CUSTOM_JSON:'custom_json'}
 
 LOADBALANCER_RPC_API_VERSION = "2.0"
 

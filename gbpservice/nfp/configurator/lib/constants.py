@@ -10,13 +10,32 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+<<<<<<< HEAD
 supported_service_types = ['firewall', 'vpn', 'loadbalancer', None]
+=======
+supported_service_types = ['firewall', 'vpn', 'loadbalancer']
+NFP_SERVICE_LIST = ['heat', 'ansible']
+>>>>>>> 68767fe8aef41ea79b00f8c3d6ffa108f4cea508
 invalid_service_type = 'invalid'
+NFP_SERVICE = 'nfp_service'
 SUCCESS = 'SUCCESS'
 FAILED = 'FAILED'
+FAILURE = 'FAILURE'
+GENERIC_CONFIG = 'generic_config'
 ORCHESTRATOR = 'orchestrator'
 EVENT_STASH = 'STASH_EVENT'
 EVENT_PROCESS_BATCH = 'PROCESS_BATCH'
 NFD_NOTIFICATION = 'network_function_device_notification'
 RABBITMQ_HOST = '127.0.0.1'  # send notifications to 'RABBITMQ_HOST'
 NOTIFICATION_QUEUE = 'configurator-notifications'
+FIREWALL = 'firewall'
+VPN = 'vpn'
+LOADBALANCER = 'loadbalancer'
+HEALTHMONITOR = 'healthmonitor'
+VPN = 'vpn'
+VYOS = 'vyos'
+HAPROXY = 'haproxy'
+CREATE = 'create'
+UPDATE = 'update'
+DELETE = 'delete'
+UNHANDLED = "UNHANDLED"

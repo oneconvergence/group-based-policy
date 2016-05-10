@@ -6,8 +6,10 @@ import time
 from netifaces import AF_LINK
 from operations import configOpts
 from execformat.executor import session
+from vyos_session.utils import init_logger
 
 logger = logging.getLogger(__name__)
+init_logger(logger)
 
 COMMAND = "interfaces ethernet %s address %s/%s"
 

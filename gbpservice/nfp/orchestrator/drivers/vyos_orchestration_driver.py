@@ -38,27 +38,22 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
                                                 network_handler=None):
         """ Get the configuration information for NFD
 
-        :param device_data: NFD device
+        :param device_data: NFD
         :type device_data: dict
 
         :returns: None -- On Failure
         :returns: dict -- It has the following scheme
         {
-            'info': {
-                'version': <int>
-            },
             'config': [
                 {
                     'resource': 'interfaces',
-                    'kwargs': {
-                        'service_type': <str>,
+                    'resource_data': {
                         ...
                     }
                 },
                 {
                     'resource': 'routes',
-                    'kwargs': {
-                        'service_type': <str>,
+                    'resource_data': {
                         ...
                     }
                 }
@@ -69,13 +64,18 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
         """
         if (
             any(key not in device_data
-                for key in ['service_vendor',
-                            'network_model',
+                for key in ['service_details',
                             'mgmt_ip_address',
-                            'ports',
-                            'service_details',
-                            'network_function_id',
-                            'tenant_id']) or
+                            'ports']) or
+
+            type(device_data['service_details']) is not dict or
+
+            any(key not in device_data['service_details']
+                for key in ['service_vendor',
+                            'device_type',
+                            'network_mode']) or
+
+            type(device_data['ports']) is not list or
 
             any(key not in port
                 for port in device_data['ports']
@@ -127,47 +127,31 @@ class VyosOrchestrationDriver(odb.OrchestrationDriverBase):
                     return None
 
         return {
-            'info': {
-                'version': 1
-            },
             'config': [
                 {
                     'resource': 'interfaces',
-                    'kwargs': {
-                        'vm_mgmt_ip': device_data['mgmt_ip_address'],
-                        'service_vendor': device_data['service_vendor'],
+                    'resource_data': {
+                        'mgmt_ip': device_data['mgmt_ip_address'],
                         'provider_ip': provider_ip,
                         'provider_cidr': provider_cidr,
-                        'provider_interface_position': 2,
+                        'provider_interface_index': 2,
                         'stitching_ip': consumer_ip,
                         'stitching_cidr': consumer_cidr,
-                        'stitching_interface_position': 3,
+                        'stitching_interface_index': 3,
                         'provider_mac': provider_mac,
-                        'stitching_mac': consumer_mac,
-                        'rule_info':{
-                            'active_provider_mac': provider_mac,
-                            'active_stitching_mac': consumer_mac,
-                            'active_fip': device_data['mgmt_ip_address'],
-                            'service_id': device_data['network_function_id'],
-                            'tenant_id': device_data['tenant_id']
-                        },
-                        'service_type': (device_data['service_details'][
-                               'service_type'].lower())
+                        'stitching_mac': consumer_mac
                     }
                 },
                 {
                     'resource': 'routes',
-                    'kwargs': {
-                        'vm_mgmt_ip': device_data['mgmt_ip_address'],
-                        'service_vendor': device_data['service_vendor'],
+                    'resource_data': {
+                        'mgmt_ip': device_data['mgmt_ip_address'],
                         'source_cidrs': ([provider_cidr, consumer_cidr]
                                          if consumer_cidr
                                          else [provider_cidr]),
                         'destination_cidr': consumer_cidr,
                         'gateway_ip': consumer_gateway_ip,
-                        'provider_interface_position': 2,
-                        'service_type': (device_data['service_details'][
-                            'service_type'].lower()),
+                        'provider_interface_index': 2
                     }
                 }
             ]

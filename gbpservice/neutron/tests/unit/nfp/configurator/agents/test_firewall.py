@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 import mock
 import unittest
 
@@ -115,6 +116,8 @@ class FwaasHandlerTestCase(unittest.TestCase):
         self.fo = fo.FakeObjects()
         self.fo.context['resource'] = 'firewall'
         self.ev = fo.FakeEvent()
+        self.ev.data['context']['resource'] = 'firewall'
+        self.ev.data['context']['agent_info']['resource'] = 'firewall'
 
     @mock.patch(__name__ + '.fo.FakeObjects.rpcmgr')
     @mock.patch(__name__ + '.fo.FakeObjects.drivers')
@@ -175,32 +178,36 @@ class FwaasHandlerTestCase(unittest.TestCase):
                                             {'firewall_rule_list': True})
 
             agent.handle_event(self.ev)
+            context = self.fo.fw_context
+            notificaton_context = copy.copy(self.fo.fw_context)
+
             if 'service_info' in self.fo.context:
                 self.fo.context.pop('service_info')
             if not rule_list_info:
+                notificaton_context.pop('context')
                 if self.ev.id == 'CREATE_FIREWALL':
                     mock_set_fw_status.assert_called_with(
-                            self.fo.context,
-                            firewall['id'], STATUS_ACTIVE)
+                            notificaton_context,
+                            firewall['id'], STATUS_ACTIVE, firewall)
                 elif self.ev.id == 'UPDATE_FIREWALL':
                     mock_set_fw_status.assert_called_with(
-                            self.fo.context,
-                            firewall['id'], STATUS_ACTIVE)
+                            notificaton_context,
+                            STATUS_ACTIVE, firewall)
                 elif self.ev.id == 'DELETE_FIREWALL':
                     mock_fw_deleted.assert_called_with(
-                            self.fo.context, firewall['id'])
+                            notificaton_context, firewall['id'], firewall)
             else:
                 if self.ev.id == 'CREATE_FIREWALL':
                     mock_create_fw.assert_called_with(
-                            self.fo.context,
+                            context,
                             firewall, self.fo.host)
                 elif self.ev.id == 'UPDATE_FIREWALL':
                     mock_update_fw.assert_called_with(
-                            self.fo.context,
+                            context,
                             firewall, self.fo.host)
                 elif self.ev.id == 'DELETE_FIREWALL':
                     mock_delete_fw.assert_called_with(
-                            self.fo.context,
+                            context,
                             firewall, self.fo.host)
 
     def test_create_firewall_with_rule_list_info_true(self):

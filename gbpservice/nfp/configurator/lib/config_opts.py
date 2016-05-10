@@ -10,9 +10,18 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.config_script'
-SERVICE_TYPE = 'config_script'
-CREATE_CONFIG_SCRIPT_EVENT = 'CREATE_CONFIG_SCRIPT'
-UNHANDLED_RESULT = 'unhandled'
-ERROR_RESULT = 'error'
-HEAT_RESOURCE = 'HEAT'
+from oslo_config import cfg
+
+opts = [
+    cfg.StrOpt(
+        'log_forward_ip_address',
+        default=None,
+        help=('IP address to forward logs to')),
+    cfg.IntOpt(
+        'log_forward_port',
+        default=514,
+        help=("port to forward logs to")),
+    cfg.StrOpt(
+        'log_level',
+        default='debug',
+        help=('log level for logs forwarding'))]
