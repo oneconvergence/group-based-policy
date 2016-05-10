@@ -38,51 +38,88 @@ class FwAgent(firewall_db.Firewall_db_mixin):
     target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
+        super(FwAgent, self).__init__()
         self._conf = conf
         self._sc = sc
-        super(FwAgent, self).__init__()
+        self._db_inst = super(FwAgent, self)
 
-    def _get_firewall_context(self, context, filters):
+    def _get_firewalls(self, context, tenant_id,
+                       firewall_policy_id, description):
+        filters = {'tenant_id': [tenant_id],
+                   'firewall_policy_id': [firewall_policy_id]}
         args = {'context': context, 'filters': filters}
-        db_data = super(FwAgent, self)
-        return {'firewalls': db_data.get_firewalls(**args),
-                'firewall_policies': db_data.get_firewall_policies(**args),
-                'firewall_rules': db_data.get_firewall_rules(**args)}
+        firewalls = self._db_inst.get_firewalls(**args)
+        for firewall in firewalls:
+            firewall['description'] = description
+        return firewalls
+
+    def _get_firewall_policies(self, context, tenant_id,
+                               firewall_policy_id, description):
+        filters = {'tenant_id': [tenant_id],
+                   'id': [firewall_policy_id]}
+        args = {'context': context, 'filters': filters}
+        firewall_policies = self._db_inst.get_firewall_policies(**args)
+        return firewall_policies
+
+    def _get_firewall_rules(self, context, tenant_id,
+                            firewall_policy_id, description):
+        filters = {'tenant_id': [tenant_id],
+                   'firewall_policy_id': [firewall_policy_id]}
+        args = {'context': context, 'filters': filters}
+        firewall_rules = self._db_inst.get_firewall_rules(**args)
+        return firewall_rules
+
+    def _get_firewall_context(self, **kwargs):
+        firewalls = self._get_firewalls(**kwargs)
+        firewall_policies = self._get_firewall_policies(**kwargs)
+        firewall_rules = self._get_firewall_rules(**kwargs)
+        return {'firewalls': firewalls,
+                'firewall_policies': firewall_policies,
+                'firewall_rules': firewall_rules}
 
     def _get_core_context(self, context, filters):
         return common.get_core_context(context,
                                        filters,
                                        self._conf.host)
 
-    def _context(self, context, tenant_id):
+    def _context(self, **kwargs):
+        context = kwargs.get('context')
         if context.is_admin:
-            tenant_id = context.tenant_id
-        filters = {'tenant_id': [tenant_id]}
-        db = self._get_firewall_context(context, filters)
-        # Commenting below as ports,subnets and routers data not need
+            kwargs['tenant_id'] = context.tenant_id
+        db = self._get_firewall_context(**kwargs)
+        # Commenting below as ports, subnets and routers data not need
         # by firewall with present configurator
+
         # db.update(self._get_core_context(context, filters))
         return db
 
-    def _prepare_resource_context_dicts(self, context, tenant_id):
+    def _prepare_resource_context_dicts(self, **kwargs):
         # Prepare context_dict
+        context = kwargs.get('context')
         ctx_dict = context.to_dict()
         # Collecting db entry required by configurator.
         # Addind service_info to neutron context and sending
         # dictionary format to the configurator.
-        db = self._context(context, tenant_id)
+        db = self._context(**kwargs)
         rsrc_ctx_dict = copy.deepcopy(ctx_dict)
         rsrc_ctx_dict.update({'service_info': db})
         return ctx_dict, rsrc_ctx_dict
 
-    def _data_wrapper(self, context, firewall, host, reason):
-        # Fetch nf_id from description of the resource
-        firewall_desc = ast.literal_eval(firewall['description'])
-        fw_mac = firewall_desc['provider_ptg_info'][0]
-        nf_id = firewall_desc['network_function_id']
-        ctx_dict, rsrc_ctx_dict = self._prepare_resource_context_dicts(
-            context, firewall['tenant_id'])
-        nfp_context = {'network_function_id': nf_id,
+    def _data_wrapper(self, context, firewall, host, nf, reason):
+        # Hardcoding the position for fetching data since we are owning
+        # its positional change
+        description = ast.literal_eval((nf['description'].split('\n'))[1])
+        fw_mac = description['provider_ptg_info'][0]
+        firewall.update({'description': str(description)})
+        kwargs = {'context': context,
+                  'firewall_policy_id': firewall[
+                      'firewall_policy_id'],
+                  'description': str(description),
+                  'tenant_id': firewall['tenant_id']}
+
+        ctx_dict, rsrc_ctx_dict = self.\
+            _prepare_resource_context_dicts(**kwargs)
+        nfp_context = {'network_function_id': nf['id'],
                        'neutron_context': ctx_dict,
                        'fw_mac': fw_mac,
                        'requester': 'nas_service'}
@@ -94,15 +131,26 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                                            resource_type, resource_data)
         return body
 
+    def _fetch_nf_from_resource_desc(self, desc):
+        desc_dict = ast.literal_eval(desc)
+        nf_id = desc_dict['network_function_id']
+        return nf_id
+
     @log_helpers.log_method_call
     def create_firewall(self, context, firewall, host):
-        body = self._data_wrapper(context, firewall, host, 'CREATE')
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(firewall["description"])
+        nf = common.get_network_function_details(context, nf_id)
+        body = self._data_wrapper(context, firewall, host, nf, 'CREATE')
         transport.send_request_to_configurator(self._conf,
                                                context, body, "CREATE")
 
     @log_helpers.log_method_call
     def delete_firewall(self, context, firewall, host):
-        body = self._data_wrapper(context, firewall, host, 'DELETE')
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(firewall["description"])
+        nf = common.get_network_function_details(context, nf_id)
+        body = self._data_wrapper(context, firewall, host, nf, 'DELETE')
         transport.send_request_to_configurator(self._conf,
                                                context, body, "DELETE")
 

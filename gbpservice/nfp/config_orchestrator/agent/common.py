@@ -122,6 +122,21 @@ def _prepare_structure(network_function_details, ports_info,
             }
 
 
+def get_network_function_details(context, network_function_id):
+    network_function_details = None
+    try:
+        rpc_nso_client = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+        network_function_details = rpc_nso_client.cctxt.call(
+            context,
+            'get_network_function_details',
+            network_function_id=network_function_id)
+        LOG(LOGGER, 'INFO', " %s " % (network_function_details))
+        return network_function_details['network_function']
+
+    except Exception as e:
+        LOG(LOGGER, 'ERROR', " %s " % (e))
+
+
 def get_network_function_map(context, network_function_id):
     request_data = None
     try:

@@ -35,9 +35,10 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
+        super(VpnAgent, self).__init__()
         self._conf = conf
         self._sc = sc
-        super(VpnAgent, self).__init__()
+        self._db_inst = super(VpnAgent, self)
 
     def _get_dict_desc_from_string(self, vpn_svc):
         svc_desc = vpn_svc.split(";")
@@ -47,70 +48,147 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             desc.update({s_ele[0]: s_ele[1]})
         return desc
 
-    def _prepare_resource_context_dicts(self, context, tenant_id):
-        # Prepare context_dict
-        ctx_dict = context.to_dict()
-        # Collecting db entry required by configurator.
-        # Addind service_info to neutron context and sending
-        # dictionary format to the configurator.
-        db = self._context(context, tenant_id)
-        rsrc_ctx_dict = copy.deepcopy(ctx_dict)
-        rsrc_ctx_dict.update({'service_info': db})
-        return ctx_dict, rsrc_ctx_dict
+    def _get_vpn_context(self, context, vpnservice_id,
+                         ikepolicy_id, ipsecpolicy_id,
+                         ipsec_site_conn_id, desc):
+        vpnservices = self._get_vpnservices(context, tenant_id,
+                                            vpnservice_id, desc)
+        ikepolicies = self._get_ikepolicies(context, tenant_id,
+                                            ikepolicy_id)
+        ipsecpolicies = self._get_ipsecpolicies(context, tenant_id,
+                                                ipsecpolicy_id)
+        ipsec_site_conns = self._get_ipsec_site_conns(context, tenant_id,
+                                                      ipsec_site_conn_id, desc)
 
-    def _data_wrapper(self, context, tenant_id, **kwargs):
+        return {'vpnservices': vpnservices,
+                'ikepolicies': ikepolicies,
+                'ipsecpolicies': ipsecpolicies,
+                'ipsec_site_conns': ipsec_site_conns}
 
-        ctx_dict, rsrc_ctx_dict = self.\
-            _prepare_resource_context_dicts(context, tenant_id)
-        nfp_context = {'neutron_context': ctx_dict,
-                       'requester': 'nas_service'}
-        resource_type = 'vpn'
-        resource = kwargs['rsrc_type']
-        if resource.lower() == 'ipsec_site_connection':
-            ipsec_desc = self._get_dict_desc_from_string(kwargs[
-                'resource']['description'])
-            nf_id = ipsec_desc['network_function_id']
-            ipsec_site_connection_id = kwargs['rsrc_id']
-            nfp_context.update(
-                {'network_function_id': nf_id,
-                 'ipsec_site_connection_id': ipsec_site_connection_id})
-        kwargs.update({'neutron_context': rsrc_ctx_dict})
-        resource_data = kwargs
-        body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
-        return body
-
-    @log_helpers.log_method_call
-    def vpnservice_updated(self, context, **kwargs):
-        reason = kwargs['reason']
-        body = self._data_wrapper(context, kwargs[
-            'resource']['tenant_id'], **kwargs)
-        transport.send_request_to_configurator(self._conf,
-                                               context, body,
-                                               reason)
-
-    def _context(self, context, tenant_id):
-        if context.is_admin:
-            tenant_id = context.tenant_id
+    def _get_core_context(self, context, tenant_id):
         filters = {'tenant_id': [tenant_id]}
-        db = self._get_vpn_context(context, filters)
-        db.update(self._get_core_context(context, filters))
-        return db
-
-    def _get_vpn_context(self, context, filters):
-        args = {'context': context, 'filters': filters}
-        db_data = super(VpnAgent, self)
-        return {'vpnservices': db_data.get_vpnservices(**args),
-                'ikepolicies': db_data.get_ikepolicies(**args),
-                'ipsecpolicies': db_data.get_ipsecpolicies(**args),
-                'ipsec_site_conns': db_data.get_ipsec_site_connections(**args)}
-
-    def _get_core_context(self, context, filters):
         core_context_dict = common.get_core_context(context,
                                                     filters,
                                                     self._conf.host)
         del core_context_dict['ports']
         return core_context_dict
+
+    def _context(self, context, tenant_id, resource, resource_data):
+        if context.is_admin:
+            tenant_id = context.tenant_id
+        if resource.lower() == 'ipsec_site_connection':
+            vpn_db = self._get_vpn_context(context, resource_data[
+                'vpnservice_id'], resource_data['ikepolicy_id'],
+                resource_data['ipsecpolicy_id'], resource_data[
+                'id'], resource_data['description'])
+            core_db = self._get_core_context(context, tenant_id)
+            filtered_core_db = self._filter_core_data(core_db,
+                                                      vpn_data['vpnservices'])
+            return vpn_db.update(filtered_core_db)
+        elif resource.lower() == 'vpnservice':
+            core_db = self._get_core_context(context, tenant_id)
+            return self._filter_core_data(core_db, [resource_data])
+        else:
+            return None
+
+    def _prepare_resource_context_dicts(self, context, tenant_id,
+                                        resource, resource_data):
+        # Prepare context_dict
+        context = kwargs.get('context')
+        ctx_dict = context.to_dict()
+        # Collecting db entry required by configurator.
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
+        db = self._context(context, tenant_id, resource,
+                           resource_data)
+        rsrc_ctx_dict = copy.deepcopy(ctx_dict)
+        rsrc_ctx_dict.update({'service_info': db})
+        return ctx_dict, rsrc_ctx_dict
+
+    def _data_wrapper(self, context, tenant_id, nf, **kwargs):
+        description = ast.literal_eval((nf['description'].split('\n'))[1])
+        resource = kwargs['rsrc_type']
+        resource_data = kwargs['resource']
+        resource_data['description'] = str(description)
+        if resource.lower() == 'ipsec_site_connection':
+            ipsec_desc = self._get_dict_desc_from_string(kwargs[
+                'resource']['description'])
+            nfp_context = {'network_function_id': nf['id'],
+                           'ipsec_site_connection_id': kwargs[
+                               'rsrc_id']}
+
+        ctx_dict, rsrc_ctx_dict = self.\
+            _prepare_resource_context_dicts(context, tenant_id,
+                                            resource, resource_data)
+        nfp_context.update({'neutron_context': ctx_dict,
+                            'requester': 'nas_service'})
+        resource_type = 'vpn'
+        kwargs.update({'neutron_context': rsrc_ctx_dict})
+        body = common.prepare_request_data(nfp_context, resource,
+                                           resource_type, kwargs)
+        return body
+
+    def _fetch_nf_from_resource_desc(self, desc):
+        desc_dict = ast.literal_eval(desc)
+        nf_id = desc_dict['network_function_id']
+        return nf_id
+
+    @log_helpers.log_method_call
+    def vpnservice_updated(self, context, **kwargs):
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(kwargs[
+            'resource']['description'])
+        nf = common.get_network_function_details(context, nf_id)
+        reason = kwargs['reason']
+        body = self._data_wrapper(context, kwargs[
+            'resource']['tenant_id'], nf, **kwargs)
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               reason)
+
+    def _filter_core_data(self, db_data, vpnservices):
+        filtered_core_data = {'subnets': [],
+                              'routers': []}
+        for vpnservice in vpnservices:
+            subnet_id = vpnservices['subnet_id']
+            for subnet in db_data['subnets']:
+                if subnet['id'] == subnet_id:
+                    filtered_data['subnets'].append(subnet)
+            router_id = vpnservices['router_id']
+            for router in db_data['routers']:
+                if router['id'] == router_id:
+                    filtered_data['routers'].append(router)
+        return filtered_core_data
+
+    def _get_vpnservices(self, context, tenant_id, vpnservice_id, desc):
+        filters = {'tenant_id': [tenant_id],
+                   'id': [vpnservice_id]}
+        args = {'context': context, 'filters': filters}
+        vpnservices = self._db_inst.get_vpnservices(**args)
+        for vpnservice in vpnservices:
+            vpnservice['description'] = desc
+        return vpnservices
+
+    def _get_ikepolicies(self, context, ikepolicy_id):
+        filters = {'tenant_id': [tenant_id],
+                   'id': [ikepolicy_id]}
+        args = {'context': context, 'filters': filters}
+        return self._db_inst.get_ikepolicies(**args)
+
+    def _get_ipsecpolicies(self, context, ipsecpolicy_id):
+        filters = {'tenant_id': [tenant_id],
+                   'id': [ipsecpolicy_id]}
+        args = {'context': context, 'filters': filters}
+        return self._db_inst.get_ipsecpolicies(**args)
+
+    def _get_ipsec_site_conns(self, context, ipsec_site_conn_id, desc):
+        filters = {'tenant_id': [tenant_id],
+                   'id': [ipsec_site_conn_id]}
+        args = {'context': context, 'filters': filters}
+        ipsec_site_conns = self._db_inst.get_ipsec_site_connections(**args)
+        for ipsec_site_conn in ipsec_site_conns:
+            ipsec_site_conn['description'] = desc
+        return ipsec_site_conns
 
 
 class VpnNotifier(object):
