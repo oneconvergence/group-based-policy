@@ -166,6 +166,34 @@ class OrchestrationDriver(object):
 
         network_handler.delete_port(token, interface['id'])
 
+    def _create_dummy_interfaces(self, device_data, network_handler=None):
+        try:
+            token = (device_data['token']
+                     if device_data.get('token')
+                     else self.identity_handler.get_admin_token())
+        except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
+            LOG.error(_LE('Failed to get token for management interface'
+                          ' creation'))
+            return None
+
+        port_infos = []
+        port_model = (nfp_constants.GBP_PORT
+                               if device_data['service_details'][
+                                                        'network_mode'] ==
+                               nfp_constants.GBP_MODE
+                               else nfp_constants.NEUTRON_PORT)
+        for _ in range(self.maximum_interfaces):
+            port = network_handler.create_port(token,
+                                               self._get_admin_tenant_id(
+                                                    token=token),
+                                               net_id)
+            port_infos.append({'id': port['id'],
+                'port_model': port_model,
+                'port_classification': nfp_constants.ADVANCED_SHARING,
+                'port_role': None})
+            return port_infos
+
     def _get_interfaces_for_device_create(self, device_data,
                                           network_handler=None):
         mgmt_interface = self._create_management_interface(
@@ -462,15 +490,8 @@ class OrchestrationDriver(object):
         interfaces_to_attach = []
         try:
             if not self.supports_hotplug:
-                dummy_interfaces = self._create_dummy_interfaces(device_data,
-                                                            network_handler)
-                interfaces += dummy_interfaces
-            for interface in interfaces:
-                port_id = network_handler.get_port_id(token, interface['id'])
-                interfaces_to_attach.append({'port': port_id})
-
-            if not self.supports_hotplug:
                 if 'neutron mode':
+                    # TODO: get neutron mode from conf
                     for port in device_data['ports']:
                         if port['port_classification'] == nfp_constants.PROVIDER:
                             port_id = network_handler.get_port_id(
@@ -482,8 +503,14 @@ class OrchestrationDriver(object):
                                                             token, port['id'])
                             interfaces_to_attach.append({'port': port_id})
                 else:
-                    interfaces_list = self._get_dumy_interfaces_for_device_create()
-                    interfaces_to_attach.append(interfaces_list)
+                    dummy_interfaces = self._create_dummy_interfaces(device_data,
+                                                            network_handler)
+                    interfaces += dummy_interfaces
+
+            for interface in interfaces:
+                port_id = network_handler.get_port_id(token, interface['id'])
+                interfaces_to_attach.append({'port': port_id})
+
         except Exception:
             self._increment_stats_counter('port_details_get_failures')
             LOG.error(_LE('Failed to fetch list of interfaces to attach'

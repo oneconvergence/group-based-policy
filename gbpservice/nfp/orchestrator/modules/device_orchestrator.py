@@ -24,6 +24,7 @@ from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
+from nfp.orchestrator.drivers import orchestration_driver_base
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from neutron.common import rpc as n_rpc
@@ -337,23 +338,23 @@ class DeviceOrchestrator(PollEventDesc):
         mgmt_port_id = device.pop('mgmt_port_id')
         mgmt_port_id = self._get_port(mgmt_port_id)
         device['mgmt_port_id'] = mgmt_port_id
+
         if dummy_interfaces:
             for iface in dummy_interfaces:
                 iface = {}
                 iface['id'] = iface['id']
                 iface['tenant_id'] = device['tenant_id']
                 iface['plugged_in_port_id'] = iface['plugged_in_pt_id']
-                iface['plugged_in_ovs_port_name'] = None
                 iface['mapped_real_port_id'] = None
                 iface['service_vm_id'] = device['id']
-
-                port_info = self.nsf_db.create_port_info(self.db_session,
-                                                         iface)
                 self.nsf_db.create_network_function_device_interfaces(
                             self.db_session,
-                            device_info)
-            LOG.debug("Created following entries in port_infos : %s" %
-                      port_ids)
+                            iface)
+            port_infos = self.nsf_db.create_port_info(self.db_session,
+                                                      dummy_interfaces)
+            LOG.debug("Created following entries in port_infos table : %s, "
+                      " network function device interfaces table: %s." %
+                      (port_infos, dummy_interfaces))
         return device
 
     def _update_network_function_device_db(self, device, state,
@@ -389,10 +390,7 @@ class DeviceOrchestrator(PollEventDesc):
         self._update_network_function_device_db(device, device['status'])
 
     def _get_orchestration_driver(self, service_vendor):
-        if service_vendor.lower() in self.drivers:
-            orchestration_driver = self.drivers[service_vendor.lower()]
-        else:
-            self._get_orchestartion_driver(service_vendor, service_profile)
+        return orchestration_driver_base.OrchestrationDriver(self.config)
 
     def _get_device_to_reuse(self, device_data, dev_sharing_info):
         device_filters = dev_sharing_info['filters']
