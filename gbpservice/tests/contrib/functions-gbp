@@ -33,6 +33,7 @@ function prepare_nfp_devstack {
     source $TOP_DIR/functions-common
     
 }
+
 function source_creds {
     local xtrace=$(set +o | grep xtrace)
     set +o xtrace
