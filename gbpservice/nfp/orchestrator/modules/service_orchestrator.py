@@ -356,15 +356,16 @@ class ServiceOrchestrator(object):
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = NSOConfiguratorRpcApi(neutron_context, config)
         self.status_map = {
-                'pt_add': {'status': 'PT_ADD_IN_PROGRESS',
-                           'status_description': 'pt addition is in progress'},
-                'pt_remove': {'status': 'PT_REMOVE_IN_PROGRESS',
-                           'status_description': 'pt deletion is in progress'},
-                'ptg_add': {'status': 'PTG_ADD_IN_PROGRESS',
-                           'status_description': 'ptg addition is in progress'},
-                'ptg_remove': {'status': 'PTG_REMOVE_IN_PROGRESS',
-                           'status_description': 'ptg deletion is in progress'},
-                }
+            'pt_add': {'status': 'PT_ADD_IN_PROGRESS',
+                       'status_description': 'pt addition is in progress'},
+            'pt_remove': {'status': 'PT_REMOVE_IN_PROGRESS',
+                          'status_description': 'pt deletion is in progress'},
+            'ptg_add': {'status': 'PTG_ADD_IN_PROGRESS',
+                        'status_description': 'ptg addition is in progress'},
+            'ptg_remove': {'status': 'PTG_REMOVE_IN_PROGRESS',
+                           'status_description': (
+                               'ptg deletion is in progress')},
+        }
 
     @property
     def db_session(self):
@@ -776,7 +777,8 @@ class ServiceOrchestrator(object):
                   % (request_data['heat_stack_id']))
         self.db_handler.update_network_function(
             self.db_session, network_function['id'],
-            {'heat_stack_id': request_data['heat_stack_id']})
+            {'heat_stack_id': request_data['heat_stack_id'],
+             'description': network_function['description']})
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True,
@@ -1086,7 +1088,7 @@ class ServiceOrchestrator(object):
             network_function_id,
             {'status': self.status_map[operation]['status'],
              'status_description': self.status_map[operation][
-                                            'status_description']})
+                'status_description']})
 
     def handle_policy_target_added(self, context, network_function_id,
                                    policy_target):
