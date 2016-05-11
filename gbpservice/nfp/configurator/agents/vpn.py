@@ -16,8 +16,8 @@ from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 from gbpservice.nfp.core import controller as main
-from gbpservice.nfp.core import poll as core_pt
-
+from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.configurator.drivers.base import base_driver
 import os
 from oslo_log import log as logging
 import oslo_messaging as messaging
@@ -42,7 +42,7 @@ class VpnaasRpcSender(data_filter.Filter):
         self._notify = agent_base.AgentBaseNotification(sc)
         super(VpnaasRpcSender, self).__init__(None, None)
 
-    def get_vpn_services(self, context, ids=None, filters=None):
+    def get_vpn_services(self, context, ids=None, filters={}):
         """Gets list of vpnservices for tenant.
         :param context: dictionary which holds details of vpn service type like
             For IPSEC connections :
@@ -58,7 +58,7 @@ class VpnaasRpcSender(data_filter.Filter):
             context,
             self.make_msg('get_vpn_services', ids=ids, filters=filters))
 
-    def get_vpn_servicecontext(self, context, filters=None):
+    def get_vpn_servicecontext(self, context, filters={}):
         """Get list of vpnservice context on this host.
         :param context: dictionary which holds details of vpn service type like
             For IPSEC connections :
@@ -92,22 +92,26 @@ class VpnaasRpcSender(data_filter.Filter):
         This method call updates status attribute of
         VPNServices.
         """
-        msg = {'receiver': const.NEUTRON.lower(),
-               'resource': const.SERVICE_TYPE,
-               'method': 'update_status',
-               'kwargs': {'context': context,
-                        'status': status}
+        msg = {'info': {'service_type': const.SERVICE_TYPE,
+                        'context': context['agent_info']['context']},
+               'notification': [{
+                     'resource': context['agent_info']['resource'],
+                     'data': {'status': status,
+                              'notification_type': (
+                                    'update_status')}}]
                }
         self._notify._notification(msg)
 
     def ipsec_site_conn_deleted(self, context, resource_id):
         """ Notify VPNaaS plugin about delete of ipsec-site-conn """
 
-        msg = {'receiver': const.NEUTRON.lower(),
-               'resource': const.SERVICE_TYPE,
-               'method': 'ipsec_site_conn_deleted',
-               'kwargs': {'context': context,
-                        'resource_id': resource_id}
+        msg = {'info': {'service_type': const.SERVICE_TYPE,
+                        'context': context['agent_info']['context']},
+               'notification': [{
+                     'resource': context['agent_info']['resource'],
+                     'data': {'resource_id': resource_id,
+                              'notification_type': (
+                                    'ipsec_site_conn_deleted')}}]
                }
         self._notify._notification(msg)
 
@@ -141,16 +145,16 @@ class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
 
         super(VPNaasRpcManager, self).__init__(conf, sc)
 
-    def vpnservice_updated(self, context, **kwargs):
+    def vpnservice_updated(self, context, **resource_data):
         """Registers the VPNaas plugin events to update the vpn configurations.
 
         :param context: dictionary, confined to the specific service type.
-        :param kwargs: dictionary, confined to the specific operation type.
+        :param resource_data: dictionary, confined to the specific operation type.
 
         Returns: None
         """
         arg_dict = {'context': context,
-                    'kwargs': kwargs}
+                    'resource_data': resource_data}
         ev = self.sc.new_event(id='VPNSERVICE_UPDATED', data=arg_dict)
         self.sc.post_event(ev)
 
@@ -161,7 +165,7 @@ to make a call to the driver methods.
 """
 
 
-class VPNaasEventHandler(core_pt.PollEventDesc):
+class VPNaasEventHandler(nfp_poll.PollEventDesc):
 
     def __init__(self, sc, drivers):
         """ Instantiates class object.
@@ -177,7 +181,7 @@ class VPNaasEventHandler(core_pt.PollEventDesc):
 
     def _get_driver(self):
 
-        driver_id = const.SERVICE_TYPE
+        driver_id = const.SERVICE_TYPE + const.SERVICE_VENDOR
         return self._drivers[driver_id]
 
     def handle_event(self, ev):
@@ -188,7 +192,7 @@ class VPNaasEventHandler(core_pt.PollEventDesc):
 
         Returns: None
         """
-        if ev.id == 'VYOS_VPN_SYNC':
+        if ev.id == 'VPN_SYNC':
             self._sc.poll_event(ev)
 
         if ev.id == 'VPNSERVICE_UPDATED':
@@ -218,20 +222,31 @@ class VPNaasEventHandler(core_pt.PollEventDesc):
         Returns: None.
         """
         context = ev.data.get('context')
-        kwargs = ev.data.get('kwargs')
+        resource_data = ev.data.get('resource_data')
         msg = "Vpn service updated from server side"
         LOG.debug(msg)
 
         try:
-            driver.vpnservice_updated(context, kwargs)
+            driver.vpnservice_updated(context, resource_data)
+
+            for item in context['service_info']['ipsec_site_conns']:
+                if item['id'] == resource_data['resource']['id'] and (
+                                           resource_data['reason'] == 'create'):
+                    item['status'] = 'INIT'
+                    arg_dict = {'context': context,
+                            'resource_data': resource_data}
+                    ev1 = self._sc.new_event(id='VPN_SYNC',
+                                             key='VPN_SYNC', data=arg_dict)
+                    self._sc.post_event(ev1)
+                break
         except Exception as err:
             msg = ("Failed to update VPN service. %s" % str(err).capitalize())
             LOG.error(msg)
-        reason = kwargs.get('reason')
-        rsrc = kwargs.get('rsrc_type')
+        reason = resource_data.get('reason')
+        rsrc = resource_data.get('rsrc_type')
 
         if (reason == 'delete' and rsrc == 'ipsec_site_connection'):
-            conn = kwargs['resource']
+            conn = resource_data['resource']
             resource_id = conn['id']
             self._plugin_rpc.ipsec_site_conn_deleted(context,
                                                      resource_id=resource_id)
@@ -249,7 +264,7 @@ class VPNaasEventHandler(core_pt.PollEventDesc):
         vendor = tokens[5].split('=')[1]
         return vendor
 
-    def _sync_ipsec_conns(self, context, vendor, svc_context):
+    def _sync_ipsec_conns(self, context, svc_context):
         """
         Gets the status of the vpn service.
         :param context: Dictionary of the vpn service type.
@@ -260,14 +275,16 @@ class VPNaasEventHandler(core_pt.PollEventDesc):
         Returns: None
         """
         try:
-            self._get_driver().check_status(context, svc_context)
+            self._get_driver()
+
+            return self._get_driver().check_status(context, svc_context)
         except Exception as err:
             msg = ("Failed to sync ipsec connection information. %s."
                    % str(err).capitalize())
             LOG.error(msg)
 
-    @core_pt.poll_event_desc(event='VYOS_VPN_SYNC', spacing=10)
-    def sync(self, context):
+    @nfp_poll.poll_event_desc(event='VPN_SYNC', spacing=10)
+    def sync(self, ev):
         """Periodically updates the status of vpn service, whether the
         tunnel is UP or DOWN.
 
@@ -275,11 +292,14 @@ class VPNaasEventHandler(core_pt.PollEventDesc):
 
         Returns: None
         """
-        s2s_contexts = self._plugin_rpc.get_vpn_servicecontext(context)
-        for svc_context in s2s_contexts:
-            svc_vendor = self._get_service_vendor(svc_context['service'])
-            self._sync_ipsec_conns(context, svc_vendor, svc_context)
 
+        context = ev.data.get('context')
+        resource_data = ev.data.get('resource_data')
+        s2s_contexts = self._plugin_rpc.get_vpn_servicecontext(context)
+        site_conn = s2s_contexts[0]['siteconns'][0]
+        state = self._sync_ipsec_conns(context, s2s_contexts[0])
+        if state == const.STATE_ACTIVE:
+            return {'poll': False}
 
 def events_init(sc, drivers):
     """Registers events with core service controller.
@@ -296,13 +316,13 @@ def events_init(sc, drivers):
     evs = [
         main.Event(id='VPNSERVICE_UPDATED',
                    handler=VPNaasEventHandler(sc, drivers)),
-        main.Event(id='VYOS_VPN_SYNC',
+        main.Event(id='VPN_SYNC',
                    handler=VPNaasEventHandler(sc, drivers))]
 
     sc.register_events(evs)
 
 
-def load_drivers(sc):
+def load_drivers(sc, conf):
     """Loads the drivers dynamically.
 
     Loads the drivers that register with the agents.
@@ -317,7 +337,7 @@ def load_drivers(sc):
     plugin_rpc = VpnaasRpcSender(sc)
 
     for service_type, driver_name in drivers.iteritems():
-        driver_obj = driver_name(plugin_rpc)
+        driver_obj = driver_name(conf=conf)
         drivers[service_type] = driver_obj
 
     return drivers
@@ -354,7 +374,7 @@ def init_agent(cm, sc, conf):
 
     """
     try:
-        drivers = load_drivers(sc)
+        drivers = load_drivers(sc, conf)
     except Exception as err:
         msg = ("VPNaas failed to load drivers. %s" % (str(err).capitalize()))
         LOG.error(msg)
@@ -376,6 +396,8 @@ def init_agent(cm, sc, conf):
 
     try:
         register_service_agent(cm, sc, conf)
+        bdobj = base_driver.BaseDriver(conf)
+        bdobj.register_agent_object_with_driver('agent', VpnaasRpcSender(sc))
     except Exception as err:
         msg = ("VPNaas service agent registration unsuccessful. %s"
                % (str(err).capitalize()))
@@ -393,9 +415,5 @@ def init_agent_complete(cm, sc, conf):
     """
     Initializes periodic tasks.
     """
-    # ev = sc.new_event(id='VYOS_VPN_SYNC',
-    #                  key='VYOS_VPN_SYNC')
-    # sc.post_event(ev)
     msg = " vpn agent init complete"
     LOG.info(msg)
-
