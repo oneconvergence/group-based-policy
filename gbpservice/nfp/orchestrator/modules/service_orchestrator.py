@@ -576,7 +576,7 @@ class ServiceOrchestrator(object):
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
         service_vendor = service_details['service_vendor']
-        name = "%s.%s.%s" % (service_profile['service_type'],
+        name = "%s_%s_%s" % (service_profile['service_type'],
                              service_vendor,
                              service_chain_id or service_id)
         service_config_str = network_function_info.get('service_config')
@@ -702,7 +702,7 @@ class ServiceOrchestrator(object):
 
     def create_network_function_instance(self, event):
         request_data = event.data
-        name = '%s.%s' % (request_data['network_function']['name'],
+        name = '%s_%s' % (request_data['network_function']['name'],
                           request_data['network_function']['id'])
         create_nfi_request = {
             'name': name,
