@@ -11,7 +11,7 @@ function gbp_configure_heat {
 }
 
 function gbp_configure_neutron {
-    iniset $NEUTRON_CONF group_policy policy_drivers "implicit_policy,resource_mapping"
+    iniset $NEUTRON_CONF group_policy policy_drivers "implicit_policy,resource_mapping,chain_mapping"
     iniset $NEUTRON_CONF group_policy extension_drivers "proxy_group"
     iniset $NEUTRON_CONF servicechain servicechain_drivers "simplechain_driver"
     iniset $NEUTRON_CONF node_composition_plugin node_plumber "stitching_plumber"
@@ -34,12 +34,11 @@ function nfp_configure_neutron {
     iniset $NEUTRON_CONF node_composition_plugin node_plumber "admin_owned_resources_apic_plumber"
     iniset $NEUTRON_CONF node_composition_plugin node_drivers "nfp_node_driver"
     iniset $NEUTRON_CONF admin_owned_resources_apic_tscp plumbing_resource_owner_user "neutron"
-    iniset $NEUTRON_CONF admin_owned_resources_apic_tscp plumbing_resource_owner_password "admin_pass"
+    iniset $NEUTRON_CONF admin_owned_resources_apic_tscp plumbing_resource_owner_password $ADMIN_PASSWORD
     iniset $NEUTRON_CONF admin_owned_resources_apic_tscp plumbing_resource_owner_tenant_name "service"
     iniset $NEUTRON_CONF group_policy_implicit_policy default_ip_pool "11.0.0.0/8"
     iniset $NEUTRON_CONF group_policy_implicit_policy default_proxy_ip_pool "192.169.0.0/16"
     iniset $NEUTRON_CONF group_policy_implicit_policy default_external_segment_name "default"
-    iniset $NEUTRON_CONF device_lifecycle_drivers drivers "haproxy, vyos"
     iniset $NEUTRON_CONF nfp_node_driver is_service_admin_owned "True"
     iniset $NEUTRON_CONF nfp_node_driver svc_management_ptg_name "svc_management_ptg"
 }
@@ -73,8 +72,10 @@ if is_service_enabled group-policy; then
         gbp_configure_neutron
         [[ $ENABLE_NFP = True ]] && echo_summary "Configuring $NFP"
         [[ $ENABLE_NFP = True ]] && nfp_configure_neutron
-        [[ $ENABLE_NFP = True ]] && configure_nfp_loadbalancer
-        [[ $ENABLE_NFP = True ]] && configure_nfp_firewall
+        if [[ $DEVSTACK_MODE = advanced ]]; then
+            [[ $ENABLE_NFP = True ]] && configure_nfp_loadbalancer
+            [[ $ENABLE_NFP = True ]] && configure_nfp_firewall
+        fi
 #        install_apic_ml2
 #        install_aim
 #        init_aim
@@ -91,11 +92,10 @@ if is_service_enabled group-policy; then
         echo_summary "Initializing $GBP"
         if [[ $ENABLE_NFP = True ]]; then
             echo_summary "Initializing $NFP"
-            [[ $DEVSTACK_MODE = base ]] && [[ $DISABLE_BUILD_IMAGE = False ]] && create_nfp_image
+            [[ $DISABLE_BUILD_IMAGE = False ]] && create_nfp_image
             assign_user_role_credential
-            create_ext_net
             create_nfp_gbp_resources
-            upload_images_and_launch_configuratorVM
+            [[ $DEVSTACK_MODE = advanced ]] && upload_images_and_launch_configuratorVM
             nfp_logs_forword
             copy_nfp_files_and_start_process
         fi

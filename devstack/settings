@@ -36,17 +36,18 @@ enable_service neutron
 enable_service group-policy
 disable_service tempest
 ENABLED_SERVICES+=,heat,h-api,h-api-cfn,h-api-cw,h-eng
+
 # NFP services
 [[ $DEVSTACK_MODE = base ]] && enable_service orchestrator,proxy,proxy_agent,base_configurator
 [[ $DEVSTACK_MODE = advanced ]] && enable_service orchestrator,proxy,proxy_agent,config_orch
+
+# NFP Image Builder
+if [[ $DEVSTACK_MODE = advanced ]]; then
+    DISABLE_BUILD_IMAGE=True
+fi
 
 # Deployment preferences
 SYSLOG=${SYSLOG:-True}
 
 # Skip exercises by default (can be overridden in local.conf)
 SKIP_EXERCISES=${SKIP_EXERCISES:-volumes,trove,swift,sahara,euca,bundle,boot_from_volume,aggregates,zaqar,client-env,neutron-adv-test,floating_ips,client-args,horizon,sec_groups,gbp_servicechain,gbp_heat}
-
-EXT_NET_NAME=${EXT_NET_NAME:-ext-net}
-EXT_NET_SUBNET_NAME=${EXT_NET_SUBNET_NAME:-ext-net-subnet}
-
-DISK_IMAGE_DIR={DISK_IMAGE_DIR:-$DEST/gbp/gbpservice/tests/contrib}
