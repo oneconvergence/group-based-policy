@@ -201,6 +201,7 @@ function copy_nfp_files_and_start_process {
         CONFIGURATOR_PORT=8080
     else
         CONFIGURATOR_PORT=8070
+    fi
 
     echo "Configuring proxy.ini .... with rest_server_address as $IpAddr"
     sudo sed -i "s/rest_server_address=*.*/rest_server_address=$IpAddr/g" /etc/nfp_proxy.ini
