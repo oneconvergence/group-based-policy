@@ -25,6 +25,8 @@ from gbpservice.nfp.orchestrator.coal.networking import (
 )
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
+import ast
+
 LOG = logging.getLogger(__name__)
 
 
@@ -39,7 +41,7 @@ def _set_network_handler(f):
     return wrapped
 
 
-class OrchestrationDriverBase(object):
+class OrchestrationDriver(object):
     """Generic Driver class for orchestration of virtual appliances
 
     Does not support sharing of virtual appliance for different chains
@@ -47,8 +49,8 @@ class OrchestrationDriverBase(object):
     Launches the VM with all the management and data ports and a new VM
     is launched for each Network Service Instance
     """
-    def __init__(self, config, supports_device_sharing=False,
-                 supports_hotplug=False, max_interfaces=5):
+    def __init__(self, config, supports_device_sharing=True,
+                 supports_hotplug=True, max_interfaces=5):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
         self.supports_hotplug = supports_hotplug
@@ -119,6 +121,8 @@ class OrchestrationDriverBase(object):
                       % {'metric': metric, 'by': by})
 
     def _is_device_sharing_supported(self):
+        # TODO: needs change, need to support case where device sharing is
+        # there but doesn't supports hotplug
         return self.supports_device_sharing and self.supports_hotplug
 
     def _create_management_interface(self, device_data, network_handler=None):
@@ -180,6 +184,75 @@ class OrchestrationDriverBase(object):
                         network_handler=network_handler
                 )
 
+    def _verify_vendor_data(self, image_name, metadata):
+        vendor_data = {}
+        try:
+            for attr in metadata:
+                if attr in ['maximum_interfaces', 'supports_device_sharing',
+                            'supports_hotplug']:
+                    vendor_data[attr] = ast.literal_eval(metadata[attr])
+        except Exception:
+            LOG.error(_LE('Wrong metadata: %s provided for image name: %s')
+                      % (image_name, metadata))
+            return None
+        return vendor_data
+
+    def _get_vendor_data(self, device_data):
+        image_name = device_data['service_details']['image_name']
+        try:
+            token = (device_data['token']
+                     if device_data.get('token')
+                     else self.identity_handler.get_admin_token())
+        except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
+            LOG.error(_LE('Failed to get token, while getting vendor data'))
+            return None
+        try:
+            metadata = self.compute_handler_nova.get_image_metadata(
+                    token,
+                    self._get_admin_tenant_id(token=token),
+                    image_name)
+        except Exception:
+            self._increment_stats_counter('image_details_get_failures')
+            LOG.error(_LE('Failed to get image metadata for image name: %s')
+                      % (image_name))
+            return None
+        vendor_data = self._verify_vendor_data(image_name, metadata)
+        if not vendor_data:
+            return None
+        return vendor_data
+
+    def _update_self_with_vendor_data(self, vendor_data, attr):
+        attr_value = getattr(self, attr)
+        if vendor_data.get(attr):
+            setattr(self, attr, vendor_data[attr])
+        else:
+            LOG.info(_LI("Vendor data specified in image, doesn't contains "
+                         "%(attr)s value, proceeding with default value "
+                         "%(default)s"),
+                     {'attr': attr, 'default': attr_value})
+
+    def _update_vendor_data(self, device_data):
+        image_name = device_data['service_details']['image_name']
+        try:
+            vendor_data = self._get_vendor_data(device_data)
+            LOG.info(_LI("Vendor data, specified in image: %(vendor_data)s"),
+                     {'vendor_data': vendor_data})
+            if vendor_data:
+                self._update_self_with_vendor_data(vendor_data,
+                                                   'maximum_interfaces')
+                self._update_self_with_vendor_data(vendor_data,
+                                                   'supports_device_sharing')
+                self._update_self_with_vendor_data(vendor_data,
+                                                   'supports_hotplug')
+            else:
+                LOG.info(_LI("No vendor data specified in image, "
+                             "proceeding with default values"))
+        except Exception:
+            LOG.error(_LE("Error while getting metadata for image name: %s,"
+                          " proceeding with default values")
+                      % (image_name))
+
     def get_network_function_device_sharing_info(self, device_data):
         """ Get filters for NFD sharing
 
@@ -197,8 +270,6 @@ class OrchestrationDriverBase(object):
 
         :raises: exceptions.IncompleteData
         """
-        if not self._is_device_sharing_supported():
-            return None
 
         if (
             any(key not in device_data
@@ -212,6 +283,11 @@ class OrchestrationDriverBase(object):
         ):
             raise exceptions.IncompleteData()
 
+        self._update_vendor_data(device_data['service_details']['image_name'],
+                                 device_data.get('token'))
+        if not self._is_device_sharing_supported():
+            # TODO: check not required
+            return None
         return {
                 'filters': {
                     'tenant_id': [device_data['tenant_id']],
@@ -235,8 +311,6 @@ class OrchestrationDriverBase(object):
 
         :raises: exceptions.IncompleteData
         """
-        if not self._is_device_sharing_supported():
-            return None
 
         if (
             any(key not in device_data
@@ -257,6 +331,12 @@ class OrchestrationDriverBase(object):
                 for key in ['interfaces_in_use'])
         ):
             raise exceptions.IncompleteData()
+
+        self._update_vendor_data(device_data['service_details']['image_name'],
+                                 device_data.get('token'))
+        if not self._is_device_sharing_supported():
+            # TODO: Is this check required
+            return None
 
         hotplug_ports_count = 1  # for provider interface (default)
         if any(port['port_classification'] == nfp_constants.CONSUMER
@@ -319,6 +399,8 @@ class OrchestrationDriverBase(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
+        self._update_vendor_data(device_data['service_details']['image_name'],
+                                 device_data.get('token'))
         try:
             interfaces = self._get_interfaces_for_device_create(
                     device_data,
@@ -376,23 +458,32 @@ class OrchestrationDriverBase(object):
                          "service flavor field, using default "
                          "flavor: m1.medium"))
             flavor = 'm1.medium'
+
         interfaces_to_attach = []
         try:
+            if not self.supports_hotplug:
+                dummy_interfaces = self._create_dummy_interfaces(device_data,
+                                                            network_handler)
+                interfaces += dummy_interfaces
             for interface in interfaces:
                 port_id = network_handler.get_port_id(token, interface['id'])
                 interfaces_to_attach.append({'port': port_id})
 
             if not self.supports_hotplug:
-                for port in device_data['ports']:
-                    if port['port_classification'] == nfp_constants.PROVIDER:
-                        port_id = network_handler.get_port_id(
-                                                        token, port['id'])
-                        interfaces_to_attach.append({'port': port_id})
-                for port in device_data['ports']:
-                    if port['port_classification'] == nfp_constants.CONSUMER:
-                        port_id = network_handler.get_port_id(
-                                                        token, port['id'])
-                        interfaces_to_attach.append({'port': port_id})
+                if 'neutron mode':
+                    for port in device_data['ports']:
+                        if port['port_classification'] == nfp_constants.PROVIDER:
+                            port_id = network_handler.get_port_id(
+                                                            token, port['id'])
+                            interfaces_to_attach.append({'port': port_id})
+                    for port in device_data['ports']:
+                        if port['port_classification'] == nfp_constants.CONSUMER:
+                            port_id = network_handler.get_port_id(
+                                                            token, port['id'])
+                            interfaces_to_attach.append({'port': port_id})
+                else:
+                    interfaces_list = self._get_dumy_interfaces_for_device_create()
+                    interfaces_to_attach.append(interfaces_list)
         except Exception:
             self._increment_stats_counter('port_details_get_failures')
             LOG.error(_LE('Failed to fetch list of interfaces to attach'
@@ -456,6 +547,7 @@ class OrchestrationDriverBase(object):
                 'mgmt_port_id': interfaces[0],
                 'max_interfaces': self.maximum_interfaces,
                 'interfaces_in_use': len(interfaces_to_attach),
+                'dummy_interfaces': dummy_interfaces,
                 'description': ''}  # TODO(RPM): what should be the description
 
     @_set_network_handler
@@ -499,6 +591,8 @@ class OrchestrationDriverBase(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
+        self._update_vendor_data(device_data['service_details']['image_name'],
+                                 device_data.get('token'))
         try:
             token = (device_data['token']
                      if device_data.get('token')
@@ -608,9 +702,6 @@ class OrchestrationDriverBase(object):
         :raises: exceptions.IncompleteData,
                  exceptions.ComputePolicyNotSupported
         """
-        if not self.supports_hotplug:
-            # Nothing to do here.
-            return True
 
         if (
             any(key not in device_data
@@ -642,6 +733,11 @@ class OrchestrationDriverBase(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
+        self._update_vendor_data(device_data['service_details']['image_name'],
+                                 device_data.get('token'))
+        if not self.supports_hotplug:
+            'configure interfaces instead of hotplug'
+            return True
         try:
             token = (device_data['token']
                      if device_data.get('token')
@@ -701,9 +797,6 @@ class OrchestrationDriverBase(object):
         :raises: exceptions.IncompleteData,
                  exceptions.ComputePolicyNotSupported
         """
-        if not self.supports_hotplug:
-            # Nothing to do here.
-            return True
 
         if (
             any(key not in device_data
@@ -733,6 +826,11 @@ class OrchestrationDriverBase(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
+        self._update_vendor_data(device_data['service_details']['image_name'],
+                                 device_data.get('token'))
+        if not self.supports_hotplug:
+            # Non hotplug support go here.
+            return True
         try:
             token = (device_data['token']
                      if device_data.get('token')
@@ -798,10 +896,126 @@ class OrchestrationDriverBase(object):
             ]
         }
 
+    @_set_network_handler
     def get_network_function_device_config_info(self, device_data,
                                                 network_handler=None):
         """ Get the configuration information for NFD
 
-        Child class should implement this
+        :param device_data: NFD
+        :type device_data: dict
+
+        :returns: None -- On Failure
+        :returns: dict -- It has the following scheme
+        {
+            'config': [
+                {
+                    'resource': 'interfaces',
+                    'resource_data': {
+                        ...
+                    }
+                },
+                {
+                    'resource': 'routes',
+                    'resource_data': {
+                        ...
+                    }
+                }
+            ]
+        }
+
+        :raises: exceptions.IncompleteData
         """
-        pass
+        if (
+            any(key not in device_data
+                for key in ['service_details',
+                            'mgmt_ip_address',
+                            'ports']) or
+
+            type(device_data['service_details']) is not dict or
+
+            any(key not in device_data['service_details']
+                for key in ['service_vendor',
+                            'device_type',
+                            'network_mode']) or
+
+            type(device_data['ports']) is not list or
+
+            any(key not in port
+                for port in device_data['ports']
+                for key in ['id',
+                            'port_classification',
+                            'port_model'])
+        ):
+            raise exceptions.IncompleteData()
+
+        try:
+            token = (device_data['token']
+                     if device_data.get('token')
+                     else self.identity_handler.get_admin_token())
+        except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
+            LOG.error(_LE('Failed to get token'
+                          ' for get device config info operation'))
+            return None
+
+        provider_ip = None
+        provider_mac = None
+        provider_cidr = None
+        consumer_ip = None
+        consumer_mac = None
+        consumer_cidr = None
+        consumer_gateway_ip = None
+
+        for port in device_data['ports']:
+            if port['port_classification'] == nfp_constants.PROVIDER:
+                try:
+                    (provider_ip, provider_mac, provider_cidr, dummy) = (
+                            network_handler.get_port_details(token, port['id'])
+                    )
+                except Exception:
+                    self._increment_stats_counter('port_details_get_failures')
+                    LOG.error(_LE('Failed to get provider port details'
+                                  ' for get device config info operation'))
+                    return None
+            elif port['port_classification'] == nfp_constants.CONSUMER:
+                try:
+                    (consumer_ip, consumer_mac, consumer_cidr,
+                     consumer_gateway_ip) = (
+                            network_handler.get_port_details(token, port['id'])
+                    )
+                except Exception:
+                    self._increment_stats_counter('port_details_get_failures')
+                    LOG.error(_LE('Failed to get consumer port details'
+                                  ' for get device config info operation'))
+                    return None
+
+        return {
+            'config': [
+                {
+                    'resource': 'interfaces',
+                    'resource_data': {
+                        'mgmt_ip': device_data['mgmt_ip_address'],
+                        'provider_ip': provider_ip,
+                        'provider_cidr': provider_cidr,
+                        'provider_interface_index': 2,
+                        'stitching_ip': consumer_ip,
+                        'stitching_cidr': consumer_cidr,
+                        'stitching_interface_index': 3,
+                        'provider_mac': provider_mac,
+                        'stitching_mac': consumer_mac,
+                    }
+                },
+                {
+                    'resource': 'routes',
+                    'resource_data': {
+                        'mgmt_ip': device_data['mgmt_ip_address'],
+                        'source_cidrs': ([provider_cidr, consumer_cidr]
+                                         if consumer_cidr
+                                         else [provider_cidr]),
+                        'destination_cidr': consumer_cidr,
+                        'gateway_ip': consumer_gateway_ip,
+                        'provider_interface_index': 2
+                    }
+                }
+            ]
+        }

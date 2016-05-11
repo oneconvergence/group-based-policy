@@ -348,6 +348,41 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         port_info = self._get_port_info(session, port_id)
         return self._make_port_info_dict(port_info, fields)
 
+    def get_port_infos(self, session, filters=None, fields=None,
+                       sorts=None, limit=None, marker=None,
+                       page_reverse=False):
+        marker_obj = self._get_marker_obj(
+            'network_function_devices', limit, marker)
+        return self._get_collection(session, nfp_db_model.PortInfo,
+                                    self._make_port_info_dict,
+                                    filters=filters, fields=fields,
+                                    sorts=sorts, limit=limit,
+                                    marker_obj=marker_obj,
+                                    page_reverse=page_reverse)
+
+    def create_port_infos(self, session, port_infos):
+        port_ids = []
+        for port_info in port_infos:
+            port_id = self.create_port_info(session, port_info)
+            port_ids.append(port_id)
+        return port_ids
+
+    def create_port_info(self, session, port_info, fields=None):
+        port_id = port_info['id']
+        port_model = port_info['port_model']
+        port_classification = port_info['port_classification']
+        port_role = port_info['port_role']
+
+        with session.begin(subtransactions=True):
+            port_info_db = nfp_db_model.PortInfo(
+                id=port_id,
+                port_model=port_model,
+                port_classification=port_classification,
+                port_role=port_role)
+            session.add(port_info_db)
+            session.flush()
+        return self._make_port_info_dict(port_info, fields)
+
     def _get_port_info(self, session, port_id):
         try:
             return self._get_by_id(
@@ -434,5 +469,16 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                'reference_count': nfd['reference_count'],
                'interfaces_in_use': nfd['interfaces_in_use'],
                'status': nfd['status']
+               }
+        return res
+
+    def _make_network_function_device_interface_dict(self, nfd_iface, fields=None):
+        res = {'id': nfd_iface['id'],
+               'tenant_id': nfd_iface['tenant_id'],
+               'plugged_in_port_id': nfd_iface['description'],
+               'interface_position': nfd_iface['mgmt_ip_address'],
+               'plugged_in_ovs_port_name': nfd_iface['mgmt_port_id'],
+               'mapped_real_port_id': nfd_iface['monitoring_port_id'],
+               'service_vm_id': nfd_iface['monitoring_port_network'],
                }
         return res

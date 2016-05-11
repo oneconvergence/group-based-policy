@@ -185,3 +185,24 @@ class NetworkFunctionDevice(BASE, HasId, HasTenant, HasStatusDescription):
     max_interfaces = sa.Column(sa.Integer(), nullable=False)
     reference_count = sa.Column(sa.Integer(), nullable=False)
     interfaces_in_use = sa.Column(sa.Integer(), nullable=False)
+
+class NetworkFunctionDeviceInterface(BASE, HasId, HasTenant,
+                                     HasStatusDescription):
+    """Represents the Network Function Device"""
+    __tablename__ = 'nfp_network_function_device_interfaces'
+
+    plugged_in_port_id = sa.Column(sa.String(36),
+                                   sa.ForeignKey('nfp_port_infos.id',
+                                                 ondelete= 'SET NULL'),
+                                   nullable=True)
+    interface_position = sa.Column(sa.Integer(), nullable=False)
+    # plugged_in_ovs_port_name = sa.Column(sa.String(36), nullable=True)
+    mapped_real_port_id = sa.Column(sa.String(36),
+                                   sa.ForeignKey('nfp_port_infos.id',
+                                                 ondelete= 'SET NULL'),
+                                   nullable=True)
+    service_vm_id = sa.Column(
+        sa.String(36),
+        sa.ForeignKey('nfp_network_function_devices.id',
+                       ondelete='CASCADE'),
+        nullable=False)

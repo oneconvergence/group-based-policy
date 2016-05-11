@@ -322,11 +322,14 @@ class DeviceOrchestrator(PollEventDesc):
         return data_ports
 
     def _create_network_function_device_db(self, device_info, state):
+        dummy_interfaces = []
         self._update_device_status(device_info, state)
         #(ashu) driver should return device_id as vm_id
         device_id = device_info.pop('id')
         device_info['id'] = device_id
         device_info['reference_count'] = 0
+        if device_info.get('dummy_interfaces'):
+            dummy_interfaces = device_info.pop('dummy_interfaces')
         #(ashu) driver is sending that info
         #device_info['interfaces_in_use'] = 0
         device = self.nsf_db.create_network_function_device(self.db_session,
@@ -334,6 +337,23 @@ class DeviceOrchestrator(PollEventDesc):
         mgmt_port_id = device.pop('mgmt_port_id')
         mgmt_port_id = self._get_port(mgmt_port_id)
         device['mgmt_port_id'] = mgmt_port_id
+        if dummy_interfaces:
+            for iface in dummy_interfaces:
+                iface = {}
+                iface['id'] = iface['id']
+                iface['tenant_id'] = device['tenant_id']
+                iface['plugged_in_port_id'] = iface['plugged_in_pt_id']
+                iface['plugged_in_ovs_port_name'] = None
+                iface['mapped_real_port_id'] = None
+                iface['service_vm_id'] = device['id']
+
+                port_info = self.nsf_db.create_port_info(self.db_session,
+                                                         iface)
+                self.nsf_db.create_network_function_device_interfaces(
+                            self.db_session,
+                            device_info)
+            LOG.debug("Created following entries in port_infos : %s" %
+                      port_ids)
         return device
 
     def _update_network_function_device_db(self, device, state,
@@ -369,7 +389,10 @@ class DeviceOrchestrator(PollEventDesc):
         self._update_network_function_device_db(device, device['status'])
 
     def _get_orchestration_driver(self, service_vendor):
-        return self.drivers[service_vendor.lower()]
+        if service_vendor.lower() in self.drivers:
+            orchestration_driver = self.drivers[service_vendor.lower()]
+        else:
+            self._get_orchestartion_driver(service_vendor, service_profile)
 
     def _get_device_to_reuse(self, device_data, dev_sharing_info):
         device_filters = dev_sharing_info['filters']
@@ -601,6 +624,14 @@ class DeviceOrchestrator(PollEventDesc):
                                                 'HEALTH_CHECK_COMPLETED')
         orchestration_driver = self._get_orchestration_driver(
             device['service_details']['service_vendor'])
+        if 'orchestration driver not supports hotplug':
+            # get port_infos created while launching vm - dummy interfaces
+            dummy_ports = self.nsf_db.get_port_infos(self.db_session,
+                                                     filters={'device_id':
+                                                              [device['id']]})
+            device.update({'dummy_ports': dummy_ports})
+            pass
+
         _ifaces_plugged_in = (
             orchestration_driver.plug_network_function_device_interfaces(
                 device))
