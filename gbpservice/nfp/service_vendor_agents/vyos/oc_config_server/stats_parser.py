@@ -53,6 +53,31 @@ class APIHandler(object):
         return None
 
     def parse_firewall_stats(self, interface, raw_stats):
+        """
+        sample data for command show_firewall_detail.xsl :
+
+        IPv4 Firewall "oc_fw_eth1":
+
+        Active on (eth1,OUT)
+
+        rule  action   proto     packets  bytes
+        ----  ------   -----     -------  -----
+        11    accept   tcp       476405   24805598
+          condition - saddr 11.0.1.0/24 daddr 11.0.2.0/24 tcp dpt:22
+
+        12    accept   icmp      1222414  101692572
+          condition - saddr 11.0.1.0/24 daddr 11.0.2.0/24
+
+        13    drop     udp        150770055788 DROP
+          condition - saddr 11.0.2.0/24 daddr /*
+
+        14    accept   tcp       3589762  238449000
+          condition - saddr 11.0.1.0/24 daddr 11.0.2.0/24 tcp dpt:80
+
+        10000 drop     all       0        0
+          condition - saddr 0.0.0.0/0 daddr 0.0.0.0/0
+
+        """
         firewall  = {}
         firewalls = []
         firewall_start = False
@@ -84,7 +109,7 @@ class APIHandler(object):
                     firewall = self.add_protocol_and_dest_port_info(firewall, show_fw_data)
                     logger.info("packed firewall \n %s" % firewall)
                     firewalls.append(firewall)
-                    break;
+                    break
 
         except KeyError as keyerr:
             logger.error('Unable to Parse Firewall Stats Data, ' +
@@ -110,19 +135,19 @@ class APIHandler(object):
             if firewall_started and firewall_info_started:
                 firewall_info.append(line)
             if firewall_started and firewall_info_started and firewall_info_end in line:
-                break;
+                break
         try:
-            for rule in firewall.get('rules', None):
+            for rule in firewall.get('rules', []):
                 for index, stats in enumerate(firewall_info):
                     if stats is not '':
                         extract_stats = stats.split()
-                    if rule['rulepriority'] in extract_stats[0]:
-                        rule['protocol'] = extract_stats[2]
-                        for key in firewall_info[index + 1].split():
-                            if "dpt:" in key:
-                                rule['dest_port'] = key.split(':')[1]
-                                break;
-                        break;
+                        if rule['rulepriority'] in extract_stats[0]:
+                            rule['protocol'] = extract_stats[2]
+                            for key in firewall_info[index + 1].split():
+                                if "dpt:" in key:
+                                    rule['dest_port'] = key.split(':')[1]
+                                    break
+                            break
 
         except KeyError as keyerr:
             logger.error('Unable to Parse Firewall Stats Data, ' +
@@ -135,6 +160,39 @@ class APIHandler(object):
         return firewall
 
     def parse_vpn_s2s(self, raw_stats):
+        """
+        sample data for command show-ipsec-sa-detail :
+
+        Peer IP:                192.168.20.194
+        Peer ID:                120.0.0.2
+        Local IP:               91.0.0.11
+        Local ID:               91.0.0.11
+        NAT Traversal:          no
+        NAT Source Port:        n/a
+        NAT Dest Port:          n/a
+
+            Tunnel 1:
+                State:                  up
+                Inbound SPI:            c6621bd8
+                Outbound SPI:           cbf2ab18
+                Encryption:             aes128
+                Hash:                   sha1
+                PFS Group:              5
+
+                Local Net:              90.0.0.0/24
+                Local Protocol:         all
+                Local Port:             all
+
+                Remote Net:             120.0.0.0/24
+                Remote Protocol:        all
+                Remote Port:            all
+
+                Inbound Bytes:          654.0
+                Outbound Bytes:         504.0
+                Active Time (s):        289
+                Lifetime (s):           1800
+
+        """
         s2s_connection = {}
         s2s_connections = []
 
@@ -176,6 +234,15 @@ class APIHandler(object):
         return s2s_connections
 
     def parse_vpn_remote(self, raw_stats):
+        """
+        sample data for command vyatta-show-ovpn.pl --mode=server :
+
+        OpenVPN server status on vtun0 []
+
+        Client CN       Remote IP       Tunnel IP       TX byte RX byte Connected Since
+        ---------       ---------       ---------       ------- ------- ---------------
+        UNDEF           192.168.2.81    192.168.200.4      8.0K    2.7K Tue Mar  8 09:01:05 2016
+        """
         table = False
         remote_connection = {}
         remote_connections = []
@@ -204,6 +271,22 @@ class APIHandler(object):
         return remote_connections
 
     def get_fw_stats(self, mac_address):
+        """
+        sample data for command show_firewall_statistics.xsl :
+
+        IPv4 Firewall "oc_fw_eth1":
+
+        Active on (eth1,OUT)
+
+        rule  packets   bytes     action  source              destination
+        ----  -------   -----     ------  ------              -----------
+        11    476.22K   24.80M    ACCEPT  11.0.1.0/24         11.0.2.0/24
+        12    1.22M     101.66M   ACCEPT  11.0.1.0/24         11.0.2.0/24
+        13    3.43G     150.73G   DROP    11.0.1.0/24         11.0.2.0/24
+        14    3.59M     238.39M   ACCEPT  11.0.1.0/24         11.0.2.0/24
+        10000 0         0         DROP    0.0.0.0/0           0.0.0.0/0
+
+        """
         interface = None
         parsed_stats = {}
 
