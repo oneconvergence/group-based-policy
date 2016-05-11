@@ -254,6 +254,10 @@ function upload_images_and_launch_configuratorVM {
     ConfiguratorImageName=configurator
     VyosImageName=vyos
     HaproxyImageName=haproxy
+    
+    unset OS_USER_DOMAIN_ID
+    unset OS_PROJECT_DOMAIN_ID
+
     if [ ! -z "$TOP_DIR" -a "$TOP_DIR" != " " ]; then
         echo "Uploading Image : $ConfiguratorImageName"
         glance image-create --name $ConfiguratorImageName --disk-format qcow2  --container-format bare  --visibility public --file $ConfiguratorQcow2ImageName
