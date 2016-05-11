@@ -445,13 +445,12 @@ class ServiceOrchestrator(object):
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:
-                if serialize:
-                    network_function_id = event_data['network_function_id']
+                if original_event:
                     ev = self._controller.new_event(
                         id=event_id, data=event_data,
-                        binding_key=network_function_id,
-                        key=network_function_id,
-                        serialize=True)
+                        serialize=original_event.serialize,
+                        binding_key=original_event.binding_key,
+                        key=original_event.desc.uid)
                 else:
                     ev = self._controller.new_event(id=event_id,
                                                     data=event_data)
@@ -1019,7 +1018,7 @@ class ServiceOrchestrator(object):
             if request_data['action'] == 'update':
                 self._create_event("UPDATE_USER_CONFIG_IN_PROGRESS",
                                    event_data=request_data,
-                                   serialize=True)
+                                   original_event=event)
             else:
                 event_data = {
                     'network_function_id': request_data['network_function_id']
