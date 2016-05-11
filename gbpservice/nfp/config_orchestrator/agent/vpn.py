@@ -9,19 +9,24 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
+import copy
 import eventlet
 from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core.poll import poll_event_desc, PollEventDesc
 from gbpservice.nfp.lib import transport
+
 from neutron_vpnaas.db.vpn import vpn_db
-from neutron._i18n import _LI
+
 from oslo_log import helpers as log_helpers
+from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
-from oslo_log import log as logging
 from neutron_lib import exceptions as n_exec
 
-LOG = logging.getLogger(__name__)
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
 
 
 class VPNServiceDeleteFailed(n_exec.NeutronException):
@@ -32,6 +37,11 @@ class VPNServiceCreateFailed(n_exec.NeutronException):
     message = "VPN Service Creation Failed"
 
 
+"""
+RPC handler for VPN service
+"""
+
+
 class VpnAgent(PollEventDesc):
     RPC_API_VERSION = '1.0'
     target = messaging.Target(version=RPC_API_VERSION)
@@ -40,6 +50,25 @@ class VpnAgent(PollEventDesc):
         self._conf = conf
         self._sc = sc
         super(VpnAgent, self).__init__()
+
+    def _get_dict_desc_from_string(self, vpn_svc):
+        svc_desc = vpn_svc.split(";")
+        desc = {}
+        for ele in svc_desc:
+            s_ele = ele.split("=")
+            desc.update({s_ele[0]: s_ele[1]})
+        return desc
+
+    def _prepare_resource_context_dicts(self, context, tenant_id):
+        # Prepare context_dict
+        ctx_dict = context.to_dict()
+        # Collecting db entry required by configurator.
+        # Addind service_info to neutron context and sending
+        # dictionary format to the configurator.
+        db = self._context(context, tenant_id)
+        rsrc_ctx_dict = copy.deepcopy(ctx_dict)
+        rsrc_ctx_dict.update({'service_info': db})
+        return ctx_dict, rsrc_ctx_dict
 
     def event_method_mapping(self, event_id):
         event_handler_mapping = {
@@ -142,7 +171,7 @@ class VpnAgent(PollEventDesc):
                 self.call_configurator(context, kwargs)
 
     def call_configurator(self, context, kwargs):
-        resource_data = kwargs.get('resource')
+        '''resource_data = kwargs.get('resource')
         # Collecting db entry required by configurator.
         db = VPNPluginDbHelper(self._conf)
         db_data = db._context(context, resource_data['tenant_id'])
@@ -153,26 +182,29 @@ class VpnAgent(PollEventDesc):
         kwargs.update({'context': context_dict})
         resource = kwargs.get('rsrc_type')
         reason = kwargs.get('reason')
-        body = common.prepare_request_data(resource, kwargs, "vpn")
+        body = common.prepare_request_data(resource, kwargs, "vpn")'''
+        tenant_id = kwargs['resource']['tenant_id']
+        ctx_dict, rsrc_ctx_dict = self.\
+            _prepare_resource_context_dicts(context, tenant_id)
+        nfp_context = {'neutron_context': ctx_dict,
+                       'requester': 'nas_service'}
+        resource_type = 'vpn'
+        resource = kwargs['rsrc_type']
+        if resource.lower() == 'ipsec_site_connection':
+            ipsec_desc = self._get_dict_desc_from_string(kwargs[
+                'resource']['description'])
+            nf_id = ipsec_desc['network_function_id']
+            ipsec_site_connection_id = kwargs['rsrc_id']
+            nfp_context.update(
+                {'network_function_id': nf_id,
+                 'ipsec_site_connection_id': ipsec_site_connection_id})
+        kwargs.update({'neutron_context': rsrc_ctx_dict})
+        resource_data = kwargs
+        body = common.prepare_request_data(nfp_context, resource,
+                                           resource_type, resource_data)
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                reason)
-
-    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
-    @log_helpers.log_method_call
-    def update_status(self, context, **kwargs):
-        status = kwargs['kwargs']['status']
-        rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        rpcClient.cctxt.cast(context, 'update_status',
-                             status=status)
-
-    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
-    @log_helpers.log_method_call
-    def ipsec_site_conn_deleted(self, context, **kwargs):
-        resource_id = kwargs['kwargs']['resource_id']
-        rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
-                             resource_id=resource_id)
 
     def validate_and_process_vpn_create_service_request(self, context,
                                                         resource_data):
@@ -332,7 +364,6 @@ class VPNPluginDbHelper(vpn_db.VPNPluginDb):
 
     def _get_vpn_context(self, context, filters):
         args = {'context': context, 'filters': filters}
-        #db_data = vpn_db.VPNPluginDb.__init__(self)
         db_data = super(VPNPluginDbHelper, self)
         return {'vpnservices': db_data.get_vpnservices(**args),
                 'ikepolicies': db_data.get_ikepolicies(**args),
@@ -345,3 +376,81 @@ class VPNPluginDbHelper(vpn_db.VPNPluginDb):
                                                     self._conf.host)
         del core_context_dict['ports']
         return core_context_dict
+
+
+class VpnNotifier(object):
+    RPC_API_VERSION = '1.0'
+    target = messaging.Target(version=RPC_API_VERSION)
+
+    def __init__(self, conf, sc):
+        self._sc = sc
+        self._conf = conf
+
+    def _prepare_request_data(self, context, nf_id,
+                              ipsec_id, service_type):
+        # (akash): for visibility
+        request_data = None
+        try:
+            request_data = common.get_network_function_map(
+                context, nf_id)
+            # Adding Service Type #
+            request_data.update({"service_type": service_type,
+                                 "ipsec_site_connection_id": ipsec_id})
+        except Exception:
+            return request_data
+        return request_data
+
+    def _trigger_service_event(self, context, event_type, event_id,
+                               request_data):
+        event_data = {'resource': None,
+                      'context': context.to_dict()}
+        event_data['resource'] = {'eventtype': event_type,
+                                  'eventid': event_id,
+                                  'eventdata': request_data}
+        ev = self._sc.new_event(id=event_id,
+                                key=event_id, data=event_data)
+        self._sc.post_event(ev)
+
+    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    # TODO(akash): Event for service create/delete not implemented here
+    # Need to do that
+    def update_status(self, context, notification_data):
+        resource_data = notification_data['notification'][0]['data']
+        notification_info = notification_data['info']
+        status = resource_data['status']
+        rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt.cast(context, 'update_status',
+                             status=status)
+
+        # Sending An Event for visiblity
+        if resource_data['resource'].lower() is\
+                'ipsec_site_connection':
+            nf_id = notification_info['context']['network_function_id']
+            ipsec_id = notification_info['context']['ipsec_site_connection_id']
+            service_type = notification_info['service_type']
+            request_data = self._prepare_request_data(context, nf_id,
+                                                      ipsec_id, service_type)
+            LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
+
+            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
+                                        request_data)
+
+    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
+    def ipsec_site_conn_deleted(self, context, notification_data):
+        resource_data = notification_data['notification'][0]['data']
+        notification_info = notification_data['info']
+        ipsec_site_conn_id = resource_data['resource_id']
+        rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
+                             ipsec_site_conn_id=ipsec_site_conn_id)
+
+        # Sending An Event for visiblity
+        nf_id = notification_info['context']['network_function_id']
+        ipsec_id = notification_info['context']['ipsec_site_connection_id']
+        service_type = notification_info['service_type']
+        request_data = self._prepare_request_data(context, nf_id,
+                                                  ipsec_id, service_type)
+        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
+
+        self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
+                                    request_data)

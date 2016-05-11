@@ -186,7 +186,7 @@ class LoadbalancerNotifier(object):
     def _trigger_service_event(self, context, event_type, event_id,
                                request_data):
         event_data = {'resource': None,
-                      'context': context}
+                      'context': context.to_dict()}
         event_data['resource'] = {'eventtype': event_type,
                                   'eventid': event_id,
                                   'eventdata': request_data}

@@ -11,15 +11,17 @@
 #    under the License.
 
 from oslo_log import log as logging
-from gbpservice.nfp.core.event import Event
-from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.config_orchestrator.agent import firewall as fw
 from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
+from gbpservice.nfp.config_orchestrator.agent import notification_handler as nh
+from gbpservice.nfp.config_orchestrator.agent import \
+    otc_service_events as otc_se
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.config_orchestrator.agent import vpn as vp
-from oslo_config import cfg
 from gbpservice.nfp.config_orchestrator.agent.l3 import NFPL3Agent
-
+from gbpservice.nfp.core.event import Event
+from gbpservice.nfp.core.rpc import RpcAgent
+from oslo_config import cfg
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ def rpc_init(sc, conf):
     )
 
     lb_report_state = {
-        'binary': 'oc-lb-agent',
+        'binary': 'NCO',
         'host': cfg.CONF.host,
         'topic': a_topics.LB_NFP_CONFIGAGENT_TOPIC,
         'plugin_topic': a_topics.LB_NFP_PLUGIN_TOPIC,
@@ -53,7 +55,7 @@ def rpc_init(sc, conf):
     )
 
     vpn_report_state = {
-        'binary': 'oc-vpn-agent',
+        'binary': 'NCO',
         'host': cfg.CONF.host,
         'topic': a_topics.VPN_NFP_CONFIGAGENT_TOPIC,
         'plugin_topic': a_topics.VPN_NFP_PLUGIN_TOPIC,
@@ -75,24 +77,39 @@ def rpc_init(sc, conf):
     nfp_l3_agent = RpcAgent(sc, host=cfg.CONF.host,
                             topic=a_topics.NFP_L3_AGENT, manager=nfp_l3_mgr)
 
-    sc.register_rpc_agents([fwagent, vpnagent, nfp_l3_agent])
-    # sc.register_rpc_agents([fwagent, lbagent, vpnagent, nfp_l3_agent])
+    nhrpcmgr = nh.NotificationAgent(conf, sc)
+    notificationagent = RpcAgent(
+        sc,
+        host=cfg.CONF.host,
+        topic=a_topics.CONFIG_ORCH_TOPIC,
+        manager=nhrpcmgr,
+    )
+
+    sc.register_rpc_agents([fwagent, vpnagent, notificationagent, nfp_l3_agent])
+    # sc.register_rpc_agents([fwagent, lbagent, vpnagent, notificationagent,
+    #                         nfp_l3_agent])
 
 
-def events_init(controller, config, nfp_agents_obj):
+def events_init(sc, conf, nfp_agents_obj):
     vpn_events = ['VPN_SERVICE_SPAWNING', 'VPN_SERVICE_DELETE_IN_PROGRESS',
                   'VPN_SERVICE_ERRED']
     firewall_events = ['FW_INSTANCE_SPAWNING', 'FW_SERVICE_DELETE_IN_PROGRESS',
                        'FW_SERVICE_ERRED', 'ROUTERS_UPDATED',
                        'FW_INSTANCE_SPAWNING']
-    events_to_register = []
+    events_to_register = [
+        Event(id='SERVICE_CREATED',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
+        Event(id='SERVICE_DELETED',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf))]
     for event in vpn_events:
         events_to_register.append(
-                Event(id=event, handler=nfp_agents_obj.vpn_agent))
+                 Event(id=event,
+                       handler=Event(id=event, handler=nfp_agents_obj.vpn_agent))
     for event in firewall_events:
         events_to_register.append(
-                Event(id=event, handler=nfp_agents_obj.fw_agent))
-    controller.register_events(events_to_register)
+                Event(id=event,
+                      handler=Event(id=event, handler=nfp_agents_obj.fw_agent))
+    sc.register_events(events_to_register)
 
 
 def nfp_module_init(sc, conf):

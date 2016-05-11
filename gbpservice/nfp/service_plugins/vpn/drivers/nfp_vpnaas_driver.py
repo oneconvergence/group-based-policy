@@ -11,6 +11,7 @@
 #    under the License.
 
 import socket
+import time
 
 from gbpservice.nfp.config_orchestrator.agent import topics
 from neutron_lib import exceptions
@@ -19,7 +20,7 @@ from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron import manager
 from neutron_vpnaas.services.vpn.plugin import VPNPlugin
-from neutron_vpnaas.services.vpn import service_drivers
+from neutron_vpnaas.services.vpn.plugin import VPNDriverPlugin
 from neutron_vpnaas.services.vpn.service_drivers import base_ipsec
 
 from oslo_log import log as logging
@@ -29,6 +30,9 @@ LOG = logging.getLogger(__name__)
 
 BASE_VPN_VERSION = '1.0'
 AGENT_TYPE_VPN = 'NFP Vpn agent'
+ACTIVE = 'ACTIVE'
+ERROR = 'ERROR'
+TIMEOUT = 20
 
 
 class VPNAgentHostingServiceNotFound(exceptions.NeutronException):
@@ -183,14 +187,50 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
         service_vendor = self._get_service_vendor(
                                     context,
                                     ipsec_site_connection['vpnservice_id'])
-        self.agent_rpc.vpnservice_updated(
-            context,
-            ipsec_site_connection['vpnservice_id'],
-            rsrc_type='ipsec_site_connection',
-            svc_type=self.service_type,
-            rsrc_id=ipsec_site_connection['id'],
-            resource=ipsec_site_connection,
-            reason='create', service_vendor=service_vendor)
+
+        starttime = endtime = time.time()
+        while(endtime - starttime) < TIMEOUT:
+            vpnservice = self.service_plugin.get_vpnservice(
+                                        context,
+                                        ipsec_site_connection['vpnservice_id'])
+            if vpnservice['status'] == ACTIVE:
+                self.agent_rpc.vpnservice_updated(
+                    context,
+                    ipsec_site_connection['vpnservice_id'],
+                    rsrc_type='ipsec_site_connection',
+                    svc_type=self.service_type,
+                    rsrc_id=ipsec_site_connection['id'],
+                    resource=ipsec_site_connection,
+                    reason='create', service_vendor=service_vendor)
+                break
+            elif vpnservice['status'] == ERROR:
+                msg = ('updating ipsec_site_connection with id %s to'+(
+                                'ERROR state' % (ipsec_site_connection['id'])))
+                LOG.error(msg)
+                self._update_ipsec_conn_state(context, ipsec_site_connection)
+                break
+            time.sleep(5)
+            endtime = time.time()
+        else:
+            msg = ('updating ipsec_site_connection with id %s to'+(
+                                'ERROR state' % (ipsec_site_connection['id'])))
+            LOG.error(msg)
+            self._update_ipsec_conn_state(context, ipsec_site_connection)
+
+    def _move_ipsec_conn_state_to_error(self, context, ipsec_site_connection):
+        vpnsvc_status = [{
+            'id': ipsec_site_connection['vpnservice_id'],
+            'status':ERROR,
+            'updated_pending_status':False,
+            'ipsec_site_connections':{
+                ipsec_site_connection['id']: {
+                    'status': ERROR,
+                    'updated_pending_status': True}}}]
+        driver = VPNDriverPlugin()._get_driver_for_ipsec_site_connection(
+                                                    context,
+                                                    ipsec_site_connection)
+        NFPIPsecVPNDriverCallBack(driver).update_status(context,
+                                                        vpnsvc_status)
 
     def delete_ipsec_site_connection(self, context, ipsec_site_connection):
         service_vendor = self._get_service_vendor(
