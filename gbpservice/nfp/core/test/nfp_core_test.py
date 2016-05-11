@@ -21,9 +21,11 @@ from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.core import rpc as nfp_rpc
+from gbpservice.nfp.core import log as nfp_logging
 
+#LOGGER = oslo_logging.getLogger(__name__)
+LOGGER = nfp_logging.getLogger(__name__)
 
-LOGGER = logging.getLogger(__name__)
 LOG = nfp_common.log
 Event = nfp_event.Event
 PollEventDesc = nfp_poll.PollEventDesc

@@ -18,8 +18,11 @@ from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.orchestrator.drivers import (
     orchestration_driver_base as odb
 )
+from gbpservice.nfp.core import log as nfp_logging
 
-LOG = logging.getLogger(__name__)
+#LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
+
 
 
 class VyosOrchestrationDriver(odb.OrchestrationDriverBase):

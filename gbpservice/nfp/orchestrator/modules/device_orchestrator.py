@@ -28,8 +28,10 @@ from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
+from gbpservice.nfp.core import log as nfp_logging
 
-LOG = logging.getLogger(__name__)
+#LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}

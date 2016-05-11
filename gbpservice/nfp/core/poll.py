@@ -22,8 +22,10 @@ from oslo_service import loopingcall as oslo_looping_call
 from oslo_service import periodic_task as oslo_periodic_task
 
 from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 
-LOGGER = oslo_logging.getLogger(__name__)
+#LOGGER = oslo_logging.getLogger(__name__)
+LOGGER = nfp_logging.getLogger(__name__)
 LOG = nfp_common.log
 identify = nfp_common.identify
 

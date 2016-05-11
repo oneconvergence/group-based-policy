@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from gbpservice.nfp.core import log as nfp_logging
 from oslo_config import cfg
 from oslo_log import log as logging
 import stevedore
@@ -17,7 +18,8 @@ import stevedore
 cfg.CONF.register_opt(cfg.StrOpt('drivers'),
                       'nfp_orchestration_drivers')
 
-LOG = logging.getLogger(__name__)
+#LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 
 class ExtensionManager(stevedore.named.NamedExtensionManager):

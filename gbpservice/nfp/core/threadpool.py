@@ -19,8 +19,10 @@ from eventlet import greenthread
 from oslo_log import log as logging
 
 from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 
-LOGGER = logging.getLogger(__name__)
+#LOGGER = oslo_logging.getLogger(__name__)
+LOGGER = nfp_logging.getLogger(__name__)
 LOG = nfp_common.log
 
 

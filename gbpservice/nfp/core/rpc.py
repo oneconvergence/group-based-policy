@@ -22,8 +22,10 @@ from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 
 from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 
-LOGGER = oslo_logging.getLogger(__name__)
+#LOGGER = oslo_logging.getLogger(__name__)
+LOGGER = nfp_logging.getLogger(__name__)
 LOG = nfp_common.log
 identify = nfp_common.identify
 

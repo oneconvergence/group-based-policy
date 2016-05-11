@@ -17,8 +17,11 @@ from keystoneclient.v2_0 import client as identity_client
 from keystoneclient.v3 import client as keyclientv3
 from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
+from gbpservice.nfp.core import log as nfp_logging
 
-LOG = logging.getLogger(__name__)
+#LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
+
 
 
 class OpenstackApi(object):

@@ -30,8 +30,11 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
+from gbpservice.nfp.core import log as nfp_logging
 
-LOG = logging.getLogger(__name__)
+#LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
+
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
@@ -409,7 +412,7 @@ class ServiceOrchestrator(object):
 
     def handle_event(self, event):
         LOG.info(_LI("Service Orchestrator received event %(id)s"),
-                 {'id': event.id})
+                 {'id': event.id},)
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)

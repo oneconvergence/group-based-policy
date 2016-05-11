@@ -42,6 +42,7 @@ from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
 import yaml
+from gbpservice.nfp.core import log as nfp_logging
 
 
 HEAT_DRIVER_OPTS = [
@@ -86,7 +87,8 @@ STACK_ACTION_WAIT_TIME = (
 STACK_ACTION_RETRY_WAIT = 5  # Retry after every 5 seconds
 APIC_OWNED_RES = 'apic_owned_res_'
 
-LOG = logging.getLogger(__name__)
+#LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 
 class ServiceInfoNotAvailableOnUpdate(n_exc.NeutronException):

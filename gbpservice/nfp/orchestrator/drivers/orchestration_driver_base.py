@@ -24,8 +24,11 @@ from gbpservice.nfp.orchestrator.coal.networking import (
     nfp_neutron_network_driver
 )
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from gbpservice.nfp.core import log as nfp_logging
 
-LOG = logging.getLogger(__name__)
+#LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
+
 
 
 def _set_network_handler(f):

@@ -19,8 +19,10 @@ from oslo_log import log as oslo_logging
 
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import threadpool as nfp_tp
+from gbpservice.nfp.core import log as nfp_logging
 
-LOGGER = oslo_logging.getLogger(__name__)
+#LOGGER = oslo_logging.getLogger(__name__)
+LOGGER = nfp_logging.getLogger(__name__)
 LOG = nfp_common.log
 identify = nfp_common.identify
 
@@ -69,6 +71,22 @@ class Event(object):
         self.max_times = -1
         # Identifies whether event.data is zipped
         self.zipped = False
+        # Event context which is passed as is to callback
+        self.context = kwargs.get('context', {})
+        # Unique key to be associated with the event
+        self.key = kwargs.get('key', None)
+        # Prepare the base descriptor
+        if self.key:
+            desc = EventDesc(**{'key': self.key})
+        else:
+            desc = EventDesc()
+        self.desc = desc
+
+        cond = self.serialize is True and self.binding_key is None
+        assert not cond
+
+    def get_context(self):
+        return self.context
 
     def identify(self):
         if hasattr(self, 'desc'):
