@@ -499,63 +499,6 @@ class HaproxyDriver:
                                         active_ip, standby_ip,
                                         priority, mgmt_interface)
 
-    def get_lbstats_from_socket(self, socket_path):
-        try:
-            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            s.connect(socket_path)
-            s.send('show stat\n')
-            raw_stats = ''
-            chunk_size = 1024
-            while True:
-                chunk = s.recv(chunk_size)
-                raw_stats += chunk
-                if len(chunk) < chunk_size:
-                    break
-
-            return self._parse_stats(raw_stats)
-        except socket.error as e:
-            self.logger.error('Error while connecting to stats socket: %s', e)
-            return {}
-
-    def get_pool_id(self, vip_id):
-        frontend_info = False
-        pool_id = None
-
-        command = ['sudo', 'cat', HAPROXY_CONFIG_FILE_ABS_PATH]
-        status, output = commands.getstatusoutput(' '.join(command))
-
-        if status >= 0 and output:
-            for line in output.split('\n'):
-                if ( "frontend frnt:" + vip_id ) in line:
-                    frontend_info = True
-                elif frontend_info and "default_backend bck:" in line:
-                    pool_id = line.strip().split(':')[1]
-
-        return pool_id
-
-    def get_lbstats(self, vip_id):
-        filtered_stats = []
-        pool_id = self.get_pool_id(vip_id)
-
-        socket_path = HAPROXY_SOCK_ABS_PATH
-        try:
-            if os.path.exists(socket_path):
-                parsed_stats = self.get_lbstats_from_socket(
-                                socket_path)
-                for proxy in parsed_stats:
-                    if vip_id in proxy['pxname']:
-                        filtered_stats.append(proxy)
-                    if pool_id and pool_id in proxy['pxname']:
-                        filtered_stats.append(proxy)
-                return { 'stats' : filtered_stats }
-            else:
-                self.logger.error('Stats socket not found for vip %s', vip_id)
-                return {}
-        except Exception, err:
-            self.logger.error('exception : %s and exception : %s',
-                             err, traceback.format_exc())
-            return {}
-
     def is_configured(self, ip, port):
         config_to_check = "@" + ip + ":" + port
         command = ['sudo', 'cat', HAPROXY_RSYSLOG_CONF_FILE_ABS_PATH]
