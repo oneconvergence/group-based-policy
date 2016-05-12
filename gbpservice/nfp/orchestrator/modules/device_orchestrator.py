@@ -24,7 +24,8 @@ from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
-from nfp.orchestrator.drivers import orchestration_driver_base
+from gbpservice.nfp.orchestrator.drivers import (orchestration_driver_base
+                                                as orchestration_driver)
 from gbpservice.nfp.orchestrator.lib import extension_manager as ext_mgr
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from neutron.common import rpc as n_rpc
@@ -180,10 +181,6 @@ class DeviceOrchestrator(PollEventDesc):
         self.nsf_db = nfp_db.NFPDbBase()
         self.gbpclient = openstack_driver.GBPClient(config)
         self.keystoneclient = openstack_driver.KeystoneClient(config)
-
-        self.ext_mgr = ext_mgr.ExtensionManager(self._controller, self.config)
-        self.drivers = self.ext_mgr.drivers
-        LOG.debug("Loaded extension drivers: %s" % (self.drivers))
 
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = NDOConfiguratorRpcApi(neutron_context,
@@ -433,7 +430,7 @@ class DeviceOrchestrator(PollEventDesc):
         self._update_network_function_device_db(device, device['status'])
 
     def _get_orchestration_driver(self, service_vendor):
-        return orchestration_driver_base.OrchestrationDriver(self.config)
+        return orchestration_driver.OrchestrationDriver(self.config)
 
     def _get_device_to_reuse(self, device_data, dev_sharing_info):
         device_filters = dev_sharing_info['filters']

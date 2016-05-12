@@ -207,9 +207,9 @@ class OrchestrationDriver(object):
                 admin_token,
                 'advance_sharing_l2policy',
                 advance_sharing_l3_policy['id'])
-            
+
             ptg = network_handler.create_policy_target_group(admin_token,
-                                        admin_tenant_id, 
+                                        admin_tenant_id,
                                         ADVANCE_SHARING_PTG_NAME,
                                         advance_sharing_l2_policy['id'])
             self._advance_sharing_ptg_id = ptg['id']
