@@ -78,7 +78,7 @@ def upgrade():
         sa.Column('status', sa.String(length=50), nullable=True),
         sa.Column('status_description', sa.String(length=255), nullable=True),
         sa.Column('service_id', sa.String(length=36), nullable=False),
-        sa.Column('service_chain_id', sa.String(length=36), nullable=False),
+        sa.Column('service_chain_id', sa.String(length=36), nullable=True),
         sa.Column('service_profile_id', sa.String(length=36), nullable=True),
         sa.Column('service_config', sa.TEXT(), nullable=True),
         sa.Column('heat_stack_id', sa.String(length=36), nullable=True),
