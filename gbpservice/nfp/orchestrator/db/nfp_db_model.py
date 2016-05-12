@@ -196,7 +196,6 @@ class NetworkFunctionDeviceInterface(BASE, HasId, HasTenant,
                                                  ondelete= 'SET NULL'),
                                    nullable=True)
     interface_position = sa.Column(sa.Integer(), nullable=False)
-    # plugged_in_ovs_port_name = sa.Column(sa.String(36), nullable=True)
     mapped_real_port_id = sa.Column(sa.String(36),
                                    sa.ForeignKey('nfp_port_infos.id',
                                                  ondelete= 'SET NULL'),
