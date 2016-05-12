@@ -156,7 +156,7 @@ class Controller(object):
                 event.zipped = False
             except Exception as e:
                 LOG(LOGGER, 'ERROR',
-                    "Failed to decompress event data : %s Reason: %s" % (
+                    "Failed to decompress event data : %r Reason: %s" % (
                         event.data, e))
                 raise e
 

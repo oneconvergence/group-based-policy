@@ -104,11 +104,11 @@ def events_init(sc, conf, nfp_agents_obj):
     for event in vpn_events:
         events_to_register.append(
                  Event(id=event,
-                       handler=Event(id=event, handler=nfp_agents_obj.vpn_agent))
+                       handler=nfp_agents_obj.vpn_agent))
     for event in firewall_events:
         events_to_register.append(
                 Event(id=event,
-                      handler=Event(id=event, handler=nfp_agents_obj.fw_agent))
+                      handler=nfp_agents_obj.fw_agent))
     sc.register_events(events_to_register)
 
 

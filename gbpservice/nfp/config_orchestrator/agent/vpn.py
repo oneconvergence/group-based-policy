@@ -25,6 +25,7 @@ from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 from neutron_lib import exceptions as n_exec
 
+from neutron import context as n_context
 LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
 
@@ -82,14 +83,23 @@ class VpnAgent(PollEventDesc):
         else:
             return event_handler_mapping[event_id]
 
+    def handle_poll_event(self, event):
+        LOG(LOGGER, "INFO", "Service Orchestrator received poll event %s" % event.id)
+        try:
+            event_handler = self.event_method_mapping(event.id)
+            return event_handler(event)
+        except Exception:
+            LOG(LOGGER, "ERROR", "Failed to handle poll event")
+
     def _create_event(self, event_id, event_data=None, is_poll_event=False,
                       serialize=False, binding_key=None, key=None,
                       max_times=10):
+        import pdb;pdb.set_trace()
         if is_poll_event:
             ev = self._sc.new_event(
                     id=event_id, data=event_data, serialize=serialize,
                     binding_key=binding_key, key=key)
-            LOG.debug("poll event started for %s" % ev.id)
+            LOG(LOGGER, 'DEBUG', "poll event started for %s" % (ev.id))
             self._sc.poll_event(ev, max_times=max_times)
         else:
             ev = self._sc.new_event(id=event_id, data=event_data)
@@ -97,14 +107,12 @@ class VpnAgent(PollEventDesc):
         self._log_event_created(event_id, event_data)
 
     def poll_event_cancel(self, event):
-        LOG.info(_LI("Poll event %(event_id)s cancelled."),
-                 {'event_id': event.id})
-        # (VK) - Kedar fill the ERROR logic returned to VPM plugin here.
+        LOG(LOGGER, 'INFO', "poll event cancelled for %s" % (event.id))
         if event.id == "VPN_SERVICE_SPAWNING":
             pass
         elif event.id == "VPN_SERVICE_DELETE_IN_PROGRESS":
             data = event.data
-            context = data['context']
+            context = n_context.Context.from_dict(data['context'])
             vpnsvc_status = [{
                 'id': data['resource']['id'],
                 'status': "ERROR",
@@ -116,7 +124,7 @@ class VpnAgent(PollEventDesc):
 
     @log_helpers.log_method_call
     def vpnservice_updated(self, context, **kwargs):
-        LOG.debug("vpnservice _updated kwargs  %r" % kwargs)
+        LOG(LOGGER, 'DEBUG', "vpnservice _updated kwargs  %r" % kwargs)
         if self._is_network_function_mode_neutron(kwargs):
             if kwargs['reason'] == 'create':
                 nw_fun_info =  \
@@ -140,7 +148,7 @@ class VpnAgent(PollEventDesc):
                             'description']
                     self.call_configurator(context, kwargs)
                 else:
-                    kwargs.update({'context': context})
+                    kwargs.update({'context': context.to_dict()})
                     filters = {'service_id': [kwargs['rsrc_id']]}
                     rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
                     nw_function = rpcc.cctxt.call(
@@ -221,7 +229,7 @@ class VpnAgent(PollEventDesc):
             nw_func = rpcc.cctxt.call(context,
                                       'neutron_update_nw_function_config',
                                       network_function=nw_function_info)
-            nw_function_info.update({'nw_func': nw_func, 'context': context})
+            nw_function_info.update({'nw_func': nw_func, 'context': context.to_dict()})
             self._create_event(event_id='VPN_SERVICE_SPAWNING',
                                event_data=nw_function_info, is_poll_event=True,
                                serialize=True,
@@ -321,7 +329,7 @@ class VpnAgent(PollEventDesc):
     @poll_event_desc(event="VPN_SERVICE_DELETE_IN_PROGRESS", spacing=30)
     def validate_and_process_vpn_delete_service_request(self, event):
         data = event.data
-        context = data['context']
+        context = n_context.Context.from_dict(data['context'])
         resource_data = data
         rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
         nw_func = rpcc.cctxt.call(context, 'get_network_functions',
@@ -344,9 +352,8 @@ class VpnAgent(PollEventDesc):
 
     @staticmethod
     def _log_event_created(event_id, event_data):
-        LOG.info(_LI("VPN Agent created event %(event_name)s with "
-                     "event data %(event_data)s"), {
-                     'event_name': event_id, 'event_data': event_data})
+        LOG(LOGGER, 'DEBUG', ("VPN Agent created event %s with "
+            "event data %s") % (event_id, event_data))
 
 
 class VPNPluginDbHelper(vpn_db.VPNPluginDb):
