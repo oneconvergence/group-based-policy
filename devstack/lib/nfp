@@ -2,7 +2,7 @@
 
 NFPSERVICE_DIR=$DEST/gbp
 TOP_DIR=$PWD
-DISK_IMAGE_DIR={DISK_IMAGE_DIR:-$DEST/gbp/gbpservice/tests/contrib}
+DISK_IMAGE_DIR=$DEST/gbp/gbpservice/tests/contrib
 
 NEUTRON_CONF_DIR=/etc/neutron
 NEUTRON_CONF=$NEUTRON_CONF_DIR/neutron.conf
