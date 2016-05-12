@@ -184,7 +184,8 @@ class FirewallNotifier(object):
             request_data.update({"service_type": service_type,
                                  "fw_mac": fw_mac,
                                  "neutron_resource_id": resource_id})
-        except Exception:
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', '%s' % (e))
             return request_data
         return request_data
 

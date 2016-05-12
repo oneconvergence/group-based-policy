@@ -209,6 +209,8 @@ class VpnNotifier(object):
                                  "ipsec_site_connection_id": ipsec_id,
                                  "neutron_resource_id": resource_id})
         except Exception as e:
+            LOG(LOGGER, 'ERROR', '%s' % (e))
+
             return request_data
         return request_data
 
