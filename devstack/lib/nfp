@@ -206,7 +206,6 @@ function copy_nfp_files_and_start_process {
     echo "Configuring proxy.ini .... with rest_server_address as $IpAddr"
     sudo sed -i "s/rest_server_address=*.*/rest_server_address=$IpAddr/g" /etc/nfp_proxy.ini
     sudo sed -i "s/rest_server_port= *.*/rest_server_port=$CONFIGURATOR_PORT/g" /etc/nfp_proxy.ini
-    ipnetns_router=`sudo ip netns |grep $RouterId`
 
     sed -i 's#source.*#source '$TOP_DIR'/openrc demo demo#g' /opt/stack/gbp/devstack/exercises/nfp_service/*.sh
     source $TOP_DIR/functions-common
@@ -288,25 +287,12 @@ function upload_images_and_launch_configuratorVM {
     nova boot --flavor m1.medium --image $ImageId --nic port-id=$PortId $InstanceName
     sleep 10
 
-    l2p_id=`gbp ptg-show svc_management_ptg | grep l2_policy_id | awk '{print $4}'`
-    l3p_id=`gbp l2p-show $l2p_id | grep l3_policy_id | awk '{print $4}'`
-    RouterId=`gbp l3p-show $l3p_id | grep routers | awk '{print $4}'`
-
-    echo "Collecting RouterId : for $RouterName"
-    if [ ! -z "$RouterId" -a "$RouterId" != " " ]; then
-        echo $RouterId
-    else
-        echo "Router creation failed with $RouterName ..."
-        exit
-    fi
-
     echo "Get IpAddr with port: $PortId"
     IpAddr_extractor=`neutron port-list|grep $PortId|awk '{print $11}'`
     IpAddr_purge_last=${IpAddr_extractor::-1}
     IpAddr=${IpAddr_purge_last//\"/}
     echo "Collecting IpAddr : for $PortId"
     echo $IpAddr
-
 }
 
 function nfp_logs_forword {
