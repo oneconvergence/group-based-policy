@@ -38,6 +38,7 @@ disable_service tempest
 ENABLED_SERVICES+=,heat,h-api,h-api-cfn,h-api-cw,h-eng
 
 # NFP services
+[[ $ENABLE_NFP = True ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
 [[ $DEVSTACK_MODE = base ]] && enable_service orchestrator,proxy,proxy_agent,base_configurator
 [[ $DEVSTACK_MODE = advanced ]] && enable_service orchestrator,proxy,proxy_agent,config_orch
 
