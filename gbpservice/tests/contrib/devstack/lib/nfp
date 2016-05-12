@@ -195,6 +195,7 @@ function copy_nfp_files_and_start_process {
     sleep 2
     echo "Configuration success ... "
 }
+
 function nfp_setup {
     assign_user_role_credential $1
     create_nfp_gbp_resources $1

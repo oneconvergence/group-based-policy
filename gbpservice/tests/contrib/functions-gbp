@@ -32,7 +32,6 @@ function prepare_nfp_devstack {
     sed -i 's/# Restore\/close logging file descriptors/nfp_setup $TOP_DIR\n# Restore\/close logging file descriptors/g' stack.sh
     source $TOP_DIR/functions
     source $TOP_DIR/functions-common
-    
 }
 
 function source_creds {
