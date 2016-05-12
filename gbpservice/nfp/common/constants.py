@@ -17,6 +17,7 @@ VPN = 'vpn'
 GBP_MODE = "gbp"
 NEUTRON_MODE = "neutron"
 NOVA_MODE = "nova"
+ADVANCE_SHARING = "advance_sharing"
 
 NEUTRON_PORT = "neutron_port"
 GBP_PORT = "gbp_policy_target"

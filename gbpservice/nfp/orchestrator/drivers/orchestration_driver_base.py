@@ -27,14 +27,13 @@ from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 import ast
 import operator
-import token
 
 
 LOG = logging.getLogger(__name__)
 
 
 PROXY_PORT_PREFIX = "opflex_proxy:"
-
+ADVANCE_SHARING_PTG_NAME="Advance_Sharing_PTG"
 
 def _set_network_handler(f):
     def wrapped(self, *args, **kwargs):
@@ -173,25 +172,80 @@ class OrchestrationDriver(object):
 
         network_handler.delete_port(token, interface['id'])
 
-    def _create_dummy_interfaces(self, device_data, network_handler=None):
+    @property
+    def _get_advance_sharing_network_id(self, admin_tenant_id,
+                                        network_handler):
+        if self._advance_sharing_network_id:
+            return self._advance_sharing_network_id
+        filters = {'tenant_id': self.admin_tenant_id,
+                   'name': ADVANCE_SHARING_PTG_NAME}
+        admin_token = self._get_token(None)
+        if not admin_token:
+            return False
+        sharing_networks = network_handler.get_networks(
+            admin_token, filters=filters)
+        if not sharing_networks:
+            err = ("Found empty network for tenant with"
+                   " ID: %s for advance sharing" % self.admin_tenant_id)
+            LOG.error(_LE(err))
+            raise Exception(err)
+            """
+            advance_sharing_l3_policy = {
+                'l3_policy': {
+                    'name': "advance-sharing-l3policy",
+                    'description': ("Advance sharing l3 policy"),
+                    'ip_pool': '121.0.0.0/24',
+                    'ip_version': 4,
+                    'subnet_prefix_length': 24,
+                    #'proxy_ip_pool': remote_vpn_client_pool_cidr,
+                    'proxy_subnet_prefix_length': 24,
+                    'external_segments': {},
+                    'tenant_id': admin_tenant_id}}
+            advance_sharing_l3_policy = network_handler.create_l3_policy(
+                admin_token, advance_sharing_l3_policy)
+            advance_sharing_l2_policy = network_handler.create_l2_policy(
+                admin_token,
+                'advance_sharing_l2policy',
+                advance_sharing_l3_policy['id'])
+            
+            ptg = network_handler.create_policy_target_group(admin_token,
+                                        admin_tenant_id, 
+                                        ADVANCE_SHARING_PTG_NAME,
+                                        advance_sharing_l2_policy['id'])
+            self._advance_sharing_ptg_id = ptg['id']
+            """
+        elif len(sharing_networks) > 1:
+            err = ("Found more than one network for tenant with"
+                   " ID: %s for advance sharing" % self.admin_tenant_id)
+            LOG.error(_LE(err))
+            raise Exception(err)
+        else:
+            self._advance_sharing_network_id = sharing_networks[0]['id']
+        return self._advance_sharing_network_id
+
+    def _create_advance_sharing_interfaces(self, device_data,
+                                           network_handler):
         token = self._get_token(device_data.get('token'))
         if not token:
             return False
 
+        admin_tenant_id = self._get_admin_tenant_id(token=token)
         port_infos = []
         port_model = (nfp_constants.GBP_PORT
                                if device_data['service_details'][
                                                         'network_mode'] ==
                                nfp_constants.GBP_MODE
                                else nfp_constants.NEUTRON_PORT)
+        advance_sharing_network_id = self._get_advance_sharing_network_id(
+                                                    admin_tenant_id,
+                                                    network_handler)
         for _ in range(self.maximum_interfaces):
             port = network_handler.create_port(token,
-                                               self._get_admin_tenant_id(
-                                                    token=token),
-                                               net_id)
+                                               admin_tenant_id,
+                                               advance_sharing_network_id)
             port_infos.append({'id': port['id'],
                 'port_model': port_model,
-                'port_classification': nfp_constants.advance_SHARING,
+                'port_classification': nfp_constants.ADVANCE_SHARING,
                 'port_role': None})
             return port_infos
 
@@ -490,7 +544,8 @@ class OrchestrationDriver(object):
                                                             token, port['id'])
                             interfaces_to_attach.append({'port': port_id})
                 else:
-                    dummy_interfaces = self._create_dummy_interfaces(device_data,
+                    dummy_interfaces = self._create_advance_sharing_interfaces(
+                                                            device_data,
                                                             network_handler)
                     interfaces += dummy_interfaces
 

@@ -325,14 +325,15 @@ class DeviceOrchestrator(PollEventDesc):
     def _create_advance_sharing_interfaces(self, device, interfaces_infos):
         nfd_interfaces = []
         port_infos = []
-        for iface in interfaces_infos:
+        for position, iface in enumerate(interfaces_infos):
             iface = {}
             port_info = {}
             iface['id'] = iface['id']
             iface['tenant_id'] = device['tenant_id']
             iface['plugged_in_port_id'] = iface['plugged_in_pt_id']
+            iface['interface_position'] = position
             iface['mapped_real_port_id'] = None
-            iface['service_vm_id'] = device['id']
+            iface['network_function_device_id'] = device['id']
             nfd_interfaces.append(
                     self.nsf_db.create_network_function_device_interface(
                                 self.db_session, iface)
@@ -366,9 +367,11 @@ class DeviceOrchestrator(PollEventDesc):
 
     def _delete_advance_sharing_interfaces(self, nfd_ifaces):
         for nfd_iface in nfd_ifaces:
+            port_id = nfd_iface['id']
             self.nsf_db.delete_network_function_device_interface(
                                                 self.db_session,
-                                                nfd_iface['id'])
+                                                port_id)
+            self.nsf_db.delete_port_info(port_id)
 
     def _create_network_function_device_db(self, device_info, state):
         dummy_interfaces = []

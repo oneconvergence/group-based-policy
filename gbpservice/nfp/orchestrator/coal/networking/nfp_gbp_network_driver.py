@@ -50,6 +50,13 @@ class NFPGBPNetworkDriver(neutron_nd.NFPNeutronNetworkDriver):
         self.network_handler = openstack_driver.GBPClient(self.config)
         return port_details
 
+    def get_networks(self, token, filters):
+        return self.network_handler.get_policy_target_groups(token,
+                                                             filters=filters)
+
+    def create_network(self, network):
+        pass
+
     def set_promiscuos_mode(self, token, port_id):
         port_id = self.get_port_id(token, port_id)
         self.network_handler = openstack_driver.NeutronClient(self.config)

@@ -345,28 +345,38 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                                     page_reverse=page_reverse)
 
     def create_network_function_device_interface(self, session,
-                                                  network_function_device,
-                                                  interface_position):
+                                                  nfd_interface):
         with session.begin(subtransactions=True):
-            network_function_device_db = nfp_db_model.NetworkFunctionDeviceInterface(
-                id=(network_function_device.get('id')
+            nfd_interface_db = nfp_db_model.NetworkFunctionDeviceInterface(
+                id=(nfd_interface.get('id')
                     or uuidutils.generate_uuid()),
-                description=network_function_device.get('description'),
-                tenant_id=network_function_device['tenant_id'],
-                plugged_in_port_id=network_function_device['plugged_in_port_id'],
-                interface_position=interface_position,
-                mapped_real_port_id=network_function_device['mapped_real_port_id'],
-                service_vm_id=network_function_device['service_vm_id'])
-            session.add(network_function_device_db)
+                description=nfd_interface.get('description'),
+                tenant_id=nfd_interface['tenant_id'],
+                plugged_in_port_id=nfd_interface['plugged_in_port_id'],
+                interface_position=nfd_interface['interface_position'],
+                mapped_real_port_id=nfd_interface['mapped_real_port_id'],
+                network_function_device_id=(
+                            nfd_interface['network_function_device_id']))
+            session.add(nfd_interface_db)
             return self._make_network_function_device_interface_dict(
-                network_function_device_db)
+                nfd_interface_db)
 
-    def create_network_function_device_interfaces(self, session,
-                                                  interafces_info):
-        for index, interface_info in enumerate(interafces_info):
-            self.create_network_function_device_interface(session,
-                                                          interface_info,
-                                                          index)
+    def update_network_function_device_interface(self, session,
+                                       nfd_interface_id,
+                                       updated_nfd_interface):
+        with session.begin(subtransactions=True):
+            nfd_interface_db = self._get_network_function_device_interface(
+                session, nfd_interface_id)
+            nfd_interface_db.update(updated_nfd_interface)
+            return self._make_network_function_device_interface_dict(
+                nfd_interface_db)
+
+    def delete_network_function_device_interface(self, session,
+                                       network_function_device_interface_id):
+        with session.begin(subtransactions=True):
+            network_function_device_interface_db = self._get_network_function_device_interface(
+                session, network_function_device_interface_id)
+            session.delete(network_function_device_interface_db)
 
     def _get_network_function_device_interface(self, session,
                                      network_function_device_id):
@@ -378,23 +388,6 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         except exc.NoResultFound:
             raise nfp_exc.NetworkFunctionDeviceNotFound(
                 network_function_device_id=network_function_device_id)
-
-    def update_network_function_device_interface(self, session,
-                                       nfd_iface_id,
-                                       updated_nfd_iface):
-        with session.begin(subtransactions=True):
-            network_function_device_db = self._get_network_function_device_interface(
-                session, nfd_iface_id)
-            network_function_device_db.update(updated_nfd_iface)
-            return self._make_network_function_device_interface_dict(
-                network_function_device_db)
-
-    def delete_network_function_device_interface(self, session,
-                                       network_function_device_interface_id):
-        with session.begin(subtransactions=True):
-            network_function_device_interface_db = self._get_network_function_device_interface(
-                session, network_function_device_interface_id)
-            session.delete(network_function_device_interface_db)
 
     def get_network_function_device_interface(self, session, network_function_device_id,
                                     fields=None):
@@ -419,25 +412,6 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
     def get_port_info(self, session, port_id, fields=None):
         port_info = self._get_port_info(session, port_id)
         return self._make_port_info_dict(port_info, fields)
-
-    def get_port_infos(self, session, filters=None, fields=None,
-                       sorts=None, limit=None, marker=None,
-                       page_reverse=False):
-        marker_obj = self._get_marker_obj(
-            'network_function_devices', limit, marker)
-        return self._get_collection(session, nfp_db_model.PortInfo,
-                                    self._make_port_info_dict,
-                                    filters=filters, fields=fields,
-                                    sorts=sorts, limit=limit,
-                                    marker_obj=marker_obj,
-                                    page_reverse=page_reverse)
-
-    def create_port_infos(self, session, port_infos):
-        port_ids = []
-        for port_info in port_infos:
-            port_id = self.create_port_info(session, port_info)
-            port_ids.append(port_id)
-        return port_ids
 
     def create_port_info(self, session, port_info, fields=None):
         with session.begin(subtransactions=True):
@@ -538,13 +512,14 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                }
         return res
 
-    def _make_network_function_device_interface_dict(self, nfd_iface, fields=None):
-        res = {'id': nfd_iface['id'],
-               'tenant_id': nfd_iface['tenant_id'],
-               'plugged_in_port_id': nfd_iface['description'],
-               'interface_position': nfd_iface['mgmt_ip_address'],
-               'plugged_in_ovs_port_name': nfd_iface['mgmt_port_id'],
-               'mapped_real_port_id': nfd_iface['monitoring_port_id'],
-               'service_vm_id': nfd_iface['monitoring_port_network'],
+    def _make_network_function_device_interface_dict(self, nfd_interface,
+                                                     fields=None):
+        res = {'id': nfd_interface['id'],
+               'tenant_id': nfd_interface['tenant_id'],
+               'plugged_in_port_id': nfd_interface['description'],
+               'interface_position': nfd_interface['mgmt_ip_address'],
+               'plugged_in_ovs_port_name': nfd_interface['mgmt_port_id'],
+               'mapped_real_port_id': nfd_interface['monitoring_port_id'],
+               'service_vm_id': nfd_interface['monitoring_port_network'],
                }
         return res
