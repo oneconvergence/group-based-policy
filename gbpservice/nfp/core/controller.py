@@ -575,6 +575,11 @@ def common_init():
     oslo_config.CONF.register_opts(nfp_config.OPTS)
     oslo_config.CONF.register_opts(
         nfp_config.es_openstack_opts, "keystone_authtoken")
+    # Since other imports are registering the logging configuration
+    # parameters, these are overridden to make sure that the core
+    # configuration parameters are effective.
+    oslo_config.CONF.set_override('use_syslog', 'True')
+    oslo_config.CONF.set_override('syslog_log_facility', 'local1')
     oslo_config.CONF.register_opts(nfp_config.PLUMBER_OPTS,
                                    "plumber")
     # n_config.register_interface_driver_opts_helper(oslo_config.CONF)
