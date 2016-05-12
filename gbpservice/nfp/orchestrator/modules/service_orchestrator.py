@@ -53,17 +53,22 @@ def rpc_init(controller, config):
 
 
 def events_init(controller, config, service_orchestrator):
-    events = ['DELETE_NETWORK_FUNCTION', 'CREATE_NETWORK_FUNCTION_INSTANCE',
-              'DELETE_NETWORK_FUNCTION_INSTANCE', 'DEVICE_CREATED',
-              'DEVICE_ACTIVE', 'DEVICE_DELETED', 'APPLY_USER_CONFIG',
-              'DELETE_USER_CONFIG', 'UPDATE_USER_CONFIG', 'POLICY_TARGET_ADD',
-              'POLICY_TARGET_REMOVE', 'CONSUMER_ADD', 'CONSUMER_REMOVE',
+    events = ['DELETE_NETWORK_FUNCTION',
+              'CREATE_NETWORK_FUNCTION_INSTANCE',
+              'DELETE_NETWORK_FUNCTION_INSTANCE',
+              'DEVICE_CREATED', 'DEVICE_ACTIVE', 'DEVICE_DELETED',
+              'DEVICE_CREATE_FAILED',
+              'APPLY_USER_CONFIG', 'DELETE_USER_CONFIG', 'UPDATE_USER_CONFIG',
+              'POLICY_TARGET_ADD', 'POLICY_TARGET_REMOVE',
+              'CONSUMER_ADD', 'CONSUMER_REMOVE',
               'APPLY_USER_CONFIG_IN_PROGRESS',
+              'UPDATE_USER_CONFIG_PREPARING_TO_START',
               'UPDATE_USER_CONFIG_IN_PROGRESS',
-              'DELETE_USER_CONFIG_IN_PROGRESS', 'USER_CONFIG_APPLIED',
-              'USER_CONFIG_DELETED', 'USER_CONFIG_DELETE_FAILED',
-              'DEVICE_CREATE_FAILED', 'USER_CONFIG_FAILED',
-              'UPDATE_USER_CONFIG_FAILED', 'CONFIG_APPLIED']
+              'UPDATE_USER_CONFIG_STILL_IN_PROGRESS',
+              'DELETE_USER_CONFIG_IN_PROGRESS',
+              'CONFIG_APPLIED', 'USER_CONFIG_APPLIED', 'USER_CONFIG_DELETED',
+              'USER_CONFIG_DELETE_FAILED', 'USER_CONFIG_UPDATE_FAILED',
+              'USER_CONFIG_FAILED']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -280,6 +285,7 @@ class RpcHandlerConfigurator(object):
                 elif operation == 'delete':
                     event_id = self.rpc_event_mapping[resource][1]
                 elif operation == 'update':
+                    serialize = True
                     event_id = self.rpc_event_mapping[resource][2]
                 elif operation == 'pt_add':
                     serialize = True
@@ -374,34 +380,37 @@ class ServiceOrchestrator(object):
     def event_method_mapping(self, event_id):
         event_handler_mapping = {
             "DELETE_NETWORK_FUNCTION": self.delete_network_function,
-            "DELETE_NETWORK_FUNCTION_INSTANCE": (
-                self.delete_network_function_instance),
             "CREATE_NETWORK_FUNCTION_INSTANCE": (
                 self.create_network_function_instance),
+            "DELETE_NETWORK_FUNCTION_INSTANCE": (
+                self.delete_network_function_instance),
             "DEVICE_CREATED": self.handle_device_created,
             "DEVICE_ACTIVE": self.handle_device_active,
+            "DEVICE_DELETED": self.handle_device_deleted,
+            "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
             "APPLY_USER_CONFIG": self.apply_user_config,
-            "APPLY_USER_CONFIG_IN_PROGRESS": (
-                self.check_for_user_config_complete),
-            "USER_CONFIG_APPLIED": self.handle_user_config_applied,
-            "UPDATE_USER_CONFIG": self.handle_update_user_config,
-            "UPDATE_USER_CONFIG_IN_PROGRESS": (
-                self.check_for_user_config_complete),
             "DELETE_USER_CONFIG": self.delete_user_config,
-            "DELETE_USER_CONFIG_IN_PROGRESS": (
-                self.check_for_user_config_deleted),
-            "USER_CONFIG_DELETED": self.handle_user_config_deleted,
-            "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
+            "UPDATE_USER_CONFIG": self.handle_update_user_config,
             "POLICY_TARGET_ADD": self.policy_target_add_user_config,
             "POLICY_TARGET_REMOVE": self.policy_target_remove_user_config,
             "CONSUMER_ADD": self.consumer_ptg_add_user_config,
             "CONSUMER_REMOVE": self.consumer_ptg_remove_user_config,
-            "DEVICE_DELETED": self.handle_device_deleted,
-            "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
-            "USER_CONFIG_FAILED": self.handle_user_config_failed,
-            "UPDATE_USER_CONFIG_FAILED": (
-                self.handle_update_user_config_failed),
-            "CONFIG_APPLIED": self.handle_config_applied
+            "APPLY_USER_CONFIG_IN_PROGRESS": (
+                self.check_for_user_config_complete),
+            "UPDATE_USER_CONFIG_PREPARING_TO_START": (
+                self.check_for_user_config_deleted),
+            "UPDATE_USER_CONFIG_IN_PROGRESS": (
+                self.handle_continue_update_user_config),
+            "UPDATE_USER_CONFIG_STILL_IN_PROGRESS": (
+                self.check_for_user_config_complete),
+            "DELETE_USER_CONFIG_IN_PROGRESS": (
+                self.check_for_user_config_deleted),
+            "CONFIG_APPLIED": self.handle_config_applied,
+            "USER_CONFIG_APPLIED": self.handle_user_config_applied,
+            "USER_CONFIG_DELETED": self.handle_user_config_deleted,
+            "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
+            "USER_CONFIG_UPDATE_FAILED": self.handle_update_user_config_failed,
+            "USER_CONFIG_FAILED": self.handle_user_config_failed
         }
         if event_id not in event_handler_mapping:
             raise Exception("Invalid Event ID")
@@ -447,7 +456,15 @@ class ServiceOrchestrator(object):
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:
-                ev = self._controller.new_event(id=event_id, data=event_data)
+                if original_event:
+                    ev = self._controller.new_event(
+                        id=event_id, data=event_data,
+                        serialize=original_event.serialize,
+                        binding_key=original_event.binding_key,
+                        key=original_event.desc.uid)
+                else:
+                    ev = self._controller.new_event(id=event_id,
+                                                    data=event_data)
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
@@ -577,7 +594,7 @@ class ServiceOrchestrator(object):
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
         service_vendor = service_details['service_vendor']
-        name = "%s.%s.%s" % (service_profile['service_type'],
+        name = "%s_%s_%s" % (service_profile['service_type'],
                              service_vendor,
                              service_chain_id or service_id)
         service_config_str = network_function_info.get('service_config')
@@ -691,7 +708,8 @@ class ServiceOrchestrator(object):
         request_data = {
             'heat_stack_id': network_function_info['heat_stack_id'],
             'tenant_id': network_function_info['tenant_id'],
-            'network_function_id': network_function_info['id']
+            'network_function_id': network_function_info['id'],
+            'action': 'delete'
         }
         if not heat_stack_id:
             self._create_event('USER_CONFIG_DELETE_FAILED',
@@ -703,7 +721,7 @@ class ServiceOrchestrator(object):
 
     def create_network_function_instance(self, event):
         request_data = event.data
-        name = '%s.%s' % (request_data['network_function']['name'],
+        name = '%s_%s' % (request_data['network_function']['name'],
                           request_data['network_function']['id'])
         create_nfi_request = {
             'name': name,
@@ -790,25 +808,81 @@ class ServiceOrchestrator(object):
             request_data['network_function_id'])
         stack_id = network_function_details['network_function'
                                             ]['heat_stack_id']
-        # Heat driver to update stack
-        request_data['heat_stack_id'] = self.config_driver.update_config(
-            network_function_details, stack_id)
         network_function = network_function_details['network_function']
-        request_data['network_function_id'] = network_function['id']
+        service_profile_id = network_function['service_profile_id']
+        service_type = self._get_service_type(service_profile_id)
+        if not self.config_driver.is_update_config_supported(service_type):
+            service_chain_id = network_function['service_chain_id']
+            admin_token = self.keystoneclient.get_admin_token()
+            servicechain_instance = self.gbpclient.get_servicechain_instance(
+                            admin_token,
+                            service_chain_id)
+            provider_ptg_id = servicechain_instance['provider_ptg_id']
+            provider_ptg = self.gbpclient.get_policy_target_group(
+                            admin_token,
+                            provider_ptg_id)
+            provider_tenant_id = provider_ptg['tenant_id']
+            stack_id = self.config_driver.delete_config(stack_id,
+                                                        provider_tenant_id)
+            request_data = {
+                    'heat_stack_id': stack_id,
+                    'network_function_id': network_function['id'],
+                    'tenant_id': provider_tenant_id,
+                    'action': 'update',
+                    'operation': request_data['operation']
+            }
+            self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
+                               event_data=request_data,
+                               is_poll_event=True, original_event=event)
+        else:
+            self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
+                               event_data=event.data,
+                               is_internal_event=True)
 
-        if not request_data['heat_stack_id']:
-            self._create_event('UPDATE_USER_CONFIG_FAILED',
-                               event_data=request_data)
+    def handle_continue_update_user_config(self, event):
+        request_data = event.data
+        network_function_details = self.get_network_function_details(
+            request_data['network_function_id'])
+        network_function = network_function_details['network_function']
+
+        if request_data['operation'] == 'update':
+            config_id = self.config_driver.update_config(
+                network_function_details,
+                network_function_details['network_function']['heat_stack_id'])
+        elif request_data['operation'] == 'consumer_add':
+            config_id = self.config_driver.handle_consumer_ptg_operations(
+                network_function_details, request_data['consumer_ptg'],
+                "add")
+        elif request_data['operation'] == 'consumer_remove':
+            config_id = self.config_driver.handle_consumer_ptg_operations(
+                network_function_details, request_data['consumer_ptg'],
+                "remove")
+        else:
             return
-        request_data['tenant_id'] = network_function['tenant_id']
-        request_data['network_function_details'] = network_function_details
-        # Update stack id in DB
+
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            event_id = ('USER_CONFIG_UPDATE_FAILED'
+                        if request_data['operation'] == 'update'
+                        else 'USER_CONFIG_FAILED')
+            self._create_event(event_id,
+                               event_data=request_data,
+                               is_internal_event=True)
+            if event.binding_key:
+                self._controller.event_done(event)
+            return
         self.db_handler.update_network_function(
-            self.db_session, network_function['id'],
-            {'heat_stack_id': request_data['heat_stack_id']})
-        self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
+            self.db_session,
+            network_function['id'],
+            {'heat_stack_id': config_id})
+        self._create_event('UPDATE_USER_CONFIG_STILL_IN_PROGRESS',
                            event_data=request_data,
-                           is_poll_event=True)
+                           is_poll_event=True, original_event=event)
 
     def handle_device_create_failed(self, event):
         request_data = event.data
@@ -953,13 +1027,18 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            event_data = {
-                'network_function_id': request_data['network_function_id']
-            }
-            self._create_event('USER_CONFIG_DELETED',
-                               event_data=event_data,
-                               is_internal_event=True)
-            self._controller.event_done(event)
+            if request_data['action'] == 'update':
+                self._create_event("UPDATE_USER_CONFIG_IN_PROGRESS",
+                                   event_data=request_data,
+                                   original_event=event)
+            else:
+                event_data = {
+                    'network_function_id': request_data['network_function_id']
+                }
+                self._create_event('USER_CONFIG_DELETED',
+                                   event_data=event_data,
+                                   is_internal_event=True)
+                self._controller.event_done(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
@@ -1255,26 +1334,30 @@ class ServiceOrchestrator(object):
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
         consumer_ptg = request_data['consumer_ptg']
-        config_id = self.config_driver.handle_consumer_ptg_operations(
-            network_function_details, consumer_ptg, "add")
+        stack_id = network_function_details['network_function'
+                                            ]['heat_stack_id']
         network_function = network_function_details['network_function']
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id'],
-            'network_function_details': network_function_details
-        }
-        if not config_id:
-            self._create_event('USER_CONFIG_FAILED',
-                               event_data=request_data, is_internal_event=True)
-            return
-        self.db_handler.update_network_function(
-            self.db_session,
-            network_function['id'],
-            {'heat_stack_id': config_id})
-        self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
-                           event_data=request_data,
-                           is_poll_event=True, original_event=event)
+        service_profile_id = network_function['service_profile_id']
+        service_type = self._get_service_type(service_profile_id)
+        if not self.config_driver.is_update_config_supported(service_type):
+            stack_id = self.config_driver.delete_config(
+                                                stack_id,
+                                                consumer_ptg['tenant_id'])
+            request_data = {
+                    'heat_stack_id': stack_id,
+                    'network_function_id': network_function['id'],
+                    'tenant_id': consumer_ptg['tenant_id'],
+                    'action': 'update',
+                    'operation': request_data['operation'],
+                    'consumer_ptg': request_data['consumer_ptg']
+            }
+            self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
+                               event_data=request_data,
+                               is_poll_event=True, original_event=event)
+        else:
+            self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
+                               event_data=event.data,
+                               is_internal_event=True)
 
     def handle_consumer_ptg_removed(self, context, network_function_id,
                                     consumer_ptg):
@@ -1317,26 +1400,30 @@ class ServiceOrchestrator(object):
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
         consumer_ptg = request_data['consumer_ptg']
-        config_id = self.config_driver.handle_consumer_ptg_operations(
-            network_function_details, consumer_ptg, "remove")
+        stack_id = network_function_details['network_function'
+                                            ]['heat_stack_id']
         network_function = network_function_details['network_function']
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id'],
-            'network_function_details': network_function_details
-        }
-        if not config_id:
-            self._create_event('USER_CONFIG_FAILED',
-                               event_data=request_data, is_internal_event=True)
-            return
-        self.db_handler.update_network_function(
-            self.db_session,
-            network_function['id'],
-            {'heat_stack_id': config_id})
-        self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
-                           event_data=request_data,
-                           is_poll_event=True, original_event=event)
+        service_profile_id = network_function['service_profile_id']
+        service_type = self._get_service_type(service_profile_id)
+        if not self.config_driver.is_update_config_supported(service_type):
+            stack_id = self.config_driver.delete_config(
+                                                stack_id,
+                                                consumer_ptg['tenant_id'])
+            request_data = {
+                    'heat_stack_id': stack_id,
+                    'network_function_id': network_function['id'],
+                    'tenant_id': consumer_ptg['tenant_id'],
+                    'action': 'update',
+                    'operation': request_data['operation'],
+                    'consumer_ptg': request_data['consumer_ptg']
+            }
+            self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
+                               event_data=request_data,
+                               is_poll_event=True, original_event=event)
+        else:
+            self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
+                               event_data=event.data,
+                               is_internal_event=True)
 
     def get_port_info(self, port_id):
         try:
