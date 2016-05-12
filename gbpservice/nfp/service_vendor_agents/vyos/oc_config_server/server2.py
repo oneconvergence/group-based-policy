@@ -35,7 +35,6 @@ from ha_config import VYOSHAConfig
 from vyos_exception import OCException
 from flask import jsonify
 from log_forwarder import APIHandler as apihandler
-from stats_parser import APIHandler as stats_apihandler
 # sys.path.insert(0, dirname(dirname(abspath(__file__))))
 # sys.path.insert(0, (abspath(__file__)))
 
@@ -470,27 +469,6 @@ def configure_rsyslog_as_client():
         return json.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error while conifiguring rsyslog client. Reason: %s" % ex)
-        logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
-
-@app.route('/get-fw-stats', methods=['GET'])
-def get_fw_stats():
-    try:
-        mac_address = request.args.get('mac_address')
-        fw_stats = stats_apihandler().get_fw_stats(mac_address)
-        return json.dumps(dict(stats=fw_stats))
-    except Exception as ex:
-        err = ("Error while getting firewall stats. Reason: %s" % ex)
-        logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
-
-@app.route('/get-vpn-stats', methods=['GET'])
-def get_vpn_stats():
-    try:
-        vpn_stats = stats_apihandler().get_vpn_stats()
-        return json.dumps(dict(stats=vpn_stats))
-    except Exception as ex:
-        err = ("Error while getting vpn stats. Reason: %s" % ex)
         logger.error(err)
         return json.dumps(dict(status=False, reason=err))
 
