@@ -10,9 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from neutron._i18n import _LW
+from neutron.i18n import _LE
+from neutron.i18n import _LI
+from neutron.i18n import _LW
 from neutron.api.v2 import attributes as attr
 from neutron import manager
 from oslo_config import cfg

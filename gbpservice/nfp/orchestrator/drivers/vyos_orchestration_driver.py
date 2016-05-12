@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron._i18n import _LE
+from neutron.i18n import _LE
 from oslo_log import log as logging
 
 from gbpservice.nfp.common import constants as nfp_constants

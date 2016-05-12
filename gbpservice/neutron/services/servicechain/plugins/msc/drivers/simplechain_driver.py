@@ -16,8 +16,8 @@ import time
 from heatclient import client as heat_client
 from heatclient import exc as heat_exc
 from keystoneclient.v2_0 import client as keyclient
-from neutron._i18n import _LE
-from neutron._i18n import _LW
+from neutron.i18n import _LE
+from neutron.i18n import _LW
 from neutron.db import model_base
 from neutron import manager
 from neutron.plugins.common import constants as pconst

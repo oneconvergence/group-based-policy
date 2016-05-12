@@ -13,8 +13,8 @@
 import netaddr
 import operator
 
-from neutron._i18n import _LE
-from neutron._i18n import _LW
+from neutron.i18n import _LE
+from neutron.i18n import _LW
 from neutron.api.v2 import attributes
 from neutron.common import constants as const
 from neutron.common import exceptions as n_exc
