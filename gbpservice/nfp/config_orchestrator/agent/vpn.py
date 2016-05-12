@@ -80,11 +80,30 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                                            resource_type, resource_data)
         return body
 
+    def _get_vpn_subnets(self, networks, _stch_subnets):
+        _filtered_subnets = []
+        for network in networks:
+            subnets = network['subnets']
+            for subnet in subnets:
+                 if subnet['id'] in _stch_subnets and subnet['id'] not in _filtered_subnets:
+                    _filtered_subnets.append({'id': subnet['id'],
+                                          'cidr': subnet['cidr']})
+        return _filtered_subnets
+
+
     @log_helpers.log_method_call
     def vpnservice_updated(self, context, **kwargs):
         reason = kwargs['reason']
         body = self._data_wrapper(context, kwargs[
             'resource']['tenant_id'], **kwargs)
+
+        _service_info = body['config'][0]['resource_data']['neutron_context']['service_info']
+        networks = common.get_networks(context, self._conf.host)
+        _stch_subnets = []
+        for _vpnservice in _service_info['vpnservices']:
+            _stch_subnets.append(_vpnservice['subnet_id'])
+        _subnets = self._get_vpn_subnets(networks, _stch_subnets)
+        _service_info.update({'subnets': _subnets})
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                reason)
@@ -94,7 +113,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             tenant_id = context.tenant_id
         filters = {'tenant_id': [tenant_id]}
         db = self._get_vpn_context(context, filters)
-        db.update(self._get_core_context(context, filters))
         return db
 
     def _get_vpn_context(self, context, filters):
@@ -159,7 +177,7 @@ class VpnNotifier(object):
                              status=status)
 
         # Sending An Event for visiblity
-        if resource_data['resource'].lower() is\
+        if notification_data['notification'][0]['resource'].lower() is\
                 'ipsec_site_connection':
             nf_id = notification_info['context']['network_function_id']
             ipsec_id = notification_info['context']['ipsec_site_connection_id']
