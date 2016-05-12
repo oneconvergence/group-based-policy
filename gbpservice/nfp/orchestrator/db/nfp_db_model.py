@@ -201,7 +201,7 @@ class NetworkFunctionDeviceInterface(BASE, HasId, HasTenant,
                                    sa.ForeignKey('nfp_port_infos.id',
                                                  ondelete= 'SET NULL'),
                                    nullable=True)
-    service_vm_id = sa.Column(
+    network_function_device_id = sa.Column(
         sa.String(36),
         sa.ForeignKey('nfp_network_function_devices.id',
                        ondelete='CASCADE'),

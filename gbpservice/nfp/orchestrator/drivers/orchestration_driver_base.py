@@ -26,8 +26,14 @@ from gbpservice.nfp.orchestrator.coal.networking import (
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 import ast
+import operator
+import token
+
 
 LOG = logging.getLogger(__name__)
+
+
+PROXY_PORT_PREFIX = "opflex_proxy:"
 
 
 def _set_network_handler(f):
@@ -96,6 +102,19 @@ class OrchestrationDriver(object):
             LOG.error(_LE("Failed to get admin's tenant ID"))
             raise
 
+    def _get_token(self, device_data_token):
+
+        try:
+            token = (device_data_token
+                     if device_data_token
+                     else self.identity_handler.get_admin_token())
+        except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
+            LOG.error(_LE('Failed to get token for unplug interface from'
+                          ' device operation'))
+            return False
+        return token
+
     def _increment_stats_counter(self, metric, by=1):
         # TODO(RPM): create path and delete path have different driver objects.
         # This will not work in case of increment and decrement.
@@ -126,15 +145,9 @@ class OrchestrationDriver(object):
         return self.supports_device_sharing and self.supports_hotplug
 
     def _create_management_interface(self, device_data, network_handler=None):
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for management interface'
-                          ' creation'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         name = 'mgmt_interface'  # TODO(RPM): Use proper name
         mgmt_interface = network_handler.create_port(
@@ -154,28 +167,16 @@ class OrchestrationDriver(object):
 
     def _delete_management_interface(self, device_data, interface,
                                      network_handler=None):
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for management interface'
-                          ' deletion'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         network_handler.delete_port(token, interface['id'])
 
     def _create_dummy_interfaces(self, device_data, network_handler=None):
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for management interface'
-                          ' creation'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         port_infos = []
         port_model = (nfp_constants.GBP_PORT
@@ -190,7 +191,7 @@ class OrchestrationDriver(object):
                                                net_id)
             port_infos.append({'id': port['id'],
                 'port_model': port_model,
-                'port_classification': nfp_constants.ADVANCED_SHARING,
+                'port_classification': nfp_constants.advance_SHARING,
                 'port_role': None})
             return port_infos
 
@@ -227,14 +228,9 @@ class OrchestrationDriver(object):
 
     def _get_vendor_data(self, device_data):
         image_name = device_data['service_details']['image_name']
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token, while getting vendor data'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
         try:
             metadata = self.compute_handler_nova.get_image_metadata(
                     token,
@@ -441,18 +437,9 @@ class OrchestrationDriver(object):
             self._increment_stats_counter('management_interfaces',
                                           by=len(interfaces))
 
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token, for device creation'))
-            self._delete_interfaces(device_data, interfaces,
-                                    network_handler=network_handler)
-            self._decrement_stats_counter('management_interfaces',
-                                          by=len(interfaces))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         if device_data['service_details'].get('image_name'):
             image_name = device_data['service_details']['image_name']
@@ -574,7 +561,7 @@ class OrchestrationDriver(object):
                 'mgmt_port_id': interfaces[0],
                 'max_interfaces': self.maximum_interfaces,
                 'interfaces_in_use': len(interfaces_to_attach),
-                'dummy_interfaces': dummy_interfaces,
+                'advance_sharing_interfaces': dummy_interfaces,
                 'description': ''}  # TODO(RPM): what should be the description
 
     @_set_network_handler
@@ -620,14 +607,9 @@ class OrchestrationDriver(object):
 
         self._update_vendor_data(device_data['service_details']['image_name'],
                                  device_data.get('token'))
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for device deletion'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         if device_data.get('id'):
             # delete the device instance
@@ -650,8 +632,9 @@ class OrchestrationDriver(object):
             # device instance deletion is done, delete remaining resources
             try:
                 self._delete_interfaces(device_data,
-                                        [device_data['mgmt_port_id']],
-                                        network_handler=network_handler)
+                                 [device_data['mgmt_port_id'] +
+                                 device_data['advance_sharing_interfaces']],
+                                 network_handler=network_handler)
             except Exception:
                 LOG.error(_LE('Failed to delete the management data port(s)'))
             else:
@@ -691,15 +674,9 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for get device status'
-                          ' operation'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         try:
             device = self.compute_handler_nova.get_instance(
@@ -760,56 +737,119 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
-                                 device_data.get('token'))
-        if not self.supports_hotplug:
-            'configure interfaces instead of hotplug'
-            return True
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for plug interface to device'
-                          ' operation'))
-            return False  # TODO(RPM): should we raise an Exception here?
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
+        self._update_vendor_data(device_data['service_details']['image_name'])
+
+        service_type = device_data['service_details']['service_type']
+        data_port_ids = self._get_data_port_ids(token, network_handler,
+                                                device_data['ports'],
+                                                service_type,
+                                                set_promiscous_mode=True)
+        update_ifaces = []
         try:
-            for port in device_data['ports']:
-                if port['port_classification'] == nfp_constants.PROVIDER:
-                    if (
-                        device_data['service_details']['service_type'].lower()
-                        in [nfp_constants.FIREWALL.lower()]
-                    ):
-                        network_handler.set_promiscuos_mode(token, port['id'])
-                    port_id = network_handler.get_port_id(token, port['id'])
+            if not self.supports_hotplug:
+                # configure interfaces instead of hotplug
+
+                required_ports = len(device_data['ports'])
+                unused_ifaces = self._get_unused_interfaces(
+                                    device_data['advance_sharing_interfaces'],
+                                    required_ports)
+                for data_port_id, iface in zip(data_port_ids, unused_ifaces):
+                    self._update_attached_port_with_data_port(token,
+                                                              network_handler,
+                                                              iface,
+                                                              data_port_id,
+                                                              stitch=True
+                                                              )
+                    iface['mapped_real_port_id'] = data_port_id
+                update_ifaces = unused_ifaces
+            else:
+                for data_port_id in data_port_ids:
                     self.compute_handler_nova.attach_interface(
-                                token,
-                                self._get_admin_tenant_id(token=token),
-                                device_data['id'],
-                                port_id)
-                    break
-            for port in device_data['ports']:
-                if port['port_classification'] == nfp_constants.CONSUMER:
-                    if (
-                        device_data['service_details']['service_type'].lower()
-                        in [nfp_constants.FIREWALL.lower()]
-                    ):
-                        network_handler.set_promiscuos_mode(token, port['id'])
-                    port_id = network_handler.get_port_id(token, port['id'])
-                    self.compute_handler_nova.attach_interface(
-                                token,
-                                self._get_admin_tenant_id(token=token),
-                                device_data['id'],
-                                port_id)
-                    break
+                                    token,
+                                    self._get_admin_tenant_id(token=token),
+                                    device_data['id'],
+                                    data_port_id)
         except Exception:
             self._increment_stats_counter('interface_plug_failures')
             LOG.error(_LE('Failed to plug interface(s) to the device'))
-            return False  # TODO(RPM): should we raise an Exception here?
+            return False, []
         else:
-            return True
+            return True, update_ifaces
+
+
+    def _update_attached_port_with_data_port(self, token,
+                                                network_handler,
+                                                unused_interface,
+                                                data_port_id,
+                                                stitch=True):
+        if stitch:
+            # configure attached interface pt with real port id,
+            # to specify fabric/controller to stitch these interfaces
+            description = "%s%s" % (
+                        PROXY_PORT_PREFIX,
+                        data_port_id)
+        else:
+            # configure attached interface pt with empty string,
+            # for further reuse of these interfaces
+            description = ''
+        port = {'description': description}
+        network_handler.update_port(token, unused_interface['id'], port)
+
+
+    def _get_unused_interfaces(self, advance_sharing_ifaces, required_ports):
+        # sort the interfaces based on interface position
+        advance_sharing_ifaces = (
+                        advance_sharing_ifaces.sort(operator.itemgetter(
+                                                        'interface_position')))
+        unused_interfaces = []
+        for iface in advance_sharing_ifaces:
+            if not iface['mapped_real_port_id']:
+                current_position = iface['interface_position']
+                unused_interfaces = advance_sharing_ifaces[
+                                        current_position:required_ports+1]
+
+        return unused_interfaces
+
+    def _get_used_interfaces(self, advance_sharing_ifaces, data_port_ids):
+        used_interfaces = []
+        for iface in advance_sharing_ifaces:
+            if iface['mapped_real_port_id'] in data_port_ids:
+                used_interfaces.append(iface)
+        return used_interfaces
+
+    def _set_promiscous_mode(self, token, network_handler,
+                             service_type, port_ids):
+        for port_id in port_ids:
+            if (service_type.lower() in [nfp_constants.FIREWALL.lower()]):
+                network_handler.set_promiscuos_mode(token, port_id)
+
+    def _get_data_port_ids(self, token, network_handler, ports, service_type,
+                           set_promiscous_mode=False):
+        # return data_port_ids in sequential format i.e.
+        # provider port_id, then consumer port_id
+        data_port_ids = []
+
+        for port in ports:
+            if port['port_classification'] == nfp_constants.PROVIDER:
+                provider_port_id = network_handler.get_port_id(token,
+                                                               port['id'])
+                data_port_ids.append(provider_port_id)
+                break
+        for port in ports:
+            if port['port_classification'] == nfp_constants.CONSUMER:
+                consumer_port_id = network_handler.get_port_id(token,
+                                                               port['id'])
+                data_port_ids.append(consumer_port_id)
+
+        if set_promiscous_mode:
+            self._set_promiscous_mode(token, network_handler,
+                                      service_type, data_port_ids)
+        return data_port_ids
+
 
     @_set_network_handler
     def unplug_network_function_device_interfaces(self, device_data,
@@ -855,33 +895,45 @@ class OrchestrationDriver(object):
 
         self._update_vendor_data(device_data['service_details']['image_name'],
                                  device_data.get('token'))
-        if not self.supports_hotplug:
-            # Non hotplug support go here.
-            return True
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for unplug interface from'
-                          ' device operation'))
-            return False  # TODO(RPM): should we raise an Exception here?
 
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
+
+        service_type = device_data['service_details']['service_type']
+        data_port_ids = self._get_data_port_ids(token, network_handler,
+                                                device_data['ports'],
+                                                service_type)
+
+        update_ifaces = []
         try:
-            for port in device_data['ports']:
-                port_id = network_handler.get_port_id(token, port['id'])
-                self.compute_handler_nova.detach_interface(
-                            token,
-                            self._get_admin_tenant_id(token=token),
-                            device_data['id'],
-                            port_id)
+            if not self.supports_hotplug:
+                used_ifaces = self._get_used_interfaces(
+                                    device_data['advance_sharing_interfaces'],
+                                    data_port_ids)
+                for data_port_id, iface in zip(data_port_ids, used_ifaces):
+                    self._update_attached_port_with_data_port(token,
+                                                              network_handler,
+                                                              iface,
+                                                              data_port_id,
+                                                              stitch=False
+                                                              )
+                    iface['mapped_real_port_id'] = ''
+                update_ifaces = used_ifaces
+            else:
+                for port in device_data['ports']:
+                    port_id = network_handler.get_port_id(token, port['id'])
+                    self.compute_handler_nova.detach_interface(
+                                token,
+                                self._get_admin_tenant_id(token=token),
+                                device_data['id'],
+                                port_id)
         except Exception:
             self._increment_stats_counter('interface_unplug_failures')
             LOG.error(_LE('Failed to unplug interface(s) from the device'))
-            return False  # TODO(RPM): should we raise an Exception here?
+            return False, []
         else:
-            return True
+            return True, update_ifaces
 
     def get_network_function_device_healthcheck_info(self, device_data):
         """ Get the health check information for NFD
@@ -975,15 +1027,9 @@ class OrchestrationDriver(object):
         ):
             raise exceptions.IncompleteData()
 
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token'
-                          ' for get device config info operation'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         provider_ip = None
         provider_mac = None

@@ -300,7 +300,7 @@ class DeviceOrchestrator(PollEventDesc):
             device_id = device['id']
             del device['id']
             orchestration_driver.delete_network_function_device(device)
-            self._delete_network_function_device_db(device_id)
+            self._delete_network_function_device_db(device_id, device)
             # DEVICE_DELETED event for NSO
             self._create_event(event_id='DEVICE_DELETED',
                                event_data=device)
@@ -322,6 +322,54 @@ class DeviceOrchestrator(PollEventDesc):
             data_ports.append(port_info)
         return data_ports
 
+    def _create_advance_sharing_interfaces(self, device, interfaces_infos):
+        nfd_interfaces = []
+        port_infos = []
+        for iface in interfaces_infos:
+            iface = {}
+            port_info = {}
+            iface['id'] = iface['id']
+            iface['tenant_id'] = device['tenant_id']
+            iface['plugged_in_port_id'] = iface['plugged_in_pt_id']
+            iface['mapped_real_port_id'] = None
+            iface['service_vm_id'] = device['id']
+            nfd_interfaces.append(
+                    self.nsf_db.create_network_function_device_interface(
+                                self.db_session, iface)
+                                  )
+            port_info['id'] = iface['id']
+            port_info['port_model'] = iface.get('model')
+            port_info['port_classification'] = iface.get('port_classification')
+            port_info['port_role'] = iface.get('port_role')
+            port_infos.append(self.nsf_db.create_port_info(self.db_session,
+                                                      port_info))
+
+        LOG.debug("Created following entries in port_infos table : %s, "
+                  " network function device interfaces table: %s." %
+                  (port_infos, nfd_interfaces))
+
+    def _get_advance_sharing_interfaces(self, device_id):
+        filters = {'network_function_device_id': [device_id]}
+        network_function_device_interfaces = (
+                self.nsf_db.get_network_function_device_interfaces(
+                                                            self.db_session,
+                                                            filters=filters)
+                                              )
+        return network_function_device_interfaces
+
+    def _update_advance_sharing_interfaces(self, nfd_ifaces):
+        for nfd_iface in nfd_ifaces:
+            self.nsf_db.update_network_function_device_interface(
+                                                self.db_session,
+                                                nfd_iface['id'],
+                                                nfd_iface)
+
+    def _delete_advance_sharing_interfaces(self, nfd_ifaces):
+        for nfd_iface in nfd_ifaces:
+            self.nsf_db.delete_network_function_device_interface(
+                                                self.db_session,
+                                                nfd_iface['id'])
+
     def _create_network_function_device_db(self, device_info, state):
         dummy_interfaces = []
         self._update_device_status(device_info, state)
@@ -329,32 +377,19 @@ class DeviceOrchestrator(PollEventDesc):
         device_id = device_info.pop('id')
         device_info['id'] = device_id
         device_info['reference_count'] = 0
-        if device_info.get('dummy_interfaces'):
-            dummy_interfaces = device_info.pop('dummy_interfaces')
-        #(ashu) driver is sending that info
-        #device_info['interfaces_in_use'] = 0
+        if device_info.get('advance_sharing_interfaces'):
+            advance_sharing_interfaces = (
+                            device_info.pop('advance_sharing_interfaces'))
+        device_info['interfaces_in_use'] = 0
         device = self.nsf_db.create_network_function_device(self.db_session,
                                                             device_info)
         mgmt_port_id = device.pop('mgmt_port_id')
         mgmt_port_id = self._get_port(mgmt_port_id)
         device['mgmt_port_id'] = mgmt_port_id
 
-        if dummy_interfaces:
-            for iface in dummy_interfaces:
-                iface = {}
-                iface['id'] = iface['id']
-                iface['tenant_id'] = device['tenant_id']
-                iface['plugged_in_port_id'] = iface['plugged_in_pt_id']
-                iface['mapped_real_port_id'] = None
-                iface['service_vm_id'] = device['id']
-                self.nsf_db.create_network_function_device_interfaces(
-                            self.db_session,
-                            iface)
-            port_infos = self.nsf_db.create_port_info(self.db_session,
-                                                      dummy_interfaces)
-            LOG.debug("Created following entries in port_infos table : %s, "
-                      " network function device interfaces table: %s." %
-                      (port_infos, dummy_interfaces))
+        if advance_sharing_interfaces:
+            self._create_advance_sharing_interfaces(device,
+                                                 advance_sharing_interfaces)
         return device
 
     def _update_network_function_device_db(self, device, state,
@@ -363,7 +398,12 @@ class DeviceOrchestrator(PollEventDesc):
         self.nsf_db.update_network_function_device(self.db_session,
                                                    device['id'], device)
 
-    def _delete_network_function_device_db(self, device_id):
+    def _delete_network_function_device_db(self, device_id, device):
+        advance_sharing_interfaces = device.get(
+                                            'advance_sharing_interfaces', [])
+        if advance_sharing_interfaces:
+            self._delete_advance_sharing_interfaces(
+                                            advance_sharing_interfaces)
         self.nsf_db.delete_network_function_device(self.db_session, device_id)
 
     def _get_network_function_devices(self, filters=None):
@@ -608,6 +648,9 @@ class DeviceOrchestrator(PollEventDesc):
         mgmt_port_id = self._get_port(mgmt_port_id)
         device['mgmt_port_id'] = mgmt_port_id
         device['network_function_id'] = network_function_id
+
+        device['advance_sharing_interfaces'] = (
+                    self._get_advance_sharing_interfaces(device['id']))
         return device
 
     def plug_interfaces(self, event, is_event_call=True):
@@ -622,18 +665,14 @@ class DeviceOrchestrator(PollEventDesc):
                                                 'HEALTH_CHECK_COMPLETED')
         orchestration_driver = self._get_orchestration_driver(
             device['service_details']['service_vendor'])
-        if 'orchestration driver not supports hotplug':
-            # get port_infos created while launching vm - dummy interfaces
-            dummy_ports = self.nsf_db.get_port_infos(self.db_session,
-                                                     filters={'device_id':
-                                                              [device['id']]})
-            device.update({'dummy_ports': dummy_ports})
-            pass
 
-        _ifaces_plugged_in = (
+        _ifaces_plugged_in, advance_sharing_ifaces = (
             orchestration_driver.plug_network_function_device_interfaces(
                 device))
         if _ifaces_plugged_in:
+            if advance_sharing_ifaces:
+                self._update_advance_sharing_interfaces(
+                                            advance_sharing_ifaces)
             self._increment_device_interface_count(device)
             self._create_event(event_id='CONFIGURE_DEVICE',
                                event_data=device,
@@ -720,10 +759,13 @@ class DeviceOrchestrator(PollEventDesc):
         orchestration_driver = self._get_orchestration_driver(
             device['service_details']['service_vendor'])
 
-        is_interface_unplugged = (
+        is_interface_unplugged, advance_sharing_ifaces = (
             orchestration_driver.unplug_network_function_device_interfaces(
                 device))
         if is_interface_unplugged:
+            if advance_sharing_ifaces:
+                self._update_advance_sharing_interfaces(
+                                            advance_sharing_ifaces)
             mgmt_port_id = device['mgmt_port_id']
             self._decrement_device_interface_count(device)
             device['mgmt_port_id'] = mgmt_port_id
@@ -768,7 +810,7 @@ class DeviceOrchestrator(PollEventDesc):
             device_id = device['id']
             del device['id']
             orchestration_driver.delete_network_function_device(device)
-            self._delete_network_function_device_db(device_id)
+            self._delete_network_function_device_db(device_id, device)
             # DEVICE_DELETED event for NSO
             self._create_event(event_id='DEVICE_DELETED',
                                event_data=device)

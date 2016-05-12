@@ -344,6 +344,78 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                                     marker_obj=marker_obj,
                                     page_reverse=page_reverse)
 
+    def create_network_function_device_interface(self, session,
+                                                  network_function_device,
+                                                  interface_position):
+        with session.begin(subtransactions=True):
+            network_function_device_db = nfp_db_model.NetworkFunctionDeviceInterface(
+                id=(network_function_device.get('id')
+                    or uuidutils.generate_uuid()),
+                description=network_function_device.get('description'),
+                tenant_id=network_function_device['tenant_id'],
+                plugged_in_port_id=network_function_device['plugged_in_port_id'],
+                interface_position=interface_position,
+                mapped_real_port_id=network_function_device['mapped_real_port_id'],
+                service_vm_id=network_function_device['service_vm_id'])
+            session.add(network_function_device_db)
+            return self._make_network_function_device_interface_dict(
+                network_function_device_db)
+
+    def create_network_function_device_interfaces(self, session,
+                                                  interafces_info):
+        for index, interface_info in enumerate(interafces_info):
+            self.create_network_function_device_interface(session,
+                                                          interface_info,
+                                                          index)
+
+    def _get_network_function_device_interface(self, session,
+                                     network_function_device_id):
+        try:
+            return self._get_by_id(
+                session,
+                nfp_db_model.NetworkFunctionDeviceInterface,
+                network_function_device_id)
+        except exc.NoResultFound:
+            raise nfp_exc.NetworkFunctionDeviceNotFound(
+                network_function_device_id=network_function_device_id)
+
+    def update_network_function_device_interface(self, session,
+                                       nfd_iface_id,
+                                       updated_nfd_iface):
+        with session.begin(subtransactions=True):
+            network_function_device_db = self._get_network_function_device_interface(
+                session, nfd_iface_id)
+            network_function_device_db.update(updated_nfd_iface)
+            return self._make_network_function_device_interface_dict(
+                network_function_device_db)
+
+    def delete_network_function_device_interface(self, session,
+                                       network_function_device_interface_id):
+        with session.begin(subtransactions=True):
+            network_function_device_interface_db = self._get_network_function_device_interface(
+                session, network_function_device_interface_id)
+            session.delete(network_function_device_interface_db)
+
+    def get_network_function_device_interface(self, session, network_function_device_id,
+                                    fields=None):
+        network_function_device = self._get_network_function_device(
+            session, network_function_device_id)
+        return self._make_network_function_device_dict(
+            network_function_device, fields)
+
+    def get_network_function_device_interfaces(self, session, filters=None, fields=None,
+                                     sorts=None, limit=None, marker=None,
+                                     page_reverse=False):
+        marker_obj = self._get_marker_obj(
+            'network_function_device_interfaces', limit, marker)
+        return self._get_collection(session,
+                                    nfp_db_model.NetworkFunctionDeviceInterface,
+                                    self._make_network_function_device_dict,
+                                    filters=filters, fields=fields,
+                                    sorts=sorts, limit=limit,
+                                    marker_obj=marker_obj,
+                                    page_reverse=page_reverse)
+
     def get_port_info(self, session, port_id, fields=None):
         port_info = self._get_port_info(session, port_id)
         return self._make_port_info_dict(port_info, fields)
@@ -368,19 +440,13 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         return port_ids
 
     def create_port_info(self, session, port_info, fields=None):
-        port_id = port_info['id']
-        port_model = port_info['port_model']
-        port_classification = port_info['port_classification']
-        port_role = port_info['port_role']
-
         with session.begin(subtransactions=True):
             port_info_db = nfp_db_model.PortInfo(
-                id=port_id,
-                port_model=port_model,
-                port_classification=port_classification,
-                port_role=port_role)
+                id=port_info['id'],
+                port_model=port_info['port_model'],
+                port_classification=port_info['port_classification'],
+                port_role=port_info['port_role'])
             session.add(port_info_db)
-            session.flush()
         return self._make_port_info_dict(port_info, fields)
 
     def _get_port_info(self, session, port_id):
