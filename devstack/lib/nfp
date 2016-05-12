@@ -239,7 +239,7 @@ function copy_nfp_files_and_start_process {
 
     gbp-db-manage --config-file /etc/neutron/neutron.conf upgrade head
     sleep 2
-    echo "Configuration success ... "
+    echo "NFP configuration done...!! "
 
 }
 
