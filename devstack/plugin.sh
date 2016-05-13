@@ -5,6 +5,10 @@ function gbp_configure_nova {
     iniset $NOVA_CONF neutron allow_duplicate_networks "True"
 }
 
+function nfp_configure_nova {
+    iniset $NOVA_CONF DEFAULT instance_usage_audit = True
+}
+
 function gbp_configure_heat {
     local HEAT_PLUGINS_DIR="/opt/stack/gbpautomation/gbpautomation/heat"
     iniset $HEAT_CONF DEFAULT plugin_dirs "$HEAT_PLUGINS_DIR"
@@ -68,11 +72,14 @@ if is_service_enabled group-policy; then
         gbp_configure_nova
         gbp_configure_heat
         gbp_configure_neutron
-        [[ $ENABLE_NFP = True ]] && echo_summary "Configuring $NFP"
-        [[ $ENABLE_NFP = True ]] && nfp_configure_neutron
-        if [[ $DEVSTACK_MODE != base ]]; then
-            [[ $ENABLE_NFP = True ]] && configure_nfp_loadbalancer
-            [[ $ENABLE_NFP = True ]] && configure_nfp_firewall
+        if [[ $ENABLE_NFP = True ]]; then
+            echo_summary "Configuring $NFP"
+            nfp_configure_neutron
+            [[ $DEVSTACK_MODE = enterprise ]] && nfp_configure_nova
+            if [[ $DEVSTACK_MODE != base ]]; then
+                configure_nfp_loadbalancer
+                configure_nfp_firewall
+            fi
         fi
 #        install_apic_ml2
 #        install_aim
@@ -93,8 +100,8 @@ if is_service_enabled group-policy; then
             assign_user_role_credential
             create_nfp_gbp_resources
             create_nfp_image
-            [[ $DEVSTACK_MODE != base ]] && launch_configuratorVM
-            [[ $DEVSTACK_MODE = enterprise ]] && nfp_logs_forword
+            [[ $DEVSTACK_MODE = advanced ]] && launch_configuratorVM
+            [[ $DEVSTACK_MODE = enterprise ]] && launch_visibilityVM && nfp_logs_forword
             copy_nfp_files_and_start_process
         fi
     fi
