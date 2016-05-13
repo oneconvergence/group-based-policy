@@ -210,26 +210,23 @@ function create_ext_net {
     EXT_NET_ALLOCATION_POOL_END=$EXT_NET_ALLOCATION_POOL_END
     EXT_NET_CIDR=$EXT_NET_CIDR
     EXT_NET_MASK=$EXT_NET_MASK
-    # MYSQL_PASSWORD=$MYSQL_PASSWORD
     source $TOP_DIR/openrc neutron service
     unset OS_USER_DOMAIN_ID
     unset OS_PROJECT_DOMAIN_ID
 
     neutron net-create --router:external=true --shared $EXT_NET_NAME
     neutron subnet-create --ip_version 4 --gateway $EXT_NET_GATEWAY --name $EXT_NET_SUBNET_NAME --allocation-pool start=$EXT_NET_ALLOCATION_POOL_START,end=$EXT_NET_ALLOCATION_POOL_END $EXT_NET_NAME $EXT_NET_CIDR/$EXT_NET_MASK
-    # subnet_id=`neutron net-list | grep "$EXT_NET_NAME" | awk '{print $6}'`
 }
 
 
 function create_ep_and_nsp {
     
-    # gbp external-segment-create --ip-version 4 --cidr $EXT_NET_CIDR/$EXT_NET_MASK --external-route destination=0.0.0.0/0,nexthop= --shared True --subnet_id=$subnet_id default
-    # gbp nat-pool-create --ip-version 4 --ip-pool $EXT_NET_CIDR/$EXT_NET_MASK --external-segment default --shared True default 
+    subnet_id=`neutron net-list | grep "$EXT_NET_NAME" | awk '{print $6}'`
+    gbp external-segment-create --ip-version 4 --cidr $EXT_NET_CIDR/$EXT_NET_MASK --external-route destination=0.0.0.0/0,nexthop= --shared True --subnet_id=$subnet_id default
+    gbp nat-pool-create --ip-version 4 --ip-pool $EXT_NET_CIDR/$EXT_NET_MASK --external-segment default --shared True default 
     
-    gbp ep-create internet    
+    gbp ep-create --external-segments default ext_connect    
     gbp nsp-create --network-service-params type=ip_pool,name=vip_ip,value=nat_pool svc_mgmt_fip_policy
-    
-    gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg --network-service-policy svc_mgmt_fip_policy
 }
 
 
@@ -237,19 +234,24 @@ function create_nfp_gbp_resources {
    
     source $TOP_DIR/openrc neutron service
 
-    gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
-    gbp l2policy-create --l3-policy service_management svc_management_ptg
-
     if [[ $DEVSTACK_MODE = base ]]; then
         IMAGE_NAME_FLAT="reference_configurator_image"
         FLAVOR=m1.nfp-tiny
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=None --vendor NFP base_mode_lb
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
+        
+        gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
+        gbp l2policy-create --l3-policy service_management svc_management_ptg
+        
         gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg
 
     elif [[ $DEVSTACK_MODE = advanced ]]; then
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP fw_profile
+        
+        gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
+        gbp l2policy-create --l3-policy service_management svc_management_ptg
+    
         gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg
 
     else
@@ -257,6 +259,11 @@ function create_nfp_gbp_resources {
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP fw_profile
         create_ext_net
         create_ep_and_nsp
+        
+        gbp l3policy-create --external-segment default --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
+        gbp l2policy-create --l3-policy service_management svc_management_ptg
+
+        gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg --network-service-policy svc_mgmt_fip_policy
     fi
 }
 
