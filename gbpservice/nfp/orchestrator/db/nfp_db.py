@@ -516,10 +516,9 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                                                      fields=None):
         res = {'id': nfd_interface['id'],
                'tenant_id': nfd_interface['tenant_id'],
-               'plugged_in_port_id': nfd_interface['description'],
-               'interface_position': nfd_interface['mgmt_ip_address'],
-               'plugged_in_ovs_port_name': nfd_interface['mgmt_port_id'],
-               'mapped_real_port_id': nfd_interface['monitoring_port_id'],
-               'service_vm_id': nfd_interface['monitoring_port_network'],
+               'plugged_in_port_id': nfd_interface['plugged_in_port_id'],
+               'interface_position': nfd_interface['interface_position'],
+               'mapped_real_port_id': nfd_interface['mapped_real_port_id'],
+               'network_function_device_id': nfd_interface['network_function_device_id'],
                }
         return res

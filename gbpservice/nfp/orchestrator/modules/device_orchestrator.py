@@ -371,7 +371,8 @@ class DeviceOrchestrator(PollEventDesc):
             self.nsf_db.delete_port_info(port_id)
 
     def _create_network_function_device_db(self, device_info, state):
-        dummy_interfaces = []
+        advance_sharing_interfaces = []
+
         self._update_device_status(device_info, state)
         #(ashu) driver should return device_id as vm_id
         device_id = device_info.pop('id')

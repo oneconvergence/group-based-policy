@@ -280,8 +280,7 @@ class OrchestrationDriver(object):
             return None
         return vendor_data
 
-    def _get_vendor_data(self, device_data):
-        image_name = device_data['service_details']['image_name']
+    def _get_vendor_data(self, device_data, image_name):
         token = self._get_token(device_data.get('token'))
         if not token:
             return False
@@ -310,10 +309,10 @@ class OrchestrationDriver(object):
                          "%(default)s"),
                      {'attr': attr, 'default': attr_value})
 
-    def _update_vendor_data(self, device_data):
-        image_name = device_data['service_details']['image_name']
+    def _update_vendor_data(self, device_data, token=None):
         try:
-            vendor_data = self._get_vendor_data(device_data)
+            image_name = self._get_image_name(device_data)
+            vendor_data = self._get_vendor_data(device_data, image_name)
             LOG.info(_LI("Vendor data, specified in image: %(vendor_data)s"),
                      {'vendor_data': vendor_data})
             if vendor_data:
@@ -330,6 +329,18 @@ class OrchestrationDriver(object):
             LOG.error(_LE("Error while getting metadata for image name: %s,"
                           " proceeding with default values")
                       % (image_name))
+
+    def _get_image_name(self, device_data):
+        if device_data['service_details'].get('image_name'):
+            image_name = device_data['service_details']['image_name']
+        else:
+            LOG.info(_LI("No image name provided in service profile's "
+                         "service flavor field, image will be selected "
+                         "based on service vendor's name : %s")
+                     % (device_data['service_details']['service_vendor']))
+            image_name = device_data['service_details']['service_vendor']
+            image_name = '%s' % image_name.lower()
+        return image_name
 
     def get_network_function_device_sharing_info(self, device_data):
         """ Get filters for NFD sharing
@@ -361,7 +372,8 @@ class OrchestrationDriver(object):
         ):
             raise exceptions.IncompleteData()
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        self._update_vendor_data(device_data,
                                  device_data.get('token'))
         if not self._is_device_sharing_supported():
             # TODO: check not required
@@ -410,7 +422,9 @@ class OrchestrationDriver(object):
         ):
             raise exceptions.IncompleteData()
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data,
                                  device_data.get('token'))
         if not self._is_device_sharing_supported():
             # TODO: Is this check required
@@ -477,7 +491,9 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data,
                                  device_data.get('token'))
         try:
             interfaces = self._get_interfaces_for_device_create(
@@ -529,9 +545,11 @@ class OrchestrationDriver(object):
             flavor = 'm1.medium'
 
         interfaces_to_attach = []
+        dummy_interfaces = []
         try:
             if not self.supports_hotplug:
-                if 'neutron mode':
+                # TODO: needd to fix this
+                if device_data['service_details']['network_mode'] == nfp_constants.GBP_MODE:
                     # TODO: get neutron mode from conf
                     for port in device_data['ports']:
                         if port['port_classification'] == nfp_constants.PROVIDER:
@@ -660,7 +678,9 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data,
                                  device_data.get('token'))
         token = self._get_token(device_data.get('token'))
         if not token:
@@ -686,12 +706,13 @@ class OrchestrationDriver(object):
         else:
             # device instance deletion is done, delete remaining resources
             try:
+                interfaces = [device_data['mgmt_port_id']]
+                interfaces.extend(device_data['advance_sharing_interfaces'])
                 self._delete_interfaces(device_data,
-                                 [device_data['mgmt_port_id'] +
-                                 device_data['advance_sharing_interfaces']],
+                                        interfaces,
                                  network_handler=network_handler)
-            except Exception:
-                LOG.error(_LE('Failed to delete the management data port(s)'))
+            except Exception as e:
+                LOG.error(_LE('Failed to delete the management data port(s): %s' % e))
             else:
                 self._decrement_stats_counter('management_interfaces')
 
@@ -796,7 +817,9 @@ class OrchestrationDriver(object):
         if not token:
             return False
 
-        self._update_vendor_data(device_data['service_details']['image_name'])
+        image_name = self._get_image_name(device_data)
+        if image_name:
+           self._update_vendor_data(device_data)
 
         service_type = device_data['service_details']['service_type']
         data_port_ids = self._get_data_port_ids(token, network_handler,
@@ -948,7 +971,9 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data,
                                  device_data.get('token'))
 
         token = self._get_token(device_data.get('token'))
