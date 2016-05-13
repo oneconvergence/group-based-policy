@@ -29,6 +29,7 @@ PROVIDER = "provider"
 CONSUMER = "consumer"
 MANAGEMENT = "management"
 MONITOR = "monitoring"
+SERVICE_SHARING = "advance_sharing"
 
 ACTIVE_PORT = "ACTIVE"
 STANDBY_PORT = "STANDBY"

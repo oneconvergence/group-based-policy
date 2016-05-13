@@ -95,6 +95,7 @@ class PortInfo(BASE, HasId, HasTenant):
                                             nfp_constants.CONSUMER,
                                             nfp_constants.MANAGEMENT,
                                             nfp_constants.MONITOR,
+                                            nfp_constants.ADVANCE_SHARING,
                                             name='port_classification'))
     port_role = sa.Column(sa.Enum(nfp_constants.ACTIVE_PORT,
                                   nfp_constants.STANDBY_PORT,
@@ -203,5 +204,5 @@ class NetworkFunctionDeviceInterface(BASE, HasId, HasTenant,
     network_function_device_id = sa.Column(
         sa.String(36),
         sa.ForeignKey('nfp_network_function_devices.id',
-                       ondelete='CASCADE'),
+                       ondelete='SET NULL'),
         nullable=False)

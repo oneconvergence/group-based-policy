@@ -322,27 +322,28 @@ class DeviceOrchestrator(PollEventDesc):
     def _create_advance_sharing_interfaces(self, device, interfaces_infos):
         nfd_interfaces = []
         port_infos = []
-        for position, iface in enumerate(interfaces_infos):
+        for position, interface in enumerate(interfaces_infos):
             iface = {}
             port_info = {}
-            iface['id'] = iface['id']
+            port_info['id'] = interface['id']
+            port_info['port_model'] = interface.get('port_model')
+            port_info['port_classification'] = interface.get('port_classification')
+            port_info['port_role'] = interface.get('port_role')
+            #port_infos.append(self.nsf_db.create_port_info(self.db_session,
+            #                                          port_info))
+            iface['id'] = interface['id']
             iface['tenant_id'] = device['tenant_id']
-            iface['plugged_in_port_id'] = iface['plugged_in_pt_id']
+            iface['plugged_in_port_id'] = interface['plugged_in_pt_id']
             iface['interface_position'] = position
             iface['mapped_real_port_id'] = None
             iface['network_function_device_id'] = device['id']
+            interface['interface_position'] = position
+            interface['tenant_id'] = device['tenant_id']
             nfd_interfaces.append(
                     self.nsf_db.create_network_function_device_interface(
-                                self.db_session, iface)
+                                self.db_session, iface, interface)
                                   )
-            port_info['id'] = iface['id']
-            port_info['port_model'] = iface.get('model')
-            port_info['port_classification'] = iface.get('port_classification')
-            port_info['port_role'] = iface.get('port_role')
-            port_infos.append(self.nsf_db.create_port_info(self.db_session,
-                                                      port_info))
-
-        LOG.debug("Created following entries in port_infos table : %s, "
+            LOG.debug("Created following entries in port_infos table : %s, "
                   " network function device interfaces table: %s." %
                   (port_infos, nfd_interfaces))
 
@@ -355,12 +356,18 @@ class DeviceOrchestrator(PollEventDesc):
                                               )
         return network_function_device_interfaces
 
-    def _update_advance_sharing_interfaces(self, nfd_ifaces):
+    def _update_advance_sharing_interfaces(self, device, nfd_ifaces):
+        print 'device, nfd_ifaces = ', device, nfd_ifaces
         for nfd_iface in nfd_ifaces:
-            self.nsf_db.update_network_function_device_interface(
+            for port in device['ports']:
+                if port['id'] == nfd_iface['mapped_real_port_id']:
+                    print 'matched = ', port
+                    mapped_real_port = port
+                    self.nsf_db.update_network_function_device_interface(
                                                 self.db_session,
                                                 nfd_iface['id'],
-                                                nfd_iface)
+                                                nfd_iface, mapped_real_port)
+                    break
 
     def _delete_advance_sharing_interfaces(self, nfd_ifaces):
         for nfd_iface in nfd_ifaces:
@@ -368,7 +375,7 @@ class DeviceOrchestrator(PollEventDesc):
             self.nsf_db.delete_network_function_device_interface(
                                                 self.db_session,
                                                 port_id)
-            self.nsf_db.delete_port_info(port_id)
+            self.nsf_db.delete_port_info(self.db_session, port_id)
 
     def _create_network_function_device_db(self, device_info, state):
         advance_sharing_interfaces = []
@@ -673,6 +680,7 @@ class DeviceOrchestrator(PollEventDesc):
         if _ifaces_plugged_in:
             if advance_sharing_ifaces:
                 self._update_advance_sharing_interfaces(
+                                            device, 
                                             advance_sharing_ifaces)
             self._increment_device_interface_count(device)
             self._create_event(event_id='CONFIGURE_DEVICE',
