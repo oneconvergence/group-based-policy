@@ -1,5 +1,5 @@
 [Unit]
-Description=One Convergence's NFP Rest Server
+Description=One Convergence NFP Rest Server
 After=syslog.target network.target
 
 [Service]

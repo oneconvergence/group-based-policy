@@ -1,5 +1,5 @@
 [Unit]
-Description=One Convergence's NFP Proxy Agent
+Description=One Convergence NFP Proxy Agent
 After=syslog.target network.target
 
 [Service]

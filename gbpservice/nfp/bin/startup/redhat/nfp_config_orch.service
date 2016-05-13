@@ -1,5 +1,5 @@
 [Unit]
-Description=One Convergence's NFP Config Orchestrator
+Description=One Convergence NFP Config Orchestrator
 After=syslog.target network.target
 
 [Service]
