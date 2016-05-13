@@ -360,7 +360,7 @@ function nfp_logs_forword {
     sudo sed -i '/#$UDPServerRun 514/ s/^#//' $SYSLOG_CONFIG
     echo "Successfully enabled UDP in syslog"
 
-    visibility_vm_ip_address=$IpAddr
+    visibility_vm_ip_address=`neutron floatingip-list | grep "$IpAddr" | awk '{print $6}'`
     echo "$log_facility.*                @$visibility_vm_ip_address:514" | sudo tee -a $VISIBILITY_CONF
     echo "Created $VISIBILITY_CONF file" 
 

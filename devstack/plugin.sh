@@ -70,7 +70,7 @@ if is_service_enabled group-policy; then
         gbp_configure_neutron
         [[ $ENABLE_NFP = True ]] && echo_summary "Configuring $NFP"
         [[ $ENABLE_NFP = True ]] && nfp_configure_neutron
-        if [[ $DEVSTACK_MODE = advanced || $DEVSTACK_MODE = enterprise ]]; then
+        if [[ $DEVSTACK_MODE != base ]]; then
             [[ $ENABLE_NFP = True ]] && configure_nfp_loadbalancer
             [[ $ENABLE_NFP = True ]] && configure_nfp_firewall
         fi
@@ -93,7 +93,7 @@ if is_service_enabled group-policy; then
             assign_user_role_credential
             create_nfp_gbp_resources
             create_nfp_image
-            [[ $DEVSTACK_MODE = advanced || $DEVSTACK_MODE = enterprise ]] && launch_configuratorVM
+            [[ $DEVSTACK_MODE != base ]] && launch_configuratorVM
             [[ $DEVSTACK_MODE = enterprise ]] && nfp_logs_forword
             copy_nfp_files_and_start_process
         fi
