@@ -17,11 +17,11 @@ SERVICE_TOKEN=admin
 # NFP Service
 ENABLE_NFP=True
 # TODO(dpak): Change DEVSTACK_MODE to NFP_DEVSTACK_MODE
-# Edit DEVSTACK_MODE with either 'base' or 'advanced'
+# Edit DEVSTACK_MODE with either 'base' or 'advanced' or 'enterprise'
 [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=base
-[[ $DEVSTACK_MODE = advanced ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
+[[ $DEVSTACK_MODE = advanced || $DEVSTACK_MODE = enterprise ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
 
-if [[ $DEVSTACK_MODE = advanced ]]; then
+if [[ $DEVSTACK_MODE = advanced || $DEVSTACK_MODE = enterprise ]]; then
     GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
     GBPSERVICE_BRANCH=plugin_mode_devstack_for_advanced_configurator
 elif [[ $DEVSTACK_MODE = base ]]; then

@@ -243,7 +243,7 @@ function create_nfp_gbp_resources {
 
     if [[ $DEVSTACK_MODE = base ]]; then
         IMAGE_NAME_FLAT="reference_configurator_image"
-        FLAVOR=m1.small
+        FLAVOR=m1.nfp-tiny
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=None --vendor NFP base_mode_lb
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
         gbp group-create svc_management_ptg --service_management True --l2-policy service_management
