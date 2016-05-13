@@ -10,18 +10,68 @@ NEUTRON_CONF=$NEUTRON_CONF_DIR/neutron.conf
 NFP_CONF_DIR=/etc/nfp
 echo "TOP-DIR-NFP : $PWD"
 
-function create_nfp_image {
-    TOP_DIR=$TOP_DIR
-    sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/conf.json
-    BUILT_IMAGE_PATH=$(cat /tmp/nfp_image_path)
-    upload_image file://$BUILT_IMAGE_PATH
-
-    openstack --os-cloud=devstack-admin flavor create --ram 512 --disk 3 --vcpus 1 m1.nfp-tiny
-}
-
 function prepare_nfp_image_builder {
     sudo -H -E pip install -r $DISK_IMAGE_DIR/diskimage-create/requirements.txt
     sudo apt-get install -y --force-yes qemu-utils
+}
+
+function create_nfp_image {
+    TOP_DIR=$TOP_DIR
+    source $TOP_DIR/openrc neutron service
+    unset OS_USER_DOMAIN_ID
+    unset OS_PROJECT_DOMAIN_ID
+
+    if [[ $DEVSTACK_MODE = base ]]; then
+        RefConfiguratorQcow2ImageName=reference_configurator_image
+        echo "Building Image: $RefConfiguratorQcow2ImageName"
+        sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/ref_configuratorconf.json
+        RefConfiguratorQcow2Image=$(cat /tmp/nfp_image_path)
+        echo "Uploading Image: $RefConfiguratorQcow2ImageName"
+        glance image-create --name $RefConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $RefConfiguratorQcow2Image
+        openstack --os-cloud=devstack-admin flavor create --ram 512 --disk 3 --vcpus 1 m1.nfp-tiny
+    else
+
+        ConfiguratorQcow2ImageName=configurator
+        if [[ $ConfiguratorQcow2Image = build ]]; then
+            echo "Building Image: $ConfiguratorQcow2ImageName"
+            sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json
+            ConfiguratorQcow2Image=$(cat /tmp/nfp_image_path)
+        fi
+        echo "Uploading Image: $ConfiguratorQcow2ImageName"
+        glance image-create --name $ConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $ConfiguratorQcow2Image
+
+        VyosQcow2ImageName=configurator
+        if [[ $VyosQcow2Image = build ]]; then
+            echo "Building Image: $VyosQcow2ImageName"
+            sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/vyos_conf.json
+            VyosQcow2Image=$(cat /tmp/nfp_image_path)
+        fi
+        echo "Uploading Image: $VyosQcow2ImageName"
+        glance image-create --name $VyosQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VyosQcow2Image
+
+        HaproxyQcow2ImageName=configurator
+        if [[ $HaproxyQcow2Image = build ]]; then
+            echo "Building Image: $HaproxyQcow2ImageName"
+            sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/haproxy_conf.json
+            HaproxyQcow2Image=$(cat /tmp/nfp_image_path)
+        fi
+        echo "Uploading Image: $HaproxyQcow2ImageName"
+        glance image-create --name $HaproxyQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $HaproxyQcow2Image
+
+        if [[ $DEVSTACK_MODE = enterprise ]]; then
+
+            VisibilityQcow2ImageName=configurator
+            if [[ $VisibilityQcow2Image = build ]]; then
+                echo "Building Image: $VisibilityQcow2ImageName"
+                sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/visibility_conf.json
+                VisibilityQcow2Image=$(cat /tmp/nfp_image_path)
+            fi
+            echo "Uploading Image: $VisibilityQcow2ImageName"
+            glance image-create --name $VisibilityQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VisibilityQcow2Image
+
+        fi
+
+    fi
 }
 
 function init_nfpgbpservice {
@@ -192,16 +242,8 @@ function create_nfp_gbp_resources {
     gbp l2policy-create --l3-policy service_management service_management
 
     if [[ $DEVSTACK_MODE = base ]]; then
-        if [[ $DISABLE_BUILD_IMAGE = False ]]; then
-            IMAGE_PATH=$(cat /tmp/nfp_image_path)
-            IMAGE_NAME=`basename "$IMAGE_PATH"`
-            IMAGE_NAME_FLAT="${IMAGE_NAME%.*}"
-            FLAVOR=m1.nfp-tiny
-        else
-            IMAGE_NAME_FLAT="reference_configurator_image"
-            FLAVOR=m1.small
-        fi
-    
+        IMAGE_NAME_FLAT="reference_configurator_image"
+        FLAVOR=m1.small
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=None --vendor NFP base_mode_lb
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
         gbp group-create svc_management_ptg --service_management True --l2-policy service_management
@@ -281,38 +323,14 @@ function copy_nfp_files_and_start_process {
 
 }
 
-function upload_images_and_launch_configuratorVM {
-
-    TOP_DIR=$TOP_DIR
-    source $TOP_DIR/openrc neutron service
-    ConfiguratorQcow2ImageName=$ConfiguratorQcow2Image
-    VyosQcow2Image=$VyosQcow2Image
-    HaproxyQcow2Image=$HaproxyQcow2Image
-    ConfiguratorImageName=configurator
-    VyosImageName=vyos
-    HaproxyImageName=haproxy
-    
-    unset OS_USER_DOMAIN_ID
-    unset OS_PROJECT_DOMAIN_ID
-
-    if [ ! -z "$TOP_DIR" -a "$TOP_DIR" != " " ]; then
-        echo "Uploading Image : $ConfiguratorImageName"
-        glance image-create --name $ConfiguratorImageName --disk-format qcow2  --container-format bare  --visibility public --file $ConfiguratorQcow2ImageName
-        echo "Uploading Image : $VyosImageName"
-        glance image-create --name $VyosImageName --disk-format qcow2  --container-format bare  --visibility public --file $VyosQcow2Image
-        echo "Uploading Image : $HaproxyImageName"
-        glance image-create --name $HaproxyImageName --disk-format qcow2  --container-format bare  --visibility public --file $HaproxyQcow2Image
-    else
-        echo "ImageName not provided ..."
-        exit
-    fi
-
+function launch_configuratorVM {
     InstanceName="configuratorVM_instance"
 
     GROUP="svc_management_ptg"
     echo "GroupName: $GROUP"
     PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
 
+    ConfiguratorImageName=configurator
     echo "Collecting ImageId : for $ConfiguratorImageName"
     ImageId=`glance image-list|grep $ConfiguratorImageName |awk '{print $2}'`
     if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then

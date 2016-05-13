@@ -30,7 +30,6 @@ function nfp_configure_neutron {
     iniset $NEUTRON_CONF keystone_authtoken admin_tenant_name "service"
     iniset $NEUTRON_CONF keystone_authtoken admin_user "neutron"
     iniset $NEUTRON_CONF keystone_authtoken admin_password "admin_pass"
-    iniset $NEUTRON_CONF group_policy policy_drivers "implicit_policy,resource_mapping,chain_mapping"
     iniset $NEUTRON_CONF node_composition_plugin node_plumber "admin_owned_resources_apic_plumber"
     iniset $NEUTRON_CONF node_composition_plugin node_drivers "nfp_node_driver"
     iniset $NEUTRON_CONF admin_owned_resources_apic_tscp plumbing_resource_owner_user "neutron"
@@ -42,7 +41,6 @@ function nfp_configure_neutron {
     iniset $NEUTRON_CONF nfp_node_driver is_service_admin_owned "True"
     iniset $NEUTRON_CONF nfp_node_driver svc_management_ptg_name "svc_management_ptg"
 }
-
 
 function configure_nfp_loadbalancer {
     echo "Configuring NFP Loadbalancer plugin driver"
@@ -63,7 +61,7 @@ if is_service_enabled group-policy; then
         echo_summary "Installing $GBP"
         if [[ $ENABLE_NFP = True ]]; then
             echo_summary "Installing $NFP"
-            [[ $DISABLE_BUILD_IMAGE = False ]] && prepare_nfp_image_builder
+            prepare_nfp_image_builder
         fi
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         echo_summary "Configuring $GBP"
@@ -92,12 +90,11 @@ if is_service_enabled group-policy; then
         echo_summary "Initializing $GBP"
         if [[ $ENABLE_NFP = True ]]; then
             echo_summary "Initializing $NFP"
-            [[ $DISABLE_BUILD_IMAGE = False ]] && create_nfp_image
             assign_user_role_credential
             create_nfp_gbp_resources
-            [[ $DEVSTACK_MODE = advanced || $DEVSTACK_MODE = enterprise ]] && upload_images_and_launch_configuratorVM
+            create_nfp_image
+            [[ $DEVSTACK_MODE = advanced || $DEVSTACK_MODE = enterprise ]] && launch_configuratorVM
             [[ $DEVSTACK_MODE = enterprise ]] && nfp_logs_forword
-            fi
             copy_nfp_files_and_start_process
         fi
     fi
