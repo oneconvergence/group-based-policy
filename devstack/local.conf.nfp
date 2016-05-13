@@ -19,7 +19,7 @@ HOST_IP=
 ENABLE_NFP=True
 # TODO(dpak): Change DEVSTACK_MODE to NFP_DEVSTACK_MODE
 # Edit DEVSTACK_MODE with either 'base' or 'advanced'
-[[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=advanced
+[[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=base
 [[ $DEVSTACK_MODE = advanced ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
 
 if [[ $DEVSTACK_MODE = advanced ]]; then
