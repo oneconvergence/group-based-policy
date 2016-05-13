@@ -1,0 +1,11 @@
+[Unit]
+Description=One Convergence's NFP Proxy
+After=syslog.target network.target
+
+[Service]
+ExecStart=source /opt/stack/gbp/devstack/lib/nfp;namespace_delete /home/stack/devstack;namespace_create /home/stack/devstack 11.0.0.3
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
+

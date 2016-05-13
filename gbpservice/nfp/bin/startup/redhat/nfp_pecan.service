@@ -1,0 +1,11 @@
+[Unit]
+Description=One Convergence's NFP Rest Server
+After=syslog.target network.target
+
+[Service]
+ExecStart=sudo pecan serve /usr/local/lib/python2.7/dist-packages/gbpservice/nfp/configurator/api/config.py
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
+
