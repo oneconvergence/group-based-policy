@@ -32,7 +32,7 @@ enable_service q-agt
 enable_service q-dhcp
 enable_service q-l3
 enable_service q-fwaas
-[[ $DEVSTACK_MODE = advanced ]] && enable_service neutron-vpnaas
+[[ $DEVSTACK_MODE = advanced || $DEVSTACK_MODE = enterprise ]] && enable_service neutron-vpnaas
 enable_service q-lbaas
 enable_service q-meta
 enable_service neutron
@@ -44,7 +44,7 @@ enable_service orchestrator
 enable_service proxy
 enable_service proxy_agent
 [[ $DEVSTACK_MODE = base ]] && enable_service base_configurator
-[[ $DEVSTACK_MODE = advanced ]] && enable_service config_orch
+[[ $DEVSTACK_MODE = advanced || $DEVSTACK_MODE = enterprise ]] && enable_service config_orch
 
 # Deployment preferences
 SYSLOG=${SYSLOG:-True}
