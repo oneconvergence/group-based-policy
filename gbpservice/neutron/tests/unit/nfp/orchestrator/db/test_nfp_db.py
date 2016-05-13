@@ -550,43 +550,26 @@ class NFPDBTestCase(SqlTestCase):
         if not attributes:
             attributes = {
                     'name': 'name',
-                    'description': 'description',
                     'tenant_id': 'tenant_id',
                     'plugged_in_port_id': 'plugged_in_port_id',
                     'interface_position': 2,
                     'mapped_real_port_id': None,
-                    'status': 'status',
-                    'network_function_device_id': network_function_device['id']
-                }
+                    #'status': 'status',
+                    'network_function_device_id': 'nfd-id'
+            }
         return self.nfp_db.create_network_function_device_interface(
             self.session, attributes)
 
     def test_create_network_function_device_interface(self):
+        network_function_device = self.create_network_function_device()
         attrs = {
-            'name': 'name',
-            'description': 'description',
-            'tenant_id': 'tenant_id',
-            'mgmt_ip_address': 'mgmt_ip_address',
-            'monitoring_port_id': {
-                'id': 'myid1_ha_port',
-                'port_model': nfp_constants.NEUTRON_PORT,
-                'port_classification': nfp_constants.MONITOR,
-                'port_role': nfp_constants.ACTIVE_PORT
-            },
-            'monitoring_port_network': {
-                'id': 'mynetwork_id',
-                'network_model': nfp_constants.NEUTRON_NETWORK
-            },
-            'service_vendor': 'service_vendor',
-            'max_interfaces': 3,
-            'reference_count': 2,
-            'interfaces_in_use': 1,
-            'mgmt_port_id': {
-                'id': 'myid1',
-                'port_model': nfp_constants.NEUTRON_PORT,
-                'port_classification': nfp_constants.MANAGEMENT,
-                'port_role': nfp_constants.ACTIVE_PORT},
-            'status': 'status'
+                    'name': 'name',
+                    'tenant_id': 'tenant_id',
+                    'plugged_in_port_id': 'plugged_in_port_id',
+                    'interface_position': 2,
+                    'mapped_real_port_id': None,
+                    #'status': 'status',
+                    'network_function_device_id': network_function_device['id']
         }
         nfd_interface = self.nfp_db.create_network_function_device_interface(
                                         self.session, attrs)
