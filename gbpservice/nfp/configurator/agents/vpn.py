@@ -335,7 +335,6 @@ def load_drivers(sc, conf):
 
     ld = utils.ConfiguratorUtils()
     drivers = ld.load_drivers(const.DRIVERS_DIR)
-    VpnaasRpcSender(sc)
 
     for service_type, driver_name in drivers.iteritems():
         driver_obj = driver_name(conf=conf)
