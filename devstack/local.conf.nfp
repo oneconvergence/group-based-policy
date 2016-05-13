@@ -13,13 +13,30 @@ MYSQL_PASSWORD=mysqlsecret
 RABBIT_PASSWORD=myrabbitsecret
 SERVICE_PASSWORD=$ADMIN_PASSWORD
 SERVICE_TOKEN=admin
-HOST_IP=192.168.100.102
+HOST_IP=
 
-enable_plugin gbp https://git.openstack.org/openstack/group-based-policy refs/changes/45/309145/30
-GBPSERVICE_BRANCH=refs/changes/45/309145/30
+# NFP Service
 ENABLE_NFP=True
+# TODO(dpak): Change DEVSTACK_MODE to NFP_DEVSTACK_MODE
+# Edit DEVSTACK_MODE with either 'base' or 'advanced'
+[[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=base
+[[ $DEVSTACK_MODE = advanced ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
+
+if [[ $DEVSTACK_MODE = advanced ]]; then
+    GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
+    GBPSERVICE_BRANCH=plugin_mode_devstack_for_advanced_configurator
+elif [[ $DEVSTACK_MODE = base ]]; then
+    GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
+    GBPSERVICE_BRANCH=refs/changes/45/309145/30
+fi
+enable_plugin gbp $GBPSERVICE_REPO $GBPSERVICE_BRANCH
 
 #e.g IMAGE_URLS+=http://192.168.6.1/images/cirros-0.3.0-x86_64-disk.img #image extenson should be .img OR img.gz
 #IMAGE_URLS+=
 
 DISABLE_BUILD_IMAGE=False
+
+# VM locations
+ConfiguratorQcow2Image=/home/stack/service_images/configurator.qcow2
+VyosQcow2Image=/home/stack/service_images/vyos.qcow2
+HaproxyQcow2Image=/home/stack/service_images/haproxy.qcow2
