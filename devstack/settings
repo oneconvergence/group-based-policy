@@ -3,7 +3,7 @@ source $DEST/gbp/devstack/lib/gbp
 ENABLE_NFP=${ENABLE_NFP:-False}
 [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=${DEVSTACK_MODE:-base}
 [[ $ENABLE_NFP = True ]] && DISABLE_BUILD_IMAGE=${DISABLE_BUILD_IMAGE:-False}
-[[ $DEVSTACK_MODE = advanced ]] && DISABLE_BUILD_IMAGE=True
+[[ $DEVSTACK_MODE = advanced || $DEVSTACK_MODE = enterprise ]] && DISABLE_BUILD_IMAGE=True
 [[ $ENABLE_NFP = True ]] && source $DEST/gbp/devstack/lib/nfp
 
 # Enable necessary Neutron plugins, including group_policy and ncp
