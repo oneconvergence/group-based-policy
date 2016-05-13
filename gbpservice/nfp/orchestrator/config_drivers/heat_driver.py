@@ -43,6 +43,7 @@ from oslo_serialization import jsonutils
 from oslo_utils import excutils
 import yaml
 
+from gbpservice.nfp.core import log as nfp_log
 
 HEAT_DRIVER_OPTS = [
     cfg.StrOpt('svc_management_ptg_name',
@@ -88,9 +89,11 @@ STACK_ACTION_RETRY_WAIT = 5  # Retry after every 5 seconds
 APIC_OWNED_RES = 'apic_owned_res_'
 
 LOG = logging.getLogger(__name__)
+nfp_log.use_nfp_logging('LOG')
 
-
+@nfp_log.patch_class
 class HeatDriver(object):
+    @nfp_log.patch_method
     def __init__(self, config):
         self.keystoneclient = KeystoneClient(config)
         self.gbp_client = GBPClient(config)
@@ -110,6 +113,7 @@ class HeatDriver(object):
         return self.resource_owner_tenant_id
     '''
 
+    @nfp_log.patch_method
     def _resource_owner_tenant_id(self):
         user, pwd, tenant_name, auth_url =\
             self.keystoneclient.get_keystone_creds()
@@ -127,6 +131,7 @@ class HeatDriver(object):
                 LOG.error(
                     _LE('Multiple tenants matches found for %s'), tenant_name)
 
+    @nfp_log.patch_method
     def _get_resource_owner_context(self):
         if cfg.CONF.heat_driver.is_service_admin_owned:
             tenant_id = self._resource_owner_tenant_id()
@@ -136,6 +141,7 @@ class HeatDriver(object):
                 user, pwd, tenant_name, tenant_id)
         return auth_token, tenant_id
 
+    @nfp_log.patch_method
     def _get_role_by_name(self, keystone_client, name, keystone_version):
         if keystone_version == 'v2.0':
             roles = keystone_client.roles.list()
@@ -148,6 +154,7 @@ class HeatDriver(object):
             if role:
                 return role[0]
 
+    @nfp_log.patch_method
     def get_allocated_roles(self, v2client, user, tenant_id=None):
         allocated_role_names = []
         allocated_roles = v2client.roles.roles_for_user(user, tenant=tenant_id)
@@ -156,6 +163,7 @@ class HeatDriver(object):
                 allocated_role_names.append(role.name)
         return allocated_role_names
 
+    @nfp_log.patch_method
     def _assign_admin_user_to_project(self, project_id):
         keystone_conf = cfg.CONF.keystone_authtoken
         keystone_version = keystone_conf.auth_version
@@ -193,6 +201,7 @@ class HeatDriver(object):
                 v3client.roles.grant(heat_role.id, user=admin_id,
                                      project=project_id)
 
+    @nfp_log.patch_method
     def keystone(self, user, pwd, tenant_name, tenant_id=None):
         if tenant_id:
             return self.keystoneclient.get_scoped_keystone_token(
@@ -201,6 +210,7 @@ class HeatDriver(object):
             return self.keystoneclient.get_scoped_keystone_token(
                 user, pwd, tenant_name)
 
+    @nfp_log.patch_method
     def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None):
         user_tenant_id = tenant_id or resource_owner_tenant_id
         try:
@@ -223,13 +233,15 @@ class HeatDriver(object):
                 cfg.CONF.heat_driver.heat_uri,
                 password,
                 auth_token=admin_token,
-                timeout_mins=timeout_mins)
+                timeout_mins=timeout_mins,
+                log_meta=self.log_meta)
         except Exception:
             LOG.exception(_LE("Failed to create heatclient object"))
             return None
 
         return heat_client
 
+    @nfp_log.patch_method
     def _get_tenant_context(self, tenant_id):
         user, password, tenant, auth_url =\
             self.keystoneclient.get_keystone_creds()
@@ -238,6 +250,7 @@ class HeatDriver(object):
                                    tenant, tenant_id=tenant_id)
         return auth_token, tenant_id
 
+    @nfp_log.patch_method
     def loadbalancer_post_stack_create(self, network_function_details):
         db_handler = nfp_db.NFPDbBase()
         db_session = nfp_db_api.get_session()
@@ -262,6 +275,7 @@ class HeatDriver(object):
             # self._create_policy_target_for_vip(auth_token,
             #                                    provider_tenant_id, provider)
 
+    @nfp_log.patch_method
     def _create_policy_target_for_vip(self, auth_token,
                                       provider_tenant_id, provider):
         provider_subnet = None
@@ -284,6 +298,7 @@ class HeatDriver(object):
                     auth_token, provider_tenant_id, provider['id'],
                     vip_name, lb_vip['vip']['port_id'])
 
+    @nfp_log.patch_method
     def _is_service_target(self, policy_target):
         if policy_target['name'] and (policy_target['name'].startswith(
                 plumber_base.SERVICE_TARGET_NAME_PREFIX) or
@@ -293,6 +308,7 @@ class HeatDriver(object):
         else:
             return False
 
+    @nfp_log.patch_method
     def _get_member_ips(self, auth_token, ptg):
         member_addresses = []
         if ptg.get("policy_targets"):
@@ -311,6 +327,7 @@ class HeatDriver(object):
                     member_addresses.append(ip_address)
         return member_addresses
 
+    @nfp_log.patch_method
     def _generate_lb_member_template(self, is_template_aws_version,
                                      pool_res_name, member_ip, stack_template):
         type_key = 'Type' if is_template_aws_version else 'type'
@@ -341,6 +358,7 @@ class HeatDriver(object):
                     "protocol_port": protocol_port,
                     "weight": 1}}
 
+    @nfp_log.patch_method
     def _modify_lb_resources_name(self, stack_template, provider_ptg,
                                   is_template_aws_version):
         resources_key = 'Resources' if is_template_aws_version else 'resources'
@@ -358,6 +376,7 @@ class HeatDriver(object):
                 stack_template[resources_key][resource][
                     properties_key]['vip']['name'] += ptg_name
 
+    @nfp_log.patch_method
     def _generate_pool_members(self, auth_token, stack_template,
                                config_param_values, provider_ptg,
                                is_template_aws_version):
@@ -378,6 +397,7 @@ class HeatDriver(object):
                     is_template_aws_version, pool_res_name,
                     member_ip, stack_template))
 
+    @nfp_log.patch_method
     def _get_consumers_for_chain(self, auth_token, provider):
         filters = {'id': provider['provided_policy_rule_sets']}
         provided_prs = self.gbp_client.get_policy_rule_sets(
@@ -403,6 +423,7 @@ class HeatDriver(object):
         return (redirect_prs['consuming_policy_target_groups'],
                 redirect_prs['consuming_external_policies'])
 
+    @nfp_log.patch_method
     def _append_firewall_rule(self, stack_template, provider_cidr,
                               consumer_cidr, fw_template_properties,
                               consumer_id):
@@ -430,6 +451,7 @@ class HeatDriver(object):
                         'get_resource': fw_rule_name})
             i += 1
 
+    @nfp_log.patch_method
     def _get_heat_resource_key(self, template_resource_dict,
                                is_template_aws_version, resource_name):
         type_key = 'Type' if is_template_aws_version else 'type'
@@ -437,6 +459,7 @@ class HeatDriver(object):
             if template_resource_dict[key].get(type_key) == resource_name:
                 return key
 
+    @nfp_log.patch_method
     def _get_all_heat_resource_keys(self, template_resource_dict,
                                     is_template_aws_version, resource_name):
         type_key = 'Type' if is_template_aws_version else 'type'
@@ -446,6 +469,7 @@ class HeatDriver(object):
                 resource_keys.append(key)
         return resource_keys
 
+    @nfp_log.patch_method
     def _update_firewall_template(self, auth_token, provider, stack_template):
         consumer_ptgs, consumer_eps = self._get_consumers_for_chain(
             auth_token, provider)
@@ -522,6 +546,7 @@ class HeatDriver(object):
 
         return stack_template
 
+    @nfp_log.patch_method
     def _modify_fw_resources_name(self, stack_template, provider_ptg,
                                   is_template_aws_version):
         resources_key = 'Resources' if is_template_aws_version else 'resources'
@@ -544,6 +569,7 @@ class HeatDriver(object):
         stack_template[resources_key][fw_key][
             properties_key]['name'] += ptg_name
 
+    @nfp_log.patch_method
     def _get_rvpn_l3_policy(self, auth_token, provider, node_update):
         # For remote vpn - we need to create a implicit l3 policy
         # for client pool cidr, to avoid this cidr being reused.
@@ -584,6 +610,7 @@ class HeatDriver(object):
             rvpn_l3_policy = rvpn_l3_policy[0]
         return rvpn_l3_policy
 
+    @nfp_log.patch_method
     def _get_management_gw_ip(self, auth_token):
         filters = {'name': [SVC_MGMT_PTG_NAME]}
         svc_mgmt_ptgs = self.gbp_client.get_policy_target_groups(
@@ -598,6 +625,7 @@ class HeatDriver(object):
             mgmt_gw_ip = mgmt_subnet['gateway_ip']
             return mgmt_gw_ip
 
+    @nfp_log.patch_method
     def _get_site_conn_keys(self, template_resource_dict,
                             is_template_aws_version, resource_name):
         keys = []
@@ -607,6 +635,7 @@ class HeatDriver(object):
                 keys.append(key)
         return keys
 
+    @nfp_log.patch_method
     def _update_node_config(self, auth_token, tenant_id, service_profile,
                             service_chain_node, service_chain_instance,
                             provider, consumer_port, network_function,
@@ -830,6 +859,7 @@ class HeatDriver(object):
                  {'stack_data': stack_template, 'params': stack_params})
         return (stack_template, stack_params)
 
+    @nfp_log.patch_method
     def parse_template_config_string(self, config_str):
         service_config = tag_str = ''
         for tag_str in [nfp_constants.HEAT_CONFIG_TAG,
@@ -849,6 +879,7 @@ class HeatDriver(object):
             tag_str = nfp_constants.HEAT_CONFIG_TAG
         return tag_str, service_config
 
+    @nfp_log.patch_method
     def get_service_details(self, network_function_details):
         db_handler = nfp_db.NFPDbBase()
         db_session = nfp_db_api.get_session()
@@ -940,6 +971,7 @@ class HeatDriver(object):
 
         return service_details
 
+    @nfp_log.patch_method
     def _wait_for_stack_operation_complete(self, heatclient, stack_id, action,
                                            ignore_error=False):
         time_waited = 0
@@ -1029,6 +1061,7 @@ class HeatDriver(object):
                              'stack_owner': stack.stack_owner})
                         return None
 
+    @nfp_log.patch_method
     def is_config_complete(self, stack_id, tenant_id,
                            network_function_details):
         success_status = "COMPLETED"
@@ -1066,6 +1099,7 @@ class HeatDriver(object):
                           {'stack': stack_id})
             return failure_status
 
+    @nfp_log.patch_method
     def is_config_delete_complete(self, stack_id, tenant_id):
         success_status = "COMPLETED"
         failure_status = "ERROR"
@@ -1099,6 +1133,7 @@ class HeatDriver(object):
                           {'stack': stack_id})
             return failure_status
 
+    @nfp_log.patch_method
     def apply_config(self, network_function_details):
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
@@ -1155,6 +1190,7 @@ class HeatDriver(object):
 
         return stack_id
 
+    @nfp_log.patch_method
     def delete_config(self, stack_id, tenant_id):
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
@@ -1181,6 +1217,7 @@ class HeatDriver(object):
             else True
         )
 
+    @nfp_log.patch_method
     def _update(self, auth_token, resource_owner_tenant_id, service_profile,
                 service_chain_node, service_chain_instance, provider,
                 consumer_port, network_function, provider_port, stack_id,
@@ -1266,6 +1303,7 @@ class HeatDriver(object):
             stack_id = stack["stack"]["id"]
         return stack_id
 
+    @nfp_log.patch_method
     def update_config(self, network_function_details, stack_id):
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
@@ -1290,6 +1328,7 @@ class HeatDriver(object):
             return None
         return stack_id
 
+    @nfp_log.patch_method
     def handle_policy_target_operations(self, network_function_details,
                                         policy_target, operation):
         service_details = self.get_service_details(network_function_details)
@@ -1322,9 +1361,11 @@ class HeatDriver(object):
                                   " failed") % {'operation': operation})
                 return None
 
+    @nfp_log.patch_method
     def notify_chain_parameters_updated(self, network_function_details):
         pass  # We are not using the classifier specified in redirect Rule
 
+    @nfp_log.patch_method
     def handle_consumer_ptg_operations(self, network_function_details,
                                        policy_target_group, operation):
         service_details = self.get_service_details(network_function_details)
