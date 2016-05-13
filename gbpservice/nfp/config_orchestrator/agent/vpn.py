@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
 import copy
 from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
@@ -48,7 +49,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             desc.update({s_ele[0]: s_ele[1]})
         return desc
 
-    def _get_vpn_context(self, context, vpnservice_id,
+    def _get_vpn_context(self, context, tenant_id, vpnservice_id,
                          ikepolicy_id, ipsecpolicy_id,
                          ipsec_site_conn_id, desc):
         vpnservices = self._get_vpnservices(context, tenant_id,
@@ -77,24 +78,35 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         if context.is_admin:
             tenant_id = context.tenant_id
         if resource.lower() == 'ipsec_site_connection':
-            vpn_db = self._get_vpn_context(context, resource_data[
-                'vpnservice_id'], resource_data['ikepolicy_id'],
-                resource_data['ipsecpolicy_id'], resource_data[
-                'id'], resource_data['description'])
+            vpn_ctx_db = self._get_vpn_context(context,
+                                               tenant_id,
+                                               resource_data[
+                                                   'vpnservice_id'],
+                                               resource_data[
+                                                   'ikepolicy_id'],
+                                               resource_data[
+                                                   'ipsecpolicy_id'],
+                                               resource_data['id'],
+                                               resource_data[
+                                                   'description'])
             core_db = self._get_core_context(context, tenant_id)
-            filtered_core_db = self._filter_core_data(core_db,
-                                                      vpn_data['vpnservices'])
-            return vpn_db.update(filtered_core_db)
-        elif resource.lower() == 'vpnservice':
+            filtered_core_db = self.\
+                _filter_core_data(core_db,
+                                  vpn_ctx_db[
+                                      'vpnservices'])
+            vpn_ctx_db.update(filtered_core_db)
+            return vpn_ctx_db
+        elif resource.lower() == 'vpn_service':
             core_db = self._get_core_context(context, tenant_id)
-            return self._filter_core_data(core_db, [resource_data])
+            filtered_core_db = self._filter_core_data(core_db, [resource_data])
+            filtered_core_db.update({'vpnservices': [resource_data]})
+            return filtered_core_db
         else:
             return None
 
     def _prepare_resource_context_dicts(self, context, tenant_id,
                                         resource, resource_data):
         # Prepare context_dict
-        context = kwargs.get('context')
         ctx_dict = context.to_dict()
         # Collecting db entry required by configurator.
         # Addind service_info to neutron context and sending
@@ -106,11 +118,13 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         return ctx_dict, rsrc_ctx_dict
 
     def _data_wrapper(self, context, tenant_id, nf, **kwargs):
+        nfp_context = {}
+        str_description = nf['description'].split('\n')[1]
         description = self._get_dict_desc_from_string(
-            nf['description'].split('\n')[1])
+            str_description)
         resource = kwargs['rsrc_type']
         resource_data = kwargs['resource']
-        resource_data['description'] = str(description)
+        resource_data['description'] = str_description
         if resource.lower() == 'ipsec_site_connection':
             nfp_context = {'network_function_id': nf['id'],
                            'ipsec_site_connection_id': kwargs[
@@ -150,14 +164,14 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         filtered_core_data = {'subnets': [],
                               'routers': []}
         for vpnservice in vpnservices:
-            subnet_id = vpnservices['subnet_id']
+            subnet_id = vpnservice['subnet_id']
             for subnet in db_data['subnets']:
                 if subnet['id'] == subnet_id:
-                    filtered_data['subnets'].append(subnet)
-            router_id = vpnservices['router_id']
+                    filtered_core_data['subnets'].append(subnet)
+            router_id = vpnservice['router_id']
             for router in db_data['routers']:
                 if router['id'] == router_id:
-                    filtered_data['routers'].append(router)
+                    filtered_core_data['routers'].append(router)
         return filtered_core_data
 
     def _get_vpnservices(self, context, tenant_id, vpnservice_id, desc):
@@ -169,19 +183,20 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             vpnservice['description'] = desc
         return vpnservices
 
-    def _get_ikepolicies(self, context, ikepolicy_id):
+    def _get_ikepolicies(self, context, tenant_id, ikepolicy_id):
         filters = {'tenant_id': [tenant_id],
                    'id': [ikepolicy_id]}
         args = {'context': context, 'filters': filters}
         return self._db_inst.get_ikepolicies(**args)
 
-    def _get_ipsecpolicies(self, context, ipsecpolicy_id):
+    def _get_ipsecpolicies(self, context, tenant_id, ipsecpolicy_id):
         filters = {'tenant_id': [tenant_id],
                    'id': [ipsecpolicy_id]}
         args = {'context': context, 'filters': filters}
         return self._db_inst.get_ipsecpolicies(**args)
 
-    def _get_ipsec_site_conns(self, context, ipsec_site_conn_id, desc):
+    def _get_ipsec_site_conns(self, context, tenant_id, ipsec_site_conn_id,
+                              desc):
         filters = {'tenant_id': [tenant_id],
                    'id': [ipsec_site_conn_id]}
         args = {'context': context, 'filters': filters}
@@ -221,9 +236,6 @@ class VpnNotifier(object):
                                 key=event_id, data=event_data)
         self._sc.post_event(ev)
 
-    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
-    # TODO(akash): Event for service create/delete not implemented here
-    # Need to do that
     def update_status(self, context, notification_data):
         resource_data = notification_data['notification'][0]['data']
         notification_info = notification_data['info']
@@ -237,7 +249,7 @@ class VpnNotifier(object):
                              status=status)
 
         # Sending An Event for visiblity
-        if resource_data['resource'].lower() is\
+        if notification_data['notification'][0]['resource'].lower() ==\
                 'ipsec_site_connection':
             nf_id = notification_info['context']['network_function_id']
             ipsec_id = notification_info['context']['ipsec_site_connection_id']
@@ -249,20 +261,9 @@ class VpnNotifier(object):
             self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
                                         request_data)
 
-    # TODO(ashu): Need to fix once vpn code gets merged in mitaka branch
     def ipsec_site_conn_deleted(self, context, notification_data):
-        resource_data = notification_data['notification'][0]['data']
-        notification_info = notification_data['info']
-        ipsec_site_conn_id = resource_data['resource_id']
-        msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
-               "making an ipsec_site_conn_deleted RPC call to plugin for "
-               " ipsec ")
-        LOG(LOGGER, 'INFO', " %s " % (msg))
-        rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
-                             ipsec_site_conn_id=ipsec_site_conn_id)
-
         # Sending An Event for visiblity
+        notification_info = notification_data['info']
         nf_id = notification_info['context']['network_function_id']
         ipsec_id = notification_info['context']['ipsec_site_connection_id']
         service_type = notification_info['service_type']
