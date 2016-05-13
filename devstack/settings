@@ -5,6 +5,7 @@ ENABLE_NFP=${ENABLE_NFP:-False}
 [[ $ENABLE_NFP = True ]] && source $DEST/gbp/devstack/lib/nfp
 # VM locations
 ConfiguratorQcow2Image=${ConfiguratorQcow2Image:-build}
+VisibilityQcow2Image=${VisibilityQcow2Image:-build}
 VyosQcow2Image=${VyosQcow2Image:-build}
 HaproxyQcow2Image=${HaproxyQcow2Image:-build}
 
