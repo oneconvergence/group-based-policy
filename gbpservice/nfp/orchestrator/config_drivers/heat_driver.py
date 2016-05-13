@@ -781,7 +781,7 @@ class HeatDriver(object):
                 floatingips = self.neutron_client.get_floating_ips(
                     auth_token, consumer_port['id'])
                 if not floatingips:
-                    LOG.Error(_LE("Floating IP for VPN Service has been "
+                    LOG.error(_LE("Floating IP for VPN Service has been "
                                   "disassociated Manually"))
                     return None, None
                 for fip in floatingips:
@@ -789,18 +789,23 @@ class HeatDriver(object):
                             'fixed_ip_address']:
                         stitching_port_fip = fip['floating_ip_address']
 
-                desc = ('fip=' + mgmt_ip +
-                        ";tunnel_local_cidr=" +
-                        provider_cidr + ";user_access_ip=" +
-                        stitching_port_fip + ";fixed_ip=" +
-                        consumer_port['fixed_ips'][0]['ip_address'] +
-                        ';service_vendor=' + service_details[
-                            'service_vendor'] +
-                        ';stitching_cidr=' + stitching_cidr +
-                        ';stitching_gateway=' + stitching_subnet[
-                            'gateway_ip'] +
-                        ';mgmt_gw_ip=' + mgmt_gw_ip +
-                        ';network_function_id=' + network_function['id'])
+                try:
+                    desc = ('fip=' + mgmt_ip +
+                            ";tunnel_local_cidr=" +
+                            provider_cidr + ";user_access_ip=" +
+                            stitching_port_fip + ";fixed_ip=" +
+                            consumer_port['fixed_ips'][0]['ip_address'] +
+                            ';service_vendor=' + service_details[
+                                'service_vendor'] +
+                            ';stitching_cidr=' + stitching_cidr +
+                            ';stitching_gateway=' + stitching_subnet[
+                                'gateway_ip'] +
+                            ';mgmt_gw_ip=' + mgmt_gw_ip +
+                            ';network_function_id=' + network_function['id'])
+                except Exception:
+                    LOG.error(_LE("Problem in preparing description, some of "
+                                  "the fields might not have initialized"))
+                    return None, None
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
                     stack_template[resources_key],
