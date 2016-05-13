@@ -226,7 +226,7 @@ function create_ep_and_nsp {
     gbp ep-create internet    
     gbp nsp-create --network-service-params type=ip_pool,name=vip_ip,value=nat_pool svc_mgmt_fip_policy
     
-    gbp group-create svc_management_ptg --service_management True --l2-policy service_management --network-service-policy svc_mgmt_fip_policy
+    gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg --network-service-policy svc_mgmt_fip_policy
 }
 
 
@@ -235,19 +235,19 @@ function create_nfp_gbp_resources {
     source $TOP_DIR/openrc neutron service
 
     gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
-    gbp l2policy-create --l3-policy service_management service_management
+    gbp l2policy-create --l3-policy service_management svc_management_ptg
 
     if [[ $DEVSTACK_MODE = base ]]; then
         IMAGE_NAME_FLAT="reference_configurator_image"
         FLAVOR=m1.nfp-tiny
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=None --vendor NFP base_mode_lb
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
-        gbp group-create svc_management_ptg --service_management True --l2-policy service_management
+        gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg
 
     elif [[ $DEVSTACK_MODE = advanced ]]; then
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP fw_profile
-        gbp group-create svc_management_ptg --service_management True --l2-policy service_management
+        gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg
 
     else
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
