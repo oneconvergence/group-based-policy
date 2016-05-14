@@ -96,6 +96,19 @@ class OrchestrationDriver(object):
             LOG.error(_LE("Failed to get admin's tenant ID"))
             raise
 
+    def _get_token(self, device_data_token):
+
+        try:
+            token = (device_data_token
+                     if device_data_token
+                     else self.identity_handler.get_admin_token())
+        except Exception:
+            self._increment_stats_counter('keystone_token_get_failures')
+            LOG.error(_LE('Failed to get token for unplug interface from'
+                          ' device operation'))
+            return False
+        return token
+
     def _increment_stats_counter(self, metric, by=1):
         # TODO(RPM): create path and delete path have different driver objects.
         # This will not work in case of increment and decrement.
@@ -124,15 +137,9 @@ class OrchestrationDriver(object):
         return self.supports_device_sharing and self.supports_hotplug
 
     def _create_management_interface(self, device_data, network_handler=None):
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for management interface'
-                          ' creation'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         name = 'mgmt_interface'  # TODO(RPM): Use proper name
         mgmt_interface = network_handler.create_port(
@@ -152,15 +159,9 @@ class OrchestrationDriver(object):
 
     def _delete_management_interface(self, device_data, interface,
                                      network_handler=None):
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for management interface'
-                          ' deletion'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         network_handler.delete_port(token, interface['id'])
 
@@ -195,16 +196,10 @@ class OrchestrationDriver(object):
             return None
         return vendor_data
 
-    def _get_vendor_data(self, device_data):
-        image_name = device_data['service_details']['image_name']
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token, while getting vendor data'))
-            return None
+    def _get_vendor_data(self, device_data, image_name):
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
         try:
             metadata = self.compute_handler_nova.get_image_metadata(
                     token,
@@ -222,7 +217,7 @@ class OrchestrationDriver(object):
 
     def _update_self_with_vendor_data(self, vendor_data, attr):
         attr_value = getattr(self, attr)
-        if vendor_data.get(attr):
+        if vendor_data.has_key(attr):
             setattr(self, attr, vendor_data[attr])
         else:
             LOG.info(_LI("Vendor data specified in image, doesn't contains "
@@ -230,10 +225,10 @@ class OrchestrationDriver(object):
                          "%(default)s"),
                      {'attr': attr, 'default': attr_value})
 
-    def _update_vendor_data(self, device_data):
-        image_name = device_data['service_details']['image_name']
+    def _update_vendor_data(self, device_data, token=None):
         try:
-            vendor_data = self._get_vendor_data(device_data)
+            image_name = self._get_image_name(device_data)
+            vendor_data = self._get_vendor_data(device_data, image_name)
             LOG.info(_LI("Vendor data, specified in image: %(vendor_data)s"),
                      {'vendor_data': vendor_data})
             if vendor_data:
@@ -250,6 +245,18 @@ class OrchestrationDriver(object):
             LOG.error(_LE("Error while getting metadata for image name: %s,"
                           " proceeding with default values")
                       % (image_name))
+
+    def _get_image_name(self, device_data):
+        if device_data['service_details'].get('image_name'):
+            image_name = device_data['service_details']['image_name']
+        else:
+            LOG.info(_LI("No image name provided in service profile's "
+                         "service flavor field, image will be selected "
+                         "based on service vendor's name : %s")
+                     % (device_data['service_details']['service_vendor']))
+            image_name = device_data['service_details']['service_vendor']
+            image_name = '%s' % image_name.lower()
+        return image_name
 
     def get_network_function_device_sharing_info(self, device_data):
         """ Get filters for NFD sharing
@@ -281,10 +288,13 @@ class OrchestrationDriver(object):
         ):
             raise exceptions.IncompleteData()
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data,
                                  device_data.get('token'))
-        if not self._is_device_sharing_supported():
-            return None
+        #if not self._is_device_sharing_supported():
+            # TODO: check not required
+        #    return None
         return {
                 'filters': {
                     'tenant_id': [device_data['tenant_id']],
@@ -329,10 +339,13 @@ class OrchestrationDriver(object):
         ):
             raise exceptions.IncompleteData()
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data,
                                  device_data.get('token'))
-        if not self._is_device_sharing_supported():
-            return None
+        #if not self._is_device_sharing_supported():
+            # TODO: Is this check required
+        #    return None
 
         hotplug_ports_count = 1  # for provider interface (default)
         if any(port['port_classification'] == nfp_constants.CONSUMER
@@ -395,32 +408,25 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data,
                                  device_data.get('token'))
         try:
             interfaces = self._get_interfaces_for_device_create(
                     device_data,
                     network_handler=network_handler
             )
-        except Exception:
-            LOG.exception(_LE('Failed to get interfaces for device creation'))
+        except Exception as e:
+            LOG.exception(_LE('Failed to get interfaces for device creation Error: %(error)s'), {'error', e})
             return None
         else:
             self._increment_stats_counter('management_interfaces',
                                           by=len(interfaces))
 
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token, for device creation'))
-            self._delete_interfaces(device_data, interfaces,
-                                    network_handler=network_handler)
-            self._decrement_stats_counter('management_interfaces',
-                                          by=len(interfaces))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         if device_data['service_details'].get('image_name'):
             image_name = device_data['service_details']['image_name']
@@ -436,11 +442,11 @@ class OrchestrationDriver(object):
                     token,
                     self._get_admin_tenant_id(token=token),
                     image_name)
-        except Exception:
+        except Exception as e:
             self._increment_stats_counter('image_details_get_failures')
             LOG.error(_LE('Failed to get image id for device creation.'
-                          ' image name: %s')
-                      % (image_name))
+                          ' image name: %s, %s')
+                      % (image_name, e))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -454,6 +460,7 @@ class OrchestrationDriver(object):
                          "service flavor field, using default "
                          "flavor: m1.medium"))
             flavor = 'm1.medium'
+
         interfaces_to_attach = []
         try:
             for interface in interfaces:
@@ -471,10 +478,10 @@ class OrchestrationDriver(object):
                         port_id = network_handler.get_port_id(
                                                         token, port['id'])
                         interfaces_to_attach.append({'port': port_id})
-        except Exception:
+        except Exception as e:
             self._increment_stats_counter('port_details_get_failures')
             LOG.error(_LE('Failed to fetch list of interfaces to attach'
-                          ' for device creation'))
+                ' for device creation %(error)s'), {'error': e})
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -487,10 +494,10 @@ class OrchestrationDriver(object):
                     token, self._get_admin_tenant_id(token=token),
                     image_id, flavor,
                     interfaces_to_attach, instance_name)
-        except Exception:
+        except Exception as e:
             self._increment_stats_counter('instance_launch_failures')
-            LOG.error(_LE('Failed to create %s instance')
-                      % (device_data['service_details']['device_type']))
+            LOG.error(_LE('Failed to create %s instance, Error: %s')
+                      % (device_data['service_details']['device_type'], e))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -508,19 +515,19 @@ class OrchestrationDriver(object):
                      dummy, dummy,
                      dummy) = network_handler.get_port_details(
                                                         token, interface['id'])
-        except Exception:
+        except Exception as e:
             self._increment_stats_counter('port_details_get_failures')
-            LOG.error(_LE('Failed to get management port details'))
+            LOG.error(_LE('Failed to get management port details Error: %(error)s'), {'error': e})
             try:
                 self.compute_handler_nova.delete_instance(
                                             token,
                                             self._get_admin_tenant_id(
                                                                 token=token),
                                             instance_id)
-            except Exception:
+            except Exception as e:
                 self._increment_stats_counter('instance_delete_failures')
-                LOG.error(_LE('Failed to delete %s instance')
-                          % (device_data['service_details']['device_type']))
+                LOG.error(_LE('Failed to delete %s instance, Error: %s')
+                          % (device_data['service_details']['device_type'], e))
             self._decrement_stats_counter('instances')
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
@@ -577,16 +584,13 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data,
                                  device_data.get('token'))
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for device deletion'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         if device_data.get('id'):
             # delete the device instance
@@ -611,8 +615,8 @@ class OrchestrationDriver(object):
                 self._delete_interfaces(device_data,
                                         [device_data['mgmt_port_id']],
                                         network_handler=network_handler)
-            except Exception:
-                LOG.error(_LE('Failed to delete the management data port(s)'))
+            except Exception as e:
+                LOG.error(_LE('Failed to delete the management data port(s): %s' % e))
             else:
                 self._decrement_stats_counter('management_interfaces')
 
@@ -650,15 +654,9 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for get device status'
-                          ' operation'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         try:
             device = self.compute_handler_nova.get_instance(
@@ -719,21 +717,13 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
-                                 device_data.get('token'))
-        if not self.supports_hotplug:
-            # Non hotplug support go here.
-            return True
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for plug interface to device'
-                          ' operation'))
-            return False  # TODO(RPM): should we raise an Exception here?
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data)
         try:
             for port in device_data['ports']:
                 if port['port_classification'] == nfp_constants.PROVIDER:
@@ -763,10 +753,11 @@ class OrchestrationDriver(object):
                                 device_data['id'],
                                 port_id)
                     break
-        except Exception:
+        except Exception as e:
             self._increment_stats_counter('interface_plug_failures')
-            LOG.error(_LE('Failed to plug interface(s) to the device'))
-            return False  # TODO(RPM): should we raise an Exception here?
+            LOG.error(_LE('Failed to plug interface(s) to the device.'
+                          'Error: %(error)s'), {'error': e})
+            return False, []
         else:
             return True
 
@@ -812,21 +803,14 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        self._update_vendor_data(device_data['service_details']['image_name'],
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data,
                                  device_data.get('token'))
-        if not self.supports_hotplug:
-            # Non hotplug support go here.
-            return True
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for unplug interface from'
-                          ' device operation'))
-            return False  # TODO(RPM): should we raise an Exception here?
 
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
         try:
             for port in device_data['ports']:
                 port_id = network_handler.get_port_id(token, port['id'])
@@ -835,10 +819,10 @@ class OrchestrationDriver(object):
                             self._get_admin_tenant_id(token=token),
                             device_data['id'],
                             port_id)
-        except Exception:
+        except Exception as e:
             self._increment_stats_counter('interface_unplug_failures')
-            LOG.error(_LE('Failed to unplug interface(s) from the device'))
-            return False  # TODO(RPM): should we raise an Exception here?
+            LOG.error(_LE('Failed to unplug interface(s) from the device.'
+                           'Error: %(error)s'), {'error': e})
         else:
             return True
 
@@ -934,15 +918,9 @@ class OrchestrationDriver(object):
         ):
             raise exceptions.IncompleteData()
 
-        try:
-            token = (device_data['token']
-                     if device_data.get('token')
-                     else self.identity_handler.get_admin_token())
-        except Exception:
-            self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token'
-                          ' for get device config info operation'))
-            return None
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
 
         provider_ip = None
         provider_mac = None
