@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+mkdir -p /etc/haproxy_agent

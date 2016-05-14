@@ -1,0 +1,9 @@
+Package: haproxy-agent
+Source: haproxy-agent
+Version: 2.5
+Architecture: all
+Maintainer: Yogesh Rajmane <yogesh.rajmane@oneconvergence.com>
+Pre-Depends: python2.7,haproxy,python-eventlet,arping
+Section: python
+Priority: optional
+Description: haproxy-agent agent for lb

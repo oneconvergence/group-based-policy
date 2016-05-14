@@ -21,13 +21,15 @@ function create_nfp_image {
     unset OS_PROJECT_DOMAIN_ID
 
     if [[ $DEVSTACK_MODE = base ]]; then
+
         RefConfiguratorQcow2ImageName=reference_configurator_image
         echo "Building Image: $RefConfiguratorQcow2ImageName"
-        sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/ref_configuratorconf.json
-        RefConfiguratorQcow2Image=$(cat /tmp/nfp_image_path)
+        sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/ref_configurator_conf.json
+        RefConfiguratorQcow2Image=$(cat /tmp/image_path)
         echo "Uploading Image: $RefConfiguratorQcow2ImageName"
         glance image-create --name $RefConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $RefConfiguratorQcow2Image
         openstack --os-cloud=devstack-admin flavor create --ram 512 --disk 3 --vcpus 1 m1.nfp-tiny
+
     else
 
         if [[ $DEVSTACK_MODE = enterprise ]]; then
@@ -36,27 +38,29 @@ function create_nfp_image {
             if [[ $VisibilityQcow2Image = build ]]; then
                 echo "Building Image: $VisibilityQcow2ImageName"
                 sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/visibility_conf.json
-                VisibilityQcow2Image=$(cat /tmp/nfp_image_path)
+                VisibilityQcow2Image=$(cat /tmp/image_path)
             fi
             echo "Uploading Image: $VisibilityQcow2ImageName"
             glance image-create --name $VisibilityQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VisibilityQcow2Image
 
         else
+
             ConfiguratorQcow2ImageName=configurator
             if [[ $ConfiguratorQcow2Image = build ]]; then
                 echo "Building Image: $ConfiguratorQcow2ImageName"
                 sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json
-                ConfiguratorQcow2Image=$(cat /tmp/nfp_image_path)
+                ConfiguratorQcow2Image=$(cat /tmp/image_path)
             fi
             echo "Uploading Image: $ConfiguratorQcow2ImageName"
             glance image-create --name $ConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $ConfiguratorQcow2Image
+
         fi
 
         VyosQcow2ImageName=vyos
         if [[ $VyosQcow2Image = build ]]; then
             echo "Building Image: $VyosQcow2ImageName"
             sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/vyos_conf.json
-            VyosQcow2Image=$(cat /tmp/nfp_image_path)
+            VyosQcow2Image=$(cat /tmp/image_path)
         fi
         echo "Uploading Image: $VyosQcow2ImageName"
         glance image-create --name $VyosQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VyosQcow2Image
@@ -65,10 +69,11 @@ function create_nfp_image {
         if [[ $HaproxyQcow2Image = build ]]; then
             echo "Building Image: $HaproxyQcow2ImageName"
             sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/haproxy_conf.json
-            HaproxyQcow2Image=$(cat /tmp/nfp_image_path)
+            HaproxyQcow2Image=$(cat /tmp/image_path)
         fi
         echo "Uploading Image: $HaproxyQcow2ImageName"
         glance image-create --name $HaproxyQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $HaproxyQcow2Image
+
     fi
 }
 
