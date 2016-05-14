@@ -34,7 +34,7 @@ def parse_json(j_file):
 
 def update_haproxy_repo():
     haproxy_vendor_dir = (cur_dir +
-                          '/../../../../nfp/service_vendor_agents/haproxy')
+                          '/../../../nfp/service_vendor_agents/haproxy')
     
     subprocess.call(['rm', '-rf',
                      haproxy_vendor_dir + '/haproxy-agent/deb-packages'])
