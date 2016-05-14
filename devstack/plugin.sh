@@ -6,7 +6,7 @@ function gbp_configure_nova {
 }
 
 function nfp_configure_nova {
-    iniset $NOVA_CONF DEFAULT instance_usage_audit = True
+    iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
 }
 
 function gbp_configure_heat {
