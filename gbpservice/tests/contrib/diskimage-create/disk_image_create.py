@@ -32,6 +32,31 @@ def parse_json(j_file):
     return
 
 
+def create_apt_source_list():
+    """
+    Creates a file 00-haproxy-agent-debs, this will be executed by dib to
+    create a file haproxy-agent-debs.list file inside VM at /etc/apt/sources.list.d/
+    This file will contain entries for apt to fetch any debs from
+    our local repo
+    """
+    elems = "%s/elements" % cur_dir
+
+    # update repo_host ip in 00-haproxy-agent-debs file
+    # this file will be copied to VM at /etc/apt/sources.list.d/
+    os.chdir("%s/debs/pre-install.d/" % elems)
+    f = open("00-haproxy-agent-debs", 'w')
+    print >> f, "#!/bin/bash\n\n"
+    print >> f, "set -eu"
+    print >> f, "set -o xtrace"
+    print >> f, "apt-get install ubuntu-cloud-keyring"
+
+    if 'haproxy' in conf['dib']['elements']:
+        tmp_str = ('echo "deb http://%s/ /haproxy/"'
+                   ' > /etc/apt/sources.list.d/haproxy-agent-debs.list'
+                   % 'localhost')
+        print >> f, tmp_str
+
+
 def update_haproxy_repo():
     haproxy_vendor_dir = ("%s/../../../nfp/service_vendor_agents/haproxy"
                           % cur_dir)
@@ -96,6 +121,8 @@ def dib():
             os.environ['SERVICE_GIT_PATH'] = service_dir
         if element == 'haproxy':
             image_name = 'haproxy'
+            dib_args.append('debs')
+            create_apt_source_list()
 
     # offline mode, assuming the image cache (tar) already exists
     dib_args.append('--offline')
