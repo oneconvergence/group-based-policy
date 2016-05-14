@@ -858,9 +858,10 @@ class GBPClient(OpenstackApi):
             "policy_target": {
                 "policy_target_group_id": policy_target_group_id,
                 "tenant_id": tenant_id,
-                "name": name,
             }
         }
+        if name:
+            policy_target_info['policy_target'].update({'name': name})
         if port_id:
             policy_target_info["policy_target"]["port_id"] = port_id
 

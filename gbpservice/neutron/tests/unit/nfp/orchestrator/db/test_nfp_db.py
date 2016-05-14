@@ -544,3 +544,35 @@ class NFPDBTestCase(SqlTestCase):
                           self.nfp_db.get_port_info,
                           self.session,
                           mgmt_port_id)
+
+    def create_network_function_device_interface(self, attributes=None):
+        network_function_device = self.create_network_function_device()
+        if not attributes:
+            attributes = {
+                    'name': 'name',
+                    'tenant_id': 'tenant_id',
+                    'plugged_in_port_id': 'plugged_in_port_id',
+                    'interface_position': 2,
+                    'mapped_real_port_id': None,
+                    #'status': 'status',
+                    'network_function_device_id': 'nfd-id'
+            }
+        return self.nfp_db.create_network_function_device_interface(
+            self.session, attributes)
+
+    def test_create_network_function_device_interface(self):
+        network_function_device = self.create_network_function_device()
+        attrs = {
+                    'name': 'name',
+                    'tenant_id': 'tenant_id',
+                    'plugged_in_port_id': 'plugged_in_port_id',
+                    'interface_position': 2,
+                    'mapped_real_port_id': None,
+                    #'status': 'status',
+                    'network_function_device_id': network_function_device['id']
+        }
+        nfd_interface = self.nfp_db.create_network_function_device_interface(
+                                        self.session, attrs)
+        for key in attrs:
+            self.assertEqual(attrs[key], nfd_interface[key])
+        self.assertIsNotNone(nfd_interface['id'])

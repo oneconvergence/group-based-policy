@@ -26,9 +26,16 @@ from gbpservice.nfp.orchestrator.coal.networking import (
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 import ast
+import operator
+
 
 LOG = logging.getLogger(__name__)
 
+
+PROXY_PORT_PREFIX = "opflex_proxy:"
+ADVANCE_SHARING_PTG_NAME="Advance_Sharing_PTG"
+
+NEUTRON_MODE = True
 
 def _set_network_handler(f):
     def wrapped(self, *args, **kwargs):
@@ -66,6 +73,7 @@ class OrchestrationDriver(object):
             nfp_constants.NEUTRON_MODE:
                 nfp_neutron_network_driver.NFPNeutronNetworkDriver(config)
         }
+        self._advance_sharing_network_id = None
 
         # statistics available
         # - instances
@@ -165,6 +173,68 @@ class OrchestrationDriver(object):
 
         network_handler.delete_port(token, interface['id'])
 
+    def _delete_interface(self, device_data, interface,
+                                     network_handler=None):
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
+
+        network_handler.delete_port(token, interface['id'])
+
+
+    def _get_advance_sharing_network_id(self, admin_tenant_id,
+                                        network_handler):
+        if self._advance_sharing_network_id:
+            return self._advance_sharing_network_id
+        filters = {'tenant_id': admin_tenant_id,
+                   'name': ADVANCE_SHARING_PTG_NAME}
+        admin_token = self._get_token(None)
+        if not admin_token:
+            return False
+        sharing_networks = network_handler.get_networks(
+            admin_token, filters=filters)
+        if not sharing_networks:
+            err = ("Found empty network for tenant with"
+                   " ID: %s for advance sharing" % admin_tenant_id)
+            LOG.error(_LE(err))
+            raise Exception(err)
+        elif len(sharing_networks) > 1:
+            err = ("Found more than one network for tenant with"
+                   " ID: %s for advance sharing" % admin_tenant_id)
+            LOG.error(_LE(err))
+            raise Exception(err)
+        else:
+            self._advance_sharing_network_id = sharing_networks[0]['id']
+        return self._advance_sharing_network_id
+
+    def _create_advance_sharing_interfaces(self, device_data,
+                                           network_handler):
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return False
+
+        admin_tenant_id = self._get_admin_tenant_id(token=token)
+        port_infos = []
+        port_model = (nfp_constants.GBP_PORT
+                               if device_data['service_details'][
+                                                        'network_mode'] ==
+                               nfp_constants.GBP_MODE
+                               else nfp_constants.NEUTRON_PORT)
+        advance_sharing_network_id = self._get_advance_sharing_network_id(
+                                                    admin_tenant_id,
+                                                    network_handler)
+        for i in range(self.maximum_interfaces):
+            port = network_handler.create_port(token,
+                                               admin_tenant_id,
+                                               advance_sharing_network_id)
+            port_infos.append({'id': port['id'],
+                'port_model': port_model,
+                'port_classification': nfp_constants.ADVANCE_SHARING,
+                'port_role': None,
+                'plugged_in_pt_id': network_handler.get_port_id(token,
+                                                                port['id'])})
+        return port_infos
+
     def _get_interfaces_for_device_create(self, device_data,
                                           network_handler=None):
         mgmt_interface = self._create_management_interface(
@@ -177,11 +247,18 @@ class OrchestrationDriver(object):
     def _delete_interfaces(self, device_data, interfaces,
                            network_handler=None):
         for interface in interfaces:
-            if interface['port_classification'] == nfp_constants.MANAGEMENT:
+            if (interface.get('port_classification') and
+                    interface['port_classification'] == nfp_constants.MANAGEMENT):
                 self._delete_management_interface(
                         device_data, interface,
                         network_handler=network_handler
                 )
+            else:
+                self._delete_interface(
+                        device_data, interface,
+                        network_handler=network_handler
+                )
+
 
     def _verify_vendor_data(self, image_name, metadata):
         vendor_data = {}
@@ -462,22 +539,38 @@ class OrchestrationDriver(object):
             flavor = 'm1.medium'
 
         interfaces_to_attach = []
+        advance_sharing_interfaces = []
         try:
             for interface in interfaces:
                 port_id = network_handler.get_port_id(token, interface['id'])
                 interfaces_to_attach.append({'port': port_id})
 
+
             if not self.supports_hotplug:
-                for port in device_data['ports']:
-                    if port['port_classification'] == nfp_constants.PROVIDER:
-                        port_id = network_handler.get_port_id(
-                                                        token, port['id'])
+                # TODO: needd to fix this
+                if NEUTRON_MODE:
+                    # TODO: get neutron mode from conf
+                    for port in device_data['ports']:
+                        if port['port_classification'] == nfp_constants.PROVIDER:
+                            port_id = network_handler.get_port_id(
+                                                            token, port['id'])
+                            interfaces_to_attach.append({'port': port_id})
+                    for port in device_data['ports']:
+                        if port['port_classification'] == nfp_constants.CONSUMER:
+                            port_id = network_handler.get_port_id(
+                                                            token, port['id'])
+                            interfaces_to_attach.append({'port': port_id})
+                else:
+                    advance_sharing_interfaces = self._create_advance_sharing_interfaces(
+                                                            device_data,
+                                                            network_handler)
+                    advance_sharing_port_ids = []
+                    for interface in advance_sharing_interfaces:
+                        port_id = network_handler.get_port_id(token, interface['id'])
                         interfaces_to_attach.append({'port': port_id})
-                for port in device_data['ports']:
-                    if port['port_classification'] == nfp_constants.CONSUMER:
-                        port_id = network_handler.get_port_id(
-                                                        token, port['id'])
-                        interfaces_to_attach.append({'port': port_id})
+
+                    interfaces += advance_sharing_interfaces
+
         except Exception as e:
             self._increment_stats_counter('port_details_get_failures')
             LOG.error(_LE('Failed to fetch list of interfaces to attach'
@@ -541,6 +634,7 @@ class OrchestrationDriver(object):
                 'mgmt_port_id': interfaces[0],
                 'max_interfaces': self.maximum_interfaces,
                 'interfaces_in_use': len(interfaces_to_attach),
+                'advance_sharing_interfaces': advance_sharing_interfaces,
                 'description': ''}  # TODO(RPM): what should be the description
 
     @_set_network_handler
@@ -612,9 +706,11 @@ class OrchestrationDriver(object):
         else:
             # device instance deletion is done, delete remaining resources
             try:
+                interfaces = [device_data['mgmt_port_id']]
+                interfaces.extend(device_data['advance_sharing_interfaces'])
                 self._delete_interfaces(device_data,
-                                        [device_data['mgmt_port_id']],
-                                        network_handler=network_handler)
+                                        interfaces,
+                                 network_handler=network_handler)
             except Exception as e:
                 LOG.error(_LE('Failed to delete the management data port(s): %s' % e))
             else:
@@ -723,43 +819,130 @@ class OrchestrationDriver(object):
 
         image_name = self._get_image_name(device_data)
         if image_name:
-            self._update_vendor_data(device_data)
+           self._update_vendor_data(device_data)
+
+        service_type = device_data['service_details']['service_type']
+        data_port_ids = self._get_data_port_ids(token, network_handler,
+                                                device_data['ports'],
+                                                service_type,
+                                                set_promiscous_mode=True)
+        update_ifaces = []
         try:
-            for port in device_data['ports']:
-                if port['port_classification'] == nfp_constants.PROVIDER:
-                    if (
-                        device_data['service_details']['service_type'].lower()
-                        in [nfp_constants.FIREWALL.lower()]
-                    ):
-                        network_handler.set_promiscuos_mode(token, port['id'])
-                    port_id = network_handler.get_port_id(token, port['id'])
+            if not self.supports_hotplug:
+                # configure interfaces instead of hotplug
+                if  not NEUTRON_MODE:
+                    required_ports = len(device_data['ports'])
+                    unused_ifaces = self._get_unused_interfaces(
+                                        device_data['advance_sharing_interfaces'],
+                                        required_ports)
+                    data_port_ids = []
+
+                    for port in device_data['ports']:
+                        if port['port_classification'] == nfp_constants.PROVIDER:
+                            data_port_ids.append(port['id'])
+                            break
+                    for port in device_data['ports']:
+                        if port['port_classification'] == nfp_constants.CONSUMER:
+                            data_port_ids.append(port['id'])
+
+
+                    for data_port_id, iface in zip(data_port_ids, unused_ifaces):
+                        self._update_attached_port_with_data_port(token,
+                                                                  network_handler,
+                                                                  iface,
+                                                                  data_port_id,
+                                                                  stitch=True
+                                                                  )
+                        iface['mapped_real_port_id'] = data_port_id
+                    update_ifaces = unused_ifaces
+                else:
+                    pass
+            else:
+                for data_port_id in data_port_ids:
                     self.compute_handler_nova.attach_interface(
-                                token,
-                                self._get_admin_tenant_id(token=token),
-                                device_data['id'],
-                                port_id)
-                    break
-            for port in device_data['ports']:
-                if port['port_classification'] == nfp_constants.CONSUMER:
-                    if (
-                        device_data['service_details']['service_type'].lower()
-                        in [nfp_constants.FIREWALL.lower()]
-                    ):
-                        network_handler.set_promiscuos_mode(token, port['id'])
-                    port_id = network_handler.get_port_id(token, port['id'])
-                    self.compute_handler_nova.attach_interface(
-                                token,
-                                self._get_admin_tenant_id(token=token),
-                                device_data['id'],
-                                port_id)
-                    break
+                                    token,
+                                    self._get_admin_tenant_id(token=token),
+                                    device_data['id'],
+                                    data_port_id)
         except Exception as e:
             self._increment_stats_counter('interface_plug_failures')
             LOG.error(_LE('Failed to plug interface(s) to the device.'
                           'Error: %(error)s'), {'error': e})
             return False, []
         else:
-            return True
+            return True, update_ifaces
+
+
+    def _update_attached_port_with_data_port(self, token,
+                                                network_handler,
+                                                unused_interface,
+                                                data_port_id,
+                                                stitch=True):
+        if stitch:
+            # configure attached interface pt with real port id,
+            # to specify fabric/controller to stitch these interfaces
+            port_id = network_handler.get_port_id(token, data_port_id)
+            description = "%s%s" % (
+                        PROXY_PORT_PREFIX,
+                        port_id)
+        else:
+            # configure attached interface pt with empty string,
+            # for further reuse of these interfaces
+            description = ''
+        port = {'description': description}
+        network_handler.update_port(token, unused_interface['id'], port)
+
+
+    def _get_unused_interfaces(self, advance_sharing_ifaces, required_ports):
+        # sort the interfaces based on interface position
+        advance_sharing_ifaces.sort(key=operator.itemgetter(
+                                                        'interface_position'))
+        unused_interfaces = []
+        for iface in advance_sharing_ifaces:
+            if not iface['mapped_real_port_id']:
+                current_position = iface['interface_position']
+                unused_interfaces = advance_sharing_ifaces[
+                                        current_position:required_ports]
+                break
+
+        return unused_interfaces
+
+    def _get_used_interfaces(self, advance_sharing_ifaces, data_port_ids):
+        used_interfaces = []
+        for iface in advance_sharing_ifaces:
+            if iface['mapped_real_port_id'] in data_port_ids:
+                used_interfaces.append(iface)
+        return used_interfaces
+
+    def _set_promiscous_mode(self, token, network_handler,
+                             service_type, port_ids):
+        for port_id in port_ids:
+            if (service_type.lower() in [nfp_constants.FIREWALL.lower()]):
+                network_handler.set_promiscuos_mode(token, port_id)
+
+    def _get_data_port_ids(self, token, network_handler, ports, service_type,
+                           set_promiscous_mode=False):
+        # return data_port_ids in sequential format i.e.
+        # provider port_id, then consumer port_id
+        data_port_ids = []
+
+        for port in ports:
+            if port['port_classification'] == nfp_constants.PROVIDER:
+                provider_port_id = network_handler.get_port_id(token,
+                                                               port['id'])
+                data_port_ids.append(provider_port_id)
+                break
+        for port in ports:
+            if port['port_classification'] == nfp_constants.CONSUMER:
+                consumer_port_id = network_handler.get_port_id(token,
+                                                               port['id'])
+                data_port_ids.append(consumer_port_id)
+
+        if set_promiscous_mode:
+            self._set_promiscous_mode(token, network_handler,
+                                      service_type, data_port_ids)
+        return data_port_ids
+
 
     @_set_network_handler
     def unplug_network_function_device_interfaces(self, device_data,
@@ -811,20 +994,55 @@ class OrchestrationDriver(object):
         token = self._get_token(device_data.get('token'))
         if not token:
             return False
+
+        service_type = device_data['service_details']['service_type']
+        data_port_ids = self._get_data_port_ids(token, network_handler,
+                                                device_data['ports'],
+                                                service_type)
+
+        update_ifaces = []
         try:
-            for port in device_data['ports']:
-                port_id = network_handler.get_port_id(token, port['id'])
-                self.compute_handler_nova.detach_interface(
-                            token,
-                            self._get_admin_tenant_id(token=token),
-                            device_data['id'],
-                            port_id)
+            if not self.supports_hotplug:
+                if not NEUTRON_MODE:
+                    used_ifaces = self._get_used_interfaces(
+                                        device_data['advance_sharing_interfaces'],
+                                        data_port_ids)
+                    data_port_ids = []
+
+                    for port in device_data['ports']:
+                        if port['port_classification'] == nfp_constants.PROVIDER:
+                            data_port_ids.append(port['id'])
+                            break
+                    for port in device_data['ports']:
+                        if port['port_classification'] == nfp_constants.CONSUMER:
+                            data_port_ids.append(port['id'])
+
+                    for data_port_id, iface in zip(data_port_ids, used_ifaces):
+                        self._update_attached_port_with_data_port(token,
+                                                                  network_handler,
+                                                                  iface,
+                                                                  data_port_id,
+                                                                  stitch=False
+                                                                  )
+                        iface['mapped_real_port_id'] = ''
+                    update_ifaces = used_ifaces
+                else:
+                    pass
+            else:
+                for port in device_data['ports']:
+                    port_id = network_handler.get_port_id(token, port['id'])
+                    self.compute_handler_nova.detach_interface(
+                                token,
+                                self._get_admin_tenant_id(token=token),
+                                device_data['id'],
+                                port_id)
         except Exception as e:
             self._increment_stats_counter('interface_unplug_failures')
             LOG.error(_LE('Failed to unplug interface(s) from the device.'
                            'Error: %(error)s'), {'error': e})
+            return False, []
         else:
-            return True
+            return True, update_ifaces
 
     def get_network_function_device_healthcheck_info(self, device_data):
         """ Get the health check information for NFD

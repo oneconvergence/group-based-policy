@@ -1060,9 +1060,11 @@ class ServiceOrchestrator(object):
             self.db_session, nfi_id)
         network_function = self.db_handler.get_network_function(
             self.db_session, nfi['network_function_id'])
+        nf_id = network_function['id']
         if not network_function['network_function_instances']:
             self.db_handler.delete_network_function(
                 self.db_session, nfi['network_function_id'])
+        LOG.info(_LI("NSO: Deleted network function: %(nf_id)s"), {'nf_id': nf_id})
             # Inform delete service caller with delete completed RPC
 
     def get_network_function(self, context, network_function_id):
