@@ -312,7 +312,7 @@ function copy_nfp_files_and_start_process {
     run_process proxy "source $NFPSERVICE_DIR/devstack/lib/nfp;namespace_delete $TOP_DIR;namespace_create $TOP_DIR $IpAddr"
     sleep 10
 
-    if [[ $DEVSTACK_MODE == advanced ]]; then
+    if [[ $DEVSTACK_MODE != base ]]; then
         echo "Starting config_orch  >>>> under screen named : config_orch"
         run_process config_orch "sudo /usr/bin/nfp  --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file /opt/stack/logs/nfp_config_orch.log"
     else
