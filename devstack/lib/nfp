@@ -20,6 +20,10 @@ function create_nfp_image {
     unset OS_USER_DOMAIN_ID
     unset OS_PROJECT_DOMAIN_ID
 
+    # during diskimage build, the following setting in apache2 is needed for local repo
+    sudo cp /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-enabled/
+    sudo service apache2 restart
+
     if [[ $DEVSTACK_MODE = base ]]; then
 
         RefConfiguratorQcow2ImageName=reference_configurator_image
@@ -75,6 +79,10 @@ function create_nfp_image {
         glance image-create --name $HaproxyQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $HaproxyQcow2Image
 
     fi
+
+    # restore the apache2 setting that we did above
+    sudo rm /etc/apache2/sites-enabled/000-default.conf
+    sudo service apache2 restart
 }
 
 function init_nfpgbpservice {
