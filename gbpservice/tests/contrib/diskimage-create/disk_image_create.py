@@ -33,27 +33,27 @@ def parse_json(j_file):
 
 
 def update_haproxy_repo():
-    haproxy_vendor_dir = (cur_dir +
-                          '/../../../nfp/service_vendor_agents/haproxy')
-    
+    haproxy_vendor_dir = ("%s/../../../nfp/service_vendor_agents/haproxy"
+                          % cur_dir)
+    service = 'haproxy-agent' 
+    version = '1'
+    release = '1'
     subprocess.call(['rm', '-rf',
-                     haproxy_vendor_dir + '/haproxy-agent/deb-packages'])
+                     "%s/%s/deb-packages" % (haproxy_vendor_dir, service)])
     os.chdir(haproxy_vendor_dir)
     ret = subprocess.call(['bash',
                            'build_haproxy_agent_deb.sh',
-                           'haproxy-agent',
-                           git['tag'], str(git['rel'])])
+                           service,
+                           version, release])
     if(ret):
         print "ERROR: Unable to generate haproxy-agent deb package"
         return 1
 
     subprocess.call(["rm", "-rf", "/var/www/html/haproxy"])
     out = subprocess.call(["mkdir", "-p", "/var/www/html/haproxy/"])
-    haproxy_agent_deb = (haproxy_vendor_dir +
-                   '/haproxy-agent/deb-packages' +
-                   'haproxy-agent-' +
-                   git['tag'] + '-' + str(git['rel']) +
-                   '.deb')
+    haproxy_agent_deb = ("%s/%s/deb-packages/%s-%s-%s.deb"
+                         % (haproxy_vendor_dir, service,
+                            service, version, release) 
     subprocess.call(["cp", haproxy_agent_deb, "/var/www/html/haproxy/"])
 
     os.chdir("/var/www/html")
@@ -66,7 +66,7 @@ def update_haproxy_repo():
 
 def dib():
     dib = conf['dib']
-    elems = cur_dir + '/elements/'
+    elems = "%s/elements/" % cur_dir
 
     # set the elements path in environment variable
     os.environ['ELEMENTS_PATH'] = elems
@@ -91,7 +91,7 @@ def dib():
                 "%s.pub" % os.environ['SSH_RSS_KEY'])
         if element == 'nfp-reference-configurator':
             image_name = 'nfp_reference_service'
-            service_dir = cur_dir + '/../nfp_service/'
+            service_dir = "%s/../nfp_service/" % cur_dir
             service_dir = os.path.realpath(service_dir)
             os.environ['SERVICE_GIT_PATH'] = service_dir
         if element == 'haproxy':
@@ -106,7 +106,7 @@ def dib():
     dib_args.append('--image-size')
     dib_args.append(str(dib['image_size_in_GB']))
     #timestamp = datetime.datetime.now().strftime('%I%M%p-%d-%m-%Y')
-    #image_name = image_name + '_' + timestamp
+    #image_name = "%s_%s" % (image_name, timestamp)
     dib_args.append('-o')
     dib_args.append(str(image_name))
 
@@ -119,7 +119,7 @@ def dib():
 
     ret = subprocess.call(dib_args)
     if not ret:
-        image_path = cur_dir + '/output/' + image_name + '.qcow2'
+        image_path = "%s/output/%s.qcow2" % (cur_dir, image_name)
         print("Image location: %s" % image_path)
         with open("/tmp/image_path", "w") as f:
             f.write(image_path)
