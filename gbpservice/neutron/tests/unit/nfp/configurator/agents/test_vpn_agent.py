@@ -27,11 +27,12 @@ Implements test cases for RPC manager methods of vpn agent
 class VPNaasEventHandlerTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(VPNaasEventHandlerTestCase, self).__init__(*args, **kwargs)
+        self.conf = 'conf'
         self.dict_obj = vpn_test_data.VPNTestData()
         self.handler = vpn.VPNaasEventHandler(self.dict_obj.sc,
                                               self.dict_obj.drivers)
         self.ev = vpn_test_data.FakeEvent()
-        self.driver = vyos_vpn_driver.VpnaasIpsecDriver()
+        self.driver = vyos_vpn_driver.VpnaasIpsecDriver(self.conf)
 
     def test_handle_event(self):
         '''
@@ -46,7 +47,8 @@ class VPNaasEventHandlerTestCase(unittest.TestCase):
                                                     mock_vpnservice_updated):
             self.handler._vpnservice_updated(self.ev, self.driver)
             mock_vpnservice_updated.assert_called_with(self.ev.data['context'],
-                                                       self.ev.data['kwargs'])
+                                                       self.ev.data[
+                                                           'resource_data'])
 
 if __name__ == '__main__':
     unittest.main()
