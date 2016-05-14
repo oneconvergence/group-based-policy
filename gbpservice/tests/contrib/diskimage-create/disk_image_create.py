@@ -53,7 +53,7 @@ def update_haproxy_repo():
     out = subprocess.call(["mkdir", "-p", "/var/www/html/haproxy/"])
     haproxy_agent_deb = ("%s/%s/deb-packages/%s-%s-%s.deb"
                          % (haproxy_vendor_dir, service,
-                            service, version, release) 
+                            service, version, release))
     subprocess.call(["cp", haproxy_agent_deb, "/var/www/html/haproxy/"])
 
     os.chdir("/var/www/html")

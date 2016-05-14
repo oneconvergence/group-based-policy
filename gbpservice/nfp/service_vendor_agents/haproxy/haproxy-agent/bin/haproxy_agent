@@ -1,0 +1,43 @@
+#! /usr/bin/python
+
+import sys
+import optparse
+import ConfigParser
+
+from haproxy_agent import haproxy_agent
+
+
+if __name__ == '__main__':
+    parser = optparse.OptionParser()
+    parser.add_option("-f", "--file",
+                      dest="config_file",
+                      type='string',
+                      help="configuration file absolute path")
+    (options, _) = parser.parse_args()
+    if options.config_file is None:
+        parser.error("Configuration file path must be specified. See --help")
+
+    cfg = ConfigParser.ConfigParser()
+    cfg.read(options.config_file)
+
+    debug = True
+    verbose = False
+
+    if cfg.has_option('DEFAULT', 'debug'):
+        debug = cfg.getboolean('DEFAULT', 'debug')
+    if cfg.has_option('DEFAULT', 'verbose'):
+        verbose = cfg.getboolean('DEFAULT', 'verbose')
+    listen_ip = cfg.get('DEFAULT', 'listen_ip')
+    listen_port = cfg.get('DEFAULT', 'listen_port')
+
+    program_name = sys.argv[0]
+    sys.argv = [program_name,
+                '-i', listen_ip,
+                '-p', listen_port]
+    if debug == True:
+        sys.argv.append('-d')
+    elif verbose == True:
+        sys.argv.append('-v')
+    else:
+        pass
+    haproxy_agent.main(sys.argv)
