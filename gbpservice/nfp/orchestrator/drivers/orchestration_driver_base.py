@@ -885,6 +885,7 @@ class OrchestrationDriver(object):
             description = "%s%s" % (
                         PROXY_PORT_PREFIX,
                         port_id)
+            # TODO: update attached port mac with data port mac.
         else:
             # configure attached interface pt with empty string,
             # for further reuse of these interfaces
