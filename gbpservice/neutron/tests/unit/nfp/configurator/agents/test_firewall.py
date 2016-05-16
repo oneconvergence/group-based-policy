@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import copy
 import mock
 import unittest
 
@@ -74,7 +73,7 @@ class FWaasRpcManagerTestCase(unittest.TestCase):
                                              data=arg_dict, key=None)
             mock_sc_rpc_event.assert_called_with('foo')
 
-    def test_create_firewall_fwaasrpcmanager(self):
+    '''def test_create_firewall_fwaasrpcmanager(self):
         """ Implements test case for create firewall method
         of firewall agent's RPC manager.
 
@@ -102,7 +101,7 @@ class FWaasRpcManagerTestCase(unittest.TestCase):
 
         """
 
-        self._test_event_creation('DELETE_FIREWALL')
+        self._test_event_creation('DELETE_FIREWALL')'''
 
 """ Implements test cases for event handler methods
 of firewall agent.
@@ -114,9 +113,7 @@ class FwaasHandlerTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(FwaasHandlerTestCase, self).__init__(*args, **kwargs)
         self.fo = fo.FakeObjects()
-        self.fo.context['resource'] = 'firewall'
-        self.ev = fo.FakeEvent()
-        self.ev.data['context']['resource'] = 'firewall'
+        self.ev = fo.FakeEventFirewall()
         self.ev.data['context']['agent_info']['resource'] = 'firewall'
 
     @mock.patch(__name__ + '.fo.FakeObjects.rpcmgr')
@@ -135,7 +132,7 @@ class FwaasHandlerTestCase(unittest.TestCase):
 
         with mock.patch.object(cfg, 'CONF') as mock_cfg:
             mock_cfg.configure_mock(host='foo')
-            agent = fw.FWaasEventHandler(sc, drivers, rpcmgr)
+            agent = fw.FWaasEventHandler(sc, drivers, rpcmgr, mock_cfg)
         return agent
 
     def _test_handle_event(self, rule_list_info=True):
@@ -152,7 +149,7 @@ class FwaasHandlerTestCase(unittest.TestCase):
         agent = self._get_FwHandler_objects()
         with mock.patch.object(cfg, 'CONF') as mock_cfg:
             mock_cfg.configure_mock(rest_timeout='30', host='foo')
-            driver = fw_dvr.FwaasDriver()
+            driver = fw_dvr.FwaasDriver(mock_cfg)
 
         with mock.patch.object(
              agent.plugin_rpc, 'set_firewall_status') as (
@@ -177,25 +174,24 @@ class FwaasHandlerTestCase(unittest.TestCase):
                 self.ev.data.get('firewall').update(
                                             {'firewall_rule_list': True})
 
+            agent_info = self.ev.data['context']['agent_info']
             agent.handle_event(self.ev)
-            context = self.fo.fw_context
-            notificaton_context = copy.copy(self.fo.fw_context)
+            context = self.fo.neutron_context
 
             if 'service_info' in self.fo.context:
                 self.fo.context.pop('service_info')
             if not rule_list_info:
-                notificaton_context.pop('context')
                 if self.ev.id == 'CREATE_FIREWALL':
                     mock_set_fw_status.assert_called_with(
-                            notificaton_context,
+                            agent_info,
                             firewall['id'], STATUS_ACTIVE, firewall)
                 elif self.ev.id == 'UPDATE_FIREWALL':
                     mock_set_fw_status.assert_called_with(
-                            notificaton_context,
+                            agent_info,
                             STATUS_ACTIVE, firewall)
                 elif self.ev.id == 'DELETE_FIREWALL':
                     mock_fw_deleted.assert_called_with(
-                            notificaton_context, firewall['id'], firewall)
+                            agent_info, firewall['id'], firewall)
             else:
                 if self.ev.id == 'CREATE_FIREWALL':
                     mock_create_fw.assert_called_with(
