@@ -73,7 +73,7 @@ class FWaasRpcManagerTestCase(unittest.TestCase):
                                              data=arg_dict, key=None)
             mock_sc_rpc_event.assert_called_with('foo')
 
-    '''def test_create_firewall_fwaasrpcmanager(self):
+    def test_create_firewall_fwaasrpcmanager(self):
         """ Implements test case for create firewall method
         of firewall agent's RPC manager.
 
@@ -101,7 +101,7 @@ class FWaasRpcManagerTestCase(unittest.TestCase):
 
         """
 
-        self._test_event_creation('DELETE_FIREWALL')'''
+        self._test_event_creation('DELETE_FIREWALL')
 
 """ Implements test cases for event handler methods
 of firewall agent.
