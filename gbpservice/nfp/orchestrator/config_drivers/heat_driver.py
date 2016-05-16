@@ -90,6 +90,7 @@ APIC_OWNED_RES = 'apic_owned_res_'
 LOG = logging.getLogger(__name__)
 nfp_log.use_nfp_logging('LOG')
 
+
 @nfp_log.patch_class
 class HeatDriver(object):
     @nfp_log.patch_method

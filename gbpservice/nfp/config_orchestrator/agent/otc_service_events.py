@@ -132,6 +132,6 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                 return STOP_POLLING
             else:
                 return CONTINUE_POLLING
-        except Exception as e :
-            LOG(LOGGER, 'ERROR', '%s' %(e))
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', '%s' % (e))
             return STOP_POLLING

@@ -174,7 +174,7 @@ class FirewallNotifier(object):
         self._sc.post_event(ev)
 
     def _prepare_request_data(self, context,
-                              nf_id,  resource_id,
+                              nf_id, resource_id,
                               fw_mac, service_type):
         request_data = None
         try:
