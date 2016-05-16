@@ -25,7 +25,9 @@ from gbpservice.nfp.orchestrator.coal.networking import (
 )
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
-LOG = logging.getLogger(__name__)
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
+#LOG = logging.getLogger(__name__)
 
 
 def _set_network_handler(f):

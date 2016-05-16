@@ -21,7 +21,10 @@ from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.orchestrator.db import common_db_mixin
 from gbpservice.nfp.orchestrator.db import nfp_db_model
 
-LOG = logging.getLogger(__name__)
+#LOG = logging.getLogger(__name__)
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
+
 
 
 class NFPDbBase(common_db_mixin.CommonDbMixin):

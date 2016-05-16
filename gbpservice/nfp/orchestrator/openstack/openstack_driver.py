@@ -18,17 +18,15 @@ from keystoneclient.v3 import client as keyclientv3
 from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 
-from gbpservice.nfp.core import log as nfp_log
+#LOG = logging.getLogger(__name__)
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
 
-LOG = logging.getLogger(__name__)
-nfp_log.use_nfp_logging('LOG')
 
 
-@nfp_log.patch_class
 class OpenstackApi(object):
     """Initializes common attributes for openstack client drivers."""
 
-    @nfp_log.patch_method
     def __init__(self, config, username=None,
                  password=None, tenant_name=None):
         self.nova_version = '2'
@@ -49,11 +47,9 @@ class OpenstackApi(object):
         self.token = None
 
 
-@nfp_log.patch_class
 class KeystoneClient(OpenstackApi):
     """ Keystone Client Apis for orchestrator. """
 
-    @nfp_log.patch_method
     def get_keystone_creds(self):
         keystone_conf = self.config.keystone_authtoken
         user = keystone_conf.admin_user
@@ -63,7 +59,6 @@ class KeystoneClient(OpenstackApi):
 
         return user, pw, tenant, auth_url
 
-    @nfp_log.patch_method
     def get_admin_token(self):
         try:
             admin_token = self.get_scoped_keystone_token(
@@ -77,7 +72,6 @@ class KeystoneClient(OpenstackApi):
 
         return admin_token
 
-    @nfp_log.patch_method
     def get_scoped_keystone_token(self, user, password, tenant_name,
                                   tenant_id=None):
         """ Get a scoped token from Openstack Keystone service.
@@ -113,7 +107,6 @@ class KeystoneClient(OpenstackApi):
         else:
             return scoped_token
 
-    @nfp_log.patch_method
     def get_tenant_id(self, token, tenant_name):
         """ Get the tenant UUID associated to tenant name
 
@@ -137,7 +130,6 @@ class KeystoneClient(OpenstackApi):
         LOG.error(err)
         raise Exception(err)
 
-    @nfp_log.patch_method
     def _get_v2_keystone_admin_client(self):
         """ Returns keystone v2 client with admin credentials
             Using this client one can perform CRUD operations over
@@ -154,7 +146,6 @@ class KeystoneClient(OpenstackApi):
 
         return v2client
 
-    @nfp_log.patch_method
     def _get_v3_keystone_admin_client(self):
         """ Returns keystone v3 client with admin credentials
             Using this client one can perform CRUD operations over
@@ -172,11 +163,9 @@ class KeystoneClient(OpenstackApi):
         return v3client
 
 
-@nfp_log.patch_class
 class NovaClient(OpenstackApi):
     """ Nova Client Api driver. """
 
-    @nfp_log.patch_method
     def get_image_id(self, token, tenant_id, image_name):
         """ Get the image UUID associated to image name
 
@@ -198,7 +187,6 @@ class NovaClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_flavor_id(self, token, tenant_id, flavor_name):
         """ Get the flavor UUID associated to flavor name
 
@@ -220,7 +208,6 @@ class NovaClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_instance(self, token, tenant_id, instance_id):
         """ Get instance details
 
@@ -247,7 +234,6 @@ class NovaClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_keypair(self, token, tenant_id, keypair_name):
         """ Get Nova keypair details
 
@@ -272,7 +258,6 @@ class NovaClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def attach_interface(self, token, tenant_id, instance_id, port_id):
         """ Attaches a port to already created instance
         :param token: A scoped token
@@ -293,7 +278,6 @@ class NovaClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def detach_interface(self, token, tenant_id, instance_id, port_id):
         """ Detaches a port to already created instance
         :param token: A scoped token
@@ -313,7 +297,6 @@ class NovaClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def delete_instance(self, token, tenant_id, instance_id):
         """ Delete the instance
 
@@ -333,7 +316,6 @@ class NovaClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_instances(self, token, filters=None):
         """ List instances
 
@@ -368,7 +350,6 @@ class NovaClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def create_instance(self, token, tenant_id, image_id, flavor,
                         nw_port_id_list, name, secgroup_name=None,
                         metadata=None, files=None, config_drive=False,
@@ -445,11 +426,9 @@ class NovaClient(OpenstackApi):
             raise Exception(err)
 
 
-@nfp_log.patch_class
 class NeutronClient(OpenstackApi):
     """ Neutron Client Api Driver. """
 
-    @nfp_log.patch_method
     def get_floating_ip(self, token, floatingip_id):
         """ Get floatingip details
 
@@ -470,7 +449,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_floating_ips(self, token, tenant_id=None, port_id=None):
         """ Get list of floatingips, associated with port if passed"""
         try:
@@ -487,7 +465,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_port(self, token, port_id):
         """ Get port details
 
@@ -507,7 +484,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_ports(self, token, filters=None):
         """ List Ports
 
@@ -530,7 +506,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_subnets(self, token, filters=None):
         """ List subnets
 
@@ -553,7 +528,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_subnet(self, token, subnet_id):
         """ Get subnet details
         :param token: A scoped_token
@@ -571,7 +545,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def delete_floatingip(self, token, floatingip_id):
         """ Delete the floatingip
         :param token: A scoped token
@@ -589,7 +562,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def update_port(self, token, port_id, **kwargs):
         """
         :param token:
@@ -610,7 +582,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_floating_ips_for_ports(self, token, **kwargs):
         """
         :param self:
@@ -628,7 +599,6 @@ class NeutronClient(OpenstackApi):
         except Exception as ex:
             raise Exception(ex)
 
-    @nfp_log.patch_method
     def _update_floatingip(self, token, floatingip_id, data):
         """ Update the floatingip
         :param token: A scoped token
@@ -646,7 +616,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def disassociate_floating_ip(self, token, floatingip_id):
         """
         :param self:
@@ -662,7 +631,6 @@ class NeutronClient(OpenstackApi):
         LOG.debug("Successfully disassociated floatingip %s"
                   % floatingip_id)
 
-    @nfp_log.patch_method
     def associate_floating_ip(self, token, floatingip_id, port_id):
         """
         :param self:
@@ -680,7 +648,6 @@ class NeutronClient(OpenstackApi):
         LOG.debug("Successfully associated floatingip %s"
                   % floatingip_id)
 
-    @nfp_log.patch_method
     def list_ports(self, token, port_ids=None, **kwargs):
         """
         :param token:
@@ -699,7 +666,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def list_subnets(self, token, subnet_ids=None, **kwargs):
         """
         :param token:
@@ -718,7 +684,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def create_port(self, token, tenant_id, net_id, attrs=None):
 
         attr = {
@@ -739,7 +704,6 @@ class NeutronClient(OpenstackApi):
             raise Exception("Port creation failed in network: %r of tenant: %r"
                             " Error: %s" % (net_id, tenant_id, ex))
 
-    @nfp_log.patch_method
     def delete_port(self, token, port_id):
         """
         :param token:
@@ -756,7 +720,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_pools(self, token, filters=None):
         """ List Pools
 
@@ -779,7 +742,6 @@ class NeutronClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_vip(self, token, vip_id):
         """ Get vip details
 
@@ -800,11 +762,9 @@ class NeutronClient(OpenstackApi):
             raise Exception(err)
 
 
-@nfp_log.patch_class
 class GBPClient(OpenstackApi):
     """ GBP Client Api Driver. """
 
-    @nfp_log.patch_method
     def get_policy_target_groups(self, token, filters=None):
         """ List Policy Target Groups
 
@@ -827,7 +787,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_policy_target_group(self, token, ptg_id, filters=None):
         """
         :param token: A scoped token
@@ -848,7 +807,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def update_policy_target_group(self, token, ptg_id,
                                    policy_target_group_info):
         """ Updates a GBP Policy Target Group
@@ -862,13 +820,12 @@ class GBPClient(OpenstackApi):
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
             return gbp.update_policy_target_group(
-                ptg_id, body=policy_target_group_info)['policy_target_group']
+                        ptg_id, body=policy_target_group_info)['policy_target_group']
         except Exception as ex:
             err = ("Failed to update policy target group. Error :: %s" % (ex))
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def create_policy_target(self, token, tenant_id,
                              policy_target_group_id, name, port_id=None):
         """ Creates a GBP Policy Target
@@ -902,7 +859,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def delete_policy_target(self, token, policy_target_id):
         """ Delete the GBP policy_target
         :param token: A scoped token
@@ -920,7 +876,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def delete_policy_target_group(self, token, policy_target_group_id):
         """ Delete the GBP policy_target group
         :param token: A scoped token
@@ -937,7 +892,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def update_policy_target(self, token, policy_target_id, updated_pt):
         """ Update the Policy Target
         :param token: A scoped token
@@ -962,7 +916,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def create_policy_target_group(self, token, tenant_id, name,
                                    l2_policy_id=None):
         """ Creates a GBP Policy Target Group
@@ -995,7 +948,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def create_l2_policy(self, token, tenant_id, name, l3_policy_id=None):
 
         l2_policy_info = {
@@ -1017,7 +969,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def delete_l2_policy(self, token, l2policy_id):
         """
         :param token:
@@ -1036,7 +987,6 @@ class GBPClient(OpenstackApi):
 
     # NOTE: The plural form in the function name is needed in that way
     # to construct the function generically
-    @nfp_log.patch_method
     def get_l2_policys(self, token, filters=None):
         """ List L2 policies
 
@@ -1057,7 +1007,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_l2_policy(self, token, policy_id, filters=None):
         """ List L2 policies
 
@@ -1082,7 +1031,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def create_network_service_policy(self, token,
                                       network_service_policy_info):
 
@@ -1090,14 +1038,13 @@ class GBPClient(OpenstackApi):
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
             return gbp.create_network_service_policy(
-                body=network_service_policy_info)['network_service_policy']
+                    body=network_service_policy_info)['network_service_policy']
         except Exception as ex:
             err = ("Failed to create network service policy "
                    "Error :: %s" % (ex))
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_network_service_policies(self, token, filters=None):
         """ List network service policies
 
@@ -1113,13 +1060,12 @@ class GBPClient(OpenstackApi):
                                     endpoint_url=self.network_service)
             filters = filters if filters is not None else {}
             return gbp.list_network_service_policies(**filters)[
-                'network_service_policies']
+                                                    'network_service_policies']
         except Exception as ex:
             err = ("Failed to list network service policies. Reason %s" % ex)
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_external_policies(self, token, filters=None):
         """ List external policies
 
@@ -1140,7 +1086,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_policy_rule_sets(self, token, filters=None):
         """ List policy rule sets
 
@@ -1161,7 +1106,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_policy_actions(self, token, filters=None):
         """ List policy actions
 
@@ -1182,7 +1126,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_policy_rules(self, token, filters=None):
         """ List policy rules
 
@@ -1203,7 +1146,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def create_l3_policy(self, token, l3_policy_info):  # tenant_id, name):
 
         try:
@@ -1217,7 +1159,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_l3_policy(self, token, policy_id, filters=None):
         """ List L3 policies
 
@@ -1241,7 +1182,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_l3_policies(self, token, filters=None):
         """ List L3 policies
 
@@ -1262,7 +1202,6 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_policy_targets(self, token, filters=None):
         """ List Policy Targets
 
@@ -1284,12 +1223,10 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def list_pt(self, token, filters=None):
         filters = filters if filters is not None else {}
         return self.get_policy_targets(token, filters=filters)
 
-    @nfp_log.patch_method
     def get_policy_target(self, token, pt_id, filters=None):
         try:
             gbp = gbp_client.Client(token=token,
@@ -1304,21 +1241,18 @@ class GBPClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
-    @nfp_log.patch_method
     def get_service_profile(self, token, service_profile_id):
         gbp = gbp_client.Client(token=token,
                                 endpoint_url=self.network_service)
         return gbp.show_service_profile(service_profile_id)['service_profile']
 
-    @nfp_log.patch_method
     def get_servicechain_node(self, token, node_id):
         gbp = gbp_client.Client(token=token,
                                 endpoint_url=self.network_service)
         return gbp.show_servicechain_node(node_id)['servicechain_node']
 
-    @nfp_log.patch_method
     def get_servicechain_instance(self, token, instance_id):
         gbp = gbp_client.Client(token=token,
                                 endpoint_url=self.network_service)
         return gbp.show_servicechain_instance(instance_id)[
-            'servicechain_instance']
+                                                    'servicechain_instance']
