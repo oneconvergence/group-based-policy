@@ -51,8 +51,6 @@ def _set_network_handler(f):
 class OrchestrationDriver(object):
     """Generic Driver class for orchestration of virtual appliances
 
-    Does not support sharing of virtual appliance for different chains
-    Does not support hotplugging interface to devices
     Launches the VM with all the management and data ports and a new VM
     is launched for each Network Service Instance
     """

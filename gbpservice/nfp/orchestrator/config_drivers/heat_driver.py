@@ -676,7 +676,6 @@ class HeatDriver(object):
             LOG.error(_LE("No provider cidr availabale"))
             return None, None
         service_type = service_profile['service_type']
-        # service_vendor = service_profile['service_flavor']
         service_details = transport.parse_service_flavor_string(
             service_profile['service_flavor'])
         base_mode_support = (True if service_details['device_type'] == 'None'
