@@ -10,7 +10,7 @@ class NfpLogMeta(object):
         self.event = kwargs.get('event', '')
 
     def emit(self):
-        return "[event=%s, log_meta_id=%s]" % (self.event, self.meta_id)
+        return "[log_meta_id=%s]" % (self.meta_id)
 
     def to_dict(self):
         return {'meta_id': self.meta_id,
