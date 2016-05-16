@@ -1,10 +1,4 @@
 {
-    "git":
-        {
-            "username": "xxxx",
-            "password": "yyyy",
-            "git_path_visibility": "/home/stack/visibility"
-        },
     "dib":
         {
             "image_size_in_GB": 10,

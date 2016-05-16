@@ -3,7 +3,8 @@
         {
             "image_size_in_GB": 3,
             "cache_path": "~/.cache/image-create",
-            "elements": ["configurator"]
+            "elements": ["configurator", "root-passwd"],
+            "root_password": "oc@sc!23;)"
         },
     "ubuntu_release":
         {

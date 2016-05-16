@@ -13,6 +13,18 @@ echo "TOP-DIR-NFP : $PWD"
 function prepare_nfp_image_builder {
     sudo -H -E pip install -r $DISK_IMAGE_DIR/diskimage-create/requirements.txt
     sudo apt-get install -y --force-yes qemu-utils
+    if [[ $DEVSTACK_MODE != base ]]; then
+        # TODO: read it form diskimage-create conf.json
+        DIB_RELEASE=wily
+        sudo apt-get -y --force-yes install apt-transport-https ca-certificates
+        sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+        sudo rm /etc/apt/sources.list.d/docker.list
+        echo "deb https://apt.dockerproject.org/repo ubuntu-$DIB_RELEASE main" | sudo tee /etc/apt/sources.list.d/docker.list
+        sudo apt-get update
+        sudo apt-get purge lxc-docker
+        sudo apt-get -y --force-yes install linux-image-extra-$(uname -r)
+        sudo apt-get -y --force-yes install docker-engine
+    fi
 }
 
 function create_nfp_image {
@@ -37,6 +49,11 @@ function create_nfp_image {
     else
 
         if [[ $DEVSTACK_MODE = enterprise ]]; then
+
+            # prepare visibility source, this is needed for diskimage build
+            sudo cd /home/stack/
+            sudo rm -rf visibility
+            sudo git clone https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git -b $GIT_BRANCH
 
             VisibilityQcow2ImageName=visibility
             if [[ $VisibilityQcow2Image = build ]]; then
