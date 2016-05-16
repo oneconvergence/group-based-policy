@@ -402,7 +402,7 @@ function configure_visibility_user_data {
  
     CUR_DIR=$PWD
     sudo rm -rf /opt/visibility_user_data
-    sudo cp -r $TOP_DIR/gbp/devstack/exercises/nfp_service/user-data/visibility_user_data /opt/.
+    sudo cp -r $DEST/gbp/devstack/exercises/nfp_service/user-data/visibility_user_data /opt/.
     cd /opt
     sudo rm -rf my.key my.key.pub
     visibility_vm_ip=$1
