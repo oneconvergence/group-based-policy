@@ -822,15 +822,17 @@ class HeatDriver(object):
                                   "disassociated Manually"))
                     return None, None
                 for fip in floatingips:
-                    if consumer_port['fixed_ips'][0]['ip_address'] == fip['fixed_ip_address']:
+                    if (consumer_port['fixed_ips'][0]['ip_address'] ==
+                            fip['fixed_ip_address']):
                         stitching_port_fip = fip['floating_ip_address']
 
+                service_vendor = service_details['service_vendor']
                 desc = ('fip=' + mgmt_ip +
                         ";tunnel_local_cidr=" +
                         provider_cidr + ";user_access_ip=" +
                         stitching_port_fip + ";fixed_ip=" +
                         consumer_port['fixed_ips'][0]['ip_address'] +
-                        ';service_vendor=' + service_details['service_vendor'] +
+                        ';service_vendor=' + service_vendor +
                         ';stitching_cidr=' + stitching_cidr +
                         ';stitching_gateway=' + stitching_subnet[
                             'gateway_ip'] +
