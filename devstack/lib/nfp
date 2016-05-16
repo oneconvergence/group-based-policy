@@ -42,7 +42,7 @@ function create_nfp_image {
         if [[ $DEVSTACK_MODE = enterprise ]]; then
 
             # prepare visibility source, this is needed for diskimage build
-            sudo cd /home/stack/
+            cd /home/stack/
             sudo rm -rf visibility
             sudo git clone https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git -b $VISIBILITY_GIT_BRANCH
 
