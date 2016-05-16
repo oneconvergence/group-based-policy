@@ -546,7 +546,6 @@ class NFPDBTestCase(SqlTestCase):
                           mgmt_port_id)
 
     def create_network_function_device_interface(self, attributes=None):
-        network_function_device = self.create_network_function_device()
         if not attributes:
             attributes = {
                     'name': 'name',

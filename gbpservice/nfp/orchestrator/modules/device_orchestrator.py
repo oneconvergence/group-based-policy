@@ -321,25 +321,12 @@ class DeviceOrchestrator(PollEventDesc):
         nfd_interfaces = []
         port_infos = []
         for position, interface in enumerate(interfaces_infos):
-            iface = {}
-            port_info = {}
-            port_info['id'] = interface['id']
-            port_info['port_model'] = interface.get('port_model')
-            port_info['port_classification'] = interface.get('port_classification')
-            port_info['port_role'] = interface.get('port_role')
-            #port_infos.append(self.nsf_db.create_port_info(self.db_session,
-            #                                          port_info))
-            iface['id'] = interface['id']
-            iface['tenant_id'] = device['tenant_id']
-            iface['plugged_in_port_id'] = interface['plugged_in_pt_id']
-            iface['interface_position'] = position
-            iface['mapped_real_port_id'] = None
-            iface['network_function_device_id'] = device['id']
+            interface['network_function_device_id'] = device['id']
             interface['interface_position'] = position
             interface['tenant_id'] = device['tenant_id']
             nfd_interfaces.append(
                     self.nsf_db.create_network_function_device_interface(
-                                self.db_session, iface, interface)
+                                self.db_session, interface)
                                   )
             LOG.debug("Created following entries in port_infos table : %s, "
                   " network function device interfaces table: %s." %
@@ -355,11 +342,9 @@ class DeviceOrchestrator(PollEventDesc):
         return network_function_device_interfaces
 
     def _update_advance_sharing_interfaces(self, device, nfd_ifaces):
-        print 'device, nfd_ifaces = ', device, nfd_ifaces
         for nfd_iface in nfd_ifaces:
             for port in device['ports']:
                 if port['id'] == nfd_iface['mapped_real_port_id']:
-                    print 'matched = ', port
                     mapped_real_port = port
                     self.nsf_db.update_network_function_device_interface(
                                                 self.db_session,
@@ -678,7 +663,7 @@ class DeviceOrchestrator(PollEventDesc):
         if _ifaces_plugged_in:
             if advance_sharing_ifaces:
                 self._update_advance_sharing_interfaces(
-                                            device, 
+                                            device,
                                             advance_sharing_ifaces)
             self._increment_device_interface_count(device)
             self._create_event(event_id='CONFIGURE_DEVICE',

@@ -187,8 +187,8 @@ class NetworkFunctionDevice(BASE, HasId, HasTenant, HasStatusDescription):
     reference_count = sa.Column(sa.Integer(), nullable=False)
     interfaces_in_use = sa.Column(sa.Integer(), nullable=False)
 
-class NetworkFunctionDeviceInterface(BASE, HasId, HasTenant,
-                                     ):
+
+class NetworkFunctionDeviceInterface(BASE, HasId, HasTenant,):
     """Represents the Network Function Device"""
     __tablename__ = 'nfp_network_function_device_interfaces'
 
@@ -198,11 +198,11 @@ class NetworkFunctionDeviceInterface(BASE, HasId, HasTenant,
                                    nullable=True)
     interface_position = sa.Column(sa.Integer(), nullable=False)
     mapped_real_port_id = sa.Column(sa.String(36),
-                                   sa.ForeignKey('nfp_port_infos.id',
-                                                 ondelete= 'SET NULL'),
-                                   nullable=True)
+                                    sa.ForeignKey('nfp_port_infos.id',
+                                                  ondelete= 'SET NULL'),
+                                    nullable=True)
     network_function_device_id = sa.Column(
         sa.String(36),
         sa.ForeignKey('nfp_network_function_devices.id',
-                       ondelete='SET NULL'),
+                      ondelete='SET NULL'),
         nullable=False)

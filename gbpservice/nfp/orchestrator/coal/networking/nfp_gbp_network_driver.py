@@ -37,7 +37,7 @@ class NFPGBPNetworkDriver(neutron_nd.NFPNeutronNetworkDriver):
         pt = self.network_handler.get_policy_target(token, port_id)
         return pt['port_id']
 
-    def update_port(self, token, port_id, port={}):
+    def update_port(self, token, port_id, port):
         pt = self.network_handler.update_policy_target(token, port_id,
                                                        port)
         return pt['port_id']
