@@ -17,7 +17,6 @@ from neutron import context as n_context
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 import oslo_messaging
-from oslo_serialization import jsonutils
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
