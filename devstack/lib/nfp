@@ -14,7 +14,7 @@ function prepare_nfp_image_builder {
     sudo -H -E pip install -r $DISK_IMAGE_DIR/diskimage-create/requirements.txt
     sudo apt-get install -y --force-yes qemu-utils
     if [[ $DEVSTACK_MODE != base ]]; then
-        sudo wget -qO- https://get.docker.com/ | sh
+        sudo wget -qO- https://get.docker.com/ | bash
     fi
 }
 
