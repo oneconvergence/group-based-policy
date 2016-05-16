@@ -40,8 +40,7 @@ def create_visibility_docker():
     '''
 
     vis_dir = '/home/stack/visibility'
-
-    docker_images = '/home/stack/docker_images/'
+    docker_images = "%s/output/docker_images/" % cur_dir
     if not os.path.exists(docker_images):
         os.makedirs(docker_images)
 
@@ -71,7 +70,7 @@ def create_visibility_docker():
 
 def create_configurator_docker():
     configurator_dir = "%s/../../../nfp/configurator" % cur_dir
-    docker_images = '/home/stack/docker_images/'
+    docker_images = "%s/output/docker_images/" % cur_dir
     if not os.path.exists(docker_images):
         os.makedirs(docker_images)
  
