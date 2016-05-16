@@ -72,7 +72,7 @@ class NfpLogMeta(object):
 
     def emit(self):
         if self.meta_id != '':
-            return "[LogMetaid: %s]" % (self.meta_id)
+            return "[LogMetaID:%s]" % (self.meta_id)
         return ''
 
     def to_dict(self):
@@ -90,9 +90,10 @@ class NfpLogger(object):
 
     def _prep_log_str(self, message, largs, meta):
         message = message % (largs)
-        if isinstance(meta.log_meta, dict):
-            meta.log_meta = NfpLogMeta(**(meta.log_meta))
-        _prefix = meta.log_meta.emit()
+        try:
+            _prefix = meta.log_meta.emit()
+        except Exception:
+            _prefix = ''
         return "%s - %s" % (_prefix, message)
 
     def debug(self, message, largs={}, meta={}):
