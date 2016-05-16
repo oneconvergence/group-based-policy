@@ -25,64 +25,41 @@ class SchemaResources(object):
     resource_interfaces = 'interfaces'
     resource_routes = 'routes'
 
-    request_data = {'info': {'version': 'v1'},
+    request_data = {'info': {'context': "",
+                             'service_type': "",
+                             'service_vendor': ""},
                     'config': [{'resource': resource_healthmonitor,
-                                'kwargs': {}
+                                'resource_data': {}
                                 }]
                     }
 
-    request_data_info = {'version': 'v1'}
+    request_data_info = {'context': "",
+                         'service_type': "",
+                         'service_vendor': ""}
 
     request_data_config = {'resource': resource_healthmonitor,
-                           'kwargs': {}
+                           'resource_data': {}
                            }
 
-    interfaces = {'context': {},
-                  'request_info': {},
-                  'vm_mgmt_ip': '127.0.0.1',
-                  'service_vendor': 'vyos',
+    interfaces = {'mgmt_ip': '127.0.0.1',
                   'provider_ip': '11.0.0.4',
                   'provider_cidr': '11.0.0.0/24',
-                  'provider_interface_position': '2',
+                  'provider_interface_index': '2',
                   'stitching_ip': '33.0.0.4',
                   'stitching_cidr': '33.0.0.0/24',
-                  'stitching_interface_position': '3',
+                  'stitching_interface_index': '3',
                   'provider_mac': 'e1:6d:af:23:b8:91',
                   'stitching_mac': 'e1:6d:af:23:b8:11',
-                  'rule_info': {'active_provider_mac': 'e1:6d:af:23:b8:91',
-                                'active_stitching_mac': 'e1:6d:af:23:b8:11',
-                                'active_fip': '192.168.100.141',
-                                'service_id':
-                                    '6350c0fd-07f8-46ff-b797-62acd2371234',
-                                'tenant_id':
-                                    '9950c088-07f8-46ff-b797-62acd2371234'
-                                },
-                  'service_type': 'firewall'
                   }
 
-    interfaces_rule_info = {'active_provider_mac': 'e1:6d:af:23:b8:91',
-                            'active_stitching_mac': 'e1:6d:af:23:b8:11',
-                            'active_fip': '192.168.100.141',
-                            'service_id':
-                                '6350c0fd-07f8-46ff-b797-62acd2371234',
-                            'tenant_id': '9950c088-07f8-46ff-b797-62acd2371234'
-                            }
-
-    routes = {'context': {},
-              'request_info': {},
-              'vm_mgmt_ip': '127.0.0.1',
-              'service_vendor': 'vyos',
+    routes = {'mgmt_ip': '127.0.0.1',
               'source_cidrs': '11.0.0.0/24',
               'destination_cidr': '22.0.0.0/24',
               'gateway_ip': '11.0.0.1',
-              'provider_interface_position': '2',
-              'service_type': 'firewall',
+              'provider_interface_index': '2',
               }
 
-    healthmonitor = {'context': {},
-                     'request_info': {},
-                     'service_type': 'loadbalancer',
-                     'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
+    healthmonitor = {'vmid': '6350c0fd-07f8-46ff-b797-62acd2371234',
                      'mgmt_ip': '127.0.0.1',
                      'periodicity': 'initial'
                      }
@@ -109,9 +86,11 @@ class TestSchemaValidator(unittest.TestCase):
 
         """
 
-        request_data = {'info': {'version': 'v1'},
+        request_data = {'info': {'context': "",
+                                 'service_type': "",
+                                 'service_vendor': ""},
                         'config': [{'resource': resource,
-                                    'kwargs': kwargs
+                                    'resource_data': kwargs
                                     }]
                         }
         return request_data
@@ -148,14 +127,6 @@ class TestSchemaValidator(unittest.TestCase):
                                          schema.interfaces)
         self.assertTrue(result)
 
-    def test_validate_schema_for_interfaces_rule_info(self):
-        """Test case to test validate_schema() of schema_validator.py for
-           'interfaces_rule_info' schema
-        """
-        result = self.sv.validate_schema(self.sr.interfaces_rule_info,
-                                         schema.interfaces_rule_info)
-        self.assertTrue(result)
-
     def test_validate_schema_for_routes(self):
         """Test case to test validate_schema() of schema_validator.py for
            'routes' schema
@@ -178,7 +149,7 @@ class TestSchemaValidator(unittest.TestCase):
         """
         request_data = self.make_request_data(self.sr.resource_interfaces,
                                               self.sr.interfaces)
-        result = self.sv.decode(request_data)
+        result = self.sv.decode(request_data, True)
         self.assertTrue(result)
 
     def test_decode_for_routes(self):
@@ -187,7 +158,7 @@ class TestSchemaValidator(unittest.TestCase):
         """
         request_data = self.make_request_data(self.sr.resource_routes,
                                               self.sr.routes)
-        result = self.sv.decode(request_data)
+        result = self.sv.decode(request_data, True)
         self.assertTrue(result)
 
     def test_decode_for_healthmonitor(self):
@@ -196,7 +167,7 @@ class TestSchemaValidator(unittest.TestCase):
         """
         request_data = self.make_request_data(self.sr.resource_healthmonitor,
                                               self.sr.healthmonitor)
-        result = self.sv.decode(request_data)
+        result = self.sv.decode(request_data, True)
         self.assertTrue(result)
 
     def test_decode_for_neutron_apis(self):
@@ -205,7 +176,7 @@ class TestSchemaValidator(unittest.TestCase):
         request_data = self.make_request_data('firewall',
                                               {})
         request_data['info']['service_type'] = 'firewall'
-        result = self.sv.decode(request_data)
+        result = self.sv.decode(request_data, False)
         self.assertTrue(result)
 
 if __name__ == '__main__':
