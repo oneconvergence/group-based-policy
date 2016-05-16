@@ -522,7 +522,8 @@ class ServiceOrchestrator(object):
                     ev = self._controller.new_event(id=event_id,
                                                     data=event_data,
                                                     context=(
-                                                        self.log_meta.to_dict()))
+                                                        self.log_meta.
+                                                        to_dict()))
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
@@ -648,6 +649,17 @@ class ServiceOrchestrator(object):
                                  service_config,
                                  operation='policy_target_remove')
 
+    def _report_logging_info(self, nf, nfi, service_type,
+                             service_vendor):
+        LOG.info("[TenantID:%s, ServiceChainID:%s, "
+                 "ServiceInstanceID:%s, ServiceType:%s, "
+                 "ServiceProvider: %s]" % (
+                     nf['tenant_id'],
+                     nf['service_chain_id'],
+                     nfi['id'],
+                     service_type,
+                     service_vendor))
+
     @nfp_log.patch_method
     def create_network_function(self, context, network_function_info):
         self._validate_create_service_input(context, network_function_info)
@@ -753,6 +765,7 @@ class ServiceOrchestrator(object):
         network_function = self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
         heat_stack_id = network_function['heat_stack_id']
+        LOG.info("[Event:DeleteService]")
         if heat_stack_id:
             service_config = network_function_info['service_config']
             self.delete_network_function_user_config(network_function_id,
@@ -811,6 +824,11 @@ class ServiceOrchestrator(object):
         }
         nfi_db = self.db_handler.create_network_function_instance(
             self.db_session, create_nfi_request)
+        # Sending LogMeta Details to visibility
+        self._report_logging_info(request_data['network_function'], nfi_db,
+                                  request_data['service_type'],
+                                  request_data['service_details'][
+                                      'service_vendor'])
 
         request_data['service_details'].update(
             service_type=request_data['service_type'])
@@ -823,6 +841,7 @@ class ServiceOrchestrator(object):
             'service_details': request_data['service_details'],
             'share_existing_device': request_data['share_existing_device'],
         }
+        LOG.info("[Event:CreateService]")
         self._create_event('CREATE_NETWORK_FUNCTION_DEVICE',
                            event_data=create_nfd_request)
 
@@ -894,21 +913,21 @@ class ServiceOrchestrator(object):
             service_chain_id = network_function['service_chain_id']
             admin_token = self.keystoneclient.get_admin_token()
             servicechain_instance = self.gbpclient.get_servicechain_instance(
-                            admin_token,
-                            service_chain_id)
+                admin_token,
+                service_chain_id)
             provider_ptg_id = servicechain_instance['provider_ptg_id']
             provider_ptg = self.gbpclient.get_policy_target_group(
-                            admin_token,
-                            provider_ptg_id)
+                admin_token,
+                provider_ptg_id)
             provider_tenant_id = provider_ptg['tenant_id']
             stack_id = self.config_driver.delete_config(stack_id,
                                                         provider_tenant_id)
             request_data = {
-                    'heat_stack_id': stack_id,
-                    'network_function_id': network_function['id'],
-                    'tenant_id': provider_tenant_id,
-                    'action': 'update',
-                    'operation': request_data['operation']
+                'heat_stack_id': stack_id,
+                'network_function_id': network_function['id'],
+                'tenant_id': provider_tenant_id,
+                'action': 'update',
+                'operation': request_data['operation']
             }
             self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,
@@ -1443,15 +1462,15 @@ class ServiceOrchestrator(object):
         service_type = self._get_service_type(service_profile_id)
         if not self.config_driver.is_update_config_supported(service_type):
             stack_id = self.config_driver.delete_config(
-                                                stack_id,
-                                                consumer_ptg['tenant_id'])
+                stack_id,
+                consumer_ptg['tenant_id'])
             request_data = {
-                    'heat_stack_id': stack_id,
-                    'network_function_id': network_function['id'],
-                    'tenant_id': consumer_ptg['tenant_id'],
-                    'action': 'update',
-                    'operation': request_data['operation'],
-                    'consumer_ptg': request_data['consumer_ptg']
+                'heat_stack_id': stack_id,
+                'network_function_id': network_function['id'],
+                'tenant_id': consumer_ptg['tenant_id'],
+                'action': 'update',
+                'operation': request_data['operation'],
+                'consumer_ptg': request_data['consumer_ptg']
             }
             self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,
@@ -1511,15 +1530,15 @@ class ServiceOrchestrator(object):
         service_type = self._get_service_type(service_profile_id)
         if not self.config_driver.is_update_config_supported(service_type):
             stack_id = self.config_driver.delete_config(
-                                                stack_id,
-                                                consumer_ptg['tenant_id'])
+                stack_id,
+                consumer_ptg['tenant_id'])
             request_data = {
-                    'heat_stack_id': stack_id,
-                    'network_function_id': network_function['id'],
-                    'tenant_id': consumer_ptg['tenant_id'],
-                    'action': 'update',
-                    'operation': request_data['operation'],
-                    'consumer_ptg': request_data['consumer_ptg']
+                'heat_stack_id': stack_id,
+                'network_function_id': network_function['id'],
+                'tenant_id': consumer_ptg['tenant_id'],
+                'action': 'update',
+                'operation': request_data['operation'],
+                'consumer_ptg': request_data['consumer_ptg']
             }
             self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,

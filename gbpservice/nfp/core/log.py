@@ -1,6 +1,56 @@
 from oslo_log import log as oslo_logging
-
+import logging
 import inspect
+import os
+import sys
+
+
+if hasattr(sys, 'frozen'):  # support for py2exe
+    _srcfile = "logging%s__init__%s" % (os.sep, __file__[-4:])
+elif __file__[-4:].lower() in ['.pyc', '.pyo']:
+    _srcfile = __file__[:-4] + '.py'
+else:
+    _srcfile = __file__
+_srcfile = os.path.normcase(_srcfile)
+
+
+def currentframe():
+    """Return the frame object for the caller's stack frame."""
+    try:
+        raise Exception
+    except:
+        return sys.exc_info()[2].tb_frame.f_back
+
+if hasattr(sys, '_getframe'):
+    currentframe = lambda: sys._getframe(3)
+
+
+class WrappedLogger(logging.Logger):
+
+    def __init__(self, name):
+        logging.Logger.__init__(self, name)
+
+    def findCaller(self):
+        """
+        Find the stack frame of the caller so that we can note the source
+        file name, line number and function name.
+        """
+        f = currentframe()
+        # On some versions of IronPython, currentframe() returns None if
+        # IronPython isn't run with -X:Frames.
+        if f is not None:
+            f = f.f_back
+            f = f.f_back
+        rv = "(unknown file)", 0, "(unknown function)"
+        while hasattr(f, "f_code"):
+            co = f.f_code
+            filename = os.path.normcase(co.co_filename)
+            if filename == _srcfile:
+                f = f.f_back
+                continue
+            rv = (co.co_filename, f.f_lineno, co.co_name)
+            break
+        return rv
 
 
 class NfpLogMeta(object):
@@ -10,7 +60,9 @@ class NfpLogMeta(object):
         self.event = kwargs.get('event', '')
 
     def emit(self):
-        return "[log_meta_id=%s]" % (self.meta_id)
+        if self.meta_id != '':
+            return "[LogMetaid: %s]" % (self.meta_id)
+        return ''
 
     def to_dict(self):
         return {'meta_id': self.meta_id,
@@ -23,6 +75,7 @@ class NfpLogMeta(object):
 class NfpLogger(object):
 
     def __init__(self):
+        logging.setLoggerClass(WrappedLogger)
         self.logger = oslo_logging.getLogger(__name__)
 
     def _prep_log_str(self, message, largs, meta):
