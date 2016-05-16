@@ -90,10 +90,12 @@ class NfpLogger(object):
 
     def _prep_log_str(self, message, largs, meta):
         message = message % (largs)
-        if isinstance(meta.log_meta, dict):
+        try:
             meta.log_meta = NfpLogMeta(**(meta.log_meta))
-        _prefix = meta.log_meta.emit()
-        return "%s - %s" % (_prefix, message)
+            _prefix = meta.log_meta.emit()
+            return "%s - %s" % (_prefix, message)
+        except Exception:
+            return "%s" % (message)
 
     def debug(self, message, largs={}, meta={}):
         self.logger.debug(self._prep_log_str(message, largs, meta))
@@ -170,12 +172,23 @@ def patch_method(func):
 
 
 def add_meta(decorated_clazz, **kwargs):
+    def _mocked(clazz):
+        # Added for unit tests
+        # Mocked unit tests causes recursion
+        import mock
+        if isinstance(clazz_member[1], mock.mock.MagicMock):
+            return True
+        if isinstance(clazz_member[1], mock.mock.Mock):
+            return True
+        return False
+       
     meta = NfpLogMeta(**kwargs)
     setattr(decorated_clazz, 'log_meta', meta)
     # Adding to the inbuilt member class also
     for clazz_member in inspect.getmembers(decorated_clazz):
         if hasattr(clazz_member[1], 'log_meta'):
-            add_meta(clazz_member[1], **kwargs)
+            if not _mocked(clazz_member[1]):
+                add_meta(clazz_member[1], **kwargs)
 
 
 def _LI(message):
