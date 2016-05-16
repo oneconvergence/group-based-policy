@@ -27,7 +27,7 @@ if [[ $DEVSTACK_MODE != base ]]; then
     GBPSERVICE_BRANCH=plugin_mode_devstack_for_advanced_configurator
 else 
     GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
-    GBPSERVICE_BRANCH=refs/changes/45/309145/30
+    GBPSERVICE_BRANCH=refs/changes/45/309145/34
 fi
 enable_plugin gbp $GBPSERVICE_REPO $GBPSERVICE_BRANCH
 
