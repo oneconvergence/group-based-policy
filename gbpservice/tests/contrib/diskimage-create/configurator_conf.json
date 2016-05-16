@@ -1,0 +1,12 @@
+{
+    "dib":
+        {
+            "image_size_in_GB": 3,
+            "cache_path": "~/.cache/image-create",
+            "elements": ["configurator"]
+        },
+    "ubuntu_release":
+        {
+            "release": "wily"
+        }
+}

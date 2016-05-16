@@ -32,6 +32,45 @@ def parse_json(j_file):
     return
 
 
+def create_visibility_docker():
+    '''
+    1. git pull of visibility
+    2. create docker image
+    3. save docker image
+    '''
+
+    git = conf['git']
+    # verify the 'visibility' git directory is present parallel to 'service-controller'
+    vis_dir = git['git_path_visibility']
+
+    docker_images = "%s/output/docker_images/" % cur_dir
+    if not os.path.exists(docker_images):
+        os.makedirs(docker_images)
+
+    # create a docker image
+    os.chdir(vis_dir)
+    docker_args = ['docker', 'build',  '-f', 'visibility/docker/UI/Dockerfile', '-t', 'visibility-docker', '.']
+    ret = subprocess.call(docker_args)
+    if(ret):
+        print "Failed to build docker image [visibility-docker]"
+        return -1
+
+    os.chdir(docker_images)
+    del(docker_args)
+    # save the docker image
+    docker_args = ['docker', 'save', '-o', 'visibility-docker', 'visibility-docker']
+    ret = subprocess.call(docker_args)
+    if(ret):
+        print "Failed to save docker image [visibility-docker]"
+        return -1
+
+    # set environment variable, needed by 'extra-data.d'
+    os.environ['VISIBILITY_GIT_PATH'] = vis_dir
+    os.environ['DOCKER_IMAGES_PATH'] = docker_images
+
+    return 0
+
+
 def create_configurator_docker():
     configurator_dir = "%s/../../../nfp/configurator" % cur_dir
     docker_images = "%s/output/docker_images/" % cur_dir
@@ -152,6 +191,13 @@ def dib():
             create_configurator_docker()
             # for bigger size images
             dib_args.append('--no-tmpfs')
+        if element == 'visibility':
+            image_name = 'visibility'
+            # create a docker image
+            create_visibility_docker()
+            create_configurator_docker()
+            # for bigger size images
+            dib_args.append('--no-tmpfs')
         if element == 'haproxy':
             image_name = 'haproxy'
             dib_args.append('debs')
@@ -185,6 +231,80 @@ def dib():
             f.write(image_path)
 
 
+def git_pull(git_path, https=None):
+    """ Does a git pull in the local path mentioned """
+    try:
+        os.chdir(git_path)
+    except Exception as e:
+        print e
+        return 1
+
+    print "Doing 'git pull' in %s" % (git_path)
+    if(https):
+        ret = subprocess.call(["git", "pull", https])
+    else:
+        ret = subprocess.call(["git", "pull"])
+    if ret:
+        print "ERROR: 'git pull' failed in path: ", git_path
+        return 1
+
+    return 0
+
+
+def check_app(app):
+    """ checks if the particular package is installed """
+    return subprocess.call(["which", app])
+
+
+def validate_run():
+    """ Validates the following:
+        1. git paths mentioned in json file are git directories
+        2. local apache server is running to act as a local repo host
+        3. qemu-img application is installed, needed by dib
+    """
+    git = conf['git']
+    elements = conf['dib']['elements']
+    local_repo = False
+    # check for element 'sc' configured
+    if "sc" in elements:
+        git_path = git['git_path_service-controller']
+        https = 'https://%s:%s@github.com/oneconvergence/service-controller.git' % (git['username'], git['password'])
+        if(git_pull(git_path, https)):
+            return 1
+        local_repo = True
+    # check for element 'haproxy' configured
+    if "haproxy" in elements:
+        git_path = git['git_path_group-based-policy']
+        # group-based-policy git is a public repo, doesn't need username/password
+        if(git_pull(git_path)):
+            return 1
+        local_repo = True
+    # check for element 'visibility' configured
+    if "visibility" in elements or 'configurator' in elements:
+        git_path = git['git_path_visibility']
+        https = 'https://%s:%s@github.com/oneconvergence/visibility.git' % (git['username'], git['password'])
+        if(git_pull(git_path, https)):
+            return 1
+        # find if 'docker' is installed
+        if(check_app("docker")):
+            print "ERROR: Please install package 'docker'"
+            return 1
+
+    # find if 'qemu-ing' is installed
+    if(check_app("qemu-img")):
+        print "ERROR: Please install package 'qemu-img'"
+        return 1
+
+    if(local_repo):
+        # check if apache2 server is running
+        res = subprocess.call(["service", "apache2", "status"])
+        if(res):
+            print "ERROR: Please install/start 'apache2'"
+            return 1
+
+    return 0
+
+
 if __name__ == "__main__":
 
     if len(sys.argv) != 2:
@@ -203,6 +323,15 @@ if __name__ == "__main__":
     # parse args from json file
     parse_json(sys.argv[1])
     elements = conf['dib']['elements']
+
+    # if password has '@'' then replace it with it's url encoded value: '%40'
+    # else can't execute git clone/pull in single command with username/password
+    conf['git']['password'] = conf['git']['password'].replace('@', '%40')
+    git = conf['git']
+
+    if(validate_run()):
+        exit()
+
     elem = 'haproxy'
     if elem in elements:
         if(update_haproxy_repo()):
