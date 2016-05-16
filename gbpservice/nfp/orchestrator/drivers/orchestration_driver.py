@@ -265,9 +265,11 @@ class OrchestrationDriver(object):
                 if attr in ['maximum_interfaces', 'supports_device_sharing',
                             'supports_hotplug']:
                     vendor_data[attr] = ast.literal_eval(metadata[attr])
-        except Exception:
-            LOG.error(_LE('Wrong metadata: %s provided for image name: %s')
-                      % (image_name, metadata))
+        except Exception as e:
+            LOG.error(_LE('Wrong metadata: %(image_name)s provided for '
+                          'image name: %(metadata)s. Error: %(error)s'),
+                      {'image_name': image_name, 'metadata': metadata,
+                       'error': e})
             return None
         return vendor_data
 
@@ -292,7 +294,7 @@ class OrchestrationDriver(object):
 
     def _update_self_with_vendor_data(self, vendor_data, attr):
         attr_value = getattr(self, attr)
-        if vendor_data.has_key(attr):
+        if attr in vendor_data:
             setattr(self, attr, vendor_data[attr])
         else:
             LOG.info(_LI("Vendor data specified in image, doesn't contains "
@@ -368,7 +370,7 @@ class OrchestrationDriver(object):
             self._update_vendor_data(device_data,
                                  device_data.get('token'))
         #if not self._is_device_sharing_supported():
-            # TODO: check not required
+            # TODO(ashu): check not required
         #    return None
         return {
                 'filters': {
@@ -419,7 +421,7 @@ class OrchestrationDriver(object):
             self._update_vendor_data(device_data,
                                  device_data.get('token'))
         #if not self._is_device_sharing_supported():
-            # TODO: Is this check required
+            # TODO(ashu): Is this check required
         #    return None
 
         hotplug_ports_count = 1  # for provider interface (default)
@@ -493,7 +495,8 @@ class OrchestrationDriver(object):
                     network_handler=network_handler
             )
         except Exception as e:
-            LOG.exception(_LE('Failed to get interfaces for device creation Error: %(error)s'), {'error', e})
+            LOG.exception(_LE('Failed to get interfaces for device creation.'
+                              'Error: %(error)s'), {'error', e})
             return None
         else:
             self._increment_stats_counter('management_interfaces',
@@ -520,8 +523,8 @@ class OrchestrationDriver(object):
         except Exception as e:
             self._increment_stats_counter('image_details_get_failures')
             LOG.error(_LE('Failed to get image id for device creation.'
-                          ' image name: %s, %s')
-                      % (image_name, e))
+                          ' image name: %(image_name)s. Error: %(error)s'),
+                      {'image_name': image_name, 'error': e})
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -587,8 +590,11 @@ class OrchestrationDriver(object):
                     interfaces_to_attach, instance_name)
         except Exception as e:
             self._increment_stats_counter('instance_launch_failures')
-            LOG.error(_LE('Failed to create %s instance, Error: %s')
-                      % (device_data['service_details']['device_type'], e))
+            LOG.error(_LE('Failed to create %(device_type)s instance.'
+                          'Error: %(error)s'),
+                      {'device_type': (
+                          device_data['service_details']['device_type']),
+                       'error': e})
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -608,7 +614,8 @@ class OrchestrationDriver(object):
                                                         token, interface['id'])
         except Exception as e:
             self._increment_stats_counter('port_details_get_failures')
-            LOG.error(_LE('Failed to get management port details Error: %(error)s'), {'error': e})
+            LOG.error(_LE('Failed to get management port details. '
+                          'Error: %(error)s'), {'error': e})
             try:
                 self.compute_handler_nova.delete_instance(
                                             token,
@@ -617,8 +624,11 @@ class OrchestrationDriver(object):
                                             instance_id)
             except Exception as e:
                 self._increment_stats_counter('instance_delete_failures')
-                LOG.error(_LE('Failed to delete %s instance, Error: %s')
-                          % (device_data['service_details']['device_type'], e))
+                LOG.error(_LE('Failed to delete %(device_type)s instance.'
+                              'Error: %(error)s'),
+                          {'device_type': (
+                              device_data['service_details']['device_type']),
+                           'error': e})
             self._decrement_stats_counter('instances')
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
@@ -710,7 +720,8 @@ class OrchestrationDriver(object):
                                         interfaces,
                                  network_handler=network_handler)
             except Exception as e:
-                LOG.error(_LE('Failed to delete the management data port(s): %s' % e))
+                LOG.error(_LE('Failed to delete the management data port(s). '
+                              'Error: %(error)s'), {'error': e})
             else:
                 self._decrement_stats_counter('management_interfaces')
 

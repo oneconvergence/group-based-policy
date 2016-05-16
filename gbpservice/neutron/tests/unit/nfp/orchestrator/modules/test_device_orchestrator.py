@@ -65,7 +65,6 @@ cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
 orchestration_driver = HaproxyDummyDriver()
 NDO_CLASS_PATH = ('gbpservice.nfp.orchestrator'
                   '.modules.device_orchestrator')
-ORCHESTRATOR_LIB_PATH = ('gbpservice.nfp.orchestrator.lib')
 
 
 class NDOModuleTestCase(unittest.TestCase):
@@ -197,8 +196,6 @@ class NDORpcApiTestCase(unittest.TestCase):
        mock.MagicMock(return_value=orchestration_driver))
 @patch(NDO_CLASS_PATH + '.NDOConfiguratorRpcApi.__init__',
        mock.MagicMock(return_value=None))
-@patch(ORCHESTRATOR_LIB_PATH + '.extension_manager.ExtensionManager',
-       mock.MagicMock(return_value=DummyExtensionManager()))
 class DeviceOrchestratorTestCase(unittest.TestCase):
 
     def _initialize_ndo_handler(self):

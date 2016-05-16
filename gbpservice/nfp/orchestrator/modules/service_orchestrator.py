@@ -17,7 +17,6 @@ from neutron import context as n_context
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 import oslo_messaging
-from oslo_serialization import jsonutils
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
@@ -357,14 +356,14 @@ class ServiceOrchestrator(object):
         self.configurator_rpc = NSOConfiguratorRpcApi(neutron_context, config)
         self.status_map = {
                 'pt_add': {'status': 'PT_ADD_IN_PROGRESS',
-                           'status_description': 'pt addition is in progress'},
+                        'status_description': 'pt addition is in progress'},
                 'pt_remove': {'status': 'PT_REMOVE_IN_PROGRESS',
-                           'status_description': 'pt deletion is in progress'},
+                        'status_description': 'pt deletion is in progress'},
                 'ptg_add': {'status': 'PTG_ADD_IN_PROGRESS',
-                           'status_description': 'ptg addition is in progress'},
+                        'status_description': 'ptg addition is in progress'},
                 'ptg_remove': {'status': 'PTG_REMOVE_IN_PROGRESS',
-                           'status_description': 'ptg deletion is in progress'},
-                }
+                        'status_description': 'ptg deletion is in progress'},
+        }
 
     @property
     def db_session(self):
