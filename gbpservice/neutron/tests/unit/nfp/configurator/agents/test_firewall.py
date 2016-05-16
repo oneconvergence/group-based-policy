@@ -60,14 +60,15 @@ class FWaasRpcManagerTestCase(unittest.TestCase):
         """
 
         agent, sc = self._get_FWaasRpcManager_object()
-        arg_dict = {'context': self.fo.context,
+        context = {}
+        arg_dict = {'context': context,
                     'firewall': self.fo.firewall,
                     'host': self.fo.host}
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
                                                         mock_sc_event), \
             mock.patch.object(sc, 'post_event') as mock_sc_rpc_event:
             call_method = getattr(agent, method.lower())
-            call_method(self.fo.context, self.fo.firewall, self.fo.host)
+            call_method(context, self.fo.firewall, self.fo.host)
 
             mock_sc_event.assert_called_with(id=method,
                                              data=arg_dict, key=None)
