@@ -44,5 +44,8 @@ if [[ $DEVSTACK_MODE = enterprise ]]; then
     VISIBILITY_GIT_BRANCH=master
     GIT_ACCESS_USERNAME=
     GIT_ACCESS_PASSWORD=
+
+    # Configure docker images local repository
+    DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
 fi
 

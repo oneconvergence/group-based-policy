@@ -11,7 +11,6 @@ sudo cp -rL ${VISIBILITY_GIT_PATH}/visibility ${TMP_MOUNT_PATH}/usr/share/
 #copy docker images to VM
 sudo cp -L ${DOCKER_IMAGES_PATH}/visibility-docker ${TMP_MOUNT_PATH}/usr/share/SCUI/docker/images/
 sudo cp -L ${DOCKER_IMAGES_PATH}/configurator-docker ${TMP_MOUNT_PATH}/usr/share/SCUI/docker/images/
-sudo cp -L ${DOCKER_IMAGES_PATH}/elastic ${TMP_MOUNT_PATH}/usr/share/SCUI/docker/images/
-sudo cp -L ${DOCKER_IMAGES_PATH}/grafana ${TMP_MOUNT_PATH}/usr/share/SCUI/docker/images/
-sudo cp -L ${DOCKER_IMAGES_PATH}/graphite ${TMP_MOUNT_PATH}/usr/share/SCUI/docker/images/
+sudo wget ${DOCKER_IMAGES_URL}/elastic -O ${TMP_MOUNT_PATH}/usr/share/SCUI/docker/images/elastic
+sudo wget ${DOCKER_IMAGES_URL}/graphite -O ${TMP_MOUNT_PATH}/usr/share/SCUI/docker/images/graphite
 

@@ -43,12 +43,11 @@
        GIT_ACCESS_USERNAME=
        GIT_ACCESS_PASSWORD=
 
-4. pre stack.sh step
+       # Configure docker images local repository
+       # Use 192.168.100.50 for US machines
+       DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
 
-   Enterprise mode:
-       (i). Copy the docker images elastic, grafana and graphite to the directory /home/stack/docker_images/
-
-5. Run stack.sh from the /home/stack/devstack/ directory
+4. Run stack.sh from the /home/stack/devstack/ directory
 
    # cd /home/stack/devstack/ && ./stack.sh
 
