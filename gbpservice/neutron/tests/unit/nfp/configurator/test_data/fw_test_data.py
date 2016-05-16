@@ -83,6 +83,11 @@ class FakeObjects(object):
                     "provider_mac": "fa:16:3e:d9:4c:33",
                     "provider_cidr": "11.0.1.0/24",
                     "stitching_ip": "192.168.0.3",
+                    'rule_info': {
+                        'active_provider_mac': 'fa:16:3e:d9:4c:33',
+                        'active_stitching_mac': 'fa:16:3e:da:ca:4d',
+                        'active_fip': '11.0.0.37'
+                    },
                 }
             }, {
                 "resource": "routes",
@@ -130,10 +135,7 @@ class FakeObjects(object):
             "config": [{
                 "resource": "firewall",
                 "resource_data": {
-                    "neutron_context": {
-                                    "notification_data": {},
-                                    "resource": "firewall"
-                                },
+                    "neutron_context": self.context,
                     "firewall": self._fake_firewall_obj(),
                     "host": self.host}}]
                         }
@@ -148,41 +150,31 @@ class FakeObjects(object):
         """
 
         request_data = [{
-                        "agent_info": {
-                            "service_vendor": "vyos",
-                            "resource": "firewall",
-                            "context": {
-                                "requester": "device_orch"
-                            },
-                            "resource_type": "firewall"
-                        },
-                        "method": "create_firewall",
-                        "resource_data": {
-                            "firewall": {
-                                "status": "PENDING_CREATE",
-                                "router_ids": [
-                                    "650bfd2f-7766-4a0d-839f-218f33e16998"
-                                ],
-                                "description": '{\
+            'service_type': 'firewall',
+            'resource': 'firewall',
+            'method': 'create_firewall',
+            'context': {
+                'notification_data': {},
+                'resource': 'firewall'
+            },
+            'kwargs': {
+                'firewall': {
+                    'status': 'PENDING_CREATE',
+                    'router_ids': ['650bfd2f-7766-4a0d-839f-218f33e16998'],
+                    'description': '{\
                                     "vm_management_ip": "172.24.4.5",\
                                     "service_vendor": "vyos"}',
-                                "admin_state_up": True,
-                                "firewall_policy_id":
-                                    "c69933c1-b472-44f9-8226-30dc4ffd454c",
-                                "tenant_id":
-                                    "45977fa2dbd7482098dd68d0d8970117",
-                                "id": "3b0ef8f4-82c7-44d4-a4fb-6177f9a21977",
-                                "firewall_rule_list": True,
-                                "name": ""
-                            },
-                            "neutron_context": {
-                                "notification_data": {},
-                                "resource": "firewall"
-                            },
-                            "host": "host"
-                        },
-                        "is_generic_config": False
-                        }]
+                    'name': '',
+                    'admin_state_up': True,
+                    'tenant_id': '45977fa2dbd7482098dd68d0d8970117',
+                    'id': '3b0ef8f4-82c7-44d4-a4fb-6177f9a21977',
+                    'firewall_rule_list': True,
+                    'firewall_policy_id': (
+                                'c69933c1-b472-44f9-8226-30dc4ffd454c')
+                },
+                'host': 'host'
+            }
+        }]
 
         return request_data
 
@@ -194,54 +186,52 @@ class FakeObjects(object):
 
         """
 
-        sa_req_list = [
-                {
-                    "agent_info": {
-                        "service_vendor": "vyos",
-                        "resource": "interfaces",
-                        "context": {
-                            "requester": "device_orch"
-                        },
-                        "resource_type": "generic_config"
-                    },
-                    "method": "configure_interfaces",
-                    "resource_data": {
-                        "stitching_interface_index": 3,
-                        "stitching_mac": "fa:16:3e:da:ca:4d",
-                        "provider_ip": "11.0.1.1",
-                        "mgmt_ip": "11.0.0.37",
-                        "provider_interface_index": 2,
-                        "stitching_cidr": "192.168.0.0/28",
-                        "provider_mac": "fa:16:3e:d9:4c:33",
-                        "provider_cidr": "11.0.1.0/24",
-                        "stitching_ip": "192.168.0.3"
-                    },
-                    "is_generic_config": True
+        sa_req_list = [{
+                "agent_info": {
+                    "service_vendor": "vyos",
+                    "service_type": "firewall",
+                    "resource": "interfaces",
+                    "context": {
+                        "requester": "device_orch"
+                    }
                 },
-                {
-                    "agent_info": {
-                        "service_vendor": "vyos",
-                        "resource": "routes",
-                        "context": {
-                            "requester": "device_orch"
-                        },
-                        "resource_type": "generic_config"
+                "method": "configure_interfaces",
+                "resource_data": {
+                    "stitching_interface_index": 3,
+                    "stitching_mac": "fa:16:3e:da:ca:4d",
+                    "provider_interface_index": 2,
+                    "mgmt_ip": "11.0.0.37",
+                    "stitching_cidr": "192.168.0.0/28",
+                    "provider_mac": "fa:16:3e:d9:4c:33",
+                    "provider_ip": "11.0.1.1",
+                    "provider_cidr": "11.0.1.0/24",
+                    "stitching_ip": "192.168.0.3",
+                    'rule_info': {
+                        'active_provider_mac': 'fa:16:3e:d9:4c:33',
+                        'active_stitching_mac': 'fa:16:3e:da:ca:4d',
+                        'active_fip': '11.0.0.37'
                     },
-                    "method": "configure_routes",
-                    "resource_data": {
-                        "mgmt_ip": "11.0.0.37",
-                        "gateway_ip": "192.168.0.1",
-                        "destination_cidr": "192.168.0.0/28",
-                        "provider_interface_index": 2,
-                        "source_cidrs": [
-                            "11.0.1.0/24",
-                            "192.168.0.0/28"
-                        ]
-                    },
-                    "is_generic_config": True
-                }
-                ]
-
+                },
+                "is_generic_config": True
+            }, {
+                "agent_info": {
+                    "service_vendor": "vyos",
+                    "service_type": "firewall",
+                    "resource": "routes",
+                    "context": {
+                        "requester": "device_orch"
+                    }
+                },
+                "method": "configure_routes",
+                "resource_data": {
+                    "mgmt_ip": "11.0.0.37",
+                    "gateway_ip": "192.168.0.1",
+                    "destination_cidr": "192.168.0.0/28",
+                    "provider_interface_index": 2,
+                    "source_cidrs": ["11.0.1.0/24", "192.168.0.0/28"]
+                },
+                "is_generic_config": True
+            }]
         return sa_req_list
 
     def _fake_resource_data(self):
