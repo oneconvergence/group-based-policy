@@ -42,7 +42,7 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
         super(VpnaasIpsecDriverTestCase, self).__init__(*args, **kwargs)
         self.conf = 'conf'
         self.dict_objects = vpn_test_data.VPNTestData()
-        self.context = self.dict_objects._make_service_context()
+        self.context = self.dict_objects.make_service_context()
         self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.sc)
         self.driver = vyos_vpn_driver.VpnaasIpsecDriver(self.conf)
         self.svc_validate = (
@@ -55,10 +55,10 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
         Implements method to test the vpn driver's create vpn service.
         '''
 
-        context = self.dict_objects._make_service_context(operation_type='vpn')
+        context = self.dict_objects.make_service_context(operation_type='vpn')
 
-        kwargs = self.dict_objects._make_resource_data(operation='create',
-                                                       service_type='vpn')
+        kwargs = self.dict_objects.make_resource_data(operation='create',
+                                                      service_type='vpn')
         with mock.patch.object(bdobj.agent, 'update_status') as (
                 mock_update_status):
             self.driver.vpnservice_updated(context, kwargs)
@@ -71,9 +71,9 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
         Implements method to test the vpn driver's create ipsec site conn
         '''
         self.resp = mock.Mock(status_code=200)
-        context = self.dict_objects._make_service_context()
-        kwargs = self.dict_objects._make_resource_data(operation='create',
-                                                       service_type='ipsec')
+        context = self.dict_objects.make_service_context()
+        kwargs = self.dict_objects.make_resource_data(operation='create',
+                                                      service_type='ipsec')
         with mock.patch.object(bdobj.agent, 'update_status') as (
                 mock_update_status),\
                 mock.patch.object(jsonutils, 'loads') as mock_resp,\
@@ -94,23 +94,33 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
                 context,
                 self.dict_objects.ipsec_vpnsvc_status)
 
-    def delete_ipsec_site_conn(self):
+    def test_delete_ipsec_site_conn(self):
         '''
         Implements method to test the vpn driver's create ipsec site conn
         '''
 
         self.resp = mock.Mock(status_code=200)
-        kwargs = self.dict_objects._make_resource_data(operation='delete',
-                                                       service_type='ipsec')
-        with mock.patch.object(self.plugin_rpc, 'update_status'),\
+        kwargs = self.dict_objects.make_resource_data(operation='delete',
+                                                      service_type='ipsec')
+        with mock.patch.object(self.plugin_rpc, 'ipsec_site_conn_deleted') as (
+                mock_plugin_delete),\
                 mock.patch.object(json, 'loads') as mock_resp,\
                 mock.patch.object(requests, 'delete') as (
                 mock_delete):
             mock_resp.return_value = self.fake_resp_dict
             mock_delete.return_value = self.resp
             self.driver.vpnservice_updated(self.context, kwargs)
+            resource = kwargs['resource']
+            svc_desc = resource['description']
+            tokens = svc_desc.split(';')
+            cidr = tokens[1].split('=')[1]
+
+            url = "?local_cidr=" + cidr + "&peer_address=" + (
+                  resource['peer_address'] + (
+                      "&peer_cidrs=[u\'" + resource['peer_cidrs'][0] + "\']"))
+            url = self.dict_objects.url_delete_ipsec_tunnel + url
             mock_delete.assert_called_with(
-                self.dict_objects.url_delete_ipsec_conn,
+                url.encode('ascii', 'ignore'),
                 timeout=self.dict_objects.timeout,
                 data=None)
 
@@ -141,13 +151,13 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
         super(VpnGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
         self.conf = 'conf'
         self.dict_objects = vpn_test_data.VPNTestData()
-        self.context = self.dict_objects._make_service_context()
+        self.context = self.dict_objects.make_service_context()
         self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.sc)
         self.rest_apt = vyos_vpn_driver.RestApi(self.dict_objects.vm_mgmt_ip)
         self.driver = vyos_vpn_driver.VpnGenericConfigDriver(self.conf)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True}
-        self.kwargs = self.dict_objects._fake_resource_data()
+        self.kwargs = self.dict_objects.fake_resource_data()
 
     def setUp(self):
         self.resp = mock.Mock(status_code=200)
@@ -256,7 +266,7 @@ class VPNSvcValidatorTestCase(unittest.TestCase):
         success condition while making call to the service VM
         '''
 
-        context = self.dict_objects._make_service_context()
+        context = self.dict_objects.make_service_context()
         svc = self.dict_objects._create_vpnservice_obj()['resource']
         description = str(svc['description'])
         description = description.split(';')
@@ -275,7 +285,7 @@ class VPNSvcValidatorTestCase(unittest.TestCase):
         fail condition while making call to the service VM
         '''
 
-        context = self.dict_objects._make_service_context()
+        context = self.dict_objects.make_service_context()
         with mock.patch.object(self.plugin_rpc, "update_status") as mock_valid:
             self.valid_obj.validate(
                 context,
@@ -286,6 +296,7 @@ class VPNSvcValidatorTestCase(unittest.TestCase):
 
 
 class RestApiTestCase(unittest.TestCase):
+
     '''
     Class which implements the testcases to test the vpn RestApi calls.
     '''

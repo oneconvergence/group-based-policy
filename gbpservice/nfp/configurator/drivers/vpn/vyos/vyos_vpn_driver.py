@@ -1031,6 +1031,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         try:
             RestApi(mgmt_fip).delete(
                 "delete-ipsec-site-tunnel", tunnel)
+            self.agent.ipsec_site_conn_deleted(context, conn['id'])
         except Exception as err:
             msg = ("IPSec: Failed to delete IPSEC tunnel. %s"
                    % str(err).capitalize())
@@ -1054,6 +1055,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             RestApi(mgmt_fip).delete(
                 "delete-ipsec-site-conn",
                 {'peer_address': conn['peer_address']})
+            self.agent.ipsec_site_conn_deleted(context, conn['id'])
         except Exception as err:
             msg = ("IPSec: Failed to delete IPSEC conn. %s"
                    % str(err).capitalize())

@@ -358,7 +358,7 @@ class VPNTestData(object):
 
         }
 
-    def _make_service_context(self, operation_type=None):
+    def make_service_context(self, operation_type=None):
         '''
         Prepares a simple service_info dictionary and appends it to
         context dictionary
@@ -513,7 +513,7 @@ class VPNTestData(object):
             u'reason': u'update',
         }
 
-    def _make_resource_data(self, operation=None, service_type=None):
+    def make_resource_data(self, operation=None, service_type=None):
         '''
         Prepares a simple resource_data dictionary of respective service
         '''
@@ -527,7 +527,7 @@ class VPNTestData(object):
         else:
             return self._create_vpnservice_obj()
 
-    def _fake_resource_data(self):
+    def fake_resource_data(self):
         """ A sample keyword arguments for configurator
         Returns: resource_data
         """
@@ -561,6 +561,6 @@ class FakeEvent(object):
     def __init__(self):
         self.dict_obj = VPNTestData()
         self.data = {
-            'context': self.dict_obj._make_service_context(),
+            'context': self.dict_obj.make_service_context(),
             'resource_data': self.dict_obj._create_ipsec_site_conn_obj()
         }
