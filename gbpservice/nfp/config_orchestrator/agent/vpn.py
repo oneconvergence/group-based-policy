@@ -16,15 +16,14 @@ from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.core import log as nfp_logging
 
 from neutron_vpnaas.db.vpn import vpn_db
 
 from oslo_log import helpers as log_helpers
-from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 
 """
 RPC handler for VPN service
@@ -225,7 +224,7 @@ class VpnNotifier(object):
                                  "neutron_resource_id": resource_id,
                                  "LogMetaID": nf_id})
         except Exception as e:
-            LOG(LOGGER, 'ERROR', '%s' % (e))
+            LOG.error('%s' % (e))
 
             return request_data
         return request_data
@@ -248,7 +247,7 @@ class VpnNotifier(object):
         msg = ("NCO received VPN's update_status API,"
                "making an update_status RPC call to plugin for object"
                "with status %s" % (status))
-        LOG(LOGGER, 'INFO', " %s " % (msg))
+        LOG.info(" %s " % (msg))
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt.cast(context, 'update_status',
                              status=status)
@@ -283,7 +282,7 @@ class VpnNotifier(object):
                                                   resource_id,
                                                   ipsec_id,
                                                   service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
+        LOG.info("%s : %s " % (request_data, nf_id))
 
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)

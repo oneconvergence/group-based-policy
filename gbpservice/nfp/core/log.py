@@ -53,7 +53,8 @@ class WrappedLogger(logging.Logger):
         # IronPython isn't run with -X:Frames.
         if f is not None:
             f = f.f_back
-            f = f.f_back
+            if f.f_back:
+                f = f.f_back
         rv = "(unknown file)", 0, "(unknown function)"
         while hasattr(f, "f_code"):
             co = f.f_code
@@ -64,6 +65,13 @@ class WrappedLogger(logging.Logger):
             rv = (co.co_filename, f.f_lineno, co.co_name)
             break
         return rv
+
+    def makeRecord(self, name, level, fn, lno, msg, args, exc_info, func=None, extra=None):
+        context = getattr(logging_context_store, 'context', None)
+        if context:
+            _prefix = context.emit()
+            msg = "%s-%s" %(_prefix, msg)
+        return super(WrappedLogger, self).makeRecord(name, level, fn, lno, msg, args, exc_info, func=func, extra=extra)
 
 
 logging.setLoggerClass(WrappedLogger)
@@ -81,44 +89,8 @@ class NfpLogContext(object):
     def to_dict(self):
         return {'meta_id': self.meta_id}
 
-
-class NfpLogger(object):
-
-    def __init__(self, name):
-        self.logger = oslo_logging.getLogger(name)
-
-    def _prep_log_str(self, message, largs):
-        message = message % (largs)
-        context = _context()
-        if context:
-            _prefix = context.emit()
-            return "%s - %s" % (_prefix, message)
-        else:
-            return "%s" % (message)
-
-    def debug(self, message, largs=None):
-        largs = largs if largs is not None else {}
-        self.logger.debug(self._prep_log_str(message, largs))
-
-    def info(self, message, largs=None):
-        largs = largs if largs is not None else {}
-        self.logger.info(self._prep_log_str(message, largs))
-
-    def error(self, message, largs=None):
-        largs = largs if largs is not None else {}
-        self.logger.error(self._prep_log_str(message, largs))
-
-    def warn(self, message, largs=None):
-        largs = largs if largs is not None else {}
-        self.logger.warn(self._prep_log_str(message, largs))
-
-    def exception(self, message, largs=None):
-        largs = largs if largs is not None else {}
-        self.logger.exception(self._prep_log_str(message, largs))
-
-
 def getLogger(name):
-    return NfpLogger(name)
+    return oslo_logging.getLogger(name)
 
 
 def store_logging_context(**kwargs):
@@ -126,38 +98,8 @@ def store_logging_context(**kwargs):
     logging_context_store.context = context
 
 
-def _context():
-    return getattr(logging_context_store, 'context', None)
-
-
 def get_logging_context():
     context = getattr(logging_context_store, 'context', None)
     if context:
         return context.to_dict()
     return {}
-
-
-def _LI(message):
-    return message
-
-
-def _LE(message):
-    return message
-
-
-def _LW(message):
-    return message
-
-
-def _LC(message):
-    return message
-
-
-if '_LI' in globals().keys():
-    globals()['_LI'] = _LI
-if '_LE' in globals().keys():
-    globals()['_LE'] = _LE
-if '_LW' in globals().keys():
-    globals()['_LW'] = _LW
-if '_LC' in globals().keys():
-    globals()['_LC'] = _LC

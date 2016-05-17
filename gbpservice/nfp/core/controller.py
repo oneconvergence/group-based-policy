@@ -22,12 +22,10 @@ import sys
 import time
 import zlib
 
-
 from neutron.agent.common import config as n_config
 from neutron.common import config as n_common_config
 
 from oslo_config import cfg as oslo_config
-from oslo_log import log as oslo_logging
 from oslo_service import service as oslo_service
 
 from gbpservice.nfp.core import cfg as nfp_config
@@ -36,9 +34,9 @@ from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import event_lb as nfp_lb
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.core import rpc as nfp_rpc
+from gbpservice.nfp.core import log as nfp_logging
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 identify = nfp_common.identify
 
 
@@ -53,7 +51,7 @@ class EventHandlers(object):
     def register(self, event_desc):
         """Register an event handler. """
         ehs = self._event_handlers
-        LOG(LOGGER, 'DEBUG', "Registering handler %s" %
+        LOG.debug("Registering handler %s" %
             (self.identify(event_desc)))
         try:
             ehs[event_desc.id].extend([event_desc])
@@ -155,7 +153,7 @@ class Controller(object):
                 event.data = data['cdata']
                 event.zipped = False
             except Exception as e:
-                LOG(LOGGER, 'ERROR',
+                LOG.error(
                     "Failed to decompress event data, Reason: %s" % (
                         e))
                 raise e
@@ -173,7 +171,7 @@ class Controller(object):
             # Worker cannot distribute events, so post it to distributor
             pipe = self._worker_pipe_map[os.getpid()]
             self._pipe_send(pipe, event)
-            LOG(LOGGER, 'DEBUG', "%s - post event - "
+            LOG.debug("%s - post event - "
                 "worker >> distributor" % (event.identify()))
         else:
             worker = self._loadbalancer.get(event.binding_key)
@@ -182,7 +180,7 @@ class Controller(object):
             # eventq_handler)
             pipe = worker[1]
             self._pipe_send(pipe, event)
-            LOG(LOGGER, 'DEBUG', "%s - post event - "
+            LOG.debug("%s - post event - "
                 "distributor >> worker:%d"
                 % (event.identify(), event.desc.worker_attached))
 
@@ -198,19 +196,19 @@ class Controller(object):
 
             Executor: worker-process
         """
-        LOG(LOGGER, 'DEBUG', "%s - event complete" % (event.identify()))
+        LOG.debug("%s - event complete" % (event.identify()))
         seq_map = self._sequencer.copy()
         try:
             seq_q = seq_map[event.binding_key]['queue']
             for seq_event in seq_q:
                 if seq_event.desc.uid == event.desc.uid:
-                    LOG(LOGGER, 'DEBUG', "%s - removing from sequencer"
+                    LOG.debug("%s - removing from sequencer"
                         % (seq_event.identify()))
                     self._sequencer.remove(seq_event)
                     break
             self._sequencer.delete_eventmap(event)
         except KeyError as err:
-            LOG(LOGGER, 'DEBUG', "%s - event not in sequencer" %
+            LOG.debug("%s - event not in sequencer" %
                 (event.identify()))
             # Event not in sequence map
             # Not an issue, event might not have serialized
@@ -229,19 +227,19 @@ class Controller(object):
         """
         if self._process_name == 'distributor-process':
             if not event.desc.worker_attached:
-                LOG(LOGGER, 'DEBUG', "%s - poll event -  "
+                LOG.debug("%s - poll event -  "
                     "no worker is associated" % (event.identify()))
                 # Get some worker from the pool.
                 worker = self._loadbalancer.get(None)
                 event.desc.worker_attached = worker[0].pid
-            LOG(LOGGER, 'DEBUG', "%s - poll event - "
+            LOG.debug("%s - poll event - "
                 "distributor - adding to poller" % (
                     event.identify()))
             event.desc.poll_event = 'POLL_EVENT'
             event.max_times = max_times
             self._pollhandler.add_event(event)
         else:
-            LOG(LOGGER, 'DEBUG', "%s - poll event - "
+            LOG.debug("%s - poll event - "
                 "worker:%d >> distributor"
                 % (event.identify(), os.getpid()))
             event.desc.poll_event = 'POLL_EVENT'
@@ -258,7 +256,7 @@ class Controller(object):
 
             Executor: worker-process
         """
-        LOG(LOGGER, 'DEBUG', "%s - poll event timedout - " %
+        LOG.debug("%s - poll event timedout - " %
             (event.identify()))
         if event.id == 'EVENT_EXPIRED':
             self._pollhandler.event_expired(eh, event)
@@ -276,7 +274,7 @@ class Controller(object):
 
             Executor: worker-process
         """
-        LOG(LOGGER, 'DEBUG', "%s - poll event complete" % (event.identify()))
+        LOG.debug("%s - poll event complete" % (event.identify()))
         event.id = 'POLL_EVENT_CANCEL'
         self.poll_event(event)
 
@@ -293,7 +291,7 @@ class Controller(object):
         if self._process_name == 'worker':
             return
         for event in events:
-            LOG(LOGGER, 'DEBUG', "%s - registered handler - %s"
+            LOG.debug("%s - registered handler - %s"
                 % (event.identify(), identify(event.handler)))
             self._event_handlers.register(event)
 
@@ -308,12 +306,12 @@ class Controller(object):
     def init_complete(self):
         """Invokes NFP modules init_complete() to do any post init logic """
         for module in self._modules:
-            LOG(LOGGER, 'DEBUG', "Invoking init_complete() of module %s"
+            LOG.debug("Invoking init_complete() of module %s"
                 % (identify(module)))
             try:
                 module.nfp_module_post_init(self, self._conf)
             except AttributeError:
-                LOG(LOGGER, 'DEBUG', "Module %s does not implement"
+                LOG.debug("Module %s does not implement"
                     "nfp_module_post_init() method - skipping"
                     % (identify(module)))
 
@@ -327,10 +325,10 @@ class Controller(object):
             Executor: worker-process
         """
         if self._process_name == 'distributor-process':
-            LOG(LOGGER, 'ERROR', "%s - distributor - cannot stash event" % (
+            LOG.error("%s - distributor - cannot stash event" % (
                 event.identify()))
         else:
-            LOG(LOGGER, 'DEBUG', "%s - worker - stashed" % (event.identify()))
+            LOG.debug("%s - worker - stashed" % (event.identify()))
             self.compress(event)
             self._stashq.put(event)
 
@@ -355,7 +353,7 @@ class Controller(object):
             except Queue.Empty:
                 pass
         else:
-            LOG(LOGGER, 'ERROR', "worker cannot pull stashed events")
+            LOG.error("worker cannot pull stashed events")
         return events
 
     def sequencer_put_event(self, event):
@@ -408,11 +406,11 @@ class Controller(object):
             Executor: poll-task of distributor-process
         """
         if not event.desc.worker_attached:
-            LOG(LOGGER, 'ERROR', "%s - timedoutevent - "
+            LOG.error("%s - timedoutevent - "
                 "no worker attached, dropping" % (event.identify()))
         else:
             pipe = self._worker_pipe_map[event.desc.worker_attached]
-            LOG(LOGGER, 'DEBUG', "%s - timedoutevent -"
+            LOG.debug("%s - timedoutevent -"
                 "to worker:%d" % (
                     event.identify(), event.desc.worker_attached))
             self._pipe_send(pipe, event)
@@ -427,15 +425,15 @@ class Controller(object):
         """
         inited_modules = []
         for module in modules:
-            LOG(LOGGER, 'DEBUG', "Initializing module %s" %
+            LOG.debug("Initializing module %s" %
                 (identify(module)))
             try:
                 module.nfp_module_init(self, self._conf)
                 inited_modules.append(module)
-                LOG(LOGGER, 'INFO', "module - %s - initialized" %
+                LOG.info("module - %s - initialized" %
                     (identify(module)))
             except AttributeError:
-                LOG(LOGGER, 'ERROR', "module - %s - "
+                LOG.error("module - %s - "
                     "nfp_module_init() missing, skip loading"
                     % (identify(module)))
                 continue
@@ -480,7 +478,7 @@ class Controller(object):
             Executor: distributor-process.
         """
         wc = oslo_config.CONF.workers
-        LOG(LOGGER, 'INFO', "Creating %d number of workers" % (wc))
+        LOG.info("Creating %d number of workers" % (wc))
 
         ev_workers = [tuple() for w in range(0, wc)]
 
@@ -540,7 +538,7 @@ def modules_import():
     try:
         files = os.listdir(modules_dir)
     except OSError:
-        LOG(LOGGER, 'ERROR', "Failed to read files from directory %s" %
+        LOG.error("Failed to read files from directory %s" %
             (modules_dir))
         files = []
 
@@ -551,24 +549,10 @@ def modules_import():
                                     globals(), locals(), [fname[:-3]], -1)
                 modules += [eval('module.%s' % (fname[:-3]))]
             except Exception as exc:
-                LOG(LOGGER, 'ERROR', "NFP module %s import failed." % (fname))
+                LOG.error("NFP module %s import failed." % (fname))
 
     sys.path = syspath
     return modules
-
-
-def load_nfp_symbols(namespace):
-    """Load all the required symbols in global namespace. """
-    nfp_common.load_nfp_symbols(namespace)
-    namespace['Event'] = nfp_event.Event
-    namespace['EventDesc'] = nfp_event.EventDesc
-    namespace['EventSequencer'] = nfp_event.EventSequencer
-    namespace['EventQueueHandler'] = nfp_event.EventQueueHandler
-    namespace['ReportStateTask'] = nfp_rpc.ReportStateTask
-    namespace['PollingTask'] = nfp_poll.PollingTask
-    namespace['PollQueueHandler'] = nfp_poll.PollQueueHandler
-
-load_nfp_symbols(globals())
 
 
 def common_init():
@@ -588,6 +572,7 @@ def common_init():
 
     n_common_config.init(sys.argv[1:])
     n_config.setup_logging()
+
 
 
 def main():

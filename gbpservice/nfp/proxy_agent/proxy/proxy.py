@@ -17,18 +17,17 @@ import argparse
 import ConfigParser
 
 from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 import os
 import socket
 import sys
 import time
 
 from oslo_config import cfg
-from oslo_log import log as logging
 
 logging.register_options(cfg.CONF)
 
-LOGGER = logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 
 # Queue of proxy connections which workers will handle
 ConnQ = eventlet.queue.Queue(maxsize=0)
@@ -91,8 +90,7 @@ class UnixServer(object):
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         # Bind the socket to the port
-        LOG(LOGGER, 'INFO', (sys.stderr,
-                             'starting up on %s' % self.bind_path))
+        LOG.info('starting up on %s' % self.bind_path)
         self.socket.bind(self.bind_path)
         self.socket.listen(self.max_connections)
 
@@ -119,13 +117,12 @@ class TcpClient(object):
 
     def connect(self):
         sock = socket.socket()
-        LOG(LOGGER, 'INFO', (sys.stderr,
-                             'connecting to %s port %s' % self.server))
+        LOG.info('connecting to %s port %s' % self.server)
         sock.settimeout(self.conf.connect_max_wait_timeout)
         try:
             sock.connect(self.server)
         except socket.error as exc:
-            LOG(LOGGER, 'ERROR', "Caught exception socket.error : %s" % exc)
+            LOG.error("Caught exception socket.error : %s" % exc)
             return sock, False
         return sock, True
 
@@ -190,7 +187,7 @@ class Connection(object):
         self._socket.send(data)
 
     def close(self):
-        LOG(LOGGER, 'DEBUG', "Closing Socket - %d" % (self.identify()))
+        LOG.debug("Closing Socket - %d" % (self.identify()))
         self._socket.close()
 
     def identify(self):
@@ -209,7 +206,7 @@ class ProxyConnection(object):
     def __init__(self, conf, unix_socket, tcp_socket):
         self._unix_conn = Connection(conf, unix_socket, type='unix')
         self._tcp_conn = Connection(conf, tcp_socket, type='tcp')
-        LOG(LOGGER, 'DEBUG', "New Proxy - Unix - %d, TCP - %d" % (
+        LOG.debug("New Proxy - Unix - %d, TCP - %d" % (
             self._unix_conn.identify(), self._tcp_conn.identify()))
 
     def close(self):
@@ -227,7 +224,7 @@ class ProxyConnection(object):
             self._proxy(self._tcp_conn, self._unix_conn)
             return True
         except Exception as exc:
-            LOG(LOGGER, 'DEBUG', "%s" % (exc))
+            LOG.debug("%s" % (exc))
             self._unix_conn.close()
             self._tcp_conn.close()
             return False
@@ -295,7 +292,7 @@ class Proxy(object):
 
         tcpsocket, connected = self.client.connect()
         if not connected:
-            LOG(LOGGER, 'ERROR', "Proxy -> Could not connect with tcp server")
+            LOG.error("Proxy -> Could not connect with tcp server")
             unixsocket.close()
             tcpsocket.close()
         else:

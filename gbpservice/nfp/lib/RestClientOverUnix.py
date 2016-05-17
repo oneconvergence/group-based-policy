@@ -14,18 +14,16 @@ import zlib
 import exceptions
 
 from gbpservice.nfp.core import common as nfp_common
-
+from gbpservice.nfp.core import log as nfp_logging
 import httplib
 import httplib2
 
-from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
 import six.moves.urllib.parse as urlparse
 import socket
 
-LOGGER = logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 
 
 class RestClientException(exceptions.Exception):
@@ -81,8 +79,11 @@ class UnixRestClient(object):
         Return:Http Response
         """
         # prepares path, body, url for sending unix request.
+        if method_type.upper() != 'GET':
+            body = jsonutils.dumps(body)
+            body = zlib.compress(body)
+
         path = '/v1/nfp/' + path
-        body = jsonutils.dumps(body)
         url = urlparse.urlunsplit((
             request_method,
             server_addr,
@@ -90,15 +91,14 @@ class UnixRestClient(object):
             None,
             ''))
 
-        body = zlib.compress(body)
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
             if content != '':
                 content = zlib.decompress(content)
-            LOG(LOGGER, 'INFO', "%s:%s" % (resp, content))
+            LOG.info("%s:%s" % (resp, content))
         except RestClientException as rce:
-            LOG(LOGGER, 'ERROR', "ERROR : %s" % (rce))
+            LOG.error("ERROR : %s" % (rce))
             raise rce
 
         success_code = [200, 201, 202, 204]
@@ -141,8 +141,7 @@ def get(path):
     """Implements get method for unix restclient
     Return:Http Response
     """
-    headers = {'content-type': 'application/octet-stream'}
-    return UnixRestClient().send_request(path, 'GET', headers=headers)
+    return UnixRestClient().send_request(path, 'GET')
 
 
 def put(path, body):

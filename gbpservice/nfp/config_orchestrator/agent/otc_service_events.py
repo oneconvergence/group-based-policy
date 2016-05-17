@@ -17,13 +17,11 @@ import gbpservice.nfp.lib.transport as transport
 from gbpservice.nfp.config_orchestrator.agent import firewall as fw
 from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
 from gbpservice.nfp.config_orchestrator.agent import vpn as vpn
-
-from oslo_log import log as oslo_logging
+from gbpservice.nfp.core import log as nfp_logging
 
 from neutron import context as n_context
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
@@ -54,7 +52,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
     def poll_event_cancel(self, event):
         msg = ("Poll Event =%s got time out Event Data = %s " %
                (event.id, event.data))
-        LOG(LOGGER, 'INFO', '%s' % (msg))
+        LOG.info('%s' % (msg))
 
     def _create_service(self, context, resource):
         ctxt = n_context.Context.from_dict(context)
@@ -88,7 +86,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                     event_data[
                         'service_type'])
                 msg = ("%s : %s " % (request_data, event_data['fw_mac']))
-                LOG(LOGGER, 'INFO', '%s' % (msg))
+                LOG.info('%s' % (msg))
 
             if (event_data['service_type']).lower() == 'loadbalancer':
                 request_data = self.lb_agent._prepare_request_data(
@@ -102,7 +100,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                     event_data[
                         'service_type'])
                 msg = ("%s : %s " % (request_data, event_data['vip_id']))
-                LOG(LOGGER, 'INFO', '%s' % (msg))
+                LOG.info('%s' % (msg))
 
             if (event_data['service_type']).lower() == 'vpn':
                 request_data = self.vpn_agent._prepare_request_data(
@@ -116,7 +114,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                     event_data[
                         'service_type'])
                 msg = ("%s : %s " % (request_data, event_data['ipsec_id']))
-                LOG(LOGGER, 'INFO', '%s' % (msg))
+                LOG.info('%s' % (msg))
 
             if request_data['nf']['status'] == 'ACTIVE':
                 new_event_data = {'resource': None,
@@ -133,5 +131,5 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
             else:
                 return CONTINUE_POLLING
         except Exception as e:
-            LOG(LOGGER, 'ERROR', '%s' % (e))
+            LOG.error('%s' % (e))
             return STOP_POLLING
