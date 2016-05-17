@@ -56,8 +56,10 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                         supports_device_sharing=True,
                         supports_hotplug=True)
         device_data = {'tenant_id': 'tenant_id',
-                       'service_details': {'device_type': 'None'},
-                       'service_vendor': 'service_vendor'}
+                       'service_details': {'device_type': 'xyz',
+                                           'service_type': 'lb',
+                                           'service_vendor': 'haproxy',
+                                           'network_mode': 'gbp'}}
         reply = driver.get_network_function_device_sharing_info(device_data)
         self.assertIsInstance(reply['filters'], dict,
                               msg=('Return value of'
@@ -138,12 +140,12 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                                                           'p.q.r.s/t',
                                                           'w.x.y.z'))
         # test for create device when interface hotplug is enabled
-        device_data = {'tenant_id': '1',
-                       'network_model': 'gbp',
-                       'service_vendor': 'haproxy',
+        device_data = {'service_details': {'device_type': 'xyz',
+                                           'service_type': 'lb',
+                                           'service_vendor': 'haproxy',
+                                           'network_mode': 'gbp'},
+                       'name': 'FIREWALL.vyos.1.2',
                        'management_network_info': {'id': '2'},
-                       'service_details': {'device_type': 'xyz'},
-                       'name': 'LOADBALANCER.haproxy.1.2',
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'},
@@ -153,7 +155,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.create_network_function_device,
                           device_data)
-        device_data['service_details'] = {'device_type': 'nova'}
+        device_data['service_details']['device_type'] = 'nova'
         self.assertIsInstance(driver.create_network_function_device(
                                                                 device_data),
                               dict,
@@ -190,9 +192,10 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         driver.network_handler.delete_port = mock.MagicMock(return_value=None)
 
         device_data = {'id': '1',
-                       'tenant_id': '2',
-                       'service_details': {'device_type': 'xyz'},
-                       'network_model': 'gbp',
+                       'service_details': {'device_type': 'xyz',
+                                           'service_type': 'lb',
+                                           'service_vendor': 'haproxy',
+                                           'network_mode': 'gbp'},
                        'mgmt_port_id': {'id': '3',
                                         'port_model': 'gbp',
                                         'port_classification': 'mgmt'}}
@@ -201,7 +204,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.delete_network_function_device,
                           device_data)
-        device_data['service_details'] = {'device_type': 'nova'}
+        device_data['service_details']['device_type'] = 'nova'
         self.assertIsNone(driver.delete_network_function_device(device_data))
 
     def test_get_network_function_device_status(self):
@@ -222,12 +225,15 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                                             return_value={'status': 'ACTIVE'})
 
         device_data = {'id': '1',
-                       'tenant_id': '2',
-                       'service_details': {'device_type': 'xyz'}}
+                       'service_details': {'device_type': 'xyz',
+                                           'service_type': 'lb',
+                                           'service_vendor': 'haproxy',
+                                           'network_mode': 'gbp'}}
+
         self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.get_network_function_device_status,
                           device_data)
-        device_data['service_details'] = {'device_type': 'nova'}
+        device_data['service_details']['device_type'] = 'nova'
 
         # self.assertTrue(driver.is_device_up(device_data))
         self.assertTrue(
@@ -256,25 +262,20 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         driver.network_handler.get_port_id = mock.MagicMock(return_value='7')
 
         device_data = {'id': '1',
-                       'tenant_id': '2',
                        'service_details': {'device_type': 'xyz',
-                                           'service_type': 'firewall'},
-                       'network_model': 'gbp',
+                                           'service_type': 'lb',
+                                           'service_vendor': 'haproxy',
+                                           'network_mode': 'gbp'},
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'},
                                  {'id': '4',
                                   'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
-        self.assertRaises(exceptions.HotplugNotSupported,
-                          driver.plug_network_function_device_interfaces,
-                          device_data)
 
-        driver.supports_hotplug = True
-
-        self.assertRaises(exceptions.ComputePolicyNotSupported,
-                          driver.plug_network_function_device_interfaces,
-                          device_data)
+        #self.assertRaises(exceptions.ComputePolicyNotSupported,
+        #                  driver.plug_network_function_device_interfaces,
+        #                  device_data)
 
         device_data['service_details']['device_type'] = 'nova'
 
@@ -302,25 +303,22 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
         driver.network_handler.get_port_id = mock.MagicMock(return_value='7')
 
         device_data = {'id': '1',
-                       'tenant_id': '2',
-                       'service_details': {'device_type': 'xyz'},
-                       'network_model': 'gbp',
+                       'service_details': {'device_type': 'xyz',
+                                           'service_type': 'lb',
+                                           'service_vendor': 'haproxy',
+                                           'network_mode': 'gbp'},
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
                                   'port_classification': 'provider'},
                                  {'id': '4',
                                   'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
-        self.assertRaises(exceptions.HotplugNotSupported,
-                          driver.unplug_network_function_device_interfaces,
-                          device_data)
 
-        driver.supports_hotplug = True
-        self.assertRaises(exceptions.ComputePolicyNotSupported,
-                          driver.unplug_network_function_device_interfaces,
-                          device_data)
+        #self.assertRaises(exceptions.ComputePolicyNotSupported,
+        #                  driver.unplug_network_function_device_interfaces,
+        #                  device_data)
 
-        device_data['service_details'] = {'device_type': 'nova'}
+        device_data['service_details']['device_type'] = 'nova'
 
         self.assertTrue(driver.unplug_network_function_device_interfaces(
                                                                 device_data),
@@ -334,8 +332,7 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                 max_interfaces=10)
 
         device_data = {'id': '1',
-                       'mgmt_ip_address': 'a.b.c.d',
-                       'service_details': {'service_type': 'haproxy'}}
+                       'mgmt_ip_address': 'a.b.c.d'}
 
         self.assertIsInstance(
             driver.get_network_function_device_healthcheck_info(device_data),
@@ -358,22 +355,18 @@ class HaproxyOrchestrationDriverTestCase(unittest.TestCase):
                                                           'p.q.r.s/t',
                                                           'w.x.y.z'))
 
-        device_data = {'service_vendor': 'haproxy',
+        device_data = {'service_details': {'device_type': 'xyz',
+                                           'service_type': 'lb',
+                                           'service_vendor': 'haproxy',
+                                           'network_mode': 'gbp'},
+
                        'mgmt_ip_address': 'a.b.c.d',
                        'ports': [{'id': '3',
                                   'port_model': 'gbp',
-                                  'port_classification': 'provider'}],
-                       'service_type': 'loadbalancer',
-                       'network_model': 'gbp',
-                       'network_function_id': '4',
-                       'tenant_id': '5',
-                       'service_details': {'service_vendor': 'vyos',
-                                           'service_type': 'firewall'}}
+                                  'port_classification': 'provider'}]}
 
         reply = driver.get_network_function_device_config_info(device_data)
         self.assertIsInstance(reply, dict, msg='')
-        self.assertTrue('info' in reply)
-        self.assertTrue('version' in reply['info'])
         self.assertTrue('config' in reply)
 
 

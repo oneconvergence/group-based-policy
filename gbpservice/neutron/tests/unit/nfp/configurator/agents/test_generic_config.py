@@ -71,7 +71,7 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
 
         agent, sc = self._get_GenericConfigRpcManager_object()
         arg_dict = {'context': self.fo.context,
-                    'kwargs': self.fo.kwargs}
+                    'resource_data': self.fo.kwargs}
         with mock.patch.object(
                     sc, 'new_event', return_value='foo') as mock_sc_event, \
             mock.patch.object(sc, 'post_event') as mock_sc_rpc_event:
@@ -218,20 +218,19 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
             agent.handle_event(ev)
 
-            kwargs = self.fo._fake_kwargs()
-            kwargs.pop('request_info')
+            resource_data = self.fo._fake_resource_data()
             if ev.id == 'CONFIGURE_INTERFACES':
                 mock_config_inte.assert_called_with(
-                                        self.empty, kwargs)
+                                        self.empty, resource_data)
             elif ev.id == 'CLEAR_INTERFACES':
                 mock_clear_inte.assert_called_with(
-                                        self.empty, kwargs)
+                                        self.empty, resource_data)
             elif ev.id == 'CONFIGURE_ROUTES':
                 mock_config_src_routes.assert_called_with(
-                            self.empty, kwargs)
+                            self.empty, resource_data)
             elif ev.id == 'CLEAR_ROUTES':
                 mock_delete_src_routes.assert_called_with(
-                            self.empty, kwargs)
+                            self.empty, resource_data)
             elif 'CONFIGURE_HEALTHMONITOR' in ev.id:
                 if periodicity == gen_cfg_const.INITIAL_HM_RETRIES:
                     mock_hm_poll_event.assert_called_with(
@@ -337,7 +336,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         ev = fo.FakeEvent()
-        ev.data['kwargs'].update({'periodicity': gen_cfg_const.FOREVER})
+        ev.data['resource_data'].update({'periodicity': gen_cfg_const.FOREVER})
         ev.id = 'CONFIGURE_HEALTHMONITOR forever'
         self._test_handle_event(ev)
 
