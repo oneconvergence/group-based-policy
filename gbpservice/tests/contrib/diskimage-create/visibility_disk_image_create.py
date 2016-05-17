@@ -32,6 +32,42 @@ def parse_json(j_file):
     return
 
 
+def create_visibility_docker():
+    '''
+    1. git pull of visibility
+    2. create docker image
+    3. save docker image
+    '''
+
+    vis_dir = '/home/stack/visibility'
+    docker_images = "%s/output/docker_images/" % cur_dir
+    if not os.path.exists(docker_images):
+        os.makedirs(docker_images)
+
+    # create a docker image
+    os.chdir(vis_dir)
+    docker_args = ['docker', 'build',  '-f', 'visibility/docker/UI/Dockerfile', '-t', 'visibility-docker', '.']
+    ret = subprocess.call(docker_args)
+    if(ret):
+        print "Failed to build docker image [visibility-docker]"
+        return -1
+
+    os.chdir(docker_images)
+    del(docker_args)
+    # save the docker image
+    docker_args = ['docker', 'save', '-o', 'visibility-docker', 'visibility-docker']
+    ret = subprocess.call(docker_args)
+    if(ret):
+        print "Failed to save docker image [visibility-docker]"
+        return -1
+
+    # set environment variable, needed by 'extra-data.d'
+    os.environ['VISIBILITY_GIT_PATH'] = vis_dir
+    os.environ['DOCKER_IMAGES_PATH'] = docker_images
+
+    return 0
+
+
 def create_configurator_docker():
     configurator_dir = "%s/../../../nfp/configurator" % cur_dir
     docker_images = "%s/output/docker_images/" % cur_dir
@@ -152,6 +188,18 @@ def dib():
             create_configurator_docker()
             # for bigger size images
             dib_args.append('--no-tmpfs')
+        if element == 'visibility':
+            image_name = 'visibility'
+            # create a docker image
+            create_visibility_docker()
+            create_configurator_docker()
+            # set environment variable, needed by 'extra-data.d'
+            p1 = subprocess.Popen(['grep', 'DOCKER_IMAGES_URL', '/home/stack/devstack/local.conf'], stdout=subprocess.PIPE)
+            p2 = subprocess.Popen(['cut', '-d', '=', '-f', '2'], stdin=p1.stdout, stdout=subprocess.PIPE)
+            p3 = subprocess.Popen(['tr', '-d', '[[:space:]]'], stdin=p2.stdout, stdout=subprocess.PIPE)
+            os.environ['DOCKER_IMAGES_URL'] = p3.communicate()[0]
+            # for bigger size images
+            dib_args.append('--no-tmpfs')
         if element == 'haproxy':
             image_name = 'haproxy'
             dib_args.append('debs')
@@ -203,6 +251,7 @@ if __name__ == "__main__":
     # parse args from json file
     parse_json(sys.argv[1])
     elements = conf['dib']['elements']
+
     elem = 'haproxy'
     if elem in elements:
         if(update_haproxy_repo()):

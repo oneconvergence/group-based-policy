@@ -1,0 +1,94 @@
+#!/bin/bash
+#set -x
+
+#Converts decimal to ip address
+function dec2ip () {
+    local ip dec=$1
+    for e in {3..0}
+    do
+        ((octet = dec / (256 ** e) ))
+        ((dec -= octet * 256 ** e))
+        ip+=$delim$octet
+        delim=.
+    done
+    echo $ip
+}
+
+#Converts ip notation to decimal
+function ip2dec () {
+    local a b c d ip=$1
+    IFS=. read -r a b c d <<< "$ip"
+    echo $((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))
+}
+
+
+#sleep 20
+all_interfaces=`ifconfig | grep "Link encap" | grep -v "127.0.0.1" |cut -d: -d " " -f 1`;
+index=0;
+for i in $all_interfaces; do
+    if [ "$i" != "lo" ] #&& [ "$i" != "eth0" ]
+    then
+        ip_addr=`ip addr show $i | grep "inet " | grep -v "/32" | awk -F'[/ ]+' '{ print $3 }'`
+        bcast_ip=`ip addr show $i | grep "inet "  | grep -v "/32" | awk -F'[/ ]+' '{ print $6 }'`;
+        filename="/var/lib/dhcp/dhclient."$i".leases"
+        mask=`grep "option subnet-mask" $filename |tail -1| awk -F'[; ]+' '{ print $4 }'`
+        dec_bcast_ip=$(ip2dec $bcast_ip)
+        dec_mask=$(ip2dec $mask)
+        dec_net_ip=$(($dec_bcast_ip & $dec_mask))
+        net_ip=$(dec2ip $dec_net_ip)
+        interfaces[$index]=$i
+        ip_addresses[$index]=$ip_addr
+        network_id[$index]=$net_ip
+        mask_num=`ip addr show dev $i | grep -m2 "inet "  | grep -v "/32" | awk -F'[/ ]+' '{ print $4 }'|cut -d '/' -f 2`
+        net_ip_with_mask="${net_ip}/${mask_num}"
+        filename="/var/lib/dhcp/dhclient."$i".leases"
+        route=`grep "option routers" $filename |tail -1| cut -d: -d " " -f5`
+        default_route[index]=${route%?}
+        table_name=$i"_table"
+        table_id=`expr $index + 5`
+        
+        is_present=`grep "$table_name" /etc/iproute2/rt_tables`
+        
+        if [ "$is_present" == "" ]
+        then
+             echo $table_id  $table_name >> /etc/iproute2/rt_tables
+        fi
+        index=`expr $index + 1`
+        #echo $net_ip_with_mask $i $mask_num
+        `ip route flush dev $i`
+        `ip route add $net_ip_with_mask dev $i`
+        if [ "$i" == "eth0" ]
+            then
+                `ip route del default`
+                `ip route add default via ${route%?}`
+        fi
+
+    fi
+done
+echo 'dicts'
+echo ${interfaces[*]}
+echo ${ip_addresses[*]}
+echo ${network_id[*]}
+echo ${default_route[*]}
+#exit
+index=0
+for interface in ${interfaces[*]}; do
+    table_name=$interface"_table"
+    mask_num=`ip addr show dev $interface | grep -m2 "inet "  | grep -v "/32" | awk -F'[: ]+' '{ print $3 }'|cut -d '/' -f 2`
+    net_ip_with_mask="${network_id[$index]}/${mask_num}"
+    `ip route flush table $table_name`
+    `ip route add $net_ip_with_mask dev $interface src ${ip_addresses[$index]} table $table_name`
+    `ip route add default via ${default_route[$index]} table $table_name`
+    `ip route add $net_ip_with_mask dev $interface src ${ip_addresses[$index]}`
+    while `ip rule del from 0/0 to 0/0 table $table_name 2>/dev/null`
+    do
+        true
+    done
+    alias_ip=`ip addr show dev $interface | grep -m2 "inet "  | grep "/32" | tail -n1 | awk -F'[: ]+' '{ print $3 }'|cut -d '/' -f 1`
+    if [ "$alias_ip" != "" ] && [ "$alias_ip" != "${ip_addresses[$index]}" ]
+    then
+        `ip rule add from $alias_ip table $table_name`
+    fi
+    `ip rule add from ${ip_addresses[$index]} table $table_name`
+    index=`expr $index + 1`
+done
