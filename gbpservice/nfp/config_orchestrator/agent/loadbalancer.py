@@ -38,131 +38,238 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
     target = messaging.Target(version=RPC_API_VERSION)
 
     def __init__(self, conf, sc):
+        super(LbAgent, self).__init__()
         self._conf = conf
         self._sc = sc
-        super(LbAgent, self).__init__()
+        self._db_inst = super(LbAgent, self)
 
-    def _filter_service_info_with_resource(self, db):
+    def _filter_service_info_with_resource(self, lb_db, core_db):
         updated_db = {'subnets': [],
                       'ports': []}
-        for pool in db['pools']:
+        for pool in lb_db['pools']:
             psubnet_id = pool['subnet_id']
-            for subnet in db['subnets']:
+            for subnet in core_db['subnets']:
                 if subnet['id'] == psubnet_id:
                     updated_db['subnets'].append(subnet)
-        for vip in db['vips']:
+        for vip in lb_db['vips']:
             vport_id = vip['port_id']
-            for port in db['ports']:
+            for port in core_db['ports']:
                 if port['id'] == vport_id:
                     updated_db['ports'].append(port)
-        db.update(updated_db)
-        return db
+        lb_db.update(updated_db)
+        return lb_db
 
-    def _get_core_context(self, context, filters):
+    def _get_core_context(self, context, tenant_id):
+        filters = {'tenant_id': [tenant_id]}
         core_context_dict = common.get_core_context(context,
                                                     filters,
                                                     self._conf.host)
         del core_context_dict['routers']
         return core_context_dict
 
-    def _get_lb_context(self, context, filters):
+    def _get_pools(self, **kwargs):
+        context = kwargs.get('context')
+        filters = {'tenant_id': [kwargs.get('tenant_id')],
+                   'id': [kwargs.get('pool_id')]}
         args = {'context': context, 'filters': filters}
-        db_data = super(LbAgent, self)
-        return {'pools': db_data.get_pools(**args),
-                'vips': db_data.get_vips(**args),
-                'members': db_data.get_members(**args),
-                'health_monitors': db_data.get_health_monitors(**args)}
+        pools = self._db_inst.get_pools(**args)
+        for pool in pools:
+            pool['description'] = kwargs.get('description')
+        return pools
 
-    def _context(self, context, tenant_id):
+    def _get_vips(self, **kwargs):
+        context = kwargs.get('context')
+        filters = {'tenant_id': [kwargs.get('tenant_id')],
+                   'pool_id': [kwargs.get('pool_id')]}
+        args = {'context': context, 'filters': filters}
+        vips = self._db_inst.get_vips(**args)
+        for vip in vips:
+            vip['description'] = kwargs.get('description')
+        return vips
+
+    def _get_members(self, **kwargs):
+        context = kwargs.get('context')
+        filters = {'tenant_id': [kwargs.get('tenant_id')],
+                   'pool_id': [kwargs.get('pool_id')]}
+        args = {'context': context, 'filters': filters}
+        members = self._db_inst.get_members(**args)
+        for member in members:
+            member.update({'description': kwargs.get('description')})
+        return members
+
+    def _get_health_monitors(self, **kwargs):
+        context = kwargs.get('context')
+        filters = {'tenant_id': [kwargs.get('tenant_id')],
+                   'pool_id': [kwargs.get('pool_id')]}
+        args = {'context': context, 'filters': filters}
+        health_monitors = self._db_inst.get_health_monitors(**args)
+        for health_monitor in health_monitors:
+            health_monitor.update({'description': kwargs.get('description')})
+        return health_monitors
+
+    def _get_lb_context(self, **kwargs):
+        pools = self._get_pools(**kwargs)
+        vips = self._get_vips(**kwargs)
+        members = self._get_members(**kwargs)
+        healthmonitors = self._get_health_monitors(**kwargs)
+        return {'pools': pools,
+                'vips': vips,
+                'members': members,
+                'health_monitors': healthmonitors}
+
+    def _context(self, **kwargs):
+        context = kwargs.get('context')
         if context.is_admin:
-            tenant_id = context.tenant_id
-        filters = {'tenant_id': [tenant_id]}
-        db = self._get_lb_context(context, filters)
-        db.update(self._get_core_context(context, filters))
+            kwargs['tenant_id'] = context.tenant_id
+        lb_db = self._get_lb_context(**kwargs)
+        core_db = self._get_core_context(context, kwargs['tenant_id'])
+        db = self._filter_service_info_with_resource(lb_db, core_db)
         return db
 
-    def _prepare_resource_context_dicts(self, context, tenant_id):
+    def _prepare_resource_context_dicts(self, **kwargs):
         # Prepare context_dict
+        context = kwargs.get('context')
         ctx_dict = context.to_dict()
         # Collecting db entry required by configurator.
         # Addind service_info to neutron context and sending
         # dictionary format to the configurator.
-        db = self._context(context, tenant_id)
+        db = self._context(**kwargs)
         rsrc_ctx_dict = copy.deepcopy(ctx_dict)
-        db = self._filter_service_info_with_resource(db)
         rsrc_ctx_dict.update({'service_info': db})
         return ctx_dict, rsrc_ctx_dict
 
-    def _data_wrapper(self, context, tenant_id, name, reason, **kwargs):
+    def _data_wrapper(self, context, tenant_id, name, reason, nf, **kwargs):
+        nfp_context = {}
+        description = ast.literal_eval((nf['description'].split('\n'))[1])
+        if name.lower() == 'pool_health_monitor':
+            pool_id = kwargs.get('pool_id')
+            kwargs['health_monitor'].update({'description': str(description)})
+        elif name.lower() == 'pool':
+            pool_id = kwargs['pool'].get('id')
+            kwargs['pool']['description'] = str(description)
+        elif name.lower() == 'vip':
+            pool_id = kwargs['vip'].get('pool_id')
+            kwargs['vip']['description'] = str(description)
+            nfp_context = {'network_function_id': nf['id'],
+                           'vip_id': kwargs['vip']['id']}
+        else:
+            kwargs[name.lower()].update({'description': str(description)})
+            pool_id = kwargs[name.lower()].get('pool_id')
+
+        args = {'tenant_id': tenant_id,
+                'pool_id': pool_id,
+                'context': context,
+                'description': str(description)}
         ctx_dict, rsrc_ctx_dict = self.\
-            _prepare_resource_context_dicts(context, tenant_id)
-        nfp_context = {'neutron_context': ctx_dict,
-                       'requester': 'nas_service'}
-        if name.lower() == 'vip':
-            vip_desc = ast.literal_eval(kwargs['vip']['description'])
-            nf_id = vip_desc['network_function_id']
-            vip_id = kwargs['vip']['id']
-            nfp_context.update({'network_function_id': nf_id,
-                                'vip_id': vip_id})
+            _prepare_resource_context_dicts(**args)
+
+        nfp_context.update({'neutron_context': ctx_dict,
+                            'requester': 'nas_service'})
         resource_type = 'loadbalancer'
         resource = name
         resource_data = {'neutron_context': rsrc_ctx_dict}
         resource_data.update(**kwargs)
         body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
+                                           resource_type, resource_data,
+                                           description['service_vendor'])
         return body
 
-    def _post(self, context, tenant_id, name, **kwargs):
+    def _post(self, context, tenant_id, name, nf, **kwargs):
         body = self._data_wrapper(context, tenant_id, name,
-                                  'CREATE', **kwargs)
+                                  'CREATE', nf, **kwargs)
         transport.send_request_to_configurator(self._conf,
                                                context, body, "CREATE")
 
-    def _delete(self, context, tenant_id, name, **kwargs):
+    def _delete(self, context, tenant_id, name, nf, **kwargs):
         body = self._data_wrapper(context, tenant_id, name,
-                                  'DELETE', **kwargs)
+                                  'DELETE', nf, **kwargs)
         transport.send_request_to_configurator(self._conf,
                                                context, body, "DELETE")
 
+    def _get_pool(self, context, pool_id):
+        pool = None
+        try:
+            pool = self._db_inst.get_pool(context, pool_id)
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', e)
+        return pool
+
+    def _fetch_nf_from_resource_desc(self, desc):
+        desc_dict = ast.literal_eval(desc)
+        nf_id = desc_dict['network_function_id']
+        return nf_id
+
     @log_helpers.log_method_call
     def create_vip(self, context, vip):
-        self._post(context, vip['tenant_id'], 'vip', vip=vip)
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(vip["description"])
+        nf = common.get_network_function_details(context, nf_id)
+        self._post(context, vip['tenant_id'], 'vip', nf, vip=vip)
 
     @log_helpers.log_method_call
     def delete_vip(self, context, vip):
-        self._delete(context, vip['tenant_id'], 'vip', vip=vip)
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(vip["description"])
+        nf = common.get_network_function_details(context, nf_id)
+        self._delete(context, vip['tenant_id'], 'vip', nf, vip=vip)
 
     @log_helpers.log_method_call
     def create_pool(self, context, pool, driver_name):
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(pool["description"])
+        nf = common.get_network_function_details(context, nf_id)
         self._post(
             context, pool['tenant_id'],
-            'pool', pool=pool, driver_name=driver_name)
+            'pool', nf, pool=pool, driver_name=driver_name)
 
     @log_helpers.log_method_call
     def delete_pool(self, context, pool):
-        self._delete(context, pool['tenant_id'], 'pool', pool=pool)
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(pool["description"])
+        nf = common.get_network_function_details(context, nf_id)
+        self._delete(context, pool['tenant_id'], 'pool', nf, pool=pool)
 
     @log_helpers.log_method_call
     def create_member(self, context, member):
-        self._post(context, member['tenant_id'], 'member', member=member)
+        # Fetch pool from pool_id
+        pool = self._get_pool(context, member['pool_id'])
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(pool["description"])
+        nf = common.get_network_function_details(context, nf_id)
+        self._post(context, member['tenant_id'], 'member', nf, member=member)
 
     @log_helpers.log_method_call
     def delete_member(self, context, member):
+        # Fetch pool from pool_id
+        pool = self._get_pool(context, member['pool_id'])
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(pool["description"])
+        nf = common.get_network_function_details(context, nf_id)
         self._delete(
             context, member['tenant_id'], 'member',
-            member=member)
+            nf, member=member)
 
     @log_helpers.log_method_call
     def create_pool_health_monitor(self, context, health_monitor, pool_id):
+        # Fetch pool from pool_id
+        pool = self._get_pool(context, pool_id)
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(pool["description"])
+        nf = common.get_network_function_details(context, nf_id)
         self._post(context, health_monitor[
             'tenant_id'], 'pool_health_monitor',
-            health_monitor=health_monitor, pool_id=pool_id)
+            nf, health_monitor=health_monitor, pool_id=pool_id)
 
     @log_helpers.log_method_call
     def delete_pool_health_monitor(self, context, health_monitor, pool_id):
+        # Fetch pool from pool_id
+        pool = self._get_pool(context, pool_id)
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(pool["description"])
+        nf = common.get_network_function_details(context, nf_id)
         self._delete(
             context, health_monitor['tenant_id'], 'pool_health_monitor',
-            health_monitor=health_monitor, pool_id=pool_id)
+            nf, health_monitor=health_monitor, pool_id=pool_id)
 
 
 class LoadbalancerNotifier(object):
@@ -171,22 +278,26 @@ class LoadbalancerNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _prepare_request_data(self, context, nf_id, vip_id, service_type):
+    def _prepare_request_data(self, context, nf_id,
+                              resource_id, vip_id,
+                              service_type):
         request_data = None
         try:
             request_data = common.get_network_function_map(
                 context, nf_id)
             # Adding Service Type #
             request_data.update({"service_type": service_type,
-                                 "vip_id": vip_id})
-        except Exception:
+                                 "vip_id": vip_id,
+                                 "neutron_resource_id": resource_id})
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', '%s' % (e))
             return request_data
         return request_data
 
     def _trigger_service_event(self, context, event_type, event_id,
                                request_data):
         event_data = {'resource': None,
-                      'context': context}
+                      'context': context.to_dict()}
         event_data['resource'] = {'eventtype': event_type,
                                   'eventid': event_id,
                                   'eventdata': request_data}
@@ -219,13 +330,18 @@ class LoadbalancerNotifier(object):
         if obj_type.lower() == 'vip':
             nf_id = notification_info['context']['network_function_id']
             vip_id = notification_info['context']['vip_id']
-            request_data = self._prepare_request_data(context, nf_id,
-                                                      vip_id, service_type)
-            LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-            # Sending An Event for visiblity
-            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                        request_data)
+            # sending notification to visibility
+            event_data = {'context': context.to_dict(),
+                          'nf_id': nf_id,
+                          'vip_id': vip_id,
+                          'service_type': service_type,
+                          'resource_id': vip_id
+                          }
+            ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
+                                    key='SERVICE_CREATE_PENDING',
+                                    data=event_data, max_times=24)
+            self._sc.poll_event(ev)
 
     def update_pool_stats(self, context, notification_data):
         notification = notification_data['notification'][0]
@@ -252,10 +368,15 @@ class LoadbalancerNotifier(object):
         notification_info = notification_data['info']
         nf_id = notification_info['context']['network_function_id']
         vip_id = notification_info['context']['vip_id']
+        resource_id = notification_info['context']['vip_id']
         service_type = notification_info['service_type']
-        request_data = self._prepare_request_data(context, nf_id,
-                                                  vip_id, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
+        request_data = self._prepare_request_data(context,
+                                                  nf_id,
+                                                  resource_id,
+                                                  vip_id,
+                                                  service_type)
+        log_msg = ("%s : %s " % (request_data, nf_id))
+        LOG(LOGGER, 'INFO', "%s" % (log_msg))
 
         # Sending An Event for visiblity
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',

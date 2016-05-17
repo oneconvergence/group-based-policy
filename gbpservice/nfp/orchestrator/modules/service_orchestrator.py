@@ -30,13 +30,17 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
+from gbpservice.nfp.core import log as nfp_log
 
 LOG = logging.getLogger(__name__)
+
+nfp_log.use_nfp_logging('LOG')
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
 
 
+@nfp_log.patch_method
 def rpc_init(controller, config):
     rpcmgr = RpcHandler(config, controller)
     agent = RpcAgent(controller,
@@ -52,18 +56,24 @@ def rpc_init(controller, config):
     controller.register_rpc_agents([agent, configurator_agent])
 
 
+@nfp_log.patch_method
 def events_init(controller, config, service_orchestrator):
-    events = ['DELETE_NETWORK_FUNCTION', 'CREATE_NETWORK_FUNCTION_INSTANCE',
-              'DELETE_NETWORK_FUNCTION_INSTANCE', 'DEVICE_CREATED',
-              'DEVICE_ACTIVE', 'DEVICE_DELETED', 'APPLY_USER_CONFIG',
-              'DELETE_USER_CONFIG', 'UPDATE_USER_CONFIG', 'POLICY_TARGET_ADD',
-              'POLICY_TARGET_REMOVE', 'CONSUMER_ADD', 'CONSUMER_REMOVE',
+    events = ['DELETE_NETWORK_FUNCTION',
+              'CREATE_NETWORK_FUNCTION_INSTANCE',
+              'DELETE_NETWORK_FUNCTION_INSTANCE',
+              'DEVICE_CREATED', 'DEVICE_ACTIVE', 'DEVICE_DELETED',
+              'DEVICE_CREATE_FAILED',
+              'APPLY_USER_CONFIG', 'DELETE_USER_CONFIG', 'UPDATE_USER_CONFIG',
+              'POLICY_TARGET_ADD', 'POLICY_TARGET_REMOVE',
+              'CONSUMER_ADD', 'CONSUMER_REMOVE',
               'APPLY_USER_CONFIG_IN_PROGRESS',
+              'UPDATE_USER_CONFIG_PREPARING_TO_START',
               'UPDATE_USER_CONFIG_IN_PROGRESS',
-              'DELETE_USER_CONFIG_IN_PROGRESS', 'USER_CONFIG_APPLIED',
-              'USER_CONFIG_DELETED', 'USER_CONFIG_DELETE_FAILED',
-              'DEVICE_CREATE_FAILED', 'USER_CONFIG_FAILED',
-              'UPDATE_USER_CONFIG_FAILED', 'CONFIG_APPLIED']
+              'UPDATE_USER_CONFIG_STILL_IN_PROGRESS',
+              'DELETE_USER_CONFIG_IN_PROGRESS',
+              'CONFIG_APPLIED', 'USER_CONFIG_APPLIED', 'USER_CONFIG_DELETED',
+              'USER_CONFIG_DELETE_FAILED', 'USER_CONFIG_UPDATE_FAILED',
+              'USER_CONFIG_FAILED']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -71,11 +81,13 @@ def events_init(controller, config, service_orchestrator):
     controller.register_events(events_to_register)
 
 
+@nfp_log.patch_method
 def nfp_module_init(controller, config):
     events_init(controller, config, ServiceOrchestrator(controller, config))
     rpc_init(controller, config)
 
 
+@nfp_log.patch_class
 class RpcHandler(object):
 
     """RPC Handler for Node Driver to NFP.
@@ -92,6 +104,7 @@ class RpcHandler(object):
         self.conf = conf
         self._controller = controller
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def create_network_function(self, context, network_function):
         '''Create Network Function.
@@ -104,13 +117,17 @@ class RpcHandler(object):
         return service_orchestrator.create_network_function(
             context, network_function)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def get_network_function(self, context, network_function_id):
         '''Invoked in an RPC Call. Return the Network function DB object'''
-        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator = ServiceOrchestrator(
+            self._controller, self.conf,
+            log_meta=nfp_log.NfpLogMeta(meta_id=network_function_id))
         return service_orchestrator.get_network_function(
             context, network_function_id)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def get_network_functions(self, context, filters=None):
         '''Invoked in an RPC Call.
@@ -121,6 +138,7 @@ class RpcHandler(object):
         return service_orchestrator.get_network_functions(
             context, filters)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def update_network_function(self, context, network_function_id,
                                 config):
@@ -129,10 +147,13 @@ class RpcHandler(object):
         Invoked in an RPC call. A notification has to be sent back once the
         operation is completed, and GBP has the status update support
         '''
-        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator = ServiceOrchestrator(
+            self._controller, self.conf,
+            log_meta=nfp_log.NfpLogMeta(meta_id=network_function_id))
         service_orchestrator.update_network_function(
             context, network_function_id, config)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def delete_network_function(self, context, network_function_id):
         '''Delete the network Function.
@@ -140,10 +161,13 @@ class RpcHandler(object):
         Invoked in an RPC cast. A notification has to be sent back once the
         operation is completed, and GBP has the status update support
         '''
-        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator = ServiceOrchestrator(
+            self._controller, self.conf,
+            log_meta=nfp_log.NfpLogMeta(meta_id=network_function_id))
         service_orchestrator.delete_network_function(
             context, network_function_id)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def policy_target_added_notification(self, context, network_function_id,
                                          policy_target):
@@ -152,10 +176,13 @@ class RpcHandler(object):
         Invoked in an RPC cast. A notification has to be sent back once the
         operation is completed, and GBP has the status update support
         '''
-        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator = ServiceOrchestrator(
+            self._controller, self.conf,
+            log_meta=nfp_log.NfpLogMeta(meta_id=network_function_id))
         service_orchestrator.handle_policy_target_added(
             context, network_function_id, policy_target)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def policy_target_removed_notification(self, context, network_function_id,
                                            policy_target):
@@ -164,10 +191,13 @@ class RpcHandler(object):
         Invoked in an RPC cast. A notification has to be sent back once the
         operation is completed, and GBP has the status update support
         '''
-        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator = ServiceOrchestrator(
+            self._controller, self.conf,
+            log_meta=nfp_log.NfpLogMeta(meta_id=network_function_id))
         service_orchestrator.handle_policy_target_removed(
             context, network_function_id, policy_target)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def consumer_ptg_added_notification(self, context, network_function_id,
                                         policy_target_group):
@@ -176,10 +206,13 @@ class RpcHandler(object):
         Invoked in an RPC cast. A notification has to be sent back once the
         operation is completed, and GBP has the status update support
         '''
-        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator = ServiceOrchestrator(
+            self._controller, self.conf,
+            log_meta=nfp_log.NfpLogMeta(meta_id=network_function_id))
         service_orchestrator.handle_consumer_ptg_added(
             context, network_function_id, policy_target_group)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def consumer_ptg_removed_notification(self, context, network_function_id,
                                           policy_target_group):
@@ -188,20 +221,26 @@ class RpcHandler(object):
         Invoked in an RPC cast. A notification has to be sent back once the
         operation is completed, and GBP has the status update support
         '''
-        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator = ServiceOrchestrator(
+            self._controller, self.conf,
+            log_meta=nfp_log.NfpLogMeta(meta_id=network_function_id))
         service_orchestrator.handle_consumer_ptg_removed(
             context, network_function_id, policy_target_group)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def get_network_function_details(self, context, network_function_id):
         '''Invoked in an RPC Call.
 
         Return the Network function Details object
         '''
-        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        service_orchestrator = ServiceOrchestrator(
+            self._controller, self.conf,
+            log_meta=nfp_log.NfpLogMeta(meta_id=network_function_id))
         return service_orchestrator.get_network_function_details(
             network_function_id)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def get_port_info(self, context, port_id):
         '''Invoked in an RPC Call. Return the Port Info Details object'''
@@ -209,6 +248,7 @@ class RpcHandler(object):
         return service_orchestrator.get_port_info(port_id)
 
 
+@nfp_log.patch_class
 class RpcHandlerConfigurator(object):
 
     """RPC Handler for Configurator to NFP.
@@ -217,6 +257,7 @@ class RpcHandlerConfigurator(object):
     RPC_API_VERSION = '1.0'
     target = oslo_messaging.Target(version=RPC_API_VERSION)
 
+    @nfp_log.patch_method
     def __init__(self, conf, controller):
         super(RpcHandlerConfigurator, self).__init__()
         self.conf = conf
@@ -231,12 +272,14 @@ class RpcHandlerConfigurator(object):
                      'CONSUMER_REMOVE']
         }
 
+    @nfp_log.patch_method
     def _log_event_created(self, event_id, event_data):
         LOG.info(_LI("Service Orchestrator, RPC Handler for configurator,"
                      "Created event, %s(event_name)s with "
                      "event data: %(event_data)s"),
                  {'event_name': event_id, 'event_data': event_data})
 
+    @nfp_log.patch_method
     def _create_event(self, event_id, event_data=None,
                       is_poll_event=False, original_event=None,
                       serialize=False):
@@ -245,7 +288,8 @@ class RpcHandlerConfigurator(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.key)
+                key=original_event.key,
+                context=self.log_meta.to_dict())
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
@@ -255,12 +299,16 @@ class RpcHandlerConfigurator(object):
                     id=event_id, data=event_data,
                     binding_key=network_function_id,
                     key=network_function_id,
-                    serialize=True)
+                    serialize=True,
+                    context=self.log_meta.to_dict())
             else:
-                ev = self._controller.new_event(id=event_id, data=event_data)
+                ev = self._controller.new_event(id=event_id, data=event_data,
+                                                context=(
+                                                    self.log_meta.to_dict()))
             self._controller.post_event(ev)
         self._log_event_created(event_id, event_data)
 
+    @nfp_log.patch_method
     @log_helpers.log_method_call
     def network_function_notification(self, context, notification_data):
         info = notification_data.get('info')
@@ -268,7 +316,7 @@ class RpcHandlerConfigurator(object):
         request_info = info.get('context')
         operation = request_info.get('operation')
         serialize = False
-
+        nfp_log.add_meta(self, **request_info['logging_metadata'])
         for response in responses:
             resource = response.get('resource')
             data = response.get('data')
@@ -280,6 +328,7 @@ class RpcHandlerConfigurator(object):
                 elif operation == 'delete':
                     event_id = self.rpc_event_mapping[resource][1]
                 elif operation == 'update':
+                    serialize = True
                     event_id = self.rpc_event_mapping[resource][2]
                 elif operation == 'pt_add':
                     serialize = True
@@ -310,6 +359,7 @@ class RpcHandlerConfigurator(object):
                            event_data=event_data, serialize=serialize)
 
 
+@nfp_log.patch_class
 class ServiceOrchestrator(object):
 
     """Orchestrator For Network Services
@@ -347,6 +397,7 @@ class ServiceOrchestrator(object):
     returns IN_PROGRESS, the poll event is continued.
     """
 
+    @nfp_log.patch_method
     def __init__(self, controller, config):
         self._controller = controller
         self.db_handler = nfp_db.NFPDbBase()
@@ -356,58 +407,66 @@ class ServiceOrchestrator(object):
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = NSOConfiguratorRpcApi(neutron_context, config)
         self.status_map = {
-                'pt_add': {'status': 'PT_ADD_IN_PROGRESS',
-                           'status_description': 'pt addition is in progress'},
-                'pt_remove': {'status': 'PT_REMOVE_IN_PROGRESS',
-                           'status_description': 'pt deletion is in progress'},
-                'ptg_add': {'status': 'PTG_ADD_IN_PROGRESS',
-                           'status_description': 'ptg addition is in progress'},
-                'ptg_remove': {'status': 'PTG_REMOVE_IN_PROGRESS',
-                           'status_description': 'ptg deletion is in progress'},
-                }
+            'pt_add': {'status': 'PT_ADD_IN_PROGRESS',
+                       'status_description': 'pt addition is in progress'},
+            'pt_remove': {'status': 'PT_REMOVE_IN_PROGRESS',
+                          'status_description': 'pt deletion is in progress'},
+            'ptg_add': {'status': 'PTG_ADD_IN_PROGRESS',
+                        'status_description': 'ptg addition is in progress'},
+            'ptg_remove': {'status': 'PTG_REMOVE_IN_PROGRESS',
+                           'status_description': (
+                               'ptg deletion is in progress')},
+        }
 
     @property
     def db_session(self):
         return nfp_db_api.get_session()
 
+    @nfp_log.patch_method
     def event_method_mapping(self, event_id):
         event_handler_mapping = {
             "DELETE_NETWORK_FUNCTION": self.delete_network_function,
-            "DELETE_NETWORK_FUNCTION_INSTANCE": (
-                self.delete_network_function_instance),
             "CREATE_NETWORK_FUNCTION_INSTANCE": (
                 self.create_network_function_instance),
+            "DELETE_NETWORK_FUNCTION_INSTANCE": (
+                self.delete_network_function_instance),
             "DEVICE_CREATED": self.handle_device_created,
             "DEVICE_ACTIVE": self.handle_device_active,
+            "DEVICE_DELETED": self.handle_device_deleted,
+            "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
             "APPLY_USER_CONFIG": self.apply_user_config,
-            "APPLY_USER_CONFIG_IN_PROGRESS": (
-                self.check_for_user_config_complete),
-            "USER_CONFIG_APPLIED": self.handle_user_config_applied,
-            "UPDATE_USER_CONFIG": self.handle_update_user_config,
-            "UPDATE_USER_CONFIG_IN_PROGRESS": (
-                self.check_for_user_config_complete),
             "DELETE_USER_CONFIG": self.delete_user_config,
-            "DELETE_USER_CONFIG_IN_PROGRESS": (
-                self.check_for_user_config_deleted),
-            "USER_CONFIG_DELETED": self.handle_user_config_deleted,
-            "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
+            "UPDATE_USER_CONFIG": self.handle_update_user_config,
             "POLICY_TARGET_ADD": self.policy_target_add_user_config,
             "POLICY_TARGET_REMOVE": self.policy_target_remove_user_config,
             "CONSUMER_ADD": self.consumer_ptg_add_user_config,
             "CONSUMER_REMOVE": self.consumer_ptg_remove_user_config,
-            "DEVICE_DELETED": self.handle_device_deleted,
-            "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
-            "USER_CONFIG_FAILED": self.handle_user_config_failed,
-            "UPDATE_USER_CONFIG_FAILED": (
-                self.handle_update_user_config_failed),
-            "CONFIG_APPLIED": self.handle_config_applied
+            "APPLY_USER_CONFIG_IN_PROGRESS": (
+                self.check_for_user_config_complete),
+            "UPDATE_USER_CONFIG_PREPARING_TO_START": (
+                self.check_for_user_config_deleted),
+            "UPDATE_USER_CONFIG_IN_PROGRESS": (
+                self.handle_continue_update_user_config),
+            "UPDATE_USER_CONFIG_STILL_IN_PROGRESS": (
+                self.check_for_user_config_complete),
+            "DELETE_USER_CONFIG_IN_PROGRESS": (
+                self.check_for_user_config_deleted),
+            "CONFIG_APPLIED": self.handle_config_applied,
+            "USER_CONFIG_APPLIED": self.handle_user_config_applied,
+            "USER_CONFIG_DELETED": self.handle_user_config_deleted,
+            "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
+            "USER_CONFIG_UPDATE_FAILED": self.handle_update_user_config_failed,
+            "USER_CONFIG_FAILED": self.handle_user_config_failed
         }
         if event_id not in event_handler_mapping:
             raise Exception("Invalid Event ID")
         else:
             return event_handler_mapping[event_id]
 
+    @nfp_log.patch_method
     def handle_event(self, event):
+        log_metadata = event.context
+        nfp_log.add_meta(self, **log_metadata)
         LOG.info(_LI("Service Orchestrator received event %(id)s"),
                  {'id': event.id})
         try:
@@ -417,7 +476,10 @@ class ServiceOrchestrator(object):
             LOG.exception(_LE("Error in processing event: %(event_id)s"),
                           {'event_id': event.id})
 
+    @nfp_log.patch_method
     def handle_poll_event(self, event):
+        log_metadata = event.context
+        nfp_log.add_meta(self, **log_metadata)
         LOG.info(_LI("Service Orchestrator received poll event %(id)s"),
                  {'id': event.id})
         try:
@@ -427,11 +489,13 @@ class ServiceOrchestrator(object):
             LOG.exception(_LE("Error in processing poll event: "
                               "%(event_id)s"), {'event_id': event.id})
 
+    @nfp_log.patch_method
     def _log_event_created(self, event_id, event_data):
         LOG.info(_LI("Created event %s(event_name)s with event "
                      "data: %(event_data)s"),
                  {'event_name': event_id, 'event_data': event_data})
 
+    @nfp_log.patch_method
     def _create_event(self, event_id, event_data=None,
                       key=None, binding_key=None, serialize=False,
                       is_poll_event=False, original_event=None,
@@ -442,18 +506,33 @@ class ServiceOrchestrator(object):
                     id=event_id, data=event_data,
                     serialize=original_event.serialize,
                     binding_key=original_event.binding_key,
-                    key=original_event.desc.uid)
+                    key=original_event.desc.uid,
+                    context=self.log_meta.to_dict())
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:
-                ev = self._controller.new_event(id=event_id, data=event_data)
+                if original_event:
+                    ev = self._controller.new_event(
+                        id=event_id, data=event_data,
+                        serialize=original_event.serialize,
+                        binding_key=original_event.binding_key,
+                        key=original_event.desc.uid,
+                        context=self.log_meta.to_dict())
+                else:
+                    ev = self._controller.new_event(id=event_id,
+                                                    data=event_data,
+                                                    context=(
+                                                        self.log_meta.
+                                                        to_dict()))
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
             # Same module API, so calling corresponding function directly.
-            event = self._controller.new_event(id=event_id, data=event_data)
+            event = self._controller.new_event(id=event_id, data=event_data,
+                                               context=self.log_meta.to_dict())
             self.handle_event(event)
 
+    @nfp_log.patch_method
     def _get_base_mode_support(self, service_profile_id):
         admin_token = self.keystoneclient.get_admin_token()
         service_profile = self.gbpclient.get_service_profile(
@@ -464,6 +543,7 @@ class ServiceOrchestrator(object):
                              else False)
         return base_mode_support
 
+    @nfp_log.patch_method
     def _get_service_type(self, service_profile_id):
         admin_token = self.keystoneclient.get_admin_token()
         service_profile = self.gbpclient.get_service_profile(
@@ -471,6 +551,7 @@ class ServiceOrchestrator(object):
         service_type = service_profile['service_type']
         return service_type
 
+    @nfp_log.patch_method
     def update_network_function_user_config(self, network_function_id,
                                             service_config_str,
                                             operation):
@@ -502,6 +583,7 @@ class ServiceOrchestrator(object):
             # Place holder for calling config_init API
             pass
 
+    @nfp_log.patch_method
     def update_consumer_ptg(self, network_function_data,
                             service_config_str, operation):
         tag_str, config_str = self.config_driver.\
@@ -525,42 +607,60 @@ class ServiceOrchestrator(object):
             # Place holder for calling config_init API
             pass
 
+    @nfp_log.patch_method
     def create_network_function_user_config(self, network_function_id,
                                             service_config_str):
         self.update_network_function_user_config(network_function_id,
                                                  service_config_str,
                                                  operation='create')
 
+    @nfp_log.patch_method
     def delete_network_function_user_config(self, network_function_id,
                                             service_config_str):
         self.update_network_function_user_config(network_function_id,
                                                  service_config_str,
                                                  operation='delete')
 
+    @nfp_log.patch_method
     def consumer_add_user_config(self, network_function_data,
                                  service_config_str):
         self.update_consumer_ptg(network_function_data,
                                  service_config_str,
                                  operation='consumer_add')
 
+    @nfp_log.patch_method
     def consumer_remove_user_config(self, network_function_data,
                                     service_config_str):
         self.update_consumer_ptg(network_function_data,
                                  service_config_str,
                                  operation='consumer_remove')
 
+    @nfp_log.patch_method
     def pt_add_user_config(self, network_function_data,
                            service_config_str):
         self.update_consumer_ptg(network_function_data,
                                  service_config_str,
                                  operation='policy_target_add')
 
+    @nfp_log.patch_method
     def pt_remove_user_config(self, network_function_data,
                               service_config):
         self.update_consumer_ptg(network_function_data,
                                  service_config,
                                  operation='policy_target_remove')
 
+    def _report_logging_info(self, nf, nfi, service_type,
+                             service_vendor):
+        LOG.info("[TenantID:%s, ServiceChainID:%s, "
+                 "ServiceInstanceID:%s, ServiceType:%s, "
+                 "ServiceProvider: %s]" % (
+                     nf['tenant_id'],
+                     nf['service_chain_id'],
+                     nfi['id'],
+                     service_type,
+                     service_vendor))
+
+    @nfp_log.patch_method
     def create_network_function(self, context, network_function_info):
         self._validate_create_service_input(context, network_function_info)
         # GBP or Neutron
@@ -576,7 +676,7 @@ class ServiceOrchestrator(object):
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
         service_vendor = service_details['service_vendor']
-        name = "%s.%s.%s" % (service_profile['service_type'],
+        name = "%s_%s_%s" % (service_profile['service_type'],
                              service_vendor,
                              service_chain_id or service_id)
         service_config_str = network_function_info.get('service_config')
@@ -592,6 +692,7 @@ class ServiceOrchestrator(object):
         }
         network_function = self.db_handler.create_network_function(
             self.db_session, network_function)
+        nfp_log.add_meta(self, meta_id=network_function['id'])
 
         if (not service_details.get('service_vendor') or
                 not service_details.get('device_type')):
@@ -635,6 +736,7 @@ class ServiceOrchestrator(object):
                            is_internal_event=True)
         return network_function
 
+    @nfp_log.patch_method
     def update_network_function(self, context, network_function_id,
                                 user_config):
         # Handle config update
@@ -646,6 +748,7 @@ class ServiceOrchestrator(object):
                                                  user_config,
                                                  operation='update')
 
+    @nfp_log.patch_method
     def delete_network_function(self, context, network_function_id):
         network_function_info = self.db_handler.get_network_function(
             self.db_session, network_function_id)
@@ -662,6 +765,7 @@ class ServiceOrchestrator(object):
         network_function = self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
         heat_stack_id = network_function['heat_stack_id']
+        LOG.info("[Event:DeleteService]")
         if heat_stack_id:
             service_config = network_function_info['service_config']
             self.delete_network_function_user_config(network_function_id,
@@ -671,6 +775,7 @@ class ServiceOrchestrator(object):
                 self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
                                    event_data=nfi_id, is_internal_event=True)
 
+    @nfp_log.patch_method
     def delete_user_config(self, event):
         request_data = event.data
         network_function_details = self.get_network_function_details(
@@ -690,7 +795,8 @@ class ServiceOrchestrator(object):
         request_data = {
             'heat_stack_id': network_function_info['heat_stack_id'],
             'tenant_id': network_function_info['tenant_id'],
-            'network_function_id': network_function_info['id']
+            'network_function_id': network_function_info['id'],
+            'action': 'delete'
         }
         if not heat_stack_id:
             self._create_event('USER_CONFIG_DELETE_FAILED',
@@ -700,9 +806,10 @@ class ServiceOrchestrator(object):
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
 
+    @nfp_log.patch_method
     def create_network_function_instance(self, event):
         request_data = event.data
-        name = '%s.%s' % (request_data['network_function']['name'],
+        name = '%s_%s' % (request_data['network_function']['name'],
                           request_data['network_function']['id'])
         create_nfi_request = {
             'name': name,
@@ -717,6 +824,11 @@ class ServiceOrchestrator(object):
         }
         nfi_db = self.db_handler.create_network_function_instance(
             self.db_session, create_nfi_request)
+        # Sending LogMeta Details to visibility
+        self._report_logging_info(request_data['network_function'], nfi_db,
+                                  request_data['service_type'],
+                                  request_data['service_details'][
+                                      'service_vendor'])
 
         request_data['service_details'].update(
             service_type=request_data['service_type'])
@@ -729,9 +841,11 @@ class ServiceOrchestrator(object):
             'service_details': request_data['service_details'],
             'share_existing_device': request_data['share_existing_device'],
         }
+        LOG.info("[Event:CreateService]")
         self._create_event('CREATE_NETWORK_FUNCTION_DEVICE',
                            event_data=create_nfd_request)
 
+    @nfp_log.patch_method
     def handle_device_created(self, event):
         request_data = event.data
         nfi = {
@@ -742,6 +856,7 @@ class ServiceOrchestrator(object):
             self.db_session, request_data['network_function_instance_id'], nfi)
         return
 
+    @nfp_log.patch_method
     def handle_device_active(self, event):
         request_data = event.data
         nfi = {
@@ -758,6 +873,7 @@ class ServiceOrchestrator(object):
         self.create_network_function_user_config(network_function['id'],
                                                  service_config)
 
+    @nfp_log.patch_method
     def apply_user_config(self, event):
         request_data = event.data
         network_function_details = self.get_network_function_details(
@@ -776,38 +892,98 @@ class ServiceOrchestrator(object):
                   % (request_data['heat_stack_id']))
         self.db_handler.update_network_function(
             self.db_session, network_function['id'],
-            {'heat_stack_id': request_data['heat_stack_id']})
+            {'heat_stack_id': request_data['heat_stack_id'],
+             'description': network_function['description']})
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True,
                            original_event=event)
 
+    @nfp_log.patch_method
     def handle_update_user_config(self, event):
         request_data = event.data
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
         stack_id = network_function_details['network_function'
                                             ]['heat_stack_id']
-        # Heat driver to update stack
-        request_data['heat_stack_id'] = self.config_driver.update_config(
-            network_function_details, stack_id)
         network_function = network_function_details['network_function']
-        request_data['network_function_id'] = network_function['id']
+        service_profile_id = network_function['service_profile_id']
+        service_type = self._get_service_type(service_profile_id)
+        if not self.config_driver.is_update_config_supported(service_type):
+            service_chain_id = network_function['service_chain_id']
+            admin_token = self.keystoneclient.get_admin_token()
+            servicechain_instance = self.gbpclient.get_servicechain_instance(
+                admin_token,
+                service_chain_id)
+            provider_ptg_id = servicechain_instance['provider_ptg_id']
+            provider_ptg = self.gbpclient.get_policy_target_group(
+                admin_token,
+                provider_ptg_id)
+            provider_tenant_id = provider_ptg['tenant_id']
+            stack_id = self.config_driver.delete_config(stack_id,
+                                                        provider_tenant_id)
+            request_data = {
+                'heat_stack_id': stack_id,
+                'network_function_id': network_function['id'],
+                'tenant_id': provider_tenant_id,
+                'action': 'update',
+                'operation': request_data['operation']
+            }
+            self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
+                               event_data=request_data,
+                               is_poll_event=True, original_event=event)
+        else:
+            self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
+                               event_data=event.data,
+                               is_internal_event=True)
 
-        if not request_data['heat_stack_id']:
-            self._create_event('UPDATE_USER_CONFIG_FAILED',
-                               event_data=request_data)
+    @nfp_log.patch_method
+    def handle_continue_update_user_config(self, event):
+        request_data = event.data
+        network_function_details = self.get_network_function_details(
+            request_data['network_function_id'])
+        network_function = network_function_details['network_function']
+
+        if request_data['operation'] == 'update':
+            config_id = self.config_driver.update_config(
+                network_function_details,
+                network_function_details['network_function']['heat_stack_id'])
+        elif request_data['operation'] == 'consumer_add':
+            config_id = self.config_driver.handle_consumer_ptg_operations(
+                network_function_details, request_data['consumer_ptg'],
+                "add")
+        elif request_data['operation'] == 'consumer_remove':
+            config_id = self.config_driver.handle_consumer_ptg_operations(
+                network_function_details, request_data['consumer_ptg'],
+                "remove")
+        else:
             return
-        request_data['tenant_id'] = network_function['tenant_id']
-        request_data['network_function_details'] = network_function_details
-        # Update stack id in DB
-        self.db_handler.update_network_function(
-            self.db_session, network_function['id'],
-            {'heat_stack_id': request_data['heat_stack_id']})
-        self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
-                           event_data=request_data,
-                           is_poll_event=True)
 
+        request_data = {
+            'heat_stack_id': config_id,
+            'tenant_id': network_function['tenant_id'],
+            'network_function_id': network_function['id'],
+            'network_function_details': network_function_details
+        }
+        if not config_id:
+            event_id = ('USER_CONFIG_UPDATE_FAILED'
+                        if request_data['operation'] == 'update'
+                        else 'USER_CONFIG_FAILED')
+            self._create_event(event_id,
+                               event_data=request_data,
+                               is_internal_event=True)
+            if event.binding_key:
+                self._controller.event_done(event)
+            return
+        self.db_handler.update_network_function(
+            self.db_session,
+            network_function['id'],
+            {'heat_stack_id': config_id})
+        self._create_event('UPDATE_USER_CONFIG_STILL_IN_PROGRESS',
+                           event_data=request_data,
+                           is_poll_event=True, original_event=event)
+
+    @nfp_log.patch_method
     def handle_device_create_failed(self, event):
         request_data = event.data
         nfi = {
@@ -822,6 +998,7 @@ class ServiceOrchestrator(object):
             self.db_session, nfi['network_function_id'], network_function)
         # Trigger RPC to notify the Create_Service caller with status
 
+    @nfp_log.patch_method
     def handle_driver_error(self, network_function_id):
         network_function_details = self.get_network_function_details(
             network_function_id)
@@ -843,6 +1020,7 @@ class ServiceOrchestrator(object):
     def _update_network_function_instance(self):
         pass
 
+    @nfp_log.patch_method
     def delete_network_function_instance(self, event):
         nfi_id = event.data
         nfi = {'status': nfp_constants.PENDING_DELETE}
@@ -866,6 +1044,7 @@ class ServiceOrchestrator(object):
                                is_internal_event=True)
 
     # FIXME: Add all possible validations here
+    @nfp_log.patch_method
     def _validate_create_service_input(self, context, create_service_request):
         required_attributes = ["tenant_id", "service_id", "service_chain_id",
                                "service_profile_id", "network_function_mode"]
@@ -888,6 +1067,7 @@ class ServiceOrchestrator(object):
                     required_data=", ".join(missing_keys),
                     request="Create Network Function")
 
+    @nfp_log.patch_method
     def check_for_user_config_complete(self, event):
         request_data = event.data
         config_status = self.config_driver.is_config_complete(
@@ -923,6 +1103,7 @@ class ServiceOrchestrator(object):
         elif config_status == nfp_constants.IN_PROGRESS:
             return CONTINUE_POLLING
 
+    @nfp_log.patch_method
     def check_for_user_config_deleted(self, event):
         request_data = event.data
         event_data = {
@@ -951,18 +1132,24 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            event_data = {
-                'network_function_id': request_data['network_function_id']
-            }
-            self._create_event('USER_CONFIG_DELETED',
-                               event_data=event_data,
-                               is_internal_event=True)
-            self._controller.event_done(event)
+            if request_data['action'] == 'update':
+                self._create_event("UPDATE_USER_CONFIG_IN_PROGRESS",
+                                   event_data=request_data,
+                                   original_event=event)
+            else:
+                event_data = {
+                    'network_function_id': request_data['network_function_id']
+                }
+                self._create_event('USER_CONFIG_DELETED',
+                                   event_data=event_data,
+                                   is_internal_event=True)
+                self._controller.event_done(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
             return CONTINUE_POLLING
 
+    @nfp_log.patch_method
     def handle_user_config_applied(self, event):
         request_data = event.data
         network_function = {
@@ -975,6 +1162,7 @@ class ServiceOrchestrator(object):
             network_function)
         # Trigger RPC to notify the Create_Service caller with status
 
+    @nfp_log.patch_method
     def handle_config_applied(self, event):
         event_data = event.data
         network_function_id = event_data['network_function_id']
@@ -999,6 +1187,7 @@ class ServiceOrchestrator(object):
                  {'network_function_id':
                   network_function_id})
 
+    @nfp_log.patch_method
     def handle_update_user_config_failed(self, event):
         event_data = event.data
         network_function_id = event_data['network_function_id']
@@ -1007,6 +1196,7 @@ class ServiceOrchestrator(object):
                   {'network_function_id': network_function_id})
         self.handle_user_config_failed(event)
 
+    @nfp_log.patch_method
     def handle_user_config_failed(self, event):
         request_data = event.data
         updated_network_function = {
@@ -1019,6 +1209,7 @@ class ServiceOrchestrator(object):
             updated_network_function)
         # Trigger RPC to notify the Create_Service caller with status
 
+    @nfp_log.patch_method
     def handle_user_config_deleted(self, event):
         request_data = event.data
         network_function = self.db_handler.get_network_function(
@@ -1037,6 +1228,7 @@ class ServiceOrchestrator(object):
 
     # Change to Delete_failed or continue with instance and device
     # delete if config delete fails? or status CONFIG_DELETE_FAILED ??
+    @nfp_log.patch_method
     def handle_user_config_delete_failed(self, event):
         request_data = event.data
         updated_network_function = {
@@ -1051,6 +1243,7 @@ class ServiceOrchestrator(object):
     # When NDO deletes Device DB, the Foreign key NSI will be nulled
     # So we have to pass the NSI ID in delete event to NDO and process
     # the result based on that
+    @nfp_log.patch_method
     def handle_device_deleted(self, event):
         request_data = event.data
         nfi_id = request_data['network_function_instance_id']
@@ -1065,6 +1258,7 @@ class ServiceOrchestrator(object):
                 self.db_session, nfi['network_function_id'])
             # Inform delete service caller with delete completed RPC
 
+    @nfp_log.patch_method
     def get_network_function(self, context, network_function_id):
         try:
             network_function = self.db_handler.get_network_function(
@@ -1076,18 +1270,21 @@ class ServiceOrchestrator(object):
                           {'network_function': network_function_id})
             return None
 
+    @nfp_log.patch_method
     def get_network_functions(self, context, filters):
         return self.db_handler.get_network_functions(
             self.db_session, filters)
 
+    @nfp_log.patch_method
     def _update_network_function_status(self, network_function_id, operation):
         self.db_handler.update_network_function(
             self.db_session,
             network_function_id,
             {'status': self.status_map[operation]['status'],
              'status_description': self.status_map[operation][
-                                            'status_description']})
+                'status_description']})
 
+    @nfp_log.patch_method
     def handle_policy_target_added(self, context, network_function_id,
                                    policy_target):
         network_function = self.db_handler.get_network_function(
@@ -1124,6 +1321,7 @@ class ServiceOrchestrator(object):
         self.pt_add_user_config(network_function_data,
                                 service_config)
 
+    @nfp_log.patch_method
     def policy_target_add_user_config(self, event):
         request_data = event.data
         network_function_details = self.get_network_function_details(
@@ -1150,6 +1348,7 @@ class ServiceOrchestrator(object):
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
 
+    @nfp_log.patch_method
     def handle_policy_target_removed(self, context, network_function_id,
                                      policy_target):
         network_function = self.db_handler.get_network_function(
@@ -1186,6 +1385,7 @@ class ServiceOrchestrator(object):
         self.pt_remove_user_config(network_function_data,
                                    service_config)
 
+    @nfp_log.patch_method
     def policy_target_remove_user_config(self, event):
         request_data = event.data
         network_function_details = self.get_network_function_details(
@@ -1212,6 +1412,7 @@ class ServiceOrchestrator(object):
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
 
+    @nfp_log.patch_method
     def handle_consumer_ptg_added(self, context, network_function_id,
                                   consumer_ptg):
         network_function = self.db_handler.get_network_function(
@@ -1248,32 +1449,38 @@ class ServiceOrchestrator(object):
         self.consumer_add_user_config(network_function_data,
                                       service_config)
 
+    @nfp_log.patch_method
     def consumer_ptg_add_user_config(self, event):
         request_data = event.data
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
         consumer_ptg = request_data['consumer_ptg']
-        config_id = self.config_driver.handle_consumer_ptg_operations(
-            network_function_details, consumer_ptg, "add")
+        stack_id = network_function_details['network_function'
+                                            ]['heat_stack_id']
         network_function = network_function_details['network_function']
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id'],
-            'network_function_details': network_function_details
-        }
-        if not config_id:
-            self._create_event('USER_CONFIG_FAILED',
-                               event_data=request_data, is_internal_event=True)
-            return
-        self.db_handler.update_network_function(
-            self.db_session,
-            network_function['id'],
-            {'heat_stack_id': config_id})
-        self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
-                           event_data=request_data,
-                           is_poll_event=True, original_event=event)
+        service_profile_id = network_function['service_profile_id']
+        service_type = self._get_service_type(service_profile_id)
+        if not self.config_driver.is_update_config_supported(service_type):
+            stack_id = self.config_driver.delete_config(
+                stack_id,
+                consumer_ptg['tenant_id'])
+            request_data = {
+                'heat_stack_id': stack_id,
+                'network_function_id': network_function['id'],
+                'tenant_id': consumer_ptg['tenant_id'],
+                'action': 'update',
+                'operation': request_data['operation'],
+                'consumer_ptg': request_data['consumer_ptg']
+            }
+            self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
+                               event_data=request_data,
+                               is_poll_event=True, original_event=event)
+        else:
+            self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
+                               event_data=event.data,
+                               is_internal_event=True)
 
+    @nfp_log.patch_method
     def handle_consumer_ptg_removed(self, context, network_function_id,
                                     consumer_ptg):
         network_function = self.db_handler.get_network_function(
@@ -1310,32 +1517,38 @@ class ServiceOrchestrator(object):
         self.consumer_remove_user_config(network_function_data,
                                          service_config)
 
+    @nfp_log.patch_method
     def consumer_ptg_remove_user_config(self, event):
         request_data = event.data
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
         consumer_ptg = request_data['consumer_ptg']
-        config_id = self.config_driver.handle_consumer_ptg_operations(
-            network_function_details, consumer_ptg, "remove")
+        stack_id = network_function_details['network_function'
+                                            ]['heat_stack_id']
         network_function = network_function_details['network_function']
-        request_data = {
-            'heat_stack_id': config_id,
-            'tenant_id': network_function['tenant_id'],
-            'network_function_id': network_function['id'],
-            'network_function_details': network_function_details
-        }
-        if not config_id:
-            self._create_event('USER_CONFIG_FAILED',
-                               event_data=request_data, is_internal_event=True)
-            return
-        self.db_handler.update_network_function(
-            self.db_session,
-            network_function['id'],
-            {'heat_stack_id': config_id})
-        self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
-                           event_data=request_data,
-                           is_poll_event=True, original_event=event)
+        service_profile_id = network_function['service_profile_id']
+        service_type = self._get_service_type(service_profile_id)
+        if not self.config_driver.is_update_config_supported(service_type):
+            stack_id = self.config_driver.delete_config(
+                stack_id,
+                consumer_ptg['tenant_id'])
+            request_data = {
+                'heat_stack_id': stack_id,
+                'network_function_id': network_function['id'],
+                'tenant_id': consumer_ptg['tenant_id'],
+                'action': 'update',
+                'operation': request_data['operation'],
+                'consumer_ptg': request_data['consumer_ptg']
+            }
+            self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
+                               event_data=request_data,
+                               is_poll_event=True, original_event=event)
+        else:
+            self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
+                               event_data=event.data,
+                               is_internal_event=True)
 
+    @nfp_log.patch_method
     def get_port_info(self, port_id):
         try:
             port_info = self.db_handler.get_port_info(
@@ -1347,6 +1560,7 @@ class ServiceOrchestrator(object):
                           {'port_id': port_id})
             return None
 
+    @nfp_log.patch_method
     def get_network_function_details(self, network_function_id):
         network_function = self.db_handler.get_network_function(
             self.db_session, network_function_id)
@@ -1369,12 +1583,14 @@ class ServiceOrchestrator(object):
         return network_function_details
 
 
+@nfp_log.patch_class
 class NSOConfiguratorRpcApi(object):
 
     """Service Manager side of the Service Manager to Service agent RPC API"""
     API_VERSION = '1.0'
     target = oslo_messaging.Target(version=API_VERSION)
 
+    @nfp_log.patch_method
     def __init__(self, context, conf):
         super(NSOConfiguratorRpcApi, self).__init__()
         self.conf = conf
@@ -1384,6 +1600,7 @@ class NSOConfiguratorRpcApi(object):
             version=self.API_VERSION,
             topic=nfp_rpc_topics.NFP_NSO_CONFIGURATOR_TOPIC)
 
+    @nfp_log.patch_method
     def _get_request_info(self, user_config_data, operation):
         network_function_details = user_config_data[
             'network_function_details']
@@ -1395,7 +1612,8 @@ class NSOConfiguratorRpcApi(object):
                        if network_function_instance else ''),
             'nfd_id': None,
             'requester': nfp_constants.SERVICE_ORCHESTRATOR,
-            'operation': operation
+            'operation': operation,
+            'logging_metadata': self.log_meta.to_dict()
         }
         if operation in ['consumer_add', 'consumer_remove']:
             request_info.update({'consumer_ptg': user_config_data[
@@ -1412,10 +1630,12 @@ class NSOConfiguratorRpcApi(object):
             request_info.update({'device_ip': nfd_ip})
         return request_info
 
+    @nfp_log.patch_method
     def _update_params(self, user_config_data, config_params, operation):
         request_info = self._get_request_info(user_config_data, operation)
         config_params['info']['context'] = request_info
 
+    @nfp_log.patch_method
     def create_request_structure(self, user_config_data,
                                  service_config, config_tag):
         config_params = {
@@ -1433,8 +1653,11 @@ class NSOConfiguratorRpcApi(object):
         }
         return config_params
 
+    @nfp_log.patch_method
     def create_network_function_user_config(self, user_config_data,
                                             service_config, config_tag):
+        nfp_log.add_meta(self, meta_id=user_config_data[
+            'network_function_details']['network_function']['id'])
         config_params = self.create_request_structure(user_config_data,
                                                       service_config,
                                                       config_tag)
@@ -1449,8 +1672,11 @@ class NSOConfiguratorRpcApi(object):
                                                       config_params,
                                                       'CREATE')
 
+    @nfp_log.patch_method
     def delete_network_function_user_config(self, user_config_data,
                                             service_config, config_tag):
+        nfp_log.add_meta(self, meta_id=user_config_data[
+            'network_function_details']['network_function']['id'])
         config_params = self.create_request_structure(user_config_data,
                                                       service_config,
                                                       config_tag)
@@ -1465,8 +1691,11 @@ class NSOConfiguratorRpcApi(object):
                                                       config_params,
                                                       'DELETE')
 
+    @nfp_log.patch_method
     def update_network_function_user_config(self, user_config_data,
                                             service_config, config_tag):
+        nfp_log.add_meta(self, meta_id=user_config_data[
+            'network_function_details']['network_function']['id'])
         config_params = self.create_request_structure(user_config_data,
                                                       service_config,
                                                       config_tag)
@@ -1481,8 +1710,11 @@ class NSOConfiguratorRpcApi(object):
                                                       config_params,
                                                       'UPDATE')
 
+    @nfp_log.patch_method
     def policy_target_add_user_config(self, user_config_data,
                                       service_config, config_tag):
+        nfp_log.add_meta(self, meta_id=user_config_data[
+            'network_function_details']['network_function']['id'])
         config_params = self.create_request_structure(user_config_data,
                                                       service_config,
                                                       config_tag)
@@ -1497,8 +1729,11 @@ class NSOConfiguratorRpcApi(object):
                                                       config_params,
                                                       'CREATE')
 
+    @nfp_log.patch_method
     def policy_target_remove_user_config(self, user_config_data,
                                          service_config, config_tag):
+        nfp_log.add_meta(self, meta_id=user_config_data[
+            'network_function_details']['network_function']['id'])
         config_params = self.create_request_structure(user_config_data,
                                                       service_config,
                                                       config_tag)
@@ -1513,8 +1748,11 @@ class NSOConfiguratorRpcApi(object):
                                                       config_params,
                                                       'DELETE')
 
+    @nfp_log.patch_method
     def consumer_add_user_config(self, user_config_data,
                                  service_config, config_tag):
+        nfp_log.add_meta(self, meta_id=user_config_data[
+            'network_function_details']['network_function']['id'])
         config_params = self.create_request_structure(user_config_data,
                                                       service_config,
                                                       config_tag)
@@ -1529,8 +1767,11 @@ class NSOConfiguratorRpcApi(object):
                                                       config_params,
                                                       'CREATE')
 
+    @nfp_log.patch_method
     def consumer_remove_user_config(self, user_config_data,
                                     service_config, config_tag):
+        nfp_log.add_meta(self, meta_id=user_config_data[
+            'network_function_details']['network_function']['id'])
         config_params = self.create_request_structure(user_config_data,
                                                       service_config,
                                                       config_tag)

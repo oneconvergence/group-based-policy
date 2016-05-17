@@ -151,7 +151,7 @@ class NetworkFunction(BASE, HasId, HasTenant, HasStatusDescription):
     __tablename__ = 'nfp_network_functions'
 
     name = sa.Column(sa.String(255))
-    description = sa.Column(sa.String(255))
+    description = sa.Column(sa.String(1024))
     service_id = sa.Column(sa.String(36), nullable=False)
     service_chain_id = sa.Column(sa.String(36), nullable=True)
     service_profile_id = sa.Column(sa.String(36), nullable=False)

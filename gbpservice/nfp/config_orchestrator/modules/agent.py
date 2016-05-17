@@ -86,6 +86,8 @@ def events_init(sc, conf):
         Event(id='SERVICE_CREATED',
               handler=otc_se.OTCServiceEventsHandler(sc, conf)),
         Event(id='SERVICE_DELETED',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
+        Event(id='SERVICE_CREATE_PENDING',
               handler=otc_se.OTCServiceEventsHandler(sc, conf))]
 
     sc.register_events(evs)
