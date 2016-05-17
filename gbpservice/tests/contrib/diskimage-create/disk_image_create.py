@@ -12,6 +12,7 @@
 
 #! /usr/bin/python
 
+import commands
 import datetime
 import os
 from oslo_serialization import jsonutils
@@ -31,23 +32,103 @@ def parse_json(j_file):
     return
 
 
+def create_configurator_docker():
+    configurator_dir = "%s/../../../nfp/configurator" % cur_dir
+    docker_images = "%s/output/docker_images/" % cur_dir
+    if not os.path.exists(docker_images):
+        os.makedirs(docker_images)
+ 
+    # create a docker image
+    os.chdir(configurator_dir)
+    docker_args = ['docker', 'build', '-t', 'configurator-docker', '.']
+    ret = subprocess.call(docker_args)
+    if(ret):
+        print "Failed to build docker image [configurator-docker]"
+        return -1
+
+    os.chdir(docker_images)
+    del(docker_args)
+    # save the docker image
+    docker_args = ['docker', 'save', '-o', 'configurator-docker', 'configurator-docker']
+    ret = subprocess.call(docker_args)
+    if(ret):
+        print "Failed to save docker image [configurator-docker]"
+        return -1
+    # set environment variable, needed by 'extra-data.d'
+    os.environ['DOCKER_IMAGES_PATH'] = docker_images
+
+    return 0
+
+
+def create_apt_source_list():
+    """
+    Creates a file 00-haproxy-agent-debs, this will be executed by dib to
+    create a file haproxy-agent-debs.list file inside VM at /etc/apt/sources.list.d/
+    This file will contain entries for apt to fetch any debs from
+    our local repo
+    """
+    elems = "%s/elements" % cur_dir
+
+    # update repo_host ip in 00-haproxy-agent-debs file
+    # this file will be copied to VM at /etc/apt/sources.list.d/
+    os.chdir("%s/debs/pre-install.d/" % elems)
+    f = open("00-haproxy-agent-debs", 'w')
+    print >> f, "#!/bin/bash\n\n"
+    print >> f, "set -eu"
+    print >> f, "set -o xtrace"
+    print >> f, "apt-get install ubuntu-cloud-keyring"
+
+    if 'haproxy' in conf['dib']['elements']:
+        tmp_str = ('echo "deb http://%s/ /haproxy/"'
+                   ' > /etc/apt/sources.list.d/haproxy-agent-debs.list'
+                   % 'localhost')
+        print >> f, tmp_str
+    f.close()
+
+
+def update_haproxy_repo():
+    haproxy_vendor_dir = ("%s/../../../nfp/service_vendor_agents/haproxy"
+                          % cur_dir)
+    service = 'haproxy-agent' 
+    version = '1'
+    release = '1'
+    subprocess.call(['rm', '-rf',
+                     "%s/%s/deb-packages" % (haproxy_vendor_dir, service)])
+    os.chdir(haproxy_vendor_dir)
+    ret = subprocess.call(['bash',
+                           'build_haproxy_agent_deb.sh',
+                           service,
+                           version, release])
+    if(ret):
+        print "ERROR: Unable to generate haproxy-agent deb package"
+        return 1
+
+    subprocess.call(["rm", "-rf", "/var/www/html/haproxy"])
+    out = subprocess.call(["mkdir", "-p", "/var/www/html/haproxy/"])
+    haproxy_agent_deb = ("%s/%s/deb-packages/%s-%s-%s.deb"
+                         % (haproxy_vendor_dir, service,
+                            service, version, release))
+    subprocess.call(["cp", haproxy_agent_deb, "/var/www/html/haproxy/"])
+
+    os.chdir("/var/www/html")
+    out = commands.getoutput("dpkg-scanpackages haproxy/ /dev/null"
+                             " | gzip -9c > haproxy/Packages.gz")
+    print out
+
+    return 0
+
+
 def dib():
     dib = conf['dib']
-    elems = cur_dir + '/elements/'
+    elems = "%s/elements/" % cur_dir
 
     # set the elements path in environment variable
     os.environ['ELEMENTS_PATH'] = elems
     # set the Ubuntu Release for the build in environment variable
     os.environ['DIB_RELEASE'] = conf['ubuntu_release']['release']
 
-    image_name = 'nfp_reference_service'
     # basic elements
-    dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu', 'devuser',
-                'dhcp-all-interfaces']
-
-    # create user
-    os.environ['DIB_DEV_USER_USERNAME'] = 'ubuntu'
-    os.environ['DIB_DEV_USER_SHELL'] = '/bin/bash'
+    dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu']
 
     # configures elements
     for element in dib['elements']:
@@ -55,11 +136,27 @@ def dib():
         # root login enabled, set password environment varaible
         if element == 'root-passwd':
             os.environ['DIB_PASSWORD'] = dib['root_password']
+        if element == 'devuser':
+            os.environ['DIB_DEV_USER_USERNAME'] = 'ubuntu'
+            os.environ['DIB_DEV_USER_SHELL'] = '/bin/bash'
+            os.environ['SSH_RSS_KEY'] = (
+                "%s/output/%s" % (cur_dir, image_name))
+            os.environ['DIB_DEV_USER_AUTHORIZED_KEYS'] = (
+                "%s.pub" % os.environ['SSH_RSS_KEY'])
         if element == 'nfp-reference-configurator':
-            # set environment variable, needed by 'extra-data.d'
-            service_dir = cur_dir + '/../nfp_service/'
+            image_name = 'nfp_reference_service'
+            service_dir = "%s/../nfp_service/" % cur_dir
             service_dir = os.path.realpath(service_dir)
             os.environ['SERVICE_GIT_PATH'] = service_dir
+        if element == 'configurator':
+            image_name = 'configurator'
+            create_configurator_docker()
+            # for bigger size images
+            dib_args.append('--no-tmpfs')
+        if element == 'haproxy':
+            image_name = 'haproxy'
+            dib_args.append('debs')
+            create_apt_source_list()
 
     # offline mode, assuming the image cache (tar) already exists
     dib_args.append('--offline')
@@ -69,18 +166,10 @@ def dib():
 
     dib_args.append('--image-size')
     dib_args.append(str(dib['image_size_in_GB']))
-    timestamp = datetime.datetime.now().strftime('%I%M%p-%d-%m-%Y')
-    image_name = image_name + '_' + timestamp
+    #timestamp = datetime.datetime.now().strftime('%I%M%p-%d-%m-%Y')
+    #image_name = "%s_%s" % (image_name, timestamp)
     dib_args.append('-o')
     dib_args.append(str(image_name))
-
-    # set environment variable, needed by 'extra-data.d'
-    os.environ['NFP_IMAGE_NAME'] = image_name
-    if 'nfp-reference-configurator' in dib['elements']:
-        os.environ['SSH_RSS_KEY'] = (
-            "%s/output/%s" % (cur_dir, image_name))
-        os.environ['DIB_DEV_USER_AUTHORIZED_KEYS'] = (
-            "%s.pub" % os.environ['SSH_RSS_KEY'])
 
     os.chdir(cur_dir)
     out_dir = 'output'
@@ -91,10 +180,11 @@ def dib():
 
     ret = subprocess.call(dib_args)
     if not ret:
-        image_path = cur_dir + '/output/' + image_name + '.qcow2'
+        image_path = "%s/output/%s.qcow2" % (cur_dir, image_name)
         print("Image location: %s" % image_path)
-        with open("/tmp/nfp_image_path", "w") as f:
+        with open("/tmp/image_path", "w") as f:
             f.write(image_path)
+            f.close()
 
 
 if __name__ == "__main__":
@@ -115,6 +205,10 @@ if __name__ == "__main__":
     # parse args from json file
     parse_json(sys.argv[1])
     elements = conf['dib']['elements']
+    elem = 'haproxy'
+    if elem in elements:
+        if(update_haproxy_repo()):
+            exit()
 
     # run Disk Image Builder to create VM image
     dib()
