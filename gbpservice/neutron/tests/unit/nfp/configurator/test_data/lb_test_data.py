@@ -73,14 +73,14 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
+            "info": {'context': "",
+                     'service_type': "loadbalancer",
+                     'service_vendor': "haproxy",
+                     },
             "config": [{
                 "resource": "vip",
-                "kwargs": {
-                    "context": self.context,
+                "resource_data": {
+                    "neutron_context": self.context,
                     "vip": self._get_vip_object()[0]
                 }}]}
         return request_data
@@ -93,14 +93,14 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
+            "info": {'context': "",
+                     'service_type': "loadbalancer",
+                     'service_vendor': "haproxy",
+                     },
             "config": [{
                 "resource": "vip",
-                "kwargs": {
-                    "context": self.context,
+                "resource_data": {
+                    "neutron_context": self.context,
                     "vip": self._get_vip_object()[0],
                     "old_vip": self._get_vip_object()[0]
                 }}]}
@@ -114,14 +114,14 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
+            "info": {'context': "",
+                     'service_type': "loadbalancer",
+                     'service_vendor': "haproxy",
+                     },
             "config": [{
                 "resource": "pool",
-                "kwargs": {
-                    "context": self.context,
+                "resource_data": {
+                    "neutron_context": self.context,
                     "pool": self._get_pool_object()[0],
                     "driver_name": "loadbalancer"
                 }}]}
@@ -135,14 +135,14 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
+            "info": {'context': "",
+                     'service_type': "loadbalancer",
+                     'service_vendor': "haproxy",
+                     },
             "config": [{
                 "resource": "pool",
-                "kwargs": {
-                    "context": self.context,
+                "resource_data": {
+                    "neutron_context": self.context,
                     "pool": self._get_pool_object()[0]
                 }}]}
         return request_data
@@ -155,14 +155,14 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
+            "info": {'context': "",
+                     'service_type': "loadbalancer",
+                     'service_vendor': "haproxy",
+                     },
             "config": [{
                 "resource": "pool",
-                "kwargs": {
-                    "context": self.context,
+                "resource_data": {
+                    "neutron_context": self.context,
                     "pool": self._get_pool_object()[0],
                     "old_pool": self._get_pool_object()[0]
                 }}]}
@@ -176,14 +176,14 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
+            "info": {'context': "",
+                     'service_type': "loadbalancer",
+                     'service_vendor': "haproxy",
+                     },
             "config": [{
                 "resource": "member",
-                "kwargs": {
-                    "context": self.context,
+                "resource_data": {
+                    "neutron_context": self.context,
                     "member": self._get_member_object()[0],
                 }}]}
         return request_data
@@ -196,14 +196,14 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
+            "info": {'context': "",
+                     'service_type': "loadbalancer",
+                     'service_vendor': "haproxy",
+                     },
             "config": [{
                 "resource": "pool_health_monitor",
-                "kwargs": {
-                    "context": self.context,
+                "resource_data": {
+                    "neutron_context": self.context,
                     "health_monitor": self._get_hm_object()[0],
                     "pool_id": self._get_pool_object()[0]['id']
                 }}]}
@@ -217,14 +217,14 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
+            "info": {'context': "",
+                     'service_type': "loadbalancer",
+                     'service_vendor': "haproxy",
+                     },
             "config": [{
                 "resource": "pool_health_monitor",
-                "kwargs": {
-                    "context": self.context,
+                "resource_data": {
+                    "neutron_context": self.context,
                     "health_monitor": self._get_hm_object()[0],
                     "pool_id": self._get_pool_object()[0]['id'],
                     "old_health_monitor": self._get_hm_object()[0]
@@ -239,14 +239,14 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {
-                "version": 1,
-                "service_type": 'loadbalancer'
-            },
+            "info": {'context': "",
+                     'service_type': "loadbalancer",
+                     'service_vendor': "haproxy",
+                     },
             "config": [{
                 "resource": "member",
-                "kwargs": {
-                    "context": self.context,
+                "resource_data": {
+                    "neutron_context": self.context,
                     "member": self._get_member_object()[0],
                     "old_member": self._get_member_object()[0]
                 }}]}
@@ -418,7 +418,10 @@ class FakeEvent(object):
         kwargs = {'key': 'value'}
         self.data = {
             'context': {'notification_data': {},
-                        'resource': 'context_resource'},
+                        'resource': 'context_resource',
+                        'agent_info': {'service_vendor': ''
+                                       }
+                        },
             'vip': fo._get_vip_object()[0],
             'old_vip': fo._get_vip_object()[0],
             'pool': fo._get_pool_object()[0],
