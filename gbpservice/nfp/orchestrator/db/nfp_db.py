@@ -247,8 +247,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
     def create_network_function_device(self, session, network_function_device):
         with session.begin(subtransactions=True):
             network_function_device_db = nfp_db_model.NetworkFunctionDevice(
-                id=(network_function_device.get('id')
-                    or uuidutils.generate_uuid()),
+                id=(network_function_device.get('id') or
+                    uuidutils.generate_uuid()),
                 name=network_function_device['name'],
                 description=network_function_device.get('description'),
                 tenant_id=network_function_device['tenant_id'],

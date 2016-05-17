@@ -205,8 +205,9 @@ class DeviceOrchestrator(PollEventDesc):
                                         ' through configurator'),
                 'HEALTH_CHECK_COMPLETED': 'Health check succesfull for device',
                 'INTERFACES_PLUGGED': 'Interfaces Plugging successfull',
-                'PENDING_CONFIGURATION_CREATE': ('Started configuring device '
-                                                 + 'for routes, license, etc'),
+                'PENDING_CONFIGURATION_CREATE': (
+                                         'Started configuring device ' +
+                                         'for routes, license, etc'),
                 'DEVICE_READY': 'Device is ready to use',
                 'ACTIVE': 'Device is Active.',
                 'DEVICE_NOT_UP': 'Device not became UP/ACTIVE',

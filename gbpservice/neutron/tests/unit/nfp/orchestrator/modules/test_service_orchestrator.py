@@ -548,7 +548,8 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                 'network_function_id': network_function['id']
             }
             mock_create_event.assert_called_once_with(
-                'USER_CONFIG_DELETE_FAILED', event_data=event_data)
+                'USER_CONFIG_DELETE_FAILED', event_data=event_data,
+                is_internal_event=True)
             self.assertEqual(status, nso.STOP_POLLING)
 
             # Verify return status COMPLETED from cfg.CONF driver
@@ -559,7 +560,8 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             request_data = {
                 'tenant_id': network_function['tenant_id'],
                 'heat_stack_id': 'heat_stack_id',
-                'network_function_id': network_function['id']}
+                'network_function_id': network_function['id'],
+                'action': 'update'}
             test_event = Event(data=request_data)
             status = self.service_orchestrator.check_for_user_config_deleted(
                 test_event)
@@ -568,11 +570,12 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
             db_nf = self.nfp_db.get_network_function(
                 self.session, network_function['id'])
             self.assertEqual(None, db_nf['heat_stack_id'])
-            event_data = {
-                'network_function_id': network_function['id']
-            }
+            #event_data = {
+            #    'network_function_id': network_function['id']
+            #}
             mock_create_event.assert_called_once_with(
-                'USER_CONFIG_DELETED', event_data=event_data)
+                'UPDATE_USER_CONFIG_IN_PROGRESS', event_data=request_data,
+                original_event=test_event)
             self.assertEqual(status, nso.STOP_POLLING)
 
     @mock.patch.object(
@@ -595,9 +598,12 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
                                                     {'device_type': 'VM',
                                                      'service_vendor': 'vyos'})
         test_event = Event(data=request_data)
+        #test_event.status = 'PTG_ADD_IN_PROGRESS'
+        test_event.data['status'] = 'status'
         self.service_orchestrator.handle_user_config_deleted(test_event)
         mock_create_event.assert_called_once_with(
-            'DELETE_NETWORK_FUNCTION_INSTANCE', event_data=nfi['id'])
+            'DELETE_NETWORK_FUNCTION_INSTANCE', event_data=nfi['id'],
+            is_internal_event=True)
 
     def test_event_handle_user_config_delete_failed(self):
         network_function = self.create_network_function()
@@ -821,6 +827,8 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         network_function_details = (
             self.service_orchestrator.get_network_function_details(
                 db_nf['id']))
+        network_function_details['network_function'][
+            'status'] = 'status'
         network_function_data = {
             'service_type': mock.ANY,
             'network_function_details': network_function_details,
@@ -869,6 +877,8 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         network_function_details = (
             self.service_orchestrator.get_network_function_details(
                 db_nf['id']))
+        network_function_details['network_function'][
+            'status'] = 'status'
         network_function_data = {
             'service_type': mock.ANY,
             'network_function_details': network_function_details,
