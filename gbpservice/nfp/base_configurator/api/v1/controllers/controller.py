@@ -14,12 +14,11 @@ import oslo_serialization.jsonutils as jsonutils
 
 from oslo_log import log as logging
 import pecan
-from pecan import rest
 import requests
 import subprocess
 import time
 
-from base_controller import BaseController
+from gbpservice.nfp.base_configurator.api.base_controller import BaseController
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
