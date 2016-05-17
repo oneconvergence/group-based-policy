@@ -11,11 +11,11 @@
 #    under the License.
 
 from oslo_log import log as oslo_logging
+
 import logging
-import inspect
 import os
 import sys
-
+import threading
 
 if hasattr(sys, 'frozen'):  # support for py2exe
     _srcfile = "logging%s__init__%s" % (os.sep, __file__[-4:])
@@ -30,8 +30,9 @@ def currentframe():
     """Return the frame object for the caller's stack frame."""
     try:
         raise Exception
-    except:
+    except Exception:
         return sys.exc_info()[2].tb_frame.f_back
+
 
 if hasattr(sys, '_getframe'):
     currentframe = lambda: sys._getframe(3)
@@ -65,117 +66,75 @@ class WrappedLogger(logging.Logger):
         return rv
 
 
-class NfpLogMeta(object):
+logging.setLoggerClass(WrappedLogger)
+logging_context_store = threading.local()
+
+
+class NfpLogContext(object):
 
     def __init__(self, **kwargs):
         self.meta_id = kwargs.get('meta_id', '')
 
     def emit(self):
-        if self.meta_id != '':
-            return "[LogMetaid: %s]" % (self.meta_id)
-        return ''
+        return "[LogMetaID:%s]" % (self.meta_id)
 
     def to_dict(self):
         return {'meta_id': self.meta_id}
 
-    def from_dict(self, **kwargs):
-        return NfpLogMeta(**kwargs)
-
 
 class NfpLogger(object):
 
-    def __init__(self):
-        logging.setLoggerClass(WrappedLogger)
-        self.logger = oslo_logging.getLogger(__name__)
+    def __init__(self, name):
+        self.logger = oslo_logging.getLogger(name)
 
-    def _prep_log_str(self, message, largs, meta):
+    def _prep_log_str(self, message, largs):
         message = message % (largs)
-        if isinstance(meta.log_meta, dict):
-            meta.log_meta = NfpLogMeta(**(meta.log_meta))
-        _prefix = meta.log_meta.emit()
-        return "%s - %s" % (_prefix, message)
-
-    def debug(self, message, largs={}, meta={}):
-        self.logger.debug(self._prep_log_str(message, largs, meta))
-
-    def info(self, message, largs={}, meta={}):
-        self.logger.info(self._prep_log_str(message, largs, meta))
-
-    def error(self, message, largs={}, meta={}):
-        self.logger.error(self._prep_log_str(message, largs, meta))
-
-    def warn(self, message, largs={}, meta={}):
-        self.logger.warn(self._prep_log_str(message, largs, meta))
-
-    def exception(self, message, largs={}, meta={}):
-        self.logger.exception(self._prep_log_str(message, largs, meta))
-
-
-class NfpMetaLogger(object):
-
-    def __init__(self, logger, meta={}):
-        self.logger = logger
-        self.meta = meta
-
-    def debug(self, message, largs={}):
-        self.logger.debug(message, largs=largs, meta=self.meta)
-
-    def error(self, message, largs={}):
-        self.logger.error(message, largs=largs, meta=self.meta)
-
-    def info(self, message, largs={}):
-        self.logger.info(message, largs=largs, meta=self.meta)
-
-    def warn(self, message, largs={}):
-        self.logger.warn(message, largs=largs, meta=self.meta)
-
-    def exception(self, message, largs={}):
-        self.logger.exception(message, largs=largs, meta=self.meta)
-
-
-def use_nfp_logging(logger_name='LOG'):
-    globals()['logger_name'] = logger_name
-    # Reassign log symbols to NFP symbols
-    globals()[logger_name] = NfpLogger()
-    if '_LI' in globals().keys():
-        globals()['_LI'] = _LI
-    if '_LE' in globals().keys():
-        globals()['_LE'] = _LE
-
-
-def patch_class(clazz):
-    _init = clazz.__init__
-
-    def __init__wrapper(*args, **kwargs):
-        if 'log_meta' in kwargs.keys():
-            setattr(clazz, 'log_meta',
-                    kwargs.get('log_meta'))
-            del kwargs['log_meta']
+        context = _context()
+        if context:
+            _prefix = context.emit()
+            return "%s - %s" % (_prefix, message)
         else:
-            setattr(clazz, 'log_meta', {})
+            return "%s" % (message)
 
-        _init(*args, **kwargs)
+    def debug(self, message, largs=None):
+        largs = largs if largs is not None else {}
+        self.logger.debug(self._prep_log_str(message, largs))
 
-    clazz.__init__ = __init__wrapper
-    return clazz
+    def info(self, message, largs=None):
+        largs = largs if largs is not None else {}
+        self.logger.info(self._prep_log_str(message, largs))
+
+    def error(self, message, largs=None):
+        largs = largs if largs is not None else {}
+        self.logger.error(self._prep_log_str(message, largs))
+
+    def warn(self, message, largs=None):
+        largs = largs if largs is not None else {}
+        self.logger.warn(self._prep_log_str(message, largs))
+
+    def exception(self, message, largs=None):
+        largs = largs if largs is not None else {}
+        self.logger.exception(self._prep_log_str(message, largs))
 
 
-def patch_method(func):
-    def func_wrapper(self, *args, **kwargs):
-        name = globals()['logger_name']
-        logger = globals()[logger_name]  # func.func_globals[name]
-        func.func_globals[name] = NfpMetaLogger(logger, meta=self)
-        return func(self, *args, **kwargs)
-    return func_wrapper
+def getLogger(name):
+    return NfpLogger(name)
 
 
-def add_meta(decorated_clazz, **kwargs):
-    meta = NfpLogMeta(**kwargs)
-    setattr(decorated_clazz, 'log_meta', meta)
-    # Adding to the inbuilt member class also
-    for clazz_member in inspect.getmembers(decorated_clazz):
-        if hasattr(clazz_member[1], 'log_meta'):
-            add_meta(clazz_member[1], **kwargs)
+def store_logging_context(**kwargs):
+    context = NfpLogContext(**kwargs)
+    logging_context_store.context = context
+
+
+def _context():
+    return getattr(logging_context_store, 'context', None)
+
+
+def get_logging_context():
+    context = getattr(logging_context_store, 'context', None)
+    if context:
+        return context.to_dict()
+    return {}
 
 
 def _LI(message):
@@ -184,3 +143,21 @@ def _LI(message):
 
 def _LE(message):
     return message
+
+
+def _LW(message):
+    return message
+
+
+def _LC(message):
+    return message
+
+
+if '_LI' in globals().keys():
+    globals()['_LI'] = _LI
+if '_LE' in globals().keys():
+    globals()['_LE'] = _LE
+if '_LW' in globals().keys():
+    globals()['_LW'] = _LW
+if '_LC' in globals().keys():
+    globals()['_LC'] = _LC

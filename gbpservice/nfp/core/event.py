@@ -70,7 +70,7 @@ class Event(object):
         # Identifies whether event.data is zipped
         self.zipped = False
         # Added for log metadata
-        self.context = kwargs.get('context', {})
+        self.context = kwargs.get('context', None)
 
     def identify(self):
         if hasattr(self, 'desc'):

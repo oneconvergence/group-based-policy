@@ -78,43 +78,43 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
         try:
             if (event_data['service_type']).lower() == 'firewall':
                 request_data = self.fw_agent._prepare_request_data(
-                                                        ctxt,
-                                                        event_data[
-                                                            'nf_id'],
-                                                        event_data[
-                                                            'resource_id'],
-                                                        event_data[
-                                                            'fw_mac'],
-                                                        event_data[
-                                                            'service_type'])
+                    ctxt,
+                    event_data[
+                        'nf_id'],
+                    event_data[
+                        'resource_id'],
+                    event_data[
+                        'fw_mac'],
+                    event_data[
+                        'service_type'])
                 msg = ("%s : %s " % (request_data, event_data['fw_mac']))
                 LOG(LOGGER, 'INFO', '%s' % (msg))
 
             if (event_data['service_type']).lower() == 'loadbalancer':
                 request_data = self.lb_agent._prepare_request_data(
-                                                    ctxt,
-                                                    event_data[
-                                                        'nf_id'],
-                                                    event_data[
-                                                        'resource_id'],
-                                                    event_data[
-                                                        'vip_id'],
-                                                    event_data[
-                                                        'service_type'])
+                    ctxt,
+                    event_data[
+                        'nf_id'],
+                    event_data[
+                        'resource_id'],
+                    event_data[
+                        'vip_id'],
+                    event_data[
+                        'service_type'])
                 msg = ("%s : %s " % (request_data, event_data['vip_id']))
                 LOG(LOGGER, 'INFO', '%s' % (msg))
 
             if (event_data['service_type']).lower() == 'vpn':
                 request_data = self.vpn_agent._prepare_request_data(
-                                                    ctxt,
-                                                    event_data[
-                                                         'nf_id'],
-                                                    event_data[
-                                                         'resource_id'],
-                                                    event_data[
-                                                         'ipsec_id'],
-                                                    event_data[
-                                                         'service_type'])
+                    ctxt,
+                    event_data[
+                        'nf_id'],
+                    event_data[
+                        'resource_id'],
+                    event_data[
+                        'ipsec_id'],
+                    event_data[
+                        'service_type'])
                 msg = ("%s : %s " % (request_data, event_data['ipsec_id']))
                 LOG(LOGGER, 'INFO', '%s' % (msg))
 
@@ -132,6 +132,6 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                 return STOP_POLLING
             else:
                 return CONTINUE_POLLING
-        except Exception as e :
-            LOG(LOGGER, 'ERROR', '%s' %(e))
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', '%s' % (e))
             return STOP_POLLING
