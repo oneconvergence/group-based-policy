@@ -35,8 +35,6 @@ LOG = logging.getLogger(__name__)
 PROXY_PORT_PREFIX = "opflex_proxy:"
 ADVANCE_SHARING_PTG_NAME = "Advance_Sharing_PTG"
 
-NEUTRON_MODE = True
-
 
 def _set_network_handler(f):
     def wrapped(self, *args, **kwargs):
@@ -72,6 +70,7 @@ class OrchestrationDriver(object):
             nfp_constants.NEUTRON_MODE:
                 nfp_neutron_network_driver.NFPNeutronNetworkDriver(config)
         }
+        self.setup_mode = self._get_setup_mode(config)
         self._advance_sharing_network_id = None
 
         # statistics available
@@ -86,6 +85,12 @@ class OrchestrationDriver(object):
         # - interface_plug_failures
         # - interface_unplug_failures
         self.stats = {}
+
+    def _get_setup_mode(self, config):
+        if nfp_constants.APIC_CONFIG_SECTION in config.list_all_sections():
+            return {nfp_constants.APIC_MODE: True}
+        else:
+            return {nfp_constants.NEUTRON_MODE: True}
 
     def _get_admin_tenant_id(self, token=None):
         try:
@@ -542,7 +547,7 @@ class OrchestrationDriver(object):
                 interfaces_to_attach.append({'port': port_id})
 
             if not self.supports_hotplug:
-                if NEUTRON_MODE:
+                if self.setup_mode.get(nfp_constants.APIC_MODE):
                     # TODO(ashu): get neutron mode from conf
                     for port in device_data['ports']:
                         if (port['port_classification'] ==
@@ -556,7 +561,7 @@ class OrchestrationDriver(object):
                             port_id = network_handler.get_port_id(
                                                             token, port['id'])
                             interfaces_to_attach.append({'port': port_id})
-                else:
+                elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     advance_sharing_interfaces = (
                         self._create_advance_sharing_interfaces(
                             device_data,
@@ -831,7 +836,7 @@ class OrchestrationDriver(object):
         try:
             if not self.supports_hotplug:
                 # configure interfaces instead of hotplug
-                if not NEUTRON_MODE:
+                if self.setup_mode.get(nfp_constants.APIC_MODE):
                     required_ports = len(device_data['ports'])
                     unused_ifaces = self._get_unused_interfaces(
                                     device_data['advance_sharing_interfaces'],
@@ -857,7 +862,7 @@ class OrchestrationDriver(object):
                                                              stitch=True)
                         iface['mapped_real_port_id'] = data_port_id
                     update_ifaces = unused_ifaces
-                else:
+                elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     pass
             else:
                 data_port_ids = self._get_data_port_ids(token, network_handler,
@@ -1004,7 +1009,7 @@ class OrchestrationDriver(object):
         update_ifaces = []
         try:
             if not self.supports_hotplug:
-                if not NEUTRON_MODE:
+                if self.setup_mode.get(nfp_constants.APIC_MODE):
                     data_port_ids = []
                     for port in device_data['ports']:
                         if (port['port_classification'] ==
@@ -1028,7 +1033,7 @@ class OrchestrationDriver(object):
                                                              stitch=False)
                         iface['mapped_real_port_id'] = ''
                     update_ifaces = used_ifaces
-                else:
+                elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     pass
             else:
                 data_port_ids = self._get_data_port_ids(token, network_handler,

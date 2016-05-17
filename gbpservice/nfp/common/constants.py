@@ -45,6 +45,9 @@ ERROR = "ERROR"
 DEVICE_ORCHESTRATOR = "device_orch"
 SERVICE_ORCHESTRATOR = "service_orch"
 
+APIC_CONFIG_SECTION = "ml2_cisco_apic"
+APIC_MODE = "apic"
+
 HEAT_CONFIG_TAG = 'heat_config'
 CONFIG_INIT_TAG = 'config_init'
 ANSIBLE_TAG = 'ansible'
