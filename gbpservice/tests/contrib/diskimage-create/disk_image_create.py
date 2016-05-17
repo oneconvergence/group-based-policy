@@ -83,6 +83,7 @@ def create_apt_source_list():
                    ' > /etc/apt/sources.list.d/haproxy-agent-debs.list'
                    % 'localhost')
         print >> f, tmp_str
+    f.close()
 
 
 def update_haproxy_repo():
@@ -183,6 +184,7 @@ def dib():
         print("Image location: %s" % image_path)
         with open("/tmp/image_path", "w") as f:
             f.write(image_path)
+            f.close()
 
 
 if __name__ == "__main__":
