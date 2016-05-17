@@ -366,7 +366,9 @@ function launch_configuratorVM {
         exit
     fi
 
-    nova boot --flavor m1.medium --image $ImageId --nic port-id=$PortId $InstanceName
+    configure_configurator_user_data
+    nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$PortId $InstanceName
+
     sleep 10
 
     echo "Get IpAddr with port: $PortId"
@@ -397,6 +399,21 @@ function nfp_logs_forword {
 
 }
 
+
+function configure_configurator_user_data {
+
+    CUR_DIR=$PWD
+    sudo rm -rf /opt/configurator_user_data
+    sudo cp -r $DEST/gbp/devstack/exercises/nfp_service/user-data/configurator_user_data /opt/.
+    cd /opt
+    sudo rm -rf my.key my.key.pub
+    sudo ssh-keygen -t rsa -N "" -f my.key
+    value=`sudo cat my.key.pub`
+    sudo echo  $value
+    sudo sed -i "8 i\      -\ $value" configurator_user_data
+    sudo sed -i '9d' configurator_user_data
+    cd $CUR_DIR
+}
 
 function configure_visibility_user_data {
  
