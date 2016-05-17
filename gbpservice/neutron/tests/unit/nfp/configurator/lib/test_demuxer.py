@@ -36,7 +36,7 @@ class ServiceAgentDemuxerTestCase(unittest.TestCase):
 
         """
 
-        expected_val = 'generic_config'
+        expected_val = 'firewall'
 
         request_data = self.fo.fake_request_data_generic_single(self)
         actual_val = self.demuxer.get_service_type(request_data)
@@ -54,8 +54,8 @@ class ServiceAgentDemuxerTestCase(unittest.TestCase):
         expected_val = self.fo.fake_sa_req_list()
 
         request_data = self.fo.fake_request_data_generic_bulk()
-        actual_val = self.demuxer.get_service_agent_info(
-                                'create', 'generic_config', request_data)
+        actual_val, service_type = self.demuxer.get_service_agent_info(
+                                'create', 'firewall', request_data, True)
 
         self.assertEqual(actual_val, expected_val)
 
@@ -70,7 +70,7 @@ class ServiceAgentDemuxerTestCase(unittest.TestCase):
         expected_val = self.fo.fake_sa_req_list_fw()
 
         request_data = self.fo.fake_request_data_fw()
-        actual_val = self.demuxer.get_service_agent_info(
-                                'create', 'firewall', request_data)
+        actual_val, service_type = self.demuxer.get_service_agent_info(
+                                'create', 'firewall', request_data, False)
 
         self.assertEqual(actual_val, expected_val)
