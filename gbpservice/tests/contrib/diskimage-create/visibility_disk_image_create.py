@@ -194,7 +194,7 @@ def dib():
             create_visibility_docker()
             create_configurator_docker()
             # set environment variable, needed by 'extra-data.d'
-            p1 = subprocess.Popen(['grep', 'DOCKER_IMAGES_URL', '/home/stack/devstack/local.conf.nfp'], stdout=subprocess.PIPE)
+            p1 = subprocess.Popen(['grep', 'DOCKER_IMAGES_URL', '/home/stack/devstack/local.conf'], stdout=subprocess.PIPE)
             p2 = subprocess.Popen(['cut', '-d', '=', '-f', '2'], stdin=p1.stdout, stdout=subprocess.PIPE)
             p3 = subprocess.Popen(['tr', '-d', '[[:space:]]'], stdin=p2.stdout, stdout=subprocess.PIPE)
             os.environ['DOCKER_IMAGES_URL'] = p3.communicate()[0]
