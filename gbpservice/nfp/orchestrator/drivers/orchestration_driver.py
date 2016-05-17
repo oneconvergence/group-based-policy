@@ -547,7 +547,7 @@ class OrchestrationDriver(object):
                 interfaces_to_attach.append({'port': port_id})
 
             if not self.supports_hotplug:
-                if self.setup_mode.get(nfp_constants.APIC_MODE):
+                if self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     # TODO(ashu): get neutron mode from conf
                     for port in device_data['ports']:
                         if (port['port_classification'] ==
@@ -561,7 +561,7 @@ class OrchestrationDriver(object):
                             port_id = network_handler.get_port_id(
                                                             token, port['id'])
                             interfaces_to_attach.append({'port': port_id})
-                elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
+                elif self.setup_mode.get(nfp_constants.APIC_MODE):
                     advance_sharing_interfaces = (
                         self._create_advance_sharing_interfaces(
                             device_data,

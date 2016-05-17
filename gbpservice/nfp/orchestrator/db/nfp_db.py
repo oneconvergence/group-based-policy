@@ -391,10 +391,10 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
         with session.begin(subtransactions=True):
             nfd_interface_db = self._get_network_function_device_interface(
                 session, nfd_interface_id)
-            nfd_interface_db.update(updated_nfd_interface)
             self._set_plugged_in_port_for_nfd_interface(
                     session, nfd_interface_db, updated_nfd_interface,
                     is_update=True)
+            nfd_interface_db.update(updated_nfd_interface)
             return self._make_network_function_device_interface_dict(
                 nfd_interface_db)
 

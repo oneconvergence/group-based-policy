@@ -238,9 +238,11 @@ class DeviceOrchestrator(PollEventDesc):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        LOG.info(_LI("NDO: received event %(id)s"),
-                 {'id': event.id})
         try:
+            nf_id = (event.data['network_function_id']
+                        if 'network_function_id' in event.data else None)
+            LOG.info(_LI("NDO: received event %(id)s for network function : %(nf_id)s"),
+                    {'id': event.id, 'nf_id': nf_id})
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
         except Exception as e:
@@ -363,6 +365,7 @@ class DeviceOrchestrator(PollEventDesc):
                 if port['id'] == nfd_iface['mapped_real_port_id']:
                     mapped_real_port = port
                     nfd_iface['mapped_real_port_id'] = port['id']
+                    nfd_iface['plugged_in_port_id'] = self.nsf_db.get_port_info(self.db_session, nfd_iface['plugged_in_port_id'])
                     self.nsf_db.update_network_function_device_interface(
                                                 self.db_session,
                                                 nfd_iface['id'],
@@ -375,7 +378,6 @@ class DeviceOrchestrator(PollEventDesc):
             self.nsf_db.delete_network_function_device_interface(
                                                 self.db_session,
                                                 port_id)
-            self.nsf_db.delete_port_info(self.db_session, port_id)
 
     def _create_network_function_device_db(self, device_info, state):
         advance_sharing_interfaces = []
@@ -774,6 +776,7 @@ class DeviceOrchestrator(PollEventDesc):
         if is_interface_unplugged:
             if advance_sharing_ifaces:
                 self._update_advance_sharing_interfaces(
+                                            device,
                                             advance_sharing_ifaces)
             mgmt_port_id = device['mgmt_port_id']
             self._decrement_device_interface_count(device)
