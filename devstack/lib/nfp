@@ -428,6 +428,18 @@ function configure_visibility_user_data {
 }
 
 
+function attach_security_groups {
+
+    unset OS_USER_DOMAIN_ID
+    unset OS_PROJECT_DOMAIN_ID
+
+    nova secgroup-create allow_all "allow all traffic"
+    nova secgroup-add-rule allow_all udp 1 65535  0.0.0.0/0
+    nova secgroup-add-rule allow_all icmp -1 -1  0.0.0.0/0
+    nova secgroup-add-rule allow_all tcp 1 65535  0.0.0.0/0
+}
+
+
 function launch_visibilityVM {
 
     
@@ -455,7 +467,8 @@ function launch_visibilityVM {
 
     configure_visibility_user_data $IpAddr
     
+    attach_security_groups
     echo "Launching Visibility image"
-    nova boot --image  $VisibilityVMImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId $InstanceName 
+    nova boot --image  $VisibilityVMImageId --security-groups allow_all --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId $InstanceName 
     sleep 10 
 }
