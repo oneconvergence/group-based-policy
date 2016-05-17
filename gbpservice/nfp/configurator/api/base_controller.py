@@ -31,8 +31,7 @@ class ZipperHook(PecanHook):
             state.request.json_body = body
             state.request.content_type = "application/json"
         except Exception as e:
-            msg = ("Failed to process data ,Reason: %s", e)
-            LOG.error(msg)
+	    LOG.error("Failed to process data ,Reason: %s", e)
 
     def after(self, state):
         data = state.response.body
