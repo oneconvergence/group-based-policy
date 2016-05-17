@@ -827,10 +827,6 @@ class OrchestrationDriver(object):
             self._update_vendor_data(device_data)
 
         service_type = device_data['service_details']['service_type']
-        data_port_ids = self._get_data_port_ids(token, network_handler,
-                                                device_data['ports'],
-                                                service_type,
-                                                set_promiscous_mode=True)
         update_ifaces = []
         try:
             if not self.supports_hotplug:
@@ -864,6 +860,10 @@ class OrchestrationDriver(object):
                 else:
                     pass
             else:
+                data_port_ids = self._get_data_port_ids(token, network_handler,
+                                                device_data['ports'],
+                                                service_type,
+                                                set_promiscous_mode=True)
                 for data_port_id in data_port_ids:
                     self.compute_handler_nova.attach_interface(
                                     token,
@@ -1000,19 +1000,12 @@ class OrchestrationDriver(object):
             return False
 
         service_type = device_data['service_details']['service_type']
-        data_port_ids = self._get_data_port_ids(token, network_handler,
-                                                device_data['ports'],
-                                                service_type)
 
         update_ifaces = []
         try:
             if not self.supports_hotplug:
                 if not NEUTRON_MODE:
-                    used_ifaces = self._get_used_interfaces(
-                                    device_data['advance_sharing_interfaces'],
-                                    data_port_ids)
                     data_port_ids = []
-
                     for port in device_data['ports']:
                         if (port['port_classification'] ==
                                 nfp_constants.PROVIDER):
@@ -1022,6 +1015,10 @@ class OrchestrationDriver(object):
                         if (port['port_classification'] ==
                             nfp_constants.CONSUMER):
                             data_port_ids.append(port['id'])
+
+                    used_ifaces = self._get_used_interfaces(
+                                    device_data['advance_sharing_interfaces'],
+                                    data_port_ids)
 
                     for data_port_id, iface in zip(data_port_ids, used_ifaces):
                         self._update_attached_port_with_data_port(token,
@@ -1034,6 +1031,10 @@ class OrchestrationDriver(object):
                 else:
                     pass
             else:
+                data_port_ids = self._get_data_port_ids(token, network_handler,
+                                                device_data['ports'],
+                                                service_type,
+                                                set_promiscous_mode=False)
                 for port in device_data['ports']:
                     port_id = network_handler.get_port_id(token, port['id'])
                     self.compute_handler_nova.detach_interface(

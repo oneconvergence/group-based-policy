@@ -29,6 +29,8 @@ from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 
+import sys, traceback
+
 LOG = logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
@@ -236,13 +238,18 @@ class DeviceOrchestrator(PollEventDesc):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
+        LOG.info(_LI("NDO: received event %(id)s"),
+                 {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
         except Exception as e:
-            LOG.exception(_LE("Unhandled exception in handle event for event: "
-                            "%(event_id)s %(error)s"), {'event_id': event.id,
-                                                        'error': e})
+            LOG.exception(_LE("Error in processing event: %(event_id)s for "
+                              "event data %(event_data)s. Error: %(error)s"),
+                          {'event_id': event.id, 'event_data': event.data,
+                           'error': e})
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
 
     # Helper functions
     def _log_event_created(self, event_id, event_data):

@@ -29,6 +29,7 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
+import sys, traceback
 
 LOG = logging.getLogger(__name__)
 
@@ -407,14 +408,18 @@ class ServiceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        LOG.info(_LI("Service Orchestrator received event %(id)s"),
+        LOG.info(_LI("NSO: received event %(id)s"),
                  {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
-        except Exception:
-            LOG.exception(_LE("Error in processing event: %(event_id)s"),
-                          {'event_id': event.id})
+        except Exception as e:
+            LOG.exception(_LE("Error in processing event: %(event_id)s for "
+                              "event data %(event_data)s. Error: %(error)s"),
+                          {'event_id': event.id, 'event_data': event.data,
+                           'error': e})
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
 
     def handle_poll_event(self, event):
         LOG.info(_LI("Service Orchestrator received poll event %(id)s"),
