@@ -35,14 +35,13 @@ from keystoneclient import exceptions as k_exceptions
 from neutron._i18n import _LE
 from neutron._i18n import _LI
 from neutron._i18n import _LW
-from neutron.common import exceptions as n_exc
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
-from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
 import yaml
 
+from gbpservice.nfp.core import log as nfp_logging
 
 HEAT_DRIVER_OPTS = [
     cfg.StrOpt('svc_management_ptg_name',
@@ -87,10 +86,7 @@ STACK_ACTION_WAIT_TIME = (
 STACK_ACTION_RETRY_WAIT = 5  # Retry after every 5 seconds
 APIC_OWNED_RES = 'apic_owned_res_'
 
-#LOG = logging.getLogger(__name__)
-from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
-
 
 
 class HeatDriver(object):

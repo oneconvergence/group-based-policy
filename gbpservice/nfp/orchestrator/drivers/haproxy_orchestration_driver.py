@@ -11,7 +11,6 @@
 #    under the License.
 
 from neutron._i18n import _LE
-from oslo_log import log as logging
 
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions
@@ -19,10 +18,8 @@ from gbpservice.nfp.orchestrator.drivers import (
     orchestration_driver_base as odb
 )
 
-#LOG = logging.getLogger(__name__)
 from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
-
 
 
 class HaproxyOrchestrationDriver(odb.OrchestrationDriverBase):

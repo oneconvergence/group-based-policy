@@ -10,18 +10,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log as logging
-
 from gbpclient.v2_0 import client as gbp_client
 from keystoneclient.v2_0 import client as identity_client
 from keystoneclient.v3 import client as keyclientv3
 from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 
-#LOG = logging.getLogger(__name__)
 from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
-
 
 
 class OpenstackApi(object):
@@ -820,7 +816,8 @@ class GBPClient(OpenstackApi):
             gbp = gbp_client.Client(token=token,
                                     endpoint_url=self.network_service)
             return gbp.update_policy_target_group(
-                        ptg_id, body=policy_target_group_info)['policy_target_group']
+                ptg_id,
+                body=policy_target_group_info)['policy_target_group']
         except Exception as ex:
             err = ("Failed to update policy target group. Error :: %s" % (ex))
             LOG.error(err)

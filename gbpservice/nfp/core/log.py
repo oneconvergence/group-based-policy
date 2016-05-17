@@ -11,11 +11,11 @@
 #    under the License.
 
 from oslo_log import log as oslo_logging
-import threading
+
 import logging
-import inspect
 import os
 import sys
+import threading
 
 if hasattr(sys, 'frozen'):  # support for py2exe
     _srcfile = "logging%s__init__%s" % (os.sep, __file__[-4:])
@@ -30,11 +30,13 @@ def currentframe():
     """Return the frame object for the caller's stack frame."""
     try:
         raise Exception
-    except:
+    except Exception:
         return sys.exc_info()[2].tb_frame.f_back
+
 
 if hasattr(sys, '_getframe'):
     currentframe = lambda: sys._getframe(3)
+
 
 class WrappedLogger(logging.Logger):
 
@@ -63,14 +65,10 @@ class WrappedLogger(logging.Logger):
             break
         return rv
 
+
 logging.setLoggerClass(WrappedLogger)
-
-if '_LI' in globals().keys():
-    globals()['_LI'] = _LI
-if '_LE' in globals().keys():
-    globals()['_LE'] = _LE
-
 logging_context_store = threading.local()
+
 
 class NfpLogContext(object):
 
@@ -82,6 +80,7 @@ class NfpLogContext(object):
 
     def to_dict(self):
         return {'meta_id': self.meta_id}
+
 
 class NfpLogger(object):
 
@@ -97,30 +96,39 @@ class NfpLogger(object):
         else:
             return "%s" % (message)
 
-    def debug(self, message, largs={}):
+    def debug(self, message, largs=None):
+        largs = largs if largs is not None else {}
         self.logger.debug(self._prep_log_str(message, largs))
 
-    def info(self, message, largs={}):
+    def info(self, message, largs=None):
+        largs = largs if largs is not None else {}
         self.logger.info(self._prep_log_str(message, largs))
 
-    def error(self, message, largs={}):
+    def error(self, message, largs=None):
+        largs = largs if largs is not None else {}
         self.logger.error(self._prep_log_str(message, largs))
 
-    def warn(self, message, largs={}):
+    def warn(self, message, largs=None):
+        largs = largs if largs is not None else {}
         self.logger.warn(self._prep_log_str(message, largs))
 
-    def exception(self, message, largs={}):
+    def exception(self, message, largs=None):
+        largs = largs if largs is not None else {}
         self.logger.exception(self._prep_log_str(message, largs))
+
 
 def getLogger(name):
     return NfpLogger(name)
+
 
 def store_logging_context(**kwargs):
     context = NfpLogContext(**kwargs)
     logging_context_store.context = context
 
+
 def _context():
     return getattr(logging_context_store, 'context', None)
+
 
 def get_logging_context():
     context = getattr(logging_context_store, 'context', None)
@@ -136,3 +144,20 @@ def _LI(message):
 def _LE(message):
     return message
 
+
+def _LW(message):
+    return message
+
+
+def _LC(message):
+    return message
+
+
+if '_LI' in globals().keys():
+    globals()['_LI'] = _LI
+if '_LE' in globals().keys():
+    globals()['_LE'] = _LE
+if '_LW' in globals().keys():
+    globals()['_LW'] = _LW
+if '_LC' in globals().keys():
+    globals()['_LC'] = _LC

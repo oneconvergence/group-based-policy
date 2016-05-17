@@ -13,8 +13,6 @@
 from neutron._i18n import _LE
 from neutron._i18n import _LI
 
-from oslo_log import log as logging
-
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.orchestrator.coal.networking import (
@@ -27,7 +25,6 @@ from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
-#LOG = logging.getLogger(__name__)
 
 
 def _set_network_handler(f):
