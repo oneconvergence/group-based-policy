@@ -24,14 +24,16 @@ LOG = logging.getLogger(__name__)
 class ZipperHook(PecanHook):
 
     def before(self, state):
-        try:
-            zippedBody = state.request.body
-            body = zlib.decompress(zippedBody)
-            body = jsonutils.loads(body)
-            state.request.json_body = body
-            state.request.content_type = "application/json"
-        except Exception as e:
-            LOG.error("Failed to process data ,Reason: %s", e)
+        if state.request.method.upper() != 'GET':
+            try:
+                zippedBody = state.request.body
+                body = zlib.decompress(zippedBody)
+                body = jsonutils.loads(body)
+                state.request.json_body = body
+                state.request.content_type = "application/json"
+            except Exception as e:
+                msg = ("Failed to process data ,Reason: %s" % (e))
+                LOG.error(msg)
 
     def after(self, state):
         data = state.response.body
