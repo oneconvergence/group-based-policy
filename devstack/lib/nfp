@@ -433,10 +433,11 @@ function attach_security_groups {
     unset OS_USER_DOMAIN_ID
     unset OS_PROJECT_DOMAIN_ID
 
-    nova secgroup-create allow_all "allow all traffic"
-    nova secgroup-add-rule allow_all udp 1 65535  0.0.0.0/0
-    nova secgroup-add-rule allow_all icmp -1 -1  0.0.0.0/0
-    nova secgroup-add-rule allow_all tcp 1 65535  0.0.0.0/0
+    SecGroup="allow_all"
+    nova secgroup-create $SecGroup "allow all traffic"
+    nova secgroup-add-rule $SecGroup udp 1 65535  0.0.0.0/0
+    nova secgroup-add-rule $SecGroup icmp -1 -1  0.0.0.0/0
+    nova secgroup-add-rule $SecGroup tcp 1 65535  0.0.0.0/0
 }
 
 
@@ -469,6 +470,7 @@ function launch_visibilityVM {
     
     attach_security_groups
     echo "Launching Visibility image"
-    nova boot --image  $VisibilityVMImageId --security-groups allow_all --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId $InstanceName 
-    sleep 10 
+    nova boot --image  $VisibilityVMImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId $InstanceName 
+    sleep 10
+    nova add-secgroup $InstanceName $SecGroup
 }
