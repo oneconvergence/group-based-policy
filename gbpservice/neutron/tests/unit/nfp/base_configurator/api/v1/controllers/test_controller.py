@@ -25,18 +25,18 @@ ERROR = 'error'
 UNHANDLED = 'unhandled'
 FAILURE = 'failure'
 
-"""This class contains  unittest cases for REST server of configurator.
-
-This class tests success and failure cases for all the HTTP requests which
-are implemented in REST server. run_tests.sh file is used for running all
-the tests in this class. All the methods of this class started with test
-prefix called and on success it will print ok and on failure it will
-print the error trace.
-
-"""
-
 
 class ControllerTestCase(unittest.TestCase, rest.RestController):
+
+    """This class contains  unittest cases for REST server of configurator.
+
+    This class tests success and failure cases for all the HTTP requests which
+    are implemented in REST server. run_tests.sh file is used for running all
+    the tests in this class. All the methods of this class started with test
+    prefix called and on success it will print ok and on failure it will
+    print the error trace.
+
+    """
 
     def setUp(self):
         """Standard method of TestCase to setup environment before each test.
@@ -54,13 +54,13 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                      'config': [{'resource': 'heat',
                                  'resource_data': {'some_data': 'some_value'}}]
                      }
-        self.data_error = {'info': {'service_type': 'firewall',
-                                    'service_vendor': '',
-                                    'context': {'foo': 'foo'}},
-                           'config': [{'resource': 'non-heat',
-                                       'resource_data': {
-                                            'some_data': 'some_value'}}]
-                           }
+        self.data_non_heat = {'info': {'service_type': 'firewall',
+                                       'service_vendor': '',
+                                       'context': {'foo': 'foo'}},
+                              'config': [{'resource': 'non-heat',
+                                          'resource_data': {
+                                                'some_data': 'some_value'}}]
+                              }
 
     def post_create_network_function_config_with_heat(self):
         """Tests HTTP post request create_network_function_device_config.
@@ -84,7 +84,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
 
         response = self.app.post(
                 '/v1/nfp/create_network_function_config',
-                zlib.compress(jsonutils.dumps(self.data_error)),
+                zlib.compress(jsonutils.dumps(self.data_non_heat)),
                 content_type='application/octet-stream')
         self.assertEqual(response.status_code, 200)
 
@@ -110,7 +110,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
 
         response = self.app.post(
                 '/v1/nfp/delete_network_function_config',
-                zlib.compress(jsonutils.dumps(self.data_error)),
+                zlib.compress(jsonutils.dumps(self.data_non_heat)),
                 content_type='application/octet-stream')
         self.assertEqual(response.status_code, 200)
 
