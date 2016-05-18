@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import zlib
 import exceptions
+import zlib
 
 from gbpservice.nfp.core import common as nfp_common
 
