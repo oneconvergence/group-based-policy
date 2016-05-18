@@ -37,7 +37,7 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
         super(FwGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
         self.fo = fo.FakeObjects()
         with mock.patch.object(cfg, 'CONF') as mock_cfg:
-            mock_cfg.configure_mock(rest_timeout=30, host='foo')
+            mock_cfg.configure_mock(rest_timeout=120, host='foo')
             self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True}
