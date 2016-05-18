@@ -210,6 +210,8 @@ class DeviceOrchestrator(PollEventDesc):
                 'ACTIVE': 'Device is Active.',
                 'DEVICE_NOT_UP': 'Device not became UP/ACTIVE',
         }
+        self.orchestration_driver = orchestration_driver.OrchestrationDriver(
+                                        self.config)
 
     @property
     def db_session(self):
@@ -456,7 +458,7 @@ class DeviceOrchestrator(PollEventDesc):
         self._update_network_function_device_db(device, device['status'])
 
     def _get_orchestration_driver(self, service_vendor):
-        return orchestration_driver.OrchestrationDriver(self.config)
+        return self.orchestration_driver
 
     def _get_device_to_reuse(self, device_data, dev_sharing_info):
         device_filters = dev_sharing_info['filters']

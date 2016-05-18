@@ -186,13 +186,14 @@ class OrchestrationDriver(object):
         sharing_networks = network_handler.get_networks(
             admin_token, filters=filters)
         if not sharing_networks:
-            LOG.error(_LE("Found empty network for tenant with"
-                          " ID: %(admin_tenant_id)s for advance sharing"),
+            LOG.error(_LE("Found empty network for tenant with Tenant ID: "
+                          "%(admin_tenant_id)s for advance sharing"),
                       {'admin_tenant_id': admin_tenant_id})
             raise Exception()
         elif len(sharing_networks) > 1:
             LOG.error(_LE("Found more then one network for sharing with"
-                          " ID: %(admin_tenant_id)s for advance sharing"),
+                          " Tenant ID: %(admin_tenant_id)s for "
+                          "advance sharing"),
                       {'admin_tenant_id': admin_tenant_id})
             raise Exception()
         else:
