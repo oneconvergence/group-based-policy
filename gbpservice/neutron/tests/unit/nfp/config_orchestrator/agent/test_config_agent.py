@@ -17,6 +17,7 @@ from gbpservice.nfp.config_orchestrator.agent import vpn
 import mock
 from neutron import context as ctx
 import unittest
+import uuid
 
 
 class TestContext(object):
@@ -52,7 +53,7 @@ class RpcMethods(object):
 
 def call_network_function_info():
     data = {'network_function': {
-        'id': 123,
+        'id': str(uuid.uuid4()),
         'description': {}
     }}
     return data
@@ -194,9 +195,9 @@ class FirewallTestCase(unittest.TestCase):
         self._call = 'oslo_messaging.rpc.client._CallContext.call'
 
     def _firewall_data(self):
-        return {'tenant_id': 123,
-                'description': str({'network_function_id': 123}),
-                'firewall_policy_id': 123
+        return {'tenant_id': str(uuid.uuid4()),
+                'description': str({'network_function_id': str(uuid.uuid4())}),
+                'firewall_policy_id': str(uuid.uuid4())
                 }
 
     def _cast_firewall(self, conf, context, body,
@@ -208,7 +209,8 @@ class FirewallTestCase(unittest.TestCase):
     def _call_to_get_network_function_desc(self, context, method, **kwargs):
         data = call_network_function_info()
         data['network_function']['description'] = "\n" + str(
-            {'provider_ptg_info': [123], 'service_vendor': 'xyz'})
+            {'provider_ptg_info': [str(uuid.uuid4())],
+             'service_vendor': 'xyz'})
         return data
 
     def test_create_firewall(self):
@@ -279,19 +281,19 @@ class LoadBalanceTestCase(unittest.TestCase):
         return []
 
     def _loadbalancer_data(self, resource):
-        data = {'tenant_id': 123,
-                'id': 123
+        data = {'tenant_id': str(uuid.uuid4()),
+                'id': str(uuid.uuid4())
                 }
         if resource.lower() not in ['member', 'health_monitor']:
-            desc = str({'network_function_id': 123})
+            desc = str({'network_function_id': str(uuid.uuid4())})
             data.update({'description': desc})
         if resource.lower() == 'vip':
-            data.update({'pool_id': 123})
+            data.update({'pool_id': str(uuid.uuid4())})
         return data
 
     def _get_mocked_pool(self, context, pool_id):
         return {'id': pool_id,
-                'description': str({'network_function_id': 123})}
+                'description': str({'network_function_id': str(uuid.uuid4())})}
 
     def test_create_vip(self):
         import_send = self.import_lib + '.send_request_to_configurator'
@@ -379,7 +381,7 @@ class LoadBalanceTestCase(unittest.TestCase):
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
             member = self._loadbalancer_data('member')
-            member.update({'pool_id': 123})
+            member.update({'pool_id': str(uuid.uuid4())})
             self.lb_handler.create_member(self.context, member)
 
     def test_delete_member(self):
@@ -399,7 +401,7 @@ class LoadBalanceTestCase(unittest.TestCase):
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
             member = self._loadbalancer_data('member')
-            member.update({'pool_id': 123})
+            member.update({'pool_id': str(uuid.uuid4())})
             self.lb_handler.delete_member(self.context, member)
 
     def test_create_pool_health_monitor(self):
@@ -419,7 +421,7 @@ class LoadBalanceTestCase(unittest.TestCase):
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
             hm = self._loadbalancer_data('health_monitor')
-            pool_id = "123"
+            pool_id = str(uuid.uuid4())
             self.lb_handler.create_pool_health_monitor(
                 self.context, hm, pool_id)
 
@@ -440,7 +442,7 @@ class LoadBalanceTestCase(unittest.TestCase):
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
             hm = self._loadbalancer_data('health_monitor')
-            pool_id = 123
+            pool_id = str(uuid.uuid4())
             self.lb_handler.delete_pool_health_monitor(
                 self.context, hm, pool_id)
 
@@ -474,27 +476,29 @@ class VPNTestCase(unittest.TestCase):
         if method.lower() == "get_network_function_details":
             data = call_network_function_info()
             data['network_function']['description'] = "\n" +\
-                ("ipsec_site_connection_id=123;service_vendor=xyz")
+                ("ipsec_site_connection_id=%s;service_vendor=xyz" % (
+                    str(uuid.uuid4())))
             return data
 
         return []
 
     def _prepare_request_data(self, reason, rsrc_type):
-        resource = {'tenant_id': 123,
-                    'id': 123,
-                    'description': "{'network_function_id':123}"
+        resource = {'tenant_id': str(uuid.uuid4()),
+                    'id': str(uuid.uuid4()),
+                    'description': (
+                        "{'network_function_id':'%s'}" % (str(uuid.uuid4())))
                     }
         if rsrc_type.lower() == 'ipsec_site_connection':
-            resource.update({'vpnservice_id': 123,
-                             'ikepolicy_id': 123,
-                             'ipsecpolicy_id': 123})
+            resource.update({'vpnservice_id': str(uuid.uuid4()),
+                             'ikepolicy_id': str(uuid.uuid4()),
+                             'ipsecpolicy_id': str(uuid.uuid4())})
         elif rsrc_type.lower() == 'vpn_service':
-            resource.update({'subnet_id': 123,
-                             'router_id': 123})
+            resource.update({'subnet_id': str(uuid.uuid4()),
+                             'router_id': str(uuid.uuid4())})
         return {'resource': resource,
                 'rsrc_type': rsrc_type,
                 'reason': reason,
-                'rsrc_id': 123
+                'rsrc_id': str(uuid.uuid4())
                 }
 
     def test_update_vpnservice_for_vpnservice(self):
