@@ -18,6 +18,7 @@ import ConfigParser
 
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import log as nfp_logging
+from oslo_log import log as oslo_logging
 import os
 import socket
 import sys
@@ -25,7 +26,7 @@ import time
 
 from oslo_config import cfg
 
-logging.register_options(cfg.CONF)
+oslo_logging.register_options(cfg.CONF)
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -302,7 +303,7 @@ class Proxy(object):
 
 def main(argv):
     cfg.CONF(args=sys.argv[1:])
-    logging.setup(cfg.CONF, 'nfp')
+    oslo_logging.setup(cfg.CONF, 'nfp')
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-config-file', "--config-file", action="store", dest='config_file')

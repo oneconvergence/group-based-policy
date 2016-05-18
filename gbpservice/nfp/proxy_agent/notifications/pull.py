@@ -45,6 +45,9 @@ class PullNotification(core_pt.PollEventDesc):
     def _method_handler(self, notification):
         # Method handles notification as per resource, resource_type and method
         try:
+            logging_context = notification['info']['context'][
+                                                    'logging_context']
+            nfp_logging.store_logging_context(**logging_context)
             requester = notification['info']['context']['requester']
             topic = ResourceMap[requester]
             context = notification['info']['context']['neutron_context']
