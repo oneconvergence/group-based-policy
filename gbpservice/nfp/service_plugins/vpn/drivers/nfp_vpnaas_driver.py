@@ -69,11 +69,6 @@ class NFPIPsecVPNDriverCallBack(base_ipsec.IPsecVpnDriverCallBack):
         plugin = self.driver.service_plugin
         plugin.update_status_by_agent(context, status)
 
-    def ipsec_site_conn_deleted(self, context, ipsec_site_conn_id):
-        """ Delete ipsec connection notification from driver."""
-        plugin = self.driver.service_plugin
-        plugin._delete_ipsec_site_connection(context, ipsec_site_conn_id)
-
 
 class NFPIPsecVpnAgentApi(base_ipsec.IPsecVpnAgentApi):
     """API and handler for NFP IPSec plugin to agent RPC messaging."""
@@ -188,8 +183,8 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
                                     context,
                                     ipsec_site_connection['vpnservice_id'])
 
-        starttime = endtime = time.time()
-        while(endtime - starttime) < TIMEOUT:
+        starttime = 0
+        while starttime < TIMEOUT:
             vpnservice = self.service_plugin.get_vpnservice(
                                         context,
                                         ipsec_site_connection['vpnservice_id'])
@@ -204,16 +199,16 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
                     reason='create', service_vendor=service_vendor)
                 break
             elif vpnservice['status'] == ERROR:
-                msg = ('updating ipsec_site_connection with id %s to'+(
-                                'ERROR state' % (ipsec_site_connection['id'])))
+                msg = ('updating ipsec_site_connection with id %s to'
+                       'ERROR state' % (ipsec_site_connection['id']))
                 LOG.error(msg)
                 self._update_ipsec_conn_state(context, ipsec_site_connection)
                 break
             time.sleep(5)
-            endtime = time.time()
+            starttime += 5
         else:
-            msg = ('updating ipsec_site_connection with id %s to'+(
-                                'ERROR state' % (ipsec_site_connection['id'])))
+            msg = ('updating ipsec_site_connection with id %s to'
+                   'ERROR state' % (ipsec_site_connection['id']))
             LOG.error(msg)
             self._update_ipsec_conn_state(context, ipsec_site_connection)
 
@@ -236,6 +231,7 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
         service_vendor = self._get_service_vendor(
                                     context,
                                     ipsec_site_connection['vpnservice_id'])
+
         self.agent_rpc.vpnservice_updated(
             context,
             ipsec_site_connection['vpnservice_id'],
@@ -248,6 +244,7 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
     def create_vpnservice(self, context, vpnservice):
         service_vendor = self._get_service_vendor(context,
                                                   vpnservice['id'])
+
         self.agent_rpc.vpnservice_updated(
             context,
             vpnservice['id'],
@@ -256,3 +253,6 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
             rsrc_id=vpnservice['id'],
             resource=vpnservice,
             reason='create', service_vendor=service_vendor)
+
+    def delete_vpnservice(self, context, vpnservice):
+        pass

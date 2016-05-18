@@ -19,7 +19,7 @@ from oslo_log import log as logging
 import oslo_messaging
 import pecan
 
-from base_controller import BaseController
+from gbpservice.nfp.configurator.api.base_controller import BaseController
 
 LOG = logging.getLogger(__name__)
 n_rpc.init(cfg.CONF)

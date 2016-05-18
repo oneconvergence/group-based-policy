@@ -58,25 +58,27 @@ class LBaasRpcSenderTest(unittest.TestCase):
 
         sc, conf, rpc_mgr = self._get_configurator_rpc_manager_object()
         agent = lb.LBaasRpcSender(sc)
-
+        agent_info = {'context': 'context', 'resource': 'pool'}
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
                 mock_new_event),\
             mock.patch.object(sc, 'stash_event') as mock_stash_event:
-            agent.update_status('object_type', 'object_id',
-                                'object_status', 'context')
+            agent.update_status('pool', 'object_id',
+                                'status', agent_info, 'pool')
 
+            data = {'info': {'service_type': "loadbalancer",
+                             'context': 'context'},
+                    'notification': [{'resource': 'pool',
+                                      'data': {'obj_type': 'pool',
+                                               'obj_id': 'object_id',
+                                               'notification_type':
+                                                   'update_status',
+                                               'status': 'status',
+                                               'pool': 'pool'}}]
+                    }
             mock_new_event.assert_called_with(
                 id=const.EVENT_STASH,
                 key=const.EVENT_STASH,
-                data={
-                    'kwargs': {
-                        'status': 'object_status',
-                        'obj_type': 'object_type',
-                        'context': 'context',
-                        'obj_id': 'object_id'},
-                    'resource': 'loadbalancer',
-                    'method': 'update_status',
-                    'receiver': 'neutron'})
+                data=data)
             mock_stash_event.assert_called_with('foo')
 
     def test_update_pool_stats(self):
@@ -96,17 +98,19 @@ class LBaasRpcSenderTest(unittest.TestCase):
             context = test_data.Context()
             agent.update_pool_stats('pool_id', 'stats', context)
 
+            data = {'info': {'service_type': 'loadbalancer',
+                             'context': context.to_dict()},
+                    'notification': [{'resource': 'pool',
+                                      'data': {'pool_id': 'pool_id',
+                                               'stats': 'stats',
+                                               'notification_type': (
+                                                        'update_pool_stats'),
+                                               'pool': 'pool_id'}}]
+                    }
             mock_new_event.assert_called_with(
                 id=const.EVENT_STASH,
                 key=const.EVENT_STASH,
-                data={
-                    'kwargs': {
-                        'stats': 'stats',
-                        'context': {},
-                        'pool_id': 'pool_id'},
-                    'resource': 'loadbalancer',
-                    'method': 'update_pool_stats',
-                    'receiver': 'neutron'})
+                data=data)
             mock_stash_event.assert_called_with('foo')
 
     def test_get_logical_device(self):
@@ -462,6 +466,7 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
             old_hm = self.fo._get_hm_object()[0]
             pool_id = '6350c0fd-07f8-46ff-b797-62acd23760de'
             agent.handle_event(self.ev)
+
             if self.ev.id == 'CREATE_VIP':
                 mock_create_vip.assert_called_with(vip, self.fo.vip_context)
             elif self.ev.id == 'DELETE_VIP':

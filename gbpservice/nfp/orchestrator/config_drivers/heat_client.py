@@ -14,9 +14,9 @@
 from heatclient import client as heat_client
 from heatclient import exc as heat_exc
 from neutron._i18n import _LW
-from oslo_log import log as logging
 
-LOG = logging.getLogger(__name__)
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
 
 # We are overriding create and update for now because the upstream
 # heat client class does not take timeout as argument

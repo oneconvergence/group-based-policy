@@ -38,7 +38,7 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
         self.fo = fo.FakeObjects()
         with mock.patch.object(cfg, 'CONF') as mock_cfg:
             mock_cfg.configure_mock(rest_timeout=30, host='foo')
-            self.driver = fw_dvr.FwGenericConfigDriver()
+            self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True}
         self.kwargs = self.fo._fake_resource_data()
@@ -133,7 +133,7 @@ class FwaasDriverTestCase(unittest.TestCase):
         self.fo = fo.FakeObjects()
         with mock.patch.object(cfg, 'CONF') as mock_cfg:
             mock_cfg.configure_mock(rest_timeout=30, host='foo')
-            self.driver = fw_dvr.FwaasDriver()
+            self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,
                                'config_success': True,

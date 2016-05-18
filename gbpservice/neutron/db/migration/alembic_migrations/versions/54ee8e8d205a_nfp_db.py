@@ -74,7 +74,7 @@ def upgrade():
         sa.Column('tenant_id', sa.String(length=255), nullable=True),
         sa.Column('id', sa.String(length=36), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=True),
-        sa.Column('description', sa.String(length=255), nullable=True),
+        sa.Column('description', sa.String(length=1024), nullable=True),
         sa.Column('status', sa.String(length=50), nullable=True),
         sa.Column('status_description', sa.String(length=255), nullable=True),
         sa.Column('service_id', sa.String(length=36), nullable=False),

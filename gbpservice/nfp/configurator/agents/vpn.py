@@ -149,7 +149,8 @@ class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
         """Registers the VPNaas plugin events to update the vpn configurations.
 
         :param context: dictionary, confined to the specific service type.
-        :param resource_data: dictionary, confined to the specific operation type.
+        :param resource_data: dictionary, confined to the specific
+               operation type.
 
         Returns: None
         """
@@ -229,16 +230,17 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         try:
             driver.vpnservice_updated(context, resource_data)
 
-            for item in context['service_info']['ipsec_site_conns']:
-                if item['id'] == resource_data['resource']['id'] and (
-                                           resource_data['reason'] == 'create'):
-                    item['status'] = 'INIT'
-                    arg_dict = {'context': context,
-                            'resource_data': resource_data}
-                    ev1 = self._sc.new_event(id='VPN_SYNC',
-                                             key='VPN_SYNC', data=arg_dict)
-                    self._sc.post_event(ev1)
-                break
+            if 'ipsec_site_conns' in context['service_info']:
+                for item in context['service_info']['ipsec_site_conns']:
+                    if item['id'] == resource_data['resource']['id'] and (
+                                       resource_data['reason'] == 'create'):
+                        item['status'] = 'INIT'
+                        arg_dict = {'context': context,
+                                    'resource_data': resource_data}
+                        ev1 = self._sc.new_event(id='VPN_SYNC',
+                                                 key='VPN_SYNC', data=arg_dict)
+                        self._sc.post_event(ev1)
+                    break
         except Exception as err:
             msg = ("Failed to update VPN service. %s" % str(err).capitalize())
             LOG.error(msg)
@@ -294,12 +296,11 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         """
 
         context = ev.data.get('context')
-        resource_data = ev.data.get('resource_data')
         s2s_contexts = self._plugin_rpc.get_vpn_servicecontext(context)
-        site_conn = s2s_contexts[0]['siteconns'][0]
         state = self._sync_ipsec_conns(context, s2s_contexts[0])
         if state == const.STATE_ACTIVE:
             return {'poll': False}
+
 
 def events_init(sc, drivers):
     """Registers events with core service controller.
@@ -334,7 +335,6 @@ def load_drivers(sc, conf):
 
     ld = utils.ConfiguratorUtils()
     drivers = ld.load_drivers(const.DRIVERS_DIR)
-    plugin_rpc = VpnaasRpcSender(sc)
 
     for service_type, driver_name in drivers.iteritems():
         driver_obj = driver_name(conf=conf)

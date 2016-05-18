@@ -48,6 +48,7 @@ class DummyEvent(object):
         self.data['interfaces_in_use'] = 1
         self.data['reference_count'] = ref_count
         self.data['service_details'] = {'service_vendor': 'vyos'}
+        self.context = {}
 
 
 class HaproxyDummyDriver(object):

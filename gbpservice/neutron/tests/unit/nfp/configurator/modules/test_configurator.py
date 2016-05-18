@@ -156,7 +156,7 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
             agent_info.update(
                     {'resource': request_data_expected['config'][0][
                                                                 'resource'],
-                     'service_type': request_data_expected['info'][
+                     'resource_type': request_data_expected['info'][
                                                             'service_type'],
                      'service_vendor': request_data_expected['info'][
                                                             'service_vendor'],
@@ -191,7 +191,7 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
 
         sc, conf, rpc_mgr = self._get_ConfiguratorRpcManager_object()
         agent, sc = self._get_FWaasRpcManager_object(conf, sc)
-        arg_dict = {'context': self.fo.context,
+        arg_dict = {'context': self.fo.fw_context,
                     'firewall': self.fo._fake_firewall_obj(),
                     'host': self.fo.host}
         method = {'CREATE_FIREWALL': 'create_network_function_config',
@@ -204,7 +204,8 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
             mock.patch.object(rpc_mgr,
                               '_get_service_agent_instance',
                               return_value=agent):
-            getattr(rpc_mgr, method[operation])(self.fo.context, request_data)
+            getattr(rpc_mgr, method[operation])(self.fo.fw_context,
+                                                request_data)
 
             mock_sc_event.assert_called_with(id=operation,
                                              data=arg_dict, key=None)

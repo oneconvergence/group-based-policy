@@ -12,7 +12,6 @@
 
 from neutron._i18n import _LE
 from neutron._i18n import _LI
-from oslo_log import log as logging
 import oslo_messaging as messaging
 
 from gbpservice.nfp.common import constants as nfp_constants
@@ -31,7 +30,8 @@ from neutron import context as n_context
 
 import sys, traceback
 
-LOG = logging.getLogger(__name__)
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
@@ -98,11 +98,15 @@ class RpcHandler(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.desc.uid)
+                key=original_event.desc.uid,
+                context=nfp_logging.get_logging_context())
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
-            ev = self._controller.new_event(id=event_id, data=event_data)
+            ev = self._controller.new_event(
+                id=event_id,
+                data=event_data,
+                context=nfp_logging.get_logging_context())
             self._controller.post_event(ev)
         self._log_event_created(event_id, event_data)
 
@@ -112,6 +116,9 @@ class RpcHandler(object):
         responses = notification_data.get('notification')
         request_info = info.get('context')
         operation = request_info.get('operation')
+        logging_context = request_info.get('logging_context')
+        nfp_logging.store_logging_context(**logging_context)
+
         for response in responses:
             resource = response.get('resource')
             data = response.get('data')
@@ -196,8 +203,9 @@ class DeviceOrchestrator(PollEventDesc):
                                         ' through configurator'),
                 'HEALTH_CHECK_COMPLETED': 'Health check succesfull for device',
                 'INTERFACES_PLUGGED': 'Interfaces Plugging successfull',
-                'PENDING_CONFIGURATION_CREATE': ('Started configuring device '
-                                                 + 'for routes, license, etc'),
+                'PENDING_CONFIGURATION_CREATE': (
+                                         'Started configuring device ' +
+                                         'for routes, license, etc'),
                 'DEVICE_READY': 'Device is ready to use',
                 'ACTIVE': 'Device is Active.',
                 'DEVICE_NOT_UP': 'Device not became UP/ACTIVE',
@@ -238,6 +246,7 @@ class DeviceOrchestrator(PollEventDesc):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
+        nfp_logging.store_logging_context(**event.context)
         try:
             nf_id = (event.data['network_function_id']
                         if 'network_function_id' in event.data else None)
@@ -268,16 +277,23 @@ class DeviceOrchestrator(PollEventDesc):
                     id=event_id, data=event_data,
                     serialize=original_event.serialize,
                     binding_key=original_event.binding_key,
-                    key=original_event.desc.uid)
+                    key=original_event.desc.uid,
+                    context=nfp_logging.get_logging_context())
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:
-                ev = self._controller.new_event(id=event_id, data=event_data)
+                ev = self._controller.new_event(
+                    id=event_id,
+                    data=event_data,
+                    context=nfp_logging.get_logging_context())
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
             # Same module API, so calling corresponding function directly.
-            event = self._controller.new_event(id=event_id, data=event_data)
+            event = self._controller.new_event(
+                id=event_id,
+                data=event_data,
+                context=nfp_logging.get_logging_context())
             self.handle_event(event)
 
     def poll_event_cancel(self, ev):
@@ -568,6 +584,7 @@ class DeviceOrchestrator(PollEventDesc):
 
     @poll_event_desc(event='DEVICE_SPAWNING', spacing=20)
     def check_device_is_up(self, event):
+        nfp_logging.store_logging_context(**event.context)
         device = event.data
 
         orchestration_driver = self._get_orchestration_driver(
@@ -813,6 +830,7 @@ class DeviceOrchestrator(PollEventDesc):
 
     @poll_event_desc(event='DEVICE_BEING_DELETED', spacing=2)
     def check_device_deleted(self, event):
+        nfp_logging.store_logging_context(**event.context)
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
             device['service_details']['service_vendor'])
@@ -911,7 +929,8 @@ class NDOConfiguratorRpcApi(object):
                            device['network_function_instance_id']),
                 'nfd_id': device['id'],
                 'requester': nfp_constants.DEVICE_ORCHESTRATOR,
-                'operation': operation
+                'operation': operation,
+                'logging_context': nfp_logging.get_logging_context()
         }
         nfd_ip = device['mgmt_ip_address']
         request_info.update({'device_ip': nfd_ip})
@@ -929,6 +948,8 @@ class NDOConfiguratorRpcApi(object):
 
     def create_network_function_device_config(self, device_data,
                                               config_params):
+        nfp_logging.store_logging_context(
+            meta_id=device_data['network_function_id'])
         self._update_params(device_data, config_params, operation='create')
         LOG.info(_LI("Sending create NFD config request to configurator "
                      "with config_params = %(config_params)s"),
@@ -942,6 +963,8 @@ class NDOConfiguratorRpcApi(object):
 
     def delete_network_function_device_config(self, device_data,
                                               config_params):
+        nfp_logging.store_logging_context(
+            meta_id=device_data['network_function_id'])
         self._update_params(device_data, config_params, operation='delete')
         LOG.info(_LI("Sending delete NFD config request to configurator "
                      "with config_params = %(config_params)s"),

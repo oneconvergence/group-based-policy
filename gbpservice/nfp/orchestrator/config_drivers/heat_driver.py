@@ -35,14 +35,13 @@ from keystoneclient import exceptions as k_exceptions
 from neutron._i18n import _LE
 from neutron._i18n import _LI
 from neutron._i18n import _LW
-from neutron.common import exceptions as n_exc
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
-from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
 import yaml
 
+from gbpservice.nfp.core import log as nfp_logging
 
 HEAT_DRIVER_OPTS = [
     cfg.StrOpt('svc_management_ptg_name',
@@ -76,7 +75,8 @@ cfg.CONF.register_opts(HEAT_DRIVER_OPTS,
 SC_METADATA = ('{"sc_instance":"%s", "floating_ip": "%s", '
                '"provider_interface_mac": "%s", '
                '"standby_provider_interface_mac": "%s",'
-               '"network_function_id": "%s"}')
+               '"network_function_id": "%s",'
+               '"service_vendor": "%s"}')
 
 SVC_MGMT_PTG_NAME = (
     cfg.CONF.heat_driver.svc_management_ptg_name)
@@ -86,67 +86,14 @@ STACK_ACTION_WAIT_TIME = (
 STACK_ACTION_RETRY_WAIT = 5  # Retry after every 5 seconds
 APIC_OWNED_RES = 'apic_owned_res_'
 
-LOG = logging.getLogger(__name__)
-
-
-class ServiceInfoNotAvailableOnUpdate(n_exc.NeutronException):
-    message = _("Service information is not available with Service Manager "
-                "on node update")
-
-
-class StackOperationFailedException(n_exc.NeutronException):
-    message = _("Stack : %(stack_name)s %(operation)s failed for tenant : "
-                "%(stack_owner)s ")
-
-
-class StackOperationNotCompletedException(n_exc.NeutronException):
-    message = _("Stack : %(stack_name)s %(operation)s did not complete in "
-                "%(time)s seconds for tenant : %(stack_owner)s ")
-
-
-class RequiredRoleNotCreated(n_exc.NeutronException):
-    message = _("The role : %(role_name)s is not available in keystone")
-
-
-class FloatingIPForVPNRemovedManually(n_exc.NeutronException):
-    message = _("Floating IP for VPN Service has been disassociated Manually")
-
-
-class NodeUpdateException(n_exc.NeutronException):
-    message = _("Failed to configure node %(node)s of service chain "
-                "instance %(instance_id)s of Tenant - %(tenant)s . "
-                "%(msg)s ")
-
-
-class NodeDBUpdateException(n_exc.NeutronException):
-    message = _("Failed to Update DB with Stack details - %(msg)s")
+LOG = nfp_logging.getLogger(__name__)
 
 
 class HeatDriver(object):
-    SUPPORTED_SERVICE_TYPES = [pconst.LOADBALANCER, pconst.FIREWALL,
-                               pconst.VPN
-                               ]
-    SUPPORTED_SERVICE_VENDOR_MAPPING = {pconst.LOADBALANCER: ["haproxy"],
-                                        pconst.FIREWALL: ["vyos", "asav"],
-                                        pconst.VPN: ["vyos", "asav"]
-                                        }
-    vendor_name = 'NFP'
-    required_heat_resources = {
-        pconst.LOADBALANCER: ['OS::Neutron::LoadBalancer',
-                              'OS::Neutron::Pool'],
-        pconst.FIREWALL: ['OS::Neutron::Firewall',
-                          'OS::Neutron::FirewallPolicy'],
-        pconst.VPN: ['OS::Neutron::VPNService']
-
-    }
-
-    initialized = False
-
     def __init__(self, config):
         self.keystoneclient = KeystoneClient(config)
         self.gbp_client = GBPClient(config)
         self.neutron_client = NeutronClient(config)
-        self.initialized = True
         # self.resource_owner_tenant_id = None
 
     '''
@@ -524,8 +471,8 @@ class HeatDriver(object):
                 break
         if not provider_cidr:
             LOG.error(_LE("Unable to get provider cidr for provider "
-                "policy target group %(provider_ptg)s") %
-                {"provider_ptg": provider})
+                          "policy target group %(provider_ptg)s") %
+                      {"provider_ptg": provider})
             return None
 
         fw_template_properties = dict(
@@ -664,6 +611,8 @@ class HeatDriver(object):
                             provider, consumer_port, network_function,
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
+        nf_desc = None
+        common_desc = {'network_function_id': network_function['id']}
         provider_cidr = provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
@@ -678,6 +627,7 @@ class HeatDriver(object):
         service_type = service_profile['service_type']
         service_details = transport.parse_service_flavor_string(
             service_profile['service_flavor'])
+        service_vendor = service_details['service_vendor']
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
 
@@ -729,12 +679,22 @@ class HeatDriver(object):
             config_param_values['Subnet'] = provider_subnet['id']
             config_param_values['service_chain_metadata'] = ""
             if not base_mode_support:
-                config_param_values['service_chain_metadata'] = (
-                    SC_METADATA % (service_chain_instance['id'],
-                                   mgmt_ip,
-                                   provider_port_mac,
-                                   standby_provider_port_mac,
-                                   network_function['id']))
+                config_param_values[
+                    'service_chain_metadata'] = str(common_desc)
+                nf_desc = str((SC_METADATA % (service_chain_instance['id'],
+                                              mgmt_ip,
+                                              provider_port_mac,
+                                              standby_provider_port_mac,
+                                              network_function['id'],
+                                              service_vendor)))
+
+                lb_pool_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Pool')
+                stack_template[resources_key][lb_pool_key][properties_key][
+                    'description'] = str(common_desc)
+
         elif service_type == pconst.FIREWALL:
             stack_template = self._update_firewall_template(
                 auth_token, provider, stack_template)
@@ -755,7 +715,9 @@ class HeatDriver(object):
                     is_template_aws_version,
                     'OS::Neutron::Firewall')
                 stack_template[resources_key][fw_key][properties_key][
-                    'description'] = str(firewall_desc)
+                    'description'] = str(common_desc)
+
+                nf_desc = str(firewall_desc)
         elif service_type == pconst.VPN:
             # rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token,
             #    provider, update)
@@ -818,26 +780,31 @@ class HeatDriver(object):
                 floatingips = self.neutron_client.get_floating_ips(
                     auth_token, consumer_port['id'])
                 if not floatingips:
-                    LOG.Error(_LE("Floating IP for VPN Service has been "
+                    LOG.error(_LE("Floating IP for VPN Service has been "
                                   "disassociated Manually"))
                     return None, None
                 for fip in floatingips:
-                    if (consumer_port['fixed_ips'][0]['ip_address'] ==
-                            fip['fixed_ip_address']):
+                    if consumer_port['fixed_ips'][0]['ip_address'] == fip[
+                            'fixed_ip_address']:
                         stitching_port_fip = fip['floating_ip_address']
 
-                service_vendor = service_details['service_vendor']
-                desc = ('fip=' + mgmt_ip +
-                        ";tunnel_local_cidr=" +
-                        provider_cidr + ";user_access_ip=" +
-                        stitching_port_fip + ";fixed_ip=" +
-                        consumer_port['fixed_ips'][0]['ip_address'] +
-                        ';service_vendor=' + service_vendor +
-                        ';stitching_cidr=' + stitching_cidr +
-                        ';stitching_gateway=' + stitching_subnet[
-                            'gateway_ip'] +
-                        ';mgmt_gw_ip=' + mgmt_gw_ip +
-                        ';network_function_id=' + network_function['id'])
+                try:
+                    desc = ('fip=' + mgmt_ip +
+                            ";tunnel_local_cidr=" +
+                            provider_cidr + ";user_access_ip=" +
+                            stitching_port_fip + ";fixed_ip=" +
+                            consumer_port['fixed_ips'][0]['ip_address'] +
+                            ';service_vendor=' + service_details[
+                                'service_vendor'] +
+                            ';stitching_cidr=' + stitching_cidr +
+                            ';stitching_gateway=' + stitching_subnet[
+                                'gateway_ip'] +
+                            ';mgmt_gw_ip=' + mgmt_gw_ip +
+                            ';network_function_id=' + network_function['id'])
+                except Exception:
+                    LOG.error(_LE("Problem in preparing description, some of "
+                                  "the fields might not have initialized"))
+                    return None, None
                 stack_params['ServiceDescription'] = desc
                 siteconn_keys = self._get_site_conn_keys(
                     stack_template[resources_key],
@@ -845,7 +812,18 @@ class HeatDriver(object):
                     'OS::Neutron::IPsecSiteConnection')
                 for siteconn_key in siteconn_keys:
                     stack_template[resources_key][siteconn_key][
-                        properties_key]['description'] = desc
+                        properties_key]['description'] = str(common_desc)
+
+                vpnservice_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::VPNService')
+                stack_template[resources_key][vpnservice_key][properties_key][
+                    'description'] = str(common_desc)
+
+                nf_desc = str(desc)
+        network_function['description'] = network_function[
+            'description'] + '\n' + nf_desc
 
         for parameter in stack_template.get(parameters_key) or []:
             if parameter in config_param_values:
@@ -1199,6 +1177,14 @@ class HeatDriver(object):
             return None
         return stack_id
 
+    def is_update_config_supported(self, service_type):
+        return (
+            False
+            if (service_type == pconst.VPN or
+                service_type == pconst.FIREWALL)
+            else True
+        )
+
     def _update(self, auth_token, resource_owner_tenant_id, service_profile,
                 service_chain_node, service_chain_instance, provider,
                 consumer_port, network_function, provider_port, stack_id,
@@ -1230,19 +1216,6 @@ class HeatDriver(object):
 
         if stack_id:
             if service_type == pconst.VPN or service_type == pconst.FIREWALL:
-                heatclient.delete(stack_id)
-                try:
-                    self._wait_for_stack_operation_complete(heatclient,
-                                                            stack_id,
-                                                            'delete')
-                except Exception as err:
-                    LOG.error(_LE("Stack deletion failed for STACK ID - "
-                                  "%(stack_id)s for Tenant - %(tenant_id)s . "
-                                  "ERROR - %(err)s") %
-                              {'stack_id': stack_id,
-                               'tenant_id': provider_tenant_id,
-                               'err': str(err)})
-                    return None
                 stack_name = ("stack_" + service_chain_instance['name'] +
                               service_chain_node['name'] +
                               service_chain_instance['id'][:8] +
@@ -1258,26 +1231,7 @@ class HeatDriver(object):
                            '- %r' % (provider_tenant_id, str(err)))
                     LOG.exception(_LE('%(msg)s') % {'msg': msg})
                     return None
-                try:
-                    self._wait_for_stack_operation_complete(
-                        heatclient, stack["stack"]["id"], "create")
-                    stack_id = stack["stack"]["id"]
-                except Exception as err:
-                    msg = ('Node update failed. There can be a chance if the '
-                           'service is FIREWALL or VPN, the related '
-                           'configuration would have been lost. Please check '
-                           'with the ADMIN for issue of failure and '
-                           're-initiate the update node once again.')
-                    LOG.exception(_LE('%(msg)s NODE-ID: %(node_id)s '
-                                      'INSTANCE-ID: %(instance_id)s '
-                                      'TenantID: %(tenant_id)s . '
-                                      'ERROR: %(err)s') %
-                                  {'msg': msg,
-                                   'node_id': service_chain_node['id'],
-                                   'instance_id': service_chain_instance['id'],
-                                   'tenant_id': provider_tenant_id,
-                                   'err': str(err)})
-                    return None
+                stack_id = stack["stack"]["id"]
             else:
                 try:
                     heatclient.update(stack_id, stack_template, stack_params)
