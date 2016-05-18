@@ -49,3 +49,6 @@ if [[ $DEVSTACK_MODE = enterprise ]]; then
     DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
 fi
 
+VyosQcow2Image=
+
+PUBLIC_INTERFACE=

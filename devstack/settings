@@ -49,6 +49,8 @@ enable_service proxy_agent
 [[ $DEVSTACK_MODE = base ]] && enable_service base_configurator
 [[ $DEVSTACK_MODE != base ]] && enable_service config_orch
 
+OVS_PHYSICAL_BRIDGE=br-ex
+
 # Deployment preferences
 SYSLOG=${SYSLOG:-True}
 
