@@ -69,6 +69,8 @@ class Event(object):
         self.max_times = -1
         # Identifies whether event.data is zipped
         self.zipped = False
+        # Added for log metadata
+        self.context = kwargs.get('context', {})
 
     def identify(self):
         if hasattr(self, 'desc'):

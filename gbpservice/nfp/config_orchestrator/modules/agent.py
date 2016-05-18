@@ -91,6 +91,7 @@ def rpc_init(sc, conf):
 
 
 def events_init(sc, conf, nfp_agents_obj):
+    """Register event with its handler."""
     vpn_events = ['VPN_SERVICE_SPAWNING', 'VPN_SERVICE_DELETE_IN_PROGRESS',
                   'VPN_SERVICE_ERRED']
     firewall_events = ['FW_INSTANCE_SPAWNING', 'FW_SERVICE_DELETE_IN_PROGRESS',
