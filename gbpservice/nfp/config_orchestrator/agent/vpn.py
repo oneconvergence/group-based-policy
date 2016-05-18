@@ -375,18 +375,17 @@ class VpnNotifier(object):
     def ipsec_site_conn_deleted(self, context, notification_data):
         # Sending An Event for visiblity
         notification_info = notification_data['info']
-        ipsec_site_conn_id = resource_data['resource_id']
+        nf_id = notification_info['context']['network_function_id']
+        ipsec_id = notification_info['context']['ipsec_site_connection_id']
         msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
                "making an ipsec_site_conn_deleted RPC call to plugin for "
                " ipsec ")
         LOG(LOGGER, 'INFO', " %s " % (msg))
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
-                             ipsec_site_conn_id=ipsec_site_conn_id)
+                             ipsec_site_conn_id=ipsec_id)
 
         # Sending An Event for visiblity
-        nf_id = notification_info['context']['network_function_id']
-        ipsec_id = notification_info['context']['ipsec_site_connection_id']
         resource_id = notification_info['context']['ipsec_site_connection_id']
         service_type = notification_info['service_type']
         request_data = self._prepare_request_data(context,
