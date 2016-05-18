@@ -278,6 +278,10 @@ if __name__ == "__main__":
             exit()
 
     nfp_branch_name = get_nfp_branch_name_for_docker(sys.argv[2]) if len(sys.argv) == 3 else None
+    
+    if ('configurator' in elements or 'visibility' in elements) and nfp_branch_name is None:
+        print ("ERROR: You have to pass local.conf from devstack directory.")
+        exit()
 
     # run Disk Image Builder to create VM image
     dib(nfp_branch_name)
