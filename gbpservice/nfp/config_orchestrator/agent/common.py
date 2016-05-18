@@ -11,7 +11,6 @@
 #    under the License.
 
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
-from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
 from gbpservice.nfp.core import log as nfp_logging
 

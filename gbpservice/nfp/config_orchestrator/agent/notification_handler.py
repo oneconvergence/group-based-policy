@@ -14,7 +14,6 @@ from gbpservice.nfp.config_orchestrator.agent.firewall\
 from gbpservice.nfp.config_orchestrator.agent.loadbalancer\
     import LoadbalancerNotifier
 from gbpservice.nfp.config_orchestrator.agent.vpn import VpnNotifier
-from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import log as nfp_logging
 import oslo_messaging as messaging
 

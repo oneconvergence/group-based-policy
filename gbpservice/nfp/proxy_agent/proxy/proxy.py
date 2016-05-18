@@ -10,21 +10,19 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import eventlet
-eventlet.monkey_patch()
-
 import argparse
 import ConfigParser
-
-from gbpservice.nfp.core import common as nfp_common
+import eventlet
 from gbpservice.nfp.core import log as nfp_logging
-from oslo_log import log as oslo_logging
 import os
+from oslo_config import cfg
+from oslo_log import log as oslo_logging
 import socket
 import sys
 import time
 
-from oslo_config import cfg
+
+eventlet.monkey_patch()
 
 oslo_logging.register_options(cfg.CONF)
 

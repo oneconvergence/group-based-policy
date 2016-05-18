@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import poll as core_pt
 import gbpservice.nfp.lib.transport as transport
 
@@ -121,13 +120,13 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
             if request_data['nf']['status'] == 'ACTIVE':
                 new_event_data = {'resource': None,
                                   'context': ctxt.to_dict()}
-                nfp_log_ctx = nfp_logging.get_logging_context() 
+                nfp_log_ctx = nfp_logging.get_logging_context()
                 new_event_data['resource'] = {'eventtype': 'SERVICE',
                                               'eventid': 'SERVICE_CREATED',
                                               'eventdata': request_data,
-                                              'info': {'context': 
-                                                        {'logging_context':
-                                                            nfp_log_ctx}}}
+                                              'info': {'context':
+                                                      {'logging_context':
+                                                      nfp_log_ctx}}}
 
                 new_ev = self._sc.new_event(id='SERVICE_CREATED',
                                             key='SERVICE_CREATED',
