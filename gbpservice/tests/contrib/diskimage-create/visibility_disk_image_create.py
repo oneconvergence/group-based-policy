@@ -37,7 +37,7 @@ def get_nfp_branch_name_for_docker(file_path):
 
     for line in data:                                                              
         if 'GBPSERVICE_BRANCH' in line:
-            return line.split('=')[1]
+            return line.split('=')[1].rstrip()
 
 
 def create_visibility_docker():
