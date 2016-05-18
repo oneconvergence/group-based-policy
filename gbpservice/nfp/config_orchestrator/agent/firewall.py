@@ -121,7 +121,8 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         nfp_context = {'network_function_id': nf['id'],
                        'neutron_context': ctx_dict,
                        'fw_mac': fw_mac,
-                       'requester': 'nas_service'}
+                       'requester': 'nas_service',
+                       'logging_context': nfp_logging.get_logging_context()}
         resource = resource_type = 'firewall'
         resource_data = {resource: firewall,
                          'host': host,
@@ -140,6 +141,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
     def create_firewall(self, context, firewall, host):
         # Fetch nf_id from description of the resource
         nf_id = self._fetch_nf_from_resource_desc(firewall["description"])
+        nfp_logging.store_logging_context(meta_id=nf_id)
         nf = common.get_network_function_details(context, nf_id)
         body = self._data_wrapper(context, firewall, host, nf, 'CREATE')
         transport.send_request_to_configurator(self._conf,
@@ -149,6 +151,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
     def delete_firewall(self, context, firewall, host):
         # Fetch nf_id from description of the resource
         nf_id = self._fetch_nf_from_resource_desc(firewall["description"])
+        nfp_logging.store_logging_context(meta_id=nf_id)
         nf = common.get_network_function_details(context, nf_id)
         body = self._data_wrapper(context, firewall, host, nf, 'DELETE')
         transport.send_request_to_configurator(self._conf,
@@ -165,11 +168,15 @@ class FirewallNotifier(object):
                                request_data):
         event_data = {'resource': None,
                       'context': context.to_dict()}
+        nfp_log_ctx = nfp_logging.get_logging_context()
         event_data['resource'] = {'eventtype': event_type,
                                   'eventid': event_id,
-                                  'eventdata': request_data}
+                                  'eventdata': request_data,
+                                  'info': {'context':
+                                           {'logging_context': nfp_log_ctx}}}
         ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data)
+                                key=event_id, data=event_data,
+                                context=nfp_logging.get_logging_context())
         self._sc.post_event(ev)
 
     def _prepare_request_data(self, context,
@@ -197,6 +204,10 @@ class FirewallNotifier(object):
         status = resource_data['status']
         nf_id = notification_info['context']['network_function_id']
         fw_mac = notification_info['context']['fw_mac']
+        request_info = notification_data.get('info')
+        request_context = request_info.get('context')
+        logging_context = request_context.get('logging_context')
+        nfp_logging.store_logging_context(**logging_context)
         service_type = notification_info['service_type']
         msg = ("Config Orchestrator received "
                "firewall_configuration_create_complete API, making an "
@@ -220,7 +231,8 @@ class FirewallNotifier(object):
                       }
         ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
                                 key='SERVICE_CREATE_PENDING',
-                                data=event_data, max_times=24)
+                                data=event_data, max_times=24,
+                                context=nfp_logging.get_logging_context())
         self._sc.poll_event(ev)
 
     def firewall_deleted(self, context, notification_data):
@@ -232,6 +244,10 @@ class FirewallNotifier(object):
         fw_mac = notification_info['context']['fw_mac']
         service_type = notification_info['service_type']
         resource_id = firewall_id
+        request_info = notification_data.get('info')
+        request_context = request_info.get('context')
+        logging_context = request_context.get('logging_context')
+        nfp_logging.store_logging_context(**logging_context)
 
         msg = ("Config Orchestrator received "
                "firewall_configuration_delete_complete API, making an "
