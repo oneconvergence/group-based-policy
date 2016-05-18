@@ -4,9 +4,13 @@ from openstack_driver import KeystoneClient
 from openstack_driver import NeutronClient
 from oslo_log import log as logging
 
+from gbpservice.nfp.core import log as nfp_log
+
 LOG = logging.getLogger(__name__)
+nfp_log.use_nfp_logging('LOG')
 
 
+@nfp_log.patch_class
 class SCPlumber():
     """ Class to perform plumbing function
     """
@@ -22,13 +26,16 @@ class SCPlumber():
             tenant_id, router_id, fip_required)
         return stitching_port_info
 
+    @nfp_log.patch_method
     def ports_state_down(self, ports):
         self.plumber.make_ports_down(ports)
 
+    @nfp_log.patch_method
     def clear_all_extraroutes(self, router_id):
         # cli - neutron router-update xyz --routes action=clear
         self.plumber.clear_router_routes(router_id)
 
+    @nfp_log.patch_method
     def update_router_service_gateway(self, router_id, peer_cidrs,
                                       stitching_interface_ip, delete=False):
         if not delete:
@@ -37,16 +44,19 @@ class SCPlumber():
         else:
             self.plumber.delete_extra_route(router_id, peer_cidrs)
 
+    @nfp_log.patch_method
     def undo_plumbing(self, **kwargs):
         self.plumber.undo_plumbing(**kwargs)
 
 
+@nfp_log.patch_class
 class NeutronPlumber():
     def __init__(self, conf):
         self.conf = conf
         self.keystone = KeystoneClient(conf)
         self.neutron = NeutronClient(conf)
 
+    @nfp_log.patch_method
     def add_extra_route(self, router_id, peer_cidrs,
                         stitching_interface_ip):
         routes_to_add = []
@@ -55,12 +65,14 @@ class NeutronPlumber():
                                  "destination": peer_cidr})
         self._add_router_route(router_id, routes_to_add)
 
+    @nfp_log.patch_method
     def delete_extra_route(self, router_id, peer_cidrs):
         routes_to_remove = []
         for peer_cidr in peer_cidrs:
             routes_to_remove.append({"destination": peer_cidr})
         self._remove_router_route(router_id, routes_to_remove)
 
+    @nfp_log.patch_method
     def _add_router_route(self, router_id, route_to_add):
         token = self.keystone.get_admin_token()
         router = self.neutron.get_router(token, router_id)
@@ -71,6 +83,7 @@ class NeutronPlumber():
         self._update_router_routes(token, router_id, existing_routes)
         LOG.debug("Routes on router %s updated." % router_id)
 
+    @nfp_log.patch_method
     def _remove_router_route(self, router_id, route_to_remove):
         token = self.keystone.get_admin_token()
         router = self.neutron.get_router(token, router_id)
@@ -86,6 +99,7 @@ class NeutronPlumber():
         self._update_router_routes(token, router_id, new_routes)
         LOG.debug("Routes on router %s updated." % router_id)
 
+    @nfp_log.patch_method
     def _update_router_routes(self, token, router_id, new_routes):
         """
         Adds extra routes to the router resource.
@@ -114,6 +128,7 @@ class NeutronPlumber():
             LOG.error(err)
             raise Exception(err)
 
+    @nfp_log.patch_method
     def _get_new_subnet_cidr(self, token, tenant_id):
         filters = {'name': "stitching_subnet-%s" % tenant_id,
                    'fields': ['cidr']}
@@ -128,6 +143,7 @@ class NeutronPlumber():
                "Subnet cidrs for tenant exhausted" % tenant_id)
         raise Exception(err)
 
+    @nfp_log.patch_method
     def _create_stitching_network(self, token, tenant_id):
         name = "stitching_net-%s" % tenant_id
         attrs = {"name": name}
@@ -142,6 +158,7 @@ class NeutronPlumber():
             token, admin_tenant_id, attrs=attrs)
         return [stitching_net], stitching_subnet
 
+    @nfp_log.patch_method
     def _check_stitching_network(self, token, tenant_id, router_id):
         stitching_net, stitching_subnet = self._create_stitching_network(
             token, tenant_id)
@@ -165,6 +182,7 @@ class NeutronPlumber():
                                                   {'subnet_id': subnet_id})
         return net_id, cidr, gateway_ip
 
+    @nfp_log.patch_method
     def _check_router_gateway(self, token, floating_net_id, router_id):
         filters = {'device_owner': "network:router_gateway",
                    'device_id': router_id}
@@ -173,12 +191,14 @@ class NeutronPlumber():
             self.neutron.add_router_gateway(token, router_id,
                                             floating_net_id)
 
+    @nfp_log.patch_method
     def clear_router_routes(self, router_id):
         token = self.keystone.get_admin_token()
         response = self.neutron.update_router(token, router_id,
                                               routes=None)
         return response
 
+    @nfp_log.patch_method
     def create_stitching_for_svc(self, tenant_id, router_id,
                                  fip_required):
         token = self.keystone.get_admin_token()
@@ -203,11 +223,13 @@ class NeutronPlumber():
                 "gateway": gateway_ip,
                 "cidr": cidr}
 
+    @nfp_log.patch_method
     def make_ports_down(self, ports):
         token = self.keystone.get_admin_token()
         for port in ports:
             self.neutron.update_port(token, port, admin_state_up=False)
 
+    @nfp_log.patch_method
     def undo_plumbing(self, **kwargs):
         subnet_id = kwargs['subnet_id']
         port_id = kwargs['port_id']

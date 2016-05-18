@@ -278,15 +278,19 @@ class LoadbalancerNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _prepare_request_data(self, context, nf_id, vip_id, service_type):
+    def _prepare_request_data(self, context, nf_id,
+                              resource_id, vip_id,
+                              service_type):
         request_data = None
         try:
             request_data = common.get_network_function_map(
                 context, nf_id)
             # Adding Service Type #
             request_data.update({"service_type": service_type,
-                                 "vip_id": vip_id})
-        except Exception:
+                                 "vip_id": vip_id,
+                                 "neutron_resource_id": resource_id})
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', '%s' % (e))
             return request_data
         return request_data
 
@@ -326,13 +330,18 @@ class LoadbalancerNotifier(object):
         if obj_type.lower() == 'vip':
             nf_id = notification_info['context']['network_function_id']
             vip_id = notification_info['context']['vip_id']
-            request_data = self._prepare_request_data(context, nf_id,
-                                                      vip_id, service_type)
-            LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
 
-            # Sending An Event for visiblity
-            self._trigger_service_event(context, 'SERVICE', 'SERVICE_CREATED',
-                                        request_data)
+            # sending notification to visibility
+            event_data = {'context': context.to_dict(),
+                          'nf_id': nf_id,
+                          'vip_id': vip_id,
+                          'service_type': service_type,
+                          'resource_id': vip_id
+                          }
+            ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
+                                    key='SERVICE_CREATE_PENDING',
+                                    data=event_data, max_times=24)
+            self._sc.poll_event(ev)
 
     def update_pool_stats(self, context, notification_data):
         notification = notification_data['notification'][0]
@@ -359,10 +368,15 @@ class LoadbalancerNotifier(object):
         notification_info = notification_data['info']
         nf_id = notification_info['context']['network_function_id']
         vip_id = notification_info['context']['vip_id']
+        resource_id = notification_info['context']['vip_id']
         service_type = notification_info['service_type']
-        request_data = self._prepare_request_data(context, nf_id,
-                                                  vip_id, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
+        request_data = self._prepare_request_data(context,
+                                                  nf_id,
+                                                  resource_id,
+                                                  vip_id,
+                                                  service_type)
+        log_msg = ("%s : %s " % (request_data, nf_id))
+        LOG(LOGGER, 'INFO', "%s" % (log_msg))
 
         # Sending An Event for visiblity
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
