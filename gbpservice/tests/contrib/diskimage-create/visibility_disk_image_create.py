@@ -68,6 +68,11 @@ def create_visibility_docker():
     return 0
 
 
+def set_nfp_git_branch():
+    Dockerfile_path="/opt/stack/gbp/gbpservice/nfp/configurator/Dockerfile"
+    cmd="sudo sed -i \"s/mitaka_21st_march_base/NFP_GIT_BRANCH/g\" %s" % Dockerfile_path
+    os.system(cmd)
+
 def create_configurator_docker():
     configurator_dir = "%s/../../../nfp/configurator" % cur_dir
     docker_images = "%s/output/docker_images/" % cur_dir
@@ -76,6 +81,7 @@ def create_configurator_docker():
  
     # create a docker image
     os.chdir(configurator_dir)
+    set_nfp_git_branch()
     docker_args = ['docker', 'build', '-t', 'configurator-docker', '.']
     ret = subprocess.call(docker_args)
     if(ret):
