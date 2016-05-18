@@ -232,7 +232,7 @@ def dib():
         print("Image location: %s" % image_path)
         with open("/tmp/image_path", "w") as f:
             f.write(image_path)
-            f.close()
+        f.close()
 
 
 if __name__ == "__main__":
