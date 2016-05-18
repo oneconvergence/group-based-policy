@@ -151,9 +151,7 @@ class GeneralConfigStructure(object):
                 if context['service_info']:
                     data = context['service_info']
                     if resource.lower() == "vpn_service":
-                        if all(k in data for k in ["vpnservices",
-                                                   "subnets",
-                                                   "routers"]):
+                        if all(k in data for k in ["vpnservices"]):
                             return True
                     elif resource.lower() == "ipsec_site_connection":
                         if all(k in data for k in ["vpnservices",
