@@ -65,3 +65,17 @@ CONFIG_TAG_RESOURCE_MAP = {
     CUSTOM_JSON:'custom_json'}
 
 LOADBALANCER_RPC_API_VERSION = "2.0"
+
+HEALTHMONITOR_RESOURCE = 'healthmonitor'
+INTERFACE_RESOURCE = 'interfaces'
+ROUTES_RESOURCE = 'routes'
+
+MAXIMUM_INTERFACES = 'maximum_interfaces'
+SUPPORTS_SHARING = 'supports_device_sharing'
+SUPPORTS_HOTPLUG = 'supports_hotplug'
+
+METADATA_SUPPORTED_ATTRIBUTES = [MAXIMUM_INTERFACES,
+                                 SUPPORTS_SHARING,
+                                 SUPPORTS_HOTPLUG]
+MANAGEMENT_INTERFACE_NAME = 'mgmt_interface'
+

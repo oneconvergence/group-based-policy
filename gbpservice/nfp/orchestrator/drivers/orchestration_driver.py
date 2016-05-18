@@ -114,9 +114,8 @@ class OrchestrationDriver(object):
                      else self.identity_handler.get_admin_token())
         except Exception:
             self._increment_stats_counter('keystone_token_get_failures')
-            LOG.error(_LE('Failed to get token for unplug interface from'
-                          ' device operation'))
-            return False
+            LOG.error(_LE('Failed to get token'))
+            return None
         return token
 
     def _increment_stats_counter(self, metric, by=1):
@@ -149,9 +148,9 @@ class OrchestrationDriver(object):
     def _create_management_interface(self, device_data, network_handler=None):
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
+            return None
 
-        name = 'mgmt_interface'  # TODO(RPM): Use proper name
+        name = nfp_constants.MANAGEMENT_INTERFACE_NAME
         mgmt_interface = network_handler.create_port(
                 token,
                 self._get_admin_tenant_id(token=token),
@@ -167,31 +166,23 @@ class OrchestrationDriver(object):
                 'port_classification': nfp_constants.MANAGEMENT,
                 'port_role': None}
 
-    def _delete_management_interface(self, device_data, interface,
-                                     network_handler=None):
-        token = self._get_token(device_data.get('token'))
-        if not token:
-            return False
-
-        network_handler.delete_port(token, interface['id'])
-
     def _delete_interface(self, device_data, interface,
                           network_handler=None):
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
+            return None
 
         network_handler.delete_port(token, interface['id'])
 
     def _get_advance_sharing_network_id(self, admin_tenant_id,
-                                        network_handler):
+                                        network_handler=None):
         if self._advance_sharing_network_id:
             return self._advance_sharing_network_id
         filters = {'tenant_id': admin_tenant_id,
                    'name': ADVANCE_SHARING_PTG_NAME}
         admin_token = self._get_token(None)
         if not admin_token:
-            return False
+            return None
         sharing_networks = network_handler.get_networks(
             admin_token, filters=filters)
         if not sharing_networks:
@@ -209,10 +200,10 @@ class OrchestrationDriver(object):
         return self._advance_sharing_network_id
 
     def _create_advance_sharing_interfaces(self, device_data,
-                                           network_handler):
+                                           network_handler=None):
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
+            return None
 
         admin_tenant_id = self._get_admin_tenant_id(token=token)
         port_infos = []
@@ -245,26 +236,19 @@ class OrchestrationDriver(object):
     def _delete_interfaces(self, device_data, interfaces,
                            network_handler=None):
         for interface in interfaces:
-            if (interface.get('port_classification') and
-                interface['port_classification'] == nfp_constants.MANAGEMENT):
-                self._delete_management_interface(
-                        device_data, interface,
-                        network_handler=network_handler)
-            else:
-                self._delete_interface(
-                        device_data, interface,
-                        network_handler=network_handler)
+            self._delete_interface(
+                    device_data, interface,
+                    network_handler=network_handler)
 
     def _verify_vendor_data(self, image_name, metadata):
         vendor_data = {}
         try:
             for attr in metadata:
-                if attr in ['maximum_interfaces', 'supports_device_sharing',
-                            'supports_hotplug']:
+                if attr in nfp_constants.METADATA_SUPPORTED_ATTRIBUTES:
                     vendor_data[attr] = ast.literal_eval(metadata[attr])
         except Exception as e:
-            LOG.error(_LE('Wrong metadata: %(image_name)s provided for '
-                          'image name: %(metadata)s. Error: %(error)s'),
+            LOG.error(_LE('Wrong metadata: %(metadata)s provided for '
+                          'image name: %(image_name)s. Error: %(error)s'),
                       {'image_name': image_name, 'metadata': metadata,
                        'error': e})
             return None
@@ -273,7 +257,7 @@ class OrchestrationDriver(object):
     def _get_vendor_data(self, device_data, image_name):
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
+            return None
         try:
             metadata = self.compute_handler_nova.get_image_metadata(
                     token,
@@ -308,11 +292,11 @@ class OrchestrationDriver(object):
                      {'vendor_data': vendor_data})
             if vendor_data:
                 self._update_self_with_vendor_data(vendor_data,
-                                                   'maximum_interfaces')
+                                                   nfp_constants.MAXIMUM_INTERFACES)
                 self._update_self_with_vendor_data(vendor_data,
-                                                   'supports_device_sharing')
+                                                   nfp_constants.SUPPORTS_SHARING)
                 self._update_self_with_vendor_data(vendor_data,
-                                                   'supports_hotplug')
+                                                   nfp_constants.SUPPORTS_HOTPLUG)
             else:
                 LOG.info(_LI("No vendor data specified in image, "
                              "proceeding with default values"))
@@ -502,7 +486,7 @@ class OrchestrationDriver(object):
 
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
+            return None
 
         if device_data['service_details'].get('image_name'):
             image_name = device_data['service_details']['image_name']
@@ -691,7 +675,7 @@ class OrchestrationDriver(object):
                                  device_data.get('token'))
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
+            return None
 
         if device_data.get('id'):
             # delete the device instance
@@ -760,7 +744,7 @@ class OrchestrationDriver(object):
 
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
+            return None
 
         try:
             device = self.compute_handler_nova.get_instance(
@@ -823,13 +807,12 @@ class OrchestrationDriver(object):
 
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
+            return None
 
         image_name = self._get_image_name(device_data)
         if image_name:
             self._update_vendor_data(device_data)
 
-        service_type = device_data['service_details']['service_type']
         update_ifaces = []
         try:
             if not self.supports_hotplug:
@@ -854,37 +837,61 @@ class OrchestrationDriver(object):
                     for data_port_id, iface in zip(data_port_ids,
                                                    unused_ifaces):
                         self._update_attached_port_with_data_port(token,
-                                                             network_handler,
                                                              iface,
                                                              data_port_id,
+                                                             network_handler,
                                                              stitch=True)
                         iface['mapped_real_port_id'] = data_port_id
                     update_ifaces = unused_ifaces
                 elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     pass
             else:
-                data_port_ids = self._get_data_port_ids(token, network_handler,
-                                                device_data['ports'],
-                                                service_type,
-                                                set_promiscous_mode=True)
-                for data_port_id in data_port_ids:
-                    self.compute_handler_nova.attach_interface(
+                for port in device_data['ports']:
+                    if port['port_classification'] == nfp_constants.PROVIDER:
+                        if (
+                            device_data['service_details'][
+                                'service_type'].lower()
+                            in [nfp_constants.FIREWALL.lower()]
+                        ):
+                            network_handler.set_promiscuos_mode(token,
+                                                                port['id'])
+                        port_id = network_handler.get_port_id(token,
+                                                              port['id'])
+                        self.compute_handler_nova.attach_interface(
                                     token,
                                     self._get_admin_tenant_id(token=token),
                                     device_data['id'],
-                                    data_port_id)
+                                    port_id)
+                        break
+                for port in device_data['ports']:
+                    if port['port_classification'] == nfp_constants.CONSUMER:
+                        if (
+                            device_data['service_details'][
+                                'service_type'].lower()
+                            in [nfp_constants.FIREWALL.lower()]
+                        ):
+                            network_handler.set_promiscuos_mode(token,
+                                                                port['id'])
+                        port_id = network_handler.get_port_id(token,
+                                                              port['id'])
+                        self.compute_handler_nova.attach_interface(
+                                    token,
+                                    self._get_admin_tenant_id(token=token),
+                                    device_data['id'],
+                                    port_id)
+                        break
         except Exception as e:
             self._increment_stats_counter('interface_plug_failures')
             LOG.error(_LE('Failed to plug interface(s) to the device.'
                           'Error: %(error)s'), {'error': e})
-            return False, []
+            return None, []
         else:
             return True, update_ifaces
 
     def _update_attached_port_with_data_port(self, token,
-                                             network_handler,
                                              unused_interface,
                                              data_port_id,
+                                             network_handler=None,
                                              stitch=True):
         if stitch:
             # configure attached interface pt with real port id,
@@ -922,14 +929,14 @@ class OrchestrationDriver(object):
                 used_interfaces.append(iface)
         return used_interfaces
 
-    def _set_promiscous_mode(self, token, network_handler,
-                             service_type, port_ids):
+    def _set_promiscous_mode(self, token, service_type,
+                             port_ids, network_handler=None):
         for port_id in port_ids:
             if (service_type.lower() in [nfp_constants.FIREWALL.lower()]):
                 network_handler.set_promiscuos_mode(token, port_id)
 
-    def _get_data_port_ids(self, token, network_handler, ports, service_type,
-                           set_promiscous_mode=False):
+    def _get_data_port_ids(self, token, ports, service_type,
+                           network_handler=None, set_promiscous_mode=False):
         # return data_port_ids in sequential format i.e.
         # provider port_id, then consumer port_id
         data_port_ids = []
@@ -947,8 +954,8 @@ class OrchestrationDriver(object):
                 data_port_ids.append(consumer_port_id)
 
         if set_promiscous_mode:
-            self._set_promiscous_mode(token, network_handler,
-                                      service_type, data_port_ids)
+            self._set_promiscous_mode(token, service_type, data_port_ids,
+                                      network_handler)
         return data_port_ids
 
     @_set_network_handler
@@ -1000,9 +1007,7 @@ class OrchestrationDriver(object):
 
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
-
-        service_type = device_data['service_details']['service_type']
+            return None
 
         update_ifaces = []
         try:
@@ -1025,19 +1030,15 @@ class OrchestrationDriver(object):
 
                     for data_port_id, iface in zip(data_port_ids, used_ifaces):
                         self._update_attached_port_with_data_port(token,
-                                                             network_handler,
                                                              iface,
                                                              data_port_id,
+                                                             network_handler,
                                                              stitch=False)
                         iface['mapped_real_port_id'] = ''
                     update_ifaces = used_ifaces
                 elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     pass
             else:
-                data_port_ids = self._get_data_port_ids(token, network_handler,
-                                                device_data['ports'],
-                                                service_type,
-                                                set_promiscous_mode=False)
                 for port in device_data['ports']:
                     port_id = network_handler.get_port_id(token, port['id'])
                     self.compute_handler_nova.detach_interface(
@@ -1045,11 +1046,12 @@ class OrchestrationDriver(object):
                                 self._get_admin_tenant_id(token=token),
                                 device_data['id'],
                                 port_id)
+
         except Exception as e:
             self._increment_stats_counter('interface_unplug_failures')
             LOG.error(_LE('Failed to unplug interface(s) from the device.'
                           'Error: %(error)s'), {'error': e})
-            return False, []
+            return None, []
         else:
             return True, update_ifaces
 
@@ -1083,7 +1085,7 @@ class OrchestrationDriver(object):
         return {
             'config': [
                 {
-                    'resource': 'healthmonitor',
+                    'resource': nfp_constants.HEALTHMONITOR_RESOURCE,
                     'resource_data': {
                         'vmid': device_data['id'],
                         'mgmt_ip': device_data['mgmt_ip_address'],
@@ -1147,7 +1149,7 @@ class OrchestrationDriver(object):
 
         token = self._get_token(device_data.get('token'))
         if not token:
-            return False
+            return None
 
         provider_ip = None
         provider_mac = None
@@ -1183,7 +1185,7 @@ class OrchestrationDriver(object):
         return {
             'config': [
                 {
-                    'resource': 'interfaces',
+                    'resource': nfp_constants.INTERFACE_RESOURCE,
                     'resource_data': {
                         'mgmt_ip': device_data['mgmt_ip_address'],
                         'provider_ip': provider_ip,
@@ -1197,7 +1199,7 @@ class OrchestrationDriver(object):
                     }
                 },
                 {
-                    'resource': 'routes',
+                    'resource': nfp_constants.ROUTES_RESOURCE,
                     'resource_data': {
                         'mgmt_ip': device_data['mgmt_ip_address'],
                         'source_cidrs': ([provider_cidr, consumer_cidr]
