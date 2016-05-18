@@ -143,7 +143,7 @@ class OrchestrationDriver(object):
                       % {'metric': metric, 'by': by})
 
     def _is_device_sharing_supported(self):
-        return self.supports_device_sharing and self.supports_hotplug
+        return self.supports_device_sharing
 
     def _create_management_interface(self, device_data, network_handler=None):
         token = self._get_token(device_data.get('token'))
@@ -293,11 +293,11 @@ class OrchestrationDriver(object):
                      {'vendor_data': vendor_data})
             if vendor_data:
                 self._update_self_with_vendor_data(vendor_data,
-                                                   nfp_constants.MAXIMUM_INTERFACES)
+                                            nfp_constants.MAXIMUM_INTERFACES)
                 self._update_self_with_vendor_data(vendor_data,
-                                                   nfp_constants.SUPPORTS_SHARING)
+                                            nfp_constants.SUPPORTS_SHARING)
                 self._update_self_with_vendor_data(vendor_data,
-                                                   nfp_constants.SUPPORTS_HOTPLUG)
+                                            nfp_constants.SUPPORTS_HOTPLUG)
             else:
                 LOG.info(_LI("No vendor data specified in image, "
                              "proceeding with default values"))
@@ -352,9 +352,8 @@ class OrchestrationDriver(object):
         if image_name:
             self._update_vendor_data(device_data,
                                  device_data.get('token'))
-        #if not self._is_device_sharing_supported():
-            # TODO(ashu): check not required
-        #    return None
+        if not self._is_device_sharing_supported():
+            return None
         return {
                 'filters': {
                     'tenant_id': [device_data['tenant_id']],
@@ -403,9 +402,8 @@ class OrchestrationDriver(object):
         if image_name:
             self._update_vendor_data(device_data,
                                  device_data.get('token'))
-        #if not self._is_device_sharing_supported():
-            # TODO(ashu): Is this check required
-        #    return None
+        if not self._is_device_sharing_supported():
+            return None
 
         hotplug_ports_count = 1  # for provider interface (default)
         if any(port['port_classification'] == nfp_constants.CONSUMER

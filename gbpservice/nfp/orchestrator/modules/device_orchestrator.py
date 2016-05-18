@@ -28,7 +28,8 @@ from gbpservice.nfp.orchestrator.openstack import openstack_driver
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 
-import sys, traceback
+import sys
+import traceback
 
 from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
@@ -251,8 +252,9 @@ class DeviceOrchestrator(PollEventDesc):
         nfp_logging.store_logging_context(**event.context)
         try:
             nf_id = (event.data['network_function_id']
-                        if 'network_function_id' in event.data else None)
-            LOG.info(_LI("NDO: received event %(id)s for network function : %(nf_id)s"),
+                    if 'network_function_id' in event.data else None)
+            LOG.info(_LI("NDO: received event %(id)s for network function : "
+                         "%(nf_id)s"),
                     {'id': event.id, 'nf_id': nf_id})
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
@@ -381,9 +383,11 @@ class DeviceOrchestrator(PollEventDesc):
         for nfd_iface in nfd_ifaces:
             for port in device['ports']:
                 if port['id'] == nfd_iface['mapped_real_port_id']:
-                    mapped_real_port = port
                     nfd_iface['mapped_real_port_id'] = port['id']
-                    nfd_iface['plugged_in_port_id'] = self.nsf_db.get_port_info(self.db_session, nfd_iface['plugged_in_port_id'])
+                    nfd_iface['plugged_in_port_id'] = (
+                            self.nsf_db.get_port_info(
+                                self.db_session,
+                                nfd_iface['plugged_in_port_id']))
                     self.nsf_db.update_network_function_device_interface(
                                                 self.db_session,
                                                 nfd_iface['id'],

@@ -555,13 +555,13 @@ class NFPDBTestCase(SqlTestCase):
                     'port_model': nfp_constants.GBP_PORT,
                     'port_classification': nfp_constants.ADVANCE_SHARING,
                     'port_role': None,
-                    },
+                },
                 'interface_position': 2,
                 'mapped_real_port_id': None,
                 'network_function_device_id': network_function_device['id']
-            }        
+            }
             return self.nfp_db.create_network_function_device_interface(
-            self.session, attributes)
+                    self.session, attributes)
 
     def test_create_network_function_device_interface(self):
         network_function_device = self.create_network_function_device()
@@ -572,11 +572,11 @@ class NFPDBTestCase(SqlTestCase):
                 'port_model': nfp_constants.GBP_PORT,
                 'port_classification': nfp_constants.ADVANCE_SHARING,
                 'port_role': None,
-                },
+            },
             'interface_position': 2,
             'mapped_real_port_id': None,
             'network_function_device_id': network_function_device['id']
-        } 
+        }
         nfd_interface = self.nfp_db.create_network_function_device_interface(
                                         self.session, attrs)
         for key in attrs:
@@ -599,9 +599,6 @@ class NFPDBTestCase(SqlTestCase):
                           self.session,
                           port_info_id)
 
-
-
-
     def test_update_network_function_device_interface(self):
         network_function_device = self.create_network_function_device()
         attrs = {
@@ -611,7 +608,7 @@ class NFPDBTestCase(SqlTestCase):
                 'port_model': nfp_constants.GBP_PORT,
                 'port_classification': nfp_constants.ADVANCE_SHARING,
                 'port_role': None,
-                },
+            },
             'interface_position': 2,
             'mapped_real_port_id': None,
             'network_function_device_id': network_function_device['id']
@@ -626,10 +623,11 @@ class NFPDBTestCase(SqlTestCase):
         updated_nfd_interface = {
             'interface_position': 5
         }
-        updated_nfd_interface = self.nfp_db.update_network_function_device_interface(
-            self.session,
-            nfd_interface['id'],
-            updated_nfd_interface)
+        updated_nfd_interface = (
+                self.nfp_db.update_network_function_device_interface(
+                    self.session,
+                    nfd_interface['id'],
+                    updated_nfd_interface))
         self.assertEqual(5, updated_nfd_interface['interface_position'])
         del updated_nfd_interface['interface_position']
         for key in attrs:
@@ -664,11 +662,11 @@ class NFPDBTestCase(SqlTestCase):
                 'port_model': nfp_constants.GBP_PORT,
                 'port_classification': nfp_constants.ADVANCE_SHARING,
                 'port_role': None,
-                },
+            },
             'interface_position': 2,
             'mapped_real_port_id': None,
             'network_function_device_id': network_function_device['id']
-        } 
+        }
         nfd_interface = self.nfp_db.create_network_function_device_interface(
             self.session, attrs)
         nfd_interface_db = self.nfp_db.get_network_function_device_interface(
@@ -694,5 +692,3 @@ class NFPDBTestCase(SqlTestCase):
         nfd_interfaces = self.nfp_db.get_network_function_device_interfaces(
             self.session, filters=filters)
         self.assertEqual([], nfd_interfaces)
-
- 

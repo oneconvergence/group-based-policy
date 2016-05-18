@@ -47,8 +47,13 @@ class OrchestrationDriverTestCase(unittest.TestCase):
     def test_get_nfd_sharing_info_when_device_sharing_unsupported(self):
         driver = orchestration_driver.OrchestrationDriver(
                         cfg.CONF, supports_device_sharing=False)
+        device_data = {'tenant_id': 'tenant_id',
+                       'service_details': {'device_type': 'xyz',
+                                           'service_type': 'firewall',
+                                           'service_vendor': 'vyos',
+                                           'network_mode': 'gbp'}}
         self.assertIsNone(driver.get_network_function_device_sharing_info(
-                                                                        None))
+                                                                device_data))
 
     def test_get_network_function_device_sharing_info(self):
         driver = orchestration_driver.OrchestrationDriver(
@@ -75,7 +80,21 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                                                                         self):
         driver = orchestration_driver.OrchestrationDriver(
                         cfg.CONF, supports_device_sharing=False)
-        self.assertIsNone(driver.select_network_function_device(None, None))
+        device_data = {'service_details': {'device_type': 'xyz',
+                                           'service_type': 'firewall',
+                                           'service_vendor': 'vyos',
+                                           'network_mode': 'gbp'},
+
+                       'ports': [{'id': '2',
+                                  'port_classification': 'provider',
+                                  'port_model': 'gbp'}]
+                       } 
+        devices = [
+                   {'id': '1',
+                    'interfaces_in_use': 9}
+        ]
+        self.assertIsNone(driver.select_network_function_device(devices,
+            device_data))
 
     def test_select_network_function_device(self):
         driver = orchestration_driver.OrchestrationDriver(
@@ -89,7 +108,12 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                    {'id': '1',
                     'interfaces_in_use': 9}
         ]
-        device_data = {'ports': [{'id': '2',
+        device_data = {'service_details': {'device_type': 'xyz',
+                                           'service_type': 'firewall',
+                                           'service_vendor': 'vyos',
+                                           'network_mode': 'gbp'},
+
+                       'ports': [{'id': '2',
                                   'port_classification': 'provider',
                                   'port_model': 'gbp'}]
                        }
