@@ -1,4 +1,4 @@
-from gbpservice.nfp.config_orchestrator.agent import topics
+from gbpservice.nfp.config_orchestrator.common import topics
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_lb_driver
 )

@@ -10,10 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.config_orchestrator.agent import firewall
-from gbpservice.nfp.config_orchestrator.agent import loadbalancer
-from gbpservice.nfp.config_orchestrator.agent import notification_handler
-from gbpservice.nfp.config_orchestrator.agent import vpn
+from gbpservice.nfp.config_orchestrator.uservices.naas_config import firewall
+from gbpservice.nfp.config_orchestrator.uservices.naas_config import handler
+
+from gbpservice.nfp.config_orchestrator.uservices.naas_config import (
+    loadbalancer)
+from gbpservice.nfp.config_orchestrator.uservices.naas_config import vpn
+
 import mock
 from neutron import context as ctx
 import unittest
@@ -542,13 +545,20 @@ class VPNTestCase(unittest.TestCase):
 
 class NotificationHandlerTestCase(unittest.TestCase):
 
+    class Controller(object):
+        def new_event(self, **kwargs):
+            return
+
+        def post_event(self, event):
+            return
+
     def setUp(self):
         self.conf = Conf()
-        self.n_handler = notification_handler.NotificationAgent(
-            self.conf, 'sc')
+        self.n_handler = handler.NaasNotificationHandler(
+            self.conf, self.Controller())
         self.context = TestContext().get_context()
-        self.n_fw = ("gbpservice.nfp.config_orchestrator.agent"
-                     ".firewall.FirewallNotifier")
+        self.n_fw = ("gbpservice.nfp.config_orchestrator.uservices"
+                     ".naas_config.firewall.FirewallNotifier")
 
     def _fw_nh_api(self, context, notification_data):
         return
@@ -564,8 +574,8 @@ class NotificationHandlerTestCase(unittest.TestCase):
              }
         with mock.patch(self.n_fw + '.set_firewall_status') as mock_fw:
             mock_fw.side_effect = self._fw_nh_api
-            self.n_handler.network_function_notification(self.context,
-                                                         notification_data)
+            self.n_handler.handle_notification(self.context,
+                                               notification_data)
 
 
 if __name__ == '__main__':

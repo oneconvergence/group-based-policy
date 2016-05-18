@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
 
@@ -24,18 +24,14 @@ import oslo_messaging as messaging
 LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
 
-# Version = 'v1'  # v1/v2/v3#
-
 
 def prepare_request_data(context, resource, resource_type,
                          resource_data, service_vendor=None):
 
     request_data = {'info': {
-        # Commenting version, may be need to remove later
-        # 'version': Version,
         'context': context,
         'service_type': resource_type,
-        'service_vendor': service_vendor  # Just keeping None for now.
+        'service_vendor': service_vendor
     },
 
         'config': [{
@@ -141,36 +137,20 @@ def get_network_function_map(context, network_function_id):
     request_data = None
     try:
         rpc_nso_client = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
-        network_function_details = rpc_nso_client.cctxt.call(
+        nf_context = rpc_nso_client.cctxt.call(
             context,
-            'get_network_function_details',
+            'get_network_function_context',
             network_function_id=network_function_id)
-        ports_info = []
-        for id in network_function_details[
-                'network_function_instance']['port_info']:
-            port_info = rpc_nso_client.cctxt.call(context,
-                                                  'get_port_info',
-                                                  port_id=id)
-            ports_info.append(port_info)
-        mngmt_port_info = rpc_nso_client.cctxt.call(
-            context,
-            'get_port_info',
-            port_id=network_function_details[
-                'network_function_device'][
-                'mgmt_port_id'])
-        monitor_port_id = network_function_details[
-            'network_function_device']['monitoring_port_id']
-        monitor_port_info = None
-        if monitor_port_id is not None:
-            monitor_port_info = rpc_nso_client.cctxt.call(
-                context,
-                'get_port_info',
-                port_id=monitor_port_id)
+
+        network_function_details = nf_context['network_function_details']
+        ports_info = nf_context['ports_info']
+        mngmt_port_info = nf_context['mngmt_port_info']
+        monitor_port_info = nf_context['monitor_port_info']
 
         request_data = _prepare_structure(network_function_details, ports_info,
                                           mngmt_port_info, monitor_port_info)
         LOG(LOGGER, 'INFO', " %s " % (request_data))
+        return request_data
     except Exception as e:
         LOG(LOGGER, 'ERROR', " %s " % (e))
         return request_data
-    return request_data
