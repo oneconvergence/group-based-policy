@@ -32,6 +32,14 @@ def parse_json(j_file):
     return
 
 
+def get_nfp_branch_name_for_docker(file_path):
+    data = file(file_path)
+
+    for line in data:                                                              
+        if 'GBPSERVICE_BRANCH' in line:
+            return line.split('=')[1].rstrip()
+
+
 def create_visibility_docker():
     '''
     1. git pull of visibility
@@ -68,7 +76,14 @@ def create_visibility_docker():
     return 0
 
 
-def create_configurator_docker():
+def set_nfp_git_branch(nfp_branch_name, configurator_dir):
+    Dockerfile_path = configurator_dir + '/Dockerfile'
+    cmd = "sudo sed -i \"s/mitaka_21st_march_base/%s/g\" %s" % (
+                                            nfp_branch_name, Dockerfile_path)
+    os.system(cmd)
+
+
+def create_configurator_docker(nfp_branch_name):
     configurator_dir = "%s/../../../nfp/configurator" % cur_dir
     docker_images = "%s/output/docker_images/" % cur_dir
     if not os.path.exists(docker_images):
@@ -76,6 +91,7 @@ def create_configurator_docker():
  
     # create a docker image
     os.chdir(configurator_dir)
+    set_nfp_git_branch(nfp_branch_name, configurator_dir)
     docker_args = ['docker', 'build', '-t', 'configurator-docker', '.']
     ret = subprocess.call(docker_args)
     if(ret):
@@ -154,7 +170,7 @@ def update_haproxy_repo():
     return 0
 
 
-def dib():
+def dib(nfp_branch_name):
     dib = conf['dib']
     elems = "%s/elements/" % cur_dir
 
@@ -172,28 +188,28 @@ def dib():
         # root login enabled, set password environment varaible
         if element == 'root-passwd':
             os.environ['DIB_PASSWORD'] = dib['root_password']
-        if element == 'devuser':
+        elif element == 'devuser':
             os.environ['DIB_DEV_USER_USERNAME'] = 'ubuntu'
             os.environ['DIB_DEV_USER_SHELL'] = '/bin/bash'
             os.environ['SSH_RSS_KEY'] = (
                 "%s/output/%s" % (cur_dir, image_name))
             os.environ['DIB_DEV_USER_AUTHORIZED_KEYS'] = (
                 "%s.pub" % os.environ['SSH_RSS_KEY'])
-        if element == 'nfp-reference-configurator':
+        elif element == 'nfp-reference-configurator':
             image_name = 'nfp_reference_service'
             service_dir = "%s/../nfp_service/" % cur_dir
             service_dir = os.path.realpath(service_dir)
             os.environ['SERVICE_GIT_PATH'] = service_dir
-        if element == 'configurator':
+        elif element == 'configurator':
             image_name = 'configurator'
-            create_configurator_docker()
+            create_configurator_docker(nfp_branch_name)
             # for bigger size images
             dib_args.append('--no-tmpfs')
-        if element == 'visibility':
+        elif element == 'visibility':
             image_name = 'visibility'
             # create a docker image
             create_visibility_docker()
-            create_configurator_docker()
+            create_configurator_docker(nfp_branch_name)
             # set environment variable, needed by 'extra-data.d'
             p1 = subprocess.Popen(['grep', 'DOCKER_IMAGES_URL', '/home/stack/devstack/local.conf'], stdout=subprocess.PIPE)
             p2 = subprocess.Popen(['cut', '-d', '=', '-f', '2'], stdin=p1.stdout, stdout=subprocess.PIPE)
@@ -201,7 +217,7 @@ def dib():
             os.environ['DOCKER_IMAGES_URL'] = p3.communicate()[0]
             # for bigger size images
             dib_args.append('--no-tmpfs')
-        if element == 'haproxy':
+        elif element == 'haproxy':
             image_name = 'haproxy'
             dib_args.append('debs')
             create_apt_source_list()
@@ -237,10 +253,12 @@ def dib():
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print("ERROR: Invalid Usage")
-        print("Usage:\n\t%s <json config file>" % sys.argv[0])
+        print("Usage:\n\t%s <json config file> [local.conf file]" % sys.argv[0])
         print("\twhere: <json config file> contains all the configuration")
+        print("\tand <local.conf file> is the optional configuration file from "
+              "the devstack directory.")
         exit()
 
     # save PWD
@@ -259,5 +277,11 @@ if __name__ == "__main__":
         if(update_haproxy_repo()):
             exit()
 
+    nfp_branch_name = get_nfp_branch_name_for_docker(sys.argv[2]) if len(sys.argv) == 3 else None
+    
+    if ('configurator' in elements or 'visibility' in elements) and nfp_branch_name is None:
+        print ("ERROR: You have to pass local.conf from devstack directory.")
+        exit()
+
     # run Disk Image Builder to create VM image
-    dib()
+    dib(nfp_branch_name)

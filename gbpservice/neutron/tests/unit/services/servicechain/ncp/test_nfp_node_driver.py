@@ -286,7 +286,7 @@ class TestServiceChainInstance(NFPNodeDriverTestCase):
                 create_nf.assert_called_once_with(
                         mock.ANY,
                         network_function=mock.ANY)
-                get_nf.assert_called_once_with(mock.ANY, mock.ANY)
+                get_nf.assert_called_with(mock.ANY, mock.ANY)
 
     def _test_node_update(self):
         with mock.patch.object(nfp_node_driver.NFPClientApi,
@@ -484,7 +484,7 @@ class TestServiceChainInstance(NFPNodeDriverTestCase):
                 create_nf.assert_called_once_with(
                           mock.ANY,
                           network_function=mock.ANY)
-                get_nf.assert_called_once_with(mock.ANY, mock.ANY)
+                get_nf.assert_called_with(mock.ANY, mock.ANY)
 
     def test_invalid_service_type_rejected(self):
         node_used = self._nfp_create_profiled_servicechain_node(
@@ -739,7 +739,7 @@ class TestServiceChainInstance(NFPNodeDriverTestCase):
                     create_nf.assert_called_once_with(
                             mock.ANY,
                             network_function=mock.ANY)
-                    get_nf.assert_called_once_with(mock.ANY, mock.ANY)
+                    get_nf.assert_called_with(mock.ANY, mock.ANY)
                     pt_added.assert_called_once_with(mock.ANY, mock.ANY,
                             mock.ANY)
 

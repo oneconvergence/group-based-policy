@@ -209,7 +209,7 @@ class VpnNotifier(object):
         self._conf = conf
 
     def _prepare_request_data(self, context, nf_id,
-                              ipsec_id, service_type):
+                              resource_id, ipsec_id, service_type):
         request_data = None
         try:
             request_data = common.get_network_function_map(
