@@ -55,7 +55,7 @@ class FakeObjects(object):
     data_for_add_src_route = ('[{"source_cidr": "1.2.3.4/24", '
                               '"gateway_ip": "1.2.3.4"}]')
     data_for_del_src_route = '[{"source_cidr": "1.2.3.4/24"}]'
-    timeout = 30
+    timeout = 180
 
     def fake_request_data_generic_bulk(self):
         """ A sample bulk request data for generic APIs
