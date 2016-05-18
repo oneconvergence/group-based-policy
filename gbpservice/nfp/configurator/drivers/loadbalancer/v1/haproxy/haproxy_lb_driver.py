@@ -31,7 +31,7 @@ BALANCE_MAP = {
     lb_constants.LB_METHOD_SOURCE_IP: 'source'
 }
 REQUEST_RETRIES = 0
-REQUEST_TIMEOUT = 10
+REQUEST_TIMEOUT = 120
 
 
 LOG = logging.getLogger(__name__)
