@@ -10,12 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log as logging
+from gbpservice.nfp.core import log as nfp_logging
+
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import nfp_service_constants as const
 
-LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 """ Heat as a driver for handling config script
 heat configuration requests.

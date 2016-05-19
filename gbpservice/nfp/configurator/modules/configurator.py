@@ -11,7 +11,7 @@
 #    under the License.
 
 from oslo_log import helpers as log_helpers
-from oslo_log import log
+from gbpservice.nfp.core import log as nfp_logging
 
 from gbpservice.nfp.configurator.lib import config_opts
 from gbpservice.nfp.configurator.lib import constants as const
@@ -20,9 +20,10 @@ from gbpservice.nfp.configurator.lib import schema_validator
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import rpc
 
+LOG = nfp_logging.getLogger(__name__)
+
 AGENTS_PKG = 'gbpservice.nfp.configurator.agents'
 CONFIGURATOR_RPC_TOPIC = 'configurator'
-LOG = log.getLogger(__name__)
 
 """Implements procedure calls invoked by an REST server.
 
@@ -141,6 +142,10 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            log_info = request_data.get('info')
+            logging_context = log_info['context']['logging_context']
+            nfp_logging.store_logging_context(**logging_context)
+
             self._invoke_service_agent('create', request_data, True)
         except Exception as err:
             msg = ("Failed to create network device configuration. %s" %
@@ -164,6 +169,10 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            log_info = request_data.get('info')
+            logging_context = log_info['context']['logging_context']
+            nfp_logging.store_logging_context(**logging_context)
+
             self._invoke_service_agent('delete', request_data, True)
         except Exception as err:
             msg = ("Failed to delete network device configuration. %s" %
@@ -187,6 +196,10 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            log_info = request_data.get('info')
+            logging_context = log_info['context']['logging_context']
+            nfp_logging.store_logging_context(**logging_context)
+
             self._invoke_service_agent('update', request_data, True)
         except Exception as err:
             msg = ("Failed to update network device configuration. %s" %
@@ -210,6 +223,10 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            log_info = request_data.get('info')
+            logging_context = log_info['context']['logging_context']
+            nfp_logging.store_logging_context(**logging_context)
+
             self._invoke_service_agent('create', request_data)
         except Exception as err:
             msg = ("Failed to create network service configuration. %s" %
@@ -233,6 +250,10 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            log_info = request_data.get('info')
+            logging_context = log_info['context']['logging_context']
+            nfp_logging.store_logging_context(**logging_context)
+
             self._invoke_service_agent('delete', request_data)
         except Exception as err:
             msg = ("Failed to delete network service configuration. %s" %
@@ -256,6 +277,10 @@ class ConfiguratorRpcManager(object):
         """
 
         try:
+            log_info = request_data.get('info')
+            logging_context = log_info['context']['logging_context']
+            nfp_logging.store_logging_context(**logging_context)
+
             self._invoke_service_agent('update', request_data)
         except Exception as err:
             msg = ("Failed to update network service configuration. %s" %

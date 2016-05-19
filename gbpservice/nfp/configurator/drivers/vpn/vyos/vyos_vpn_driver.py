@@ -18,11 +18,12 @@ from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 
 from oslo_concurrency import lockutils
-from oslo_log import log as logging
+from gbpservice.nfp.core import log as nfp_logging
+
 from oslo_serialization import jsonutils
 
 
-LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 
 class UnknownReasonException(Exception):

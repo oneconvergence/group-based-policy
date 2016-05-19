@@ -13,14 +13,13 @@
 import os
 import oslo_messaging as messaging
 
-from oslo_log import log as logging
-
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import nfp_service_constants as const
 from gbpservice.nfp.configurator.lib import utils as load_driver
 from gbpservice.nfp.core import event as nfp_event
 
-LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 """ Implements ConfigScriptRpcManager class which receives requests
     from Configurator module.

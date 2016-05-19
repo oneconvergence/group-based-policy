@@ -11,9 +11,9 @@
 #    under the License.
 
 from gbpservice.nfp.configurator.lib import constants as const
-from oslo_log import log as logging
+from gbpservice.nfp.core import log as nfp_logging
 
-LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 """Implements base class for all service agents.
 

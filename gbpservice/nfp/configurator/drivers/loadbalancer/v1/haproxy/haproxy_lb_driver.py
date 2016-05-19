@@ -18,8 +18,11 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
                                                     haproxy_rest_client)
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import lb_constants
-from oslo_log import log as logging
+from gbpservice.nfp.core import log as nfp_logging
+
 from oslo_serialization import jsonutils
+
+LOG = nfp_logging.getLogger(__name__)
 
 DRIVER_NAME = 'loadbalancer'
 PROTOCOL_MAP = {
@@ -36,7 +39,6 @@ REQUEST_RETRIES = 0
 REQUEST_TIMEOUT = 10
 
 
-LOG = logging.getLogger(__name__)
 
 
 """ Loadbalancer generic configuration driver for handling device
