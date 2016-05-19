@@ -211,7 +211,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN]
     SUPPORTED_SERVICE_VENDOR_MAPPING = {
         pconst.LOADBALANCER: ["haproxy"],
-        pconst.FIREWALL: ["vyos", "nfp"],
+        pconst.FIREWALL: ["vyos", "nfp", "paloalto"],
         pconst.VPN: ["vyos"],
     }
     vendor_name = 'NFP'
