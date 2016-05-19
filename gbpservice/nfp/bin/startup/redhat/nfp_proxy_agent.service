@@ -1,0 +1,11 @@
+[Unit]
+Description=One Convergence NFP Proxy Agent
+After=syslog.target network.target
+
+[Service]
+ExecStart=sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /var/log/nfp/nfp_proxy_agent.log
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
+
