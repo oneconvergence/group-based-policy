@@ -51,4 +51,5 @@ fi
 
 VyosQcow2Image=
 
+# Make sure that your public interface is not attached to any bridge.
 PUBLIC_INTERFACE=
