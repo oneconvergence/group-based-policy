@@ -174,7 +174,7 @@ class FirewallNotifier(object):
         self._sc.post_event(ev)
 
     def _prepare_request_data(self, context,
-                              nf_id,  resource_id,
+                              nf_id, resource_id,
                               fw_mac, service_type):
         request_data = None
         try:
@@ -183,7 +183,8 @@ class FirewallNotifier(object):
             # Adding Service Type #
             request_data.update({"service_type": service_type,
                                  "fw_mac": fw_mac,
-                                 "neutron_resource_id": resource_id})
+                                 "neutron_resource_id": resource_id,
+                                 "LogMetaID": nf_id})
         except Exception as e:
             LOG(LOGGER, 'ERROR', '%s' % (e))
             return request_data

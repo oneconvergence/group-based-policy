@@ -1,0 +1,54 @@
+
+
+1. Clone devstack directory in /home/stack/
+
+   # git clone https://git.openstack.org/openstack-dev/devstack -b stable/mitaka
+
+2. Get group-based-policy/devstack/local.conf.nfp and copy it as local.conf in /home/stack/devstack/
+
+   # wget https://raw.githubusercontent.com/oneconvergence/group-based-policy/plugin_mode_devstack_for_advanced_configurator/devstack/local.conf.nfp && mv local.conf.nfp /home/stack/devstack/local.conf
+
+3. Edit local.conf, based on the mode of installation.
+
+   Base mode:
+       # Configure DEVSTACK_MODE with 'base'
+       [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=base
+
+   Advanced mode:
+       # Configure DEVSTACK_MODE with 'advanced'
+       [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=advanced
+
+       # Add a line with vyos qcow2 image configured
+       VyosQcow2Image=<Absolute file system path to the vyos qcow2 image>
+
+   Enterprise mode:
+       # Configure DEVSTACK_MODE with 'enterprise'
+       [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=enterprise
+
+       # Add a line with vyos qcow2 image configured
+       VyosQcow2Image=<Absolute file system path to the vyos qcow2 image>
+
+       # External Network details
+       EXT_NET_GATEWAY=
+       EXT_NET_ALLOCATION_POOL_START=
+       EXT_NET_ALLOCATION_POOL_END=
+       EXT_NET_CIDR=
+       EXT_NET_MASK=
+
+       # Visibility source on GIT
+       # https://github.com/oneconvergence/visibility.git is the private repo
+       # GIT access credentials of authorized user is mandatory here.
+       # Default visibility repo https://github.com/oneconvergence/visibility.git
+       VISIBILITY_GIT_BRANCH=master
+       GIT_ACCESS_USERNAME=
+       GIT_ACCESS_PASSWORD=
+
+       # Configure docker images local repository
+       # Use 192.168.100.50 for US machines
+       DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
+
+4. Run stack.sh from the /home/stack/devstack/ directory
+
+   # cd /home/stack/devstack/ && ./stack.sh
+
+

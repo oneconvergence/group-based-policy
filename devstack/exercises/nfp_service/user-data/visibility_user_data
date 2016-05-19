@@ -1,0 +1,83 @@
+#cloud-config
+users:
+  - name: ubuntu
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh-authorized-keys:
+      - <SSH PUBLIC KEY>
+
+write_files:
+  - path: /usr/share/visibility/docker/config/visibility.ini
+    content: |
+      [DEFAULT]
+      # IP address of visibility VM
+      visibility_vm_ip=<VISIBILITY VM IP> 
+      
+      [ELASTICSEARCH]
+      # To enable configuration of elasticsearch. (boolean value)
+      enable_es=True
+      
+      [FILEBEAT]
+      # To enable configuration of Filebeat. (boolean value)
+      enable_fb=True
+      
+      [GRAPHITE]
+      # To enable configuration of graphite. (boolean value)
+      enable_graphite=True
+      # Port number where graphite is used.
+      graphite_port=8080
+      
+      [GRAFANA]
+      # To enable configuration of grafana. (boolean value)
+      enable_grafana=True
+      
+      [SERVICE_CONTROLLER]
+      # Configure syslog to receive logs from service controller
+      enable_syslog=True
+      
+      # service_controller(sc) active server ip address
+      sc_active_ip=< SC ACTIVE IP>
+      
+      # service_controller(sc) standby server ip address
+      sc_standby_ip=<SC STANDBY IP>
+      
+      [UI]
+      # configure visibility UI
+      enable_ui=True
+      
+      # for rest api's
+      service_controller_vip=<SERVICE_CONTROLLER_IP:PORT>
+      
+      # openstack neutron db username & password
+      db_user=<DB USERNAME>
+      db_password=<DB PASSWORD>
+      
+      # openstack controller ip
+      db_server_ip=<DB SERVER IP>
+  - path:  /usr/share/visibility/conf/visibility.ini
+    #permissions: '777'
+    content: |
+      [DEFAULT]
+      statsd_host=<STATSD_HOST>
+      statsd_port=<STATSD_PORT>
+      rsyslog_host=<RSYSLOG_HOST>
+      vis_app_log_dir=/var/log/visibility
+      vis_log_level=INFO
+      kombu_reconnect_delay=1.0
+      debug=False
+      rabbit_host=<RABBIT_HOST>
+      policy_file=/etc/policy.json
+      rabbit_port=<RABBIT_PORT>
+      rabbit_use_ssl=False
+      rabbit_virtual_host=/
+      modules_dir=visibility.collector.modules
+      periodic_interval=60
+
+runcmd:
+  - docker load -i /usr/share/SCUI/docker/images/configurator-docker
+  - docker run -d --name configurator -it -p 5672:5672 -p 8070:8080 configurator-docker
+  - docker load -i   /usr/share/SCUI/docker/images/visibility-docker
+  - docker load -i   /usr/share/SCUI/docker/images/elastic
+  - docker load -i   /usr/share/SCUI/docker/images/graphite
+  - cd /usr/share/visibility/docker/ && bash rundocker.sh

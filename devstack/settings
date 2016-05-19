@@ -1,8 +1,13 @@
 # Make sure the plugin name in local.conf is "gbp", as in: enable_plugin gbp <remote> <branch>
 source $DEST/gbp/devstack/lib/gbp
 ENABLE_NFP=${ENABLE_NFP:-False}
+[[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=${DEVSTACK_MODE:-base}
 [[ $ENABLE_NFP = True ]] && source $DEST/gbp/devstack/lib/nfp
-[[ $ENABLE_NFP = True ]] && DISABLE_BUILD_IMAGE=${DISABLE_BUILD_IMAGE:-False}
+# VM locations
+ConfiguratorQcow2Image=${ConfiguratorQcow2Image:-build}
+VisibilityQcow2Image=${VisibilityQcow2Image:-build}
+VyosQcow2Image=${VyosQcow2Image:-build}
+HaproxyQcow2Image=${HaproxyQcow2Image:-build}
 
 # Enable necessary Neutron plugins, including group_policy and ncp
 Q_SERVICE_PLUGIN_CLASSES=neutron.services.l3_router.l3_router_plugin.L3RouterPlugin,group_policy,ncp
@@ -30,6 +35,7 @@ enable_service q-agt
 enable_service q-dhcp
 enable_service q-l3
 enable_service q-fwaas
+[[ $DEVSTACK_MODE != base ]] && enable_service neutron-vpnaas
 enable_service q-lbaas
 enable_service q-meta
 enable_service neutron
@@ -37,11 +43,16 @@ enable_service group-policy
 disable_service tempest
 ENABLED_SERVICES+=,heat,h-api,h-api-cfn,h-api-cw,h-eng
 # NFP services
-enable_service orchestrator,proxy,proxy_agent,base_configurator
+enable_service orchestrator
+enable_service proxy
+enable_service proxy_agent
+[[ $DEVSTACK_MODE = base ]] && enable_service base_configurator
+[[ $DEVSTACK_MODE != base ]] && enable_service config_orch
+
+OVS_PHYSICAL_BRIDGE=br-ex
 
 # Deployment preferences
 SYSLOG=${SYSLOG:-True}
 
 # Skip exercises by default (can be overridden in local.conf)
 SKIP_EXERCISES=${SKIP_EXERCISES:-volumes,trove,swift,sahara,euca,bundle,boot_from_volume,aggregates,zaqar,client-env,neutron-adv-test,floating_ips,client-args,horizon,sec_groups,gbp_servicechain,gbp_heat}
-

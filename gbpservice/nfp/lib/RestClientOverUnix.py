@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import zlib
 import exceptions
+import zlib
 
 from gbpservice.nfp.core import common as nfp_common
 
@@ -81,8 +81,11 @@ class UnixRestClient(object):
         Return:Http Response
         """
         # prepares path, body, url for sending unix request.
+        if method_type.upper() != 'GET':
+            body = jsonutils.dumps(body)
+            body = zlib.compress(body)
+
         path = '/v1/nfp/' + path
-        body = jsonutils.dumps(body)
         url = urlparse.urlunsplit((
             request_method,
             server_addr,
@@ -90,7 +93,6 @@ class UnixRestClient(object):
             None,
             ''))
 
-        body = zlib.compress(body)
         try:
             resp, content = self._http_request(url, method_type,
                                                headers=headers, body=body)
@@ -141,8 +143,7 @@ def get(path):
     """Implements get method for unix restclient
     Return:Http Response
     """
-    headers = {'content-type': 'application/octet-stream'}
-    return UnixRestClient().send_request(path, 'GET', headers=headers)
+    return UnixRestClient().send_request(path, 'GET')
 
 
 def put(path, body):

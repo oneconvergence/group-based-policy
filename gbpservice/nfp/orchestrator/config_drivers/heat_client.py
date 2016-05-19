@@ -14,20 +14,16 @@
 from heatclient import client as heat_client
 from heatclient import exc as heat_exc
 from neutron._i18n import _LW
-from oslo_log import log as logging
 
-from gbpservice.nfp.core import log as nfp_log
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
 
-LOG = logging.getLogger(__name__)
-nfp_log.use_nfp_logging('LOG')
 # We are overriding create and update for now because the upstream
 # heat client class does not take timeout as argument
 
 
-@nfp_log.patch_class
 class HeatClient(object):
 
-    @nfp_log.patch_method
     def __init__(self, user_name, tenant, heat_uri, password=None,
                  auth_token=None, timeout_mins=30):
         api_version = "1"
@@ -46,7 +42,6 @@ class HeatClient(object):
         #gbp_heat_api_client.HeatClient.__init__(
         #    self, context, heat_uri, password, auth_token)
 
-    @nfp_log.patch_method
     def create(self, name, data, parameters=None):
         fields = {
             'stack_name': name,
@@ -58,7 +53,6 @@ class HeatClient(object):
         fields['parameters'] = parameters
         return self.stacks.create(**fields)
 
-    @nfp_log.patch_method
     def update(self, stack_id, data, parameters=None):
         fields = {
             'timeout_mins': self.timeout_mins,
@@ -68,7 +62,6 @@ class HeatClient(object):
         fields['parameters'] = parameters
         return self.stacks.update(stack_id, **fields)
 
-    @nfp_log.patch_method
     def delete(self, stack_id):
         try:
             self.stacks.delete(stack_id)
@@ -76,6 +69,5 @@ class HeatClient(object):
             LOG.warning(_LW("Stack %(stack)s created by service chain driver "
                       "is not found at cleanup"), {'stack': stack_id})
 
-    @nfp_log.patch_method
     def get(self, stack_id):
         return self.stacks.get(stack_id)

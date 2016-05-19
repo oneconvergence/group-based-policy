@@ -66,13 +66,9 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 'ipsecpolicies': ipsecpolicies,
                 'ipsec_site_conns': ipsec_site_conns}
 
-    def _get_core_context(self, context, tenant_id):
-        filters = {'tenant_id': [tenant_id]}
-        core_context_dict = common.get_core_context(context,
-                                                    filters,
-                                                    self._conf.host)
-        del core_context_dict['ports']
-        return core_context_dict
+    def _get_core_context(self, context):
+        return {'networks': common.get_networks(context, self._conf.host),
+                'routers': common.get_routers(context, self._conf.host)}
 
     def _context(self, context, tenant_id, resource, resource_data):
         if context.is_admin:
@@ -89,7 +85,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                                                resource_data['id'],
                                                resource_data[
                                                    'description'])
-            core_db = self._get_core_context(context, tenant_id)
+            core_db = self._get_core_context(context)
             filtered_core_db = self.\
                 _filter_core_data(core_db,
                                   vpn_ctx_db[
@@ -97,10 +93,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             vpn_ctx_db.update(filtered_core_db)
             return vpn_ctx_db
         elif resource.lower() == 'vpn_service':
-            core_db = self._get_core_context(context, tenant_id)
-            filtered_core_db = self._filter_core_data(core_db, [resource_data])
-            filtered_core_db.update({'vpnservices': [resource_data]})
-            return filtered_core_db
+            return {'vpnservices': [resource_data]}
         else:
             return None
 
@@ -165,13 +158,16 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                               'routers': []}
         for vpnservice in vpnservices:
             subnet_id = vpnservice['subnet_id']
-            for subnet in db_data['subnets']:
-                if subnet['id'] == subnet_id:
-                    filtered_core_data['subnets'].append(subnet)
+            for network in db_data['networks']:
+                subnets = network['subnets']
+                for subnet in subnets:
+                    if subnet['id'] == subnet_id:
+                        filtered_core_data['subnets'].append(
+                            {'id': subnet['id'], 'cidr': subnet['cidr']})
             router_id = vpnservice['router_id']
             for router in db_data['routers']:
                 if router['id'] == router_id:
-                    filtered_core_data['routers'].append(router)
+                    filtered_core_data['routers'].append({'id': router_id})
         return filtered_core_data
 
     def _get_vpnservices(self, context, tenant_id, vpnservice_id, desc):
@@ -212,9 +208,8 @@ class VpnNotifier(object):
         self._sc = sc
         self._conf = conf
 
-    def _prepare_request_data(self, context,
-                              nf_id, resource_id,
-                              ipsec_id, service_type):
+    def _prepare_request_data(self, context, nf_id,
+                              resource_id, ipsec_id, service_type):
         request_data = None
         try:
             request_data = common.get_network_function_map(
@@ -222,7 +217,8 @@ class VpnNotifier(object):
             # Adding Service Type #
             request_data.update({"service_type": service_type,
                                  "ipsec_site_connection_id": ipsec_id,
-                                 "neutron_resource_id": resource_id})
+                                 "neutron_resource_id": resource_id,
+                                 "LogMetaID": nf_id})
         except Exception as e:
             LOG(LOGGER, 'ERROR', '%s' % (e))
 

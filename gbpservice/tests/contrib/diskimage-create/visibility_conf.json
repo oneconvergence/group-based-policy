@@ -1,0 +1,13 @@
+{
+    "dib":
+        {
+            "image_size_in_GB": 10,
+            "cache_path": "~/.cache/image-create",
+            "elements": ["visibility", "root-passwd"],
+            "root_password": "oc@sc!23;)"
+        },
+    "ubuntu_release":
+        {
+            "release": "wily"
+        }
+}

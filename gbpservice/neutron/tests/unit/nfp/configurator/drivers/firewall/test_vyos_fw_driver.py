@@ -37,8 +37,8 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
         super(FwGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
         self.fo = fo.FakeObjects()
         with mock.patch.object(cfg, 'CONF') as mock_cfg:
-            mock_cfg.configure_mock(rest_timeout=30, host='foo')
-            self.driver = fw_dvr.FwGenericConfigDriver()
+            mock_cfg.configure_mock(rest_timeout=120, host='foo')
+            self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True}
         self.kwargs = self.fo._fake_resource_data()
@@ -132,8 +132,8 @@ class FwaasDriverTestCase(unittest.TestCase):
         super(FwaasDriverTestCase, self).__init__(*args, **kwargs)
         self.fo = fo.FakeObjects()
         with mock.patch.object(cfg, 'CONF') as mock_cfg:
-            mock_cfg.configure_mock(rest_timeout=30, host='foo')
-            self.driver = fw_dvr.FwaasDriver()
+            mock_cfg.configure_mock(rest_timeout=self.fo.timeout, host='foo')
+            self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,
                                'config_success': True,
@@ -156,7 +156,8 @@ class FwaasDriverTestCase(unittest.TestCase):
             self.driver.create_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
             mock_post.assert_called_with(self.fo.url_for_config_fw,
-                                         self.firewall, timeout=30)
+                                         self.firewall,
+                                         timeout=self.fo.timeout)
 
     def test_create_firewall_key_error_fwaasdriver(self):
         """ Implements test case for catching key error in
@@ -186,7 +187,8 @@ class FwaasDriverTestCase(unittest.TestCase):
             self.driver.update_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
             mock_put.assert_called_with(self.fo.url_for_update_fw,
-                                        data=self.firewall, timeout=30)
+                                        data=self.firewall,
+                                        timeout=self.fo.timeout)
 
     def test_update_firewall_key_error_fwaasdriver(self):
         """ Implements test case for catching key error in
@@ -216,7 +218,8 @@ class FwaasDriverTestCase(unittest.TestCase):
             self.driver.delete_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
             mock_delete.assert_called_with(self.fo.url_for_delete_fw,
-                                           data=self.firewall, timeout=30)
+                                           data=self.firewall,
+                                           timeout=self.fo.timeout)
 
     def test_delete_firewall_key_error_fwaasdriver(self):
         """ Implements test case for catching key error in

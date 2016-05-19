@@ -11,7 +11,6 @@
 #    under the License.
 
 import ast
-import requests
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
@@ -19,7 +18,6 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import lb_constants
 from oslo_log import log as logging
-from oslo_serialization import jsonutils
 
 DRIVER_NAME = 'loadbalancer'
 PROTOCOL_MAP = {
@@ -33,7 +31,7 @@ BALANCE_MAP = {
     lb_constants.LB_METHOD_SOURCE_IP: 'source'
 }
 REQUEST_RETRIES = 0
-REQUEST_TIMEOUT = 10
+REQUEST_TIMEOUT = 120
 
 
 LOG = logging.getLogger(__name__)

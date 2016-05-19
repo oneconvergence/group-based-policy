@@ -194,7 +194,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         agent, sc = self._get_GenericConfigEventHandler_object()
         with mock.patch.object(cfg, 'CONF') as mock_cfg:
             mock_cfg.configure_mock(rest_timeout='30', host='foo')
-            driver = fw_dvr.FwaasDriver()
+            driver = fw_dvr.FwaasDriver(mock_cfg)
 
         with mock.patch.object(
                 driver, 'configure_interfaces') as mock_config_inte, \
@@ -221,16 +221,16 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
             resource_data = self.fo._fake_resource_data()
             if ev.id == 'CONFIGURE_INTERFACES':
                 mock_config_inte.assert_called_with(
-                                        self.empty, resource_data)
+                                        self.fo.context, resource_data)
             elif ev.id == 'CLEAR_INTERFACES':
                 mock_clear_inte.assert_called_with(
-                                        self.empty, resource_data)
+                                        self.fo.context, resource_data)
             elif ev.id == 'CONFIGURE_ROUTES':
                 mock_config_src_routes.assert_called_with(
-                            self.empty, resource_data)
+                            self.fo.context, resource_data)
             elif ev.id == 'CLEAR_ROUTES':
                 mock_delete_src_routes.assert_called_with(
-                            self.empty, resource_data)
+                            self.fo.context, resource_data)
             elif 'CONFIGURE_HEALTHMONITOR' in ev.id:
                 if periodicity == gen_cfg_const.INITIAL_HM_RETRIES:
                     mock_hm_poll_event.assert_called_with(
@@ -254,7 +254,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         agent, sc = self._get_GenericConfigEventHandler_object()
         with mock.patch.object(cfg, 'CONF') as mock_cfg:
             mock_cfg.configure_mock(rest_timeout='30', host='foo')
-            driver = fw_dvr.FwaasDriver()
+            driver = fw_dvr.FwaasDriver(mock_cfg)
         with mock.patch.object(
                 agent, '_get_driver', return_value=driver), \
             mock.patch.object(
@@ -275,7 +275,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
         """
 
-        ev = fo.FakeEvent()
+        ev = fo.FakeEventGenericConfig()
         ev.id = 'CONFIGURE_INTERFACES'
         self._test_handle_event(ev)
 
@@ -287,7 +287,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
         """
 
-        ev = fo.FakeEvent()
+        ev = fo.FakeEventGenericConfig()
         ev.id = 'CLEAR_INTERFACES'
         self._test_handle_event(ev)
 
@@ -299,7 +299,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
         """
 
-        ev = fo.FakeEvent()
+        ev = fo.FakeEventGenericConfig()
         ev.id = 'CONFIGURE_ROUTES'
         self._test_handle_event(ev)
 
@@ -311,7 +311,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
         """
 
-        ev = fo.FakeEvent()
+        ev = fo.FakeEventGenericConfig()
         ev.id = 'CLEAR_ROUTES'
         self._test_handle_event(ev)
 
@@ -323,7 +323,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
         """
 
-        ev = fo.FakeEvent()
+        ev = fo.FakeEventGenericConfig()
         ev.id = 'CONFIGURE_HEALTHMONITOR initial'
         self._test_handle_event(ev)
 
@@ -335,7 +335,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
         """
 
-        ev = fo.FakeEvent()
+        ev = fo.FakeEventGenericConfig()
         ev.data['resource_data'].update({'periodicity': gen_cfg_const.FOREVER})
         ev.id = 'CONFIGURE_HEALTHMONITOR forever'
         self._test_handle_event(ev)
@@ -348,7 +348,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
         """
 
-        ev = fo.FakeEvent()
+        ev = fo.FakeEventGenericConfig()
         ev.id = 'CLEAR_HEALTHMONITOR'
         self._test_handle_event(ev)
 
@@ -360,7 +360,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
 
         """
 
-        ev = fo.FakeEvent()
+        ev = fo.FakeEventGenericConfig()
         ev.id = 'CONFIGURE_HEALTHMONITOR'
         self._test_handle_periodic_event(ev)
 

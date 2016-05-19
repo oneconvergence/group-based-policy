@@ -17,6 +17,7 @@ from gbpservice.nfp.config_orchestrator.agent import vpn
 import mock
 from neutron import context as ctx
 import unittest
+import uuid
 
 
 class TestContext(object):
@@ -48,6 +49,14 @@ class RpcMethods(object):
 
     def call(self, context, method, **kwargs):
         return {}
+
+
+def call_network_function_info():
+    data = {'network_function': {
+        'id': str(uuid.uuid4()),
+        'description': {}
+    }}
+    return data
 
 
 class GeneralConfigStructure(object):
@@ -142,13 +151,17 @@ class GeneralConfigStructure(object):
             try:
                 if context['service_info']:
                     data = context['service_info']
-                    if all(k in data for k in ["vpnservices",
-                                               "ikepolicies",
-                                               "ipsecpolicies",
-                                               "ipsec_site_conns",
-                                               "subnets",
-                                               "routers"]):
-                        return True
+                    if resource.lower() == "vpn_service":
+                        if all(k in data for k in ["vpnservices"]):
+                            return True
+                    elif resource.lower() == "ipsec_site_connection":
+                        if all(k in data for k in ["vpnservices",
+                                                   "ikepolicies",
+                                                   "ipsecpolicies",
+                                                   "ipsec_site_conns",
+                                                   "subnets",
+                                                   "routers"]):
+                            return True
             except AttributeError:
                 return False
         return False
@@ -170,6 +183,7 @@ class FirewallTestCase(unittest.TestCase):
         self.conf = Conf()
         self.fw_handler = firewall.FwAgent(self.conf, 'sc')
         self.context = TestContext().get_context()
+        self.rpc_methods = RpcMethods()
         self.fw = self._firewall_data()
         self.host = 'host'
         import_path = ("neutron_fwaas.db.firewall.firewall_db."
@@ -178,11 +192,12 @@ class FirewallTestCase(unittest.TestCase):
         self.import_fwp_api = import_path + '.get_firewall_policies'
         self.import_fwr_api = import_path + '.get_firewall_rules'
         self.import_lib = 'gbpservice.nfp.lib.transport'
+        self._call = 'oslo_messaging.rpc.client._CallContext.call'
 
     def _firewall_data(self):
-        return {'tenant_id': 123,
-                'description': str({'network_function_id': 123,
-                                    'provider_ptg_info': [123]})
+        return {'tenant_id': str(uuid.uuid4()),
+                'description': str({'network_function_id': str(uuid.uuid4())}),
+                'firewall_policy_id': str(uuid.uuid4())
                 }
 
     def _cast_firewall(self, conf, context, body,
@@ -191,15 +206,24 @@ class FirewallTestCase(unittest.TestCase):
         g_cnfg = GeneralConfigStructure()
         self.assertTrue(g_cnfg._check_general_structure(body, 'firewall'))
 
+    def _call_to_get_network_function_desc(self, context, method, **kwargs):
+        data = call_network_function_info()
+        data['network_function']['description'] = "\n" + str(
+            {'provider_ptg_info': [str(uuid.uuid4())],
+             'service_vendor': 'xyz'})
+        return data
+
     def test_create_firewall(self):
         import_send = self.import_lib + '.send_request_to_configurator'
         with mock.patch(self.import_fw_api) as gfw,\
                 mock.patch(self.import_fwp_api) as gfwp,\
                 mock.patch(self.import_fwr_api) as gfwr,\
+                mock.patch(self._call) as mock_call,\
                 mock.patch(import_send) as mock_send:
             gfw.return_value = []
             gfwp.return_value = []
             gfwr.return_value = []
+            mock_call.side_effect = self._call_to_get_network_function_desc
             mock_send.side_effect = self._cast_firewall
             self.fw_handler.create_firewall(self.context, self.fw, self.host)
 
@@ -208,10 +232,12 @@ class FirewallTestCase(unittest.TestCase):
         with mock.patch(self.import_fw_api) as gfw,\
                 mock.patch(self.import_fwp_api) as gfwp,\
                 mock.patch(self.import_fwr_api) as gfwr,\
+                mock.patch(self._call) as mock_call,\
                 mock.patch(import_send) as mock_send:
             gfw.return_value = []
             gfwp.return_value = []
             gfwr.return_value = []
+            mock_call.side_effect = self._call_to_get_network_function_desc
             mock_send.side_effect = self._cast_firewall
             self.fw_handler.delete_firewall(self.context, self.fw, self.host)
 
@@ -230,6 +256,7 @@ class LoadBalanceTestCase(unittest.TestCase):
         self.import_ghm_api = import_path + '.get_health_monitors'
         self.import_lib = 'gbpservice.nfp.lib.transport'
         self._call = 'oslo_messaging.rpc.client._CallContext.call'
+        self._get_pool = import_path + '.get_pool'
 
     def _cast_loadbalancer(self, conf, context, body,
                            method_type, device_config=False,
@@ -244,15 +271,29 @@ class LoadBalanceTestCase(unittest.TestCase):
         except Exception:
             self.assertTrue(False)
 
-    def _call_core_plugin_data(self, context, method, **kwargs):
+    def _call_data(self, context, method, **kwargs):
+        if method.lower() == "get_network_function_details":
+            data = call_network_function_info()
+            data['network_function']['description'] = "\n" + str(
+                {'service_vendor': 'xyz'})
+            return data
+
         return []
 
-    def _vip_data(self):
-        vip_desc = str({'network_function_id': 123})
-        return {'tenant_id': 123,
-                'description': vip_desc,
-                'id': 123
+    def _loadbalancer_data(self, resource):
+        data = {'tenant_id': str(uuid.uuid4()),
+                'id': str(uuid.uuid4())
                 }
+        if resource.lower() not in ['member', 'health_monitor']:
+            desc = str({'network_function_id': str(uuid.uuid4())})
+            data.update({'description': desc})
+        if resource.lower() == 'vip':
+            data.update({'pool_id': str(uuid.uuid4())})
+        return data
+
+    def _get_mocked_pool(self, context, pool_id):
+        return {'id': pool_id,
+                'description': str({'network_function_id': str(uuid.uuid4())})}
 
     def test_create_vip(self):
         import_send = self.import_lib + '.send_request_to_configurator'
@@ -266,9 +307,9 @@ class LoadBalanceTestCase(unittest.TestCase):
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
-            vip = self._vip_data()
+            vip = self._loadbalancer_data('vip')
             self.lb_handler.create_vip(self.context, vip)
 
     def test_delete_vip(self):
@@ -283,9 +324,9 @@ class LoadBalanceTestCase(unittest.TestCase):
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
-            vip = self._vip_data()
+            vip = self._loadbalancer_data('vip')
             self.lb_handler.delete_vip(self.context, vip)
 
     def test_create_pool(self):
@@ -300,9 +341,9 @@ class LoadBalanceTestCase(unittest.TestCase):
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
-            pool = {'tenant_id': 123}
+            pool = self._loadbalancer_data('pool')
             driver_name = "dummy"
             self.lb_handler.create_pool(self.context, pool, driver_name)
 
@@ -318,9 +359,9 @@ class LoadBalanceTestCase(unittest.TestCase):
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
-            pool = {'id': 123, 'tenant_id': 123}
+            pool = self._loadbalancer_data('pool')
             self.lb_handler.delete_pool(self.context, pool)
 
     def test_create_member(self):
@@ -330,14 +371,17 @@ class LoadBalanceTestCase(unittest.TestCase):
                 mock.patch(self.import_gm_api) as gm,\
                 mock.patch(self.import_ghm_api) as ghm,\
                 mock.patch(self._call) as mock_call,\
+                mock.patch(self._get_pool) as mock_pool,\
                 mock.patch(import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
-            member = {'tenant_id': 123}
+            mock_pool.side_effect = self._get_mocked_pool
+            member = self._loadbalancer_data('member')
+            member.update({'pool_id': str(uuid.uuid4())})
             self.lb_handler.create_member(self.context, member)
 
     def test_delete_member(self):
@@ -347,14 +391,17 @@ class LoadBalanceTestCase(unittest.TestCase):
                 mock.patch(self.import_gm_api) as gm,\
                 mock.patch(self.import_ghm_api) as ghm,\
                 mock.patch(self._call) as mock_call,\
+                mock.patch(self._get_pool) as mock_pool,\
                 mock.patch(import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
-            member = {'id': 123, 'tenant_id': 123}
+            mock_pool.side_effect = self._get_mocked_pool
+            member = self._loadbalancer_data('member')
+            member.update({'pool_id': str(uuid.uuid4())})
             self.lb_handler.delete_member(self.context, member)
 
     def test_create_pool_health_monitor(self):
@@ -364,15 +411,17 @@ class LoadBalanceTestCase(unittest.TestCase):
                 mock.patch(self.import_gm_api) as gm,\
                 mock.patch(self.import_ghm_api) as ghm,\
                 mock.patch(self._call) as mock_call,\
+                mock.patch(self._get_pool) as mock_pool,\
                 mock.patch(import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
-            hm = {'tenant_id': 123}
-            pool_id = "123"
+            mock_pool.side_effect = self._get_mocked_pool
+            hm = self._loadbalancer_data('health_monitor')
+            pool_id = str(uuid.uuid4())
             self.lb_handler.create_pool_health_monitor(
                 self.context, hm, pool_id)
 
@@ -383,15 +432,17 @@ class LoadBalanceTestCase(unittest.TestCase):
                 mock.patch(self.import_gm_api) as gm,\
                 mock.patch(self.import_ghm_api) as ghm,\
                 mock.patch(self._call) as mock_call,\
+                mock.patch(self._get_pool) as mock_pool,\
                 mock.patch(import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
-            hm = {'id': 123, 'tenant_id': 123}
-            pool_id = 123
+            mock_pool.side_effect = self._get_mocked_pool
+            hm = self._loadbalancer_data('health_monitor')
+            pool_id = str(uuid.uuid4())
             self.lb_handler.delete_pool_health_monitor(
                 self.context, hm, pool_id)
 
@@ -421,25 +472,34 @@ class VPNTestCase(unittest.TestCase):
         except Exception:
             self.assertTrue(False)
 
-    def _call_core_plugin_data(self, context, method, **kwargs):
+    def _call_data(self, context, method, **kwargs):
+        if method.lower() == "get_network_function_details":
+            data = call_network_function_info()
+            data['network_function']['description'] = "\n" +\
+                ("ipsec_site_connection_id=%s;service_vendor=xyz" % (
+                    str(uuid.uuid4())))
+            return data
+
         return []
 
     def _prepare_request_data(self, reason, rsrc_type):
-        resource = {'tenant_id': 123,
-                    'id': 123
+        resource = {'tenant_id': str(uuid.uuid4()),
+                    'id': str(uuid.uuid4()),
+                    'description': (
+                        "{'network_function_id':'%s'}" % (str(uuid.uuid4())))
                     }
-        if rsrc_type == 'ipsec_site_connection':
-            resource.update(self._ipsec_data())
+        if rsrc_type.lower() == 'ipsec_site_connection':
+            resource.update({'vpnservice_id': str(uuid.uuid4()),
+                             'ikepolicy_id': str(uuid.uuid4()),
+                             'ipsecpolicy_id': str(uuid.uuid4())})
+        elif rsrc_type.lower() == 'vpn_service':
+            resource.update({'subnet_id': str(uuid.uuid4()),
+                             'router_id': str(uuid.uuid4())})
         return {'resource': resource,
                 'rsrc_type': rsrc_type,
                 'reason': reason,
-                'rsrc_id': 123
+                'rsrc_id': str(uuid.uuid4())
                 }
-
-    def _ipsec_data(self):
-        ipsec_desc = ("network_function_id=123;"
-                      "ipsec_site_connection_id=123")
-        return {'description': ipsec_desc}
 
     def test_update_vpnservice_for_vpnservice(self):
         import_send = self.import_lib + '.send_request_to_configurator'
@@ -453,9 +513,9 @@ class VPNTestCase(unittest.TestCase):
             gikp.return_value = []
             gipsp.return_value = []
             gisc.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_vpn
-            rsrc_type = 'vpnservice'
+            rsrc_type = 'vpn_service'
             reason = 'create'
             kwargs = self._prepare_request_data(reason, rsrc_type)
             self.vpn_handler.vpnservice_updated(self.context, **kwargs)
@@ -472,7 +532,7 @@ class VPNTestCase(unittest.TestCase):
             gikp.return_value = []
             gipsp.return_value = []
             gisc.return_value = []
-            mock_call.side_effect = self._call_core_plugin_data
+            mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_vpn
             rsrc_type = 'ipsec_site_connection'
             reason = 'delete'
@@ -506,6 +566,7 @@ class NotificationHandlerTestCase(unittest.TestCase):
             mock_fw.side_effect = self._fw_nh_api
             self.n_handler.network_function_notification(self.context,
                                                          notification_data)
+
 
 if __name__ == '__main__':
     unittest.main()

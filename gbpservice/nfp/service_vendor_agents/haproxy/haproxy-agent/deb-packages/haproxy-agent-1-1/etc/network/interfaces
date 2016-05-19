@@ -1,0 +1,47 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+post-up /sbin/route del default dev $IFACE
+
+allow-hotplug eth1
+iface eth1 inet dhcp
+
+allow-hotplug eth2
+iface eth2 inet dhcp
+
+allow-hotplug eth3
+iface eth3 inet dhcp
+
+allow-hotplug eth4
+iface eth4 inet dhcp
+
+allow-hotplug eth5
+iface eth5 inet dhcp
+
+allow-hotplug eth6
+iface eth6 inet dhcp
+
+allow-hotplug eth7
+iface eth7 inet dhcp
+
+allow-hotplug eth8
+iface eth8 inet dhcp
+
+allow-hotplug eth9
+iface eth9 inet dhcp
+
+allow-hotplug eth10
+iface eth10 inet dhcp
+
+allow-hotplug eth11
+iface eth11 inet dhcp
+
+allow-hotplug eth12
+iface eth12 inet dhcp
+

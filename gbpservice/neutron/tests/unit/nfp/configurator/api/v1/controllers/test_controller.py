@@ -10,17 +10,22 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-#import json
-import mock
-import unittest
 
+import mock
 import oslo_serialization.jsonutils as jsonutils
+import os
 import pecan
-from pecan import rest
+PECAN_CONFIG_FILE = os.getcwd() + "/gbpservice/nfp/configurator/api/config.py"
+pecan.set_config(PECAN_CONFIG_FILE, overwrite=True)
+import unittest
 import webtest
+import zlib
+
+from pecan import rest
 
 from gbpservice.nfp.configurator.api import root_controller
 from gbpservice.nfp.configurator.api.v1.controllers import controller
+
 
 """This class contains all the unittest cases for REST server of configurator.
 
@@ -35,18 +40,20 @@ print the error trace.
 
 class ControllerTestCase(unittest.TestCase, rest.RestController):
 
-    def setUp(self):
-        """Standard method of TestCase to setup environment before each test.
-
-        This method set the value of required variables that is used in
-        test cases before execution of each test case.
-
+    @classmethod
+    def setUpClass(cls):
+        """A class method called before tests in an individual class run
 
         """
-        RootController = root_controller.RootController()
-        self.app = webtest.TestApp(pecan.make_app(RootController))
-        self.data = {'request_data': {'info': {}, 'config': [
-            {'resource': 'Res', 'kwargs': {'context': 'context'}}]}}
+        rootController = root_controller.RootController()
+        ControllerTestCase.app = webtest.TestApp(
+                                            pecan.make_app(rootController))
+        ControllerTestCase.data = {'info': {'service_type': 'firewall',
+                                            'service_vendor': 'vyos',
+                                            'context': {}},
+                                   'config': [{'resource': 'firewall',
+                                               'resource_data': {}}]
+                                   }
 
     def test_get_notifications(self):
         """Tests HTTP get request get_notifications.
@@ -54,14 +61,13 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         Returns: none
 
         """
-
         with mock.patch.object(
                 controller.RPCClient, 'call') as rpc_mock:
             rpc_mock.return_value = jsonutils.dumps(self.data)
             response = self.app.get(
-                '/v1/nfp/get_notifications',
+                '/v1/nfp/get_notifications'
             )
-        rpc_mock.assert_called_with()
+        rpc_mock.assert_called_with('get_notifications')
         self.assertEqual(response.status_code, 200)
 
     def test_post_create_network_function_device_config(self):
@@ -75,26 +81,11 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 controller.RPCClient, 'cast') as rpc_mock:
             response = self.app.post(
                 '/v1/nfp/create_network_function_device_config',
-                jsonutils.dumps(self.data))
+                zlib.compress(jsonutils.dumps(self.data)),
+                content_type='application/octet-stream')
         rpc_mock.assert_called_with(
             'create_network_function_device_config', self.data)
-        self.assertEqual(response.status_code, 204)
-
-    def test_post_create_network_function_device_config(self):
-        """Tests HTTP post request create_network_function_device_config.
-
-        Returns: none
-
-        """
-
-        with mock.patch.object(
-                controller.RPCClient, 'cast') as rpc_mock:
-            response = self.app.post(
-                '/v1/nfp/create_network_function_device_config',
-                jsonutils.dumps(self.data))
-        rpc_mock.assert_called_with(
-            'create_network_function_device_config', self.data)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
     def test_post_create_network_function_config(self):
         """Tests HTTP post request create_network_function_config.
@@ -107,10 +98,11 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 controller.RPCClient, 'cast') as rpc_mock:
             response = self.app.post(
                 '/v1/nfp/create_network_function_config',
-                jsonutils.dumps(self.data))
+                zlib.compress(jsonutils.dumps(self.data)),
+                content_type='application/octet-stream')
         rpc_mock.assert_called_with(
             'create_network_function_config', self.data)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
     def test_post_delete_network_function_device_config(self):
         """Tests HTTP post request delete_network_function_device_config.
@@ -123,10 +115,11 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 controller.RPCClient, 'cast') as rpc_mock:
             response = self.app.post(
                 '/v1/nfp/delete_network_function_device_config',
-                jsonutils.dumps(self.data))
+                zlib.compress(jsonutils.dumps(self.data)),
+                content_type='application/octet-stream')
         rpc_mock.assert_called_with(
             'delete_network_function_device_config', self.data)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
     def test_post_delete_network_function_config(self):
         """Tests HTTP post request delete_network_function_config.
@@ -139,10 +132,11 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 controller.RPCClient, 'cast') as rpc_mock:
             response = self.app.post(
                 '/v1/nfp/delete_network_function_config',
-                jsonutils.dumps(self.data))
+                zlib.compress(jsonutils.dumps(self.data)),
+                content_type='application/octet-stream')
         rpc_mock.assert_called_with(
             'delete_network_function_config', self.data)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
     def test_put_update_network_function_device_config(self):
         """Tests HTTP put request update_network_function_device_config.
@@ -155,10 +149,11 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 controller.RPCClient, 'cast') as rpc_mock:
             response = self.app.put(
                 '/v1/nfp/update_network_function_device_config',
-                jsonutils.dumps(self.data))
+                zlib.compress(jsonutils.dumps(self.data)),
+                content_type='application/octet-stream')
         rpc_mock.assert_called_with(
             'update_network_function_device_config', self.data)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
     def test_put_update_network_function_config(self):
         """Tests HTTP put request update_network_function_config.
@@ -171,10 +166,11 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 controller.RPCClient, 'cast') as rpc_mock:
             response = self.app.put(
                 '/v1/nfp/update_network_function_config',
-                jsonutils.dumps(self.data))
+                zlib.compress(jsonutils.dumps(self.data)),
+                content_type='application/octet-stream')
         rpc_mock.assert_called_with(
             'update_network_function_config', self.data)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
     def test_call(self):
         """Tests call function of RPCClient.
@@ -182,7 +178,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         Returns: none
 
         """
-        rpcclient = controller.RPCClient('topic_name', 'host_name')
+        rpcclient = controller.RPCClient('topic_name')
         with mock.patch.object(
             rpcclient.client, 'call') as rpc_mock,\
             mock.patch.object(
@@ -190,7 +186,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                     prepare_mock):
             prepare_mock.return_value = rpcclient.client
             rpc_mock.return_value = True
-            value = rpcclient.call()
+            value = rpcclient.call('rpc_method_name')
         self.assertTrue(value)
 
     def test_cast(self):
@@ -199,7 +195,7 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         Returns: none
 
         """
-        rpcclient = controller.RPCClient('topic_name', 'host_name')
+        rpcclient = controller.RPCClient('topic_name')
         with mock.patch.object(
             rpcclient.client, 'cast') as rpc_mock,\
             mock.patch.object(
