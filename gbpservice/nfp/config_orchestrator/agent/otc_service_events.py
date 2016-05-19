@@ -38,7 +38,6 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
         self.vpn_agent = vpn.VpnNotifier(conf, sc)
 
     def handle_event(self, ev):
-        nfp_logging.store_logging_context(**ev.context)
         if ev.id == 'SERVICE_CREATED':
             data = ev.data
             self._create_service(data['context'],
@@ -70,7 +69,6 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
 
     @core_pt.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=5)
     def create_sevice_pending_event(self, ev):
-        nfp_logging.store_logging_context(**ev.context)
         event_data = ev.data
         ctxt = n_context.Context.from_dict(event_data['context'])
 
@@ -130,9 +128,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
 
                 new_ev = self._sc.new_event(id='SERVICE_CREATED',
                                             key='SERVICE_CREATED',
-                                            data=new_event_data,
-                                            context=
-                                            nfp_logging.get_logging_context())
+                                            data=new_event_data)
                 self._sc.post_event(new_ev)
                 return STOP_POLLING
             else:

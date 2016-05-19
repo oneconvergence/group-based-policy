@@ -281,6 +281,8 @@ class Controller(object):
     def new_event(self, **kwargs):
         """API for NFP modules to prep an Event from passed args """
         event = nfp_event.Event(**kwargs)
+        logging_context = nfp_logging.get_logging_context()
+        event.context = logging_context
         desc = nfp_event.EventDesc(**kwargs)
         setattr(event, 'desc', desc)
         return event

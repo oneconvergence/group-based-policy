@@ -97,6 +97,9 @@ def store_logging_context(**kwargs):
     context = NfpLogContext(**kwargs)
     logging_context_store.context = context
 
+def clear_logging_context(**kwargs):
+    logging_context_store.context = None
+
 
 def get_logging_context():
     context = getattr(logging_context_store, 'context', None)

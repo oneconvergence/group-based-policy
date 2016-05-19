@@ -174,8 +174,7 @@ class FirewallNotifier(object):
                                   'info': {'context':
                                            {'logging_context': nfp_log_ctx}}}
         ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data,
-                                context=nfp_logging.get_logging_context())
+                                key=event_id, data=event_data)
         self._sc.post_event(ev)
 
     def _prepare_request_data(self, context,
@@ -230,8 +229,7 @@ class FirewallNotifier(object):
                       }
         ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
                                 key='SERVICE_CREATE_PENDING',
-                                data=event_data, max_times=24,
-                                context=nfp_logging.get_logging_context())
+                                data=event_data, max_times=24)
         self._sc.poll_event(ev)
 
     def firewall_deleted(self, context, notification_data):

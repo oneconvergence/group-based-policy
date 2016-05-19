@@ -239,8 +239,7 @@ class VpnNotifier(object):
                                   'eventid': event_id,
                                   'eventdata': request_data}
         ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data,
-                                context=nfp_logging.get_logging_context())
+                                key=event_id, data=event_data)
         self._sc.post_event(ev)
 
     def update_status(self, context, notification_data):
@@ -276,8 +275,7 @@ class VpnNotifier(object):
                           }
             ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
                                     key='SERVICE_CREATE_PENDING',
-                                    data=event_data, max_times=24,
-                                    context=nfp_logging.get_logging_context())
+                                    data=event_data, max_times=24)
             self._sc.poll_event(ev)
 
     def ipsec_site_conn_deleted(self, context, notification_data):
