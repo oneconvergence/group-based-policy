@@ -57,6 +57,12 @@ function configure_nfp_firewall {
     sudo sed -i "s/neutron_fwaas.services.firewall.fwaas_plugin.FirewallPlugin/gbpservice.nfp.service_plugins.firewall.nfp_fwaas_plugin.NFPFirewallPlugin/g" /etc/neutron/neutron.conf
 }
 
+function configure_nfp_vpn {
+    echo "Configuring NFP VPN plugin driver"
+
+        sudo sed -i "s/service_provider\ *=\ *VPN:openswan:neutron_vpnaas.services.vpn.service_drivers.ipsec.IPsecVPNDriver:default/service_provider\ =\ VPN:openswan:neutron_vpnaas.services.vpn.service_drivers.ipsec.IPsecVPNDriver\nservice_provider\ =\ VPN:vpn:gbpservice.nfp.service_plugins.vpn.drivers.nfp_vpnaas_driver.NFPIPsecVPNDriver:default/g" /etc/neutron/neutron_vpnaas.conf
+}
+
 # Process contract
 if is_service_enabled group-policy; then
     if [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
@@ -79,6 +85,7 @@ if is_service_enabled group-policy; then
             if [[ $DEVSTACK_MODE != base ]]; then
                 configure_nfp_loadbalancer
                 configure_nfp_firewall
+                configure_nfp_vpn
             fi
         fi
 #        install_apic_ml2
