@@ -299,7 +299,7 @@ function copy_nfp_files_and_start_process {
     sudo rm -rf /etc/nfp_*
     sudo cp -r  bin/nfp_orch_agent.ini /etc/
     sudo cp -r  bin/nfp_proxy_agent.ini /etc/
-    sudo cp -r  bin/nfp_config_orch.ini /etc/
+    [[ $DEVSTACK_MODE != base ]] && sudo cp -r  bin/nfp_config_orch.ini /etc/
     sudo cp -r  bin/proxy.ini /etc/nfp_proxy.ini
     sudo cp -r  bin/nfp_proxy /usr/bin/
 
