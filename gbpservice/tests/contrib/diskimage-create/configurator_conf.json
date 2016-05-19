@@ -8,6 +8,6 @@
         },
     "ubuntu_release":
         {
-            "release": "wily"
+            "release": "trusty"
         }
 }
