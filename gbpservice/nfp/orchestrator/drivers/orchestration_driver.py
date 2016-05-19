@@ -533,12 +533,22 @@ class OrchestrationDriver(object):
                     for port in device_data['ports']:
                         if (port['port_classification'] ==
                                 nfp_constants.PROVIDER):
+                            if (device_data['service_details'][
+                                        'service_type'].lower()
+                                in [nfp_constants.FIREWALL.lower()]):
+                                network_handler.set_promiscuos_mode(
+                                        token, port['id'])
                             port_id = network_handler.get_port_id(
                                                             token, port['id'])
                             interfaces_to_attach.append({'port': port_id})
                     for port in device_data['ports']:
                         if (port['port_classification'] ==
                                 nfp_constants.CONSUMER):
+                            if (device_data['service_details'][
+                                        'service_type'].lower()
+                                in [nfp_constants.FIREWALL.lower()]):
+                                network_handler.set_promiscuos_mode(
+                                        token, port['id'])
                             port_id = network_handler.get_port_id(
                                                             token, port['id'])
                             interfaces_to_attach.append({'port': port_id})
