@@ -243,7 +243,7 @@ function create_ext_net {
 function create_ep_and_nsp {
     
     subnet_id=`neutron net-list | grep "$EXT_NET_NAME" | awk '{print $6}'`
-    gbp external-segment-create --ip-version 4 --cidr $EXT_NET_CIDR/$EXT_NET_MASK --external-route destination=0.0.0.0/0,nexthop= --shared True --subnet_id=$subnet_id default
+    gbp external-segment-create --ip-version 4 --cidr $EXT_NET_CIDR/$EXT_NET_MASK --external-route destination=0.0.0.0/0,nexthop="$EXT_NET_GATEWAY" --shared True --subnet_id=$subnet_id default
     gbp nat-pool-create --ip-version 4 --ip-pool $EXT_NET_CIDR/$EXT_NET_MASK --external-segment default --shared True default 
     
     gbp ep-create --external-segments default ext_connect    
@@ -271,6 +271,8 @@ function create_nfp_gbp_resources {
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP fw_profile
         gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
         
+        create_ext_net
+        create_ep_and_nsp
         gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
         gbp l2policy-create --l3-policy service_management svc_management_ptg
     
