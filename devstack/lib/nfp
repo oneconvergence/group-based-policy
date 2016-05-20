@@ -243,7 +243,7 @@ function create_ext_net {
 function create_ep_and_nsp {
     
     subnet_id=`neutron net-list | grep "$EXT_NET_NAME" | awk '{print $6}'`
-    gbp external-segment-create --ip-version 4 --cidr $EXT_NET_CIDR/$EXT_NET_MASK --external-route destination=0.0.0.0/0,nexthop="$EXT_NET_GATEWAY" --shared True --subnet_id=$subnet_id default
+    gbp external-segment-create --ip-version 4 --cidr $EXT_NET_CIDR/$EXT_NET_MASK --external-route destination=0.0.0.0/0,nexthop= --shared True --subnet_id=$subnet_id default
     gbp nat-pool-create --ip-version 4 --ip-pool $EXT_NET_CIDR/$EXT_NET_MASK --external-segment default --shared True default 
     
     gbp ep-create --external-segments default ext_connect    
