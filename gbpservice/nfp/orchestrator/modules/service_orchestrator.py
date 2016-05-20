@@ -468,7 +468,7 @@ class ServiceOrchestrator(object):
                     key=original_event.desc.uid,
                     context=nfp_logging.get_logging_context())
                 LOG.debug("poll event started for %s" % (ev.id))
-                self._controller.poll_event(ev, max_times=20)
+                self._controller.poll_event(ev, max_times=400)
             else:
                 if original_event:
                     ev = self._controller.new_event(

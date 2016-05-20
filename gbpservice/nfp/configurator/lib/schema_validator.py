@@ -61,7 +61,8 @@ class SchemaValidator(object):
                 """
                 if (not is_generic_config or
                         (request_data['info'][
-                                'service_type'] == const.LOADBALANCER and
+                                'service_type'] in [const.LOADBALANCER,
+                                                    const.LOADBALANCERV2] and
                             resource_type != const.HEALTHMONITOR)):
                         continue
 

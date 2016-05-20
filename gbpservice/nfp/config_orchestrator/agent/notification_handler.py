@@ -13,6 +13,8 @@ from gbpservice.nfp.config_orchestrator.agent.firewall\
     import FirewallNotifier
 from gbpservice.nfp.config_orchestrator.agent.loadbalancer\
     import LoadbalancerNotifier
+from gbpservice.nfp.config_orchestrator.agent.loadbalancerv2\
+    import LoadbalancerV2Notifier
 from gbpservice.nfp.config_orchestrator.agent.vpn import VpnNotifier
 from gbpservice.nfp.core import common as nfp_common
 
@@ -27,6 +29,7 @@ LOG = nfp_common.log
 
 ServicetypeToHandlerMap = {'firewall': FirewallNotifier,
                            'loadbalancer': LoadbalancerNotifier,
+                           'loadbalancerv2': LoadbalancerV2Notifier,
                            'vpn': VpnNotifier}
 
 

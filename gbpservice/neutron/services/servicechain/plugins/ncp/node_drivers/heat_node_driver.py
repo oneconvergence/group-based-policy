@@ -107,12 +107,18 @@ class ServiceTypeUpdateNotSupported(exc.NodeCompositionPluginBadRequest):
 
 class HeatNodeDriver(driver_base.NodeDriverBase):
 
-    sc_supported_type = [pconst.LOADBALANCER, pconst.FIREWALL]
+    sc_supported_type = [pconst.LOADBALANCER, pconst.LOADBALANCERV2,
+                         pconst.FIREWALL]
     vendor_name = 'heat_based_node_driver'
     initialized = False
     required_heat_resources = {pconst.LOADBALANCER: [
                                             'OS::Neutron::LoadBalancer',
                                             'OS::Neutron::Pool'],
+                               pconst.LOADBALANCERV2: [
+                                            'OS::Neutron::LBaaS::LoadBalancer',
+                                            'OS::Neutron::LBaaS::Listener',
+                                            'OS::Neutron::LBaaS::Pool'
+                               ],
                                pconst.FIREWALL: [
                                             'OS::Neutron::Firewall',
                                             'OS::Neutron::FirewallPolicy']}
@@ -230,12 +236,14 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
 
     @log.log_method_call
     def update_policy_target_added(self, context, policy_target):
-        if context.current_profile['service_type'] == pconst.LOADBALANCER:
+        if context.current_profile['service_type'] in [pconst.LOADBALANCER,
+                                                       pconst.LOADBALANCERV2]:
             self.update(context)
 
     @log.log_method_call
     def update_policy_target_removed(self, context, policy_target):
-        if context.current_profile['service_type'] == pconst.LOADBALANCER:
+        if context.current_profile['service_type'] in [pconst.LOADBALANCER,
+                                                       pconst.LOADBALANCERV2]:
             self.update(context)
 
     @log.log_method_call
@@ -278,7 +286,7 @@ class HeatNodeDriver(driver_base.NodeDriverBase):
         is_template_aws_version = stack_template.get(
                                         'AWSTemplateFormatVersion', False)
 
-        if service_type == pconst.LOADBALANCER:
+        if service_type in [pconst.LOADBALANCER, pconst.LOADBALANCERV2]:
             self._generate_pool_members(context, stack_template,
                                         config_param_values,
                                         provider_ptg,

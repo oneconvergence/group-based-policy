@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-supported_service_types = ['firewall', 'vpn', 'loadbalancer']
+supported_service_types = ['firewall', 'vpn', 'loadbalancer', 'loadbalancerv2']
 NFP_SERVICE_LIST = ['heat', 'ansible']
 invalid_service_type = 'invalid'
 NFP_SERVICE = 'nfp_service'
@@ -30,7 +30,9 @@ LOADBALANCER = 'loadbalancer'
 HEALTHMONITOR = 'healthmonitor'
 VPN = 'vpn'
 VYOS = 'vyos'
+LOADBALANCERV2 = 'loadbalancerv2'
 HAPROXY = 'haproxy'
+HAPROXY_LBAASV2 = 'haproxy_lbaasv2'
 CREATE = 'create'
 UPDATE = 'update'
 DELETE = 'delete'
