@@ -13,6 +13,7 @@ echo "TOP-DIR-NFP : $PWD"
 function prepare_nfp_image_builder {
     sudo -H -E pip install -r $DISK_IMAGE_DIR/diskimage-create/requirements.txt
     sudo apt-get install -y --force-yes qemu-utils
+    sudo apt-get install -y --force-yes dpkg-dev
     if [[ $DEVSTACK_MODE != base ]]; then
         sudo wget -qO- https://get.docker.com/ | bash
     fi
@@ -41,13 +42,13 @@ function create_nfp_image {
 
         if [[ $DEVSTACK_MODE = enterprise ]]; then
 
-            # prepare visibility source, this is needed for diskimage build
-            cd /home/stack/
-            sudo rm -rf visibility
-            sudo git clone https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git -b $VISIBILITY_GIT_BRANCH
-
             VisibilityQcow2ImageName=visibility
             if [[ $VisibilityQcow2Image = build ]]; then
+
+                # prepare visibility source, this is needed for diskimage build
+                cd /home/stack/
+                sudo rm -rf visibility
+                sudo git clone https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git -b $VISIBILITY_GIT_BRANCH
                 echo "Building Image: $VisibilityQcow2ImageName"
                 sudo python $DISK_IMAGE_DIR/diskimage-create/visibility_disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/visibility_conf.json $TOP_DIR/local.conf
                 VisibilityQcow2Image=$(cat /tmp/image_path)
@@ -320,11 +321,11 @@ function copy_nfp_files_and_start_process {
 
     echo "Starting orchestrator  >>>> under screen named : orchestrator"
     run_process orchestrator "sudo /usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orch_agent.ini --log-file /opt/stack/logs/nfp_orchestrator.log"
-    sleep 1
+    sleep 4
 
     echo "Starting proxy_agent  >>>> under screen named : proxy_agent"
     run_process proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
-    sleep 1
+    sleep 4
 
     echo "Starting proxy server under Namespace : nfp-proxy namespace >>>> under screen named : proxy"
     run_process proxy "source $NFPSERVICE_DIR/devstack/lib/nfp;namespace_delete $TOP_DIR;namespace_create $TOP_DIR $IpAddr"
