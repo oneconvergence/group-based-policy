@@ -18,7 +18,8 @@ Fresh Installation Steps:
     * Advanced Mode Configuration:
         # To trigger advanced mode installation
             Example: [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=advanced
-        # VyOS image path (Available only at 192.168.100.135:/home/stack/service-images/vyos.qcow2)
+        # VyOS image path 
+           * Available only at 192.168.100.135:/home/stack/service_images/vyos.qcow2
             Example: VyosQcow2Image=/home/stack/images/vyos.qcow2
         # Public interface
             Example: PUBLIC_INTERFACE=eth1
@@ -26,7 +27,8 @@ Fresh Installation Steps:
     * Enterprise Mode Configuration:
          # Devstack installation in enterprise mode
              Example: [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=enterprise
-         # VyOS image path (Available only at 192.168.100.135:/home/stack/service-images/vyos.qcow2)
+         # VyOS image path
+            * Available only at 192.168.100.135:/home/stack/service_images/vyos.qcow2
              Example: VyosQcow2Image=/home/stack/images/vyos.qcow2
          # Public interface
              Example: PUBLIC_INTERFACE=eth1
@@ -39,6 +41,9 @@ Fresh Installation Steps:
          # Visibility GIT Repository Credentials
              GIT_ACCESS_USERNAME=
              GIT_ACCESS_PASSWORD=
+         # Docker image path
+             * Available only at 192.168.100.50. Change and configure for different nework
+             DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
 
 (4) Run stack.sh from the /home/stack/devstack/ directory
     # cd /home/stack/devstack
