@@ -260,7 +260,7 @@ function create_nfp_gbp_resources {
         FLAVOR=m1.nfp-tiny
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=None --vendor NFP base_mode_lb
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
-        
+
         gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
         gbp l2policy-create --l3-policy service_management svc_management_ptg
         
@@ -269,6 +269,7 @@ function create_nfp_gbp_resources {
     elif [[ $DEVSTACK_MODE = advanced ]]; then
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP fw_profile
+        gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
         
         gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
         gbp l2policy-create --l3-policy service_management svc_management_ptg
@@ -278,6 +279,7 @@ function create_nfp_gbp_resources {
     else
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP fw_profile
+        gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
         create_ext_net
         create_ep_and_nsp
         
@@ -297,7 +299,7 @@ function copy_nfp_files_and_start_process {
     sudo rm -rf /etc/nfp_*
     sudo cp -r  bin/nfp_orch_agent.ini /etc/
     sudo cp -r  bin/nfp_proxy_agent.ini /etc/
-    sudo cp -r  bin/nfp_config_orch.ini /etc/
+    [[ $DEVSTACK_MODE != base ]] && sudo cp -r  bin/nfp_config_orch.ini /etc/
     sudo cp -r  bin/proxy.ini /etc/nfp_proxy.ini
     sudo cp -r  bin/nfp_proxy /usr/bin/
 
@@ -389,7 +391,7 @@ function nfp_logs_forword {
     echo "Successfully enabled UDP in syslog"
 
     visibility_vm_ip_address=`neutron floatingip-list | grep "$IpAddr" | awk '{print $6}'`
-    echo "$log_facility.*                @$visibility_vm_ip_address:514" | sudo tee -a $VISIBILITY_CONF
+    echo "$log_facility.*                @$visibility_vm_ip_address:514" | sudo tee $VISIBILITY_CONF
     echo "Created $VISIBILITY_CONF file" 
 
     sudo service rsyslog restart

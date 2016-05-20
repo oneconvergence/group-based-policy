@@ -1,0 +1,10 @@
+[Unit]
+Description=One Convergence NFP Configurator
+After=syslog.target network.target
+
+[Service]
+ExecStart=sudo /usr/bin/nfp --config-file=/etc/nfp_configurator.ini --log-file=/var/log/nfp/nfp_configurator.log
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target

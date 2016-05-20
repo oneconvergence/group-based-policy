@@ -822,8 +822,10 @@ class HeatDriver(object):
                     'description'] = str(common_desc)
 
                 nf_desc = str(desc)
-        network_function['description'] = network_function[
-            'description'] + '\n' + nf_desc
+
+        if nf_desc:
+            network_function['description'] = network_function[
+                'description'] + '\n' + nf_desc
 
         for parameter in stack_template.get(parameters_key) or []:
             if parameter in config_param_values:
