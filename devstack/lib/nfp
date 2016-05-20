@@ -320,11 +320,11 @@ function copy_nfp_files_and_start_process {
 
     echo "Starting orchestrator  >>>> under screen named : orchestrator"
     run_process orchestrator "sudo /usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orch_agent.ini --log-file /opt/stack/logs/nfp_orchestrator.log"
-    sleep 1
+    sleep 4
 
     echo "Starting proxy_agent  >>>> under screen named : proxy_agent"
     run_process proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
-    sleep 1
+    sleep 4
 
     echo "Starting proxy server under Namespace : nfp-proxy namespace >>>> under screen named : proxy"
     run_process proxy "source $NFPSERVICE_DIR/devstack/lib/nfp;namespace_delete $TOP_DIR;namespace_create $TOP_DIR $IpAddr"
