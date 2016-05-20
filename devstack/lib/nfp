@@ -437,7 +437,7 @@ function configure_visibility_user_data {
     sudo sed -i "s/db_user=*.*/db_user=root/g" visibility_user_data
     sudo sed -i "s/db_password=*.*/db_password=$MYSQL_PASSWORD/g" visibility_user_data
     sudo sed -i "s/db_server_ip=*.*/db_server_ip=$HOST_IP/g" visibility_user_data
-    sudo sed -i "s/statsd_host=*.*/db_server_ip=$visibility_vm_ip/g" visibility_user_data
+    sudo sed -i "s/statsd_host=*.*/statsd_host=$visibility_vm_ip/g" visibility_user_data
     sudo sed -i "s/statsd_port=*.*/statsd_port=8125/g" visibility_user_data
     sudo sed -i "s/rsyslog_host=*.*/rsyslog_host=$visibility_vm_ip/g" visibility_user_data
     sudo sed -i "s/rabbit_host=*.*/rabbit_host=$visibility_vm_ip/g" visibility_user_data
