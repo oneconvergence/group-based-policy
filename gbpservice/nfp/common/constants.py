@@ -17,6 +17,7 @@ VPN = 'vpn'
 GBP_MODE = "gbp"
 NEUTRON_MODE = "neutron"
 NOVA_MODE = "nova"
+ADVANCE_SHARING = "advance_sharing"
 
 NEUTRON_PORT = "neutron_port"
 GBP_PORT = "gbp_policy_target"
@@ -28,6 +29,7 @@ PROVIDER = "provider"
 CONSUMER = "consumer"
 MANAGEMENT = "management"
 MONITOR = "monitoring"
+SERVICE_SHARING = "advance_sharing"
 
 ACTIVE_PORT = "ACTIVE"
 STANDBY_PORT = "STANDBY"
@@ -42,6 +44,9 @@ ERROR = "ERROR"
 
 DEVICE_ORCHESTRATOR = "device_orch"
 SERVICE_ORCHESTRATOR = "service_orch"
+
+APIC_CONFIG_SECTION = "ml2_cisco_apic"
+APIC_MODE = "apic"
 
 HEAT_CONFIG_TAG = 'heat_config'
 CONFIG_INIT_TAG = 'config_init'
@@ -60,3 +65,17 @@ CONFIG_TAG_RESOURCE_MAP = {
     CUSTOM_JSON: 'custom_json'}
 
 LOADBALANCER_RPC_API_VERSION = "2.0"
+
+HEALTHMONITOR_RESOURCE = 'healthmonitor'
+INTERFACE_RESOURCE = 'interfaces'
+ROUTES_RESOURCE = 'routes'
+
+MAXIMUM_INTERFACES = 'maximum_interfaces'
+SUPPORTS_SHARING = 'supports_device_sharing'
+SUPPORTS_HOTPLUG = 'supports_hotplug'
+
+METADATA_SUPPORTED_ATTRIBUTES = [MAXIMUM_INTERFACES,
+                                 SUPPORTS_SHARING,
+                                 SUPPORTS_HOTPLUG]
+MANAGEMENT_INTERFACE_NAME = 'mgmt_interface'
+

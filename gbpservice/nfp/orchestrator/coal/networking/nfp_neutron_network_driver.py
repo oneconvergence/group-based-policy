@@ -34,6 +34,10 @@ class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
     def get_port_id(self, token, port_id):
         return port_id
 
+    def update_port(self, token, port_id, port):
+        port = self.network_handler.update_port(token, port_id, port)
+        return port['port']
+
     def get_port_details(self, token, port_id):
         port = self.network_handler.get_port(token, port_id)
 

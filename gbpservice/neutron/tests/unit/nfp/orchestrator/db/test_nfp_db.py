@@ -544,3 +544,151 @@ class NFPDBTestCase(SqlTestCase):
                           self.nfp_db.get_port_info,
                           self.session,
                           mgmt_port_id)
+
+    def create_network_function_device_interface(self, attributes=None):
+        network_function_device = self.create_network_function_device()
+        if not attributes:
+            attributes = {
+                'tenant_id': 'tenant_id',
+                'plugged_in_port_id': {
+                    'id': 'plugged_in_port_id',
+                    'port_model': nfp_constants.GBP_PORT,
+                    'port_classification': nfp_constants.ADVANCE_SHARING,
+                    'port_role': None,
+                },
+                'interface_position': 2,
+                'mapped_real_port_id': None,
+                'network_function_device_id': network_function_device['id']
+            }
+            return self.nfp_db.create_network_function_device_interface(
+                    self.session, attributes)
+
+    def test_create_network_function_device_interface(self):
+        network_function_device = self.create_network_function_device()
+        attrs = {
+            'tenant_id': 'tenant_id',
+            'plugged_in_port_id': {
+                'id': 'plugged_in_port_id',
+                'port_model': nfp_constants.GBP_PORT,
+                'port_classification': nfp_constants.ADVANCE_SHARING,
+                'port_role': None,
+            },
+            'interface_position': 2,
+            'mapped_real_port_id': None,
+            'network_function_device_id': network_function_device['id']
+        }
+        nfd_interface = self.nfp_db.create_network_function_device_interface(
+                                        self.session, attrs)
+        for key in attrs:
+            self.assertEqual(attrs[key], nfd_interface[key])
+        self.assertIsNotNone(nfd_interface['id'])
+
+    def test_delete_network_function_device_interface(self):
+        nfd_interface = (
+            self.create_network_function_device_interface())
+
+        port_info_id = nfd_interface['id']
+        self.assertIsNotNone(nfd_interface['id'])
+        self.nfp_db.delete_network_function_device_interface(
+            self.session, nfd_interface['id'])
+        self.assertRaises(nfp_exc.NetworkFunctionDeviceNotFound,
+                          self.nfp_db.get_network_function_device_interface,
+                          self.session, nfd_interface['id'])
+        self.assertRaises(nfp_exc.NFPPortNotFound,
+                          self.nfp_db.get_port_info,
+                          self.session,
+                          port_info_id)
+
+    def test_update_network_function_device_interface(self):
+        network_function_device = self.create_network_function_device()
+        attrs = {
+            'tenant_id': 'tenant_id',
+            'plugged_in_port_id': {
+                'id': 'plugged_in_port_id',
+                'port_model': nfp_constants.GBP_PORT,
+                'port_classification': nfp_constants.ADVANCE_SHARING,
+                'port_role': None,
+            },
+            'interface_position': 2,
+            'mapped_real_port_id': None,
+            'network_function_device_id': network_function_device['id']
+        }
+        nfd_interface = self.nfp_db.create_network_function_device_interface(
+                                        self.session, attrs)
+        for key in attrs:
+            self.assertEqual(attrs[key], nfd_interface[key])
+        self.assertIsNotNone(nfd_interface['id'])
+
+        # update interface position
+        updated_nfd_interface = {
+            'interface_position': 5
+        }
+        updated_nfd_interface = (
+                self.nfp_db.update_network_function_device_interface(
+                    self.session,
+                    nfd_interface['id'],
+                    updated_nfd_interface))
+        self.assertEqual(5, updated_nfd_interface['interface_position'])
+        del updated_nfd_interface['interface_position']
+        for key in attrs:
+            if key != 'interface_position':
+                self.assertEqual(attrs[key], updated_nfd_interface[key])
+
+        attrs['interface_position'] = 5
+
+        # Update port info
+        updated_nfd_interface = {
+            'port_model': nfp_constants.NEUTRON_PORT,
+            'port_role': nfp_constants.ACTIVE_PORT,
+        }
+        updated_nfd_interface = (
+                self.nfp_db.update_network_function_device_interface(
+                    self.session,
+                    nfd_interface['id'],
+                    updated_nfd_interface))
+        self.assertEqual(updated_nfd_interface['plugged_in_port_id'],
+                         'plugged_in_port_id')
+        del updated_nfd_interface['plugged_in_port_id']
+        for key in attrs:
+            if key != 'plugged_in_port_id':
+                self.assertEqual(attrs[key], updated_nfd_interface[key])
+
+    def test_get_network_function_device_interface(self):
+        network_function_device = self.create_network_function_device()
+        attrs = {
+            'tenant_id': 'tenant_id',
+            'plugged_in_port_id': {
+                'id': 'plugged_in_port_id',
+                'port_model': nfp_constants.GBP_PORT,
+                'port_classification': nfp_constants.ADVANCE_SHARING,
+                'port_role': None,
+            },
+            'interface_position': 2,
+            'mapped_real_port_id': None,
+            'network_function_device_id': network_function_device['id']
+        }
+        nfd_interface = self.nfp_db.create_network_function_device_interface(
+            self.session, attrs)
+        nfd_interface_db = self.nfp_db.get_network_function_device_interface(
+            self.session, nfd_interface['id'])
+        for key in attrs:
+            self.assertEqual(attrs[key], nfd_interface_db[key])
+
+    def test_list_network_function_device_interface(self):
+        self.create_network_function_device_interface()
+        network_function_device_interfaces = (
+                self.nfp_db.get_network_function_device_interfaces(
+                    self.session))
+        self.assertEqual(1, len(network_function_device_interfaces))
+
+    def test_list_network_function_device_interfaces_with_filters(self):
+        nfd_interface = self.create_network_function_device_interface()
+        filters = {'network_function_device_id':
+                [nfd_interface['network_function_device_id']]}
+        nfd_interfaces = self.nfp_db.get_network_function_device_interfaces(
+            self.session, filters=filters)
+        self.assertEqual(1, len(nfd_interfaces))
+        filters = {'network_function_device_id': ['non-existing']}
+        nfd_interfaces = self.nfp_db.get_network_function_device_interfaces(
+            self.session, filters=filters)
+        self.assertEqual([], nfd_interfaces)
