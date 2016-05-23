@@ -65,6 +65,10 @@ class Event(object):
         # Max number of times this event can be polled.
         # Default, till stopped or forever.
         self.max_times = -1
+        # Identifies whether event.data is zipped
+        self.zipped = False
+        # Added for log metadata
+        self.context = kwargs.get('context', {})
 
     def identify(self):
         if hasattr(self, 'desc'):

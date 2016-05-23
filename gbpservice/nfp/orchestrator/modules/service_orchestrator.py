@@ -413,6 +413,7 @@ class ServiceOrchestrator(object):
         self.config_driver = heat_driver.HeatDriver(config)
         neutron_context = n_context.get_admin_context()
         self.configurator_rpc = NSOConfiguratorRpcApi(neutron_context, config)
+        self.mgmt_nw = self._config.plumber.management_net_id
         self.status_map = {
             'pt_add': {'status': 'PT_ADD_IN_PROGRESS',
                        'status_description': 'pt addition is in progress'},
