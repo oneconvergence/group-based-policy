@@ -238,8 +238,6 @@ function create_ext_net {
 
     neutron net-create --router:external=true --shared $EXT_NET_NAME
     neutron subnet-create --ip_version 4 --gateway $EXT_NET_GATEWAY --name $EXT_NET_SUBNET_NAME --allocation-pool start=$EXT_NET_ALLOCATION_POOL_START,end=$EXT_NET_ALLOCATION_POOL_END $EXT_NET_NAME $EXT_NET_CIDR/$EXT_NET_MASK
-
-    fip_id=$(neutron floatingip-create $EXT_NET_NAME | grep ' id '| awk '{print $4}')
 }
 
 
@@ -354,7 +352,6 @@ function launch_configuratorVM {
     GROUP="svc_management_ptg"
     echo "GroupName: $GROUP"
     PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
-    neutron floatingip-associate $fip_id $PortId
 
     ConfiguratorImageName=configurator
     echo "Collecting ImageId : for $ConfiguratorImageName"
@@ -467,6 +464,8 @@ function launch_visibilityVM {
     GROUP="svc_management_ptg"
     echo "GroupName: $GROUP"
     PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
+    
+    fip_id=$(neutron floatingip-create $EXT_NET_NAME | grep ' id '| awk '{print $4}')
     neutron floatingip-associate $fip_id $PortId
     
     echo "Collecting ImageId : for $VisibilityImageName"
