@@ -15,13 +15,11 @@ import os
 import time
 import uuid as pyuuid
 
-from oslo_log import log as oslo_logging
-
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import threadpool as nfp_tp
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 identify = nfp_common.identify
 
 """Descriptor of event. """
@@ -115,7 +113,7 @@ class EventSequencer(object):
                 # remove it. useful in restart cases later.
                 event = val['queue'][0]
                 val['in_use'] = True
-                LOG(LOGGER, 'DEBUG', "%s - sequencer_get - returning"
+                LOG.debug("%s - sequencer_get - returning"
                     % (event.identify()))
                 return event
 
@@ -132,13 +130,13 @@ class EventSequencer(object):
             seq_map = self._sequencer_map[event.binding_key]
             seq_map['queue'].append(event)
             queued = True
-            LOG(LOGGER, 'DEBUG', "%s - sequencer_add - an event"
+            LOG.debug("%s - sequencer_add - an event"
                 "already in progress, queueing" % (event.identify()))
         except KeyError as err:
             self._sequencer_map[event.binding_key] = {
                 'in_use': True, 'queue': [event]}
             err = err
-            LOG(LOGGER, 'DEBUG',
+            LOG.debug(
                 "%s - sequencer_add - first event "
                 "in sequence, scheduling it" % (event.identify()))
         return queued
@@ -161,14 +159,14 @@ class EventSequencer(object):
         bkey = event.binding_key
         self._sequencer_map[bkey]['queue'].remove(event)
         self._sequencer_map[bkey]['in_use'] = False
-        LOG(LOGGER, 'DEBUG', "%s - sequencer - removed" % (
+        LOG.debug("%s - sequencer - removed" % (
             event.identify()))
 
     def delete_eventmap(self, event):
         """Internal method to delete event map, if it is empty. """
         seq_map = self._sequencer_map[event.binding_key]
         if seq_map['queue'] == []:
-            LOG(LOGGER, 'DEBUG',
+            LOG.debug(
                 "sequencer - no events -"
                 "deleting entry - %s"
                 % (event.binding_key))
@@ -221,6 +219,14 @@ class EventQueueHandler(object):
                 event = self._sc.sequencer_put_event(event)
         return event
 
+    def _invoke_nfp_module_cb(self, event_handle, event, is_poll_event=False):
+         nfp_logging.store_logging_context(**event.context)
+         if is_poll_event :
+             self._sc.poll_event_timedout(event_handle, event)
+         else:
+             event_handle(event)
+         nfp_logging.clear_logging_context()
+
     def _dispatch_poll_event(self, eh, ev):
         """Internal function to handle the poll event.
 
@@ -230,8 +236,9 @@ class EventQueueHandler(object):
             (or) invoke the default 'handle_poll_event' method of registered
             handler.
             """
-        t = self._tpool.dispatch(self._sc.poll_event_timedout, eh, ev)
-        LOG(LOGGER, 'DEBUG',
+        t = self._tpool.dispatch(self._invoke_nfp_module_cb, eh, ev,
+                                 is_poll_event=True)
+        LOG.debug(
             "%s - dispatch poll event - "
             "to event handler: %s - "
             "in thread: %s"
@@ -251,7 +258,7 @@ class EventQueueHandler(object):
                 max times.
             c) EVENT - Internal event added by listener process.
         """
-        LOG(LOGGER, 'INFO',
+        LOG.info(
             "%d - worker started" % (os.getpid()))
         # Update my identity on my copy of controller
         self._sc._process_name = 'worker-process'
@@ -268,12 +275,14 @@ class EventQueueHandler(object):
             event = self._get()
             if event:
                 self._sc.decompress(event)
-                LOG(LOGGER, 'DEBUG',
+                LOG.debug(
                     "%s - worker - got new event" % (event.identify()))
                 eh = self._ehs.get(event)
                 if not event.desc.poll_event:
-                    t = self._tpool.dispatch(eh.handle_event, event)
-                    LOG(LOGGER, 'DEBUG', "%s - dispatch internal event -"
+                    t = self._tpool.dispatch(self._invoke_nfp_module_cb,
+                                             eh.handle_event, event,
+                                             is_poll_event=False)
+                    LOG.debug("%s - dispatch internal event -"
                         "to event handler:%s - "
                         "in thread:%s" % (
                             event.identify(),
@@ -281,9 +290,3 @@ class EventQueueHandler(object):
                 else:
                     self._dispatch_poll_event(eh, event)
             time.sleep(0)  # Yield the CPU
-
-
-def load_nfp_symbols(namespace):
-    nfp_common.load_nfp_symbols(namespace)
-
-load_nfp_symbols(globals())

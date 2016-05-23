@@ -21,10 +21,10 @@ from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.core import rpc as nfp_rpc
+from gbpservice.nfp.core import log as nfp_logging
 
 
-LOGGER = logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 Event = nfp_event.Event
 PollEventDesc = nfp_poll.PollEventDesc
 RpcAgent = nfp_rpc.RpcAgent
@@ -131,7 +131,7 @@ def test_service_create(conf, sc):
     while True:
         events = sc.get_stashed_events()
         for event in events:
-            LOG(LOGGER, 'INFO', "Stashed event %s " % (event.identify()))
+            LOG.info("Stashed event %s " % (event.identify()))
         time.sleep(1)
 
 
@@ -172,7 +172,7 @@ class Agent(PollEventDesc):
         self._handle_poll_event(ev)
 
     def handle_event(self, ev):
-        LOG(LOGGER, 'INFO', "Handle event :%s, Process ID :%d" %
+        LOG.info("Handle event :%s, Process ID :%d" %
             (ev.identify(), os.getpid()))
         if ev.id == 'SERVICE_CREATE':
             self._handle_create_event(ev)
@@ -182,7 +182,7 @@ class Agent(PollEventDesc):
             self._handle_dummy_event(ev)
 
     def event_cancelled(self, ev, reason=''):
-        LOG(LOGGER, 'INFO',
+        LOG.info(
             "In event_cancel method of Handler for"
             "Event %s - reason %s " %
             (ev.identify(), reason))
@@ -206,7 +206,7 @@ class Agent(PollEventDesc):
         # self._sc.poll_event_done(ev)
 
     def poll_event_cancel(self, event):
-        LOG(LOGGER, 'INFO', "In poll_event_cancel"
+        LOG.info("In poll_event_cancel"
             "method of Handler for  Event %s " %
             (event))
 
@@ -222,16 +222,16 @@ class Agent(PollEventDesc):
         if not ev.data['count']:
             poll = False
 
-        LOG(LOGGER, 'INFO', "Poll event (%s)" % (ev.identify()))
+        LOG.info("Poll event (%s)" % (ev.identify()))
         return {'poll': poll, 'event': ev}
 
     @nfp_poll.poll_event_desc(event='SERVICE_DUMMY_EVENT', spacing=1)
     def service_dummy_poll_event(self, ev):
         self._sc.stash_event(ev)
-        LOG(LOGGER, 'INFO', "Poll event (%s)" % (ev.identify()))
+        LOG.info("Poll event (%s)" % (ev.identify()))
         self._sc.poll_event_done(ev)
 
     def _handle_poll_event(self, ev):
         """Driver logic here
         """
-        LOG(LOGGER, 'INFO', "Poll event (%s)" % (ev.identify()))
+        LOG.info("Poll event (%s)" % (ev.identify()))
