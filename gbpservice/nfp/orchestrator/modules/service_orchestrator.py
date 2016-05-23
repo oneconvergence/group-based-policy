@@ -212,7 +212,7 @@ class RpcHandler(object):
         return service_orchestrator.get_port_info(port_id)
 
     @log_helpers.log_method_call
-    def get_network_function_context(self, network_function_id):
+    def get_network_function_context(self, context, network_function_id):
         '''Invoked in an RPC Call.
 
         Return the Network function context

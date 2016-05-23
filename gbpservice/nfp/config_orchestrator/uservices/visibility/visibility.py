@@ -95,11 +95,12 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         notification = notification_data['notification'][0]
         notification_info = notification_data['info']
         resource_data = notification['data']
+        resource = notification['resource']
         context = data['context']
-        return context, notification_info, resource_data
+        return context, notification_info, resource_data, resource
 
     def _handle_set_firewall_status(self, data):
-        context, notification_info, resource_data = self.\
+        context, notification_info, resource_data, _ = self.\
             _get_all_data(data)
         firewall_id = resource_data['firewall_id']
         nf_id = notification_info['context'][
@@ -121,7 +122,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         self._sc.stash_event(event)
 
     def _handle_firewall_deleted(self, data):
-        context, notification_info, resource_data = self.\
+        context, notification_info, resource_data, _ = self.\
             _get_all_data(data)
         firewall_id = resource_data['firewall_id']
         nf_id = notification_info['context'][
@@ -144,7 +145,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         self._sc.stash_event(event)
 
     def _handle_vip_deleted(self, data):
-        context, notification_info, resource_data = self.\
+        context, notification_info, resource_data, _ = self.\
             _get_all_data(data)
         nf_id = notification_info['context'][
             'network_function_id']
@@ -166,9 +167,9 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         self._sc.stash_event(event)
 
     def _handler_vpn_update_status(self, context, notification_info,
-                                   resource_data):
+                                   resource_data, resource):
         # Sending An Event for visiblity
-        if resource_data['resource'].lower() ==\
+        if resource.lower() ==\
                 'ipsec_site_connection':
             nf_id = notification_info['context'][
                 'network_function_id']
@@ -215,7 +216,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
             self._sc.stash_event(event)
 
     def _handle_update_status(self, data):
-        context, notification_info, resource_data = self.\
+        context, notification_info, resource_data, resource = self.\
             _get_all_data(data)
         service_type = notification_info['service_type']
         if service_type.lower() == "loadbalancer":
@@ -226,10 +227,11 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
         elif service_type.lower() == "vpn":
             self._handler_vpn_update_status(context,
                                             notification_info,
-                                            resource_data)
+                                            resource_data,
+                                            resource)
 
     def _handle_ipsec_site_conn_deleted(self, data):
-        context, notification_info, resource_data = self.\
+        context, notification_info, resource_data, _ = self.\
             _get_all_data(data)
         resource_id = resource_data['resource_id']
         # Sending An Event for visiblity
@@ -387,11 +389,11 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
     def _prepare_request_data(self, event_data):
         request_data = None
         try:
-            nf_instance_id = event_data.pop('nf_instance_id')
+            nf_id = event_data.pop('nf_id')
             context = event_data.pop('context')
             ctxt = n_context.Context.from_dict(context)
             request_data = common.get_network_function_map(
-                ctxt, nf_instance_id)
+                ctxt, nf_id)
             event_data.update(request_data)
         except Exception:
             return event_data
