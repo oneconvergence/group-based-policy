@@ -14,13 +14,14 @@ import ast
 import requests
 
 from neutron import context
-from oslo_log import log as logging
+from gbpservice.nfp.core import log as nfp_logging
+
 from oslo_serialization import jsonutils
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import fw_constants as const
 
-LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 
 """ Firewall generic configuration driver for handling device

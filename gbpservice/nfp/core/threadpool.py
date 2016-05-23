@@ -16,15 +16,10 @@ import os
 from eventlet import greenpool
 from eventlet import greenthread
 
-from oslo_log import log as logging
-
 from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 
-LOGGER = logging.getLogger(__name__)
-LOG = nfp_common.log
-
-
-nfp_common.load_nfp_symbols(globals())
+LOG = nfp_logging.getLogger(__name__)
 
 
 def _thread_done(gt, *args, **kwargs):
@@ -84,7 +79,7 @@ class ThreadPool(object):
             try:
                 x.stop()
             except Exception as ex:
-                LOG(LOGGER, 'EXCEPTION', "Exception", ex)
+                LOG.exception("Exception", ex)
 
     def wait(self):
         """Wait for the thread """
@@ -99,4 +94,4 @@ class ThreadPool(object):
             except eventlet.greenlet.GreenletExit:
                 pass
             except Exception as ex:
-                LOG(LOGGER, 'ERROR', "Exception", ex)
+                LOG.error("Exception", ex)

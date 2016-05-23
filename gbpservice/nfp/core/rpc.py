@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
 from oslo_config import cfg as oslo_config
-from oslo_log import log as oslo_logging
 
 from oslo_service import loopingcall as oslo_looping_call
 from oslo_service import periodic_task as oslo_periodic_task
@@ -22,9 +22,9 @@ from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 
 from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 identify = nfp_common.identify
 
 """Wrapper class for Neutron RpcAgent definition.
@@ -49,12 +49,12 @@ class RpcAgent(n_rpc.Service):
             self._report_state = ReportState(report_state)
 
     def start(self):
-        LOG(LOGGER, 'DEBUG', "RPCAgent listening on %s" % (self.identify))
+        LOG.debug("RPCAgent listening on %s" % (self.identify))
         super(RpcAgent, self).start()
 
     def report_state(self):
         if hasattr(self, '_report_state'):
-            LOG(LOGGER, 'DEBUG', "Agent (%s) reporting state" %
+            LOG.debug("Agent (%s) reporting state" %
                 (self.identify()))
             self._report_state.report()
 
@@ -81,19 +81,19 @@ class ReportState(object):
 
     def report(self):
         try:
-            LOG(LOGGER, 'DEBUG', "Reporting state with data (%s)" %
+            LOG.debug("Reporting state with data (%s)" %
                 (self._data))
             self._state_rpc.report_state(self._n_context, self._data)
             self._data.pop('start_flag', None)
         except AttributeError:
             # This means the server does not support report_state
-            LOG(LOGGER, 'WARN',
+            LOG.warn(
                 "Neutron server does not support state report."
                 "Agent State reporting will be "
                 "disabled.")
             return
         except Exception:
-            LOG(LOGGER, 'EXCEPTION', "Stopped reporting agent state!")
+            LOG.exception("Stopped reporting agent state!")
 
 """Periodic task to report neutron *aaS agent state.
 
@@ -117,9 +117,3 @@ class ReportStateTask(oslo_periodic_task.PeriodicTasks):
     def report_state(self, context):
         # trigger the state reporting
         self._sc.report_state()
-
-
-def load_nfp_symbols(namespace):
-    nfp_common.load_nfp_symbols(namespace)
-
-load_nfp_symbols(globals())

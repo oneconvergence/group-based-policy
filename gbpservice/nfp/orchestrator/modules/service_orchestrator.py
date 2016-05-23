@@ -248,8 +248,7 @@ class RpcHandlerConfigurator(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.key,
-                context=nfp_logging.get_logging_context())
+                key=original_event.key)
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
@@ -259,12 +258,11 @@ class RpcHandlerConfigurator(object):
                     id=event_id, data=event_data,
                     binding_key=network_function_id,
                     key=network_function_id,
-                    serialize=True, context=nfp_logging.get_logging_context())
+                    serialize=True)
             else:
                 ev = self._controller.new_event(
                     id=event_id,
-                    data=event_data,
-                    context=nfp_logging.get_logging_context())
+                    data=event_data)
             self._controller.post_event(ev)
         self._log_event_created(event_id, event_data)
 
@@ -422,7 +420,6 @@ class ServiceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        nfp_logging.store_logging_context(**event.context)
         LOG.info(_LI("Service Orchestrator received event %(id)s"),
                  {'id': event.id})
         try:
@@ -433,7 +430,6 @@ class ServiceOrchestrator(object):
                           {'event_id': event.id})
 
     def handle_poll_event(self, event):
-        nfp_logging.store_logging_context(**event.context)
         LOG.info(_LI("Service Orchestrator received poll event %(id)s"),
                  {'id': event.id})
         try:
@@ -458,8 +454,7 @@ class ServiceOrchestrator(object):
                     id=event_id, data=event_data,
                     serialize=original_event.serialize,
                     binding_key=original_event.binding_key,
-                    key=original_event.desc.uid,
-                    context=nfp_logging.get_logging_context())
+                    key=original_event.desc.uid)
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:
@@ -468,21 +463,18 @@ class ServiceOrchestrator(object):
                         id=event_id, data=event_data,
                         serialize=original_event.serialize,
                         binding_key=original_event.binding_key,
-                        key=original_event.desc.uid,
-                        context=nfp_logging.get_logging_context())
+                        key=original_event.desc.uid)
                 else:
                     ev = self._controller.new_event(
                         id=event_id,
-                        data=event_data,
-                        context=nfp_logging.get_logging_context())
+                        data=event_data)
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
             # Same module API, so calling corresponding function directly.
             event = self._controller.new_event(
                 id=event_id,
-                data=event_data,
-                context=nfp_logging.get_logging_context())
+                data=event_data)
             self.handle_event(event)
 
     def _get_base_mode_support(self, service_profile_id):

@@ -96,15 +96,13 @@ class RpcHandler(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.desc.uid,
-                context=nfp_logging.get_logging_context())
+                key=original_event.desc.uid)
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
             ev = self._controller.new_event(
                 id=event_id,
-                data=event_data,
-                context=nfp_logging.get_logging_context())
+                data=event_data)
             self._controller.post_event(ev)
         self._log_event_created(event_id, event_data)
 
@@ -205,9 +203,8 @@ class DeviceOrchestrator(PollEventDesc):
                                         ' through configurator'),
                 'HEALTH_CHECK_COMPLETED': 'Health check succesfull for device',
                 'INTERFACES_PLUGGED': 'Interfaces Plugging successfull',
-                'PENDING_CONFIGURATION_CREATE': (
-                                         'Started configuring device ' +
-                                         'for routes, license, etc'),
+                'PENDING_CONFIGURATION_CREATE': ('Started configuring device '
+                                                 + 'for routes, license, etc'),
                 'DEVICE_READY': 'Device is ready to use',
                 'ACTIVE': 'Device is Active.',
                 'DEVICE_NOT_UP': 'Device not became UP/ACTIVE',
@@ -248,7 +245,6 @@ class DeviceOrchestrator(PollEventDesc):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        nfp_logging.store_logging_context(**event.context)
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
@@ -272,23 +268,20 @@ class DeviceOrchestrator(PollEventDesc):
                     id=event_id, data=event_data,
                     serialize=original_event.serialize,
                     binding_key=original_event.binding_key,
-                    key=original_event.desc.uid,
-                    context=nfp_logging.get_logging_context())
+                    key=original_event.desc.uid)
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:
                 ev = self._controller.new_event(
                     id=event_id,
-                    data=event_data,
-                    context=nfp_logging.get_logging_context())
+                    data=event_data)
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
             # Same module API, so calling corresponding function directly.
             event = self._controller.new_event(
                 id=event_id,
-                data=event_data,
-                context=nfp_logging.get_logging_context())
+                data=event_data)
             self.handle_event(event)
 
     def poll_event_cancel(self, ev):
@@ -513,7 +506,6 @@ class DeviceOrchestrator(PollEventDesc):
 
     @poll_event_desc(event='DEVICE_SPAWNING', spacing=20)
     def check_device_is_up(self, event):
-        nfp_logging.store_logging_context(**event.context)
         device = event.data
 
         orchestration_driver = self._get_orchestration_driver(
@@ -747,7 +739,6 @@ class DeviceOrchestrator(PollEventDesc):
 
     @poll_event_desc(event='DEVICE_BEING_DELETED', spacing=2)
     def check_device_deleted(self, event):
-        nfp_logging.store_logging_context(**event.context)
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
             device['service_details']['service_vendor'])
