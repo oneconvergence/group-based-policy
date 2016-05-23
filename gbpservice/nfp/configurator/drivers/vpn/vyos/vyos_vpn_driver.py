@@ -620,8 +620,9 @@ class VpnGenericConfigDriver(object):
         active_configured = False
         route_info = []
         for source_cidr in source_cidrs:
-            route_info.append({'source_cidr': source_cidr,
-                               'gateway_ip': gateway_ip})
+            if source_cidr:
+                route_info.append({'source_cidr': source_cidr,
+                                   'gateway_ip': gateway_ip})
         data = jsonutils.dumps(route_info)
         msg = ("Initiating POST request to configure route of "
                "primary service at: %r" % mgmt_ip)
@@ -699,7 +700,8 @@ class VpnGenericConfigDriver(object):
                                    'delete-source-route')
         route_info = []
         for source_cidr in source_cidrs:
-            route_info.append({'source_cidr': source_cidr})
+            if source_cidr:
+                route_info.append({'source_cidr': source_cidr})
         data = jsonutils.dumps(route_info)
         msg = ("Initiating DELETE route request to primary service at: %r"
                % mgmt_ip)

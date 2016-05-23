@@ -18,7 +18,7 @@ class NeutronVYOSFWDriver(FwaasDriver):
     service_type = "firewall"
     service_vendor = "neutron vyos"
 
-    def __init__(self):
+    def __init__(self, conf):
         super(FwaasDriver, self).__init__()
 
     def create_firewall(self, context, firewall, host):

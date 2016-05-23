@@ -57,9 +57,12 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     def _get_dict_desc_from_string(self, vpn_svc):
         svc_desc = vpn_svc.split(";")
         desc = {}
-        for ele in svc_desc:
-            s_ele = ele.split("=")
-            desc.update({s_ele[0]: s_ele[1]})
+        try:
+            for ele in svc_desc:
+                s_ele = ele.split("=")
+                desc.update({s_ele[0]: s_ele[1]})
+        except IndexError:
+            desc = ast.literal_eval(vpn_svc)
         return desc
 
     def _get_vpn_context(self, context, tenant_id, vpnservice_id,
@@ -162,56 +165,12 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         else:
             return False
 
-    def handle_neutron_service_updated(self, context, **kwargs):
-        neutronaas = NeutronVpnaasAgent(self._conf, self._sc)
-        if kwargs['reason'] == 'create':
-            nw_fun_info = (
-                neutronaas.validate_and_process_vpn_create_service_request(
-                    context, kwargs))
-            if kwargs['rsrc_type'] == 'ipsec_site_connection':
-                if ('nw_func' in nw_fun_info and
-                        nw_fun_info["nw_func"]["status"] == "ACTIVE"):
-                    kwargs['resource']['description'] = nw_fun_info[
-                        'nw_func']['description']
-                    self.call_configurator(context, kwargs)
-        if kwargs['reason'] == 'delete':
-            if kwargs['rsrc_type'] == 'ipsec_site_connection':
-                rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
-                nw_func = rpcc.cctxt.call(
-                    context, 'get_network_functions',
-                    filters={'service_id': [kwargs['resource'][
-                                                'vpnservice_id']]})
-                if nw_func:
-                    kwargs['resource']['description'] = nw_func[0][
-                        'description']
-                self.call_configurator(context, kwargs)
-            else:
-                kwargs.update({'context': context.to_dict()})
-                filters = {'service_id': [kwargs['rsrc_id']]}
-                rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
-                nw_function = rpcc.cctxt.call(
-                        context, 'get_network_functions', filters=filters)
-                if not nw_function:
-                    vpn_plugin = transport.RPCClient(
-                            a_topics.VPN_NFP_PLUGIN_TOPIC)
-                    vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
-                                          id=kwargs['rsrc_id'])
-                    return
-                rpcc.cctxt.cast(context,
-                                'delete_network_function',
-                                network_function_id=nw_function[0]['id'])
-                neutronaas._create_event(
-                    event_id='VPN_SERVICE_DELETE_IN_PROGRESS',
-                    event_data=kwargs,
-                    is_poll_event=True,
-                    serialize=True,
-                    binding_key=kwargs['resource']['id'])
-
     @log_helpers.log_method_call
     def vpnservice_updated(self, context, **kwargs):
         LOG(LOGGER, 'DEBUG', "vpnservice_updated, kwargs %r" % kwargs)
         if self._is_network_function_mode_neutron(kwargs):
-            self.handle_neutron_service_updated(context, kwargs)
+            neutron_agent = NeutronVpnaasAgent(self._conf, self._sc)
+            neutron_agent.handle_neutron_service_updated(context, **kwargs)
         else:
             if (kwargs['reason'] == 'delete' and
                     kwargs['rsrc_type'] == 'vpn_service'):
@@ -228,31 +187,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                 transport.send_request_to_configurator(self._conf,
                                                        context, body,
                                                        reason)
-
-    def call_configurator(self, context, kwargs):
-        tenant_id = kwargs['resource']['tenant_id']
-        ctx_dict, rsrc_ctx_dict = self.\
-            _prepare_resource_context_dicts(context, tenant_id)
-        nfp_context = {'neutron_context': ctx_dict,
-                       'requester': 'nas_service'}
-        resource_type = 'vpn'
-        resource = kwargs['rsrc_type']
-        if resource.lower() == 'ipsec_site_connection':
-            ipsec_desc = self._get_dict_desc_from_string(kwargs[
-                'resource']['description'])
-            nf_id = ipsec_desc['network_function_id']
-            ipsec_site_connection_id = kwargs['rsrc_id']
-            nfp_context.update(
-                {'network_function_id': nf_id,
-                 'ipsec_site_connection_id': ipsec_site_connection_id})
-        kwargs.update({'neutron_context': rsrc_ctx_dict})
-        resource_data = kwargs
-        reason = kwargs.get('reason')
-        body = common.prepare_request_data(nfp_context, resource,
-                                           resource_type, resource_data)
-        transport.send_request_to_configurator(self._conf,
-                                               context, body,
-                                               reason)
 
     def _filter_core_data(self, db_data, vpnservices):
         filtered_core_data = {'subnets': [],
@@ -412,6 +346,76 @@ class NeutronVpnaasAgent(PollEventDesc):
         else:
             return event_handler_mapping[event_id]
 
+    def handle_neutron_service_updated(self, context, **kwargs):
+        agent = VpnAgent(self._conf, self._sc)
+        if kwargs['reason'] == 'create':
+            nw_fun_info = (
+                self.validate_and_process_vpn_create_service_request(
+                    context, kwargs))
+            if kwargs['rsrc_type'] == 'ipsec_site_connection':
+                if ('nw_func' in nw_fun_info and
+                        nw_fun_info["nw_func"]["status"] == "ACTIVE"):
+                    kwargs['resource']['description'] = nw_fun_info[
+                        'nw_func']['description']
+                    self.call_configurator(context, [nw_fun_info["nw_func"]],
+                                           agent, kwargs)
+        if kwargs['reason'] == 'delete':
+            if kwargs['rsrc_type'] == 'ipsec_site_connection':
+                rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+                nw_func = rpcc.cctxt.call(
+                    context, 'get_network_functions',
+                    filters={'service_id': [kwargs['resource'][
+                                                'vpnservice_id']]})
+                if nw_func:
+                    kwargs['resource']['description'] = nw_func[0][
+                        'description']
+                self.call_configurator(context, nw_func, agent, kwargs)
+            else:
+                kwargs.update({'context': context.to_dict()})
+                filters = {'service_id': [kwargs['rsrc_id']]}
+                rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+                nw_function = rpcc.cctxt.call(
+                        context, 'get_network_functions', filters=filters)
+                if not nw_function:
+                    vpn_plugin = transport.RPCClient(
+                            a_topics.VPN_NFP_PLUGIN_TOPIC)
+                    vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
+                                          id=kwargs['rsrc_id'])
+                    return
+                rpcc.cctxt.cast(context,
+                                'delete_network_function',
+                                network_function_id=nw_function[0]['id'])
+                self._create_event(
+                    event_id='VPN_SERVICE_DELETE_IN_PROGRESS',
+                    event_data=kwargs,
+                    is_poll_event=True,
+                    serialize=True,
+                    binding_key=kwargs['resource']['id'])
+
+    def call_configurator(self, context, nw_func, agent, kwargs):
+        tenant_id = kwargs['resource']['tenant_id']
+        resource = kwargs['rsrc_type']
+        resource_data = kwargs
+        ctx_dict, rsrc_ctx_dict = agent.\
+            _prepare_resource_context_dicts(context, tenant_id, resource,
+                                            resource_data['resource'])
+        nfp_context = {'neutron_context': ctx_dict,
+                       'requester': 'nas_service'}
+        resource_type = 'vpn'
+        if resource.lower() == 'ipsec_site_connection':
+            nf_id = nw_func[0]['id']
+            ipsec_site_connection_id = kwargs['rsrc_id']
+            nfp_context.update(
+                {'network_function_id': nf_id,
+                 'ipsec_site_connection_id': ipsec_site_connection_id})
+        resource_data.update({'neutron_context': rsrc_ctx_dict})
+        reason = kwargs.get('reason')
+        body = common.prepare_request_data(nfp_context, resource,
+                                           resource_type, resource_data)
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               reason)
+
     def _create_event(self, event_id, event_data=None, is_poll_event=False,
                       serialize=False, binding_key=None, key=None,
                       max_times=10):
@@ -528,7 +532,8 @@ class NeutronVpnaasAgent(PollEventDesc):
     @poll_event_desc(event="VPN_SERVICE_SPAWNING", spacing=30)
     def wait_for_device_ready(self, event):
         nw_function_info_data = event.data
-        context = nw_function_info_data['context']
+        context = n_context.Context.from_dict(
+                      nw_function_info_data['context'])
         nw_func = nw_function_info_data['nw_func']
         rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
         nw_func = rpcc.cctxt.call(context, 'get_network_function',
