@@ -53,12 +53,13 @@ class RpcHandler(object):
         """
         body_info = body.get('info')
         body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context')
+        logging_context = body_context.get('logging_context', {})
         nfp_logging.store_logging_context(**logging_context)
 
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "CREATE")
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_network_function_config(self, context, body):
@@ -67,12 +68,13 @@ class RpcHandler(object):
         """
         body_info = body.get('info')
         body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context')
+        logging_context = body_context.get('logging_context', {})
         nfp_logging.store_logging_context(**logging_context)
 
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "DELETE")
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def update_network_function_config(self, context, body):
@@ -81,12 +83,13 @@ class RpcHandler(object):
         """
         body_info = body.get('info')
         body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context')
+        logging_context = body_context.get('logging_context', {})
         nfp_logging.store_logging_context(**logging_context)
 
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "UPDATE")
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def create_network_function_device_config(self, context, body):
@@ -95,13 +98,14 @@ class RpcHandler(object):
         """
         body_info = body.get('info')
         body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context')
+        logging_context = body_context.get('logging_context', {})
         nfp_logging.store_logging_context(**logging_context)
 
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "CREATE",
                                                device_config=True)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_network_function_device_config(self, context, body):
@@ -111,23 +115,27 @@ class RpcHandler(object):
 
         body_info = body.get('info')
         body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context')
+        logging_context = body_context.get('logging_context', {})
         nfp_logging.store_logging_context(**logging_context)
 
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "DELETE",
                                                device_config=True)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def network_function_event(self, context, body):
         """Method of rpc handler for create_service.
         Return: Http Response.
         """
-        logging_context = body['info']['context']['logging_context']
+        body_info = body.get('info')
+        body_context = body_info.get('context')
+        logging_context = body_context.get('logging_context', {})
         nfp_logging.store_logging_context(**logging_context)
 
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "CREATE",
                                                network_function_event=True)
+        nfp_logging.clear_logging_context()

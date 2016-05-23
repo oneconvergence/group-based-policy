@@ -151,6 +151,7 @@ class ConfiguratorRpcManager(object):
             msg = ("Failed to create network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_network_function_device_config(self, context, request_data):
@@ -178,6 +179,7 @@ class ConfiguratorRpcManager(object):
             msg = ("Failed to delete network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def update_network_function_device_config(self, context, request_data):
@@ -205,6 +207,7 @@ class ConfiguratorRpcManager(object):
             msg = ("Failed to update network device configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def create_network_function_config(self, context, request_data):
@@ -232,6 +235,7 @@ class ConfiguratorRpcManager(object):
             msg = ("Failed to create network service configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_network_function_config(self, context, request_data):
@@ -259,6 +263,7 @@ class ConfiguratorRpcManager(object):
             msg = ("Failed to delete network service configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def update_network_function_config(self, context, request_data):
@@ -286,6 +291,7 @@ class ConfiguratorRpcManager(object):
             msg = ("Failed to update network service configuration. %s" %
                    str(err).capitalize())
             LOG.error(msg)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def get_notifications(self, context):

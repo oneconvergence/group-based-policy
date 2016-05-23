@@ -219,9 +219,12 @@ class EventQueueHandler(object):
                 event = self._sc.sequencer_put_event(event)
         return event
 
-    def callback_poll_dispatch(self, eh, ev):
-         nfp_logging.store_logging_context(**ev.context)
-         self._sc.poll_event_timedout(eh, ev)
+    def _invoke_nfp_module_cb(self, event_handle, event, is_poll_event=False):
+         nfp_logging.store_logging_context(**event.context)
+         if is_poll_event :
+             self._sc.poll_event_timedout(event_handle, event)
+         else:
+             event_handle(event)
          nfp_logging.clear_logging_context()
 
     def _dispatch_poll_event(self, eh, ev):
@@ -233,17 +236,12 @@ class EventQueueHandler(object):
             (or) invoke the default 'handle_poll_event' method of registered
             handler.
             """
-        t = self._tpool.dispatch(self.callback_poll_dispatch, eh, ev)
+        t = self._tpool.dispatch(self._invoke_nfp_module_cb, eh, ev, True)
         LOG.debug(
             "%s - dispatch poll event - "
             "to event handler: %s - "
             "in thread: %s"
             % (ev.identify(), identify(eh), t.identify()))
-
-    def callback_worker_dispatch(self, event_handle_method, event):
-         nfp_logging.store_logging_context(**event.context)
-         event_handle_method(event)
-         nfp_logging.clear_logging_context()
 
     def run(self, pipe):
         """Worker process loop to fetch & process events from event queue.
@@ -280,7 +278,7 @@ class EventQueueHandler(object):
                     "%s - worker - got new event" % (event.identify()))
                 eh = self._ehs.get(event)
                 if not event.desc.poll_event:
-                    t = self._tpool.dispatch(self.callback_worker_dispatch,
+                    t = self._tpool.dispatch(self._invoke_nfp_module_cb,
                                              eh.handle_event, event)
                     LOG.debug("%s - dispatch internal event -"
                         "to event handler:%s - "
