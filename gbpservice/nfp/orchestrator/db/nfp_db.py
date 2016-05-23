@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from oslo_log import log as logging
 from oslo_utils import uuidutils
 from sqlalchemy.orm import exc
 
@@ -21,7 +20,8 @@ from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.orchestrator.db import common_db_mixin
 from gbpservice.nfp.orchestrator.db import nfp_db_model
 
-LOG = logging.getLogger(__name__)
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
 
 
 class NFPDbBase(common_db_mixin.CommonDbMixin):
@@ -248,8 +248,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
     def create_network_function_device(self, session, network_function_device):
         with session.begin(subtransactions=True):
             network_function_device_db = nfp_db_model.NetworkFunctionDevice(
-                id=(network_function_device.get('id')
-                    or uuidutils.generate_uuid()),
+                id=(network_function_device.get('id') or
+                    uuidutils.generate_uuid()),
                 name=network_function_device['name'],
                 description=network_function_device.get('description'),
                 tenant_id=network_function_device['tenant_id'],

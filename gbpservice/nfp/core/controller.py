@@ -156,8 +156,8 @@ class Controller(object):
                 event.zipped = False
             except Exception as e:
                 LOG(LOGGER, 'ERROR',
-                    "Failed to decompress event data : %r Reason: %s" % (
-                        event.data, e))
+                    "Failed to decompress event data, Reason: %s" % (
+                        e))
                 raise e
 
     def post_event(self, event):

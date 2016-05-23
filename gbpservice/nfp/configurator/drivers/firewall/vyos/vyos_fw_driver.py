@@ -476,13 +476,17 @@ initialized. Also, only this driver class is exposed to the agent.
 """
 
 
-class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
+class FwaasDriver(FwGenericConfigDriver):
     service_type = const.SERVICE_TYPE
+    service_vendor = const.VYOS
 
-    def __init__(self):
-        self.timeout = cfg.CONF.rest_timeout
-        self.host = cfg.CONF.host
+    def __init__(self, conf):
+        self.conf = conf
+        self.timeout = const.REST_TIMEOUT
+        self.host = self.conf.host
+        self.port = const.CONFIGURATION_SERVER_PORT
         self.context = context.get_admin_context_without_session()
+        super(FwaasDriver, self).__init__()
 
     def _get_firewall_attribute(self, firewall):
         """ Retrieves management IP from the firewall resource received
