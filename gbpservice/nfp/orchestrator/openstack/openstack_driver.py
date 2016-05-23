@@ -183,6 +183,27 @@ class NovaClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
+    def get_image_metadata(self, token, tenant_id, image_name):
+        """ Get the image UUID associated to image name
+
+        :param token: A scoped token
+        :param tenant_id: Tenant UUID
+        :param image_name: Image name
+
+        :return: Image UUID
+        """
+        try:
+            nova = nova_client.Client(self.nova_version, auth_token=token,
+                                      tenant_id=tenant_id,
+                                      auth_url=self.identity_service)
+            image = nova.images.find(name=image_name)
+            return image.metadata
+        except Exception as ex:
+            err = ("Failed to get image metadata from image name %s: %s" % (
+                image_name, ex))
+            LOG.error(err)
+            raise Exception(err)
+
     def get_flavor_id(self, token, tenant_id, flavor_name):
         """ Get the flavor UUID associated to flavor name
 
@@ -837,9 +858,10 @@ class GBPClient(OpenstackApi):
             "policy_target": {
                 "policy_target_group_id": policy_target_group_id,
                 "tenant_id": tenant_id,
-                "name": name,
             }
         }
+        if name:
+            policy_target_info['policy_target'].update({'name': name})
         if port_id:
             policy_target_info["policy_target"]["port_id"] = port_id
 

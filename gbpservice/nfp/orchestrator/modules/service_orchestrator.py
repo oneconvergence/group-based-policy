@@ -28,6 +28,9 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
+import sys
+import traceback
+
 from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
 
@@ -423,14 +426,18 @@ class ServiceOrchestrator(object):
 
     def handle_event(self, event):
         nfp_logging.store_logging_context(**event.context)
-        LOG.info(_LI("Service Orchestrator received event %(id)s"),
+        LOG.info(_LI("NSO: received event %(id)s"),
                  {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
-        except Exception:
-            LOG.exception(_LE("Error in processing event: %(event_id)s"),
-                          {'event_id': event.id})
+        except Exception as e:
+            LOG.exception(_LE("Error in processing event: %(event_id)s for "
+                              "event data %(event_data)s. Error: %(error)s"),
+                          {'event_id': event.id, 'event_data': event.data,
+                           'error': e})
+            _, _, tb = sys.exc_info()
+            traceback.print_tb(tb)
 
     def handle_poll_event(self, event):
         nfp_logging.store_logging_context(**event.context)
@@ -1176,10 +1183,13 @@ class ServiceOrchestrator(object):
             self.db_session, nfi_id)
         network_function = self.db_handler.get_network_function(
             self.db_session, nfi['network_function_id'])
+        nf_id = network_function['id']
         if not network_function['network_function_instances']:
             self.db_handler.delete_network_function(
                 self.db_session, nfi['network_function_id'])
-            # Inform delete service caller with delete completed RPC
+        LOG.info(_LI("NSO: Deleted network function: %(nf_id)s"),
+                 {'nf_id': nf_id})
+        # Inform delete service caller with delete completed RPC
 
     def get_network_function(self, context, network_function_id):
         try:
