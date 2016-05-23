@@ -145,6 +145,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         body = self._data_wrapper(context, firewall, host, nf, 'CREATE')
         transport.send_request_to_configurator(self._conf,
                                                context, body, "CREATE")
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_firewall(self, context, firewall, host):
@@ -155,6 +156,7 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         body = self._data_wrapper(context, firewall, host, nf, 'DELETE')
         transport.send_request_to_configurator(self._conf,
                                                context, body, "DELETE")
+        nfp_logging.clear_logging_context()
 
 
 class FirewallNotifier(object):
@@ -231,6 +233,7 @@ class FirewallNotifier(object):
                                 key='SERVICE_CREATE_PENDING',
                                 data=event_data, max_times=24)
         self._sc.poll_event(ev)
+        nfp_logging.clear_logging_context()
 
     def firewall_deleted(self, context, notification_data):
         notification = notification_data['notification'][0]
@@ -264,3 +267,4 @@ class FirewallNotifier(object):
         LOG.info("%s : %s " % (request_data, nf_id))
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)
+        nfp_logging.clear_logging_context()

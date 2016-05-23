@@ -153,6 +153,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                reason)
+        nfp_logging.clear_logging_context()
 
     def _filter_core_data(self, db_data, vpnservices):
         filtered_core_data = {'subnets': [],
@@ -273,6 +274,7 @@ class VpnNotifier(object):
                                     key='SERVICE_CREATE_PENDING',
                                     data=event_data, max_times=24)
             self._sc.poll_event(ev)
+        nfp_logging.clear_logging_context()
 
     def ipsec_site_conn_deleted(self, context, notification_data):
         # Sending An Event for visiblity
@@ -296,3 +298,4 @@ class VpnNotifier(object):
 
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)
+        nfp_logging.clear_logging_context()

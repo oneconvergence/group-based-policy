@@ -206,6 +206,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         nfp_logging.store_logging_context(meta_id=nf_id)
         nf = common.get_network_function_details(context, nf_id)
         self._post(context, vip['tenant_id'], 'vip', nf, vip=vip)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_vip(self, context, vip):
@@ -214,6 +215,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         nfp_logging.store_logging_context(meta_id=nf_id)
         nf = common.get_network_function_details(context, nf_id)
         self._delete(context, vip['tenant_id'], 'vip', nf, vip=vip)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def create_pool(self, context, pool, driver_name):
@@ -224,6 +226,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         self._post(
             context, pool['tenant_id'],
             'pool', nf, pool=pool, driver_name=driver_name)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_pool(self, context, pool):
@@ -232,6 +235,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         nfp_logging.store_logging_context(meta_id=nf_id)
         nf = common.get_network_function_details(context, nf_id)
         self._delete(context, pool['tenant_id'], 'pool', nf, pool=pool)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def create_member(self, context, member):
@@ -242,6 +246,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         nfp_logging.store_logging_context(meta_id=nf_id)
         nf = common.get_network_function_details(context, nf_id)
         self._post(context, member['tenant_id'], 'member', nf, member=member)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_member(self, context, member):
@@ -254,6 +259,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         self._delete(
             context, member['tenant_id'], 'member',
             nf, member=member)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def create_pool_health_monitor(self, context, health_monitor, pool_id):
@@ -266,6 +272,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         self._post(context, health_monitor[
             'tenant_id'], 'pool_health_monitor',
             nf, health_monitor=health_monitor, pool_id=pool_id)
+        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_pool_health_monitor(self, context, health_monitor, pool_id):
@@ -278,6 +285,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         self._delete(
             context, health_monitor['tenant_id'], 'pool_health_monitor',
             nf, health_monitor=health_monitor, pool_id=pool_id)
+        nfp_logging.clear_logging_context()
 
 
 class LoadbalancerNotifier(object):
@@ -356,6 +364,7 @@ class LoadbalancerNotifier(object):
                                     key='SERVICE_CREATE_PENDING',
                                     data=event_data, max_times=24)
             self._sc.poll_event(ev)
+        nfp_logging.clear_logging_context()
 
     def update_pool_stats(self, context, notification_data):
         notification = notification_data['notification'][0]
@@ -381,6 +390,7 @@ class LoadbalancerNotifier(object):
                              pool_id=pool_id,
                              stats=stats,
                              host=host)
+        nfp_logging.clear_logging_context()
 
     def vip_deleted(self, context, notification_data):
         notification_info = notification_data['info']
@@ -404,3 +414,4 @@ class LoadbalancerNotifier(object):
         # Sending An Event for visiblity
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)
+        nfp_logging.clear_logging_context()

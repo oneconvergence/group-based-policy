@@ -316,6 +316,7 @@ class RpcHandlerConfigurator(object):
         event_data = request_info
         self._create_event(event_id=event_id,
                            event_data=event_data, serialize=serialize)
+        nfp_logging.clear_logging_context()
 
 
 class ServiceOrchestrator(object):
@@ -670,6 +671,7 @@ class ServiceOrchestrator(object):
         self._create_event('CREATE_NETWORK_FUNCTION_INSTANCE',
                            event_data=create_network_function_instance_request,
                            is_internal_event=True)
+        nfp_logging.clear_logging_context()
         return network_function
 
     def update_network_function(self, context, network_function_id,
@@ -709,6 +711,7 @@ class ServiceOrchestrator(object):
             for nfi_id in network_function['network_function_instances']:
                 self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
                                    event_data=nfi_id, is_internal_event=True)
+        nfp_logging.clear_logging_context()
 
     def delete_user_config(self, event):
         request_data = event.data
@@ -1563,10 +1566,11 @@ class NSOConfiguratorRpcApi(object):
                      "with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        return transport.send_request_to_configurator(self.conf,
-                                                      self.context,
-                                                      config_params,
-                                                      'CREATE')
+        transport.send_request_to_configurator(self.conf,
+                                               self.context,
+                                               config_params,
+                                               'CREATE')
+        nfp_logging.clear_logging_context()
 
     def delete_network_function_user_config(self, user_config_data,
                                             service_config, config_tag):
@@ -1581,10 +1585,11 @@ class NSOConfiguratorRpcApi(object):
                      " with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        return transport.send_request_to_configurator(self.conf,
-                                                      self.context,
-                                                      config_params,
-                                                      'DELETE')
+        transport.send_request_to_configurator(self.conf,
+                                               self.context,
+                                               config_params,
+                                               'DELETE')
+        nfp_logging.clear_logging_context()
 
     def update_network_function_user_config(self, user_config_data,
                                             service_config, config_tag):
@@ -1599,10 +1604,11 @@ class NSOConfiguratorRpcApi(object):
                      " with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        return transport.send_request_to_configurator(self.conf,
-                                                      self.context,
-                                                      config_params,
-                                                      'UPDATE')
+        transport.send_request_to_configurator(self.conf,
+                                               self.context,
+                                               config_params,
+                                               'UPDATE')
+        nfp_logging.clear_logging_context()
 
     def policy_target_add_user_config(self, user_config_data,
                                       service_config, config_tag):
@@ -1617,10 +1623,11 @@ class NSOConfiguratorRpcApi(object):
                      "configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        return transport.send_request_to_configurator(self.conf,
-                                                      self.context,
-                                                      config_params,
-                                                      'CREATE')
+        transport.send_request_to_configurator(self.conf,
+                                               self.context,
+                                               config_params,
+                                               'CREATE')
+        nfp_logging.clear_logging_context()
 
     def policy_target_remove_user_config(self, user_config_data,
                                          service_config, config_tag):
@@ -1635,10 +1642,11 @@ class NSOConfiguratorRpcApi(object):
                      "configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        return transport.send_request_to_configurator(self.conf,
-                                                      self.context,
-                                                      config_params,
-                                                      'DELETE')
+        transport.send_request_to_configurator(self.conf,
+                                               self.context,
+                                               config_params,
+                                               'DELETE')
+        nfp_logging.clear_logging_context()
 
     def consumer_add_user_config(self, user_config_data,
                                  service_config, config_tag):
@@ -1653,10 +1661,11 @@ class NSOConfiguratorRpcApi(object):
                      "configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        return transport.send_request_to_configurator(self.conf,
-                                                      self.context,
-                                                      config_params,
-                                                      'CREATE')
+        transport.send_request_to_configurator(self.conf,
+                                               self.context,
+                                               config_params,
+                                               'CREATE')
+        nfp_logging.clear_logging_context()
 
     def consumer_remove_user_config(self, user_config_data,
                                     service_config, config_tag):
@@ -1671,7 +1680,8 @@ class NSOConfiguratorRpcApi(object):
                      "configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        return transport.send_request_to_configurator(self.conf,
-                                                      self.context,
-                                                      config_params,
-                                                      'DELETE')
+        transport.send_request_to_configurator(self.conf,
+                                               self.context,
+                                               config_params,
+                                               'DELETE')
+        nfp_logging.clear_logging_context()

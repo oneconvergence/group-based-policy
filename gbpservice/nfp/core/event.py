@@ -236,7 +236,8 @@ class EventQueueHandler(object):
             (or) invoke the default 'handle_poll_event' method of registered
             handler.
             """
-        t = self._tpool.dispatch(self._invoke_nfp_module_cb, eh, ev, True)
+        t = self._tpool.dispatch(self._invoke_nfp_module_cb, eh, ev,
+                                 is_poll_event=True)
         LOG.debug(
             "%s - dispatch poll event - "
             "to event handler: %s - "
@@ -279,7 +280,8 @@ class EventQueueHandler(object):
                 eh = self._ehs.get(event)
                 if not event.desc.poll_event:
                     t = self._tpool.dispatch(self._invoke_nfp_module_cb,
-                                             eh.handle_event, event)
+                                             eh.handle_event, event,
+                                             is_poll_event=False)
                     LOG.debug("%s - dispatch internal event -"
                         "to event handler:%s - "
                         "in thread:%s" % (

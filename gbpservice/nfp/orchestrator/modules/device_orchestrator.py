@@ -145,6 +145,7 @@ class RpcHandler(object):
         event_data['id'] = request_info['network_function_device_id']
         self._create_event(event_id=event_id,
                            event_data=event_data)
+        nfp_logging.clear_logging_context()
 
 
 class DeviceOrchestrator(PollEventDesc):
@@ -863,11 +864,12 @@ class NDOConfiguratorRpcApi(object):
                      "with config_params = %(config_params)s"),
                  {'config_params': config_params})
 
-        return transport.send_request_to_configurator(self.conf,
-                                                      self.context,
-                                                      config_params,
-                                                      'CREATE',
-                                                      True)
+        transport.send_request_to_configurator(self.conf,
+                                               self.context,
+                                               config_params,
+                                               'CREATE',
+                                               True)
+        nfp_logging.clear_logging_context()
 
     def delete_network_function_device_config(self, device_data,
                                               config_params):
@@ -878,8 +880,9 @@ class NDOConfiguratorRpcApi(object):
                      "with config_params = %(config_params)s"),
                  {'config_params': config_params})
 
-        return transport.send_request_to_configurator(self.conf,
-                                                      self.context,
-                                                      config_params,
-                                                      'DELETE',
-                                                      True)
+        transport.send_request_to_configurator(self.conf,
+                                               self.context,
+                                               config_params,
+                                               'DELETE',
+                                               True)
+        nfp_logging.clear_logging_context()
