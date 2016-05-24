@@ -328,7 +328,7 @@ class Proxy(object):
 
 def main(argv):
     cfg.CONF(args=sys.argv[1:])
-    logging.setup(cfg.CONF, 'nfp')
+    oslo_logging.setup(cfg.CONF, 'nfp')
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-config-file', "--config-file", action="store", dest='config_file')
