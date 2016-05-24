@@ -10,38 +10,21 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import collections
+import os
 import pdb
-import Queue
 import sys
-import sys
+import time
 
-deque = collections.deque
+from oslo_config import cfg as oslo_cfg
+from oslo_log import log as oslo_logging
 
-
-def log(logger, level, msg):
-    eval('_log_%s' % (level.lower()))(logger, msg)
-
-
-def _log_info(logger, msg):
-    logger.info(msg)
+oslo_logging.register_options(oslo_cfg.CONF)
 
 
-def _log_debug(logger, msg):
-    logger.debug(msg)
-
-
-def _log_error(logger, msg):
-    logger.error(msg)
-
-
-def _log_warn(logger, msg):
-    logger.warn(msg)
-
-
-def _log_exception(logger, msg):
-    logger.exception(msg)
-
+def init():
+    """Initialize logging. """
+    product_name = "nfp"
+    oslo_logging.setup(oslo_cfg.CONF, product_name)
 
 class ForkedPdb(pdb.Pdb):
 
@@ -85,98 +68,27 @@ def _name(obj):
 
 
 def identify(obj):
-    """Helper method to display identify an object.
+    """Helper method to display identity an object.
 
     Useful for logging. Decodes based on the type of obj.
     Supports 'class' & 'method' types for now.
+
+    :param obj: Object (Class/Method supported.)
+    Returns: String. Identification of the object.
     """
+    prefix = obj._NAME_ if hasattr(obj, '_NAME_') else ''
     try:
-        return "(%s)" % (_name(obj))
+        return "([%s] %s)" % (prefix, _name(obj))
     except Exception:
-        """Some unknown type, returning empty """
+        # Some unknown type, returning empty
         return ""
 
 
-def load_nfp_symbols(namespace):
-    namespace['identify'] = identify
-    namespace['log_info'] = _log_info
-    namespace['log_debug'] = _log_debug
-    namespace['log_error'] = _log_error
-    namespace['log_exception'] = _log_exception
+def time_stamp():
+    """Current time stamp in milliseconds.
 
+    Returns: time stamp in milliseconds.
+    """
+    _time_ms = lambda: int(round(time.time() * 1000.0))
+    return _time_ms()
 
-"""Wrapper class over python deque.
-
-    Implements firsinfirsout logic.
-    New methods to support 'get' more than one element,
-    'copy' the queue, 'remove' multiple messages are added.
-"""
-
-
-class NfpFifo(object):
-
-    class Empty(Exception):
-
-        """Exception raised when queue is empty and dequeue is attempted.
-        """
-        pass
-
-    class Full(Exception):
-
-        """Exception raised when queue is full and enqueue is attempted.
-        """
-        pass
-
-    def __init__(self, sc, maxsize=-1):
-        self._sc = sc
-        self._size = sys.maxint if maxsize == -1 else maxsize
-        self._queue = deque()
-
-    def _qsize(self):
-        return len(self._queue)
-
-    def _is_empty(self):
-        if not self._qsize():
-            raise Queue.Empty()
-
-    def _is_full(self):
-        if self._size == self._qsize():
-            raise Queue.Full()
-
-    def _pop(self, out):
-        self._is_empty()
-        out.append(self._queue.popleft())
-        return out
-
-    def put(self, msg):
-        """Puts a message in queue. """
-        self._is_full()
-        self._queue.append(msg)
-
-    def get(self, limit=sys.maxint):
-        """Get max requested number of messages.
-
-            If there are less messages in the queue than requested,
-            then available number of messages are returned.
-        """
-        msgs = []
-        try:
-            for i in range(0, limit):
-                msgs = self._pop(msgs)
-        except Queue.Empty:
-            pass
-        finally:
-            return msgs
-
-    def copy(self):
-        """Return the copy of queue. """
-        qu = list(self._queue)
-        return qu
-
-    def remove(self, msgs):
-        """Remove list of messages from the fifo """
-        try:
-            for msg in msgs:
-                self._queue.remove(msg)
-        except ValueError as err:
-            err = err

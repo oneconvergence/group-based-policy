@@ -16,11 +16,12 @@ from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import lb_constants
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
-from gbpservice.nfp.core import poll as nfp_poll
-from neutron import context
-from oslo_log import log as logging
+from gbpservice.nfp.core import module as nfp_api
+from gbpservice.nfp.core import log as nfp_logging
 
-LOG = logging.getLogger(__name__)
+from neutron import context
+
+LOG = nfp_logging.getLogger(__name__)
 
 """ Implements LBaaS response path to Neutron plugin.
 Methods of this class are invoked by the LBaasEventHandler class and also
@@ -382,7 +383,7 @@ invoked by core service controller.
 
 
 class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
-                        nfp_poll.PollEventDesc):
+                        nfp_api.NfpEventHandler):
     instance_mapping = {}
 
     def __init__(self, sc, drivers, rpcmgr):
@@ -459,7 +460,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
             else:
                 msg = ("Calling event done for event=%s" % (ev.id))
                 LOG.info(msg)
-                self.sc.event_done(ev)
+                self.sc.event_complete(ev)
 
     def _handle_event_vip(self, ev, operation):
         data = ev.data
@@ -647,7 +648,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
     def _collect_stats(self, ev):
         self.sc.poll_event(ev)
 
-    @nfp_poll.poll_event_desc(event=lb_constants.EVENT_COLLECT_STATS,
+    @nfp_api.poll_event_desc(event=lb_constants.EVENT_COLLECT_STATS,
                               spacing=60)
     def collect_stats(self, ev):
         for pool_id, driver_name in LBaaSEventHandler.instance_mapping.items():

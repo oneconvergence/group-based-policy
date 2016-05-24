@@ -39,7 +39,7 @@ def rpc_init(sc, conf):
         'agent_type': 'NFP Loadbalancer agent',
         'configurations': {'device_drivers': ['loadbalancer']},
         'start_flag': True,
-        'report_interval': conf.reportstate_interval
+        'report_interval': 10
     }
     lbrpcmgr = lb.LbAgent(conf, sc)
     lbagent = RpcAgent(
@@ -58,7 +58,7 @@ def rpc_init(sc, conf):
         'agent_type': 'NFP Vpn agent',
         'configurations': {'device_drivers': ['vpn']},
         'start_flag': True,
-        'report_interval': conf.reportstate_interval
+        'report_interval': 10
     }
     vpnrpcmgr = vp.VpnAgent(conf, sc)
     vpnagent = RpcAgent(

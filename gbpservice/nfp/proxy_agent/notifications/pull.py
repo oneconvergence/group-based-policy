@@ -11,19 +11,17 @@
 #    under the License.
 
 from gbpservice.nfp.core import common as nfp_common
-from gbpservice.nfp.core import poll as core_pt
+from gbpservice.nfp.core import module as nfp_api
 import gbpservice.nfp.lib.transport as transport
 from gbpservice.nfp.proxy_agent.lib import topics as a_topics
+from gbpservice.nfp.core import log as nfp_logging
 
 from neutron import context as n_context
-
-from oslo_log import log as oslo_logging
 
 import sys
 import traceback
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 
 ResourceMap = {
     'device_orch': a_topics.DEVICE_ORCH_TOPIC,
@@ -35,7 +33,7 @@ ResourceMap = {
 """Periodic Class to pull notification from configurator"""
 
 
-class PullNotification(core_pt.PollEventDesc):
+class PullNotification(nfp_api.NfpEventHandler):
 
     def __init__(self, sc, conf):
         self._sc = sc
@@ -58,31 +56,31 @@ class PullNotification(core_pt.PollEventDesc):
         except Exception as e:
             raise Exception(e)
 
-    @core_pt.poll_event_desc(event='PULL_NOTIFICATIONS', spacing=1)
+    @nfp_api.poll_event_desc(event='PULL_NOTIFICATIONS', spacing=10)
     def pull_notifications(self, ev):
         """Pull and handle notification from configurator."""
         notifications = transport.get_response_from_configurator(self._conf)
 
         if not isinstance(notifications, list):
-            LOG(LOGGER, 'ERROR', "Notfications not list, %s" % (notifications))
+            LOG.error("Notfications not list, %s" % (notifications))
 
         else:
             for notification in notifications:
                 if not notification:
-                    LOG(LOGGER, 'INFO', "Receiver Response: Empty")
+                    LOG.info("Receiver Response: Empty")
                     continue
                 try:
                     self._method_handler(notification)
                 except AttributeError:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
-                    LOG(LOGGER, 'ERROR',
+                    LOG.error(
                         "AttributeError while handling message %s : %s " % (
                             notification, traceback.format_exception(
                                 exc_type, exc_value, exc_traceback)))
 
                 except Exception as e:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
-                    LOG(LOGGER, 'ERROR', "Generic exception (%s) \
+                    LOG.error("Generic exception (%s) \
                        while handling message (%s) : %s" % (
                         e, notification, traceback.format_exception(
                             exc_type, exc_value, exc_traceback)))

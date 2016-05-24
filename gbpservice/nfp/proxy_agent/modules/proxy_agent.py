@@ -14,13 +14,12 @@ from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core.rpc import RpcAgent
 import gbpservice.nfp.lib.transport as transport
 from gbpservice.nfp.proxy_agent.lib import topics
+from gbpservice.nfp.core import log as nfp_logging
 
 from oslo_log import helpers as log_helpers
-from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 
 
 def rpc_init(config, sc):

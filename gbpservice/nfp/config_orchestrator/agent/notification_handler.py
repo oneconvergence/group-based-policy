@@ -15,15 +15,14 @@ from gbpservice.nfp.config_orchestrator.agent.loadbalancer\
     import LoadbalancerNotifier
 from gbpservice.nfp.config_orchestrator.agent.vpn import VpnNotifier
 from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 
-from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 
 import sys
 import traceback
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 
 ServicetypeToHandlerMap = {'firewall': FirewallNotifier,
                            'loadbalancer': LoadbalancerNotifier,
@@ -50,7 +49,7 @@ class NotificationAgent(object):
 
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            LOG(LOGGER, 'ERROR',
+            LOG.error(
                 "Generic exception (%s) while handling message (%s) : %s" % (
                     e,
                     notification_data,

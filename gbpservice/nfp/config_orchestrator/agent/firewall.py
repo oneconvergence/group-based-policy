@@ -17,15 +17,14 @@ from gbpservice.nfp.config_orchestrator.agent import common
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.core import log as nfp_logging
 
 from neutron_fwaas.db.firewall import firewall_db
 
 from oslo_log import helpers as log_helpers
-from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 
 """
 RPC handler for Firwrall service
@@ -186,7 +185,7 @@ class FirewallNotifier(object):
                                  "neutron_resource_id": resource_id,
                                  "LogMetaID": nf_id})
         except Exception as e:
-            LOG(LOGGER, 'ERROR', '%s' % (e))
+            LOG.error('%s' % (e))
             return request_data
         return request_data
 
@@ -203,7 +202,7 @@ class FirewallNotifier(object):
                "firewall_configuration_create_complete API, making an "
                "set_firewall_status RPC call for firewall: %s & status "
                " %s" % (firewall_id, status))
-        LOG(LOGGER, 'INFO', '%s' % (msg))
+        LOG.info('%s' % (msg))
 
         # RPC call to plugin to set firewall status
         rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
@@ -237,7 +236,7 @@ class FirewallNotifier(object):
         msg = ("Config Orchestrator received "
                "firewall_configuration_delete_complete API, making an "
                "firewall_deleted RPC call for firewall: %s" % (firewall_id))
-        LOG(LOGGER, 'INFO', '%s' % (msg))
+        LOG.info('%s' % (msg))
 
         # RPC call to plugin to update firewall deleted
         rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
@@ -249,6 +248,6 @@ class FirewallNotifier(object):
         request_data = self._prepare_request_data(context, nf_id,
                                                   resource_id,
                                                   fw_mac, service_type)
-        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
+        LOG.info("%s : %s " % (request_data, nf_id))
         self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
                                     request_data)

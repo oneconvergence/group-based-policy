@@ -16,14 +16,14 @@ from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 from gbpservice.nfp.core import controller as main
-from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.configurator.drivers.base import base_driver
+from gbpservice.nfp.core import log as nfp_logging
 import os
-from oslo_log import log as logging
 import oslo_messaging as messaging
 
 
-LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 """ Implements VPNaas response path to Neutron plugin.
 
@@ -166,7 +166,7 @@ to make a call to the driver methods.
 """
 
 
-class VPNaasEventHandler(nfp_poll.PollEventDesc):
+class VPNaasEventHandler(nfp_api.NfpEventHandler):
 
     def __init__(self, sc, drivers):
         """ Instantiates class object.
@@ -285,7 +285,7 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
                    % str(err).capitalize())
             LOG.error(msg)
 
-    @nfp_poll.poll_event_desc(event='VPN_SYNC', spacing=10)
+    @nfp_api.poll_event_desc(event='VPN_SYNC', spacing=10)
     def sync(self, ev):
         """Periodically updates the status of vpn service, whether the
         tunnel is UP or DOWN.

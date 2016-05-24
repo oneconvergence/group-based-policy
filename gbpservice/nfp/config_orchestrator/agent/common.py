@@ -13,16 +13,15 @@
 from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
+from gbpservice.nfp.core import log as nfp_logging
 
 from neutron.common import constants as n_constants
 from neutron.common import rpc as n_rpc
 from neutron.common import topics as n_topics
 
-from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 
-LOGGER = oslo_logging.getLogger(__name__)
-LOG = nfp_common.log
+LOG = nfp_logging.getLogger(__name__)
 
 # Version = 'v1'  # v1/v2/v3#
 
@@ -130,11 +129,11 @@ def get_network_function_details(context, network_function_id):
             context,
             'get_network_function_details',
             network_function_id=network_function_id)
-        LOG(LOGGER, 'INFO', " %s " % (network_function_details))
+        LOG.info(" %s " % (network_function_details))
         return network_function_details['network_function']
 
     except Exception as e:
-        LOG(LOGGER, 'ERROR', " %s " % (e))
+        LOG.error(" %s " % (e))
 
 
 def get_network_function_map(context, network_function_id):
@@ -169,8 +168,8 @@ def get_network_function_map(context, network_function_id):
 
         request_data = _prepare_structure(network_function_details, ports_info,
                                           mngmt_port_info, monitor_port_info)
-        LOG(LOGGER, 'INFO', " %s " % (request_data))
+        LOG.info(" %s " % (request_data))
     except Exception as e:
-        LOG(LOGGER, 'ERROR', " %s " % (e))
+        LOG.error(" %s " % (e))
         return request_data
     return request_data

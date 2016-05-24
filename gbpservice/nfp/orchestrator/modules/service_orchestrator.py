@@ -27,6 +27,7 @@ from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from gbpservice.nfp.core import module as nfp_api
 
 from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
@@ -246,7 +247,7 @@ class RpcHandlerConfigurator(object):
         if is_poll_event:
             ev = self._controller.new_event(
                 id=event_id, data=event_data,
-                serialize=original_event.serialize,
+                serialize=original_event.sequence,
                 binding_key=original_event.binding_key,
                 key=original_event.key,
                 context=nfp_logging.get_logging_context())
@@ -320,7 +321,7 @@ class RpcHandlerConfigurator(object):
                            event_data=event_data, serialize=serialize)
 
 
-class ServiceOrchestrator(object):
+class ServiceOrchestrator(nfp_api.NfpEventHandler):
 
     """Orchestrator For Network Services
 
@@ -1015,7 +1016,7 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            self._controller.event_done(event)
+            self._controller.event_complete(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
@@ -1028,7 +1029,7 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            self._controller.event_done(event)
+            self._controller.event_complete(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
@@ -1048,12 +1049,12 @@ class ServiceOrchestrator(object):
                           " completion."), {'err': err})
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
-            self._controller.event_done(event)
+            self._controller.event_complete(event)
             return STOP_POLLING
         if config_status == nfp_constants.ERROR:
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
-            self._controller.event_done(event)
+            self._controller.event_complete(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
@@ -1073,7 +1074,7 @@ class ServiceOrchestrator(object):
                 self._create_event('USER_CONFIG_DELETED',
                                    event_data=event_data,
                                    is_internal_event=True)
-                self._controller.event_done(event)
+                self._controller.event_complete(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:

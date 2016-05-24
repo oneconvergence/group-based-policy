@@ -20,6 +20,7 @@ from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import fw_constants as const
 from gbpservice.nfp.configurator.lib import utils as load_driver
 from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import module as nfp_api
 
 
 LOG = logging.getLogger(__name__)
@@ -164,7 +165,7 @@ appropriate handler class methods for Fwaas methods.
 """
 
 
-class FWaasEventHandler(object):
+class FWaasEventHandler(nfp_api.NfpEventHandler):
     def __init__(self, sc, drivers, rpcmgr, conf):
         """ Instantiates class object.
 
