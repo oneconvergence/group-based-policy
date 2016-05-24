@@ -250,7 +250,7 @@ class RpcHandler(object):
             service_orchestrator, network_function)
 
     @log_helpers.log_method_call
-    def admin_down_interfaces(self, port_ids):
+    def admin_down_interfaces(self, context, port_ids):
         neutron_handler = SOHelper(self.conf)
         neutron_handler.admin_down_interfaces(port_ids)
 

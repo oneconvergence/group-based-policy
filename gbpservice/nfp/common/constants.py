@@ -68,6 +68,3 @@ CONFIG_TAG_RESOURCE_MAP = {
     CUSTOM_JSON: 'custom_json'}
 
 LOADBALANCER_RPC_API_VERSION = "2.0"
-
-NFP_NEUTRON_RENDERER_TOPIC = 'nfp_neutron_renderer_topic'
-NOOPS_ORCHESTRATION = 'noops_orchestration'
