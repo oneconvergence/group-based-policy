@@ -54,7 +54,7 @@ class NFPFirewallCallbacks(FirewallCallbacks):
                 new_port.update(name="oc_owned_prov_%s" % _id.split('-')[
                     0], admin_state_up=True, device_id='', device_owner='',
                             description=new_port['device_id'],
-                            tenant_id='ef89412b8e1840a293899476112f9298')
+                            tenant_id='')
                 _context = plugin_context.get_admin_context()
                 _context.tenant_id = port['tenant_id']
                 _port = self._core_plugin.create_port(

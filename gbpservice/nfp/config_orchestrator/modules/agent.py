@@ -126,5 +126,5 @@ class NFPAgents(object):
         self._controller = controller
         self._config = config
         self.vpn_agent = vp.NeutronVpnaasAgent(self._config, self._controller)
-        self.fw_agent = fw.FwAgent(self._config, self._controller)
+        self.fw_agent = fw.NeutronFwAgent(self._config, self._controller)
         self.nfp_l3_agent = NFPL3Agent(sc=self._controller, conf=self._config)

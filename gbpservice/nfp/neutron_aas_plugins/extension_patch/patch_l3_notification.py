@@ -47,7 +47,8 @@ def _agent_notification(self, context, method, router_ids, operation,
                                         version='1.1')
             cctxt.cast(context, method, routers=[router_id])
 
-    if not send_rpc_to_nfp or not operation or operation.lower() == REMOVE_ROUTER_INTERFACE:
+    if not send_rpc_to_nfp or not operation or operation.lower() ==  \
+            REMOVE_ROUTER_INTERFACE:
         return
     subnet_id = data.get('subnet_id')
     if subnet_id:
@@ -92,7 +93,7 @@ def _agent_notification(self, context, method, router_ids, operation,
                             name=name, admin_state_up=True,
                             device_id='', device_owner='',
                             description=new_interface['device_id'],
-                            tenant_id='ef89412b8e1840a293899476112f9298')
+                            tenant_id='')
                     _context = plugin_context.get_admin_context()
                     _context.tenant_id = new_interface['tenant_id']
                     port_list.append(core_plugin.create_port(
