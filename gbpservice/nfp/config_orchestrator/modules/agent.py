@@ -97,6 +97,8 @@ def events_init(sc, conf, nfp_agents_obj):
         Event(id='SERVICE_CREATED',
               handler=otc_se.OTCServiceEventsHandler(sc, conf)),
         Event(id='SERVICE_DELETED',
+              handler=otc_se.OTCServiceEventsHandler(sc, conf)),
+        Event(id='SERVICE_CREATE_PENDING',
               handler=otc_se.OTCServiceEventsHandler(sc, conf))]
     for event in vpn_events:
         events_to_register.append(
