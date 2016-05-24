@@ -424,7 +424,6 @@ class ServiceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        LOG.info(_LI("Service Orchestrator received event %(id)s"),
         LOG.info(_LI("NSO: received event %(id)s"),
                  {'id': event.id})
         try:
