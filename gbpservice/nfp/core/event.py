@@ -106,7 +106,8 @@ class Event(object):
         self.lifetime = kwargs.get('lifetime', 0)
         # Identifies whether event.data is zipped
         self.zipped = False
-
+        # Log metadata context
+        self.context = kwargs.get('context', {})
         # Prepare the base descriptor
         if self.key:
             desc = EventDesc(**{'key': self.key})

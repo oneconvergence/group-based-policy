@@ -457,9 +457,9 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             if is_poll_event:
                 ev = self._controller.new_event(
                     id=event_id, data=event_data,
-                    serialize=original_event.serialize,
+                    serialize=original_event.sequence,
                     binding_key=original_event.binding_key,
-                    key=original_event.desc.uid,
+                    key=original_event.desc.uuid,
                     context=nfp_logging.get_logging_context())
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
@@ -467,9 +467,9 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 if original_event:
                     ev = self._controller.new_event(
                         id=event_id, data=event_data,
-                        serialize=original_event.serialize,
+                        serialize=original_event.sequence,
                         binding_key=original_event.binding_key,
-                        key=original_event.desc.uid,
+                        key=original_event.desc.uuid,
                         context=nfp_logging.get_logging_context())
                 else:
                     ev = self._controller.new_event(

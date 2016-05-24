@@ -66,6 +66,7 @@ class NfpWorker(Service):
                 if event:
                     LOG.debug("%s - received event" %
                         (self._log_meta(event)))
+                    self.controller.decompress(event)
                     self._process_event(event)
             except Exception as e:
                 LOG.error("Exception - %s" % (e))
