@@ -176,7 +176,6 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                     kwargs['rsrc_type'] == 'vpn_service'):
                 return
             else:
-                # self.call_configurator(context, kwargs)
                 # Fetch nf_id from description of the resource
                 nf_id = self._fetch_nf_from_resource_desc(kwargs[
                     'resource']['description'])
@@ -313,7 +312,6 @@ class VpnNotifier(object):
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
                              ipsec_site_conn_id=ipsec_id)
-
         # Sending An Event for visiblity
         resource_id = notification_info['context']['ipsec_site_connection_id']
         service_type = notification_info['service_type']
@@ -369,7 +367,17 @@ class NeutronVpnaasAgent(PollEventDesc):
                 if nw_func:
                     kwargs['resource']['description'] = nw_func[0][
                         'description']
+                resource = kwargs['resource']
+                vpn_svc = agent._get_vpnservices(context,
+                                                 resource['tenant_id'],
+                                                 resource['vpnservice_id'],
+                                                 resource['description'])
+                rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+                rpcc.cctxt.call(context, 'remove_subnet_route',
+                                router_id=vpn_svc[0]['router_id'],
+                                subnet_cidr=resource['peer_cidrs'])
                 self.call_configurator(context, nw_func, agent, kwargs)
+
             else:
                 kwargs.update({'context': context.to_dict()})
                 filters = {'service_id': [kwargs['rsrc_id']]}

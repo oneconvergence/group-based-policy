@@ -245,7 +245,7 @@ class RpcHandler(object):
         neutron_handler.admin_down_interfaces(port_ids)
 
     @log_helpers.log_method_call
-    def remove_subnet_route(self, router_id, subnet_cidr):
+    def remove_subnet_route(self, context, router_id, subnet_cidr):
         neutron_handler = SOHelper(self.conf)
         neutron_handler.remove_subnet_routes(router_id, subnet_cidr)
 
