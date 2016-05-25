@@ -68,6 +68,7 @@ DELETE_SECURITY_APPLICATION = "Delete security application"
 APPLY_STATIC_IP = "Apply static ip"
 
 COMMIT = "Commit"
+PA_AUTOCOMMIT_WAITTIME = 60
 
 API_USERNAME = "admin"
 API_PASSWORD = "admin"
