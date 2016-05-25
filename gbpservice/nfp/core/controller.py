@@ -59,11 +59,10 @@ class NfpService(object):
 
     def _make_new_event(self, event):
         """Make a new event from the object passed. """
-        desc_dict = event.desc.__dict__
-        desc = nfp_event.EventDesc(**desc_dict)
+        desc = event.desc
         event_dict = event.__dict__
         event = self.create_event(**event_dict)
-        setattr(event, 'desc', desc)
+        event.desc.from_desc(desc)
         return event
 
     def get_event_handlers(self):

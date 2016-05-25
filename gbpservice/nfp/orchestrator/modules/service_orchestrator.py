@@ -1256,6 +1256,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             'network_function_details': network_function_details
         }
         if not config_id:
+            self._controller.event_complete(event)
             self._create_event('USER_CONFIG_FAILED',
                                event_data=request_data, is_internal_event=True)
             return
@@ -1263,9 +1264,11 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
+        self._controller.event_complete(event)
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
+
 
     def handle_policy_target_removed(self, context, network_function_id,
                                      policy_target):
@@ -1318,6 +1321,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             'network_function_details': network_function_details
         }
         if not config_id:
+            self._controller.event_complete(event)
             self._create_event('USER_CONFIG_FAILED',
                                event_data=request_data, is_internal_event=True)
             return
@@ -1325,6 +1329,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
+
+        self._controller.event_complete(event)
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
@@ -1387,10 +1393,12 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 'operation': request_data['operation'],
                 'consumer_ptg': request_data['consumer_ptg']
             }
+            self._controller.event_complete(event)
             self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,
                                is_poll_event=True, original_event=event)
         else:
+            self._controller.event_complete(event)
             self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                                event_data=event.data,
                                is_internal_event=True)
@@ -1453,10 +1461,13 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 'operation': request_data['operation'],
                 'consumer_ptg': request_data['consumer_ptg']
             }
+
+            self._controller.event_complete(event)
             self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,
                                is_poll_event=True, original_event=event)
         else:
+            self._controller.event_complete(event)
             self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                                event_data=event.data,
                                is_internal_event=True)

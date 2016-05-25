@@ -366,7 +366,7 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
                 inc_load=False, cache=False)
         except KeyError as err:
             err = err
-            LOG.error("(event - %s) - expired, not in cache" %
+            LOG.error("(event - %s) - timedout, not in cache" %
                 (event.identify()))
         except AssertionError as aerr:
             aerr = aerr

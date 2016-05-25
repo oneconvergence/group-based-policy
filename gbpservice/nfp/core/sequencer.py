@@ -66,7 +66,8 @@ class EventSequencer(object):
             return self._scheduled
 
         def is_scheduled(self, event):
-            return self._scheduled == event
+            return self._scheduled.desc.uuid == event.desc.uuid and \
+                   self._scheduled.id == event.id
 
         def release(self):
             self._scheduled = None
@@ -107,7 +108,9 @@ class EventSequencer(object):
 
     def release(self, key, event):
         try:
+            LOG.debug("(event - %s) checking to release" %(event.identify()))
             if self._sequencer[key].is_scheduled(event):
+                LOG.debug("(event - %s) Releasing sequencer" %(event.identify()))
                 self._sequencer[key].release()
         except KeyError:
             return

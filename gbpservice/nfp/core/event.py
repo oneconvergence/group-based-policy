@@ -78,6 +78,12 @@ class EventDesc(object):
         # Polling descriptor of event
         self.poll_desc = kwargs.get('poll_desc')
 
+    def from_desc(self, desc):
+        self.type = desc.type
+        self.flag = desc.flag
+        self.worker = desc.worker
+        self.poll_desc = desc.poll_desc
+
 """Defines the event structure.
 
     Nfp modules need to create object of the class
