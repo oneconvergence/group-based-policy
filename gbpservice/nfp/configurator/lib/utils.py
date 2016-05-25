@@ -10,13 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log
-
+from gbpservice.nfp.core import log as nfp_logging
 import inspect
 import os
 import sys
 
-LOG = log.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 """Utility class which provides common library functions for configurator.
    New common library functions, if needed, should be added in this class.

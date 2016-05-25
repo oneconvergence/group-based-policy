@@ -66,7 +66,6 @@ cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
 orchestration_driver = HaproxyDummyDriver()
 NDO_CLASS_PATH = ('gbpservice.nfp.orchestrator'
                   '.modules.device_orchestrator')
-ORCHESTRATOR_LIB_PATH = ('gbpservice.nfp.orchestrator.lib')
 
 
 class NDOModuleTestCase(unittest.TestCase):
@@ -198,8 +197,6 @@ class NDORpcApiTestCase(unittest.TestCase):
        mock.MagicMock(return_value=orchestration_driver))
 @patch(NDO_CLASS_PATH + '.NDOConfiguratorRpcApi.__init__',
        mock.MagicMock(return_value=None))
-@patch(ORCHESTRATOR_LIB_PATH + '.extension_manager.ExtensionManager',
-       mock.MagicMock(return_value=DummyExtensionManager()))
 class DeviceOrchestratorTestCase(unittest.TestCase):
 
     def _initialize_ndo_handler(self):
@@ -283,7 +280,7 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         orig_event_data['status_description'] = ''
 
         orchestration_driver.plug_network_function_device_interfaces = (
-            mock.MagicMock(return_value=True))
+            mock.MagicMock(return_value=(True, [])))
         ndo_handler._create_event = mock.MagicMock(return_value=True)
 
         orig_event_data['interfaces_in_use'] += len(orig_event_data['ports'])
@@ -294,7 +291,7 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
                                            orig_event_data)
 
         orchestration_driver.plug_network_function_device_interfaces = (
-            mock.MagicMock(return_value=False))
+            mock.MagicMock(return_value=(False, [])))
         ndo_handler._create_event = mock.MagicMock(return_value=True)
         event_id = 'DEVICE_CONFIGURATION_FAILED'
 
@@ -402,7 +399,7 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         orig_event_data['status_description'] = (
             ndo_handler.status_map['ACTIVE'])
         orchestration_driver.unplug_network_function_device_interfaces = (
-            mock.MagicMock(return_value=True))
+            mock.MagicMock(return_value=(True, [])))
 
         ndo_handler.unplug_interfaces(self.event)
 
@@ -418,7 +415,7 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
             ndo_handler.status_map['ACTIVE'])
 
         orchestration_driver.unplug_network_function_device_interfaces = (
-            mock.MagicMock(return_value=False))
+            mock.MagicMock(return_value=(False, [])))
 
         ndo_handler.unplug_interfaces(self.event)
         mock_update_nsd.assert_called_with(ndo_handler.db_session,

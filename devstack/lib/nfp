@@ -252,6 +252,14 @@ function create_ep_and_nsp {
 }
 
 
+function create_advance_sharing_ptg {
+
+        gbp l3policy-create --ip-version 4 --ip-pool 121.0.0.0/20 --proxy-ip-pool=192.167.0.0/24 --subnet-prefix-length 20 advanced_services_sharing_l3p
+        gbp l2policy-create --l3-policy advanced_services_sharing_l3p advance_sharing_l2p
+        gbp group-create --l2-policy advance_sharing_l2p Advance_Sharing_PTG
+}
+
+
 function create_nfp_gbp_resources {
    
     source $TOP_DIR/openrc neutron service
@@ -261,34 +269,20 @@ function create_nfp_gbp_resources {
         FLAVOR=m1.nfp-tiny
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=None --vendor NFP base_mode_lb
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
-
-        gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
-        gbp l2policy-create --l3-policy service_management svc_management_ptg
-        
-        gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg
-
-    elif [[ $DEVSTACK_MODE = advanced ]]; then
-        gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
-        gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP fw_profile
-        gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
-        
-        gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
-        gbp l2policy-create --l3-policy service_management svc_management_ptg
-    
-        gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg
-
     else
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP fw_profile
         gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
+
         create_ext_net
         create_ep_and_nsp
-        
-        gbp l3policy-create --external-segment default --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
-        gbp l2policy-create --l3-policy service_management svc_management_ptg
-
-        gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg --network-service-policy svc_mgmt_fip_policy
+        create_advance_sharing_ptg
     fi
+            
+    gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
+    gbp l2policy-create --l3-policy service_management svc_management_ptg
+
+    gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg
 }
 
 
@@ -470,6 +464,10 @@ function launch_visibilityVM {
     GROUP="svc_management_ptg"
     echo "GroupName: $GROUP"
     PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
+    
+    fip_id=$(neutron floatingip-create $EXT_NET_NAME | grep ' id '| awk '{print $4}')
+    neutron floatingip-associate $fip_id $PortId
+    
     echo "Collecting ImageId : for $VisibilityImageName"
     VisibilityVMImageId=`glance image-list|grep $VisibilityImageName |awk '{print $2}'`
     if [ ! -z "$VisibilityVMImageId" -a "$VisibilityVMImageId" != " " ]; then

@@ -11,8 +11,7 @@
 #    under the License.
 
 import os
-
-from oslo_log import log as logging
+from gbpservice.nfp.core import log as nfp_logging
 
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import (
@@ -22,7 +21,7 @@ from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
 
-LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 """Implements APIs invoked by configurator for processing RPC messages.
 

@@ -31,14 +31,16 @@ else
 fi
 enable_plugin gbp $GBPSERVICE_REPO $GBPSERVICE_BRANCH
 
-if [[ $DEVSTACK_MODE = enterprise ]]; then
+if [[ $DEVSTACK_MODE != base ]]; then
     # External Network
     EXT_NET_GATEWAY=
     EXT_NET_ALLOCATION_POOL_START=
     EXT_NET_ALLOCATION_POOL_END=
     EXT_NET_CIDR=
     EXT_NET_MASK=
+fi
 
+if [[ $DEVSTACK_MODE = enterprise ]]; then
     # Visibility GIT path
     # Default visibility repo https://github.com/oneconvergence/visibility.git
     VISIBILITY_GIT_BRANCH=master
