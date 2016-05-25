@@ -87,7 +87,7 @@ class FwGenericConfigDriver(object):
         Returns: SUCCESS/Failure message with reason.
 
         """
-        time.sleep(60)
+        time.sleep(const.PA_AUTOCOMMIT_WAITTIME)
         vm_mgmt_ip = kwargs.get('mgmt_ip') 
         self.check_auto_commit_status(hostname=vm_mgmt_ip)
         
@@ -614,57 +614,6 @@ class FwaasDriver(FwGenericConfigDriver, base_driver.BaseDriver):
         Returns: UPDATED/ERROR status
 
         """
-
-        vm_mgmt_ip = self._get_firewall_attribute(firewall)
-        msg = ("Initiating UPDATE request.")
-        LOG.info(msg)
-    
-        """
-        # update security rule
-        for curr_rule in firewall['firewall_rule_list']:
-            rule_name = curr_rule['name']
-            element = self.create_security_rule_element(
-                        rule_name=rule_name, action=curr_rule['action'],
-                        source_member=curr_rule['source_ip_address'],
-                        destination_member=curr_rule['destination_ip_address'])
-            try:
-                resp = self.edit_security_rule(vm_mgmt_ip, rule_name, element)
-            except pan.xapi.PanXapiError as err:
-                self._print_exception('PanXapiError', err,
-                                      const.UPDATE_SECURITY_RULE)
-                raise pan.xapi.PanXapiError(err)
-            except pan.config.PanConfigError as err:
-                self._print_exception('PanConfigError', err,
-                                      const.UPDATE_SECURITY_RULE)
-                raise pan.config.PanConfigError(err)
-            except Exception as err:
-                self._print_exception('UnexpectedError', err,
-                                      const.UPDATE_SECURITY_RULE, resp)
-                raise Exception(err)
-
-            if self.analyze_response("UPDATED the configuration to Service VM",
-                                     resp, const.UPDATE_SECURITY_RULE)\
-                                        == const.STATUS_ERROR:
-                return const.STATUS_ERROR
-        """
-
-        # commite security rule
-        try:
-            resp = self.commit(hostname=vm_mgmt_ip)
-        except pan.xapi.PanXapiError as err:
-            self._print_exception('PanXapiError', err, const.COMMIT)
-            raise pan.xapi.PanXapiError(err)
-        except pan.config.PanConfigError as err:
-            self._print_exception('PanConfigError', err, const.COMMIT)
-            raise pan.config.PanConfigError(err)
-        except Exception as err:
-            self._print_exception('UnexpectedError', err, const.COMMIT, resp)
-            raise Exception(err)
-  
-        if self.analyze_response("COMMITED the configuration to Service VM",
-                                 resp, const.COMMIT)\
-                                    == const.STATUS_ERROR:
-            return const.STATUS_ERROR
 
         return const.STATUS_UPDATED
 
