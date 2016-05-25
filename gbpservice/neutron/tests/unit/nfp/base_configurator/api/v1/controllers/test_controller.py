@@ -11,8 +11,8 @@
 #    under the License.
 
 import ast
-import unittest
 
+from neutron.tests import base
 import oslo_serialization.jsonutils as jsonutils
 import pecan
 from pecan import rest
@@ -26,7 +26,7 @@ UNHANDLED = 'unhandled'
 FAILURE = 'failure'
 
 
-class ControllerTestCase(unittest.TestCase, rest.RestController):
+class ControllerTestCase(base.BaseTestCase, rest.RestController):
 
     """This class contains  unittest cases for REST server of configurator.
 
@@ -43,9 +43,8 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
 
         This method set the value of required variables that is used in
         test cases before execution of each test case.
-
-
         """
+        super(ControllerTestCase, self).setUp()
         RootController = root_controller.RootController()
         self.app = webtest.TestApp(pecan.make_app(RootController))
         self.data = {'info': {'service_type': 'firewall',
@@ -154,6 +153,3 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
         self.assertEqual(response_expected[2], response_error)
         self.assertEqual(response_expected[3], response_error)
         self.assertEqual(response.status_code, 200)
-
-if __name__ == '__main__':
-    unittest.main()
