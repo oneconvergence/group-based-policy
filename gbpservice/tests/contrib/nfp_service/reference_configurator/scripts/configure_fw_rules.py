@@ -42,7 +42,7 @@ class ConfigureIPtables(object):
         output = ps.communicate()[0]
 
         # check if chain is present if not create new chain
-        if not "testchain" in output:
+        if "testchain" not in output:
             LOG.info(_LI("Creating new chain ..."))
             call(["iptables", "-F"])
             call(["iptables", "-N", "testchain"])

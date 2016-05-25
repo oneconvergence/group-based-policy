@@ -11,7 +11,8 @@
 #    under the License.
 
 import pecan
-from v1 import controllers
+from gbpservice.tests.contrib.nfp_service.reference_configurator.\
+    api.v1 import controllers
 
 
 class RootController(object):

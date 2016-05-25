@@ -43,8 +43,6 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
 
         This method set the value of required variables that is used in
         test cases before execution of each test case.
-
-
         """
         RootController = root_controller.RootController()
         self.app = webtest.TestApp(pecan.make_app(RootController))
