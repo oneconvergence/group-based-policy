@@ -127,7 +127,7 @@ class Controller(rest.RestController):
             return jsonutils.dumps(error_data)
 
     def _format_description(self, msg):
-        """This methods formats error description.
+        """This method formats error description.
 
         :param msg: An error message that is to be formatted
 
