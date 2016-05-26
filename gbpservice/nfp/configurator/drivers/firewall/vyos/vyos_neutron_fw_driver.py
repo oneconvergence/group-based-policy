@@ -15,8 +15,8 @@ VYOS_PORT = '8888'
 
 
 class NeutronVYOSFWDriver(FwaasDriver):
-    service_type = "firewall"
-    service_vendor = "neutron vyos"
+    service_type = const.SERVICE_TYPE
+    service_vendor = "neutron_vyos"
 
     def __init__(self, conf):
         super(FwaasDriver, self).__init__()

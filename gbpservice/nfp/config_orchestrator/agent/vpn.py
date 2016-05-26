@@ -561,7 +561,7 @@ class NeutronVpnaasAgent(PollEventDesc):
             vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
             self._sc.poll_event_done(event)
             vpnsvc_status = [{
-                'id': nw_function_info_data['resource_data']['resource']['id'],
+                'id': nw_function_info_data['resource_data']['id'],
                 'status': nw_func['status'],
                 'updated_pending_status': True,
                 'ipsec_site_connections': {}}]

@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log as logging
 from gbpservice.nfp.config_orchestrator.agent import firewall as fw
 from gbpservice.nfp.config_orchestrator.agent import loadbalancer as lb
 from gbpservice.nfp.config_orchestrator.agent import notification_handler as nh
@@ -22,8 +21,6 @@ from gbpservice.nfp.config_orchestrator.agent.l3 import NFPL3Agent
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core.rpc import RpcAgent
 from oslo_config import cfg
-
-LOG = logging.getLogger(__name__)
 
 
 def rpc_init(sc, conf):
@@ -85,9 +82,7 @@ def rpc_init(sc, conf):
         manager=nhrpcmgr,
     )
 
-    sc.register_rpc_agents([fwagent, vpnagent, notificationagent, nfp_l3_agent])
-    # sc.register_rpc_agents([fwagent, lbagent, vpnagent, notificationagent,
-    #                         nfp_l3_agent])
+    sc.register_rpc_agents([fwagent, lbagent, vpnagent, notificationagent])
 
 
 def events_init(sc, conf, nfp_agents_obj):
