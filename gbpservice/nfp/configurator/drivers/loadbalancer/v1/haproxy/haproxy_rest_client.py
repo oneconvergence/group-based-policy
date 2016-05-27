@@ -15,9 +15,11 @@ import json as jsonutils
 import requests
 import urlparse
 
-from gbpservice.nfp.core import log as nfp_logging
+from oslo_log import log as logging
 
-LOG = nfp_logging.getLogger(__name__)
+
+LOG = logging.getLogger(__name__)
+
 
 class RestClientException(Exception):
     """Embeds the exceptions thrown by the REST Client."""

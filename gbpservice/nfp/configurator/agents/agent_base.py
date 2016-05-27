@@ -11,9 +11,9 @@
 #    under the License.
 
 from gbpservice.nfp.configurator.lib import constants as const
-from gbpservice.nfp.core import log as nfp_logging
+from oslo_log import log as logging
 
-LOG = nfp_logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 """Implements base class for all service agents.
 
@@ -172,7 +172,6 @@ class AgentBaseEventHandler(object):
                 if not is_generic_config:
                     sa_req_list[0]['resource_data']['context'] = sa_req_list[
                                     0]['resource_data'].pop('neutron_context')
-
                 # Get the service driver and invoke its method
                 driver = self._get_driver(service_type, service_vendor)
 

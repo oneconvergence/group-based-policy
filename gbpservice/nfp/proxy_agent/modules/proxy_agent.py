@@ -10,15 +10,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core.rpc import RpcAgent
 import gbpservice.nfp.lib.transport as transport
 from gbpservice.nfp.proxy_agent.lib import topics
-from gbpservice.nfp.core import log as nfp_logging
 
 from oslo_log import helpers as log_helpers
+from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 
-LOG = nfp_logging.getLogger(__name__)
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
 
 
 def rpc_init(config, sc):
@@ -51,91 +53,54 @@ class RpcHandler(object):
         """Method of rpc handler for create_network_function_config.
         Return: Http Response.
         """
-        body_info = body.get('info')
-        body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context', {})
-        nfp_logging.store_logging_context(**logging_context)
-
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "CREATE")
-        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_network_function_config(self, context, body):
         """Method of rpc handler for delete_network_function_config.
         Return: Http Response.
         """
-        body_info = body.get('info')
-        body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context', {})
-        nfp_logging.store_logging_context(**logging_context)
-
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "DELETE")
-        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def update_network_function_config(self, context, body):
         """Method of rpc handler for delete_network_function_config.
         Return: Http Response.
         """
-        body_info = body.get('info')
-        body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context', {})
-        nfp_logging.store_logging_context(**logging_context)
-
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "UPDATE")
-        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def create_network_function_device_config(self, context, body):
         """Method of rpc handler for create_network_function_device_config.
         Return: Http Response.
         """
-        body_info = body.get('info')
-        body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context', {})
-        nfp_logging.store_logging_context(**logging_context)
-
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "CREATE",
                                                device_config=True)
-        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def delete_network_function_device_config(self, context, body):
         """Method of rpc handler for delete_network_function_device_config.
         Return: Http Response.
         """
-
-        body_info = body.get('info')
-        body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context', {})
-        nfp_logging.store_logging_context(**logging_context)
-
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "DELETE",
                                                device_config=True)
-        nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
     def network_function_event(self, context, body):
         """Method of rpc handler for create_service.
         Return: Http Response.
         """
-        body_info = body.get('info')
-        body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context', {})
-        nfp_logging.store_logging_context(**logging_context)
-
         transport.send_request_to_configurator(self._conf,
                                                context, body,
                                                "CREATE",
                                                network_function_event=True)
-        nfp_logging.clear_logging_context()

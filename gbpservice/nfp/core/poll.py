@@ -16,15 +16,15 @@ import random
 import six
 import time
 
-
 from oslo_config import cfg as oslo_config
+from oslo_log import log as oslo_logging
 from oslo_service import loopingcall as oslo_looping_call
 from oslo_service import periodic_task as oslo_periodic_task
 
 from gbpservice.nfp.core import common as nfp_common
-from gbpservice.nfp.core import log as nfp_logging
 
-LOG = nfp_logging.getLogger(__name__)
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
 identify = nfp_common.identify
 
 """Decorator definition """
@@ -194,7 +194,7 @@ class PollQueueHandler(object):
             Invoked in context of worker process
             to send event to polling task.
         """
-        LOG.debug("%s - added for polling" % (event.identify()))
+        LOG(LOGGER, 'DEBUG', "%s - added for polling" % (event.identify()))
         self._cache.put(event)
 
     def event_expired(self, eh, event):
@@ -206,10 +206,10 @@ class PollQueueHandler(object):
             Executor: worker-process
         """
         try:
-            LOG.debug("%s - event expired" % (event.identify()))
+            LOG(LOGGER, 'DEBUG', "%s - event expired" % (event.identify()))
             eh.event_cancelled(event.data, reason='EVENT_EXPIRED')
         except AttributeError:
-            LOG.debug(
+            LOG(LOGGER, 'DEBUG',
                 "%s - handler does not implement"
                 "event_cancelled method" % (identify(eh)))
 
@@ -228,20 +228,20 @@ class PollQueueHandler(object):
             peh = eh.get_poll_event_desc(event)
             if peh:
                 ret = peh(eh, event)
-                LOG.debug(
+                LOG(LOGGER, 'DEBUG',
                     "%s - timedout - invoking method:%s - "
                     "of handler:%s" % (
                         event.identify(), identify(peh), identify(eh)))
             else:
                 ret = eh.handle_poll_event(event)
-                LOG.debug(
+                LOG(LOGGER, 'DEBUG',
                     "%s - timedout - "
                     "invoking method:handle_poll_event - "
                     "of handler:%s" % (
                         event.identify(), identify(eh)))
         else:
             ret = eh.handle_poll_event(event)
-            LOG.debug(
+            LOG(LOGGER, 'DEBUG',
                 "%s - timedout - invoking method:handle_poll_event - "
                 "of handler:%s" % (
                     event.identify(), identify(eh)))
@@ -262,14 +262,14 @@ class PollQueueHandler(object):
 
     def _poll_event_cancelled(self, eh, event):
         try:
-            LOG.debug(
+            LOG(LOGGER, 'DEBUG',
                 "%s - poll event cancelled - "
                 "invoking method:poll_event_cancel - "
                 "of handler:%s"
                 % (event.identify(), identify(eh)))
             eh.poll_event_cancel(event)
         except AttributeError:
-            LOG.debug(
+            LOG(LOGGER, 'DEBUG',
                 "%s - poll event cancelled - "
                 "handler:%s - does not implement"
                 "poll_event_cancel method" % (
@@ -349,7 +349,7 @@ class PollQueueHandler(object):
             Executor: distributor-process
         """
 
-        LOG.debug("%s - processing - from worker:%d" %
+        LOG(LOGGER, 'DEBUG', "%s - processing - from worker:%d" %
             (ev.identify(), os.getpid()))
 
         if ev.desc.poll_event != 'POLL_EVENT':
@@ -376,7 +376,7 @@ class PollQueueHandler(object):
         """
         event = self._get(pipe, timeout=timeout)
         if event:
-            LOG.debug(
+            LOG(LOGGER, 'DEBUG',
                 "%s - new poll event" % (event.identify()))
             self._cache.put(event)
         return event
@@ -400,3 +400,10 @@ class PollQueueHandler(object):
             while counter < 1 and self._pull_event(pipe, timeout=timeout):
                 timeout = 0
                 counter += 1
+
+
+def load_nfp_symbols(namespace):
+    """Load all the global symbols in namespace. """
+    nfp_common.load_nfp_symbols(namespace)
+
+load_nfp_symbols(globals())

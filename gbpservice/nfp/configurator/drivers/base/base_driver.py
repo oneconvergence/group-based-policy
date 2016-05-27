@@ -12,12 +12,13 @@
 
 import requests
 import subprocess
-from gbpservice.nfp.core import log as nfp_logging
+
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
 from gbpservice.nfp.configurator.lib import constants as const
 
-LOG = nfp_logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 """Every service vendor must inherit this class. If any service vendor wants
    to add extra methods for their service, apart from below given, they should

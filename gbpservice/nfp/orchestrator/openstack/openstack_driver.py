@@ -19,6 +19,11 @@ from novaclient import client as nova_client
 from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
 
+admin_token = None
+tenant_name_to_id_map = {}
+tenant_id_to_token_map = {}
+tenant_name_to_token_map = {}
+
 
 class OpenstackApi(object):
     """Initializes common attributes for openstack client drivers."""
@@ -57,16 +62,20 @@ class KeystoneClient(OpenstackApi):
 
     def get_admin_token(self):
         try:
-            admin_token = self.get_scoped_keystone_token(
-                self.config.keystone_authtoken.admin_user,
-                self.config.keystone_authtoken.admin_password,
-                self.config.keystone_authtoken.admin_tenant_name)
+            global admin_token
+            if admin_token:
+                return admin_token
+            else:
+                admin_token = self.get_scoped_keystone_token(
+                    self.config.keystone_authtoken.admin_user,
+                    self.config.keystone_authtoken.admin_password,
+                    self.config.keystone_authtoken.admin_tenant_name)
+                return admin_token
         except Exception as ex:
             err = ("Failed to obtain user token. Error: %s" % ex)
             LOG.error(err)
             raise Exception(err)
 
-        return admin_token
 
     def get_scoped_keystone_token(self, user, password, tenant_name,
                                   tenant_id=None):
@@ -85,6 +94,15 @@ class KeystoneClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
 
+        global tenant_id_to_token_map
+        global tenant_name_to_token_map
+        if tenant_id:
+            if tenant_id in tenant_id_to_token_map.keys():
+                return tenant_id_to_token_map[tenant_id]
+        else:
+            if tenant_name in tenant_name_to_token_map.keys():
+                return tenant_name_to_token_map[tenant_name]
+
         keystone = identity_client.Client(
             username=user,
             password=password,
@@ -101,6 +119,11 @@ class KeystoneClient(OpenstackApi):
             LOG.error(err)
             raise Exception(err)
         else:
+            if tenant_id:
+                tenant_id_to_token_map[tenant_id] = scoped_token
+            else:
+                if tenant_name:
+                    tenant_name_to_token_map[tenant_name] = scoped_token
             return scoped_token
 
     def get_tenant_id(self, token, tenant_name):
@@ -111,11 +134,19 @@ class KeystoneClient(OpenstackApi):
 
         :return: Tenant UUID
         """
+
+        global tenant_name_to_id_map
+        if tenant_name in tenant_name_to_id_map.keys():
+            return tenant_name_to_id_map[tenant_name]
+
         try:
             keystone = identity_client.Client(token=token,
                                               auth_url=self.identity_service)
             tenant = keystone.tenants.find(name=tenant_name)
-            return tenant.id
+            tenant_id = tenant.id
+            tenant_name_to_id_map[tenant_name] = tenant_id
+            return tenant_id
+
         except Exception as ex:
             err = ("Failed to read tenant UUID from"
                    " tenant_name %s."
@@ -179,27 +210,6 @@ class NovaClient(OpenstackApi):
             return image.id
         except Exception as ex:
             err = ("Failed to get image id from image name %s: %s" % (
-                image_name, ex))
-            LOG.error(err)
-            raise Exception(err)
-
-    def get_image_metadata(self, token, tenant_id, image_name):
-        """ Get the image UUID associated to image name
-
-        :param token: A scoped token
-        :param tenant_id: Tenant UUID
-        :param image_name: Image name
-
-        :return: Image UUID
-        """
-        try:
-            nova = nova_client.Client(self.nova_version, auth_token=token,
-                                      tenant_id=tenant_id,
-                                      auth_url=self.identity_service)
-            image = nova.images.find(name=image_name)
-            return image.metadata
-        except Exception as ex:
-            err = ("Failed to get image metadata from image name %s: %s" % (
                 image_name, ex))
             LOG.error(err)
             raise Exception(err)
@@ -858,10 +868,9 @@ class GBPClient(OpenstackApi):
             "policy_target": {
                 "policy_target_group_id": policy_target_group_id,
                 "tenant_id": tenant_id,
+                "name": name,
             }
         }
-        if name:
-            policy_target_info['policy_target'].update({'name': name})
         if port_id:
             policy_target_info["policy_target"]["port_id"] = port_id
 

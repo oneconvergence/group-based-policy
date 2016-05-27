@@ -11,7 +11,8 @@
 #    under the License.
 
 import os
-from gbpservice.nfp.core import log as nfp_logging
+
+from oslo_log import log as logging
 
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import (
@@ -21,7 +22,7 @@ from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
 
-LOG = nfp_logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 """Implements APIs invoked by configurator for processing RPC messages.
 
@@ -268,8 +269,9 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
             if (resource_data.get('periodicity') == gen_cfg_const.INITIAL and
                     result == common_const.SUCCESS):
                 notification_data = self._prepare_notification_data(ev, result)
-                self.sc.poll_event_done(ev)
+                # self.sc.poll_event_done(ev)
                 self.notify._notification(notification_data)
+                return {'poll': False}
             elif resource_data.get('periodicity') == gen_cfg_const.FOREVER:
                 if result == common_const.FAILED:
                     """If health monitoring fails continuously for 5 times
@@ -282,8 +284,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                         notification_data = self._prepare_notification_data(
                                                                     ev,
                                                                     result)
-                        self.sc.poll_event_done(ev)
                         self.notify._notification(notification_data)
+                        return {'poll': False}
                 elif result == common_const.SUCCESS:
                     """set fail_count to 0 if it had failed earlier even once
                     """
@@ -293,8 +295,8 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                that particular service vm's health monitor
             """
             notification_data = self._prepare_notification_data(ev, result)
-            self.sc.poll_event_done(ev)
             self.notify._notification(notification_data)
+            return {'poll': False}
         else:
             """For other events, irrespective of result send notification"""
             notification_data = self._prepare_notification_data(ev, result)
@@ -357,7 +359,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
 
     @nfp_poll.poll_event_desc(
                             event=gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
-                            spacing=5)
+                            spacing=1)
     def handle_configure_healthmonitor(self, ev):
         """Decorator method called for poll event CONFIGURE_HEALTHMONITOR
            Finally it Enqueues response into notification queue.
@@ -367,7 +369,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         Returns: None
 
         """
-        self._process_event(ev)
+        return self._process_event(ev)
 
 
 def events_init(sc, drivers, rpcmgr):

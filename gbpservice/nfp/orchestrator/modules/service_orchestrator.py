@@ -28,9 +28,6 @@ from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
-import sys
-import traceback
-
 from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
 
@@ -251,7 +248,8 @@ class RpcHandlerConfigurator(object):
                 id=event_id, data=event_data,
                 serialize=original_event.serialize,
                 binding_key=original_event.binding_key,
-                key=original_event.key)
+                key=original_event.key,
+                context=nfp_logging.get_logging_context())
             LOG.debug("poll event started for %s" % (ev.id))
             self._controller.poll_event(ev, max_times=10)
         else:
@@ -261,11 +259,12 @@ class RpcHandlerConfigurator(object):
                     id=event_id, data=event_data,
                     binding_key=network_function_id,
                     key=network_function_id,
-                    serialize=True)
+                    serialize=True, context=nfp_logging.get_logging_context())
             else:
                 ev = self._controller.new_event(
                     id=event_id,
-                    data=event_data)
+                    data=event_data,
+                    context=nfp_logging.get_logging_context())
             self._controller.post_event(ev)
         self._log_event_created(event_id, event_data)
 
@@ -276,6 +275,7 @@ class RpcHandlerConfigurator(object):
         request_info = info.get('context')
         operation = request_info.get('operation')
         logging_context = request_info.get('logging_context')
+        device_data = request_info.get('device_data')
         nfp_logging.store_logging_context(**logging_context)
         serialize = False
 
@@ -316,10 +316,10 @@ class RpcHandlerConfigurator(object):
         request_info['network_function_id'] = nf_id
         request_info['network_function_instance_id'] = nfi_id
         request_info['network_function_device_id'] = nfd_id
+        request_info['device_data'] = device_data
         event_data = request_info
         self._create_event(event_id=event_id,
                            event_data=event_data, serialize=serialize)
-        nfp_logging.clear_logging_context()
 
 
 class ServiceOrchestrator(object):
@@ -424,20 +424,18 @@ class ServiceOrchestrator(object):
             return event_handler_mapping[event_id]
 
     def handle_event(self, event):
-        LOG.info(_LI("NSO: received event %(id)s"),
+        nfp_logging.store_logging_context(**event.context)
+        LOG.info(_LI("Service Orchestrator received event %(id)s"),
                  {'id': event.id})
         try:
             event_handler = self.event_method_mapping(event.id)
             event_handler(event)
-        except Exception as e:
-            LOG.exception(_LE("Error in processing event: %(event_id)s for "
-                              "event data %(event_data)s. Error: %(error)s"),
-                          {'event_id': event.id, 'event_data': event.data,
-                           'error': e})
-            _, _, tb = sys.exc_info()
-            traceback.print_tb(tb)
+        except Exception:
+            LOG.exception(_LE("Error in processing event: %(event_id)s"),
+                          {'event_id': event.id})
 
     def handle_poll_event(self, event):
+        nfp_logging.store_logging_context(**event.context)
         LOG.info(_LI("Service Orchestrator received poll event %(id)s"),
                  {'id': event.id})
         try:
@@ -462,7 +460,8 @@ class ServiceOrchestrator(object):
                     id=event_id, data=event_data,
                     serialize=original_event.serialize,
                     binding_key=original_event.binding_key,
-                    key=original_event.desc.uid)
+                    key=original_event.desc.uid,
+                    context=nfp_logging.get_logging_context())
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:
@@ -471,18 +470,21 @@ class ServiceOrchestrator(object):
                         id=event_id, data=event_data,
                         serialize=original_event.serialize,
                         binding_key=original_event.binding_key,
-                        key=original_event.desc.uid)
+                        key=original_event.desc.uid,
+                        context=nfp_logging.get_logging_context())
                 else:
                     ev = self._controller.new_event(
                         id=event_id,
-                        data=event_data)
+                        data=event_data,
+                        context=nfp_logging.get_logging_context())
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
             # Same module API, so calling corresponding function directly.
             event = self._controller.new_event(
                 id=event_id,
-                data=event_data)
+                data=event_data,
+                context=nfp_logging.get_logging_context())
             self.handle_event(event)
 
     def _get_base_mode_support(self, service_profile_id):
@@ -504,6 +506,7 @@ class ServiceOrchestrator(object):
 
     def update_network_function_user_config(self, network_function_id,
                                             service_config_str,
+                                            request_data,
                                             operation):
         tag_str, config_str = self.config_driver.\
             parse_template_config_string(service_config_str)
@@ -517,13 +520,16 @@ class ServiceOrchestrator(object):
             return None
 
         if tag_str != nfp_constants.CONFIG_INIT_TAG:
+            '''
             network_function_details = self.get_network_function_details(
                 network_function_id)
+            '''
             service_type = self._get_service_type(
-                network_function_details['network_function'][
+                request_data['device_data']['perf_data']['network_function'][
                     'service_profile_id'])
             network_function_data = {
-                'network_function_details': network_function_details,
+                'device_data': request_data,
+                'network_function_details': {},
                 'service_type': service_type
             }
             rpc_method = getattr(self.configurator_rpc, operation +
@@ -557,10 +563,12 @@ class ServiceOrchestrator(object):
             pass
 
     def create_network_function_user_config(self, network_function_id,
-                                            service_config_str):
+                                            service_config_str, request_data):
         self.update_network_function_user_config(network_function_id,
                                                  service_config_str,
-                                                 operation='create')
+                                                 request_data,
+                                                 operation='create'
+                                                 )
 
     def delete_network_function_user_config(self, network_function_id,
                                             service_config_str):
@@ -606,6 +614,7 @@ class ServiceOrchestrator(object):
                   'service_provider': service_vendor})
 
     def create_network_function(self, context, network_function_info):
+        LOG.info('################%s #############'%(network_function_info))
         self._validate_create_service_input(context, network_function_info)
         # GBP or Neutron
         mode = network_function_info['network_function_mode']
@@ -678,7 +687,6 @@ class ServiceOrchestrator(object):
         self._create_event('CREATE_NETWORK_FUNCTION_INSTANCE',
                            event_data=create_network_function_instance_request,
                            is_internal_event=True)
-        nfp_logging.clear_logging_context()
         return network_function
 
     def update_network_function(self, context, network_function_id,
@@ -718,7 +726,6 @@ class ServiceOrchestrator(object):
             for nfi_id in network_function['network_function_instances']:
                 self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
                                    event_data=nfi_id, is_internal_event=True)
-        nfp_logging.clear_logging_context()
 
     def delete_user_config(self, event):
         request_data = event.data
@@ -765,8 +772,10 @@ class ServiceOrchestrator(object):
             'share_existing_device': request_data['share_existing_device'],
             'port_info': request_data['network_function_port_info'],
         }
+        port_info = create_nfi_request['port_info']
         nfi_db = self.db_handler.create_network_function_instance(
             self.db_session, create_nfi_request)
+        nfi_db.update({'port_info' : port_info})
         # Sending LogMeta Details to visibility
         self._report_logging_info(request_data['network_function'], nfi_db,
                                   request_data['service_type'],
@@ -800,6 +809,7 @@ class ServiceOrchestrator(object):
 
     def handle_device_active(self, event):
         request_data = event.data
+        device_data = request_data['device_data']['perf_data']
         nfi = {
             'status': nfp_constants.ACTIVE,
             'network_function_device_id': request_data[
@@ -807,19 +817,26 @@ class ServiceOrchestrator(object):
         }
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
+        '''
         network_function = self.db_handler.get_network_function(
             self.db_session, nfi['network_function_id'])
+        '''
+        network_function = device_data['network_function']
         service_config = network_function['service_config']
 
         self.create_network_function_user_config(network_function['id'],
-                                                 service_config)
+                                                 service_config, request_data)
 
     def apply_user_config(self, event):
         request_data = event.data
+        device_data = request_data['device_data']['device_data']['perf_data']
+        '''
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
+        '''
+        network_function_details = device_data
         request_data['heat_stack_id'] = self.config_driver.apply_config(
-            network_function_details)  # Heat driver to launch stack
+            network_function_details, device_data=request_data)  # Heat driver to launch stack
         network_function = network_function_details['network_function']
         request_data['network_function_id'] = network_function['id']
         if not request_data['heat_stack_id']:
@@ -1005,7 +1022,7 @@ class ServiceOrchestrator(object):
         request_data = event.data
         config_status = self.config_driver.is_config_complete(
             request_data['heat_stack_id'], request_data['tenant_id'],
-            request_data['network_function_details'])
+            request_data['network_function_details'], device_data=request_data)
         if config_status == nfp_constants.ERROR:
             LOG.info(_LI("NSO: applying user config failed for "
                          "network function %(network_function_id)s data "
@@ -1178,13 +1195,10 @@ class ServiceOrchestrator(object):
             self.db_session, nfi_id)
         network_function = self.db_handler.get_network_function(
             self.db_session, nfi['network_function_id'])
-        nf_id = network_function['id']
         if not network_function['network_function_instances']:
             self.db_handler.delete_network_function(
                 self.db_session, nfi['network_function_id'])
-        LOG.info(_LI("NSO: Deleted network function: %(nf_id)s"),
-                 {'nf_id': nf_id})
-        # Inform delete service caller with delete completed RPC
+            # Inform delete service caller with delete completed RPC
 
     def get_network_function(self, context, network_function_id):
         try:
@@ -1247,8 +1261,11 @@ class ServiceOrchestrator(object):
 
     def policy_target_add_user_config(self, event):
         request_data = event.data
+        '''
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
+        '''
+        network_function_details = request_data['device_data']['device_data']['perf_data']
         policy_target = request_data['policy_target']
         config_id = self.config_driver.handle_policy_target_operations(
             network_function_details, policy_target, "add")
@@ -1371,8 +1388,11 @@ class ServiceOrchestrator(object):
 
     def consumer_ptg_add_user_config(self, event):
         request_data = event.data
+        '''
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
+        '''
+        network_function_details=request_data
         consumer_ptg = request_data['consumer_ptg']
         stack_id = network_function_details['network_function'
                                             ]['heat_stack_id']
@@ -1437,8 +1457,11 @@ class ServiceOrchestrator(object):
 
     def consumer_ptg_remove_user_config(self, event):
         request_data = event.data
+        '''
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
+        '''
+        network_function_details = request_data
         consumer_ptg = request_data['consumer_ptg']
         stack_id = network_function_details['network_function'
                                             ]['heat_stack_id']
@@ -1515,7 +1538,7 @@ class NSOConfiguratorRpcApi(object):
 
     def _get_request_info(self, user_config_data, operation):
         network_function_details = user_config_data[
-            'network_function_details']
+            'device_data']['device_data']['perf_data']
         network_function_instance = network_function_details.get(
             'network_function_instance')
         request_info = {
@@ -1525,7 +1548,8 @@ class NSOConfiguratorRpcApi(object):
             'nfd_id': None,
             'requester': nfp_constants.SERVICE_ORCHESTRATOR,
             'operation': operation,
-            'logging_context': nfp_logging.get_logging_context()
+            'logging_context': nfp_logging.get_logging_context(),
+            'device_data': user_config_data['device_data']
         }
         if operation in ['consumer_add', 'consumer_remove']:
             request_info.update({'consumer_ptg': user_config_data[
@@ -1565,8 +1589,8 @@ class NSOConfiguratorRpcApi(object):
 
     def create_network_function_user_config(self, user_config_data,
                                             service_config, config_tag):
-        nfp_logging.store_logging_context(meta_id=user_config_data[
-            'network_function_details']['network_function']['id'])
+        nfp_logging.store_logging_context(meta_id=user_config_data['device_data'][
+            'device_data']['perf_data']['network_function']['id'])
         config_params = self.create_request_structure(user_config_data,
                                                       service_config,
                                                       config_tag)
@@ -1576,11 +1600,10 @@ class NSOConfiguratorRpcApi(object):
                      "with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        transport.send_request_to_configurator(self.conf,
-                                               self.context,
-                                               config_params,
-                                               'CREATE')
-        nfp_logging.clear_logging_context()
+        return transport.send_request_to_configurator(self.conf,
+                                                      self.context,
+                                                      config_params,
+                                                      'CREATE')
 
     def delete_network_function_user_config(self, user_config_data,
                                             service_config, config_tag):
@@ -1595,11 +1618,10 @@ class NSOConfiguratorRpcApi(object):
                      " with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        transport.send_request_to_configurator(self.conf,
-                                               self.context,
-                                               config_params,
-                                               'DELETE')
-        nfp_logging.clear_logging_context()
+        return transport.send_request_to_configurator(self.conf,
+                                                      self.context,
+                                                      config_params,
+                                                      'DELETE')
 
     def update_network_function_user_config(self, user_config_data,
                                             service_config, config_tag):
@@ -1614,16 +1636,15 @@ class NSOConfiguratorRpcApi(object):
                      " with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        transport.send_request_to_configurator(self.conf,
-                                               self.context,
-                                               config_params,
-                                               'UPDATE')
-        nfp_logging.clear_logging_context()
+        return transport.send_request_to_configurator(self.conf,
+                                                      self.context,
+                                                      config_params,
+                                                      'UPDATE')
 
     def policy_target_add_user_config(self, user_config_data,
                                       service_config, config_tag):
-        nfp_logging.store_logging_context(meta_id=user_config_data[
-            'network_function_details']['network_function']['id'])
+        nfp_logging.store_logging_context(meta_id=user_config_data['device_data'][
+            'network_function_details']['perf_data']['network_function']['id'])
         config_params = self.create_request_structure(user_config_data,
                                                       service_config,
                                                       config_tag)
@@ -1633,11 +1654,10 @@ class NSOConfiguratorRpcApi(object):
                      "configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        transport.send_request_to_configurator(self.conf,
-                                               self.context,
-                                               config_params,
-                                               'CREATE')
-        nfp_logging.clear_logging_context()
+        return transport.send_request_to_configurator(self.conf,
+                                                      self.context,
+                                                      config_params,
+                                                      'CREATE')
 
     def policy_target_remove_user_config(self, user_config_data,
                                          service_config, config_tag):
@@ -1652,11 +1672,10 @@ class NSOConfiguratorRpcApi(object):
                      "configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        transport.send_request_to_configurator(self.conf,
-                                               self.context,
-                                               config_params,
-                                               'DELETE')
-        nfp_logging.clear_logging_context()
+        return transport.send_request_to_configurator(self.conf,
+                                                      self.context,
+                                                      config_params,
+                                                      'DELETE')
 
     def consumer_add_user_config(self, user_config_data,
                                  service_config, config_tag):
@@ -1671,11 +1690,10 @@ class NSOConfiguratorRpcApi(object):
                      "configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        transport.send_request_to_configurator(self.conf,
-                                               self.context,
-                                               config_params,
-                                               'CREATE')
-        nfp_logging.clear_logging_context()
+        return transport.send_request_to_configurator(self.conf,
+                                                      self.context,
+                                                      config_params,
+                                                      'CREATE')
 
     def consumer_remove_user_config(self, user_config_data,
                                     service_config, config_tag):
@@ -1690,8 +1708,7 @@ class NSOConfiguratorRpcApi(object):
                      "configurator with config_params = %(config_params)s") %
                  {'config_params': config_params})
 
-        transport.send_request_to_configurator(self.conf,
-                                               self.context,
-                                               config_params,
-                                               'DELETE')
-        nfp_logging.clear_logging_context()
+        return transport.send_request_to_configurator(self.conf,
+                                                      self.context,
+                                                      config_params,
+                                                      'DELETE')

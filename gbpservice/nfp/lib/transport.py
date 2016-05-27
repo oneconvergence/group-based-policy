@@ -15,19 +15,20 @@ import exceptions
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import RestClientOverUnix as unix_rc
-from gbpservice.nfp.core import log as nfp_logging
 
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 
 from oslo_config import cfg
 from oslo_config import cfg as oslo_config
+from oslo_log import log as oslo_logging
 import oslo_messaging as messaging
 from oslo_serialization import jsonutils
 
 import requests
 
-LOG = nfp_logging.getLogger(__name__)
+LOGGER = oslo_logging.getLogger(__name__)
+LOG = nfp_common.log
 Version = 'v1'  # v1/v2/v3#
 
 rest_opts = [
@@ -128,10 +129,10 @@ class RestApi(object):
                        "method-type": method_type}
             resp = requests.post(url, data,
                                  headers=headers)
-            LOG.info("POST url %s %d" % (url, resp.status_code))
+            LOG(LOGGER, 'INFO', "POST url %s %d" % (url, resp.status_code))
             return self._response(resp, url)
         except RestClientException as rce:
-            LOG.error("Rest API %s - Failed. Reason: %s" %
+            LOG(LOGGER, 'ERROR', "Rest API %s - Failed. Reason: %s" %
                 (url, rce))
 
     def get(self, path):
@@ -145,10 +146,10 @@ class RestApi(object):
             headers = {"content-type": "application/json"}
             resp = requests.get(url,
                                 headers=headers)
-            LOG.info("GET url %s %d" % (url, resp.status_code))
+            LOG(LOGGER, 'INFO', "GET url %s %d" % (url, resp.status_code))
             return self._response(resp, url)
         except RestClientException as rce:
-            LOG.error("Rest API %s - Failed. Reason: %s" %
+            LOG(LOGGER, 'ERROR', "Rest API %s - Failed. Reason: %s" %
                 (url, rce))
 
 """ Common Class to handle rpcclient request"""
@@ -194,27 +195,27 @@ def send_request_to_configurator(conf, context, body,
             rc = RestApi(conf.REST.rest_server_address,
                          conf.REST.rest_server_port)
             resp = rc.post(method_name, body, method_type.upper())
-            LOG.info(
+            LOG(LOGGER, 'INFO',
                 "%s -> POST response: (%s) body: %s " % (method_name,
                                                          resp, body))
         except RestClientException as rce:
-            LOG.error("%s -> POST request failed.Reason: %s" % (
+            LOG(LOGGER, 'ERROR', "%s -> POST request failed.Reason: %s" % (
                 method_name, rce))
 
     elif conf.backend == UNIX_REST:
         try:
             resp, content = unix_rc.post(method_name,
                                          body=body)
-            LOG.info(
+            LOG(LOGGER, 'INFO',
                 "%s -> POST response: (%s) body : %s " % (method_name,
                                                           content, body))
 
         except unix_rc.RestClientException as rce:
-            LOG.error(
+            LOG(LOGGER, 'ERROR',
                 "%s -> request failed . Reason %s " % (method_name, rce))
 
     else:
-        LOG.info(
+        LOG(LOGGER, 'INFO',
             "%s -> RPC request sent ! with body : %s " % (method_name, body))
         rpcClient = RPCClient(conf.RPC.topic)
         rpcClient.cctxt.cast(context, method_name,
@@ -243,13 +244,13 @@ def get_response_from_configurator(conf):
             rpc_cbs_data = jsonutils.loads(resp.content)
             return rpc_cbs_data
         except RestClientException as rce:
-            LOG.error(
+            LOG(LOGGER, 'ERROR',
                 "get_notification -> GET request failed. Reason : %s" % (
                     rce))
             return "get_notification -> GET request failed. Reason : %s" % (
                 rce)
         except Exception as e:
-            LOG.error(
+            LOG(LOGGER, 'ERROR',
                 "get_notification -> GET request failed. Reason : %s" % (
                     e))
             return "get_notification -> GET request failed. Reason : %s" % (
@@ -260,17 +261,17 @@ def get_response_from_configurator(conf):
             resp, content = unix_rc.get('get_notifications')
             content = jsonutils.loads(content)
             if content:
-                LOG.info("get_notification -> GET response: (%s)" %
+                LOG(LOGGER, 'INFO', "get_notification -> GET response: (%s)" %
                     (content))
             return content
         except unix_rc.RestClientException as rce:
-            LOG.error(
+            LOG(LOGGER, 'ERROR',
                 "get_notification -> GET request failed. Reason : %s" % (
                     rce))
             return "get_notification -> GET request failed. Reason : %s" % (
                 rce)
         except Exception as e:
-            LOG.error(
+            LOG(LOGGER, 'ERROR',
                 "get_notification -> GET request failed. Reason : %s" % (
                     e))
             return "get_notification -> GET request failed. Reason : %s" % (
@@ -286,7 +287,7 @@ def get_response_from_configurator(conf):
                                                 'get_notifications')
             return rpc_cbs_data
         except Exception as e:
-            LOG.error("Exception while processing %s" % e)
+            LOG(LOGGER, 'ERROR', "Exception while processing %s" % e)
             return "get_notification -> GET request failed. Reason : %s" % (
                 e)
 

@@ -18,9 +18,10 @@ from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
 from neutron import context
-from gbpservice.nfp.core import log as nfp_logging
+from oslo_log import log as logging
 
-LOG = nfp_logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
+
 """ Implements LBaaS response path to Neutron plugin.
 Methods of this class are invoked by the LBaasEventHandler class and also
 by driver class for sending response from driver to the LBaaS Neutron plugin.

@@ -48,7 +48,8 @@ logging = {
         'logfile': {
             'class': 'logging.FileHandler',
             'filename': '/var/log/nfp/nfp_pecan.log',
-            'level': 'INFO'
+            'level': 'INFO',
+            'formatter': 'simple'
         }
     },
     'formatters': {

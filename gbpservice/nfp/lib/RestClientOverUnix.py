@@ -14,16 +14,18 @@ import exceptions
 import zlib
 
 from gbpservice.nfp.core import common as nfp_common
-from gbpservice.nfp.core import log as nfp_logging
+
 import httplib
 import httplib2
 
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
 import six.moves.urllib.parse as urlparse
 import socket
 
-LOG = nfp_logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+LOG = nfp_common.log
 
 
 class RestClientException(exceptions.Exception):
@@ -96,9 +98,9 @@ class UnixRestClient(object):
                                                headers=headers, body=body)
             if content != '':
                 content = zlib.decompress(content)
-            LOG.info("%s:%s" % (resp, content))
+            LOG(LOGGER, 'INFO', "%s:%s" % (resp, content))
         except RestClientException as rce:
-            LOG.error("ERROR : %s" % (rce))
+            LOG(LOGGER, 'ERROR', "ERROR : %s" % (rce))
             raise rce
 
         success_code = [200, 201, 202, 204]

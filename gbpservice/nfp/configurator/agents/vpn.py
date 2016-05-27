@@ -15,14 +15,15 @@ from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
-from gbpservice.nfp.core import event as main
+from gbpservice.nfp.core import controller as main
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.configurator.drivers.base import base_driver
 import os
+from oslo_log import log as logging
 import oslo_messaging as messaging
-from gbpservice.nfp.core import log as nfp_logging
 
-LOG = nfp_logging.getLogger(__name__)
+
+LOG = logging.getLogger(__name__)
 
 """ Implements VPNaas response path to Neutron plugin.
 

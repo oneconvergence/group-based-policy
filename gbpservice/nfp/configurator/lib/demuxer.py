@@ -11,9 +11,9 @@
 #    under the License.
 
 from gbpservice.nfp.configurator.lib import constants as const
-from gbpservice.nfp.core import log as nfp_logging
+from oslo_log import log as logging
 
-LOG = nfp_logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 """Implements supporting methods for configurator module.
 

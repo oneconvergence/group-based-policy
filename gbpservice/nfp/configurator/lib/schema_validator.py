@@ -10,11 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core import log as nfp_logging
+from oslo_log import log
 
 from gbpservice.nfp.configurator.lib import constants as const
 import gbpservice.nfp.configurator.lib.schema as schema
-LOG = nfp_logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 """ Validates request data against standard resource schemas given in schema.py
 

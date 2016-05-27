@@ -19,6 +19,30 @@ import sys
 deque = collections.deque
 
 
+def log(logger, level, msg):
+    eval('_log_%s' % (level.lower()))(logger, msg)
+
+
+def _log_info(logger, msg):
+    logger.info(msg)
+
+
+def _log_debug(logger, msg):
+    logger.debug(msg)
+
+
+def _log_error(logger, msg):
+    logger.error(msg)
+
+
+def _log_warn(logger, msg):
+    logger.warn(msg)
+
+
+def _log_exception(logger, msg):
+    logger.exception(msg)
+
+
 class ForkedPdb(pdb.Pdb):
 
     """A Pdb subclass that may be used
@@ -71,6 +95,14 @@ def identify(obj):
     except Exception:
         """Some unknown type, returning empty """
         return ""
+
+
+def load_nfp_symbols(namespace):
+    namespace['identify'] = identify
+    namespace['log_info'] = _log_info
+    namespace['log_debug'] = _log_debug
+    namespace['log_error'] = _log_error
+    namespace['log_exception'] = _log_exception
 
 
 """Wrapper class over python deque.
