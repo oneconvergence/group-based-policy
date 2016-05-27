@@ -16,22 +16,11 @@
 import functools
 import hashlib
 import time
-import warnings
 
 from oslo_log import log as logging
 import requests
 import six
 from stevedore import driver as stevedore_driver
-
-# from octavia_lib.amphorae.driver_exceptions import exceptions as driver_except
-# from octavia_lib.amphorae.drivers import driver_base as driver_base
-# from octavia_lib.amphorae.drivers.haproxy import exceptions as exc
-# # TODO(jiahao): drop vrrp temporarily
-# # from octavia_lib.amphorae.drivers.keepalived import vrrp_rest_driver
-# from octavia_lib.common.jinja.haproxy import jinja_cfg
-# from octavia_lib.common import constants
-# from octavia_lib.common.tls_utils import cert_parser
-# from octavia_lib.i18n import _LW
 
 from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
     amphorae.driver_exceptions import exceptions as driver_except
@@ -40,7 +29,7 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
 from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
     amphorae.drivers.haproxy import exceptions as exc
 # TODO(jiahao): drop vrrp temporarily
-# from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
+# from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.
 #     amphorae.drivers.keepalived import vrrp_rest_driver
 from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
     common.jinja.haproxy import jinja_cfg

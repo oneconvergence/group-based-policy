@@ -21,8 +21,9 @@ from oslo_utils import excutils
 from webob import exc
 
 from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
-    i18n import _LE, _LI
-
+    i18n import _LE
+from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
+    i18n import _LI
 
 class OctaviaException(Exception):
     """Base Octavia Exception.

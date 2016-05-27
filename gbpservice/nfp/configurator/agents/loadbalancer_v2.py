@@ -12,15 +12,15 @@
 
 import os
 
+from oslo_log import log as logging
+
+from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import lbv2_constants as lb_constants
-from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import poll as nfp_poll
-from neutron import context
-from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 
@@ -399,8 +399,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                          binding_key=healthmonitor['pool']['id'],
                          key=healthmonitor['id'])
 
-    def update_healthmonitor(self, context, old_healthmonitor,
-                                   healthmonitor):
+    def update_healthmonitor(self, context, old_healthmonitor, healthmonitor):
         """Enqueues event for worker to process update health monitor request.
 
         :param context: RPC context
@@ -492,7 +491,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         """Returns the loadbalancer id this instance is attached to."""
 
         try:
-            # TODO: For Mitaka
+            # For Mitaka
             if obj_type == 'loadbalancer':
                 lb = obj_dict['id']
             elif obj_type == 'listener':
@@ -551,7 +550,8 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         Returns: None
 
         """
-        LOG.info("###### Handling event=%s ########" % (ev.id))
+        msg = ("Handling event=%s" % (ev.id))
+        LOG.info(msg)
         try:
             msg = ("Worker process with ID: %s starting "
                    "to handle task: %s of topic: %s. "
@@ -561,8 +561,9 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
             method = getattr(self, "_%s" % (ev.id.lower()))
             method(ev)
         except Exception as err:
-            LOG.error("Failed to perform the operation: %s. %s"
-                      % (ev.id, str(err).capitalize()))
+            msg = ("Failed to perform the operation: %s. %s"
+                   % (ev.id, str(err).capitalize()))
+            LOG.error(msg)
         finally:
             if ev.id == lb_constants.EVENT_COLLECT_STATS:
                 """Do not say event done for collect stats as it is
@@ -570,7 +571,8 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 """
                 pass
             else:
-                LOG.info("###### Calling event done for ev=%s######" % (ev.id))
+                msg = ("Calling event done for event=%s" % (ev.id))
+                LOG.info(msg)
                 self.sc.event_done(ev)
 
     def _handle_event_loadbalancer(self, ev, operation):
@@ -594,14 +596,14 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                         None)
                     return
                 driver = self.drivers[driver_id]
-                driver.load_balancer.create(context, loadbalancer) 
+                driver.load_balancer.create(context, loadbalancer)
                 LBaaSEventHandler.instance_mapping[loadbalancer['id']] \
                     = driver_name
             elif operation == 'update':
                 old_loadbalancer = data['old_loadbalancer']
                 driver = self._get_driver(service_vendor)
-                driver.load_balancer.update(context, 
-                    old_loadbalancer, loadbalancer)
+                driver.load_balancer.update(context,
+                                            old_loadbalancer, loadbalancer)
             elif operation == 'delete':
                 driver = self._get_driver(service_vendor)
                 driver.load_balancer.delete(context, loadbalancer)
@@ -609,8 +611,9 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                LOG.warn(
+                msg = (
                     "Failed to delete loadbalancer %s" % (loadbalancer['id']))
+                LOG.warn(msg)
                 del LBaaSEventHandler.instance_mapping[loadbalancer['id']]
             else:
                 self.plugin_rpc.update_status(
@@ -652,16 +655,17 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                LOG.warn("Failed to delete listener %s" % (listener['id']))
+                msg = ("Failed to delete listener %s" % (listener['id']))
+                LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status(
                     'listener', listener['id'], root_lb_id,
-                    lb_constants.ERROR,  lb_constants.OFFLINE,
+                    lb_constants.ERROR, lb_constants.OFFLINE,
                     agent_info, None)
         else:
             self.plugin_rpc.update_status(
                     'listener', listener['id'], root_lb_id,
-                    lb_constants.ACTIVE,  lb_constants.ONLINE,
+                    lb_constants.ACTIVE, lb_constants.ONLINE,
                     agent_info, None)
 
     def _create_listener(self, ev):
@@ -693,16 +697,17 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                LOG.warn("Failed to delete pool %s" % (pool['id']))
+                msg = "Failed to delete pool %s" % (pool['id'])
+                LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status(
                     'pool', pool['id'], root_lb_id,
-                    lb_constants.ERROR,  lb_constants.OFFLINE,
+                    lb_constants.ERROR, lb_constants.OFFLINE,
                     agent_info, None)
         else:
             self.plugin_rpc.update_status(
                     'pool', pool['id'], root_lb_id,
-                    lb_constants.ACTIVE,  lb_constants.ONLINE,
+                    lb_constants.ACTIVE, lb_constants.ONLINE,
                     agent_info, None)
 
     def _create_pool(self, ev):
@@ -733,17 +738,17 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                LOG.warn(
-                    "Failed to delete member %s" % (member['id']))
+                msg = ("Failed to delete member %s" % (member['id']))
+                LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status(
                     'member', member['id'], root_lb_id,
-                    lb_constants.ERROR,  lb_constants.OFFLINE,
+                    lb_constants.ERROR, lb_constants.OFFLINE,
                     agent_info, None)
         else:
             self.plugin_rpc.update_status(
                     'member', member['id'], root_lb_id,
-                    lb_constants.ACTIVE,  lb_constants.ONLINE,
+                    lb_constants.ACTIVE, lb_constants.ONLINE,
                     agent_info, None)
 
     def _create_member(self, ev):
@@ -755,8 +760,6 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
     def _delete_member(self, ev):
         self._handle_event_member(ev, 'delete')
 
-    # TODO: need to update parameters sent according to lbaasv2
-    # TODO: need to update update_status()
     def _handle_event_health_monitor(self, ev, operation):
         data = ev.data
         context = data['context']
@@ -775,24 +778,25 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                 driver.health_monitor.create(context, health_monitor)
             elif operation == 'update':
                 old_health_monitor = data['old_health_monitor']
-                driver.health_monitor.update(context, old_health_monitor, 
-                                                  health_monitor)
+                driver.health_monitor.update(context, old_health_monitor,
+                                             health_monitor)
             elif operation == 'delete':
                 driver.health_monitor.delete(context, health_monitor)
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
-                LOG.warn("Failed to delete pool health monitor."
-                         " assoc_id: %s" % (assoc_id))
+                msg = ("Failed to delete pool health monitor."
+                       " assoc_id: %s" % (assoc_id))
+                LOG.warn(msg)
             else:
                 self.plugin_rpc.update_status(
                     'healthmonitor', health_monitor['id'], root_lb_id,
-                    lb_constants.ERROR,  lb_constants.OFFLINE,
+                    lb_constants.ERROR, lb_constants.OFFLINE,
                     agent_info, None)
         else:
             self.plugin_rpc.update_status(
                     'healthmonitor', health_monitor['id'], root_lb_id,
-                    lb_constants.ACTIVE,  lb_constants.ONLINE,
+                    lb_constants.ACTIVE, lb_constants.ONLINE,
                     agent_info, None)
 
     def _create_health_monitor(self, ev):
@@ -843,10 +847,12 @@ def events_init(sc, drivers, rpcmgr):
     Returns: None
 
     """
-    ev_ids = [lb_constants.EVENT_CREATE_LOADBALANCER, lb_constants.EVENT_UPDATE_LOADBALANCER,
+    ev_ids = [lb_constants.EVENT_CREATE_LOADBALANCER,
+              lb_constants.EVENT_UPDATE_LOADBALANCER,
               lb_constants.EVENT_DELETE_LOADBALANCER,
 
-              lb_constants.EVENT_CREATE_LISTENER, lb_constants.EVENT_UPDATE_LISTENER,
+              lb_constants.EVENT_CREATE_LISTENER,
+              lb_constants.EVENT_UPDATE_LISTENER,
               lb_constants.EVENT_DELETE_LISTENER,
 
               lb_constants.EVENT_CREATE_POOL, lb_constants.EVENT_UPDATE_POOL,
@@ -968,4 +974,5 @@ def _start_collect_stats(sc):
 
 def init_agent_complete(cm, sc, conf):
     # _start_collect_stats(sc)
-    LOG.info("Initialization of loadbalancer agent v2 completed.")
+    msg = ("Initialization of loadbalancer agent v2 completed.")
+    LOG.info(msg)
