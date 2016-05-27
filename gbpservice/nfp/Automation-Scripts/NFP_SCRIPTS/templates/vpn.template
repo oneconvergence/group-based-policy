@@ -79,9 +79,9 @@
                 },
                 "mtu": 1500,
                 "name": "site_to_site_connection1",
-                "peer_address": "192.168.102.89",
-                "peer_cidrs": ["12.0.0.0/24"],
-                "peer_id": "12.0.0.3",
+                "peer_address": "192.168.102.117",
+                "peer_cidrs": ["19.0.0.0/24"],
+                "peer_id": "192.168.102.117,
                 "psk": "secret",
                 "vpnservice_id": {
                     "get_resource": "VPNService"

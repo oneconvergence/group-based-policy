@@ -851,7 +851,7 @@ class DeviceOrchestrator(PollEventDesc):
         device = event.data
         LOG.error(_LE("Device creation failed, for device %(device)s"),
                   {'device': device})
-        device['network_function_device_id'] = device['id']
+        device['network_function_device_id'] = device.get('id')
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
 
