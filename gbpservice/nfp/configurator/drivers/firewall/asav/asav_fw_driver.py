@@ -276,7 +276,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             stitching_intf_name = self._get_device_interface_name(
                                                             stitching_cidr)
 
-            security_level = cfg.CONF.ASAV_CONFIG.security_level
+            security_level = cfg.CONF.ASAV_FW_CONFIG.security_level
             commands = self._get_interface_commands(
                 provider_intf_name, str(provider_interface_position),
                 provider_ip, provider_mask, security_level,
@@ -575,8 +575,8 @@ class FwaasDriver(FwGenericConfigDriver):
         self.timeout = const.REST_TIMEOUT
         self.rest_api = RestApi(self.timeout)
         self.port = const.ASAV_CONFIGURATION_SERVER_PORT
-        self.auth = HTTPBasicAuth(cfg.CONF.ASAV_CONFIG.mgmt_username,
-                                  cfg.CONF.ASAV_CONFIG.mgmt_userpass)
+        self.auth = HTTPBasicAuth(cfg.CONF.ASAV_FW_CONFIG.mgmt_username,
+                                  cfg.CONF.ASAV_FW_CONFIG.mgmt_userpass)
         super(FwaasDriver, self).__init__()
 
     def register_config_options(self):
@@ -586,7 +586,7 @@ class FwaasDriver(FwGenericConfigDriver):
 
         """
 
-        self.conf.register_opts(asav_auth_opts, 'ASAV_CONFIG')
+        self.conf.register_opts(asav_auth_opts, 'ASAV_FW_CONFIG')
 
     def get_rules(self, firewall, interface):
         """ Prepares ASAv specific firewall rules from the
@@ -950,10 +950,10 @@ class FwaasDriver(FwGenericConfigDriver):
         rules = firewall["firewall_rule_list"]
         if not rules:
             return self._get_deny_rule(interface)
-        elif (not cfg.CONF.ASAV_CONFIG.scan_all_rule and
+        elif (not cfg.CONF.ASAV_FW_CONFIG.scan_all_rule and
                 rules[0]['description'].lower() == const.IMPLICIT_DENY):
             return self._get_deny_rule(interface)
-        elif cfg.CONF.ASAV_CONFIG.scan_all_rule:
+        elif cfg.CONF.ASAV_FW_CONFIG.scan_all_rule:
             for rule in rules:
                 if rule['description'].lower() == const.IMPLICIT_DENY:
                     return self._get_deny_rule(interface)
