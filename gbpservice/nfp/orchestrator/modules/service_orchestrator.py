@@ -1012,9 +1012,14 @@ class ServiceOrchestrator(object):
                 device_deleted_event = {
                     'network_function_instance_id': nfi['id']
                 }
-                self._create_event('DEVICE_DELETED',
-                                   event_data=device_deleted_event,
-                                   is_internal_event=True)
+                network_function = self.db_handler.get_network_function(
+                    self.db_session, nfi['network_function_id'])
+                nf_id = network_function['id']
+                self.db_handler.delete_network_function(
+                        self.db_session, nfi['network_function_id'])
+                LOG.info(_LI("NSO: Deleted network function: %(nf_id)s"),
+                         {'nf_id': nf_id})
+
                 return
             delete_nfd_request = {
                 'network_function_device_id': nfi[
