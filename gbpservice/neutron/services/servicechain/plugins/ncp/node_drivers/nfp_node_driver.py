@@ -86,7 +86,8 @@ class RequiredProfileAttributesNotSet(exc.NodeCompositionPluginBadRequest):
 
 class InvalidNodeOrderInChain(exc.NodeCompositionPluginBadRequest):
     message = _("The NFP Node driver does not support the order "
-                "of nodes defined in the current service chain spec")
+                "of nodes defined in the current service chain spec, "
+                "order should be : %(node_order)s")
 
 
 class UnSupportedServiceProfile(exc.NodeCompositionPluginBadRequest):
@@ -133,22 +134,6 @@ class ServiceNodeInstanceNetworkFunctionMapping(model_base.BASEV2):
                                    nullable=False, primary_key=True)
 
 
-# These callback apis are not used today, This is supposed to be used when
-# GBP supports asynchronous operations
-class NFPCallbackApi(object):
-    RPC_API_VERSION = "1.0"
-    target = oslo_messaging.Target(version=RPC_API_VERSION)
-
-    def __init__(self, node_driver):
-        self.node_driver = node_driver
-
-    def network_function_created(self, context, network_function):
-        pass
-
-    def network_function_deleted(self, context, network_function):
-        pass
-
-
 class NFPClientApi(object):
     """ Client side of the NFP Framework user """
 
@@ -166,7 +151,6 @@ class NFPClientApi(object):
             context,
             'create_network_function',
             network_function=network_function)
-        # cctxt.cast(context, 'create_service', service_info=service_info)
 
     def delete_network_function(self, context, network_function_id):
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
@@ -197,13 +181,6 @@ class NFPClientApi(object):
                    'consumer_ptg_added_notification',
                    network_function_id=network_function_id,
                    policy_target_group=policy_target_group)
-        '''
-        return cctxt.call(
-            context,
-            'consumer_ptg_added_notification',
-            network_function_id=network_function_id,
-            policy_target_group=policy_target_group)
-        '''
 
     def consumer_ptg_removed_notification(self, context, network_function_id,
                                           policy_target_group):
@@ -212,13 +189,6 @@ class NFPClientApi(object):
                    'consumer_ptg_removed_notification',
                    network_function_id=network_function_id,
                    policy_target_group=policy_target_group)
-        '''
-        return cctxt.call(
-            context,
-            'consumer_ptg_removed_notification',
-            network_function_id=network_function_id,
-            policy_target_group=policy_target_group)
-        '''
 
     def policy_target_added_notification(self, context, network_function_id,
                                          policy_target):
@@ -227,13 +197,6 @@ class NFPClientApi(object):
                    'policy_target_added_notification',
                    network_function_id=network_function_id,
                    policy_target=policy_target)
-        '''
-        return cctxt.call(
-            context,
-            'policy_target_added_notification',
-            network_function_id=network_function_id,
-            policy_target=policy_target)
-        '''
 
     def policy_target_removed_notification(self, context, network_function_id,
                                            policy_target):
@@ -242,13 +205,6 @@ class NFPClientApi(object):
                    'policy_target_removed_notification',
                    network_function_id=network_function_id,
                    policy_target=policy_target)
-        '''
-        return cctxt.call(
-            context,
-            'policy_target_removed_notification',
-            network_function_id=network_function_id,
-            policy_target=policy_target)
-        '''
 
 
 class NFPNodeDriver(driver_base.NodeDriverBase):
@@ -284,15 +240,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             self.resource_owner_tenant_id = self._resource_owner_tenant_id()
         else:
             self.resource_owner_tenant_id = None
-        self._setup_rpc_listeners()
         self._setup_rpc()
 
-    def _setup_rpc_listeners(self):
-        self.endpoints = [NFPCallbackApi(self)]
-        self.topic = nfp_rpc_topics.NFP_NODE_DRIVER_CALLBACK_TOPIC
-        self.conn = n_rpc.create_connection(new=True)
-        self.conn.create_consumer(self.topic, self.endpoints, fanout=False)
-        return self.conn.consume_in_threads()
 
     def _setup_rpc(self):
         self.nfp_notifier = NFPClientApi(nfp_rpc_topics.NFP_NSO_TOPIC)
@@ -761,7 +710,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             [pconst.FIREWALL, pconst.LOADBALANCER],
             [pconst.LOADBALANCER]]
         if service_type_list_in_chain not in allowed_chain_combinations:
-            raise InvalidNodeOrderInChain()
+            raise InvalidNodeOrderInChain(
+                    node_order=allowed_chain_combinations)
 
     def _create_network_function(self, context):
         sc_instance = context.instance
