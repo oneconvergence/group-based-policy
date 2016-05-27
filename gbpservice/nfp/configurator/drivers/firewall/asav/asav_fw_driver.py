@@ -10,8 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core.common import ForkedPdb
-
 import ast
 import ipaddr
 import iptools
