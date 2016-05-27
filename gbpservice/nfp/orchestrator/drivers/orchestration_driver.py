@@ -1215,6 +1215,7 @@ class OrchestrationDriver(object):
                                          if consumer_cidr
                                          else [provider_cidr]),
                         'destination_cidr': consumer_cidr,
+                        'provider_mac': provider_mac,
                         'gateway_ip': consumer_gateway_ip,
                         'provider_interface_index': 2
                     }
