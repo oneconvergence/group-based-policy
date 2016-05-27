@@ -12,19 +12,19 @@
 
 import pecan
 
-import controller
-
-"""This class forwards HTTP request to controller class.
-
-This class create an object of Controller class with appropriate
-parameter according to the path of HTTP request. According to the
-parameter passed to Controller class it sends an RPC call/cast to
-configurator.
-
-"""
+from gbpservice.tests.contrib.nfp_service.reference_configurator.\
+    api.v1.controllers import controller
 
 
 class ControllerResolver(object):
+    """This class forwards HTTP request to controller class.
+
+    This class creates an object of Controller class with appropriate
+    parameter according to the path of HTTP request. According to the
+    parameter passed to Controller class it sends an RPC call/cast to
+    configurator.
+
+    """
 
     create_network_function_device_config = controller.Controller(
         "create_network_function_device_config")
@@ -41,16 +41,14 @@ class ControllerResolver(object):
     get_notifications = controller.Controller("get_notifications")
 
 
-""" This class forwards HTTP requests starting with /v1/nfp.
-
-All HTTP requests with path starting from /v1
-land here. This class forward request with path starting from /v1/nfp
-to ControllerResolver.
-
-"""
-
-
 class V1Controller(object):
+    """ This class forwards HTTP requests starting with /v1/nfp.
+
+    All HTTP requests with path starting from /v1
+    land here. This class forward request with path starting from /v1/nfp
+    to ControllerResolver.
+
+    """
 
     nfp = ControllerResolver()
 
