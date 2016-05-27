@@ -761,7 +761,7 @@ class ServiceOrchestrator(object):
                 provider_port_id = port['id']
         for network_function_instance in network_function_instances:
             if (provider_port_id in network_function_instance['port_info'] and
-                network_function_instance['network_function_device_id'] 
+                network_function_instance['network_function_device_id']
                     is not None):
                 return network_function_instance
         return None
@@ -801,7 +801,8 @@ class ServiceOrchestrator(object):
                 self.db_session, nfi_db['id'], nfi)
             nfd_data = {}
             nfd_data['network_function_instance_id'] = nfi_db['id']
-            nfd_data['network_function_device_id'] = network_function_instance['network_function_device_id']
+            nfd_data['network_function_device_id'] = (
+                    network_function_instance['network_function_device_id'])
             self._create_event('DEVICE_ACTIVE',
                            event_data=nfd_data)
 
@@ -1003,11 +1004,13 @@ class ServiceOrchestrator(object):
         if nfi['network_function_device_id']:
 
             filters = {
-                    'network_function_device_id': [nfi['network_function_device_id']],
+                    'network_function_device_id': [
+                        nfi['network_function_device_id']],
                     'status': ['ACTIVE']
-                    }
-            network_function_instances = self.db_handler.get_network_function_instances(
-                    self.db_session, filters=filters)
+                      }
+            network_function_instances = (
+                    self.db_handler.get_network_function_instances(
+                        self.db_session, filters=filters))
             if network_function_instances:
                 device_deleted_event = {
                     'network_function_instance_id': nfi['id']
