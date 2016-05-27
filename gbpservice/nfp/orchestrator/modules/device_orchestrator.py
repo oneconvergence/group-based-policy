@@ -514,6 +514,26 @@ class DeviceOrchestrator(PollEventDesc):
         device.update(device_data)
         return device
 
+    def _get_vms_to_share_for_multi_service_in_chain(self, device_data):
+        network_function_instances = (
+            self.nsf_db.get_network_function_instances(self.db_session,
+                                                       filters={}))
+        data_port_ids = [port['id'] for port in device_data['ports']]
+        network_function_device_id = None
+        for network_function_instance in network_function_instances:
+            if (data_port_ids == network_function_instance['port_info'] and
+                network_function_instance['network_function_device_id'] 
+                    is not None):
+                network_function_device_id = (
+                    network_function_instance['network_function_device_id'])
+
+        if network_function_device_id:
+            network_function_device = self.nsf_db.get_network_function_device(
+                                                self.db_session,
+                                                network_function_device_id)
+            return network_function_device
+        return None
+
     # Create path
     def create_network_function_device(self, event):
         """ Returns device instance for a new service
@@ -529,6 +549,21 @@ class DeviceOrchestrator(PollEventDesc):
                  {'data': nfd_request})
 
         device_data = self._get_device_data(nfd_request)
+        
+        
+        '''network_function_device = (
+            self._get_vms_to_share_for_multi_service_in_chain(device_data))
+        if network_function_device:
+            device_data['network_function_device_id'] = (
+                network_function_device['id'])
+            # Since device is already up and configured, call device
+            # configuration complete
+            self._create_event(event_id='DEVICE_CONFIGURED',
+                               event_data=device_data,
+                               is_internal_event=True)
+            return
+        '''
+
         orchestration_driver = self._get_orchestration_driver(
             device_data['service_details']['service_vendor'])
         dev_sharing_info = (
@@ -851,7 +886,7 @@ class DeviceOrchestrator(PollEventDesc):
         device = event.data
         LOG.error(_LE("Device creation failed, for device %(device)s"),
                   {'device': device})
-        device['network_function_device_id'] = device['id']
+        device['network_function_device_id'] = device.get('id')
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
 
