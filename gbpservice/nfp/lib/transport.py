@@ -173,7 +173,7 @@ class RPCClient(object):
 def send_request_to_configurator(conf, context, body,
                                  method_type, device_config=False,
                                  network_function_event=False,
-                                 is_backend_rest=False):
+                                 override_backend=None):
     """Common function to handle (create, delete) request for configurator.
     Send create/delete to configurator rest-server.
     Return:Http Response
@@ -194,8 +194,8 @@ def send_request_to_configurator(conf, context, body,
                 {'neutron_context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
     backend = conf.backend
-    if backend != UNIX_REST and is_backend_rest :
-        backend=conf.REST.rest_backend
+    if backend != UNIX_REST and override_backend != None :
+        backend= override_backend
 
     if backend == TCP_REST:
         try:
@@ -229,7 +229,7 @@ def send_request_to_configurator(conf, context, body,
                              body=body)
 
 
-def get_response_from_configurator(conf, is_backend_rest=False):
+def get_response_from_configurator(conf, override_backend=None):
     """Common function to handle get request for configurator.
     Get notification http response from configurator rest server.
     Return:Http Response
@@ -244,8 +244,8 @@ def get_response_from_configurator(conf, is_backend_rest=False):
     # This function reads configuration data and decides
     # method (tcp_rest/ unix_rest/ rpc) for get response from configurator.
     backend = conf.backend
-    if backend != UNIX_REST and is_backend_rest :
-        backend = conf.REST.rest_backend
+    if backend != UNIX_REST and override_backend != None :
+        backend = override_backend
 
     if backend == TCP_REST:
         try:

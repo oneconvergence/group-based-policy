@@ -48,7 +48,7 @@ def nfp_module_post_init(sc, conf):
                                            body,
                                            'CREATE',
                                            network_function_event=True,
-                                           is_backend_rest=True)
+                                           override_backend='tcp_rpc')
 
 
 class RpcHandler(object):
