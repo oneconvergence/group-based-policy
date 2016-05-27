@@ -1,0 +1,28 @@
+NFP Zero Friction for Enterprise Mode Deployment
+==================================================
+1. Added the bellow file in diskimage-create dir
+    1.local.conf
+    2.test.sh
+    3.upgrade.py
+
+2. upgrade_mode.ini file is to be create. Right now we are using nessecrry parameters directly
+
+3. Run following commands.
+   
+   1. Before starting this script setup should be installed with advanced mode(i.e on top of advanced mode setup will run this file)
+ 
+   2. python upgrade.py
+
+This will do :
+      1. Get all the enterprise drivers of configurator and prepare configurator docker.
+      2. Get visibility source code and prepare visibility docker.
+      3. Prepare the enterprise VM image containing configurator and visibility dockers.
+
+Pending Task :
+
+      1. Launch the new VM with configurator and visibility dockers in single VM. Pass required user data while booting the VM.
+      2. Assign floating IP address to the new VM.
+      3. Get the fixed IP address of service mgmt port from the new VM and configure it in the proxy’s ini file. Send a SIGHUP to proxy process for configuration reload. Proxy will be enhanced to support the configuration reload.
+      4. Bring down the configurator VM
+
+
