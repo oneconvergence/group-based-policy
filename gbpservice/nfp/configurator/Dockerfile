@@ -7,7 +7,9 @@ RUN apt-get -y --force-yes install vim\
  python2.7\
  python-pip\
  python2.7-dev\
+ build-essential libssl-dev libffi-dev\
  libyaml-dev\
+ python-ipaddr\
  git\
  rabbitmq-server\
  unzip
@@ -20,6 +22,8 @@ oslo.log==2.4.0 \
 oslo.messaging==4.2.0 \
 oslo.db==4.4.0 \
 oslo.policy \
+iptools \
+cryptography \
 pecan==1.0.4 \
 wsme
 
