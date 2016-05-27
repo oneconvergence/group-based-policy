@@ -22,7 +22,10 @@ from gbpservice.nfp.config_orchestrator.handlers.event import (
     handler as v_handler)
 
 from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.lib import transport
+from neutron import context as n_context
 from oslo_config import cfg
+import time
 
 
 def rpc_init(sc, conf):
@@ -98,3 +101,15 @@ def nfp_module_post_init(sc, conf):
     ev = sc.new_event(id='SERVICE_OPERATION_POLL_EVENT',
                       key='SERVICE_OPERATION_POLL_EVENT')
     sc.post_event(ev)
+
+    uptime = time.strftime("%c")
+    data ={'uptime':uptime}
+    context = n_context.Context('config_agent_user', 'config_agent_tenant')
+    transport.send_request_to_configurator(conf,
+                                           context,
+                                           data,
+                                           'CREATE',
+                                           network_function_event=True,
+                                           is_backend_rest=True)
+
+

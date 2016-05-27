@@ -36,6 +36,8 @@ rest_opts = [
                default='127.0.0.1', help='Rest connection IpAddr'),
     cfg.IntOpt('rest_server_port',
                default=8080, help='Rest connection Port'),
+    cfg.StrOpt('rest_backend',
+               default='rpc', help='Rest for over the cloud'),
 ]
 
 rpc_opts = [
@@ -170,7 +172,8 @@ class RPCClient(object):
 
 def send_request_to_configurator(conf, context, body,
                                  method_type, device_config=False,
-                                 network_function_event=False):
+                                 network_function_event=False,
+                                 is_backend_rest=False):
     """Common function to handle (create, delete) request for configurator.
     Send create/delete to configurator rest-server.
     Return:Http Response
@@ -190,8 +193,11 @@ def send_request_to_configurator(conf, context, body,
             body['info']['context'].update(
                 {'neutron_context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
+    backend = conf.backend
+    if backend != UNIX_REST and is_backend_rest :
+        backend=conf.REST.rest_backend
 
-    if conf.backend == TCP_REST:
+    if backend == TCP_REST:
         try:
             rc = RestApi(conf.REST.rest_server_address,
                          conf.REST.rest_server_port)
@@ -203,7 +209,7 @@ def send_request_to_configurator(conf, context, body,
             LOG.error("%s -> POST request failed.Reason: %s" % (
                 method_name, rce))
 
-    elif conf.backend == UNIX_REST:
+    elif backend == UNIX_REST:
         try:
             resp, content = unix_rc.post(method_name,
                                          body=body)
@@ -223,7 +229,7 @@ def send_request_to_configurator(conf, context, body,
                              body=body)
 
 
-def get_response_from_configurator(conf):
+def get_response_from_configurator(conf, is_backend_rest=False):
     """Common function to handle get request for configurator.
     Get notification http response from configurator rest server.
     Return:Http Response
@@ -237,7 +243,11 @@ def get_response_from_configurator(conf):
     """
     # This function reads configuration data and decides
     # method (tcp_rest/ unix_rest/ rpc) for get response from configurator.
-    if conf.backend == TCP_REST:
+    backend = conf.backend
+    if backend != UNIX_REST and is_backend_rest :
+        backend = conf.REST.rest_backend
+
+    if backend == TCP_REST:
         try:
             rc = RestApi(conf.REST.rest_server_address,
                          conf.REST.rest_server_port)
@@ -257,7 +267,7 @@ def get_response_from_configurator(conf):
             return "get_notification -> GET request failed. Reason : %s" % (
                 e)
 
-    elif conf.backend == UNIX_REST:
+    elif backend == UNIX_REST:
         try:
             resp, content = unix_rc.get('get_notifications')
             content = jsonutils.loads(content)
