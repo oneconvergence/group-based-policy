@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import zlib
 import exceptions
 
 from gbpservice.nfp.common import constants as nfp_constants
@@ -120,11 +121,12 @@ class RestApi(object):
             self.rest_server_address,
             self.rest_server_port, path)
         data = jsonutils.dumps(body)
+        data = zlib.compress(data)
         try:
             # Method-Type needs to be added here,as DELETE/CREATE
             # both case are handled by post as delete also needs
             # to send data to the rest-server.
-            headers = {"content-type": "application/json",
+            headers = {"content-type": "application/octet-stream",
                        "method-type": method_type}
             resp = requests.post(url, data,
                                  headers=headers)
@@ -142,7 +144,7 @@ class RestApi(object):
             self.rest_server_address,
             self.rest_server_port, path)
         try:
-            headers = {"content-type": "application/json"}
+            headers = {"content-type": "application/octet-stream"}
             resp = requests.get(url,
                                 headers=headers)
             LOG.info("GET url %s %d" % (url, resp.status_code))
