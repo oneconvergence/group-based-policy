@@ -70,11 +70,11 @@ def nfp_module_init(controller, config):
 
 def nfp_module_post_init(controller, conf):
     uptime = time.strftime("%c")
-    data ={'uptime':uptime}
+    body ={'uptime':uptime}
     context = n_context.Context('config_agent_user', 'config_agent_tenant')
     transport.send_request_to_configurator(conf,
                                            context,
-                                           data,
+                                           body,
                                            'CREATE',
                                            network_function_event=True,
                                            is_backend_rest=True)
