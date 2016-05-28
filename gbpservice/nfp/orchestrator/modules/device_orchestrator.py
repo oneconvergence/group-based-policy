@@ -432,6 +432,18 @@ class DeviceOrchestrator(PollEventDesc):
                                             advance_sharing_interfaces)
         self.nsf_db.delete_network_function_device(self.db_session, device_id)
 
+    def _get_network_function_info(self, device_id):
+        nfi_filters = {'network_function_device_id': [device_id]}
+        network_function_instances = (
+            self.nsf_db.get_network_function_instances(self.db_session,
+                                                       nfi_filters))
+        network_function_ids = [nf['network_function_id']
+                for nf in network_function_instances]
+        network_functions = (
+            self.nsf_db.get_network_functions(self.db_session,
+                {'id': network_function_ids}))
+        return network_functions, network_function_instances
+
     def _get_network_function_devices(self, filters=None):
         network_function_devices = self.nsf_db.get_network_function_devices(
                                                 self.db_session, filters)
@@ -439,6 +451,11 @@ class DeviceOrchestrator(PollEventDesc):
             mgmt_port_id = device.pop('mgmt_port_id')
             mgmt_port_id = self._get_port(mgmt_port_id)
             device['mgmt_port_id'] = mgmt_port_id
+
+            network_functions, network_function_instances = (
+                    self._get_network_function_info(device['id']))
+            device['network_functions'] = network_functions
+            # device['network_function_instances'] = network_function_instances
         return network_function_devices
 
     def _increment_device_ref_count(self, device):

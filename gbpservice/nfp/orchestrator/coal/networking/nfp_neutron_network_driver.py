@@ -59,3 +59,7 @@ class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
         self.network_handler.update_port(token, port_id,
                                          security_groups=[],
                                          port_security_enabled=False)
+
+    def get_service_profile(self, token, service_profile_id):
+        return {}
+
