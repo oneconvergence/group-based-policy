@@ -6,7 +6,7 @@ echo "Make sure that policy-targets associated to PTGs are deleted!!"
 
 # Delete PTG
 gbp group-delete fw_vpn-provider
-gbp group-delete fw_vpn-consumer
+gbp external-policy-delete fw_vpn-consumer
 
 # Delete network service policy
 gbp network-service-policy-delete fw_vpn_nsp
