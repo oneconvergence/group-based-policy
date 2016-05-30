@@ -253,6 +253,7 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
 
         method = "CLEAR_ROUTES"
         operation = 'delete'
+        import pdb;pdb.set_trace()
         self._test_network_device_config(operation, method)
 
     def test_configure_interfaces_configurator_api(self):

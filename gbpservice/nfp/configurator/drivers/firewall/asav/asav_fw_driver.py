@@ -217,7 +217,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         result = self.configure_bulk_cli(mgmt_ip, commands,
                                          response_data_expected=True)
 
-        if result.get('GET_RESPONSE'):
+        if (type(result) is dict) and result.get('GET_RESPONSE'):
             data = ''.join(result['GET_RESPONSE']['response']).split(
                 'GigabitEthernet0/')
             for item in data:
@@ -283,7 +283,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             stitching_intf_name = self._get_device_interface_name(
                 stitching_cidr)
 
-            security_level = cfg.CONF.ASAV_FW_CONFIG.security_level
+            security_level = self.conf.ASAV_FW_CONFIG.security_level
             commands = self._get_interface_commands(
                 provider_intf_name, str(provider_interface_position),
                 provider_ip, provider_mask, security_level,
@@ -323,10 +323,13 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         """
 
         mgmt_ip = resource_data['mgmt_ip']
-        provider_interface_position = str(int(resource_data[
-            'provider_interface_index']) - 2)
-        stitching_interface_position = str(int(resource_data[
-            'stitching_interface_index']) - 2)
+        provider_mac = resource_data['provider_mac']
+
+        import pdb;pdb.set_trace()
+        provider_interface_position = self.get_interface_position(
+            mgmt_ip, provider_mac)
+        stitching_interface_position = str(int(
+            provider_interface_position) + 1)
 
         commands = []
         provider_interface_id = self._get_asav_interface_id(

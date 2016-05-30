@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from requests.auth import HTTPBasicAuth
+
 """ Implements fake objects for assertion.
 
 """
@@ -56,6 +58,20 @@ class FakeObjects(object):
                               '"gateway_ip": "1.2.3.4"}]')
     data_for_del_src_route = '[{"source_cidr": "1.2.3.4/24"}]'
     timeout = 120
+    content_headers = {'Content-Type': 'application/json'}
+    asav_url = 'https://172.24.4.5'
+    asav_bulk_cli_url = '%s/api/cli' % asav_url
+
+    def fake_asav_resources(self, resource):
+        resource_data_map = {
+            'interface': [
+                'interface gigabitEthernet 0/2',
+                'nameif interface-192.168.0.0_28',
+                {}, 'ip address 192.168.0.3 255.255.255.240',
+                'no shutdown', 'same-security-traffic permit inter-interface',
+                'write memory']}
+
+        return resource_data_map[resource]
 
     def fake_request_data_generic_bulk(self):
         """ A sample bulk request data for generic APIs
@@ -90,6 +106,7 @@ class FakeObjects(object):
                 "resource": "routes",
                 "resource_data": {
                     "provider_interface_index": 2,
+                    "provider_mac": "fa:16:3e:d9:4c:33",
                     "gateway_ip": "192.168.0.1",
                     "destination_cidr": "192.168.0.0/28",
                     "mgmt_ip": "11.0.0.37",
@@ -233,6 +250,7 @@ class FakeObjects(object):
                     "resource_data": {
                         "mgmt_ip": "11.0.0.37",
                         "gateway_ip": "192.168.0.1",
+                        "provider_mac": "fa:16:3e:d9:4c:33",
                         "destination_cidr": "192.168.0.0/28",
                         "provider_interface_index": 2,
                         "source_cidrs": [
@@ -255,11 +273,11 @@ class FakeObjects(object):
         resource_data = {
                     'fake_resource_data': 'data',
                     'periodicity': 'initial',
-                    'provider_ip': 'provider_ip',
-                    'provider_cidr': 'provider_cidr',
+                    'provider_ip': '11.0.1.1',
+                    'provider_cidr': '11.0.1.0/24',
                     'provider_mac': '00:0a:95:9d:68:16',
-                    'stitching_ip': 'stitching_ip',
-                    'stitching_cidr': 'stitching_cidr',
+                    'stitching_ip': '192.168.0.3',
+                    'stitching_cidr': '192.168.0.0/28',
                     'stitching_mac': '00:0a:95:9d:68:16',
                     'provider_interface_index': 'provider_interface_index',
                     'stitching_interface_index': 'stitching_interface_index',
