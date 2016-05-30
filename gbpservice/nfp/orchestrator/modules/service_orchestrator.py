@@ -479,10 +479,18 @@ class ServiceOrchestrator(object):
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
-            # Same module API, so calling corresponding function directly.
-            event = self._controller.new_event(
-                id=event_id,
-                data=event_data)
+            if original_event:
+                event = self._controller.new_event(
+                    id=event_id, data=event_data,
+                    serialize=original_event.serialize,
+                    binding_key=original_event.binding_key,
+                    key=original_event.desc.uid)
+            else:
+                # Same module API, so calling corresponding function
+                # directly.
+                event = self._controller.new_event(
+                    id=event_id,
+                    data=event_data)
             self.handle_event(event)
 
     def _get_base_mode_support(self, service_profile_id):
@@ -915,7 +923,8 @@ class ServiceOrchestrator(object):
         else:
             self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                                event_data=event.data,
-                               is_internal_event=True)
+                               is_internal_event=True,
+                               original_event=event)
 
     def handle_continue_update_user_config(self, event):
         request_data = event.data

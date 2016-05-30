@@ -134,6 +134,24 @@ class RestApi(object):
             LOG.error("Rest API %s - Failed. Reason: %s" %
                 (url, rce))
 
+    def put(self, path, body):
+        """Put restclient request handler
+        Return:Http response
+        """
+        url = self.url % (
+            self.rest_server_address,
+            self.rest_server_port, path)
+        data = jsonutils.dumps(body)
+        try:
+            headers = {"content-type": "application/json"}
+            resp = requests.put(url, data,
+                                headers=headers)
+            LOG.info("PUT url %s %d" % (url, resp.status_code))
+            return self._response(resp, url)
+        except RestClientException as rce:
+            LOG.error("Rest API %s - Failed. Reason: %s" %
+                      (url, rce))
+
     def get(self, path):
         """Get restclient request handler
         Return:Http response
@@ -193,21 +211,32 @@ def send_request_to_configurator(conf, context, body,
         try:
             rc = RestApi(conf.REST.rest_server_address,
                          conf.REST.rest_server_port)
-            resp = rc.post(method_name, body, method_type.upper())
-            LOG.info(
-                "%s -> POST response: (%s) body: %s " % (method_name,
-                                                         resp, body))
+            if method_type in ['CREATE', 'DELETE']:
+                resp = rc.post(method_name, body, method_type.upper())
+                LOG.info("%s -> POST response: (%s) body: %s " % (method_name,
+                                                                  resp, body))
+            else:
+                resp = rc.put(method_name, body)
+                LOG.info("%s -> PUT response: (%s) body: %s " % (method_name,
+                                                                 resp, body))
         except RestClientException as rce:
             LOG.error("%s -> POST request failed.Reason: %s" % (
                 method_name, rce))
 
     elif conf.backend == UNIX_REST:
         try:
-            resp, content = unix_rc.post(method_name,
-                                         body=body)
-            LOG.info(
-                "%s -> POST response: (%s) body : %s " % (method_name,
-                                                          content, body))
+            if method_type in ['CREATE', 'DELETE']:
+                resp, content = unix_rc.post(method_name,
+                                             body=body)
+                LOG.info(
+                    "%s -> POST response: (%s) body : %s " % (method_name,
+                                                              content, body))
+            else:
+                resp, content = unix_rc.put(method_name,
+                                            body=body)
+                LOG.info(
+                    "%s -> PUT response: (%s) body : %s " % (method_name,
+                                                             content, body))
 
         except unix_rc.RestClientException as rce:
             LOG.error(
