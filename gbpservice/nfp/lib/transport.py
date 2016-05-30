@@ -33,11 +33,9 @@ Version = 'v1'  # v1/v2/v3#
 
 rest_opts = [
     cfg.StrOpt('rest_server_address',
-               default='127.0.0.1', help='Rest connection IpAddr'),
+               default=' ', help='Rest connection IpAddr'),
     cfg.IntOpt('rest_server_port',
                default=8080, help='Rest connection Port'),
-    cfg.StrOpt('rest_backend',
-               default='rpc', help='Rest for over the cloud'),
 ]
 
 rpc_opts = [
@@ -194,8 +192,9 @@ def send_request_to_configurator(conf, context, body,
                 {'neutron_context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
     backend = conf.backend
-    if backend != UNIX_REST and override_backend != None :
-        backend= override_backend
+    if backend != UNIX_REST:
+        if override_backend != None and conf.REST.rest_server_address != ' ':
+            backend = override_backend
 
     if backend == TCP_REST:
         try:
@@ -244,8 +243,9 @@ def get_response_from_configurator(conf, override_backend=None):
     # This function reads configuration data and decides
     # method (tcp_rest/ unix_rest/ rpc) for get response from configurator.
     backend = conf.backend
-    if backend != UNIX_REST and override_backend != None :
-        backend = override_backend
+    if backend != UNIX_REST:
+        if override_backend != None and conf.REST.rest_server_address != ' ':
+            backend = override_backend
 
     if backend == TCP_REST:
         try:
