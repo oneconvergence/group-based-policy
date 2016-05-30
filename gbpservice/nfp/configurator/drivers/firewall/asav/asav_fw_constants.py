@@ -12,7 +12,7 @@
 # One Convergence, Inc., USA
 
 REFRENCE_IPS = {'WILDCARD': '0.0.0.0'}
-PROVIDER_INGRESS_DIRECTION = "out"
+PROVIDER_INGRESS_DIRECTION = 'out'
 IMPLICIT_DENY = 'oc_implicit_deny_all'
 
 REQUEST_URL = "https://%s%s"
