@@ -27,6 +27,7 @@ import ast
 import operator
 
 from gbpservice.nfp.core import log as nfp_logging
+from collections import defaultdict
 LOG = nfp_logging.getLogger(__name__)
 
 
@@ -36,7 +37,10 @@ ADVANCE_SHARING_PTG_NAME = "Advance_Sharing_PTG"
 
 def _set_network_handler(f):
     def wrapped(self, *args, **kwargs):
-        device_data = args[0]
+        if type(args[0]) == dict:
+            device_data = args[0]
+        else:
+            device_data = args[1]
         if device_data.get('service_details'):
             network_mode = device_data['service_details'].get('network_mode')
             if network_mode:
@@ -52,7 +56,7 @@ class OrchestrationDriver(object):
     is launched for each Network Service Instance
     """
     def __init__(self, config, supports_device_sharing=True,
-                 supports_hotplug=True, max_interfaces=5):
+                 supports_hotplug=True, max_interfaces=10):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
         self.supports_hotplug = supports_hotplug
@@ -318,6 +322,22 @@ class OrchestrationDriver(object):
             image_name = '%s' % image_name.lower()
         return image_name
 
+    def _get_service_type(self, token, service_profile_id, network_handler):
+        service_profile = network_handler.get_service_profile(token,
+                                                        service_profile_id)
+        return service_profile['service_type']
+
+    def _get_device_service_types_map(self, token, devices, network_handler):
+        device_service_types_map = defaultdict(set)
+        for device in devices:
+            for network_function in device['network_functions']:
+                service_type = self._get_service_type(
+                            token,
+                            network_function['service_profile_id'],
+                            network_handler)
+                device_service_types_map[device['id']].add(service_type)
+        return device_service_types_map
+
     def get_network_function_device_sharing_info(self, device_data):
         """ Get filters for NFD sharing
 
@@ -363,7 +383,9 @@ class OrchestrationDriver(object):
                 }
         }
 
-    def select_network_function_device(self, devices, device_data):
+    @_set_network_handler
+    def select_network_function_device(self, devices, device_data,
+                                       network_handler=None):
         """ Select a NFD which is eligible for sharing
 
         :param devices: NFDs
@@ -398,6 +420,9 @@ class OrchestrationDriver(object):
         ):
             raise exceptions.IncompleteData()
 
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return None
         image_name = self._get_image_name(device_data)
         if image_name:
             self._update_vendor_data(device_data,
@@ -410,11 +435,22 @@ class OrchestrationDriver(object):
                for port in device_data['ports']):
             hotplug_ports_count = 2
 
+        device_service_types_map = (
+                self._get_device_service_types_map(token, devices,
+                                                   network_handler))
+        service_type = device_data['service_details']['service_type']
         for device in devices:
             if (
                 (device['interfaces_in_use'] + hotplug_ports_count) <=
                 self.maximum_interfaces
             ):
+                if (service_type.lower() == nfp_constants.VPN.lower() and
+                    service_type in device_service_types_map[device['id']]):
+                    # Restrict multiple VPN services to share same device
+                    # If nfd request service type is VPN and current filtered
+                    # device already has VPN service instantiated, ignore this
+                    # device and checks for next one
+                    continue
                 return device
         return None
 
