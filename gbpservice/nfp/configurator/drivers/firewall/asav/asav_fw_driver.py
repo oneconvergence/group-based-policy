@@ -23,7 +23,7 @@ from requests.auth import HTTPBasicAuth
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.drivers.firewall.asav import (
-                                                asav_fw_constants as const)
+    asav_fw_constants as const)
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import fw_constants as fw_const
 from gbpservice.nfp.core import log as nfp_logging
@@ -66,6 +66,7 @@ communicate with the Service VM.
 
 
 class RestApi(object):
+
     def __init__(self, timeout):
         self.timeout = timeout
         self.content_header = {'Content-Type': 'application/json'}
@@ -85,8 +86,9 @@ class RestApi(object):
         """
 
         try:
-            LOG.info("Initiating a POST call to URL: %r "
-                     "with data: %r." % (url, data))
+            msg = ("Initiating a POST call to URL: %r "
+                   "with data: %r." % (url, data))
+            LOG.info(msg)
             data = jsonutils.dumps(data)
             resp = requests.post(url, data,
                                  headers=self.content_header, verify=False,
@@ -94,7 +96,7 @@ class RestApi(object):
         except requests.exceptions.SSLError as err:
             msg = ("REST API POST request failed for ASAv. "
                    "URL: %r, Data: %r. Error: %r" % (
-                            url, data, str(err).capitalize()))
+                       url, data, str(err).capitalize()))
             LOG.error(msg)
             return msg
         except Exception as err:
@@ -117,9 +119,10 @@ class RestApi(object):
                    "Result: %r." % (url, resp.status_code, result))
             LOG.error(msg)
             return msg
-        LOG.info("Successfully issued a POST call and the result of "
-                 "the API operation is positive. URL: %r. Result: %r. "
-                 "Status Code: %r." % (url, result, resp.status_code))
+        msg = ("Successfully issued a POST call and the result of "
+               "the API operation is positive. URL: %r. Result: %r. "
+               "Status Code: %r." % (url, result, resp.status_code))
+        LOG.info(msg)
         return (
             common_const.STATUS_SUCCESS
             if not response_data_expected
@@ -132,6 +135,7 @@ configuration requests.
 
 
 class FwGenericConfigDriver(base_driver.BaseDriver):
+
     def __init__(self):
         pass
 
@@ -215,7 +219,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         if result.get('GET_RESPONSE'):
             data = ''.join(result['GET_RESPONSE']['response']).split(
-                                                        'GigabitEthernet0/')
+                'GigabitEthernet0/')
             for item in data:
                 if mac in item:
                     return item[0]
@@ -251,17 +255,17 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             stitching_cidr = resource_data.get('stitching_cidr')
             stitching_mac = resource_data.get('stitching_mac')
             provider_interface_position = resource_data.get(
-                                    'provider_interface_index')
+                'provider_interface_index')
             stitching_interface_position = resource_data.get(
-                                    'stitching_interface_index')
+                'stitching_interface_index')
 
             (provider_mac, stitching_mac) = self.get_asav_macs(
                 [provider_mac, stitching_mac])
 
             provider_interface_position = self.get_interface_position(
-                                                        mgmt_ip, provider_mac)
+                mgmt_ip, provider_mac)
             stitching_interface_position = str(int(
-                                            provider_interface_position) + 1)
+                provider_interface_position) + 1)
 
             provider_macs = [provider_mac]
             stitching_macs = [stitching_mac]
@@ -277,7 +281,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
             provider_intf_name = self._get_device_interface_name(provider_cidr)
             stitching_intf_name = self._get_device_interface_name(
-                                                            stitching_cidr)
+                stitching_cidr)
 
             security_level = cfg.CONF.ASAV_FW_CONFIG.security_level
             commands = self._get_interface_commands(
@@ -302,8 +306,9 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                 LOG.info(msg)
             return result
         except Exception as err:
-            LOG.error(_("Exception while configuring interface. "
-                        "commands: %s, Reason: %s" % (commands, err)))
+            msg = ("Exception while configuring interface. "
+                   "commands: %s, Reason: %s" % (commands, err))
+            LOG.error(msg)
             raise Exception(err)
 
     def clear_interfaces(self, context, resource_data):
@@ -319,15 +324,15 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         mgmt_ip = resource_data['mgmt_ip']
         provider_interface_position = str(int(resource_data[
-                                            'provider_interface_index']) - 2)
+            'provider_interface_index']) - 2)
         stitching_interface_position = str(int(resource_data[
-                                            'stitching_interface_index']) - 2)
+            'stitching_interface_index']) - 2)
 
         commands = []
         provider_interface_id = self._get_asav_interface_id(
-                                                provider_interface_position)
+            provider_interface_position)
         stitching_interface_id = self._get_asav_interface_id(
-                                                stitching_interface_position)
+            stitching_interface_position)
         try:
             commands.append("clear configure interface " +
                             provider_interface_id)
@@ -344,8 +349,9 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                 LOG.info(msg)
             return result
         except Exception as err:
-            LOG.error(_("Exception while clearing interface config. "
-                        "commands: %s, Reason: %s" % (commands, err)))
+            msg = ("Exception while clearing interface config. "
+                   "commands: %s, Reason: %s" % (commands, err))
+            LOG.error(msg)
             raise Exception(err)
 
     def configure_routes(self, context, resource_data):
@@ -413,7 +419,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         asav_provider_mac = self.get_asav_mac(provider_mac)
 
         provider_interface_position = self.get_interface_position(
-                                                    mgmt_ip, asav_provider_mac)
+            mgmt_ip, asav_provider_mac)
 
         interface_id = self._get_asav_interface_id(provider_interface_position)
         permit_traffic_list = ['ip']
@@ -425,13 +431,13 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                                     source_cidr.replace('/', '_'), protocol,
                                     source_network, source_mask))
             commands.append("route-map pbrmap%s permit 1" % (
-                                    source_cidr.replace('/', '_')))
+                source_cidr.replace('/', '_')))
             commands.append("match ip address pbracl" +
                             source_cidr.replace('/', '_'))
             commands.append("set ip next-hop " + gateway_ip)
             commands.append("interface " + interface_id)
             commands.append("policy-route route-map pbrmap%s" % (
-                                    source_cidr.replace('/', '_')))
+                source_cidr.replace('/', '_')))
 
             result = self.configure_bulk_cli(mgmt_ip, commands)
             if result is not common_const.STATUS_SUCCESS:
@@ -439,7 +445,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
             # Add interface based default ruote to stitching gw
             dest_interface_name = self._get_device_interface_name(
-                                                            destination_cidr)
+                destination_cidr)
             adm_distance = int(provider_interface_position) + 2
             command = list()
             command.append("route " + dest_interface_name + " 0 0 " +
@@ -458,8 +464,9 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             return result
 
         except Exception as err:
-            LOG.error(_("Exception while configuring pbr route. "
-                        "commands: %s, Reason: %s" % (commands, err)))
+            msg = ("Exception while configuring pbr route. "
+                   "commands: %s, Reason: %s" % (commands, err))
+            LOG.error(msg)
             raise Exception(err)
 
     def _configure_dns(self, dest_interface):
@@ -493,11 +500,11 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         provider_mac = resource_data['provider_mac']
         try:
             provider_interface_position = self.get_interface_position(
-                                                        mgmt_ip, provider_mac)
+                mgmt_ip, provider_mac)
 
             commands = []
             interface_id = self._get_asav_interface_id(
-                                                provider_interface_position)
+                provider_interface_position)
             commands.append("interface " + interface_id)
             commands.append("no policy-route route-map pbrmap" +
                             source_cidr.replace('/', '_'))
@@ -531,7 +538,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         l = mac_addr.split(':')
         asav_mac = ""
         for i in range(0, len(l), 2):
-            asav_mac += (l[i] + l[i+1] + ".")
+            asav_mac += (l[i] + l[i + 1] + ".")
 
         return asav_mac[:-1]
 
@@ -552,7 +559,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             l = mac_addr.split(':')
             asav_mac = ""
             for i in range(0, len(l), 2):
-                asav_mac += (l[i] + l[i+1] + ".")
+                asav_mac += (l[i] + l[i + 1] + ".")
             asav_mac_list.append(asav_mac[:-1])
 
         return tuple(asav_mac_list)
@@ -610,7 +617,7 @@ class FwaasDriver(FwGenericConfigDriver):
             destination_port = rule['destination_port']
             if rule["destination_ip_address"]:
                 if rule["destination_ip_address"] == const.REFRENCE_IPS[
-                                                                'WILDCARD']:
+                        'WILDCARD']:
                     destinationAddress = dict(
                         kind="AnyIPAddress",
                         value=rule["destination_ip_address"])
@@ -689,7 +696,7 @@ class FwaasDriver(FwGenericConfigDriver):
 
             try:
                 asav_access_rule.update(
-                            {'destinationService': destinationService})
+                    {'destinationService': destinationService})
             except NameError:
                 pass
 
@@ -773,8 +780,9 @@ class FwaasDriver(FwGenericConfigDriver):
         else:
             rules_body = self.get_rules(firewall, interface)
         data = rules_body
-        LOG.info(_("Initiating POST request to configure firewall - %r of "
-                   "tenant : %r " % (firewall['id'], firewall['tenant_id'])))
+        msg = ("Initiating POST request to configure firewall - %r of "
+               "tenant : %r " % (firewall['id'], firewall['tenant_id']))
+        LOG.info(msg)
         try:
             result = self.rest_api.post(url, data, self.auth)
 
@@ -817,7 +825,7 @@ class FwaasDriver(FwGenericConfigDriver):
             return msg
 
         if (_is_delete_success and _is_configure_success) is (
-                                                common_const.STATUS_SUCCESS):
+                common_const.STATUS_SUCCESS):
             return common_const.STATUS_SUCCESS
         else:
             msg = ("Update firewall request failed. Reason: %r and %r" %
@@ -845,9 +853,9 @@ class FwaasDriver(FwGenericConfigDriver):
             const.PROVIDER_INGRESS_DIRECTION)
         clear_interface_acl = "clear configure access-list %s" % interface_name
         data = dict(commands=[clear_interface_acl, 'wr mem'])
-        LOG.info("Initiating DELETE request for firewall : %r. Tenant: %s "
-                 "URL: %r" % (firewall['id'], firewall['tenant_id'],
-                              url))
+        msg = ("Initiating DELETE request for firewall : %r. Tenant: %s "
+               "URL: %r" % (firewall['id'], firewall['tenant_id'], url))
+        LOG.info(msg)
         try:
             result = self.rest_api.post(url, data, self.auth)
 
@@ -857,10 +865,11 @@ class FwaasDriver(FwGenericConfigDriver):
                 LOG.error(msg)
                 if self._safe_to_flag_delete_success(str(result),
                                                      interface_name):
-                    LOG.error("Firewall configuration not found for the "
-                              "interface. Marking that as delete success, "
-                              "for Firewall ID: %r Tenant ID: %r "
-                              % (firewall['id'], firewall['tenant_id']))
+                    msg = ("Firewall configuration not found for the "
+                           "interface. Marking that as delete success, "
+                           "for Firewall ID: %r Tenant ID: %r "
+                           % (firewall['id'], firewall['tenant_id']))
+                    LOG.info(msg)
                     return common_const.STATUS_SUCCESS
                 else:
                     msg = ("Firewall deletion failed and the configuration "
@@ -890,7 +899,8 @@ class FwaasDriver(FwGenericConfigDriver):
             provider_cidr = ast.literal_eval(firewall["description"])[
                 "provider_cidr"]
         except KeyError:
-            LOG.error("Get interface name failed")
+            msg = ("Get interface name failed")
+            LOG.error(msg)
             raise
         return 'interface-' + provider_cidr.replace('/', '_')
 

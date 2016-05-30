@@ -12,7 +12,6 @@
 
 import os
 import oslo_messaging as messaging
-from gbpservice.nfp.core import log as nfp_logging
 import requests
 
 from gbpservice.nfp.configurator.agents import agent_base
@@ -20,6 +19,7 @@ from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import fw_constants as const
 from gbpservice.nfp.configurator.lib import utils as load_driver
 from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
