@@ -27,6 +27,9 @@ import ast
 import operator
 
 from gbpservice.nfp.core import log as nfp_logging
+
+from gbpservice.nfp.core import context as nfp_core_context
+
 LOG = nfp_logging.getLogger(__name__)
 
 
@@ -158,6 +161,9 @@ class OrchestrationDriver(object):
                 name=name)
 
         return {'id': mgmt_interface['id'],
+                #[<--PERF]
+                'port_id': mgmt_interface['port_id'],
+                #[PERF-->]
                 'port_model': (nfp_constants.GBP_PORT
                                if device_data['service_details'][
                                                         'network_mode'] ==
@@ -348,10 +354,14 @@ class OrchestrationDriver(object):
         ):
             raise exceptions.IncompleteData()
 
+        #[<--PERF]
+        '''
         image_name = self._get_image_name(device_data)
         if image_name:
             self._update_vendor_data(device_data,
                                  device_data.get('token'))
+        '''
+        #[PERF-->]
         if not self._is_device_sharing_supported():
             return None
         return {
@@ -524,8 +534,13 @@ class OrchestrationDriver(object):
         advance_sharing_interfaces = []
         try:
             for interface in interfaces:
+                #[<--PERF]
+                '''
                 port_id = network_handler.get_port_id(token, interface['id'])
-                interfaces_to_attach.append({'port': port_id})
+                interfaces_to_attach.append({'port': port_id})\
+                '''
+                interfaces_to_attach.append({'port': interface.pop('port_id')})
+                #[PERF-->]
 
             if not self.supports_hotplug:
                 if self.setup_mode.get(nfp_constants.NEUTRON_MODE):
@@ -596,14 +611,30 @@ class OrchestrationDriver(object):
             self._increment_stats_counter('instances')
 
         mgmt_ip_address = None
+        mgmt_neutron_port_info = {}
         try:
             for interface in interfaces:
                 if interface['port_classification'] == (
                                                     nfp_constants.MANAGEMENT):
+                    #[<--PERF]
+                    (mgmt_ip_address,
+                     mgmt_mac, mgmt_cidr, gateway_ip,
+                     mgmt_port, mgmt_subnet) = network_handler.get_neutron_port_details(token, interface['port_id'])
+
+                    mgmt_neutron_port_info = {'neutron_port': mgmt_port,
+                                              'neutron_subnet': mgmt_subnet,
+                                              'ip_address': mgmt_ip_address,
+                                              'mac': mgmt_mac,
+                                              'cidr': mgmt_cidr,
+                                              'gateway_ip': gateway_ip}
+                    '''
                     (mgmt_ip_address,
                      dummy, dummy,
                      dummy) = network_handler.get_port_details(
-                                                        token, interface['id'])
+                                                        -token, interface['id'])
+                    '''
+                    #[-->PERF]
+                    break
         except Exception as e:
             self._increment_stats_counter('port_details_get_failures')
             LOG.error(_LE('Failed to get management port details. '
@@ -632,6 +663,7 @@ class OrchestrationDriver(object):
                 'name': instance_name,
                 'mgmt_ip_address': mgmt_ip_address,
                 'mgmt_port_id': interfaces[0],
+                'mgmt_neutron_port_info': mgmt_neutron_port_info,
                 'max_interfaces': self.maximum_interfaces,
                 'interfaces_in_use': len(interfaces_to_attach),
                 'advance_sharing_interfaces': advance_sharing_interfaces,
@@ -818,9 +850,14 @@ class OrchestrationDriver(object):
         if not token:
             return None
 
+        #[<--PERF]
+        #This is already done in "create_network_function_device method of this class.
+        '''
         image_name = self._get_image_name(device_data)
         if image_name:
             self._update_vendor_data(device_data)
+        '''
+        #[-->PERF]
 
         update_ifaces = []
         try:
@@ -866,6 +903,10 @@ class OrchestrationDriver(object):
                                                                 port['id'])
                         port_id = network_handler.get_port_id(token,
                                                               port['id'])
+                        #[<--PERF]
+                        # Saving the neutron port id for the gbp pt
+                        port['port_id'] = port_id
+                        #[-->PERF]
                         self.compute_handler_nova.attach_interface(
                                     token,
                                     self._get_admin_tenant_id(token=token),
@@ -883,6 +924,10 @@ class OrchestrationDriver(object):
                                                                 port['id'])
                         port_id = network_handler.get_port_id(token,
                                                               port['id'])
+                        #[<--PERF]
+                        # Saving the neutron port id for the gbp pt
+                        port['port_id'] = port_id
+                        #[-->PERF]
                         self.compute_handler_nova.attach_interface(
                                     token,
                                     self._get_admin_tenant_id(token=token),
@@ -1105,6 +1150,41 @@ class OrchestrationDriver(object):
         }
 
     @_set_network_handler
+    def get_network_function_device_port_info(self, device_data, network_handler=None):
+        if (
+            type(device_data['ports']) is not list or
+
+            any(key not in port
+                for port in device_data['ports']
+                for key in ['id',
+                            'port_classification',
+                            'port_model'])
+        ):
+            raise exceptions.IncompleteData()
+
+        token = self._get_token(device_data.get('token'))
+        if not token:
+            return None
+
+        for port in device_data['ports']:
+            try:
+                (ip, mac, cidr, gateway_ip,
+                     port, subnet) = (
+                            network_handler.get_neutron_port_details(token, port['port_id'])
+                )
+                port['neutron_info'] = {'ip': provider_ip,
+                                        'mac': provider_mac,
+                                        'cidr': provider_cidr,
+                                        'gateway_ip': provider_gateway_ip,
+                                        'port': provider_port,
+                                        'subnet': provider_subnet}
+            except Exception:
+                self._increment_stats_counter('port_details_get_failures')
+                LOG.error(_LE('Failed to get provider port details'
+                                ' for get device config info operation'))
+                return None
+
+    @_set_network_handler
     def get_network_function_device_config_info(self, device_data,
                                                 network_handler=None):
         """ Get the configuration information for NFD
@@ -1163,6 +1243,7 @@ class OrchestrationDriver(object):
         provider_ip = None
         provider_mac = None
         provider_cidr = None
+        provider_gateway_ip = None
         consumer_ip = None
         consumer_mac = None
         consumer_cidr = None
@@ -1171,9 +1252,17 @@ class OrchestrationDriver(object):
         for port in device_data['ports']:
             if port['port_classification'] == nfp_constants.PROVIDER:
                 try:
+                    #[<--PERF]
+                    '''
                     (provider_ip, provider_mac, provider_cidr, dummy) = (
                             network_handler.get_port_details(token, port['id'])
                     )
+                    '''
+                    provider_ip = port['ip']
+                    provider_mac = port['mac']
+                    provider_cidr = port['cidr']
+                    provider_gateway_ip = port['gateway_ip']
+                    #[-->PERF]
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_LE('Failed to get provider port details'
@@ -1181,10 +1270,18 @@ class OrchestrationDriver(object):
                     return None
             elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
+                    #[<--PERF]
+                    '''
                     (consumer_ip, consumer_mac, consumer_cidr,
                      consumer_gateway_ip) = (
                             network_handler.get_port_details(token, port['id'])
                     )
+                    '''
+                    consumer_ip = port['ip']
+                    consumer_mac = port['mac']
+                    consumer_cidr = port['cidr']
+                    consumer_gateway_ip = port['gateway_ip']
+
                 except Exception:
                     self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_LE('Failed to get consumer port details'
@@ -1205,7 +1302,8 @@ class OrchestrationDriver(object):
                         'stitching_interface_index': 3,
                         'provider_mac': provider_mac,
                         'stitching_mac': consumer_mac,
-                    }
+                    },
+
                 },
                 {
                     'resource': nfp_constants.ROUTES_RESOURCE,

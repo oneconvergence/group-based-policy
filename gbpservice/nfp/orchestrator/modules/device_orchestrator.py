@@ -32,6 +32,8 @@ import sys
 import traceback
 
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import context as nfp_core_context
+
 LOG = nfp_logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
@@ -117,6 +119,14 @@ class RpcHandler(object):
         operation = request_info.get('operation')
         logging_context = request_info.get('logging_context')
         nfp_logging.store_logging_context(**logging_context)
+
+        #[<--PERF]
+        try:
+            nfp_context = request_info['nfp_context']
+            nfp_context['admin_token'] = None
+        except KeyError:
+            request_info['nfp_context'] = None
+        #[-->PERF]
 
         for response in responses:
             resource = response.get('resource')
@@ -221,7 +231,8 @@ class DeviceOrchestrator(PollEventDesc):
             "CREATE_NETWORK_FUNCTION_DEVICE": (
                 self.create_network_function_device),
             "DEVICE_UP": self.perform_health_check,
-            "DEVICE_HEALTHY": self.plug_interfaces,
+            "PLUG_INTERFACES": self.plug_interfaces,
+            "DEVICE_HEALTHY": self.device_healthy,
             "CONFIGURE_DEVICE": self.create_device_configuration,
             "DEVICE_CONFIGURED": self.device_configuration_complete,
 
@@ -409,9 +420,14 @@ class DeviceOrchestrator(PollEventDesc):
         device_info['interfaces_in_use'] = 0
         device = self.nsf_db.create_network_function_device(self.db_session,
                                                             device_info)
+        #[<--PERF]
+        #Dont need this here.
+        '''
         mgmt_port_id = device.pop('mgmt_port_id')
         mgmt_port_id = self._get_port(mgmt_port_id)
         device['mgmt_port_id'] = mgmt_port_id
+        '''
+        #[-->PERF]
 
         if advance_sharing_interfaces:
             self._create_advance_sharing_interfaces(device,
@@ -449,7 +465,7 @@ class DeviceOrchestrator(PollEventDesc):
 
     def _increment_device_interface_count(self, device):
         device['interfaces_in_use'] += len(device['ports'])
-        self._update_network_function_device_db(device, device['status'])
+        # self._update_network_function_device_db(device, device['status'])
 
     def _decrement_device_interface_count(self, device):
         device['interfaces_in_use'] -= len(device['ports'])
@@ -470,6 +486,15 @@ class DeviceOrchestrator(PollEventDesc):
         return device
 
     def _get_device_data(self, nfd_request):
+        #[<--PERF]
+        # Check if the context already has device_data
+        context = nfp_core_context.get_nfp_context()
+        if context['nfp_device_data']:
+            device_data = context['nfp_device_data']
+            return device_data
+        #[PERF -->]
+
+
         device_data = {}
         network_function = nfd_request.get('network_function')
         network_function_instance = nfd_request['network_function_instance']
@@ -489,10 +514,17 @@ class DeviceOrchestrator(PollEventDesc):
                                     network_function_instance['id'])
         device_data['tenant_id'] = network_function_instance['tenant_id']
 
+        #[<--PERF]
+        #Are we getting anything more than what is in network_function_instance['port_info'] ?
+        #Looks like not really.
+        '''
         nsi_port_info = []
         for port_id in network_function_instance.pop('port_info'):
             port_info = self.nsf_db.get_port_info(self.db_session, port_id)
             nsi_port_info.append(port_info)
+        '''
+        nsi_port_info = network_function_instance['port_info']
+        #[PERF -->]
 
         device_data['ports'] = nsi_port_info
 
@@ -504,6 +536,13 @@ class DeviceOrchestrator(PollEventDesc):
             device_data['service_details']['network_mode'] = (
                 nfp_constants.NEUTRON_MODE)
         device_data['service_vendor'] = service_details['service_vendor']
+
+        #[<--PERF]
+        #Store the updated context
+        context['nfp_device_data'] = device_data
+        nfp_core_context.store_nfp_context(**context)
+        #[PERF-->]
+
         return device_data
 
     def _get_nsf_db_resource(self, resource_name, resource_id):
@@ -521,6 +560,14 @@ class DeviceOrchestrator(PollEventDesc):
         This method either returns existing device which could be reused for a
         new service or it creates new device instance
         """
+
+        #[<--PERF]
+        # Since this is not internal event, read the context from event
+        # and store in the current thread.
+        nfp_context = event.data['nfp_context']
+        nfp_core_context.store_nfp_context(**nfp_context)
+        #[PERF -->]
+
         nfd_request = event.data
         device = None
 
@@ -562,41 +609,75 @@ class DeviceOrchestrator(PollEventDesc):
                                    is_internal_event=True)
                 return None
 
+            #[<--PERF]
+            for port in device['ports']:
+                if port['port_classification'] == nfp_constants.MANAGEMENT:
+                    port['neutron_info'] = driver_device_info['mgmt_neutron_port_info']
+                    break
+            #[-->PERF]
+
             # Update newly created device with required params
             device = self._update_device_data(driver_device_info, device_data)
             device['network_function_device_id'] = device['id']
 
             # Create DB entry with status as DEVICE_SPAWNING
-            self._create_network_function_device_db(device,
+            network_function_device = self._create_network_function_device_db(device,
                                                    'DEVICE_SPAWNING')
+
+            #[<--PERF]
+            device['network_function_device'] = network_function_device
+            nfp_context = nfp_core_context.get_nfp_context()
+            nfp_context['nfp_device_data'].update(device)
+            #[-->PERF]
+
             # Create an event to NSO, to give device_id
             device_created_data = {
                 'network_function_instance_id': (
                     nfd_request['network_function_instance']['id']),
-                'network_function_device_id': device['id']
+                'network_function_device_id': device['id'],
             }
-            self._create_event(event_id='DEVICE_CREATED',
-                               event_data=device_created_data)
             self._create_event(event_id='DEVICE_SPAWNING',
-                               event_data=device,
+                               event_data=nfp_context,
                                is_poll_event=True,
                                original_event=event)
+            self._create_event(event_id='DEVICE_CREATED',
+                               event_data=device_created_data)
 
-    @poll_event_desc(event='DEVICE_SPAWNING', spacing=20)
+    @poll_event_desc(event='DEVICE_SPAWNING', spacing=2)
     def check_device_is_up(self, event):
-        device = event.data
+
+        #[<--PERF]
+        nfp_context = event.data
+        device = nfp_context['nfp_device_data']
+        # device = event.data
+        #[-->PERF]
 
         orchestration_driver = self._get_orchestration_driver(
             device['service_details']['service_vendor'])
         is_device_up = (
             orchestration_driver.get_network_function_device_status(device))
         if is_device_up == nfp_constants.ACTIVE:
+            #[<--PERF]
+            # Optimized the db update across three function calls
+            '''
+             self._update_network_function_device_db(device,
+                                                   'DEVICE_UP')
+            '''
+
+            orchestration_driver.get_network_function_device_port_info(device)
+
             # create event DEVICE_UP
             self._create_event(event_id='DEVICE_UP',
-                               event_data=device,
+                               event_data=nfp_context,
                                is_internal_event=True)
-            self._update_network_function_device_db(device,
-                                                   'DEVICE_UP')
+            #[<--PERF]
+            self._create_event(event_id='PLUG_INTERFACES',
+                                event_data=nfp_context,
+                                is_internal_event=True)
+
+            self._update_network_function_device_db(device, 'HEALTH_CHECK_PENDING')
+            #[-->PERF]   
+
             return STOP_POLLING
         elif is_device_up == nfp_constants.ERROR:
             # create event DEVICE_NOT_UP
@@ -611,6 +692,11 @@ class DeviceOrchestrator(PollEventDesc):
             return CONTINUE_POLLING
 
     def perform_health_check(self, event):
+        #[<--PERF]
+        nfp_context = event.data
+        device = nfp_context['nfp_device_data']
+        #[-->PERF]
+
         # The driver tells which protocol / port to monitor ??
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
@@ -628,8 +714,15 @@ class DeviceOrchestrator(PollEventDesc):
         LOG.debug("Health Check RPC sent to configurator for device: "
                   "%s with health check parameters: %s" % (
                         device['id'], hm_req))
+        #[<--PERF]
+        #Dont need to update in DB Here as the next function call for plug interfaces
+        #will update the db.
+        device['status'] = 'HEALTH_CHECK_PENDING'
+        '''
         self._update_network_function_device_db(device,
                                                'HEALTH_CHECK_PENDING')
+        '''
+        #[-->PERF]
 
     def _get_service_type(self, service_profile_id):
         admin_token = self.keystoneclient.get_admin_token()
@@ -678,8 +771,39 @@ class DeviceOrchestrator(PollEventDesc):
         device['advance_sharing_interfaces'] = (
                     self._get_advance_sharing_interfaces(device['id']))
         return device
+    
+    #[<--PERF]
+    def device_healthy(self, event):
+        nfp_context = event.data['nfp_context']
+        device = nfp_context['nfp_device_data']
+        self._update_network_function_device_db(device, 'HEALTH_CHECK_COMPLETED')
+        self._create_event(event_id='DEVICE_ACTIVE', event_data=nfp_context)
+        self._create_event(event_id='CONFIGURE_DEVICE',
+                               event_data=nfp_context, is_internal_event=True)
+    #[-->PERF]
 
     def plug_interfaces(self, event, is_event_call=True):
+
+        #[-->PERF]
+        # Now, this event is happening in paralell with HEALTHMONITORING,
+        # so, we should not generate CONFIGURE_DEVICE & should not update
+        # DB with HEALTH_CHECK_COMPLETED.
+        nfp_context = event.data
+        device = nfp_context['nfp_device_data']
+        orchestration_driver = self._get_orchestration_driver(
+            device['service_details']['service_vendor'])
+
+        _ifaces_plugged_in, advance_sharing_ifaces = (
+            orchestration_driver.plug_network_function_device_interfaces(
+                device))
+        if _ifaces_plugged_in:
+            if advance_sharing_ifaces:
+                self._update_advance_sharing_interfaces(
+                                            device,
+                                            advance_sharing_ifaces)
+            self._increment_device_interface_count(device)
+
+        '''
         if is_event_call:
             device_info = event.data
         else:
@@ -708,8 +832,15 @@ class DeviceOrchestrator(PollEventDesc):
             self._create_event(event_id='DEVICE_CONFIGURATION_FAILED',
                                event_data=device,
                                is_internal_event=True)
+        '''
 
     def create_device_configuration(self, event):
+        #[<--PERF]
+        nfp_context = event.data
+        nfp_core_context.store_nfp_context(nfp_context)
+        device = nfp_context['nfp_device_data']
+        #[-->PERF]
+
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
             device['service_details']['service_vendor'])
@@ -726,8 +857,13 @@ class DeviceOrchestrator(PollEventDesc):
                                                     device, config_params)
 
     def device_configuration_complete(self, event):
-        device_info = event.data
-        device = self._prepare_device_data(device_info)
+        #[<--PERF]
+        nfp_context = event.data['nfp_context']
+        # device_info = event.data
+        # device = self._prepare_device_data(device_info)
+        device = nfp_context['nfp_device_data']
+        #[-->PERF]
+
         # Change status to active in DB and generate an event DEVICE_ACTIVE
         # to inform NSO
         self._increment_device_ref_count(device)
@@ -737,16 +873,22 @@ class DeviceOrchestrator(PollEventDesc):
                    "reference count for %(device)s"),
                  {'device_id': device['id'], 'device': device})
 
+        #[<--PERF]
+        # DEVICE_ACTIVE event is sent paralell to configure device
+        # so dont need to send here.
+        '''
         device_created_data = {
                                'network_function_id': (
                                             device['network_function_id']),
                                'network_function_instance_id': (
                                     device['network_function_instance_id']),
-                               'network_function_device_id': device['id']
+                               'network_function_device_id': device['id'],
         }
         # DEVICE_ACTIVE event for NSO.
         self._create_event(event_id='DEVICE_ACTIVE',
                            event_data=device_created_data)
+        '''
+        #[-->PERF]
 
     # Delete path
     def delete_network_function_device(self, event):
@@ -928,7 +1070,11 @@ class NDOConfiguratorRpcApi(object):
                 'nfd_id': device['id'],
                 'requester': nfp_constants.DEVICE_ORCHESTRATOR,
                 'operation': operation,
-                'logging_context': nfp_logging.get_logging_context()
+                'logging_context': nfp_logging.get_logging_context(),
+                #[<--PERF]
+                #Add so that notifications can work on cached data
+                'nfp_context': nfp_core_context.get_nfp_context()
+                #[-->PERF]
         }
         nfd_ip = device['mgmt_ip_address']
         request_info.update({'device_ip': nfd_ip})

@@ -38,6 +38,25 @@ class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
         port = self.network_handler.update_port(token, port_id, port)
         return port['port']
 
+    #[<--PERF]
+    def get_port_and_subnet_details(self, token, port_id):
+        port = self.network_handler.get_port(token, port_id)
+
+        # ip
+        ip = port['port']['fixed_ips'][0]['ip_address']
+
+        # mac
+        mac = port['port']['mac_address']
+
+        # gateway ip
+        subnet_id = port['port']['fixed_ips'][0]['subnet_id']
+        subnet = self.network_handler.get_subnet(token, subnet_id)
+        cidr = subnet['subnet']['cidr']
+        gateway_ip = subnet['subnet']['gateway_ip']
+
+        return (ip, mac, cidr, gateway_ip, port, subnet)
+    #[-->PERF]
+
     def get_port_details(self, token, port_id):
         port = self.network_handler.get_port(token, port_id)
 

@@ -32,6 +32,8 @@ import sys
 import traceback
 
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import context as nfp_core_context
+
 LOG = nfp_logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
@@ -279,6 +281,15 @@ class RpcHandlerConfigurator(object):
         nfp_logging.store_logging_context(**logging_context)
         serialize = False
 
+        #[<--PERF]
+        try:
+            nfp_context = request_info['nfp_context']
+            nfp_context['admin_token'] = None
+        except KeyError:
+            request_info['nfp_context'] = None
+        #[-->PERF]
+
+
         for response in responses:
             resource = response.get('resource')
             data = response.get('data')
@@ -519,9 +530,11 @@ class ServiceOrchestrator(object):
         if tag_str != nfp_constants.CONFIG_INIT_TAG:
             network_function_details = self.get_network_function_details(
                 network_function_id)
-            service_type = self._get_service_type(
-                network_function_details['network_function'][
-                    'service_profile_id'])
+            service_type = network_function_details.pop('service_type')
+            if not service_type:
+                service_type = self._get_service_type(
+                    network_function_details['network_function'][
+                        'service_profile_id'])
             network_function_data = {
                 'network_function_details': network_function_details,
                 'service_type': service_type
@@ -674,6 +687,17 @@ class ServiceOrchestrator(object):
             'share_existing_device': False  # Extend service profile if needed
         }
 
+        #[<--PERF]
+        nfp_context = {}
+        nfp_context['nfp_service_data'] = create_network_function_instance_request
+        nfp_context['nfp_service_data']['network_function_info'] = network_function_info
+        nfp_context['admin_token'] = admin_token
+        # Save this context in thread - as "CREATE_NETWORK_FUNCTION_INSTANCE" is internal event"
+        nfp_core_context.store_nfp_context(**nfp_context)
+        ##[PERF-->]
+
+
+
         # Create and event to perform Network service instance
         self._create_event('CREATE_NETWORK_FUNCTION_INSTANCE',
                            event_data=create_network_function_instance_request,
@@ -751,7 +775,13 @@ class ServiceOrchestrator(object):
                            is_poll_event=True, original_event=event)
 
     def create_network_function_instance(self, event):
-        request_data = event.data
+        #[<--PERF]
+        #Get from the thread context
+        nfp_context = nfp_core_context.get_nfp_context()
+        request_data = nfp_context
+        # request_data = event.data
+        #[PERF-->]
+
         name = '%s_%s' % (request_data['network_function']['name'],
                           request_data['network_function']['id'])
         create_nfi_request = {
@@ -784,6 +814,19 @@ class ServiceOrchestrator(object):
             'service_details': request_data['service_details'],
             'share_existing_device': request_data['share_existing_device'],
         }
+
+        #[<--PERF]
+        nfp_context['nfp_service_data'].update({'port_info': request_data['network_function_port_info']})
+        nfp_context['nfp_service_data'].update({'network_function_instance': nfp_db})
+
+        # Update the thread context
+        nfp_core_context.store_nfp_context(**nfp_context)
+
+        # Since the CREATE_NETWORK_FUNCTION_DEVICE is not internal event
+        # Update the context in event.
+        create_nfd_request['nfp_context'] = nfp_context
+        #[PERF -->]
+
         LOG.info(_LI("[Event:CreateService]"))
         self._create_event('CREATE_NETWORK_FUNCTION_DEVICE',
                            event_data=create_nfd_request)
@@ -799,7 +842,11 @@ class ServiceOrchestrator(object):
         return
 
     def handle_device_active(self, event):
-        request_data = event.data
+        #[<--PERF]
+        nfp_context = event.nfp_context
+        nfp_core_context.store_nfp_context(nfp_context)
+        request_data = nfp_context['nfp_device_data']
+        # request_data = event.data
         nfi = {
             'status': nfp_constants.ACTIVE,
             'network_function_device_id': request_data[
@@ -807,18 +854,29 @@ class ServiceOrchestrator(object):
         }
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
+        '''
         network_function = self.db_handler.get_network_function(
             self.db_session, nfi['network_function_id'])
+        '''
+        request_data['nfp_device_data']['network_function_instance']['status'] = nfp_constants.ACTIVE
+        request_data['nfp_device_data']['network_function_instance']['network_function_device_id'] = request_data[
+                        'network_function_device_id']
+        network_function = nfp_context['nfp_service_data']['network_function']
         service_config = network_function['service_config']
 
         self.create_network_function_user_config(network_function['id'],
                                                  service_config)
 
     def apply_user_config(self, event):
+        #[<--PERF]
+        nfp_context = event.data['nfp_context']
+        nfp_core_context.store_nfp_context(nfp_context)
+        #[-->PERF]
+
         request_data = event.data
         network_function_details = self.get_network_function_details(
             request_data['network_function_id'])
-        request_data['heat_stack_id'] = self.config_driver.apply_config(
+        request_data['heat_stack_id'], heat_client = self.config_driver.apply_config(
             network_function_details)  # Heat driver to launch stack
         network_function = network_function_details['network_function']
         request_data['network_function_id'] = network_function['id']
@@ -828,16 +886,22 @@ class ServiceOrchestrator(object):
             return
         request_data['tenant_id'] = network_function['tenant_id']
         request_data['network_function_details'] = network_function_details
+        
         LOG.debug("handle_device_active heat_stack_id: %s"
                   % (request_data['heat_stack_id']))
-        self.db_handler.update_network_function(
-            self.db_session, network_function['id'],
-            {'heat_stack_id': request_data['heat_stack_id'],
-             'description': network_function['description']})
+        #[<--PERF]
+        request_data['nfp_context'] = nfp_context
+        request_data['heat_client'] = heat_client
+        nfp_context['nfp_service_data']['network_function'].update({'heat_stack_id': request_data['heat_stack_id'],
+                'description': network_function['description']})
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True,
                            original_event=event)
+        self.db_handler.update_network_function(
+            self.db_session, network_function['id'],
+            {'heat_stack_id': request_data['heat_stack_id'],
+             'description': network_function['description']})
 
     def handle_update_user_config(self, event):
         request_data = event.data
@@ -1003,9 +1067,15 @@ class ServiceOrchestrator(object):
 
     def check_for_user_config_complete(self, event):
         request_data = event.data
+
+        #[<--PERF]
+        nfp_context = request_data['nfp_context']
+        nfp_core_context.store_nfp_context(nfp_context)
+        #[-->PERF]
+
         config_status = self.config_driver.is_config_complete(
             request_data['heat_stack_id'], request_data['tenant_id'],
-            request_data['network_function_details'])
+            request_data['network_function_details'], heat_client=request_data['heat_client'])
         if config_status == nfp_constants.ERROR:
             LOG.info(_LI("NSO: applying user config failed for "
                          "network function %(network_function_id)s data "
@@ -1477,24 +1547,47 @@ class ServiceOrchestrator(object):
             return None
 
     def get_network_function_details(self, network_function_id):
-        network_function = self.db_handler.get_network_function(
-            self.db_session, network_function_id)
+        #[<--PERF]
+        network_function = None
+        network_function_instance = None
+        network_function_device = None
+        service_type = None
+
+        nfp_context = nfp_core_context.get_nfp_context()
+        if nfp_context and nfp_context['nfp_service_data']:
+            network_function = nfp_context['nfp_service_data']['network_function']
+            network_function_instance = nfp_context['nfp_service_data']['network_function_instance']
+            if nfp_context['nfp_device_data']:
+                network_function_device = nfp_context['nfp_device_data']['network_function_device']
+            service_type = nfp_context['nfp_service_data']['service_details']['service_type']
+
+        if not network_function:
+            network_function = self.db_handler.get_network_function(
+                self.db_session, network_function_id)
+
         network_function_details = {
-            'network_function': network_function
+            'network_function': network_function,
+            'service_type': service_type
         }
-        network_function_instances = network_function[
-            'network_function_instances']
-        if not network_function_instances:
-            return network_function_details
-        nfi = self.db_handler.get_network_function_instance(
-            self.db_session, network_function_instances[0])
-        network_function_details['network_function_instance'] = nfi
-        if nfi['network_function_device_id']:
-            network_function_device = (
-                self.db_handler.get_network_function_device(
-                    self.db_session, nfi['network_function_device_id']))
-            network_function_details['network_function_device'] = (
-                network_function_device)
+
+        if not network_function_instance:
+            network_function_instances = network_function[
+                'network_function_instances']
+            if not network_function_instances:
+                return network_function_details
+            network_function_instance = self.db_handler.get_network_function_instance(
+                self.db_session, network_function_instances[0])
+
+        network_function_details['network_function_instance'] = network_function_instance
+
+        if not network_function_device:
+            if network_function_instance['network_function_device_id']:
+                network_function_device = (
+                    self.db_handler.get_network_function_device(
+                        self.db_session, nfi['network_function_device_id']))
+        network_function_details['network_function_device'] = (
+                    network_function_device)
+        #[-->PERF]
         return network_function_details
 
 
@@ -1525,7 +1618,8 @@ class NSOConfiguratorRpcApi(object):
             'nfd_id': None,
             'requester': nfp_constants.SERVICE_ORCHESTRATOR,
             'operation': operation,
-            'logging_context': nfp_logging.get_logging_context()
+            'logging_context': nfp_logging.get_logging_context(),
+            'nfp_context': nfp_core_context.get_nfp_context()
         }
         if operation in ['consumer_add', 'consumer_remove']:
             request_info.update({'consumer_ptg': user_config_data[

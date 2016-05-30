@@ -15,7 +15,6 @@ from gbpservice.nfp.orchestrator.coal.networking import(
     nfp_neutron_network_driver as neutron_nd
 )
 
-
 class NFPGBPNetworkDriver(neutron_nd.NFPNeutronNetworkDriver):
     def __init__(self, config):
         self.config = config
@@ -41,6 +40,13 @@ class NFPGBPNetworkDriver(neutron_nd.NFPNeutronNetworkDriver):
         pt = self.network_handler.update_policy_target(token, port_id,
                                                        port)
         return pt['port_id']
+
+    def get_neutron_port_details(self, token, port_id):
+        self.network_handler = openstack_driver.NeutronClient(self.config)
+        port_details = super(NFPGBPNetworkDriver, self).get_port_and_subnet_details(
+                                                            token, port_id)
+        self.network_handler = openstack_driver.GBPClient(self.config)
+        return port_details
 
     def get_port_details(self, token, port_id):
         _port_id = self.get_port_id(token, port_id)
