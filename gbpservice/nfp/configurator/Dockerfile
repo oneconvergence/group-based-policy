@@ -38,6 +38,7 @@ RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
 RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp_configurator.ini /etc/
 RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/policy.json /etc/
+RUN cp -r /mitaka_21st_march_base/gbpservice/nfp/configurator/config /etc/nfp_config
 RUN mkdir -p /var/log/nfp
 RUN touch /var/log/nfp/nfp_configurator.log
 RUN touch /var/log/nfp/nfp_pecan.log
