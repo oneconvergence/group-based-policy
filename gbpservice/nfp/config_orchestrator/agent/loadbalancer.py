@@ -216,7 +216,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     @log_helpers.log_method_call
     def update_vip(self, context, old_vip, vip):
-        LOG.info("Received update_vip %s " % (vip))
         # Fetch nf_id from description of the resource
         nf_id = self._fetch_nf_from_resource_desc(vip["description"])
         nfp_logging.store_logging_context(meta_id=nf_id)
@@ -247,7 +246,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     @log_helpers.log_method_call
     def update_pool(self, context, old_pool, pool):
-        LOG.info("Received update_pool %s " % (pool))
         # Fetch nf_id from description of the resource
         nf_id = self._fetch_nf_from_resource_desc(pool["description"])
         nfp_logging.store_logging_context(meta_id=nf_id)
@@ -278,7 +276,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
 
     @log_helpers.log_method_call
     def update_member(self, context, old_member, member):
-        LOG.info("Received update_member %s " % (member))
         # Fetch pool from pool_id
         pool = self._get_pool(context, member['pool_id'])
         # Fetch nf_id from description of the resource
@@ -318,7 +315,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
     @log_helpers.log_method_call
     def update_pool_health_monitor(self, context, old_health_monitor,
                                    health_monitor, pool_id):
-        LOG.info("Received update_pool_health_monitor %s " % (health_monitor))
         # Fetch pool from pool_id
         pool = self._get_pool(context, pool_id)
         # Fetch nf_id from description of the resource

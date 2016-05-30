@@ -109,7 +109,7 @@ class RpcHandler(object):
 
     @log_helpers.log_method_call
     def update_network_function_device_config(self, context, body):
-        """Method of rpc handler for create_network_function_device_config.
+        """Method of rpc handler for update_network_function_device_config.
         Return: Http Response.
         """
         body_info = body.get('info')
