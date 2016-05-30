@@ -36,33 +36,33 @@ CONTINUE_POLLING = {'poll': True}
 
 def event_init(sc, conf):
     evs = [
-        Event(id='VISIBILITY_EVENT',
-              handler=VisibilityEventsHandler(sc, conf)),
+        Event(id='OTC_EVENT',
+              handler=EventsHandler(sc, conf)),
         Event(id='SET_FIREWALL_STATUS',
-              handler=VisibilityEventsHandler(sc, conf)),
+              handler=EventsHandler(sc, conf)),
         Event(id='FIREWALL_DELETED',
-              handler=VisibilityEventsHandler(sc, conf)),
+              handler=EventsHandler(sc, conf)),
         Event(id='VIP_DELETED',
-              handler=VisibilityEventsHandler(sc, conf)),
+              handler=EventsHandler(sc, conf)),
         Event(id='UPDATE_STATUS',
-              handler=VisibilityEventsHandler(sc, conf)),
+              handler=EventsHandler(sc, conf)),
         Event(id='IPSEC_SITE_CONN_DELETED',
-              handler=VisibilityEventsHandler(sc, conf)),
+              handler=EventsHandler(sc, conf)),
         Event(id='SERVICE_OPERATION_POLL_EVENT',
-              handler=VisibilityEventsHandler(sc, conf)),
+              handler=EventsHandler(sc, conf)),
         Event(id='SERVICE_CREATED',
-              handler=VisibilityEventsHandler(sc, conf)),
+              handler=EventsHandler(sc, conf)),
         Event(id='SERVICE_DELETED',
-              handler=VisibilityEventsHandler(sc, conf)),
+              handler=EventsHandler(sc, conf)),
         Event(id='SERVICE_CREATE_PENDING',
-              handler=VisibilityEventsHandler(sc, conf))]
+              handler=EventsHandler(sc, conf))]
     return evs
 
 
 """Periodic Class to service events for visiblity."""
 
 
-class VisibilityEventsHandler(core_pt.PollEventDesc):
+class EventsHandler(core_pt.PollEventDesc):
 
     def __init__(self, sc, conf):
         self._sc = sc
@@ -75,23 +75,23 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                       ):
 
         def __init__(self):
-            super(VisibilityEventsHandler.PullDbEntry, self).__init__()
+            super(EventsHandler.PullDbEntry, self).__init__()
 
         def get_firewalls(self, context):
-            db_data = super(VisibilityEventsHandler.PullDbEntry, self)
+            db_data = super(EventsHandler.PullDbEntry, self)
             return db_data.get_firewalls(context)
 
         def get_vips(self, context):
-            db_data = super(VisibilityEventsHandler.PullDbEntry, self)
+            db_data = super(EventsHandler.PullDbEntry, self)
             return db_data.get_vips(context)
 
         def get_ipsec_site_connections(self, context):
-            db_data = super(VisibilityEventsHandler.PullDbEntry, self)
+            db_data = super(EventsHandler.PullDbEntry, self)
             return db_data.get_ipsec_site_connections(context)
 
     def handle_event(self, ev):
-        if ev.id == 'VISIBILITY_EVENT':
-            self._handle_visibility_event(ev.data)
+        if ev.id == 'OTC_EVENT':
+            self._handle_otc_event(ev.data)
         elif ev.id == 'SET_FIREWALL_STATUS':
             self._handle_set_firewall_status(ev.data)
         elif ev.id == 'FIREWALL_DELETED':
@@ -224,7 +224,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                 'network_function_id']
             vip_id = notification_info['context']['vip_id']
             service_type = notification_info['service_type']
-            # sending notification to visibility
+            # sending notification to otc
             request_data = {'context': context,
                             'nf_id': nf_id,
                             'vip_id': vip_id,
@@ -373,7 +373,7 @@ class VisibilityEventsHandler(core_pt.PollEventDesc):
                 LOG.error("ipsec desc : %s " % e)
         return ipsec_request_data_list
 
-    def _handle_visibility_event(self, data):
+    def _handle_otc_event(self, data):
         try:
             # context = data['context']
             context = n_context.get_admin_context()

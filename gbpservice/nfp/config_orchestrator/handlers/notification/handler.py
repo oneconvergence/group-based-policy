@@ -46,8 +46,8 @@ class RpcHandler(object):
                 request_data = {'context': context.to_dict(),
                                 'notification_data': notification_data
                             }
-                event = self.sc.new_event(id='VISIBILITY_EVENT',
-                                          key='VISIBILITY_EVENT',
+                event = self.sc.new_event(id='OTC_EVENT',
+                                          key='OTC_EVENT',
                                           data=request_data)
                 self.sc.post_event(event)
         except Exception as e:
