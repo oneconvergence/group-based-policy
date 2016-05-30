@@ -539,7 +539,7 @@ class OrchestrationDriver(object):
                 port_id = network_handler.get_port_id(token, interface['id'])
                 interfaces_to_attach.append({'port': port_id})\
                 '''
-                interfaces_to_attach.append({'port': interface.pop('port_id')})
+                interfaces_to_attach.append({'port': interface['port_id']})
                 #[PERF-->]
 
             if not self.supports_hotplug:
@@ -1151,6 +1151,7 @@ class OrchestrationDriver(object):
 
     @_set_network_handler
     def get_network_function_device_port_info(self, device_data, network_handler=None):
+        LOG.error("########## DEVICE DATA: %s" %(str(device_data)))
         if (
             type(device_data['ports']) is not list or
 
@@ -1166,27 +1167,32 @@ class OrchestrationDriver(object):
         if not token:
             return None
 
-        for port in device_data['ports']:
+        new_device_ports = []
+        for device_port in device_data['ports']:
             try:
                 (ip, mac, cidr, gateway_ip,
                      port, subnet) = (
-                            network_handler.get_neutron_port_details(token, port['port_id'])
+                            network_handler.get_neutron_port_details(token, device_port['port_id'])
                 )
-                port['neutron_info'] = {'ip': provider_ip,
-                                        'mac': provider_mac,
-                                        'cidr': provider_cidr,
-                                        'gateway_ip': provider_gateway_ip,
-                                        'port': provider_port,
-                                        'subnet': provider_subnet}
-            except Exception:
+                device_port['neutron_info'] = {'ip': ip,
+                                        'mac': mac,
+                                        'cidr': cidr,
+                                        'gateway_ip': gateway_ip,
+                                        'port': port['port'],
+                                        'subnet': subnet['subnet']}
+                new_device_ports.append(device_port)
+            except Exception as e:
                 self._increment_stats_counter('port_details_get_failures')
-                LOG.error(_LE('Failed to get provider port details'
+                LOG.error(_LE('@@@@@@ Failed to get provider port details'
                                 ' for get device config info operation'))
+                raise e
                 return None
+
+        device_data['ports'] = new_device_ports
 
     @_set_network_handler
     def get_network_function_device_config_info(self, device_data,
-                                                network_handler=None):
+                                                network_handler=None, is_create_request=False):
         """ Get the configuration information for NFD
 
         :param device_data: NFD
@@ -1249,43 +1255,47 @@ class OrchestrationDriver(object):
         consumer_cidr = None
         consumer_gateway_ip = None
 
+        LOG.error("!!!!!!!!!!!!!!!!! DEVICE DATA: %s" %(str(device_data)))
+
         for port in device_data['ports']:
             if port['port_classification'] == nfp_constants.PROVIDER:
                 try:
                     #[<--PERF]
-                    '''
-                    (provider_ip, provider_mac, provider_cidr, dummy) = (
-                            network_handler.get_port_details(token, port['id'])
-                    )
-                    '''
-                    provider_ip = port['ip']
-                    provider_mac = port['mac']
-                    provider_cidr = port['cidr']
-                    provider_gateway_ip = port['gateway_ip']
+                    if not is_create_request:
+                        (provider_ip, provider_mac, provider_cidr, dummy) = (
+                                network_handler.get_port_details(token, port['id'])
+                        )
+                    else:
+                        provider_ip = port['neutron_info']['ip']
+                        provider_mac = port['neutron_info']['mac']
+                        provider_cidr = port['neutron_info']['cidr']
+                        provider_gateway_ip = port['neutron_info']['gateway_ip']
                     #[-->PERF]
-                except Exception:
+                except Exception as e:
                     self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_LE('Failed to get provider port details'
                                   ' for get device config info operation'))
+                    raise e
                     return None
             elif port['port_classification'] == nfp_constants.CONSUMER:
                 try:
                     #[<--PERF]
-                    '''
-                    (consumer_ip, consumer_mac, consumer_cidr,
-                     consumer_gateway_ip) = (
-                            network_handler.get_port_details(token, port['id'])
-                    )
-                    '''
-                    consumer_ip = port['ip']
-                    consumer_mac = port['mac']
-                    consumer_cidr = port['cidr']
-                    consumer_gateway_ip = port['gateway_ip']
+                    if not is_create_request:
+                        (consumer_ip, consumer_mac, consumer_cidr,
+                         consumer_gateway_ip) = (
+                                network_handler.get_port_details(token, port['id'])
+                        )
+                    else:
+                        consumer_ip = port['neutron_info']['ip']
+                        consumer_mac = port['neutron_info']['mac']
+                        consumer_cidr = port['neutron_info']['cidr']
+                        consumer_gateway_ip = port['neutron_info']['gateway_ip']
 
-                except Exception:
+                except Exception as e:
                     self._increment_stats_counter('port_details_get_failures')
                     LOG.error(_LE('Failed to get consumer port details'
                                   ' for get device config info operation'))
+                    raise e
                     return None
 
         return {

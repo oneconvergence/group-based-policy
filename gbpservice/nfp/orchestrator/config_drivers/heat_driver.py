@@ -501,7 +501,7 @@ class HeatDriver(object):
             stack_template['resources'], is_template_aws_version,
             'OS::Neutron::FirewallPolicy')[0]
 
-        provider_cidr = service_details['provider_cidr']
+        provider_cidr = service_details['provider_subnet']['cidr']
 
         fw_template_properties = dict(
             resources_key=resources_key, properties_key=properties_key,
@@ -509,10 +509,9 @@ class HeatDriver(object):
             fw_rule_keys=fw_rule_keys,
             fw_policy_key=fw_policy_key)
 
-        consumer_cidr = service_details['consumer_cidr']
+        consumer_cidr = service_details['consumer_subnet']['cidr']
         self._append_firewall_rule(stack_template, provider_cidr, consumer_cidr, fw_template_properties, consumer['id'])
-
-        for consumer_ep in consumer_eps_details:
+        for consumer_ep in consumer_eps:
             fw_template_properties.update({'name': consumer_ep[:3]})
             self._append_firewall_rule(stack_template, provider_cidr,
                                         "0.0.0.0/0", fw_template_properties,
@@ -1079,10 +1078,13 @@ class HeatDriver(object):
             admin_token,
             service_chain_id)
 
+        nfp_device_data = nfp_context['nfp_device_data']
         if network_function_instance:
-            for port_info in network_function_instance.get('port_info'):
+            # for port_info in network_function_instance.get('port_info'):
+            for port_info in nfp_device_data.get('ports'):
                 port_classification = None
                 if port_info['port_model'] == nfp_constants.GBP_PORT:
+                    policy_target_id = port_info['id']
                     port_classification = port_info['port_classification']
                     port_id = port_info['port_id']
                 else:
@@ -1091,7 +1093,9 @@ class HeatDriver(object):
                 if port_classification == nfp_constants.CONSUMER:
                     consumer_port = port_info['neutron_info']['port']
                     consumer_subnet = port_info['neutron_info']['subnet']
-                    consumer_policy_target_group = None
+                    policy_target = self.gbp_client.get_policy_target(
+                        admin_token, policy_target_id)
+                    consumer_policy_target_group = {'id': policy_target['policy_target_group_id']}
 
                 elif port_classification == nfp_constants.PROVIDER:
                     LOG.info(_LI("provider info: %s") % (port_id))
@@ -1310,7 +1314,7 @@ class HeatDriver(object):
                         return None
 
     def is_config_complete(self, stack_id, tenant_id,
-                           network_function_details, heat_client=None):
+                           network_function_details, heatclient=None):
 
         #[<--PERF]
         nfp_context = nfp_core_context.get_nfp_context()
@@ -1320,11 +1324,28 @@ class HeatDriver(object):
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
 
-        if not heat_client:
+        if not heatclient:
             auth_token, resource_owner_tenant_id =\
                 self._get_resource_owner_context()
-            heatclient = self._get_heat_client(resource_owner_tenant_id,
-                                               tenant_id=tenant_id)
+            timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
+            if timeout_seconds:
+                timeout_mins = timeout_mins + 1
+            user, password, tenant, auth_url =\
+                self.keystoneclient.get_keystone_creds()
+            try:
+                heatclient = HeatClient(
+                    user,
+                    resource_owner_tenant_id,
+                    cfg.CONF.heat_driver.heat_uri,
+                    password,
+                    auth_token=auth_token,
+                    timeout_mins=timeout_mins)
+            except Exception:
+                LOG.exception(_LE("Failed to create heatclient object"))
+                return None
+
+            #heatclient = self._get_heat_client(resource_owner_tenant_id,
+            #                                   tenant_id=tenant_id)
         if not heatclient:
             return failure_status
         try:
@@ -1405,8 +1426,6 @@ class HeatDriver(object):
         if service_profile:
             service_details = transport.parse_service_flavor_string(
                 service_profile['service_flavor'])
-        else:
-            service_details = service_details['service_details']
 
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
@@ -1449,7 +1468,7 @@ class HeatDriver(object):
                  {'stack_id': stack_id, 'stack_name': stack_name,
                   'provider': provider['id']})
 
-        return stack_id, heat_client
+        return stack_id, heatclient
 
     def delete_config(self, stack_id, tenant_id):
         auth_token, resource_owner_tenant_id =\
