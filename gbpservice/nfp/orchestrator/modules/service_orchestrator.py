@@ -759,6 +759,7 @@ class ServiceOrchestrator(object):
         for port in port_info:
             if port['port_classification'] == 'provider':
                 provider_port_id = port['id']
+                break
         for network_function_instance in network_function_instances:
             if (provider_port_id in network_function_instance['port_info'] and
                 network_function_instance['network_function_device_id']

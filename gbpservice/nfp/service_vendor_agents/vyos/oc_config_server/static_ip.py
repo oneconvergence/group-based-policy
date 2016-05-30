@@ -2,7 +2,6 @@
 import logging
 import netifaces
 import time
-from netifaces import AF_LINK
 
 from netifaces import AF_LINK
 from operations import configOpts

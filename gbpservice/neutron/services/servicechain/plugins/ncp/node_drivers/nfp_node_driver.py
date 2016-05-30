@@ -34,7 +34,7 @@ from gbpservice.common import utils
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     exceptions as exc)
 from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base
-from gbpservice.neutron.services.servicechain.plugins.ncp import model
+from gbpservice.neutron.services.servicechain.plugins.ncp import ncp_model
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nfp_rpc_topics
@@ -278,9 +278,12 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             # as chain is instantiated while creating provider group.
             if (self._check_for_fw_vpn_sharing(context, service_type) and
                     service_type == pconst.VPN):
+                # For fw, vpn sharing, request pts only once.
+                # Request pts only for firewall, if both fw, vpn is in chain,
+                # and current service type is vpn, dont request pts.
                 LOG.info(_("Not requesting plumber for PTs for service type "
                            "%s") % service_type)
-                return False
+                return {}
         else:  # Loadbalancer which is one arm
             plumbing_request['consumer'] = []
             plumbing_request['plumbing_type'] = 'endpoint'
@@ -298,10 +301,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         return self._is_service_type_in_chain(context, shared_svc_type)
 
     def _get_service_type(self, profile):
-        if profile['service_type'].endswith('_HA'):
-            service_type = profile['service_type'][:-3]
-        else:
-            service_type = profile['service_type']
+        service_type = profile['service_type']
         return service_type
 
 
@@ -620,7 +620,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 profile = context.sc_plugin.get_service_profile(
                     context.plugin_context, node['service_profile_id'])
                 if self._get_service_type(profile) == service_type:
-                    service_targets = model.get_service_targets(
+                    service_targets = ncp_model.get_service_targets(
                         context.session,
                         servicechain_instance_id=context.instance['id'],
                         servicechain_node_id=node['id'],

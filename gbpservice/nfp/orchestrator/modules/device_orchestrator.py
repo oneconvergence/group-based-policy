@@ -442,7 +442,7 @@ class DeviceOrchestrator(PollEventDesc):
         network_functions = (
             self.nsf_db.get_network_functions(self.db_session,
                 {'id': network_function_ids}))
-        return network_functions, network_function_instances
+        return network_functions
 
     def _get_network_function_devices(self, filters=None):
         network_function_devices = self.nsf_db.get_network_function_devices(
@@ -452,10 +452,9 @@ class DeviceOrchestrator(PollEventDesc):
             mgmt_port_id = self._get_port(mgmt_port_id)
             device['mgmt_port_id'] = mgmt_port_id
 
-            network_functions, network_function_instances = (
+            network_functions = (
                     self._get_network_function_info(device['id']))
             device['network_functions'] = network_functions
-            # device['network_function_instances'] = network_function_instances
         return network_function_devices
 
     def _increment_device_ref_count(self, device):

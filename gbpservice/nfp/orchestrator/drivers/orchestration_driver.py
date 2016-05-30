@@ -446,6 +446,10 @@ class OrchestrationDriver(object):
             ):
                 if (service_type.lower() == nfp_constants.VPN.lower() and
                     service_type in device_service_types_map[device['id']]):
+                    # Restrict multiple VPN services to share same device
+                    # If nfd request service type is VPN and current filtered
+                    # device already has VPN service instantiated, ignore this
+                    # device and checks for next one
                     continue
                 return device
         return None

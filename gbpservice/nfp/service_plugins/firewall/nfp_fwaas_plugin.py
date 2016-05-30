@@ -26,6 +26,7 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
 
         super(NFPFirewallPlugin, self).__init__()
 
+    # Modifying following plugin function, to relax same router validation
     def _get_routers_for_create_firewall(self, tenant_id, context, firewall):
 
         # pop router_id as this goes in the router association db
@@ -44,6 +45,8 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
                 if router['tenant_id'] == tenant_id]
             # validation can still fail this if there is another fw
             # which is associated with one of these routers.
+            # Dont validate this condition
+            # self.validate_firewall_routers_not_in_use(context, router_ids)
             return router_ids
         else:
             if not router_ids:
@@ -51,4 +54,7 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
                 return []
             else:
                 # some router(s) provided.
+                # Dont validate this condition
+                # self.validate_firewall_routers_not_in_use(context,
+                # router_ids)
                 return router_ids
