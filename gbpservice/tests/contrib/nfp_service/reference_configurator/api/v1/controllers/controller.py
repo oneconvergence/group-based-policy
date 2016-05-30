@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import oslo_serialization.jsonutils as jsonutils
 import subprocess
 
 import netaddr
@@ -18,6 +17,7 @@ import netifaces
 from oslo_log._i18n import _LE
 from oslo_log._i18n import _LI
 from oslo_log import log as logging
+import oslo_serialization.jsonutils as jsonutils
 import pecan
 from pecan import rest
 import time
@@ -26,14 +26,6 @@ import yaml
 LOG = logging.getLogger(__name__)
 SUCCESS = 'SUCCESS'
 
-"""Implements all the APIs Invoked by HTTP requests.
-
-Implements following HTTP methods.
-    -get
-    -post
-
-"""
-
 notifications = []
 FW_SCRIPT_PATH = ("/home/ubuntu/reference_configurator/" +
                   "scripts/configure_fw_rules.py")
@@ -41,6 +33,13 @@ FW_SCRIPT_PATH = ("/home/ubuntu/reference_configurator/" +
 
 class Controller(rest.RestController):
 
+    """Implements all the APIs Invoked by HTTP requests.
+
+    Implements following HTTP methods.
+        -get
+        -post
+
+    """
     def __init__(self, method_name):
         try:
             self.method_name = "network_function_device_notification"
@@ -51,8 +50,8 @@ class Controller(rest.RestController):
                 str(err).capitalize())
             LOG.error(msg)
 
-    def _push_notification(self, context, notification_data,
-                           config_data, service_type):
+    def _push_notification(self, context,
+                           notification_data, service_type):
         response = {'info': {'service_type': service_type,
                              'context': context},
                     'notification': notification_data
@@ -80,7 +79,7 @@ class Controller(rest.RestController):
             notifications = []
             return notification_data
         except Exception as err:
-            pecan.response.status = 400
+            pecan.response.status = 500
             msg = ("Failed to get notification_data  %s."
                    % str(err).capitalize())
             LOG.error(msg)
@@ -97,7 +96,6 @@ class Controller(rest.RestController):
             msg = ("Request data:: %s" % body)
             LOG.debug(msg)
 
-            # Assuming config list will have only one element
             config_datas = body['config']
             service_type = body['info']['service_type']
             notification_data = []
@@ -119,51 +117,24 @@ class Controller(rest.RestController):
 
             context = body['info']['context']
             self._push_notification(context, notification_data,
-                                    config_data, service_type)
+                                    service_type)
         except Exception as err:
-            pecan.response.status = 400
+            pecan.response.status = 500
             msg = ("Failed to serve HTTP post request %s %s."
                    % (self.method_name, str(err).capitalize()))
             LOG.error(msg)
             error_data = self._format_description(msg)
             return jsonutils.dumps(error_data)
 
-    @pecan.expose(method='PUT', content_type='application/json')
-    def put(self, **body):
-        try:
-            body = None
-            notification_data = []
-            if pecan.request.is_body_readable:
-                body = pecan.request.json_body
-
-            # Assuming config list will have only one element
-            config_data = body['config'][0]
-            context = body['info']['context']
-            service_type = body['info']['service_type']
-
-            notification_data.append(
-                        {'resource': config_data['resource'],
-                         'data': {'status_code': SUCCESS}})
-            self._push_notification(context, notification_data,
-                                    config_data, service_type)
-        except Exception as err:
-            pecan.response.status = 400
-            msg = ("Failed to serve HTTP put request %s %s."
-                   % (self.method_name, str(err).capitalize()))
-            LOG.error(msg)
-            error_data = self._format_description(msg)
-            return jsonutils.dumps(error_data)
-
     def _format_description(self, msg):
-        """This methgod formats error description.
+        """This method formats error description.
 
         :param msg: An error message that is to be formatted
 
         Returns: error_data dictionary
         """
 
-        error_data = {'failure_desc': {'msg': msg}}
-        return error_data
+        return {'failure_desc': {'msg': msg}}
 
     def _configure_healthmonitor(self, config_data):
         LOG.info(_LI("Configures healthmonitor with configuration "
@@ -281,7 +252,6 @@ class Controller(rest.RestController):
                 rule_info = {}
                 destination_port = ''
                 rule = resources[resource]['properties']
-                # action = rule['action']
                 protocol = rule['protocol']
                 rule_info['action'] = 'log'
                 rule_info['name'] = protocol
