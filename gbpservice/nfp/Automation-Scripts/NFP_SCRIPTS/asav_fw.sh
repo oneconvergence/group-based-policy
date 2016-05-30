@@ -4,7 +4,7 @@ source /home/stack/devstack/openrc neutron service
 
 #service chain node and spec creation
 gbp servicechain-node-create  --service-profile asav_fw_profile --template-file ./templates/fw_template.yml FWNODE
-gbp servicechain-spec-create --nodes "FWNODE" fw-chainspec
+gbp servicechain-spec-create --nodes "ASAV-FWNODE" fw-chainspec
 
 # Redirect action, rule, classifier and rule-set
 gbp policy-action-create --action-type REDIRECT --action-value fw-chainspec redirect-to-fw

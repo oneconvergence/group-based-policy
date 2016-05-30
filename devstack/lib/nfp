@@ -278,15 +278,14 @@ function create_nfp_gbp_resources {
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vyos_fw_profile
         gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
 
+        if [[ $DEVSTACK_MODE = enterprise ]]; then
+            gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_fw_profile
+        fi  
         create_ext_net
         create_ep_and_nsp
+        create_advance_sharing_ptg
     fi
 
-    if [[ $DEVSTACK_MODE = enterprise ]]; then
-        create_advance_sharing_ptg
-        gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_fw_profile
-    fi  
-              
     gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
     gbp l2policy-create --l3-policy service_management svc_management_ptg
 
