@@ -3,7 +3,7 @@
 source /home/stack/devstack/openrc neutron service
 
 #service chain node and spec creation
-gbp servicechain-node-create  --service-profile fw_profile --template-file ./templates/fw_template.yml FWNODE
+gbp servicechain-node-create  --service-profile vyos_fw_profile --template-file ./templates/fw_template.yml FWNODE
 gbp servicechain-spec-create --nodes "FWNODE" fw-chainspec
 
 # Redirect action, rule, classifier and rule-set
