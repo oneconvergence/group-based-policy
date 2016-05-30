@@ -1,14 +1,15 @@
-#    Licensed under the Apache License, Version 2.0 (the "License"); you may
-#    not use this file except in compliance with the License. You may obtain
-#    a copy of the License at
+# One Convergence, Inc. CONFIDENTIAL
+# Copyright (c) 2012-2016, One Convergence, Inc., USA
+# All Rights Reserved.
 #
-#         http://www.apache.org/licenses/LICENSE-2.0
+# All information contained herein is, and remains the property of
+# One Convergence, Inc. and its suppliers, if any. The intellectual and
+# technical concepts contained herein are proprietary to One Convergence,
+# Inc. and its suppliers.
 #
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-#    License for the specific language governing permissions and limitations
-#    under the License.
+# Dissemination of this information or reproduction of this material is
+# strictly forbidden unless prior written permission is obtained from
+# One Convergence, Inc., USA
 
 import ast
 import ipaddr
@@ -16,15 +17,18 @@ import iptools
 import requests
 
 from oslo_config import cfg
-from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
 from requests.auth import HTTPBasicAuth
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
-from gbpservice.nfp.configurator.lib import fw_constants as const
+from gbpservice.nfp.configurator.drivers.firewall.asav import (
+                                                asav_fw_constants as const)
+from gbpservice.nfp.configurator.lib import constants as common_const
+from gbpservice.nfp.configurator.lib import fw_constants as fw_const
+from gbpservice.nfp.core import log as nfp_logging
 
-LOG = logging.getLogger(__name__)
+LOG = nfp_logging.getLogger(__name__)
 
 asav_auth_opts = [
     cfg.StrOpt(
@@ -107,7 +111,7 @@ class RestApi(object):
                    "%r. %r" % (url, str(err).capitalize()))
             LOG.error(msg)
             return msg
-        if resp.status_code not in const.SUCCESS_CODES:
+        if resp.status_code not in common_const.SUCCESS_CODES:
             msg = ("Successfully issued a POST call. However, the result "
                    "of the POST API is negative. URL: %r. Response code: %s."
                    "Result: %r." % (url, resp.status_code, result))
@@ -117,7 +121,7 @@ class RestApi(object):
                  "the API operation is positive. URL: %r. Result: %r. "
                  "Status Code: %r." % (url, result, resp.status_code))
         return (
-            const.STATUS_SUCCESS
+            common_const.STATUS_SUCCESS
             if not response_data_expected
             else dict(GET_RESPONSE=result))
 
@@ -149,7 +153,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         """
 
         resource_uri = "/api/cli"
-        url = const.ASAV_REQUEST_URL % (mgmt_ip, resource_uri)
+        url = const.REQUEST_URL % (mgmt_ip, resource_uri)
 
         if not response_data_expected or not commands:
             commands.append('write memory')
@@ -262,8 +266,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             provider_macs = [provider_mac]
             stitching_macs = [stitching_mac]
         except Exception as err:
-            msg = ("Failed before issuing a configure interfaces"
-                   " call. Error: %r." % err)
+            msg = ("Failed to configure interfaces. Error: %r." % err)
             LOG.error(msg)
             raise Exception(msg)
 
@@ -282,7 +285,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                 provider_ip, provider_mask, security_level,
                 mac_address=provider_macs)
             result = self.configure_bulk_cli(mgmt_ip, commands)
-            if result is not const.STATUS_SUCCESS:
+            if result is not common_const.STATUS_SUCCESS:
                 return result
 
             commands = self._get_interface_commands(
@@ -290,7 +293,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                 stitching_ip, stitching_mask, security_level,
                 mac_address=stitching_macs)
             result = self.configure_bulk_cli(mgmt_ip, commands)
-            if result is not const.STATUS_SUCCESS:
+            if result is not common_const.STATUS_SUCCESS:
                 msg = ("Failed to configure ASAv interfaces. Reason: %r" %
                        result)
                 LOG.error(msg)
@@ -332,7 +335,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                             stitching_interface_id)
             result = self.configure_bulk_cli(mgmt_ip, commands)
 
-            if result is not const.STATUS_SUCCESS:
+            if result is not common_const.STATUS_SUCCESS:
                 msg = ("Failed to clear ASAv interfaces. Reason: %r" %
                        result)
                 LOG.error(msg)
@@ -431,7 +434,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                                     source_cidr.replace('/', '_')))
 
             result = self.configure_bulk_cli(mgmt_ip, commands)
-            if result is not const.STATUS_SUCCESS:
+            if result is not common_const.STATUS_SUCCESS:
                 return result
 
             # Add interface based default ruote to stitching gw
@@ -445,7 +448,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             command.extend(dns_config)
             result = self.configure_bulk_cli(mgmt_ip, command)
 
-            if result is not const.STATUS_SUCCESS:
+            if result is not common_const.STATUS_SUCCESS:
                 msg = ("Failed to configure ASAv routes. Reason: %r" %
                        result)
                 LOG.error(msg)
@@ -511,7 +514,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
         else:
-            return const.STATUS_SUCCESS
+            return common_const.STATUS_SUCCESS
 
     @staticmethod
     def get_asav_mac(mac_addr):
@@ -566,7 +569,7 @@ class is exposed to the agent.
 
 
 class FwaasDriver(FwGenericConfigDriver):
-    service_type = const.SERVICE_TYPE
+    service_type = fw_const.SERVICE_TYPE
     service_vendor = const.ASAV
 
     def __init__(self, conf):
@@ -574,7 +577,7 @@ class FwaasDriver(FwGenericConfigDriver):
         self.register_config_options()
         self.timeout = const.REST_TIMEOUT
         self.rest_api = RestApi(self.timeout)
-        self.port = const.ASAV_CONFIGURATION_SERVER_PORT
+        self.port = const.CONFIGURATION_SERVER_PORT
         self.auth = HTTPBasicAuth(cfg.CONF.ASAV_FW_CONFIG.mgmt_username,
                                   cfg.CONF.ASAV_FW_CONFIG.mgmt_userpass)
         super(FwaasDriver, self).__init__()
@@ -637,7 +640,7 @@ class FwaasDriver(FwGenericConfigDriver):
 
             # Supported protocol: TCP, UDP and ICMP.
             # Agent doesn't do any validation of protocol and relies on plugin
-            # or in case of Sungaard on UI to do validation.
+            # to do validation.
             if source_port:
                 if ':' in source_port:
                     source_port = '-'.join(source_port.split(':'))
@@ -775,7 +778,7 @@ class FwaasDriver(FwGenericConfigDriver):
         try:
             result = self.rest_api.post(url, data, self.auth)
 
-            if result is not const.STATUS_SUCCESS:
+            if result is not common_const.STATUS_SUCCESS:
                 msg = ("Failed to configure ASAv Firewall. Reason: %r" %
                        result)
                 LOG.error(msg)
@@ -814,8 +817,8 @@ class FwaasDriver(FwGenericConfigDriver):
             return msg
 
         if (_is_delete_success and _is_configure_success) is (
-                                                        const.STATUS_SUCCESS):
-            return const.STATUS_SUCCESS
+                                                common_const.STATUS_SUCCESS):
+            return common_const.STATUS_SUCCESS
         else:
             msg = ("Update firewall request failed. Reason: %r and %r" %
                    (_is_delete_success, _is_configure_success))
@@ -848,7 +851,7 @@ class FwaasDriver(FwGenericConfigDriver):
         try:
             result = self.rest_api.post(url, data, self.auth)
 
-            if result is not const.STATUS_SUCCESS:
+            if result is not common_const.STATUS_SUCCESS:
                 msg = ("Failed to delete ASAv Firewall. Reason: %r" %
                        result)
                 LOG.error(msg)
@@ -858,7 +861,7 @@ class FwaasDriver(FwGenericConfigDriver):
                               "interface. Marking that as delete success, "
                               "for Firewall ID: %r Tenant ID: %r "
                               % (firewall['id'], firewall['tenant_id']))
-                    return const.STATUS_SUCCESS
+                    return common_const.STATUS_SUCCESS
                 else:
                     msg = ("Firewall deletion failed and the configuration "
                            "is found to exist in the firewall.")
@@ -905,7 +908,7 @@ class FwaasDriver(FwGenericConfigDriver):
         try:
             result = self.configure_bulk_cli(ip, commands)
 
-            if result is not const.STATUS_SUCCESS:
+            if result is not common_const.STATUS_SUCCESS:
                 msg = ("Error saving firewall configuration. "
                        "Reason: %r. Firewall ID: %s" % (fw_id, result))
                 LOG.error(msg)

@@ -16,6 +16,7 @@ from gbpservice.nfp.core import log as nfp_logging
 import requests
 
 from gbpservice.nfp.configurator.agents import agent_base
+from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import fw_constants as const
 from gbpservice.nfp.configurator.lib import utils as load_driver
 from gbpservice.nfp.core import event as nfp_event
@@ -248,8 +249,8 @@ class FWaasEventHandler(object):
                 msg = ("Firewall status set to ACTIVE")
                 LOG.debug(msg)
                 return self.plugin_rpc.set_firewall_status(
-                                agent_info,
-                                firewall['id'], const.STATUS_ACTIVE, firewall)
+                                agent_info, firewall['id'],
+                                common_const.STATUS_ACTIVE, firewall)
             # Added to handle in service vm agents. VM agent will add
             # default DROP rule.
             # if not self._is_firewall_rule_exists(firewall):
@@ -259,7 +260,7 @@ class FWaasEventHandler(object):
                 status = self.method(context, firewall, host)
             except Exception as err:
                 self.plugin_rpc.set_firewall_status(
-                    agent_info, firewall['id'], const.STATUS_ERROR)
+                    agent_info, firewall['id'], common_const.STATUS_ERROR)
                 msg = ("Failed to configure Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
@@ -291,13 +292,13 @@ class FWaasEventHandler(object):
                 # attempt to clean will only re-raise the last one.And it
                 # can go on and on and may not be ever recovered.
                 self.plugin_rpc.set_firewall_status(
-                    agent_info, firewall['id'], const.STATUS_ERROR)
+                    agent_info, firewall['id'], common_const.STATUS_ERROR)
                 msg = ("Failed to delete Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
                 # raise(err)
             else:
-                if status == const.STATUS_ERROR:
+                if status == common_const.STATUS_ERROR:
                     self.plugin_rpc.set_firewall_status(
                         agent_info, firewall['id'], status)
                 else:
@@ -311,12 +312,12 @@ class FWaasEventHandler(object):
             if not self._is_firewall_rule_exists(firewall):
                 return self.plugin_rpc.set_firewall_status(
                                 agent_info,
-                                const.STATUS_ACTIVE, firewall)
+                                common_const.STATUS_ACTIVE, firewall)
             try:
                 status = self.method(context, firewall, host)
             except Exception as err:
                 self.plugin_rpc.set_firewall_status(
-                    agent_info, firewall['id'], const.STATUS_ERROR)
+                    agent_info, firewall['id'], common_const.STATUS_ERROR)
                 msg = ("Failed to update Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)

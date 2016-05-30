@@ -10,13 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-[ASAV_FW_CONFIG]
+VYOS = 'vyos'
+CONFIGURATION_SERVER_PORT = '8888'
+REST_TIMEOUT = 120
+request_url = "http://%s:%s/%s"
 
-mgmt_username = admin
-mgmt_userpass = b2Nhc2F2dm0=
-throughput_level = 1G
-reg_token =
-security_level = 0
-radius_ip =
-radius_secret = secret
-scan_all_rule = False
+INTERFACE_NOT_FOUND = "INTERFACE NOT FOUND"
