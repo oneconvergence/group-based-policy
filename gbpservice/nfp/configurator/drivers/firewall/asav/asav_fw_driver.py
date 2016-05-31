@@ -305,7 +305,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             return result
         except Exception as err:
             LOG.error(_("Exception while configuring interface. "
-                        "commands: %s, Reason: %s" % (commands, err)))
+                        "Reason: %s" % err))
             raise Exception(err)
 
     def clear_interfaces(self, context, resource_data):
@@ -350,7 +350,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             return result
         except Exception as err:
             LOG.error(_("Exception while clearing interface config. "
-                        "commands: %s, Reason: %s" % (commands, err)))
+                        "Reason: %s" % err))
             raise Exception(err)
 
     def configure_routes(self, context, resource_data):
@@ -464,7 +464,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         except Exception as err:
             LOG.error(_("Exception while configuring pbr route. "
-                        "commands: %s, Reason: %s" % (commands, err)))
+                        "Reason: %s" % err))
             raise Exception(err)
 
     def _configure_dns(self, dest_interface):
@@ -516,7 +516,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             self.configure_bulk_cli(mgmt_ip, commands)
         except Exception as err:
             msg = ("Exception while deleting pbr route. "
-                   "commands: %s, Reason: %s" % (commands, err))
+                   "Reason: %s" % err)
             LOG.error(msg)
             return msg
         else:
