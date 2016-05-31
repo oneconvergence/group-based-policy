@@ -13,13 +13,15 @@
 import ast
 import requests
 
-from neutron import context
 from gbpservice.nfp.core import log as nfp_logging
 
 from oslo_serialization import jsonutils
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
-from gbpservice.nfp.configurator.lib import fw_constants as const
+from gbpservice.nfp.configurator.drivers.firewall.vyos import (
+                                                vyos_fw_constants as const)
+from gbpservice.nfp.configurator.lib import constants as common_const
+from gbpservice.nfp.configurator.lib import fw_constants as fw_const
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -104,7 +106,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         msg = ("Static IPs successfully added.")
         LOG.info(msg)
-        return const.STATUS_SUCCESS
+        return common_const.STATUS_SUCCESS
 
     def configure_interfaces(self, context, resource_data):
         """ Configure interfaces for the service VM.
@@ -132,9 +134,9 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
         else:
-            if result_log_forward == const.UNHANDLED:
+            if result_log_forward == common_const.UNHANDLED:
                 pass
-            elif result_log_forward != const.STATUS_SUCCESS:
+            elif result_log_forward != common_const.STATUS_SUCCESS:
                 msg = ("Failed to configure log forwarding for service at %s. "
                        "Error: %s" % (mgmt_ip, err))
                 LOG.error(msg)
@@ -151,7 +153,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
         else:
-            if result_static_ips != const.STATUS_SUCCESS:
+            if result_static_ips != common_const.STATUS_SUCCESS:
                 return result_static_ips
             else:
                 msg = ("Added static IPs. Result: %s" % result_static_ips)
@@ -196,7 +198,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         msg = ("Persistent rule successfully added.")
         LOG.info(msg)
-        return const.STATUS_SUCCESS
+        return common_const.STATUS_SUCCESS
 
     def _clear_static_ips(self, resource_data):
         """ Clear static IPs for provider and stitching
@@ -258,7 +260,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         msg = ("Static IPs successfully removed.")
         LOG.info(msg)
-        return const.STATUS_SUCCESS
+        return common_const.STATUS_SUCCESS
 
     def clear_interfaces(self, context, resource_data):
         """ Clear interfaces for the service VM.
@@ -282,7 +284,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
         else:
-            if result_static_ips != const.STATUS_SUCCESS:
+            if result_static_ips != common_const.STATUS_SUCCESS:
                 return result_static_ips
             else:
                 msg = ("Successfully removed static IPs. "
@@ -330,7 +332,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             raise Exception(msg)
         msg = ("Persistent rule successfully deleted.")
         LOG.info(msg)
-        return const.STATUS_SUCCESS
+        return common_const.STATUS_SUCCESS
 
     def configure_routes(self, context, resource_data):
         """ Configure routes for the service VM.
@@ -378,7 +380,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
 
-        if resp.status_code in const.SUCCESS_CODES:
+        if resp.status_code in common_const.SUCCESS_CODES:
             message = jsonutils.loads(resp.text)
             if message.get("status", False):
                 msg = ("Route configured successfully for VYOS"
@@ -396,7 +398,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                % (active_configured))
         LOG.info(msg)
         if active_configured:
-            return const.STATUS_SUCCESS
+            return common_const.STATUS_SUCCESS
         else:
             return ("Failed to configure source route. Response code: %s."
                     "Response Content: %r" % (resp.status_code, resp.content))
@@ -443,14 +445,14 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
 
-        if resp.status_code in const.SUCCESS_CODES:
+        if resp.status_code in common_const.SUCCESS_CODES:
             active_configured = True
 
         msg = ("Route deletion status : %r "
                % (active_configured))
         LOG.info(msg)
         if active_configured:
-            return const.STATUS_SUCCESS
+            return common_const.STATUS_SUCCESS
         else:
             return ("Failed to delete source route. Response code: %s."
                     "Response Content: %r" % (resp.status_code, resp.content))
@@ -466,7 +468,7 @@ initialized. Also, only this driver class is exposed to the agent.
 
 
 class FwaasDriver(FwGenericConfigDriver):
-    service_type = const.SERVICE_TYPE
+    service_type = fw_const.SERVICE_TYPE
     service_vendor = const.VYOS
 
     def __init__(self, conf):
@@ -474,7 +476,6 @@ class FwaasDriver(FwGenericConfigDriver):
         self.timeout = const.REST_TIMEOUT
         self.host = self.conf.host
         self.port = const.CONFIGURATION_SERVER_PORT
-        self.context = context.get_admin_context_without_session()
         super(FwaasDriver, self).__init__()
 
     def _get_firewall_attribute(self, firewall):
@@ -576,31 +577,31 @@ class FwaasDriver(FwGenericConfigDriver):
 
         msg = ("POSTed the configuration to Service VM")
         LOG.debug(msg)
-        if resp.status_code in const.SUCCESS_CODES:
+        if resp.status_code in common_const.SUCCESS_CODES:
             try:
                 resp_payload = resp.json()
                 if resp_payload['config_success']:
                     msg = ("Configured Firewall successfully. URL: %s"
                            % url)
                     LOG.info(msg)
-                    return const.STATUS_ACTIVE
+                    return common_const.STATUS_ACTIVE
                 else:
                     self._print_exception('Failure',
                                           resp.status_code, url,
                                           'create', resp.content)
-                    return const.STATUS_ERROR
+                    return common_const.STATUS_ERROR
             except ValueError as err:
                 self._print_exception('ValueError', err, url,
                                       'create', resp.content)
-                return const.STATUS_ERROR
+                return common_const.STATUS_ERROR
             except Exception as err:
                 self._print_exception('UnexpectedError', err, url,
                                       'create', resp.content)
-                return const.STATUS_ERROR
+                return common_const.STATUS_ERROR
         else:
             self._print_exception('Failure', resp.status_code, url,
                                   'create', resp.content)
-            return const.STATUS_ERROR
+            return common_const.STATUS_ERROR
 
     def update_firewall(self, context, firewall, host):
         """ Implements firewall updation
@@ -630,11 +631,11 @@ class FwaasDriver(FwGenericConfigDriver):
         if resp.status_code == 200:
             msg = ("Successful UPDATE request. URL: %s" % url)
             LOG.info(msg)
-            return const.STATUS_ACTIVE
+            return common_const.STATUS_ACTIVE
         else:
             self._print_exception('Failure', resp.status_code, url,
                                   'create', resp.content)
-            return const.STATUS_ERROR
+            return common_const.STATUS_ERROR
 
     def delete_firewall(self, context, firewall, host):
         """ Implements firewall deletion
@@ -665,14 +666,14 @@ class FwaasDriver(FwGenericConfigDriver):
             self._print_exception('RequestException', err, url, 'delete')
             raise requests.exceptions.RequestException(err)
 
-        if resp.status_code in const.SUCCESS_CODES:
+        if resp.status_code in common_const.SUCCESS_CODES:
             # For now agent only check for ERROR.
             try:
                 resp_payload = resp.json()
                 if resp_payload['delete_success']:
                     msg = ("Deleted Firewall successfully.")
                     LOG.info(msg)
-                    return const.STATUS_DELETED
+                    return common_const.STATUS_DELETED
                 elif not resp_payload['delete_success'] and \
                         resp_payload.get('message', '') == (
                                             const.INTERFACE_NOT_FOUND):
@@ -682,21 +683,21 @@ class FwaasDriver(FwGenericConfigDriver):
                            " So marking this delete as success. URL: %r"
                            "Response Content: %r" % (url, resp.content))
                     LOG.error(msg)
-                    return const.STATUS_SUCCESS
+                    return common_const.STATUS_SUCCESS
                 else:
                     self._print_exception('Failure',
                                           resp.status_code, url,
                                           'delete', resp.content)
-                    return const.STATUS_ERROR
+                    return common_const.STATUS_ERROR
             except ValueError as err:
                 self._print_exception('ValueError', err, url,
                                       'delete', resp.content)
-                return const.STATUS_ERROR
+                return common_const.STATUS_ERROR
             except Exception as err:
                 self._print_exception('UnexpectedError', err, url,
                                       'delete', resp.content)
-                return const.STATUS_ERROR
+                return common_const.STATUS_ERROR
         else:
             self._print_exception('Failure', resp.status_code, url,
                                   'create', resp.content)
-            return const.STATUS_ERROR
+            return common_const.STATUS_ERROR

@@ -1,13 +1,15 @@
 FROM ubuntu:14.04 
 
-RUN apt-get -y update
+RUN apt-get -y update --fix-missing
 
 # dependencies
 RUN apt-get -y --force-yes install vim\
  python2.7\
  python-pip\
  python2.7-dev\
+ build-essential libssl-dev libffi-dev\
  libyaml-dev\
+ python-ipaddr\
  git\
  rabbitmq-server\
  unzip
@@ -20,6 +22,8 @@ oslo.log==2.4.0 \
 oslo.messaging==4.2.0 \
 oslo.db==4.4.0 \
 oslo.policy \
+iptools \
+cryptography \
 pecan==1.0.4 \
 wsme
 
@@ -34,6 +38,7 @@ RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
 RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp_configurator.ini /etc/
 RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/policy.json /etc/
+RUN cp -r /mitaka_21st_march_base/gbpservice/nfp/configurator/config /etc/nfp_config
 RUN mkdir -p /var/log/nfp
 RUN touch /var/log/nfp/nfp_configurator.log
 RUN touch /var/log/nfp/nfp_pecan.log

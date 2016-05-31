@@ -17,5 +17,5 @@ gbp policy-action-delete redirect-to-fw
 gbp policy-action-delete allow-to-fw
 
 gbp servicechain-spec-delete fw-chainspec
-gbp servicechain-node-delete FWNODE
+gbp servicechain-node-delete VYOS-FWNODE
 
