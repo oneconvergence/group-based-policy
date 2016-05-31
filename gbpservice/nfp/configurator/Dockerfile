@@ -25,6 +25,7 @@ oslo.policy \
 iptools \
 cryptography \
 pecan==1.0.4 \
+amqp==1.4.9 \
 wsme
 
 
