@@ -35,6 +35,8 @@ class ConfigAgentProxyTestCase(unittest.TestCase):
         self.manager = rpc_manager('conf', 'sc')
         self.context = TestContext().get_context()
         self.import_lib = 'gbpservice.nfp.lib.transport'
+        self.body = {"info": {"context": {}},
+                     "config": []}
 
     def _post(self, conf, context, body,
               method_type, device_config=False,
@@ -42,42 +44,53 @@ class ConfigAgentProxyTestCase(unittest.TestCase):
         return (200, '')
 
     def test_create_network_function_config(self):
-        _data = "data"
         import_send = self.import_lib + '.send_request_to_configurator'
         with mock.patch(import_send) as mock_send:
             mock_send.side_effect = self._post
-            self.manager.create_network_function_config(self.context, _data)
+            self.manager.create_network_function_config(self.context,
+                                                        self.body)
+
+    def test_update_network_function_config(self):
+        import_send = self.import_lib + '.send_request_to_configurator'
+        with mock.patch(import_send) as mock_send:
+            mock_send.side_effect = self._post
+            self.manager.update_network_function_config(self.context,
+                                                        self.body)
 
     def test_delete_network_function_config(self):
-        _data = "data"
         import_send = self.import_lib + '.send_request_to_configurator'
         with mock.patch(import_send) as mock_send:
             mock_send.side_effect = self._post
-            self.manager.delete_network_function_config(self.context, _data)
+            self.manager.delete_network_function_config(self.context,
+                                                        self.body)
 
     def test_create_network_function_device_config(self):
-        _data = "data"
         import_send = self.import_lib + '.send_request_to_configurator'
         with mock.patch(import_send) as mock_send:
             mock_send.side_effect = self._post
             self.manager.create_network_function_device_config(
-                self.context, _data)
+                self.context, self.body)
+
+    def test_update_network_function_device_config(self):
+        import_send = self.import_lib + '.send_request_to_configurator'
+        with mock.patch(import_send) as mock_send:
+            mock_send.side_effect = self._post
+            self.manager.update_network_function_device_config(
+                self.context, self.body)
 
     def test_delete_network_function_device_config(self):
-        _data = "data"
         import_send = self.import_lib + '.send_request_to_configurator'
         with mock.patch(import_send) as mock_send:
             mock_send.side_effect = self._post
             self.manager.delete_network_function_device_config(
-                self.context, _data)
+                self.context, self.body)
 
     def test_network_function_event(self):
-        _data = "data"
         import_send = self.import_lib + '.send_request_to_configurator'
         with mock.patch(import_send) as mock_send:
             mock_send.side_effect = self._post
             self.manager.network_function_event(
-                self.context, _data)
+                self.context, self.body)
 
 if __name__ == "__main__":
     unittest.main()

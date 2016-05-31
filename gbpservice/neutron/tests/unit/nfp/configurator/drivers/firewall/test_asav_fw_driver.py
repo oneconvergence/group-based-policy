@@ -16,7 +16,6 @@ import unittest
 
 from oslo_config import cfg
 from oslo_serialization import jsonutils
-from requests.auth import HTTPBasicAuth
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
                                                         fw_test_data as fo)
@@ -152,12 +151,12 @@ class FwaasDriverTestCase(unittest.TestCase):
         super(FwaasDriverTestCase, self).__init__(*args, **kwargs)
         self.fo = fo.FakeObjects()
         with mock.patch.object(cfg, 'CONF') as mock_cfg, \
-           mock.patch.object(
+            mock.patch.object(
                 fw_dvr, 'HTTPBasicAuth', return_value='foo'):
             mock_cfg.configure_mock(rest_timeout=120, host='foo',
-                                       mgmt_username='foo',
-                                       mgmt_userpass='foo123',
-                                       scan_all_rule=False)
+                                    mgmt_username='foo',
+                                    mgmt_userpass='foo123',
+                                    scan_all_rule=False)
             self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,

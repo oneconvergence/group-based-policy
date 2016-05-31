@@ -309,7 +309,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             return result
         except Exception as err:
             msg = ("Exception while configuring interface. "
-                   "commands: %s, Reason: %s" % (commands, err))
+                   "Reason: %s" % err)
             LOG.error(msg)
             raise Exception(err)
 
@@ -355,7 +355,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             return result
         except Exception as err:
             msg = ("Exception while clearing interface config. "
-                   "commands: %s, Reason: %s" % (commands, err))
+                   "Reason: %s" % err)
             LOG.error(msg)
             raise Exception(err)
 
@@ -470,7 +470,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         except Exception as err:
             msg = ("Exception while configuring pbr route. "
-                   "commands: %s, Reason: %s" % (commands, err))
+                   "Reason: %s" % err)
             LOG.error(msg)
             raise Exception(err)
 
@@ -523,7 +523,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             self.configure_bulk_cli(mgmt_ip, commands)
         except Exception as err:
             msg = ("Exception while deleting pbr route. "
-                   "commands: %s, Reason: %s" % (commands, err))
+                   "Reason: %s" % err)
             LOG.error(msg)
             return msg
         else:
@@ -821,7 +821,6 @@ class FwaasDriver(FwGenericConfigDriver):
 
         # REVISIT(VK) Blind update. But this has lot of dependency to fix.
         try:
-            import pdb;pdb.set_trace()
             _is_delete_success = self.delete_firewall(context, firewall, host)
             _is_configure_success = self.create_firewall(context,
                                                          firewall, host)
