@@ -62,4 +62,3 @@ class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
 
     def get_service_profile(self, token, service_profile_id):
         return {}
-
