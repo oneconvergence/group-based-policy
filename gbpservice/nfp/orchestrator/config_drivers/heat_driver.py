@@ -1291,7 +1291,7 @@ class HeatDriver(object):
                                 consumer_port, network_function_details[
                                     'network_function'],
                                 provider_port,
-                                stack_id, consumer, mgmt_ip)
+                                stack_id, consumer=consumer, mgmt_ip=mgmt_ip)
 
         if not stack_id:
             return None
@@ -1322,7 +1322,7 @@ class HeatDriver(object):
                                         network_function_details[
                                             'network_function'],
                                         provider_port, stack_id,
-                                        mgmt_ip, pt_added_or_removed=True)
+                                        mgmt_ip=mgmt_ip, pt_added_or_removed=True)
                 return stack_id
             except Exception:
                 LOG.exception(_LE("Processing policy target %(operation)s "
@@ -1354,7 +1354,8 @@ class HeatDriver(object):
                                         consumer_port,
                                         network_function_details[
                                             'network_function'],
-                                        provider_port, stack_id, mgmt_ip)
+                                        provider_port, stack_id,
+                                        mgmt_ip=mgmt_ip)
 
                 if not stack_id:
                     return None
