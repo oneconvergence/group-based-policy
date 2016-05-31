@@ -524,7 +524,7 @@ class TestHeatDriver(unittest.TestCase):
             self.dummy_dict.service_chain_instance, provider,
             self.dummy_dict.consumer_port,
             self.dummy_dict.network_function_details['network_function'],
-            provider_port, stack_id, mgmt_ip,
+            provider_port, stack_id, mgmt_ip=mgmt_ip,
             pt_added_or_removed=False)
         self.assertIsNotNone(stack_id)
 

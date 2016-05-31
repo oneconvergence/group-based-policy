@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from collections import defaultdict
 from neutron._i18n import _LE
 from neutron._i18n import _LI
 
@@ -27,7 +28,7 @@ import ast
 import operator
 
 from gbpservice.nfp.core import log as nfp_logging
-from collections import defaultdict
+
 LOG = nfp_logging.getLogger(__name__)
 
 
