@@ -12,8 +12,8 @@
 
 
 import mock
-import oslo_serialization.jsonutils as jsonutils
 import os
+import oslo_serialization.jsonutils as jsonutils
 import pecan
 PECAN_CONFIG_FILE = os.getcwd() + "/gbpservice/nfp/configurator/api/config.py"
 pecan.set_config(PECAN_CONFIG_FILE, overwrite=True)
