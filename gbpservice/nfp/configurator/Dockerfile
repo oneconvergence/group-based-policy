@@ -1,6 +1,6 @@
 FROM ubuntu:14.04 
 
-RUN apt-get -y update
+RUN apt-get -y update --fix-missing
 
 # dependencies
 RUN apt-get -y --force-yes install vim\
