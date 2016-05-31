@@ -59,6 +59,7 @@ class FakeObjects(object):
     content_headers = {'Content-Type': 'application/json'}
     asav_url = 'https://172.24.4.5'
     asav_bulk_cli_url = '%s/api/cli' % asav_url
+    asav_api_cli_url = '%s/api' % asav_url
 
     def fake_asav_resources(self, resource):
         resource_data_map = {
@@ -82,7 +83,28 @@ class FakeObjects(object):
                 "no route-map pbrmap1.2.3.4_24",
                 "clear configure access-list pbracl1.2.3.4_24",
                 "clear configure interface GigabitEthernet0/1",
-                "write memory"]}
+                "write memory"],
+            'create_fw': [
+                {"resourceUri": "/api/access/out/interface-11.0.1.0_24/rules",
+                 "data": dict(destinationAddress={
+                            "kind": "AnyIPAddress", "value": "0.0.0.0"},
+                          destinationService={"kind": "NetworkProtocol",
+                                              "value": "ip"},
+                          sourceAddress={"kind": "AnyIPAddress",
+                                         "value": "0.0.0.0"},
+                          permit=False), "method": "Post"}],
+            'update_fw': [
+                {"resourceUri": "/api/access/out/interface-11.0.1.0_24/rules",
+                 "data": dict(destinationAddress={
+                            "kind": "AnyIPAddress", "value": "0.0.0.0"},
+                          destinationService={"kind": "NetworkProtocol",
+                                              "value": "ip"},
+                          sourceAddress={"kind": "AnyIPAddress",
+                                         "value": "0.0.0.0"},
+                          permit=False), "method": "Post"}],
+            'delete_fw': [
+                "clear configure access-list interface-11.0.1.0_24_access_out",
+                "wr mem"]}
 
         return resource_data_map[resource]
 
@@ -323,8 +345,9 @@ class FakeObjects(object):
                      "firewall_rule_list": True,
                      "description": '{\
                                     "vm_management_ip": "172.24.4.5",\
+                                    "provider_cidr": "11.0.1.0/24",\
                                     "service_vendor": "vyos"}',
-                     "firewall_rule_list": True
+                     "firewall_rule_list": None
                     }
         return firewall
 

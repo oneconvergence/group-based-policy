@@ -50,7 +50,7 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                                 'GigabitEthernet0/1 000a.959d.6816': 'foo'}}
         self.kwargs = self.fo._fake_resource_data()
 
-    '''def test_configure_interfaces(self):
+    def test_configure_interfaces(self):
         """ Implements test case for configure interfaces method
         of generic config driver.
 
@@ -62,7 +62,6 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                 requests, 'post', return_value=self.resp) as mock_post, \
             mock.patch.object(
                 self.resp, 'json', return_value=self.fake_resp_dict):
-            import pdb;pdb.set_trace()
             self.driver.configure_interfaces(self.fo.context, self.kwargs)
 
             interface_data = dict(commands=self.fo.fake_asav_resources(
@@ -85,7 +84,6 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                 requests, 'post', return_value=self.resp) as mock_post, \
             mock.patch.object(
                 self.resp, 'json', return_value=self.fake_resp_dict):
-            import pdb;pdb.set_trace()
             self.driver.clear_interfaces(self.fo.context, self.kwargs)
 
             interface_data = dict(commands=self.fo.fake_asav_resources(
@@ -117,7 +115,7 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                                          jsonutils.dumps(routes_data),
                                          auth='foo',
                                          headers=self.fo.content_headers,
-                                         timeout=self.fo.timeout, verify=False)'''
+                                         timeout=self.fo.timeout, verify=False)
 
     def test_delete_source_routes(self):
         """ Implements test case for clear routes method
@@ -148,13 +146,18 @@ of firewall.
 """
 
 
-'''class FwaasDriverTestCase(unittest.TestCase):
+class FwaasDriverTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(FwaasDriverTestCase, self).__init__(*args, **kwargs)
         self.fo = fo.FakeObjects()
-        with mock.patch.object(cfg, 'CONF') as mock_cfg:
-            mock_cfg.configure_mock(rest_timeout=self.fo.timeout, host='foo')
+        with mock.patch.object(cfg, 'CONF') as mock_cfg, \
+           mock.patch.object(
+                fw_dvr, 'HTTPBasicAuth', return_value='foo'):
+            mock_cfg.configure_mock(rest_timeout=120, host='foo',
+                                       mgmt_username='foo',
+                                       mgmt_userpass='foo123',
+                                       scan_all_rule=False)
             self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,
@@ -177,9 +180,14 @@ of firewall.
                 self.resp, 'json', return_value=self.fake_resp_dict):
             self.driver.create_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_post.assert_called_with(self.fo.url_for_config_fw,
-                                         self.firewall,
-                                         timeout=self.fo.timeout)
+
+            create_fw_data = self.fo.fake_asav_resources('create_fw')
+
+            mock_post.assert_called_with(self.fo.asav_api_cli_url,
+                                         jsonutils.dumps(create_fw_data),
+                                         auth='foo',
+                                         headers=self.fo.content_headers,
+                                         timeout=self.fo.timeout, verify=False)
 
     def test_create_firewall_key_error_fwaasdriver(self):
         """ Implements test case for catching key error in
@@ -203,27 +211,18 @@ of firewall.
         """
 
         with mock.patch.object(
-                requests, 'put', return_value=self.resp) as mock_put, \
+                requests, 'post', return_value=self.resp) as mock_post, \
             mock.patch.object(
                 self.resp, 'json', return_value=self.fake_resp_dict):
             self.driver.update_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_put.assert_called_with(self.fo.url_for_update_fw,
-                                        data=self.firewall,
-                                        timeout=self.fo.timeout)
+            create_fw_data = self.fo.fake_asav_resources('update_fw')
 
-    def test_update_firewall_key_error_fwaasdriver(self):
-        """ Implements test case for catching key error in
-        update firewall method of firewall's drivers.
-
-        Returns: none
-
-        """
-
-        self.fo.firewall.pop('description')
-        with self.assertRaises(KeyError):
-            self.driver.update_firewall(self.fo.context,
-                                        self.fo.firewall, self.fo.host)
+            mock_post.assert_called_with(self.fo.asav_api_cli_url,
+                                         jsonutils.dumps(create_fw_data),
+                                         auth='foo',
+                                         headers=self.fo.content_headers,
+                                         timeout=self.fo.timeout, verify=False)
 
     def test_delete_firewall_fwaasdriver(self):
         """ Implements test case for delete firewall method
@@ -234,14 +233,20 @@ of firewall.
         """
 
         with mock.patch.object(
-                requests, 'delete', return_value=self.resp) as mock_delete, \
+                requests, 'post', return_value=self.resp) as mock_post, \
             mock.patch.object(
                 self.resp, 'json', return_value=self.fake_resp_dict):
             self.driver.delete_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_delete.assert_called_with(self.fo.url_for_delete_fw,
-                                           data=self.firewall,
-                                           timeout=self.fo.timeout)
+
+            delete_fw_data = dict(commands=self.fo.fake_asav_resources(
+                                                                'delete_fw'))
+
+            mock_post.assert_called_with(self.fo.asav_bulk_cli_url,
+                                         jsonutils.dumps(delete_fw_data),
+                                         auth='foo',
+                                         headers=self.fo.content_headers,
+                                         timeout=self.fo.timeout, verify=False)
 
     def test_delete_firewall_key_error_fwaasdriver(self):
         """ Implements test case for catching key error in
@@ -254,7 +259,7 @@ of firewall.
         self.fo.firewall.pop('description')
         with self.assertRaises(KeyError):
             self.driver.delete_firewall(self.fo.context,
-                                        self.fo.firewall, self.fo.host)'''
+                                        self.fo.firewall, self.fo.host)
 
 
 if __name__ == '__main__':

@@ -591,8 +591,8 @@ class FwaasDriver(FwGenericConfigDriver):
         self.timeout = const.REST_TIMEOUT
         self.rest_api = RestApi(self.timeout)
         self.port = const.CONFIGURATION_SERVER_PORT
-        self.auth = HTTPBasicAuth(cfg.CONF.ASAV_FW_CONFIG.mgmt_username,
-                                  cfg.CONF.ASAV_FW_CONFIG.mgmt_userpass)
+        self.auth = HTTPBasicAuth(self.conf.ASAV_FW_CONFIG.mgmt_username,
+                                  self.conf.ASAV_FW_CONFIG.mgmt_userpass)
         super(FwaasDriver, self).__init__()
 
     def register_config_options(self):
@@ -821,10 +821,10 @@ class FwaasDriver(FwGenericConfigDriver):
 
         # REVISIT(VK) Blind update. But this has lot of dependency to fix.
         try:
-            mgmt_ip = self._get_firewall_mgmt_ip(firewall)
-            _is_delete_success = self.delete_firewall(mgmt_ip, firewall)
-            _is_configure_success = self.configure_firewall(mgmt_ip,
-                                                            firewall)
+            import pdb;pdb.set_trace()
+            _is_delete_success = self.delete_firewall(context, firewall, host)
+            _is_configure_success = self.create_firewall(context,
+                                                         firewall, host)
         except Exception as err:
             msg = ("Update firewall request failed. Error: %r." % err)
             LOG.error(msg)
@@ -969,10 +969,10 @@ class FwaasDriver(FwGenericConfigDriver):
         rules = firewall["firewall_rule_list"]
         if not rules:
             return self._get_deny_rule(interface)
-        elif (not cfg.CONF.ASAV_FW_CONFIG.scan_all_rule and
+        elif (not self.conf.ASAV_FW_CONFIG.scan_all_rule and
                 rules[0]['description'].lower() == const.IMPLICIT_DENY):
             return self._get_deny_rule(interface)
-        elif cfg.CONF.ASAV_FW_CONFIG.scan_all_rule:
+        elif self.conf.ASAV_FW_CONFIG.scan_all_rule:
             for rule in rules:
                 if rule['description'].lower() == const.IMPLICIT_DENY:
                     return self._get_deny_rule(interface)
