@@ -163,6 +163,7 @@ class FwaasDriverTestCase(unittest.TestCase):
                                'config_success': True,
                                'delete_success': True}
         self.fo.firewall = self.fo._fake_firewall_obj()
+        self.fo.firewall['firewall_rule_list'] = None
         self.firewall = jsonutils.dumps(self.fo.firewall)
 
     def test_create_firewall_fwaasdriver(self):

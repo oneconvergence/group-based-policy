@@ -342,12 +342,11 @@ class FakeObjects(object):
                          "650bfd2f-7766-4a0d-839f-218f33e16998"
                      ],
                      "tenant_id": "45977fa2dbd7482098dd68d0d8970117",
-                     "firewall_rule_list": True,
                      "description": '{\
                                     "vm_management_ip": "172.24.4.5",\
                                     "provider_cidr": "11.0.1.0/24",\
                                     "service_vendor": "vyos"}',
-                     "firewall_rule_list": None
+                     "firewall_rule_list": True
                     }
         return firewall
 
