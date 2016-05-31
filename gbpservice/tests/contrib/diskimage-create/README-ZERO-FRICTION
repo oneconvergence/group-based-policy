@@ -1,6 +1,6 @@
 NFP Zero Friction for Enterprise Mode Deployment
 ==================================================
-1. Added the bellow file in diskimage-create dir
+1. Added the below file in diskimage-create dir
     1.local.conf
     2.test.sh
     3.upgrade.py

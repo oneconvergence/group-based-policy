@@ -9,7 +9,6 @@ function create_visibility_image {
     unset OS_PROJECT_DOMAIN_ID
 
     # prepare visibility image and upload it into glance
-    # assuming diskimage-create package requirements are already installed
     VISIBILITY_QCOW2_IMAGE=${VISIBILITY_QCOW2_IMAGE:-build}
     VISIBILITY_QCOW2_IMAGE_NAME=visibility
     if [[ $VISIBILITY_QCOW2_IMAGE = build ]]; then
@@ -27,6 +26,9 @@ function create_visibility_image {
 }
 
 function nfp_configure_nova {
+    NOVA_CONF_DIR=/etc/nova
+    NOVA_CONF=$NOVA_CONF_DIR/nova.conf
+    source $DEVSTACK_DIR/inc/ini-config
     iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
 }
 
@@ -42,16 +44,27 @@ function prepare_for_upgrade {
     fi
 }
 
+function delete_instance_and_image {
+    
+    # delete the instance
+    echo "Deleting the '$1' instance."
+    nova delete $1
+    
+    echo "Deleting the '$1' image."
+    image_id=$(glance image-list | grep $1 | awk '{print $2}')
+    glance image-delete $image_id
+}
+        
 function upgrade {
     if [[ $FROM = advanced ]] && [[ $TO = enterprise ]]; then
         # edit nfp_proxy.ini with neutron port's fixed IP
-        sed -e s//$VISIBILITY_VM_PORT_FIXED_IP/ nfp_proxy.ini
+        sed -i 's/rest_server_address=.*/rest_server_address='$IpAddr'/' /etc/nfp_proxy.ini
 
         # restart nfp_proxy
         service nfp_proxy restart
 
-        # delete the configurator instance
-        nova delete configurator
+        image=configurator
+        delete_instance_and_image $image
 
     else
         echo "Not supported."
