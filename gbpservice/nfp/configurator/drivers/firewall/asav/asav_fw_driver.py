@@ -281,7 +281,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             stitching_intf_name = self._get_device_interface_name(
                                                             stitching_cidr)
 
-            security_level = cfg.CONF.ASAV_FW_CONFIG.security_level
+            security_level = self.conf.ASAV_FW_CONFIG.security_level
             commands = self._get_interface_commands(
                 provider_intf_name, str(provider_interface_position),
                 provider_ip, provider_mask, security_level,
@@ -305,7 +305,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             return result
         except Exception as err:
             LOG.error(_("Exception while configuring interface. "
-                        "commands: %s, Reason: %s" % (commands, err)))
+                        "Reason: %s" % err))
             raise Exception(err)
 
     def clear_interfaces(self, context, resource_data):
@@ -350,7 +350,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             return result
         except Exception as err:
             LOG.error(_("Exception while clearing interface config. "
-                        "commands: %s, Reason: %s" % (commands, err)))
+                        "Reason: %s" % err))
             raise Exception(err)
 
     def configure_routes(self, context, resource_data):
@@ -464,7 +464,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         except Exception as err:
             LOG.error(_("Exception while configuring pbr route. "
-                        "commands: %s, Reason: %s" % (commands, err)))
+                        "Reason: %s" % err))
             raise Exception(err)
 
     def _configure_dns(self, dest_interface):
@@ -516,7 +516,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             self.configure_bulk_cli(mgmt_ip, commands)
         except Exception as err:
             msg = ("Exception while deleting pbr route. "
-                   "commands: %s, Reason: %s" % (commands, err))
+                   "Reason: %s" % err)
             LOG.error(msg)
             return msg
         else:
@@ -584,8 +584,8 @@ class FwaasDriver(FwGenericConfigDriver):
         self.timeout = const.REST_TIMEOUT
         self.rest_api = RestApi(self.timeout)
         self.port = const.CONFIGURATION_SERVER_PORT
-        self.auth = HTTPBasicAuth(cfg.CONF.ASAV_FW_CONFIG.mgmt_username,
-                                  cfg.CONF.ASAV_FW_CONFIG.mgmt_userpass)
+        self.auth = HTTPBasicAuth(self.conf.ASAV_FW_CONFIG.mgmt_username,
+                                  self.conf.ASAV_FW_CONFIG.mgmt_userpass)
         super(FwaasDriver, self).__init__()
 
     def register_config_options(self):
@@ -959,10 +959,10 @@ class FwaasDriver(FwGenericConfigDriver):
         rules = firewall["firewall_rule_list"]
         if not rules:
             return self._get_deny_rule(interface)
-        elif (not cfg.CONF.ASAV_FW_CONFIG.scan_all_rule and
+        elif (not self.conf.ASAV_FW_CONFIG.scan_all_rule and
                 rules[0]['description'].lower() == const.IMPLICIT_DENY):
             return self._get_deny_rule(interface)
-        elif cfg.CONF.ASAV_FW_CONFIG.scan_all_rule:
+        elif self.conf.ASAV_FW_CONFIG.scan_all_rule:
             for rule in rules:
                 if rule['description'].lower() == const.IMPLICIT_DENY:
                     return self._get_deny_rule(interface)
