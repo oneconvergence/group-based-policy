@@ -49,6 +49,8 @@ if [[ $DEVSTACK_MODE = enterprise ]]; then
 
     # Configure docker images local repository
     DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
+    
+    AsavQcow2Image=
 fi
 
 VyosQcow2Image=

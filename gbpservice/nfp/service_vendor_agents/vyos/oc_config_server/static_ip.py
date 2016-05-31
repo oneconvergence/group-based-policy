@@ -43,6 +43,14 @@ class StaticIp(configOpts):
             time.sleep(2)
         return False
 
+    def _get_interface_name(self, interface_mac):
+        interfaces = netifaces.interfaces()
+
+        for interface in interfaces:
+            if netifaces.ifaddresses(interface)[AF_LINK][0]['addr'] == interface_mac:
+                return interface
+
+
     def configure(self, data):
         try:
             session.setup_config_session()
@@ -50,14 +58,12 @@ class StaticIp(configOpts):
             provider_ip = data['provider_ip']
             provider_mac = data['provider_mac']
             provider_cidr = data['provider_cidr'].split('/')[1]
-            provider_interface = 'eth' + str(
-                        int(data['provider_interface_position']) - 1)
+            provider_interface = self._get_interface_name(provider_mac)
 
             stitching_ip = data['stitching_ip']
             stitching_mac = data['stitching_mac']
             stitching_cidr = data['stitching_cidr'].split('/')[1]
-            stitching_interface = 'eth' + str(
-                        int(data['stitching_interface_position']) - 1)
+            stitching_interface = self._get_interface_name(stitching_mac)
 
             if not self.check_if_interface_is_up(provider_interface,
                                                  stitching_interface):
