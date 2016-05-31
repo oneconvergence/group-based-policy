@@ -479,10 +479,18 @@ class ServiceOrchestrator(object):
                 self._controller.post_event(ev)
             self._log_event_created(event_id, event_data)
         else:
-            # Same module API, so calling corresponding function directly.
-            event = self._controller.new_event(
-                id=event_id,
-                data=event_data)
+            if original_event:
+                event = self._controller.new_event(
+                    id=event_id, data=event_data,
+                    serialize=original_event.serialize,
+                    binding_key=original_event.binding_key,
+                    key=original_event.desc.uid)
+            else:
+                # Same module API, so calling corresponding function
+                # directly.
+                event = self._controller.new_event(
+                    id=event_id,
+                    data=event_data)
             self.handle_event(event)
 
     def _get_base_mode_support(self, service_profile_id):
@@ -750,10 +758,33 @@ class ServiceOrchestrator(object):
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
 
+    def _get_network_function_instance_for_multi_service_sharing(self,
+                                                                 port_info):
+        network_function_instances = (
+            self.db_handler.get_network_function_instances(self.db_session,
+                                                       filters={}))
+        provider_port_id = None
+        for port in port_info:
+            if port['port_classification'] == 'provider':
+                provider_port_id = port['id']
+                break
+        for network_function_instance in network_function_instances:
+            if (provider_port_id in network_function_instance['port_info'] and
+                network_function_instance['network_function_device_id']
+                    is not None):
+                return network_function_instance
+        return None
+
     def create_network_function_instance(self, event):
         request_data = event.data
         name = '%s_%s' % (request_data['network_function']['name'],
                           request_data['network_function']['id'])
+        port_info = request_data['network_function_port_info']
+        network_function_instance = (
+            self._get_network_function_instance_for_multi_service_sharing(
+                                                                port_info))
+        if network_function_instance:
+            port_info = []
         create_nfi_request = {
             'name': name,
             'tenant_id': request_data['network_function']['tenant_id'],
@@ -763,10 +794,28 @@ class ServiceOrchestrator(object):
             'service_vendor': (
                 request_data['service_details']['service_vendor']),
             'share_existing_device': request_data['share_existing_device'],
-            'port_info': request_data['network_function_port_info'],
+            'port_info': port_info,
         }
         nfi_db = self.db_handler.create_network_function_instance(
             self.db_session, create_nfi_request)
+        if network_function_instance:
+            port_info = []
+            for port_id in network_function_instance['port_info']:
+                port_info.append(self.db_handler.get_port_info(self.db_session,
+                    port_id))
+            nfi = {
+                   'port_info': port_info
+            }
+            nfi_db = self.db_handler.update_network_function_instance(
+                self.db_session, nfi_db['id'], nfi)
+            nfd_data = {}
+            nfd_data['network_function_instance_id'] = nfi_db['id']
+            nfd_data['network_function_device_id'] = (
+                    network_function_instance['network_function_device_id'])
+            self._create_event('DEVICE_ACTIVE',
+                           event_data=nfd_data)
+
+            return
         # Sending LogMeta Details to visibility
         self._report_logging_info(request_data['network_function'], nfi_db,
                                   request_data['service_type'],
@@ -874,7 +923,8 @@ class ServiceOrchestrator(object):
         else:
             self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                                event_data=event.data,
-                               is_internal_event=True)
+                               is_internal_event=True,
+                               original_event=event)
 
     def handle_continue_update_user_config(self, event):
         request_data = event.data
@@ -962,6 +1012,28 @@ class ServiceOrchestrator(object):
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, nfi_id, nfi)
         if nfi['network_function_device_id']:
+
+            filters = {
+                    'network_function_device_id': [
+                        nfi['network_function_device_id']],
+                    'status': ['ACTIVE']
+                      }
+            network_function_instances = (
+                    self.db_handler.get_network_function_instances(
+                        self.db_session, filters=filters))
+            if network_function_instances:
+                device_deleted_event = {
+                    'network_function_instance_id': nfi['id']
+                }
+                network_function = self.db_handler.get_network_function(
+                    self.db_session, nfi['network_function_id'])
+                nf_id = network_function['id']
+                self.db_handler.delete_network_function(
+                        self.db_session, nfi['network_function_id'])
+                LOG.info(_LI("NSO: Deleted network function: %(nf_id)s"),
+                         {'nf_id': nf_id})
+
+                return
             delete_nfd_request = {
                 'network_function_device_id': nfi[
                     'network_function_device_id'],

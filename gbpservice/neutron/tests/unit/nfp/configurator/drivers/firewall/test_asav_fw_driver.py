@@ -66,12 +66,12 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
             self.driver.configure_interfaces(self.fo.context, self.kwargs)
 
             interface_data = dict(commands=self.fo.fake_asav_resources(
-                                                                'interface'))
+                                                        'configure_interface'))
             mock_post.assert_called_with(self.fo.asav_bulk_cli_url,
                                          jsonutils.dumps(interface_data),
                                          auth='foo',
                                          headers=self.fo.content_headers,
-                                         timeout=self.fo.timeout, verify=False)'''
+                                         timeout=self.fo.timeout, verify=False)
 
     def test_clear_interfaces(self):
         """ Implements test case for clear interfaces method
@@ -89,14 +89,14 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
             self.driver.clear_interfaces(self.fo.context, self.kwargs)
 
             interface_data = dict(commands=self.fo.fake_asav_resources(
-                                                                'interface'))
+                                                            'clear_interface'))
             mock_post.assert_called_with(self.fo.asav_bulk_cli_url,
                                          jsonutils.dumps(interface_data),
                                          auth='foo',
                                          headers=self.fo.content_headers,
                                          timeout=self.fo.timeout, verify=False)
 
-    '''def test_configure_source_routes(self):
+    def test_configure_source_routes(self):
         """ Implements test case for configure routes method
         of generic config driver.
 
@@ -111,9 +111,13 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
             self.driver.configure_routes(
                 self.fo.context, self.kwargs)
 
-            mock_post.assert_called_with(self.fo.url_for_add_src_route,
-                                         data=self.fo.data_for_add_src_route,
-                                         timeout=self.fo.timeout)
+            routes_data = dict(commands=self.fo.fake_asav_resources(
+                                                        'configure_routes'))
+            mock_post.assert_called_with(self.fo.asav_bulk_cli_url,
+                                         jsonutils.dumps(routes_data),
+                                         auth='foo',
+                                         headers=self.fo.content_headers,
+                                         timeout=self.fo.timeout, verify=False)'''
 
     def test_delete_source_routes(self):
         """ Implements test case for clear routes method
@@ -124,16 +128,19 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
         """
 
         with mock.patch.object(
-                requests, 'delete', return_value=self.resp) as mock_delete, \
+                requests, 'post', return_value=self.resp) as mock_post, \
             mock.patch.object(
                 self.resp, 'json', return_value=self.fake_resp_dict):
             self.driver.clear_routes(
                 self.fo.context, self.kwargs)
 
-            mock_delete.assert_called_with(
-                                self.fo.url_for_del_src_route,
-                                data=self.fo.data_for_del_src_route,
-                                timeout=self.fo.timeout)'''
+            routes_data = dict(commands=self.fo.fake_asav_resources(
+                                                        'clear_routes'))
+            mock_post.assert_called_with(self.fo.asav_bulk_cli_url,
+                                         jsonutils.dumps(routes_data),
+                                         auth='foo',
+                                         headers=self.fo.content_headers,
+                                         timeout=self.fo.timeout, verify=False)
 
 """ Implements test cases for driver methods
 of firewall.

@@ -223,6 +223,8 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             for item in data:
                 if mac in item:
                     return item[0]
+        msg = ("Failed to retrieve interface position. Response: %r." % result)
+        raise Exception(msg)
 
     def _get_device_interface_name(self, cidr):
         """ Prepares the interface name.
@@ -322,21 +324,21 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         """
 
-        mgmt_ip = resource_data['mgmt_ip']
-        provider_mac = resource_data['provider_mac']
-
-        import pdb;pdb.set_trace()
-        provider_interface_position = self.get_interface_position(
-            mgmt_ip, provider_mac)
-        stitching_interface_position = str(int(
-            provider_interface_position) + 1)
-
-        commands = []
-        provider_interface_id = self._get_asav_interface_id(
-            provider_interface_position)
-        stitching_interface_id = self._get_asav_interface_id(
-            stitching_interface_position)
         try:
+            mgmt_ip = resource_data['mgmt_ip']
+            provider_mac = resource_data['provider_mac']
+            asav_provider_mac = self.get_asav_mac(provider_mac)
+
+            provider_interface_position = self.get_interface_position(
+                                                    mgmt_ip, asav_provider_mac)
+            stitching_interface_position = str(int(
+                                            provider_interface_position) + 1)
+
+            commands = []
+            provider_interface_id = self._get_asav_interface_id(
+                                                provider_interface_position)
+            stitching_interface_id = self._get_asav_interface_id(
+                                                stitching_interface_position)
             commands.append("clear configure interface " +
                             provider_interface_id)
             commands.append("clear configure interface " +
@@ -502,8 +504,9 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         source_cidr = resource_data['source_cidrs'][0]
         provider_mac = resource_data['provider_mac']
         try:
+            asav_provider_mac = self.get_asav_mac(provider_mac)
             provider_interface_position = self.get_interface_position(
-                mgmt_ip, provider_mac)
+                                                    mgmt_ip, asav_provider_mac)
 
             commands = []
             interface_id = self._get_asav_interface_id(

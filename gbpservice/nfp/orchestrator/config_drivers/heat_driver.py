@@ -1190,7 +1190,7 @@ class HeatDriver(object):
     def _update(self, auth_token, resource_owner_tenant_id, service_profile,
                 service_chain_node, service_chain_instance, provider,
                 consumer_port, network_function, provider_port, stack_id,
-                mgmt_ip=None, pt_added_or_removed=False):
+                consumer=None, mgmt_ip=None, pt_added_or_removed=False):
         # If it is not a Node config update or PT change for LB, no op
         service_type = service_profile['service_type']
         service_details = transport.parse_service_flavor_string(
@@ -1212,7 +1212,7 @@ class HeatDriver(object):
             auth_token, provider_tenant_id, service_profile,
             service_chain_node, service_chain_instance, provider,
             consumer_port, network_function, provider_port,
-            update=True, mgmt_ip=mgmt_ip)
+            update=True, mgmt_ip=mgmt_ip, consumer=consumer)
         if not stack_template and not stack_params:
             return None
 
@@ -1278,6 +1278,7 @@ class HeatDriver(object):
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
         provider = service_details['provider_ptg']
+        consumer = service_details['consumer_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
@@ -1290,7 +1291,7 @@ class HeatDriver(object):
                                 consumer_port, network_function_details[
                                     'network_function'],
                                 provider_port,
-                                stack_id, mgmt_ip)
+                                stack_id, consumer, mgmt_ip)
 
         if not stack_id:
             return None

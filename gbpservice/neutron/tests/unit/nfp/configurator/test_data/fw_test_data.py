@@ -10,8 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from requests.auth import HTTPBasicAuth
-
 """ Implements fake objects for assertion.
 
 """
@@ -64,12 +62,27 @@ class FakeObjects(object):
 
     def fake_asav_resources(self, resource):
         resource_data_map = {
-            'interface': [
+            'configure_interface': [
                 'interface gigabitEthernet 0/2',
                 'nameif interface-192.168.0.0_28',
                 {}, 'ip address 192.168.0.3 255.255.255.240',
                 'no shutdown', 'same-security-traffic permit inter-interface',
-                'write memory']}
+                'write memory'],
+            'clear_interface': [
+                "clear configure interface GigabitEthernet0/1",
+                "clear configure interface GigabitEthernet0/2",
+                "write memory"],
+            'configure_routes': [
+                "route interface-192.168.0.0_28 0 0 1.2.3.4 3",
+                "dns domain-lookup interface-192.168.0.0_28",
+                "write memory"],
+            'clear_routes': [
+                "interface GigabitEthernet0/1",
+                "no policy-route route-map pbrmap1.2.3.4_24",
+                "no route-map pbrmap1.2.3.4_24",
+                "clear configure access-list pbracl1.2.3.4_24",
+                "clear configure interface GigabitEthernet0/1",
+                "write memory"]}
 
         return resource_data_map[resource]
 
@@ -278,6 +291,7 @@ class FakeObjects(object):
                     'provider_mac': '00:0a:95:9d:68:16',
                     'stitching_ip': '192.168.0.3',
                     'stitching_cidr': '192.168.0.0/28',
+                    'destination_cidr': '192.168.0.0/28',
                     'stitching_mac': '00:0a:95:9d:68:16',
                     'provider_interface_index': 'provider_interface_index',
                     'stitching_interface_index': 'stitching_interface_index',
