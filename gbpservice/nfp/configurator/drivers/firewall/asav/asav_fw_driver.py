@@ -281,7 +281,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             stitching_intf_name = self._get_device_interface_name(
                                                             stitching_cidr)
 
-            security_level = cfg.CONF.ASAV_FW_CONFIG.security_level
+            security_level = self.conf.ASAV_FW_CONFIG.security_level
             commands = self._get_interface_commands(
                 provider_intf_name, str(provider_interface_position),
                 provider_ip, provider_mask, security_level,
@@ -584,8 +584,8 @@ class FwaasDriver(FwGenericConfigDriver):
         self.timeout = const.REST_TIMEOUT
         self.rest_api = RestApi(self.timeout)
         self.port = const.CONFIGURATION_SERVER_PORT
-        self.auth = HTTPBasicAuth(cfg.CONF.ASAV_FW_CONFIG.mgmt_username,
-                                  cfg.CONF.ASAV_FW_CONFIG.mgmt_userpass)
+        self.auth = HTTPBasicAuth(self.conf.ASAV_FW_CONFIG.mgmt_username,
+                                  self.conf.ASAV_FW_CONFIG.mgmt_userpass)
         super(FwaasDriver, self).__init__()
 
     def register_config_options(self):
@@ -959,10 +959,10 @@ class FwaasDriver(FwGenericConfigDriver):
         rules = firewall["firewall_rule_list"]
         if not rules:
             return self._get_deny_rule(interface)
-        elif (not cfg.CONF.ASAV_FW_CONFIG.scan_all_rule and
+        elif (not self.conf.ASAV_FW_CONFIG.scan_all_rule and
                 rules[0]['description'].lower() == const.IMPLICIT_DENY):
             return self._get_deny_rule(interface)
-        elif cfg.CONF.ASAV_FW_CONFIG.scan_all_rule:
+        elif self.conf.ASAV_FW_CONFIG.scan_all_rule:
             for rule in rules:
                 if rule['description'].lower() == const.IMPLICIT_DENY:
                     return self._get_deny_rule(interface)
