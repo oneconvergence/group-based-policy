@@ -34,7 +34,7 @@ from gbpservice.common import utils
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     exceptions as exc)
 from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base
-from gbpservice.neutron.services.servicechain.plugins.ncp import ncp_model
+from gbpservice.neutron.services.servicechain.plugins.ncp import model as ncp_model
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nfp_rpc_topics
