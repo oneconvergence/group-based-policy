@@ -19,6 +19,15 @@ function prepare_nfp_image_builder {
     fi
 }
 
+
+function configure_vis_ip_addr_in_docker {
+    
+    echo "Visibility VM IP address is: $IpAddr"
+    sed -i "s/VIS_VM_IP_ADDRESS/"$IpAddr"/" $NFPSERVICE_DIR/gbpservice/nfp/configurator/Dockerfile
+
+}
+
+
 function create_nfp_image {
     source $TOP_DIR/openrc neutron service
     unset OS_USER_DOMAIN_ID
@@ -43,7 +52,13 @@ function create_nfp_image {
         if [[ $DEVSTACK_MODE = enterprise ]]; then
 
             VisibilityQcow2ImageName=visibility
+            InstanceName="VisibilityVM_instance"
+            create_port_for_vm $VisibilityQcow2ImageName
+
             if [[ $VisibilityQcow2Image = build ]]; then
+
+                # edits the docker file to add visibility vm IP address
+                configure_vis_ip_addr_in_docker
 
                 # prepare visibility source, this is needed for diskimage build
                 cd /home/stack/
@@ -63,6 +78,9 @@ function create_nfp_image {
         else
 
             ConfiguratorQcow2ImageName=configurator
+            InstanceName="configuratorVM_instance"
+            create_port_for_vm $ConfiguratorQcow2ImageName
+            
             if [[ $ConfiguratorQcow2Image = build ]]; then
                 echo "Building Image: $ConfiguratorQcow2ImageName"
                 sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $TOP_DIR/local.conf
@@ -353,35 +371,6 @@ function copy_nfp_files_and_start_process {
 
 }
 
-function launch_configuratorVM {
-    InstanceName="configuratorVM_instance"
-
-    GROUP="svc_management_ptg"
-    echo "GroupName: $GROUP"
-    PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
-
-    ConfiguratorImageName=configurator
-    echo "Collecting ImageId : for $ConfiguratorImageName"
-    ImageId=`glance image-list|grep $ConfiguratorImageName |awk '{print $2}'`
-    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
-        echo $ImageId
-    else
-        echo "No image found with name $ConfiguratorImageName ..."
-        exit
-    fi
-
-    configure_configurator_user_data
-    nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$PortId $InstanceName
-
-    sleep 10
-
-    echo "Get IpAddr with port: $PortId"
-    IpAddr_extractor=`neutron port-list|grep $PortId|awk '{print $11}'`
-    IpAddr_purge_last=${IpAddr_extractor::-1}
-    IpAddr=${IpAddr_purge_last//\"/}
-    echo "Collecting IpAddr : for $PortId"
-    echo $IpAddr
-}
 
 function nfp_logs_forword {
     VISIBILITY_CONF="/etc/rsyslog.d/visibility.conf"
@@ -462,25 +451,30 @@ function attach_security_groups {
 }
 
 
-function launch_visibilityVM {
+function launch_configuratorVM {
+    
+    configure_configurator_user_data
+    nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$PortId $InstanceName
 
+    sleep 10
+
+}
+
+
+function create_port_for_vm {
     
-    VisibilityImageName=visibility
-    
-    InstanceName="VisibilityVM_instance"
+    image_name=$1
+
     GROUP="svc_management_ptg"
     echo "GroupName: $GROUP"
     PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
-    
-    fip_id=$(neutron floatingip-create $EXT_NET_NAME | grep ' id '| awk '{print $4}')
-    neutron floatingip-associate $fip_id $PortId
-    
-    echo "Collecting ImageId : for $VisibilityImageName"
-    VisibilityVMImageId=`glance image-list|grep $VisibilityImageName |awk '{print $2}'`
-    if [ ! -z "$VisibilityVMImageId" -a "$VisibilityVMImageId" != " " ]; then
-        echo $VisibilityVMImageId
+
+    echo "Collecting ImageId : for $image_name"
+    ImageId=`glance image-list|grep $image_name |awk '{print $2}'`
+    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
+        echo $ImageId
     else
-        echo "No image found with name $VisibilityImageName ..."
+        echo "No image found with name $image_name ..."
         exit
     fi
 
@@ -490,12 +484,20 @@ function launch_visibilityVM {
     IpAddr=${IpAddr_purge_last//\"/}
     echo "Collecting IpAddr : for $PortId"
     echo $IpAddr
+    
+}
 
+
+function launch_visibilityVM {
+ 
+    fip_id=$(neutron floatingip-create $EXT_NET_NAME | grep ' id '| awk '{print $4}')
+    neutron floatingip-associate $fip_id $PortId
+    
     configure_visibility_user_data $IpAddr
     
     attach_security_groups
     echo "Launching Visibility image"
-    nova boot --image  $VisibilityVMImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId $InstanceName 
+    nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId $InstanceName 
     sleep 10
     nova add-secgroup $InstanceName $SecGroup
 }
