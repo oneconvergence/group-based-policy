@@ -452,7 +452,16 @@ function attach_security_groups {
 
 
 function launch_configuratorVM {
-    
+
+    echo "Collecting ImageId : for $image_name"
+    ImageId=`glance image-list|grep $image_name |awk '{print $2}'`
+    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
+        echo $ImageId
+    else
+        echo "No image found with name $image_name ..."
+        exit
+    fi
+
     configure_configurator_user_data
     nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$PortId $InstanceName
 
@@ -468,15 +477,6 @@ function create_port_for_vm {
     GROUP="svc_management_ptg"
     echo "GroupName: $GROUP"
     PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
-
-    echo "Collecting ImageId : for $image_name"
-    ImageId=`glance image-list|grep $image_name |awk '{print $2}'`
-    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
-        echo $ImageId
-    else
-        echo "No image found with name $image_name ..."
-        exit
-    fi
 
     echo "Get IpAddr with port: $PortId"
     IpAddr_extractor=`neutron port-list|grep $PortId|awk '{print $11}'`
@@ -494,7 +494,16 @@ function launch_visibilityVM {
     neutron floatingip-associate $fip_id $PortId
     
     configure_visibility_user_data $IpAddr
-    
+
+    echo "Collecting ImageId : for $image_name"
+    ImageId=`glance image-list|grep $image_name |awk '{print $2}'`
+    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
+        echo $ImageId
+    else
+        echo "No image found with name $image_name ..."
+        exit
+    fi
+
     attach_security_groups
     echo "Launching Visibility image"
     nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId $InstanceName 
