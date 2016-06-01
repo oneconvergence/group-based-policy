@@ -58,11 +58,34 @@ function nfp_configure_nova {
     iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
 }
 
+function test_launch_visibilityVM {
+ 
+    fip_id=$(neutron floatingip-create $EXT_NET_NAME | grep ' id '| awk '{print $4}')
+    neutron floatingip-associate $fip_id $PortId
+    
+    configure_visibility_user_data $IpAddr
+
+    echo "Collecting ImageId : for $image_name"
+    ImageId=`glance image-list|grep $image_name |awk '{print $2}'`
+    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
+        echo $ImageId
+    else
+        echo "No image found with name $image_name ..."
+        exit
+    fi
+
+    attach_security_groups
+    echo "Launching Visibility image"
+    nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId $InstanceName 
+    sleep 10
+    nova add-secgroup $InstanceName $SecGroup
+}
+
 function prepare_for_upgrade {
     if [[ $FROM = advanced ]] && [[ $TO = enterprise ]]; then
         source $DEST/gbp/devstack/lib/nfp
         create_visibility_image
-        launch_visibilityVM
+        test_launch_visibilityVM
         nfp_logs_forword
         nfp_configure_nova
     else
