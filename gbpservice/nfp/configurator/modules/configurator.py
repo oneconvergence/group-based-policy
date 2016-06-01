@@ -11,13 +11,13 @@
 #    under the License.
 
 from oslo_log import helpers as log_helpers
-from gbpservice.nfp.core import log as nfp_logging
 
 from gbpservice.nfp.configurator.lib import config_opts
 from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.configurator.lib import demuxer
 from gbpservice.nfp.configurator.lib import schema_validator
 from gbpservice.nfp.configurator.lib import utils
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import rpc
 
 LOG = nfp_logging.getLogger(__name__)
@@ -89,8 +89,8 @@ class ConfiguratorRpcManager(object):
         # Format of sa_req_list:
         # [{'method': <m1>, 'kwargs': <rpc_data1>}, {}, ... ]
         sa_req_list, service_type = self.demuxer.get_service_agent_info(
-                                            operation, service_type,
-                                            request_data, is_generic_config)
+            operation, service_type,
+            request_data, is_generic_config)
         if not sa_req_list:
             msg = ("Configurator received invalid data format for service"
                    " type %s. Data format: %r" % (service_type, request_data))

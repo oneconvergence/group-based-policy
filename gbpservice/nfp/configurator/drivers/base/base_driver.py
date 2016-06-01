@@ -12,10 +12,11 @@
 
 import requests
 import subprocess
-from gbpservice.nfp.core import log as nfp_logging
+
 from oslo_serialization import jsonutils
 
 from gbpservice.nfp.configurator.lib import constants as const
+from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ LOG = nfp_logging.getLogger(__name__)
 
 
 class BaseDriver(object):
+
     def __init__(self, conf):
         pass
 
@@ -110,9 +112,9 @@ class BaseDriver(object):
             return const.UNHANDLED
 
         data = dict(
-                server_ip=log_forward_ip_address,
-                server_port=self.conf.log_forward_port,
-                log_level=self.conf.log_level)
+            server_ip=log_forward_ip_address,
+            server_port=self.conf.log_forward_port,
+            log_level=self.conf.log_level)
         data = jsonutils.dumps(data)
 
         msg = ("Initiating POST request to configure log forwarding "

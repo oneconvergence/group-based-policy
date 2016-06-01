@@ -11,7 +11,6 @@
 #    under the License.
 
 import os
-from gbpservice.nfp.core import log as nfp_logging
 
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import (
@@ -19,6 +18,7 @@ from gbpservice.nfp.configurator.lib import (
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import poll as nfp_poll
 
 LOG = nfp_logging.getLogger(__name__)
