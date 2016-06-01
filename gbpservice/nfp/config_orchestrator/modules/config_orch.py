@@ -103,7 +103,10 @@ def nfp_module_post_init(sc, conf):
     sc.post_event(ev)
 
     uptime = time.strftime("%c")
-    body ={'uptime':uptime}
+    body = {'eventdata': {'uptime': uptime,
+                          'module': 'config_orchestrator'},
+            'eventid': 'NFP_UP_TIME',
+            'eventtype':'NFP_CONTROLLER'}
     context = n_context.Context('config_agent_user', 'config_agent_tenant')
     transport.send_request_to_configurator(conf,
                                            context,

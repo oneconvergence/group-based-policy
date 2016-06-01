@@ -20,6 +20,11 @@ from gbpservice.nfp.configurator.lib import schema_validator
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import rpc
 
+from neutron.common import rpc as n_rpc
+import oslo_messaging
+import time
+from neutron import context as n_context
+
 LOG = nfp_logging.getLogger(__name__)
 
 AGENTS_PKG = 'gbpservice.nfp.configurator.agents'
@@ -514,6 +519,24 @@ def nfp_module_post_init(sc, conf):
     try:
         cm = get_configurator_module_instance(sc)
         cm.init_service_agents_complete(sc, conf)
+
+        #TODO:Need to generalize the following code in library.
+        context =  n_context.Context('configurator', 'configrator')
+        uptime = time.strftime("%c")
+        request_data = {'eventdata': {'uptime': uptime,
+                                       'module': 'configurator'},
+                        'eventid': 'NFP_UP_TIME',
+                        'eventtype':'NFP_CONTROLLER'}
+        API_VERSION = '1.0'
+        target = oslo_messaging.Target(
+                        topic='visibility',
+                        version=API_VERSION)
+        client = n_rpc.get_client(target)
+        cctxt = client.prepare(version=API_VERSION,
+                               topic='visibility')
+        cctxt.cast(context,
+                   'network_function_event', request_data=request_data)
+
     except Exception as err:
         msg = ("Failed to trigger initialization complete for configurator"
                " agent modules. %s." % (str(err).capitalize()))
