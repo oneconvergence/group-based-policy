@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import zlib
 import exceptions
 
 from gbpservice.nfp.common import constants as nfp_constants
@@ -32,7 +33,7 @@ Version = 'v1'  # v1/v2/v3#
 
 rest_opts = [
     cfg.StrOpt('rest_server_address',
-               default='127.0.0.1', help='Rest connection IpAddr'),
+               default='', help='Rest connection IpAddr'),
     cfg.IntOpt('rest_server_port',
                default=8080, help='Rest connection Port'),
 ]
@@ -120,11 +121,12 @@ class RestApi(object):
             self.rest_server_address,
             self.rest_server_port, path)
         data = jsonutils.dumps(body)
+        data = zlib.compress(data)
         try:
             # Method-Type needs to be added here,as DELETE/CREATE
             # both case are handled by post as delete also needs
             # to send data to the rest-server.
-            headers = {"content-type": "application/json",
+            headers = {"content-type": "application/octet-stream",
                        "method-type": method_type}
             resp = requests.post(url, data,
                                  headers=headers)
@@ -160,7 +162,7 @@ class RestApi(object):
             self.rest_server_address,
             self.rest_server_port, path)
         try:
-            headers = {"content-type": "application/json"}
+            headers = {"content-type": "application/octet-stream"}
             resp = requests.get(url,
                                 headers=headers)
             LOG.info("GET url %s %d" % (url, resp.status_code))
@@ -186,7 +188,8 @@ class RPCClient(object):
 
 def send_request_to_configurator(conf, context, body,
                                  method_type, device_config=False,
-                                 network_function_event=False):
+                                 network_function_event=False,
+                                 override_backend=None):
     """Common function to handle (create, delete) request for configurator.
     Send create/delete to configurator rest-server.
     Return:Http Response
@@ -206,8 +209,11 @@ def send_request_to_configurator(conf, context, body,
             body['info']['context'].update(
                 {'neutron_context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
+    backend = conf.backend
+    if override_backend != None and conf.REST.rest_server_address != '':
+            backend = override_backend
 
-    if conf.backend == TCP_REST:
+    if backend == TCP_REST:
         try:
             rc = RestApi(conf.REST.rest_server_address,
                          conf.REST.rest_server_port)
@@ -223,7 +229,7 @@ def send_request_to_configurator(conf, context, body,
             LOG.error("%s -> POST request failed.Reason: %s" % (
                 method_name, rce))
 
-    elif conf.backend == UNIX_REST:
+    elif backend == UNIX_REST:
         try:
             if method_type in ['CREATE', 'DELETE']:
                 resp, content = unix_rc.post(method_name,

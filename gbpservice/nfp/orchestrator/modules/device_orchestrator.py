@@ -29,6 +29,7 @@ from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 
 import sys
+import time
 import traceback
 
 from gbpservice.nfp.core import log as nfp_logging
@@ -66,6 +67,21 @@ def nfp_module_init(controller, config):
     events_init(controller, config, DeviceOrchestrator(controller, config))
     rpc_init(controller, config)
     LOG.debug("Device Orchestrator: module_init")
+
+
+def nfp_module_post_init(controller, conf):
+    uptime = time.strftime("%c")
+    body = {'eventdata': {'uptime': uptime,
+                          'module': 'orchestrator'},
+            'eventid': 'NFP_UP_TIME',
+            'eventtype':'NFP_CONTROLLER'}
+    context = n_context.Context('config_agent_user', 'config_agent_tenant')
+    transport.send_request_to_configurator(conf,
+                                           context,
+                                           body,
+                                           'CREATE',
+                                           network_function_event=True,
+                                           override_backend='tcp_rest')
 
 
 class RpcHandler(object):
