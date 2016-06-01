@@ -300,9 +300,9 @@ class HaproxyLoadBalancerDriver(n_driver_base.LoadBalancerBaseDriver,
     def get_amphora(self, loadbalancer_id):
         return self.amphorae.get(loadbalancer_id)
 
-    def add_amphora(self, loadbalancer_id, descritption,
+    def add_amphora(self, loadbalancer_id, description,
                     status=constants.ACTIVE):
-        sc_metadata = ast.literal_eval(descritption)
+        sc_metadata = ast.literal_eval(description)
         if not (sc_metadata.get('floating_ip')
                 and sc_metadata.get('network_function_id')):
             raise exceptions.IncompleteData(
@@ -371,8 +371,7 @@ class HaproxyLoadBalancerManager(HaproxyCommonManager,
                     network_data_models.AmphoraNetworkConfig(
                         amphora=amp,
                         vip_subnet=vip_subnet,
-                        vrrp_port=vrrp_port
-                    )
+                        vrrp_port=vrrp_port)
 
         return amphorae_network_config
 
@@ -389,7 +388,10 @@ class HaproxyLoadBalancerManager(HaproxyCommonManager,
                                      context, loadbalancer, loadbalancer_o_obj)
         self.driver.amphora_driver.post_vip_plug(
                 loadbalancer_o_obj, amphorae_network_config)
-        LOG.info(_LI("Notfied amphora of vip plug"))
+        LOG.info(_LI("Notfied amphora of vip plug. "
+                     "Loadbalancer id: %(id)s, vip: %(vip)s"),
+                 {"id": loadbalancer['id'],
+                  "vip": loadbalancer_o_obj.vip.ip_address})
 
     def update(self, context, old_loadbalancer, loadbalancer):
         LOG.info(_LI("LB %(cls_name)s, update %(id)s"),

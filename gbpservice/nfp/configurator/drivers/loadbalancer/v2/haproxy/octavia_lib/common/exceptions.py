@@ -25,6 +25,7 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
 from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
     i18n import _LI
 
+
 class OctaviaException(Exception):
     """Base Octavia Exception.
 

@@ -375,11 +375,11 @@ class HeatDriver(object):
 
         return {type_key: "OS::Neutron::LBaaS::PoolMember",
                 properties_key: {
-                "pool": {res_key: "pool"},
-                "address": member_ip,
-                "protocol_port": {"get_param": "app_port"},
-                "subnet": subnet,
-                "weight": 1}}
+                    "pool": {res_key: "pool"},
+                    "address": member_ip,
+                    "protocol_port": {"get_param": "app_port"},
+                    "subnet": subnet,
+                    "weight": 1}}
 
     def _modify_lbv2_resources_name(self, stack_template, provider_ptg,
                                     is_template_aws_version):

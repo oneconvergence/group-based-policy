@@ -413,7 +413,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         self._wait_for_network_function_operation_completion(
             context, network_function_id, operation='update')
 
-
     def delete(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
@@ -441,7 +440,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             context.instance['id'])
 
     def update_policy_target_added(self, context, policy_target):
-        # TODO: (jiahao) need to review
         if context.current_profile['service_type'] in [pconst.LOADBALANCER,
                                                        pconst.LOADBALANCERV2]:
             if self._is_service_target(policy_target):

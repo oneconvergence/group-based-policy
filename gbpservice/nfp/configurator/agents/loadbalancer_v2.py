@@ -25,12 +25,12 @@ from gbpservice.nfp.core import poll as nfp_poll
 LOG = logging.getLogger(__name__)
 
 """ Implements LBaaS response path to Neutron plugin.
-Methods of this class are invoked by the LBaasEventHandler class and also
+Methods of this class are invoked by the LBaaSV2EventHandler class and also
 by driver class for sending response from driver to the LBaaS Neutron plugin.
 """
 
 
-class LBaasRpcSender(data_filter.Filter):
+class LBaaSV2RpcSender(data_filter.Filter):
 
     def __init__(self, sc):
         self.notify = agent_base.AgentBaseNotification(sc)
@@ -56,7 +56,7 @@ class LBaasRpcSender(data_filter.Filter):
     def update_status(self, obj_type, obj_id, root_lb_id,
                       provisioning_status, operating_status,
                       agent_info, obj=None):
-        """ Enqueues the response from LBaaS operation to neutron plugin.
+        """ Enqueues the response from LBaaS V2 operation to neutron plugin.
 
         :param obj_type: object type
         :param obj_id: object id
@@ -396,7 +396,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     }
         self._send_event(lb_constants.EVENT_CREATE_HEALTH_MONITOR,
                          arg_dict, serialize=True,
-                         binding_key=healthmonitor['pool']['id'],
+                         binding_key=healthmonitor['pool']['loadbalancer_id'],
                          key=healthmonitor['id'])
 
     def update_healthmonitor(self, context, old_healthmonitor, healthmonitor):
@@ -416,7 +416,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     }
         self._send_event(lb_constants.EVENT_UPDATE_HEALTH_MONITOR,
                          arg_dict, serialize=True,
-                         binding_key=healthmonitor['pool']['id'],
+                         binding_key=healthmonitor['pool']['loadbalancer_id'],
                          key=healthmonitor['id'])
 
     def delete_healthmonitor(self, context, healthmonitor):
@@ -434,7 +434,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     }
         self._send_event(lb_constants.EVENT_DELETE_HEALTH_MONITOR,
                          arg_dict, serialize=True,
-                         binding_key=healthmonitor['pool']['id'],
+                         binding_key=healthmonitor['pool']['loadbalancer_id'],
                          key=healthmonitor['id'])
 
     # TODO(jiahao): copy from v1 agent need to review
@@ -461,15 +461,15 @@ invoked by core service controller.
 """
 
 
-class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
-                        nfp_poll.PollEventDesc):
+class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
+                          nfp_poll.PollEventDesc):
     instance_mapping = {}
 
     def __init__(self, sc, drivers, rpcmgr):
         self.sc = sc
         self.drivers = drivers
         self.rpcmgr = rpcmgr
-        self.plugin_rpc = LBaasRpcSender(sc)
+        self.plugin_rpc = LBaaSV2RpcSender(sc)
 
     def _get_driver(self, driver_name):
         """Retrieves service driver object based on service type input.
@@ -597,7 +597,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                     return
                 driver = self.drivers[driver_id]
                 driver.load_balancer.create(context, loadbalancer)
-                LBaaSEventHandler.instance_mapping[loadbalancer['id']] \
+                LBaaSV2EventHandler.instance_mapping[loadbalancer['id']] \
                     = driver_name
             elif operation == 'update':
                 old_loadbalancer = data['old_loadbalancer']
@@ -607,14 +607,14 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
             elif operation == 'delete':
                 driver = self._get_driver(service_vendor)
                 driver.load_balancer.delete(context, loadbalancer)
-                del LBaaSEventHandler.instance_mapping[loadbalancer['id']]
+                del LBaaSV2EventHandler.instance_mapping[loadbalancer['id']]
                 return  # Don't update object status for delete operation
         except Exception:
             if operation == 'delete':
                 msg = (
                     "Failed to delete loadbalancer %s" % (loadbalancer['id']))
                 LOG.warn(msg)
-                del LBaaSEventHandler.instance_mapping[loadbalancer['id']]
+                del LBaaSV2EventHandler.instance_mapping[loadbalancer['id']]
             else:
                 self.plugin_rpc.update_status(
                     'loadbalancer', loadbalancer['id'], root_lb_id,
@@ -821,7 +821,8 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
     @nfp_poll.poll_event_desc(event=lb_constants.EVENT_COLLECT_STATS,
                               spacing=60)
     def collect_stats(self, ev):
-        for pool_id, driver_name in LBaaSEventHandler.instance_mapping.items():
+        for pool_id, driver_name in \
+                LBaaSV2EventHandler.instance_mapping.items():
             driver_id = lb_constants.SERVICE_TYPE + driver_name
             driver = self.drivers[driver_id]
             try:
@@ -872,8 +873,8 @@ def events_init(sc, drivers, rpcmgr):
 
     evs = []
     for ev_id in ev_ids:
-        ev = nfp_event.Event(id=ev_id, handler=LBaaSEventHandler(sc, drivers,
-                                                            rpcmgr))
+        ev = nfp_event.Event(id=ev_id, handler=LBaaSV2EventHandler(
+            sc, drivers,rpcmgr))
         evs.append(ev)
     sc.register_events(evs)
 
@@ -888,7 +889,7 @@ def load_drivers(sc, conf):
     cutils = utils.ConfiguratorUtils()
     drivers = cutils.load_drivers(lb_constants.DRIVERS_DIR)
 
-    plugin_rpc = LBaasRpcSender(sc)
+    plugin_rpc = LBaaSV2RpcSender(sc)
 
     for service_type, dobj in drivers.iteritems():
         '''LB Driver constructor needs plugin_rpc as a param'''
@@ -899,7 +900,7 @@ def load_drivers(sc, conf):
 
 
 def register_service_agent(cm, sc, conf, rpcmgr):
-    """Registers Loadbalaner service agent with configurator module.
+    """Registers Loadbalaner V2 service agent with configurator module.
 
     :param cm: Instance of configurator module
     :param sc: Instance of core service controller
@@ -914,7 +915,7 @@ def register_service_agent(cm, sc, conf, rpcmgr):
 
 
 def init_agent(cm, sc, conf):
-    """Initializes Loadbalaner agent.
+    """Initializes Loadbalaner V2 agent.
 
     :param cm: Instance of configuration module
     :param sc: Instance of core service controller
