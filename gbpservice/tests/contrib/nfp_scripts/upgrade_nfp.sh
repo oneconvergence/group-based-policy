@@ -55,13 +55,28 @@ function delete_instance_and_image {
     glance image-delete $image_id
 }
         
+
+function restart_processes {
+    
+    source $DEVSTACK_DIR/functions-common
+    
+    # restart proxy agent
+    stop_process proxy_agent
+    run_process proxy_agent
+    
+    # restart proxy
+    stop_process proxy
+    run_process proxy
+    
+}
+
+
 function upgrade {
     if [[ $FROM = advanced ]] && [[ $TO = enterprise ]]; then
         # edit nfp_proxy.ini with neutron port's fixed IP
         sed -i 's/rest_server_address=.*/rest_server_address='$IpAddr'/' /etc/nfp_proxy.ini
 
-        # restart nfp_proxy
-        service nfp_proxy restart
+        restart_processes
 
         image=configurator
         delete_instance_and_image $image
@@ -70,6 +85,7 @@ function upgrade {
         echo "Not supported."
     fi
 }
+
 
 echo "Task: Upgrade of NFP from $FROM mode to $TO mode."
 
