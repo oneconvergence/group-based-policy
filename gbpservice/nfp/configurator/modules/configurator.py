@@ -22,9 +22,9 @@ from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import rpc
 
 from neutron.common import rpc as n_rpc
+from neutron import context as n_context
 import oslo_messaging
 import time
-from neutron import context as n_context
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -521,13 +521,13 @@ def nfp_module_post_init(sc, conf):
         cm = get_configurator_module_instance(sc)
         cm.init_service_agents_complete(sc, conf)
 
-        #TODO:Need to generalize the following code in library.
-        context =  n_context.Context('configurator', 'configrator')
+        #TODO(Rahul):Need to generalize the following code in library.
+        context = n_context.Context('configurator', 'configrator')
         uptime = time.strftime("%c")
         request_data = {'eventdata': {'uptime': uptime,
-                                       'module': 'configurator'},
+                                      'module': 'configurator'},
                         'eventid': 'NFP_UP_TIME',
-                        'eventtype':'NFP_CONTROLLER'}
+                        'eventtype': 'NFP_CONTROLLER'}
         API_VERSION = '1.0'
         target = oslo_messaging.Target(
                         topic='visibility',

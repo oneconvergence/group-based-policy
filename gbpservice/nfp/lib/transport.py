@@ -14,7 +14,6 @@ import zlib
 import exceptions
 
 from gbpservice.nfp.common import constants as nfp_constants
-from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import RestClientOverUnix as unix_rc
 from gbpservice.nfp.core import log as nfp_logging
 
@@ -210,7 +209,7 @@ def send_request_to_configurator(conf, context, body,
                 {'neutron_context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
     backend = conf.backend
-    if override_backend != None and conf.REST.rest_server_address != '':
+    if override_backend is not None and conf.REST.rest_server_address != '':
             backend = override_backend
 
     if backend == TCP_REST:

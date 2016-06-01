@@ -26,6 +26,7 @@ from gbpservice.nfp.lib import transport
 
 LOG = nfp_logging.getLogger(__name__)
 
+
 class RpcHandler(object):
     RPC_API_VERSION = '1.0'
     target = messaging.Target(version=RPC_API_VERSION)
@@ -45,7 +46,7 @@ class RpcHandler(object):
                 # Handle Event
                 request_data = {'context': context.to_dict(),
                                 'notification_data': notification_data
-                            }
+                                }
                 event = self.sc.new_event(id='OTC_EVENT',
                                           key='OTC_EVENT',
                                           data=request_data)
@@ -209,7 +210,6 @@ class VpnNotifier(object):
 
     def ipsec_site_conn_deleted(self, context, notification_data):
         pass
-
 
 
 ServicetypeToHandlerMap = {'firewall': FirewallNotifier,

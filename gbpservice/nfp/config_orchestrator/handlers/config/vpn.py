@@ -203,5 +203,3 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         for ipsec_site_conn in ipsec_site_conns:
             ipsec_site_conn['description'] = desc
         return ipsec_site_conns
-
-

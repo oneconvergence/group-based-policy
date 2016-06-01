@@ -158,5 +158,3 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         transport.send_request_to_configurator(self._conf,
                                                context, body, "DELETE")
         nfp_logging.clear_logging_context()
-
-

@@ -286,5 +286,3 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
             context, health_monitor['tenant_id'], 'pool_health_monitor',
             nf, health_monitor=health_monitor, pool_id=pool_id)
         nfp_logging.clear_logging_context()
-
-

@@ -23,6 +23,7 @@ import oslo_messaging as messaging
 
 LOG = nfp_logging.getLogger(__name__)
 
+
 def prepare_request_data(context, resource, resource_type,
                          resource_data, service_vendor=None):
 
@@ -128,7 +129,7 @@ def get_network_function_details(context, network_function_id):
         return network_function_details['network_function']
 
     except Exception as e:
-        LOG.info( " %s " % (e))
+        LOG.info(" %s " % (e))
 
 
 def get_network_function_map(context, network_function_id):
