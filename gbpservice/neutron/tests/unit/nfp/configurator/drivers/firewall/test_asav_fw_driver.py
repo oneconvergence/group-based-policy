@@ -18,7 +18,7 @@ from oslo_config import cfg
 from oslo_serialization import jsonutils
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
-                                                        fw_test_data as fo)
+                                                    asav_fw_test_data as fo)
 from gbpservice.nfp.configurator.drivers.firewall.asav import (
                                                     asav_fw_driver as fw_dvr)
 

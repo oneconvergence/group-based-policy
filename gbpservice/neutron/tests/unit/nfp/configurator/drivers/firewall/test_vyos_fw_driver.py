@@ -96,10 +96,9 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
             self.driver.configure_routes(
                 self.fo.context, self.kwargs)
 
-            routes_timeout = 60
             mock_post.assert_called_with(self.fo.url_for_add_src_route,
                                          data=self.fo.data_for_add_src_route,
-                                         timeout=routes_timeout)
+                                         timeout=self.fo.timeout)
 
     def test_delete_source_routes(self):
         """ Implements test case for clear routes method

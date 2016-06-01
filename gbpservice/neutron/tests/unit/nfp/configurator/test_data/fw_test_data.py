@@ -56,57 +56,6 @@ class FakeObjects(object):
                               '"gateway_ip": "1.2.3.4"}]')
     data_for_del_src_route = '[{"source_cidr": "1.2.3.4/24"}]'
     timeout = 120
-    content_headers = {'Content-Type': 'application/json'}
-    asav_url = 'https://172.24.4.5'
-    asav_bulk_cli_url = '%s/api/cli' % asav_url
-    asav_api_cli_url = '%s/api' % asav_url
-
-    def fake_asav_resources(self, resource):
-        resource_data_map = {
-            'configure_interface': [
-                'interface gigabitEthernet 0/2',
-                'nameif interface-192.168.0.0_28',
-                {}, 'ip address 192.168.0.3 255.255.255.240',
-                'no shutdown', 'same-security-traffic permit inter-interface',
-                'write memory'],
-            'clear_interface': [
-                "clear configure interface GigabitEthernet0/1",
-                "clear configure interface GigabitEthernet0/2",
-                "write memory"],
-            'configure_routes': [
-                "route interface-192.168.0.0_28 0 0 1.2.3.4 3",
-                "dns domain-lookup interface-192.168.0.0_28",
-                "write memory"],
-            'clear_routes': [
-                "interface GigabitEthernet0/1",
-                "no policy-route route-map pbrmap1.2.3.4_24",
-                "no route-map pbrmap1.2.3.4_24",
-                "clear configure access-list pbracl1.2.3.4_24",
-                "clear configure interface GigabitEthernet0/1",
-                "write memory"],
-            'create_fw': [
-                {"resourceUri": "/api/access/out/interface-11.0.1.0_24/rules",
-                 "data": dict(destinationAddress={
-                            "kind": "AnyIPAddress", "value": "0.0.0.0"},
-                          destinationService={"kind": "NetworkProtocol",
-                                              "value": "ip"},
-                          sourceAddress={"kind": "AnyIPAddress",
-                                         "value": "0.0.0.0"},
-                          permit=False), "method": "Post"}],
-            'update_fw': [
-                {"resourceUri": "/api/access/out/interface-11.0.1.0_24/rules",
-                 "data": dict(destinationAddress={
-                            "kind": "AnyIPAddress", "value": "0.0.0.0"},
-                          destinationService={"kind": "NetworkProtocol",
-                                              "value": "ip"},
-                          sourceAddress={"kind": "AnyIPAddress",
-                                         "value": "0.0.0.0"},
-                          permit=False), "method": "Post"}],
-            'delete_fw': [
-                "clear configure access-list interface-11.0.1.0_24_access_out",
-                "wr mem"]}
-
-        return resource_data_map[resource]
 
     def fake_request_data_generic_bulk(self):
         """ A sample bulk request data for generic APIs
