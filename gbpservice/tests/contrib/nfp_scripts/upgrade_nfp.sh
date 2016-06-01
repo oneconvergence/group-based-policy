@@ -111,12 +111,13 @@ function restart_processes {
     
     # restart proxy
     stop_process proxy
-    run_process proxy
+    run_process proxy "source $NFPSERVICE_DIR/devstack/lib/nfp;namespace_delete $TOP_DIR;namespace_create $TOP_DIR $IpAddr"
     echo "Restarted proxy process"
+    sleep 10
 
     # restart proxy agent
     stop_process proxy_agent
-    run_process proxy_agent
+    run_process proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
     echo "Restarted proxy agent process"
        
 }
