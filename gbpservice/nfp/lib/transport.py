@@ -33,7 +33,7 @@ Version = 'v1'  # v1/v2/v3#
 
 rest_opts = [
     cfg.StrOpt('rest_server_address',
-               default=' ', help='Rest connection IpAddr'),
+               default='', help='Rest connection IpAddr'),
     cfg.IntOpt('rest_server_port',
                default=8080, help='Rest connection Port'),
 ]
@@ -192,8 +192,7 @@ def send_request_to_configurator(conf, context, body,
                 {'neutron_context': context.to_dict()})
         method_name = method_type.lower() + '_network_function_config'
     backend = conf.backend
-    if backend != UNIX_REST:
-        if override_backend != None and conf.REST.rest_server_address != ' ':
+    if override_backend != None and conf.REST.rest_server_address != '':
             backend = override_backend
 
     if backend == TCP_REST:
@@ -228,7 +227,7 @@ def send_request_to_configurator(conf, context, body,
                              body=body)
 
 
-def get_response_from_configurator(conf, override_backend=None):
+def get_response_from_configurator(conf):
     """Common function to handle get request for configurator.
     Get notification http response from configurator rest server.
     Return:Http Response
@@ -242,12 +241,7 @@ def get_response_from_configurator(conf, override_backend=None):
     """
     # This function reads configuration data and decides
     # method (tcp_rest/ unix_rest/ rpc) for get response from configurator.
-    backend = conf.backend
-    if backend != UNIX_REST:
-        if override_backend != None and conf.REST.rest_server_address != ' ':
-            backend = override_backend
-
-    if backend == TCP_REST:
+    if conf.backend == TCP_REST:
         try:
             rc = RestApi(conf.REST.rest_server_address,
                          conf.REST.rest_server_port)
@@ -267,7 +261,7 @@ def get_response_from_configurator(conf, override_backend=None):
             return "get_notification -> GET request failed. Reason : %s" % (
                 e)
 
-    elif backend == UNIX_REST:
+    elif conf.backend == UNIX_REST:
         try:
             resp, content = unix_rc.get('get_notifications')
             content = jsonutils.loads(content)
