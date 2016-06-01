@@ -10,9 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.firewall'
-SERVICE_TYPE = 'firewall'
+VYOS = 'vyos'
+CONFIGURATION_SERVER_PORT = '8888'
+REST_TIMEOUT = 120
+request_url = "http://%s:%s/%s"
 
-FIREWALL_CREATE_EVENT = 'CREATE_FIREWALL'
-FIREWALL_UPDATE_EVENT = 'UPDATE_FIREWALL'
-FIREWALL_DELETE_EVENT = 'DELETE_FIREWALL'
+INTERFACE_NOT_FOUND = "INTERFACE NOT FOUND"

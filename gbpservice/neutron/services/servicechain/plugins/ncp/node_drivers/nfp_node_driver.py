@@ -34,6 +34,7 @@ from gbpservice.common import utils
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     exceptions as exc)
 from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base
+from gbpservice.neutron.services.servicechain.plugins.ncp import model as ncp_model
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nfp_rpc_topics
@@ -211,8 +212,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN]
     SUPPORTED_SERVICE_VENDOR_MAPPING = {
         pconst.LOADBALANCER: ["haproxy"],
-        pconst.FIREWALL: ["vyos", "nfp"],
-        pconst.VPN: ["vyos"],
+        pconst.FIREWALL: ["vyos", "nfp", "asav"],
+        pconst.VPN: ["vyos", "asav"],
     }
     vendor_name = 'NFP'
     required_heat_resources = {
@@ -273,6 +274,16 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
 
         if service_type in [pconst.FIREWALL, pconst.VPN]:
             plumbing_request['plumbing_type'] = 'gateway'
+            # plumber will return stitching network PT instead of consumer
+            # as chain is instantiated while creating provider group.
+            if (self._check_for_fw_vpn_sharing(context, service_type) and
+                    service_type == pconst.VPN):
+                # For fw, vpn sharing, request pts only once.
+                # Request pts only for firewall, if both fw, vpn is in chain,
+                # and current service type is vpn, dont request pts.
+                LOG.info(_("Not requesting plumber for PTs for service type "
+                           "%s") % service_type)
+                return {}
         else:  # Loadbalancer which is one arm
             plumbing_request['consumer'] = []
             plumbing_request['plumbing_type'] = 'endpoint'
@@ -282,6 +293,37 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                  {'plumbing_request': plumbing_request,
                   'service_type': service_type})
         return plumbing_request
+
+    def _check_for_fw_vpn_sharing(self, context, service_type):
+        shared_svc_type = pconst.FIREWALL
+        if service_type == pconst.FIREWALL:
+            shared_svc_type = pconst.VPN
+        return self._is_service_type_in_chain(context, shared_svc_type)
+
+    def _get_service_type(self, profile):
+        service_type = profile['service_type']
+        return service_type
+
+
+    def _is_service_type_in_chain(self, context, service_type):
+        if service_type == self._get_service_type(context.current_profile):
+            return True
+        else:
+            current_specs = context.relevant_specs
+            service_profiles = []
+            for spec in current_specs:
+                filters = {'id': spec['nodes']}
+                nodes = context.sc_plugin.get_servicechain_nodes(
+                    context.plugin_context, filters)
+                for node in nodes:
+                    service_profiles.append(node['service_profile_id'])
+            service_type_ha = "%s%s" %(service_type, "_HA")
+            filters = {'id': service_profiles,
+                       'service_type': [service_type, service_type_ha]}
+            service_profiles = context.sc_plugin.get_service_profiles(
+                context.plugin_context, filters)
+            return True if service_profiles else False
+
 
     def validate_create(self, context):
         if not context.current_profile:
@@ -566,6 +608,26 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         else:
             LOG.info(_LI("No action to take on update"))
 
+
+
+    def _get_shared_service_targets(self, context, service_type, relationship):
+        current_specs = context.relevant_specs
+        for spec in current_specs:
+            filters = {'id': spec['nodes']}
+            nodes = context.sc_plugin.get_servicechain_nodes(
+                context.plugin_context, filters)
+            for node in nodes:
+                profile = context.sc_plugin.get_service_profile(
+                    context.plugin_context, node['service_profile_id'])
+                if self._get_service_type(profile) == service_type:
+                    service_targets = ncp_model.get_service_targets(
+                        context.session,
+                        servicechain_instance_id=context.instance['id'],
+                        servicechain_node_id=node['id'],
+                        relationship=relationship)
+                    return service_targets
+
+
     def _get_service_targets(self, context):
         service_type = context.current_profile['service_type']
         provider_service_targets = []
@@ -576,11 +638,21 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         # Bug with NCP. For create, its not setting service targets in context
         if not service_targets:
             service_targets = context.get_service_targets(update=True)
-        for service_target in service_targets:
-            if service_target.relationship == 'consumer':
-                consumer_service_targets.append(service_target)
-            elif service_target.relationship == 'provider':
-                provider_service_targets.append(service_target)
+        if (not service_targets and service_type in
+            [pconst.FIREWALL, pconst.VPN]):
+                shared_service_type = {pconst.FIREWALL: pconst.VPN,
+                                       pconst.VPN: pconst.FIREWALL}
+                shared_service_type = shared_service_type[service_type]
+                provider_service_targets = self._get_shared_service_targets(
+                    context, shared_service_type, 'provider')
+                consumer_service_targets = self._get_shared_service_targets(
+                    context, shared_service_type, 'consumer')
+        else:
+            for service_target in service_targets:
+                if service_target.relationship == 'consumer':
+                    consumer_service_targets.append(service_target)
+                elif service_target.relationship == 'provider':
+                    provider_service_targets.append(service_target)
         LOG.debug("provider targets: %s consumer targets %s" % (
             provider_service_targets, consumer_service_targets))
         if (service_details['device_type'] != 'None' and (

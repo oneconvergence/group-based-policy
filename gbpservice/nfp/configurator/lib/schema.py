@@ -86,6 +86,7 @@ routes = {'mgmt_ip': "",
           'source_cidrs': "",
           'destination_cidr': "",
           'gateway_ip': "",
+          'provider_mac': "",
           'provider_interface_index': "",
           }
 

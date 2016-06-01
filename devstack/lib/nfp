@@ -56,6 +56,10 @@ function create_nfp_image {
             echo "Uploading Image: $VisibilityQcow2ImageName"
             glance image-create --name $VisibilityQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VisibilityQcow2Image
 
+            AsavQcow2ImageName=asav
+            echo "Uploading Image: $AsavQcow2ImageName"
+            glance image-create --name $AsavQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $AsavQcow2Image
+
         else
 
             ConfiguratorQcow2ImageName=configurator
@@ -271,14 +275,17 @@ function create_nfp_gbp_resources {
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
     else
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
-        gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP fw_profile
+        gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vyos_fw_profile
         gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
 
+        if [[ $DEVSTACK_MODE = enterprise ]]; then
+            gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_fw_profile
+        fi  
         create_ext_net
         create_ep_and_nsp
         create_advance_sharing_ptg
     fi
-            
+
     gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
     gbp l2policy-create --l3-policy service_management svc_management_ptg
 
