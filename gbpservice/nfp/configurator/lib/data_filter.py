@@ -15,13 +15,13 @@ import copy
 from gbpservice.nfp.configurator.lib import (
     filter_constants as constants)
 
-"""Filter class which provides data asked in a specific format.
-   This class mocks all rpc calls going from *aaS agent/driver to respective
-   *aaS plugin.
-"""
-
 
 class Filter(object):
+    """
+    Filter class which provides data asked in a specific format.
+    This class mocks all rpc calls going from *aaS agent/driver to respective
+        *aaS plugin.
+    """
 
     def __init__(self, topic, default_version):
         pass
@@ -161,7 +161,7 @@ class Filter(object):
         """
         return self._get_ipsec_site2site_contexts(context, filters)
 
-    def _get_ipsec_site2site_contexts(self, context, filters={}):
+    def _get_ipsec_site2site_contexts(self, context, filters=None):
         """ Get ipsec site to site context
         :param filters
         e.g {'tenant_id': <value>,
@@ -184,6 +184,9 @@ class Filter(object):
                     }
                 }
         """
+        if not filters:
+            filters = {}
+
         service_info = context['service_info']
         vpnservices = {}
         s_filters = {}
