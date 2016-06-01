@@ -82,7 +82,8 @@ def rpc_init(sc, conf):
         manager=nhrpcmgr,
     )
 
-    sc.register_rpc_agents([fwagent, lbagent, vpnagent, notificationagent])
+    sc.register_rpc_agents([fwagent, lbagent, vpnagent, notificationagent,
+                            nfp_l3_agent])
 
 
 def events_init(sc, conf, nfp_agents_obj):

@@ -261,7 +261,7 @@ class FWaasEventHandler(object):
                 status = self.method(context, firewall, host)
             except Exception as err:
                 self.plugin_rpc.set_firewall_status(
-                    agent_info, firewall['id'], const.STATUS_ERROR)
+                    agent_info, firewall['id'], const.STATUS_ERROR, firewall)
                 msg = ("Failed to configure Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
@@ -293,7 +293,7 @@ class FWaasEventHandler(object):
                 # attempt to clean will only re-raise the last one.And it
                 # can go on and on and may not be ever recovered.
                 self.plugin_rpc.set_firewall_status(
-                    agent_info, firewall['id'], const.STATUS_ERROR)
+                    agent_info, firewall['id'], const.STATUS_ERROR, firewall)
                 msg = ("Failed to delete Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)
@@ -301,7 +301,7 @@ class FWaasEventHandler(object):
             else:
                 if status == const.STATUS_ERROR:
                     self.plugin_rpc.set_firewall_status(
-                        agent_info, firewall['id'], status)
+                        agent_info, firewall['id'], status, firewall)
                 else:
                     msg = ("Firewall %r deleted of tenant: %r" % (
                            firewall['id'], firewall['tenant_id']))
@@ -318,7 +318,7 @@ class FWaasEventHandler(object):
                 status = self.method(context, firewall, host)
             except Exception as err:
                 self.plugin_rpc.set_firewall_status(
-                    agent_info, firewall['id'], const.STATUS_ERROR)
+                    agent_info, firewall['id'], const.STATUS_ERROR, firewall)
                 msg = ("Failed to update Firewall and status is "
                        "changed to ERROR. %s." % str(err).capitalize())
                 LOG.error(msg)

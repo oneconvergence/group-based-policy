@@ -220,13 +220,17 @@ class FirewallNotifier(object):
                "set_firewall_status RPC call for firewall: %s & status "
                " %s" % (firewall_id, status))
         LOG(LOGGER, 'INFO', '%s' % (msg))
-
-        # RPC call to plugin to set firewall status
-        rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
-        rpcClient.cctxt.cast(context, 'set_firewall_status',
-                             host=resource_data['host'],
-                             firewall_id=firewall_id,
-                             status=status)
+        firewall = resource_data['firewall']
+        if firewall.get('neutron_mode'):
+            NeutronFwAgent(self._conf, self._sc).set_firewall_status(context,
+                                                                     firewall)
+        else:
+            # RPC call to plugin to set firewall status
+            rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
+            rpcClient.cctxt.cast(context, 'set_firewall_status',
+                                 host=resource_data['host'],
+                                 firewall_id=firewall_id,
+                                 status=status)
 
         # Sending An Event for visiblity #
         event_data = {'context': context.to_dict(),
@@ -255,11 +259,16 @@ class FirewallNotifier(object):
                "firewall_deleted RPC call for firewall: %s" % (firewall_id))
         LOG(LOGGER, 'INFO', '%s' % (msg))
 
-        # RPC call to plugin to update firewall deleted
-        rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
-        rpcClient.cctxt.cast(context, 'firewall_deleted',
-                             host=resource_data['host'],
-                             firewall_id=firewall_id)
+        firewall = resource_data['firewall']
+        if firewall.get('neutron_mode'):
+            NeutronFwAgent(self._conf, self._sc).firewall_deleted(context,
+                                                                  firewall)
+        else:
+            # RPC call to plugin to update firewall deleted
+            rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
+            rpcClient.cctxt.cast(context, 'firewall_deleted',
+                                 host=resource_data['host'],
+                                 firewall_id=firewall_id)
 
         # Sending An Event for visiblity #
         request_data = self._prepare_request_data(context, nf_id,
@@ -374,38 +383,38 @@ class NeutronFwAgent(PollEventDesc):
         # REVISIT(VK) This need to get fixed. We can't validate here. Think
         # about delete.
         try:
-            self._is_network_function_mode_neutron(firewall)
+            is_neutron_mode = self._is_network_function_mode_neutron(firewall)
         except ServiceProfileNotFound:
             return self.oc_fw_plugin_rpc.set_firewall_status(context, firewall[
                 'id'], constants.ERROR)
         LOG.info(_LI("Firewall - %(id)s create started") % {'id': firewall[
             'id']})
-        self.process_create_firewall_service(context, firewall, host)
+        if is_neutron_mode:
+            self.process_create_firewall_service(context, firewall, host)
+        else:
+            return self.oc_fw_plugin_rpc.set_firewall_status(context, firewall[
+                'id'], constants.ERROR)
 
     def update_firewall(self, context, firewall, host):
         pass
 
     @log_helpers.log_method_call
     def delete_firewall(self, context, firewall, host):
-        resource = 'firewall'
         firewall = self.get_extra_details_for_firewall_delete(context,
                                                               firewall)
         if 'services_to_delete' in firewall and not firewall[
            'services_to_delete']:
             self.oc_fw_plugin_rpc.firewall_deleted(context, firewall['id'])
-        kwargs = {resource: firewall, 'host': host, 'context':
-                  context.to_dict()}
-        body = common.prepare_request_data(resource, kwargs, "firewall")
+        # (VK): get the nf_id
+        nf_id = None
+        self.call_configurator_for_config(
+                    context, firewall=firewall,
+                    host=self._conf.host, nf_id, "DELETE")
         LOG.info(_LI("Firewall - %(id)s delete started") % {'id': firewall[
             'id']})
-        send_request_to_configurator(self._conf, context, body, "DELETE")
 
-    # def firewall_configuration_create_complete(self, context,  **kwargs):
-    def set_firewall_status(self, context, **kwargs):
-
+    def set_firewall_status(self, context, firewall):
         # Currently proxy agent is sending like - kwargs = {'kwargs': {}}. Bad
-        kwargs = kwargs['kwargs']
-        firewall = kwargs['firewall']
         _erred_services = [service['id'] for service in firewall[
                                    'erred_services']]
         erred_services = [service for service in firewall[
@@ -426,10 +435,7 @@ class NeutronFwAgent(PollEventDesc):
         LOG.info(_LI("Firewall - %(id)s creation completed.") %
                  {'id': firewall['id']})
 
-    # def firewall_configuration_delete_complete(self, context, **kwargs):
-    def firewall_deleted(self, context, **kwargs):
-        kwargs = kwargs['kwargs']
-        firewall = kwargs['firewall']
+    def firewall_deleted(self, context, firewall):
         try:
             # Have no idea whether this will work or not.
             self.delete_firewall_instances(context, firewall)
@@ -439,13 +445,25 @@ class NeutronFwAgent(PollEventDesc):
             self.oc_fw_plugin_rpc.set_firewall_status(context, firewall[
                 'id'], constants.ERROR)
 
-    def call_configurator_for_config(self, context, firewall, host):
-        resource = 'firewall'
-        kwargs = {resource: firewall,
-                  'host': host,
-                  'context': context.to_dict()}
-        body = common.prepare_request_data(resource, kwargs, "firewall")
-        send_request_to_configurator(self._conf, context, body, "CREATE")
+    def call_configurator_for_config(self, context, firewall, host, nf_id,
+                                     method):
+        resource = resource_type = 'firewall'
+        # REVIEW (VK): fw_mac required for visibility
+        fw_mac = firewall['description']['provider_ptg_info'][0]
+        ctx_dict = context.to_dict()
+        nfp_context = {'network_function_id': nf_id,
+                       'neutron_context': ctx_dict,
+                       'fw_mac': fw_mac,
+                       'requester': 'nas_service'}
+        resource_data = {resource: firewall,
+                         'host': host,
+                         'neutron_context': ctx_dict}
+
+        body = common.prepare_request_data(nfp_context, resource,
+                                           resource_type, resource_data,
+                                           'neutron_vyos')
+        transport.send_request_to_configurator(self._conf,
+                                               context, body, method)
 
     def get_extra_details_for_firewall_delete(self, context, firewall):
         if not self._is_network_function_mode_neutron(firewall) or\
@@ -561,9 +579,9 @@ class NeutronFwAgent(PollEventDesc):
         # service_ids = [service['service_id'] for service in erred_services]
         # if service_ids:
         #     pass
-            # self.so_rpc_client.cctxt.cast(nw_function_data['context'],
-            #                               'admin_down_interfaces',
-            #                               port_ids=service_ids)
+        #     self.so_rpc_client.cctxt.cast(nw_function_data['context'],
+        #                                   'admin_down_interfaces',
+        #                                   port_ids=service_ids)
 
         # for service in erred_services:
         #     self.so_rpc_client.cctxt.cast(nw_function_data['context'],
@@ -673,10 +691,11 @@ class NeutronFwAgent(PollEventDesc):
             LOG.info(_LI("Sending configuration request to configurator for "
                          "firewall - %s"), firewall['id'])
             # Batch processing, have no other choice.
+            # (VK): get nf_id
+            nf_id = None
             self.call_configurator_for_config(
-                    nw_fun_data['context'], firewall=nw_fun_data[
-                        'network_function_data']['resource_data'],
-                    host=self._conf.host)
+                    nw_fun_data['context'], firewall, self._conf.host, nf_id,
+                    "CREATE")
         elif nw_fun_data.get('l3_notification'):
             kwargs = {'port': nw_fun_data['service_info'][0]['port']['id']}
             # self.so_rpc_client.cctxt.call(

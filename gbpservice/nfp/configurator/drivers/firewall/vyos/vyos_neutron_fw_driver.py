@@ -47,7 +47,8 @@ class NeutronVYOSFWDriver(FwaasDriver):
                 else:
                     configured_services.append(service)
 
-        firewall.update(config_erred_services=config_erred_services,
+        firewall.update(neutron_mode=True,
+                        config_erred_services=config_erred_services,
                         configured_services=configured_services,
                         description=fw_desc)
         status = "ACTIVE" if configured_services else "ERROR"
@@ -78,7 +79,8 @@ class NeutronVYOSFWDriver(FwaasDriver):
                 else:
                     config_deleted_services.append(service)
 
-        firewall.update(delete_erred_services=delete_erred_services,
+        firewall.update(neutron_mode=True,
+                        delete_erred_services=delete_erred_services,
                         config_deleted_services=config_deleted_services,
                         description=fw_desc)
         status = "ERROR" if delete_erred_services else "SUCCESS"
