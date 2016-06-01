@@ -12,14 +12,15 @@
 
 import ast
 import copy
-from gbpservice.nfp.config_orchestrator.agent import common
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.common import common
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.core import log as nfp_logging
 
 from neutron_vpnaas.db.vpn import vpn_db
 
 from oslo_log import helpers as log_helpers
+from gbpservice.nfp.core import log as nfp_logging
 import oslo_messaging as messaging
 
 LOG = nfp_logging.getLogger(__name__)
@@ -204,98 +205,3 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         return ipsec_site_conns
 
 
-class VpnNotifier(object):
-
-    def __init__(self, conf, sc):
-        self._sc = sc
-        self._conf = conf
-
-    def _prepare_request_data(self, context,
-                              nf_id, resource_id,
-                              ipsec_id, service_type):
-        request_data = None
-        try:
-            request_data = common.get_network_function_map(
-                context, nf_id)
-            # Adding Service Type #
-            request_data.update({"service_type": service_type,
-                                 "ipsec_site_connection_id": ipsec_id,
-                                 "neutron_resource_id": resource_id,
-                                 "LogMetaID": nf_id})
-        except Exception as e:
-            LOG.error('%s' % (e))
-
-            return request_data
-        return request_data
-
-    def _trigger_service_event(self, context, event_type, event_id,
-                               request_data):
-        event_data = {'resource': None,
-                      'context': context.to_dict()}
-        event_data['resource'] = {'eventtype': event_type,
-                                  'eventid': event_id,
-                                  'eventdata': request_data}
-        ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data)
-        self._sc.post_event(ev)
-
-    def update_status(self, context, notification_data):
-        resource_data = notification_data['notification'][0]['data']
-        notification_info = notification_data['info']
-        status = resource_data['status']
-
-        request_info = notification_data.get('info')
-        request_context = request_info.get('context')
-        logging_context = request_context.get('logging_context')
-        nfp_logging.store_logging_context(**logging_context)
-
-        msg = ("NCO received VPN's update_status API,"
-               "making an update_status RPC call to plugin for object"
-               "with status %s" % (status))
-        LOG.info(" %s " % (msg))
-        rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
-        rpcClient.cctxt.cast(context, 'update_status',
-                             status=status)
-
-        # Sending An Event for visiblity
-        if notification_data['notification'][0]['resource'].lower() ==\
-                'ipsec_site_connection':
-            nf_id = notification_info['context']['network_function_id']
-            ipsec_id = notification_info['context']['ipsec_site_connection_id']
-            service_type = notification_info['service_type']
-
-            event_data = {'context': context.to_dict(),
-                          'nf_id': nf_id,
-                          'ipsec_id': ipsec_id,
-                          'service_type': service_type,
-                          'resource_id': ipsec_id
-                          }
-            ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
-                                    key='SERVICE_CREATE_PENDING',
-                                    data=event_data, max_times=24)
-            self._sc.poll_event(ev)
-        nfp_logging.clear_logging_context()
-
-    def ipsec_site_conn_deleted(self, context, notification_data):
-        # Sending An Event for visiblity
-        notification_info = notification_data['info']
-        nf_id = notification_info['context']['network_function_id']
-        ipsec_id = notification_info['context']['ipsec_site_connection_id']
-        resource_id = notification_info['context']['ipsec_site_connection_id']
-        service_type = notification_info['service_type']
-
-        request_info = notification_data.get('info')
-        request_context = request_info.get('context')
-        logging_context = request_context.get('logging_context')
-        nfp_logging.store_logging_context(**logging_context)
-
-        request_data = self._prepare_request_data(context,
-                                                  nf_id,
-                                                  resource_id,
-                                                  ipsec_id,
-                                                  service_type)
-        LOG.info("%s : %s " % (request_data, nf_id))
-
-        self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
-                                    request_data)
-        nfp_logging.clear_logging_context()

@@ -14,18 +14,18 @@ import ast
 import copy
 
 from gbpservice.nfp.common import constants as const
-from gbpservice.nfp.config_orchestrator.agent import common
-from gbpservice.nfp.config_orchestrator.agent import topics as a_topics
+from gbpservice.nfp.config_orchestrator.common import common
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
-from gbpservice.nfp.core import log as nfp_logging
 
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 
 from oslo_log import helpers as log_helpers
+from gbpservice.nfp.core import log as nfp_logging
 import oslo_messaging as messaging
 
 LOG = nfp_logging.getLogger(__name__)
-
 """
 RPC handler for Loadbalancer service
 """
@@ -180,12 +180,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         transport.send_request_to_configurator(self._conf,
                                                context, body, "CREATE")
 
-    def _put(self, context, tenant_id, name, nf, **kwargs):
-        body = self._data_wrapper(context, tenant_id, name,
-                                  'UPDATE', nf, **kwargs)
-        transport.send_request_to_configurator(self._conf,
-                                               context, body, "UPDATE")
-
     def _delete(self, context, tenant_id, name, nf, **kwargs):
         body = self._data_wrapper(context, tenant_id, name,
                                   'DELETE', nf, **kwargs)
@@ -197,7 +191,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         try:
             pool = self._db_inst.get_pool(context, pool_id)
         except Exception as e:
-            LOG.error(e)
+            LOG(LOGGER, 'ERROR', e)
         return pool
 
     def _fetch_nf_from_resource_desc(self, desc):
@@ -212,16 +206,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         nfp_logging.store_logging_context(meta_id=nf_id)
         nf = common.get_network_function_details(context, nf_id)
         self._post(context, vip['tenant_id'], 'vip', nf, vip=vip)
-        nfp_logging.clear_logging_context()
-
-    @log_helpers.log_method_call
-    def update_vip(self, context, old_vip, vip):
-        # Fetch nf_id from description of the resource
-        nf_id = self._fetch_nf_from_resource_desc(vip["description"])
-        nfp_logging.store_logging_context(meta_id=nf_id)
-        nf = common.get_network_function_details(context, nf_id)
-        self._put(context, vip['tenant_id'], 'vip', nf, olf_vip=old_vip,
-                  vip=vip)
         nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
@@ -245,16 +229,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
-    def update_pool(self, context, old_pool, pool):
-        # Fetch nf_id from description of the resource
-        nf_id = self._fetch_nf_from_resource_desc(pool["description"])
-        nfp_logging.store_logging_context(meta_id=nf_id)
-        nf = common.get_network_function_details(context, nf_id)
-        self._put(context, pool['tenant_id'], 'pool', nf, old_pool=old_pool,
-                  pool=pool)
-        nfp_logging.clear_logging_context()
-
-    @log_helpers.log_method_call
     def delete_pool(self, context, pool):
         # Fetch nf_id from description of the resource
         nf_id = self._fetch_nf_from_resource_desc(pool["description"])
@@ -272,18 +246,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         nfp_logging.store_logging_context(meta_id=nf_id)
         nf = common.get_network_function_details(context, nf_id)
         self._post(context, member['tenant_id'], 'member', nf, member=member)
-        nfp_logging.clear_logging_context()
-
-    @log_helpers.log_method_call
-    def update_member(self, context, old_member, member):
-        # Fetch pool from pool_id
-        pool = self._get_pool(context, member['pool_id'])
-        # Fetch nf_id from description of the resource
-        nf_id = self._fetch_nf_from_resource_desc(pool["description"])
-        nfp_logging.store_logging_context(meta_id=nf_id)
-        nf = common.get_network_function_details(context, nf_id)
-        self._put(context, member['tenant_id'], 'member', nf,
-                  old_member=old_member, member=member)
         nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
@@ -313,21 +275,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
-    def update_pool_health_monitor(self, context, old_health_monitor,
-                                   health_monitor, pool_id):
-        # Fetch pool from pool_id
-        pool = self._get_pool(context, pool_id)
-        # Fetch nf_id from description of the resource
-        nf_id = self._fetch_nf_from_resource_desc(pool["description"])
-        nfp_logging.store_logging_context(meta_id=nf_id)
-        nf = common.get_network_function_details(context, nf_id)
-        self._put(context, health_monitor[
-            'tenant_id'], 'pool_health_monitor',
-            nf, old_health_monitor=old_health_monitor,
-            health_monitor=health_monitor, pool_id=pool_id)
-        nfp_logging.clear_logging_context()
-
-    @log_helpers.log_method_call
     def delete_pool_health_monitor(self, context, health_monitor, pool_id):
         # Fetch pool from pool_id
         pool = self._get_pool(context, pool_id)
@@ -341,130 +288,3 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         nfp_logging.clear_logging_context()
 
 
-class LoadbalancerNotifier(object):
-
-    def __init__(self, conf, sc):
-        self._sc = sc
-        self._conf = conf
-
-    def _prepare_request_data(self, context, nf_id,
-                              resource_id, vip_id,
-                              service_type):
-        request_data = None
-        try:
-            request_data = common.get_network_function_map(
-                context, nf_id)
-            # Adding Service Type #
-            request_data.update({"service_type": service_type,
-                                 "vip_id": vip_id,
-                                 "neutron_resource_id": resource_id,
-                                 "LogMetaID": nf_id})
-        except Exception as e:
-            LOG.error('%s' % (e))
-            return request_data
-        return request_data
-
-    def _trigger_service_event(self, context, event_type, event_id,
-                               request_data):
-        event_data = {'resource': None,
-                      'context': context.to_dict()}
-        event_data['resource'] = {'eventtype': event_type,
-                                  'eventid': event_id,
-                                  'eventdata': request_data}
-        ev = self._sc.new_event(id=event_id,
-                                key=event_id, data=event_data)
-        self._sc.post_event(ev)
-
-    def update_status(self, context, notification_data):
-        notification = notification_data['notification'][0]
-        notification_info = notification_data['info']
-        resource_data = notification['data']
-        obj_type = resource_data['obj_type']
-        obj_id = resource_data['obj_id']
-        status = resource_data['status']
-        service_type = notification_info['service_type']
-        request_info = notification_data.get('info')
-        request_context = request_info.get('context')
-        logging_context = request_context.get('logging_context')
-        nfp_logging.store_logging_context(**logging_context)
-
-        msg = ("NCO received LB's update_status API, making an update_status "
-               "RPC call to plugin for %s: %s with status %s" % (
-                   obj_type, obj_id, status))
-        LOG.info("%s" % (msg))
-
-        # RPC call to plugin to update status of the resource
-        rpcClient = transport.RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-        rpcClient.cctxt = rpcClient.client.prepare(
-            version=const.LOADBALANCER_RPC_API_VERSION)
-        rpcClient.cctxt.cast(context, 'update_status',
-                             obj_type=obj_type,
-                             obj_id=obj_id,
-                             status=status)
-
-        if obj_type.lower() == 'vip':
-            nf_id = notification_info['context']['network_function_id']
-            vip_id = notification_info['context']['vip_id']
-
-            # sending notification to visibility
-            event_data = {'context': context.to_dict(),
-                          'nf_id': nf_id,
-                          'vip_id': vip_id,
-                          'service_type': service_type,
-                          'resource_id': vip_id
-                          }
-            ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
-                                    key='SERVICE_CREATE_PENDING',
-                                    data=event_data, max_times=24)
-            self._sc.poll_event(ev)
-        nfp_logging.clear_logging_context()
-
-    def update_pool_stats(self, context, notification_data):
-        notification = notification_data['notification'][0]
-        resource_data = notification['data']
-        pool_id = resource_data['pool_id']
-        stats = resource_data['stats']
-        host = resource_data['host']
-        request_info = notification_data.get('info')
-        request_context = request_info.get('context')
-        logging_context = request_context.get('logging_context')
-        nfp_logging.store_logging_context(**logging_context)
-
-        msg = ("NCO received LB's update_pool_stats API, making an "
-               "update_pool_stats RPC call to plugin for updating"
-               "pool: %s stats" % (pool_id))
-        LOG.info('%s' % (msg))
-
-        # RPC call to plugin to update stats of pool
-        rpcClient = transport.RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
-        rpcClient.cctxt = rpcClient.client.prepare(
-            version=const.LOADBALANCER_RPC_API_VERSION)
-        rpcClient.cctxt.cast(context, 'update_pool_stats',
-                             pool_id=pool_id,
-                             stats=stats,
-                             host=host)
-        nfp_logging.clear_logging_context()
-
-    def vip_deleted(self, context, notification_data):
-        notification_info = notification_data['info']
-        nf_id = notification_info['context']['network_function_id']
-        vip_id = notification_info['context']['vip_id']
-        resource_id = notification_info['context']['vip_id']
-        service_type = notification_info['service_type']
-        request_info = notification_data.get('info')
-        request_context = request_info.get('context')
-        logging_context = request_context.get('logging_context')
-        nfp_logging.store_logging_context(**logging_context)
-
-        request_data = self._prepare_request_data(context,
-                                                  nf_id,
-                                                  resource_id,
-                                                  vip_id,
-                                                  service_type)
-        log_msg = ("%s : %s " % (request_data, nf_id))
-        LOG.info("%s" % (log_msg))
-
-        # Sending An Event for visiblity
-        self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
-                                    request_data)
-        nfp_logging.clear_logging_context()
