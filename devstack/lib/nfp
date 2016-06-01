@@ -308,6 +308,7 @@ function create_nfp_gbp_resources {
     gbp l2policy-create --l3-policy service_management svc_management_ptg
 
     gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg
+    neutron router-gateway-clear l3p_service_management
 }
 
 
@@ -381,8 +382,8 @@ function nfp_logs_forword {
     sudo sed -i '/#$UDPServerRun 514/ s/^#//' $SYSLOG_CONFIG
     echo "Successfully enabled UDP in syslog"
 
-    visibility_vm_ip_address=`neutron floatingip-list | grep "$IpAddr" | awk '{print $6}'`
-    echo "$log_facility.*                @$visibility_vm_ip_address:514" | sudo tee $VISIBILITY_CONF
+    visibility_vm_ip_address=$(neutron floatingip-list --format value | grep "$IpAddr2" |  awk '{print $3}')
+    echo "$log_facility.* @$visibility_vm_ip_address:514" | sudo tee $VISIBILITY_CONF
     echo "Created $VISIBILITY_CONF file" 
 
     sudo service rsyslog restart
@@ -445,9 +446,11 @@ function attach_security_groups {
 
     SecGroup="allow_all"
     nova secgroup-create $SecGroup "allow all traffic"
-    nova secgroup-add-rule $SecGroup udp 1 65535  0.0.0.0/0
-    nova secgroup-add-rule $SecGroup icmp -1 -1  0.0.0.0/0
-    nova secgroup-add-rule $SecGroup tcp 1 65535  0.0.0.0/0
+    nova secgroup-add-rule $SecGroup udp 1 65535  120.0.0.0/24
+    nova secgroup-add-rule $SecGroup icmp -1 -1   120.0.0.0/24
+    nova secgroup-add-rule $SecGroup tcp 1 65535  120.0.0.0/24
+    nova secgroup-add-rule $SecGroup tcp 80 80  188.0.0.0/24
+    nova secgroup-add-rule $SecGroup udp  514 514  188.0.0.0/24
 }
 
 
@@ -479,19 +482,31 @@ function create_port_for_vm {
     PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
 
     echo "Get IpAddr with port: $PortId"
-    IpAddr_extractor=`neutron port-list|grep $PortId|awk '{print $11}'`
+    IpAddr_extractor=`neutron port-list --format value|grep $PortId|awk '{print $7}'`
     IpAddr_purge_last=${IpAddr_extractor::-1}
     IpAddr=${IpAddr_purge_last//\"/}
     echo "Collecting IpAddr : for $PortId"
     echo $IpAddr
-    
 }
 
 
 function launch_visibilityVM {
  
+    neutron net-create visibility-network
+    neutron subnet-create visibility-network  188.0.0.0/24 --name visibility-subnet
+    neutron router-create visibility-router
+    neutron router-gateway-set visibility-router $EXT_NET_NAME
+    neutron router-interface-add visibility-router visibility-subnet
+    ExtPortId=$(neutron port-create visibility-network |  grep ' id    ' | awk '{print $4}')
+
     fip_id=$(neutron floatingip-create $EXT_NET_NAME | grep ' id '| awk '{print $4}')
-    neutron floatingip-associate $fip_id $PortId
+    neutron floatingip-associate $fip_id $ExtPortId
+    
+    IpAddr_extractor=`neutron port-list --format value|grep $ExtPortId|awk '{print $6}'`
+    IpAddr_purge_last=${IpAddr_extractor::-1}
+    IpAddr2=${IpAddr_purge_last//\"/}
+    echo "Collecting IpAddr : for $ExtPortId"
+    echo $IpAddr2
     
     configure_visibility_user_data $IpAddr
 
@@ -506,7 +521,8 @@ function launch_visibilityVM {
 
     attach_security_groups
     echo "Launching Visibility image"
-    nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId $InstanceName 
+    nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId --nic port-id=$ExtPortId $InstanceName 
+
     sleep 10
     nova add-secgroup $InstanceName $SecGroup
 }
