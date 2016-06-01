@@ -5,6 +5,7 @@ source /home/stack/devstack/openrc neutron service
 echo "Make sure that policy-targets associated to PTGs are deleted!!"
 
 # Delete PTG/external-policy
+gbp external-policy-delete  vpn-consumer
 gbp group-delete  vpn-provider
 
 # Delete rule-set

@@ -214,6 +214,15 @@ class RpcHandler(object):
         service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
         return service_orchestrator.get_port_info(port_id)
 
+    @log_helpers.log_method_call
+    def get_network_function_context(self, context, network_function_id):
+        '''Invoked in an RPC Call.
+        Return the Network function context
+        '''
+        service_orchestrator = ServiceOrchestrator(self._controller, self.conf)
+        return service_orchestrator.get_network_function_context(
+            network_function_id)
+
 
 class RpcHandlerConfigurator(object):
 
@@ -762,7 +771,7 @@ class ServiceOrchestrator(object):
                                                                  port_info):
         network_function_instances = (
             self.db_handler.get_network_function_instances(self.db_session,
-                                                       filters={}))
+                                                           filters={}))
         provider_port_id = None
         for port in port_info:
             if port['port_classification'] == 'provider':
@@ -782,7 +791,7 @@ class ServiceOrchestrator(object):
         port_info = request_data['network_function_port_info']
         network_function_instance = (
             self._get_network_function_instance_for_multi_service_sharing(
-                                                                port_info))
+                port_info))
         if network_function_instance:
             port_info = []
         create_nfi_request = {
@@ -802,18 +811,18 @@ class ServiceOrchestrator(object):
             port_info = []
             for port_id in network_function_instance['port_info']:
                 port_info.append(self.db_handler.get_port_info(self.db_session,
-                    port_id))
+                                                               port_id))
             nfi = {
-                   'port_info': port_info
+                'port_info': port_info
             }
             nfi_db = self.db_handler.update_network_function_instance(
                 self.db_session, nfi_db['id'], nfi)
             nfd_data = {}
             nfd_data['network_function_instance_id'] = nfi_db['id']
             nfd_data['network_function_device_id'] = (
-                    network_function_instance['network_function_device_id'])
+                network_function_instance['network_function_device_id'])
             self._create_event('DEVICE_ACTIVE',
-                           event_data=nfd_data)
+                               event_data=nfd_data)
 
             return
         # Sending LogMeta Details to visibility
@@ -1014,13 +1023,13 @@ class ServiceOrchestrator(object):
         if nfi['network_function_device_id']:
 
             filters = {
-                    'network_function_device_id': [
-                        nfi['network_function_device_id']],
-                    'status': ['ACTIVE']
-                      }
+                'network_function_device_id': [
+                    nfi['network_function_device_id']],
+                'status': ['ACTIVE']
+            }
             network_function_instances = (
-                    self.db_handler.get_network_function_instances(
-                        self.db_session, filters=filters))
+                self.db_handler.get_network_function_instances(
+                    self.db_session, filters=filters))
             if network_function_instances:
                 device_deleted_event = {
                     'network_function_instance_id': nfi['id']
@@ -1029,7 +1038,7 @@ class ServiceOrchestrator(object):
                     self.db_session, nfi['network_function_id'])
                 nf_id = network_function['id']
                 self.db_handler.delete_network_function(
-                        self.db_session, nfi['network_function_id'])
+                    self.db_session, nfi['network_function_id'])
                 LOG.info(_LI("NSO: Deleted network function: %(nf_id)s"),
                          {'nf_id': nf_id})
 
@@ -1568,6 +1577,34 @@ class ServiceOrchestrator(object):
             network_function_details['network_function_device'] = (
                 network_function_device)
         return network_function_details
+
+    def get_network_function_context(self, network_function_id):
+        network_function_details = self.get_network_function_details(
+            network_function_id)
+
+        ports_info = []
+        for id in network_function_details[
+                'network_function_instance']['port_info']:
+            port_info = self.get_port_info(id)
+            ports_info.append(port_info)
+
+        mngmt_port_info = None
+        mgmt_port_id = network_function_details[
+            'network_function_device']['mgmt_port_id']
+        if mgmt_port_id is not None:
+            mngmt_port_info = self.get_port_info(mgmt_port_id)
+
+        monitor_port_id = network_function_details[
+            'network_function_device']['monitoring_port_id']
+        monitor_port_info = None
+        if monitor_port_id is not None:
+            monitor_port_info = self.get_port_info(monitor_port_id)
+
+        nf_context = {'network_function_details': network_function_details,
+                      'ports_info': ports_info,
+                      'mngmt_port_info':  mngmt_port_info,
+                      'monitor_port_info': monitor_port_info}
+        return nf_context
 
 
 class NSOConfiguratorRpcApi(object):

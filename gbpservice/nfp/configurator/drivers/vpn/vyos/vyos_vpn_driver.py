@@ -16,12 +16,10 @@ import requests
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import vpn_constants as const
-
-from oslo_concurrency import lockutils
 from gbpservice.nfp.core import log as nfp_logging
 
+from oslo_concurrency import lockutils
 from oslo_serialization import jsonutils
-
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -43,14 +41,11 @@ class ResourceErrorState(Exception):
         went to error state, %(message)"
 
 
-"""
-Provides different methods to make ReST calls to the service VM,
-to update the configurations
-"""
-
-
 class RestApi(object):
-
+    """
+    Provides different methods to make ReST calls to the service VM,
+    to update the configurations
+    """
     def __init__(self, vm_mgmt_ip):
         self.vm_mgmt_ip = vm_mgmt_ip
         self.timeout = const.REST_TIMEOUT
@@ -203,13 +198,13 @@ class RestApi(object):
 
         return output
 
-"""
-Provides the methods to validate the vpn service which is about to
-be created in order to avoid any conflicts if they exists.
-"""
-
 
 class VPNServiceValidator(object):
+    """
+    Provides the methods to validate the vpn service which is about to
+    be created in order to avoid any conflicts if they exists.
+    """
+
     def __init__(self, agent):
         self.agent = agent
 
@@ -294,21 +289,16 @@ class VPNServiceValidator(object):
                     vpnsvc, msg)
         self._active_state(context, vpnsvc)
 
-"""
-VPN generic config driver for handling device configurations requests
-"""
-
 
 class VpnGenericConfigDriver(object):
     """
-    Driver class for implementing VPN configuration
-    requests from Orchestrator.
+    VPN generic config driver for handling device configurations requests.
+    This driver class implements VPN configuration.
     """
 
     def __init__(self, conf):
         self.conf = conf
         self.timeout = const.REST_TIMEOUT
-
 
     def _configure_static_ips(self, resource_data):
         """ Configure static IPs for provider and stitching interfaces
@@ -324,16 +314,16 @@ class VpnGenericConfigDriver(object):
         """
 
         static_ips_info = dict(
-                    provider_ip=resource_data.get('provider_ip'),
-                    provider_cidr=resource_data.get('provider_cidr'),
-                    provider_mac=resource_data.get('provider_mac'),
-                    stitching_ip=resource_data.get('stitching_ip'),
-                    stitching_cidr=resource_data.get('stitching_cidr'),
-                    stitching_mac=resource_data.get('stitching_mac'),
-                    provider_interface_position=resource_data.get(
-                                            'provider_interface_index'),
-                    stitching_interface_position=resource_data.get(
-                                            'stitching_interface_index'))
+            provider_ip=resource_data.get('provider_ip'),
+            provider_cidr=resource_data.get('provider_cidr'),
+            provider_mac=resource_data.get('provider_mac'),
+            stitching_ip=resource_data.get('stitching_ip'),
+            stitching_cidr=resource_data.get('stitching_cidr'),
+            stitching_mac=resource_data.get('stitching_mac'),
+            provider_interface_position=resource_data.get(
+                                        'provider_interface_index'),
+            stitching_interface_position=resource_data.get(
+                                        'stitching_interface_index'))
         mgmt_ip = resource_data['mgmt_ip']
 
         url = const.request_url % (mgmt_ip,
@@ -462,12 +452,12 @@ class VpnGenericConfigDriver(object):
         """
 
         static_ips_info = dict(
-                    provider_ip=resource_data.get('provider_ip'),
-                    provider_cidr=resource_data.get('provider_cidr'),
-                    provider_mac=resource_data.get('provider_mac'),
-                    stitching_ip=resource_data.get('stitching_ip'),
-                    stitching_cidr=resource_data.get('stitching_cidr'),
-                    stitching_mac=resource_data.get('stitching_mac'))
+            provider_ip=resource_data.get('provider_ip'),
+            provider_cidr=resource_data.get('provider_cidr'),
+            provider_mac=resource_data.get('provider_mac'),
+            stitching_ip=resource_data.get('stitching_ip'),
+            stitching_cidr=resource_data.get('stitching_cidr'),
+            stitching_mac=resource_data.get('stitching_mac'))
         mgmt_ip = resource_data['mgmt_ip']
 
         url = const.request_url % (mgmt_ip,
@@ -604,11 +594,12 @@ class VpnGenericConfigDriver(object):
 
         # adding stitching gateway route
         stitching_url = const.request_url % (mgmt_ip,
-                                   const.CONFIGURATION_SERVER_PORT,
-                                   'add-stitching-route')
+                                             const.CONFIGURATION_SERVER_PORT,
+                                             'add-stitching-route')
         st_data = jsonutils.dumps({'gateway_ip': gateway_ip})
         try:
-            resp = requests.post(stitching_url, data=st_data, timeout=self.timeout)
+            resp = requests.post(
+                stitching_url, data=st_data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
                    "%r. ERROR: %r" % (mgmt_ip,
@@ -681,11 +672,13 @@ class VpnGenericConfigDriver(object):
         source_cidrs = resource_data.get('source_cidrs')
 
         stitching_url = const.request_url % (mgmt_ip,
-                                   const.CONFIGURATION_SERVER_PORT,
-                                   'delete-stitching-route')
-        st_data = jsonutils.dumps({'gateway_ip': resource_data.get('gateway_ip')})
+                                             const.CONFIGURATION_SERVER_PORT,
+                                             'delete-stitching-route')
+        st_data = jsonutils.dumps(
+            {'gateway_ip': resource_data.get('gateway_ip')})
         try:
-            resp = requests.post(stitching_url, data=st_data, timeout=self.timeout)
+            resp = requests.post(
+                stitching_url, data=st_data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to service at: "
                    "%r. ERROR: %r" % (mgmt_ip,
@@ -731,13 +724,12 @@ class VpnGenericConfigDriver(object):
             return ("Failed to delete source route. Response code: %s."
                     "Response Content: %r" % (resp.status_code, resp.content))
 
-"""
-Driver class for implementing VPN IPSEC configuration
-requests from VPNaas Plugin.
-"""
-
 
 class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
+    """
+    Driver class for implementing VPN IPSEC configuration
+    requests from VPNaas Plugin.
+    """
 
     service_type = const.SERVICE_TYPE
     service_vendor = const.SERVICE_VENDOR
@@ -990,7 +982,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
             copy_conns = copy.deepcopy(conn_list)
             for tconn in copy_conns:
                 if tconn['status'] == (
-                                const.STATE_PENDING and tconn in conn_list):
+                        const.STATE_PENDING and tconn in conn_list):
                     conn_list.remove(tconn)
         return conn_list
 
@@ -1116,8 +1108,8 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         Implements functions to make update ipsec configuration in service VM.
 
         :param context: context dictionary of vpn service type
-        :param resource_data: dicionary of a specific operation type, which was sent
-        from neutron plugin
+        :param resource_data: dicionary of a specific operation type,
+             which was sent from neutron plugin
 
         Returns: None
         """
@@ -1181,8 +1173,8 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         Implements functions to make update ipsec configuration in service VM.
 
         :param context: context dictionary of vpn service type
-        :param resource_data: dicionary of a specific operation type, which was sent
-        from neutron plugin
+        :param resource_data: dicionary of a specific operation type,
+             which was sent from neutron plugin
 
         Returns: None
         """
@@ -1190,11 +1182,11 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
     def delete_ipsec_conn(self, context, resource_data):
         """
-        Implements functions to make delete ipsec configuration in service VM.
+        Implements function to make delete ipsec configuration in service VM.
 
         :param context: context dictionary of vpn service type
-        :param resource_data: dicionary of a specific operation type, which was sent
-        from neutron plugin
+        :param resource_data: dicionary of a specific operation type,
+             which was sent from neutron plugin
 
         Returns: None
         """
@@ -1248,8 +1240,8 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         Demultiplexes the different methods to update the configurations
 
         :param context: context dictionary of vpn service type
-        :param resource_data: dicionary of a specific operation type, which was sent
-        from neutron plugin
+        :param resource_data: dicionary of a specific operation type,
+             which was sent from neutron plugin
 
         Returns: None
         """
