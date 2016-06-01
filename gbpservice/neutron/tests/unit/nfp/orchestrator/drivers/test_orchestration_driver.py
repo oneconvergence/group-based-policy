@@ -102,11 +102,14 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                         supports_device_sharing=True,
                         supports_hotplug=True,
                         max_interfaces=10)
+        driver.identity_handler.get_admin_token = mock.MagicMock(
+                                                        return_value='token')
 
         # test to get device when max interfaces is permissible
         devices = [
                    {'id': '1',
-                    'interfaces_in_use': 9}
+                    'interfaces_in_use': 9,
+                    'network_functions': []}
         ]
         device_data = {'service_details': {'device_type': 'xyz',
                                            'service_type': 'firewall',
@@ -151,8 +154,12 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                                     return_value=(None, None, 'admin', None))
         driver.network_handler.create_port = mock.MagicMock(
                                                 return_value={'id': '5'})
+        driver.network_handler.set_promiscuos_mode = mock.MagicMock(
+                                                        return_value=None)
         driver.compute_handler_nova.get_image_id = mock.MagicMock(
                                                 return_value='6')
+        driver.compute_handler_nova.get_image_metadata = mock.MagicMock(
+                                                return_value=[])
         driver.compute_handler_nova.create_instance = mock.MagicMock(
                                                 return_value='8')
         driver.network_handler.delete_port = mock.MagicMock(

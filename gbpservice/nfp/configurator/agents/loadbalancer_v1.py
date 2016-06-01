@@ -16,9 +16,9 @@ from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import lb_constants
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import poll as nfp_poll
 from neutron import context
-from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 """ Implements LBaaS response path to Neutron plugin.

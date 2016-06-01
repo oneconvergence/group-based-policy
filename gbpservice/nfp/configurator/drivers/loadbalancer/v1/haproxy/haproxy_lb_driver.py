@@ -36,8 +36,6 @@ REQUEST_RETRIES = 0
 REQUEST_TIMEOUT = 120
 
 
-
-
 """ Loadbalancer generic configuration driver for handling device
 configuration requests.
 
