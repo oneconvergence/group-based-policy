@@ -250,69 +250,54 @@ class DummyDictionaries(object):
             }
         }
     }
-   
+
     appended_sc_firewall_policy = {
         u'type': u'OS::Neutron::FirewallPolicy',
-            u'properties': {
-                u'name': u'',
-                u'firewall_rules': [{
-                        u'get_resource': u'sc_firewall_rule0'
-                    }, {
-                        u'get_resource': u'sc_firewall_rule1'
-                    }, {
-                        u'get_resource': u'sc_firewall_rule2'
-                    }, {
-                        u'get_resource': u'sc_firewall_rule3'
-                    }, {
-                        u'get_resource': u'sc_firewall_rule4'
-                    }, {
-                        'get_resource': 'node_driver_rule_2b86019a-45f7-44_1'
-                    }, {
-                        'get_resource': 'node_driver_rule_2b86019a-45f7-44_2'
-                    }, {
-                        'get_resource': 'node_driver_rule_2b86019a-45f7-44_3'
-                    }, {
-                        'get_resource': 'node_driver_rule_2b86019a-45f7-44_4'
-                    }, {
-                        'get_resource': 'node_driver_rule_2b86019a-45f7-44_5'
-                }]
-            }
+        u'properties': {
+            u'name': u'',
+            u'firewall_rules': [
+                {
+                    u'get_resource': u'sc_firewall_rule0'
+                },
+                {u'get_resource': u'sc_firewall_rule1'},
+                {u'get_resource': u'sc_firewall_rule2'},
+                {u'get_resource': u'sc_firewall_rule3'},
+                {u'get_resource': u'sc_firewall_rule4'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_1'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_2'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_3'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_4'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_5'},
+            ]
+        }
     }
 
     updated_sc_firewall_policy = {
         u'type': u'OS::Neutron::FirewallPolicy',
-            u'properties': {
-                u'name': u'-fw_redirect',
-                u'firewall_rules': [{
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_1'
-                    }, {
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_2'
-                    }, {
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_3'
-                    }, {
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_4'
-                    }, {
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_5'
-                    }]
-            }
+        u'properties': {
+            u'name': u'-fw_redirect',
+            u'firewall_rules': [
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_1'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_2'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_3'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_4'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_5'},
+            ]
+        }
     }
 
     updated_template_sc_firewall_policy = {
         u'type': u'OS::Neutron::FirewallPolicy',
-            u'properties': {
-                u'name': u'',
-                u'firewall_rules': [{
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_1'
-                    }, {
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_2'
-                    }, {
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_3'
-                    }, {
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_4'
-                    }, {
-                        'get_resource': u'node_driver_rule_af6a8a58-1e25-49_5'
-                    }]
-            }
+        u'properties': {
+            u'name': u'',
+            u'firewall_rules': [
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_1'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_2'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_3'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_4'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_5'},
+            ]
+        }
     }
 
     policy_targets = {
