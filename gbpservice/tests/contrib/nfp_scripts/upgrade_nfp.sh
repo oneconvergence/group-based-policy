@@ -3,7 +3,7 @@
 source upgrade_nfp.conf
 source $DEVSTACK_DIR/local.conf
 
-TODO(DEEPAK): Should be retrieved from a result file populated by advanced mode.
+#TODO(DEEPAK): Should be retrieved from a result file populated by advanced mode.
 EXT_NET_NAME=ext-net
 
 function create_port_for_vm {
