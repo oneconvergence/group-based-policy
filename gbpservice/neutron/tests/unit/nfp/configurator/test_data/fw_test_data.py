@@ -168,6 +168,7 @@ class FakeObjects(object):
                                 ],
                                 "description": '{\
                                     "vm_management_ip": "172.24.4.5",\
+                                    "provider_cidr": "11.0.1.0/24",\
                                     "service_vendor": "vyos"}',
                                 "admin_state_up": True,
                                 "firewall_policy_id":
