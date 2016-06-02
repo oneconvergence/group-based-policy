@@ -88,7 +88,7 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                        'ports': [{'id': '2',
                                   'port_classification': 'provider',
                                   'port_model': 'gbp'}]
-                       } 
+                       }
         devices = [
                    {'id': '1',
                     'interfaces_in_use': 9}
