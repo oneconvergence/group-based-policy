@@ -10,19 +10,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.config_orchestrator.common import common
 from gbpservice.nfp.common import constants as const
-from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.config_orchestrator.common import topics as a_topics
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
 
-from gbpservice.nfp.core import log as nfp_logging
 import oslo_messaging as messaging
 
 import sys
 import traceback
 
-from gbpservice.nfp.lib import transport
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -53,13 +50,12 @@ class RpcHandler(object):
                 self.sc.post_event(event)
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            LOG.info(
-                "Generic exception (%s) while handling message (%s) : %s" % (
-                    e,
-                    notification_data,
-                    traceback.format_exception(
-                        exc_type, exc_value,
-                        exc_traceback)))
+            msg = ("Generic exception (%s) while handling message (%s) : %s"
+                   % (e, notification_data, traceback.format_exception(
+                                                exc_type,
+                                                exc_value,
+                                                exc_traceback)))
+            LOG.info(msg)
 
 
 class FirewallNotifier(object):
@@ -84,7 +80,7 @@ class FirewallNotifier(object):
                "firewall_configuration_create_complete API, making an "
                "set_firewall_status RPC call for firewall: %s & status "
                " %s" % (firewall_id, status))
-        LOG.info('%s' % (msg))
+        LOG.info(msg)
 
         # RPC call to plugin to set firewall status
         rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
@@ -108,7 +104,7 @@ class FirewallNotifier(object):
         msg = ("Config Orchestrator received "
                "firewall_configuration_delete_complete API, making an "
                "firewall_deleted RPC call for firewall: %s" % (firewall_id))
-        LOG.info('%s' % (msg))
+        LOG.info(msg)
 
         # RPC call to plugin to update firewall deleted
         rpcClient = transport.RPCClient(a_topics.FW_NFP_PLUGIN_TOPIC)
@@ -140,7 +136,7 @@ class LoadbalancerNotifier(object):
         msg = ("NCO received LB's update_status API, making an update_status"
                "RPC call to plugin for %s: %s with status %s" % (
                    obj_type, obj_id, status))
-        LOG.info("%s" % (msg))
+        LOG.info(msg)
         nfp_logging.clear_logging_context()
 
         # RPC call to plugin to update status of the resource
@@ -168,7 +164,7 @@ class LoadbalancerNotifier(object):
         msg = ("NCO received LB's update_pool_stats API, making an "
                "update_pool_stats RPC call to plugin for updating"
                "pool: %s stats" % (pool_id))
-        LOG.info('%s' % (msg))
+        LOG.info(msg)
 
         # RPC call to plugin to update stats of pool
         rpcClient = transport.RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
@@ -202,7 +198,7 @@ class VpnNotifier(object):
         msg = ("NCO received VPN's update_status API,"
                "making an update_status RPC call to plugin for object"
                "with status %s" % (status))
-        LOG.info(" %s " % (msg))
+        LOG.info(msg)
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt.cast(context, 'update_status',
                              status=status)
@@ -243,10 +239,9 @@ class NaasNotificationHandler(object):
             self.sc.post_event(event)
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            LOG.error(
-                "Generic exception (%s) while handling message (%s) : %s" % (
-                    e,
-                    notification_data,
-                    traceback.format_exception(
-                        exc_type, exc_value,
-                        exc_traceback)))
+            msg = ("Generic exception (%s) while handling message (%s) : %s"
+                   % (e, notification_data, traceback.format_exception(
+                                            exc_type,
+                                            exc_value,
+                                            exc_traceback)))
+            LOG.error(msg)
