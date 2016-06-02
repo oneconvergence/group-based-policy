@@ -207,6 +207,38 @@ class HeatDriver(object):
             return self.keystoneclient.get_scoped_keystone_token(
                 user, pwd, tenant_name)
 
+    def _get_heat_client_v1(self, nfp_context, assign_admin=False):
+        tenant_id = nfp_context['resource_owner_context']['tenant_id']
+        auth_token = nfp_context['resource_owner_context']['auth_token']
+ 
+        if assign_admin:
+            try:
+                self._assign_admin_user_to_project(tenant_id)
+            except Exception:
+                LOG.exception(_LE("Failed to assign admin user to project"))
+                return None
+
+        user, password, tenant, auth_url =\
+            self.keystoneclient.get_keystone_creds()
+
+        timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
+        if timeout_seconds:
+            timeout_mins = timeout_mins + 1
+        try:
+            heat_client = HeatClient(
+                user,
+                tenant_id,
+                cfg.CONF.heat_driver.heat_uri,
+                password,
+                auth_token=auth_token,
+                timeout_mins=timeout_mins)
+        except Exception:
+            LOG.exception(_LE("Failed to create heatclient object"))
+            return None
+
+        return heat_client
+
+            
     def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None, assign_admin=False):
         user_tenant_id = tenant_id or resource_owner_tenant_id
         if assign_admin:
@@ -1377,31 +1409,14 @@ class HeatDriver(object):
     
     def check_config_complete(self, nfp_context):
 
+        provider = nfp_context['provider']['ptg']
+
         token = nfp_context['resource_owner_context']['auth_token']
         tenant_id = nfp_context['resource_owner_context']['tenant_id']
-        stack_id = nfp_context['heat_stack_id']
+        resource_owner_tenant_id = tenant_id
 
-        success_status = "COMPLETED"
-        failure_status = "ERROR"
-        intermediate_status = "IN_PROGRESS"
-
-        timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
-        if timeout_seconds:
-            timeout_mins = timeout_mins + 1
-        user, password, tenant, auth_url =\
-            self.keystoneclient.get_keystone_creds()
-        try:
-            heatclient = HeatClient(
-                user,
-                tenant_id,
-                cfg.CONF.heat_driver.heat_uri,
-                password,
-                auth_token=token,
-                timeout_mins=timeout_mins)
-        except Exception:
-            LOG.exception(_LE("Failed to create heatclient object"))
-            return None
-
+        heatclient = self._get_heat_client_v1(resource_owner_tenant_id,
+                                           tenant_id=provider['tenant_id'])
         if not heatclient:
             return failure_status
         try:
@@ -1571,22 +1586,16 @@ class HeatDriver(object):
 
         token = nfp_context['resource_owner_context']['auth_token']
         tenant_id = nfp_context['resource_owner_context']['tenant_id']
+        resource_owner_tenant_id = tenant_id
 
-        timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
-        if timeout_seconds:
-            timeout_mins = timeout_mins + 1
-
-        user, password, tenant, auth_url =\
-            self.keystoneclient.get_keystone_creds()
-        heatclient = HeatClient(
-            user,
-            tenant_id,
-            cfg.CONF.heat_driver.heat_uri,
-            password,
-            auth_token=token,
-            timeout_mins=timeout_mins)
-
-        stack_template, stack_params = self._create_node_config_data(token, tenant_id, 
+        heatclient = self._get_heat_client_v1(resource_owner_tenant_id,
+                                           tenant_id=provider['tenant_id'],
+                                           assign_admin=True)
+        if not heatclient:
+            return None
+        
+        stack_template, stack_params = self._create_node_config_data(
+                    token, tenant_id, 
                     service_chain_node, service_chain_instance,
                     provider, provider_port, consumer, consumer_port, 
                     network_function, mgmt_ip, service_details)

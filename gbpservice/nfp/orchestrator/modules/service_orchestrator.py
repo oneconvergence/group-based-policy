@@ -617,8 +617,7 @@ class ServiceOrchestrator(object):
         admin_token = self.keystoneclient.get_admin_token()
         admin_tenant_id = self.keystoneclient.get_admin_tenant_id(admin_token)
 
-        network_function_info['resource_owner_context']['auth_token'] = admin_token
-        network_function_info['resource_owner_context']['tenant_id'] = admin_tenant_id
+        network_function_info['resource_owner_context']['admin_token'] = admin_token
         network_function_info['resource_owner_context']['admin_tenant_id'] = admin_tenant_id
 
         # GBP or Neutron
