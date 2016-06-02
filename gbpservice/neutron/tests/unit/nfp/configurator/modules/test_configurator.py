@@ -223,8 +223,8 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
 
         data = "PUT ME IN THE QUEUE!"
         with mock.patch.object(sc, 'new_event', return_value='foo') as (
-                                                            mock_new_event), \
-            mock.patch.object(sc, 'stash_event') as mock_poll_event:
+                                                            mock_new_event),\
+                mock.patch.object(sc, 'stash_event') as mock_poll_event:
 
             agent.notify._notification(data)
 

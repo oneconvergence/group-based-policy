@@ -34,7 +34,8 @@ from gbpservice.common import utils
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     exceptions as exc)
 from gbpservice.neutron.services.servicechain.plugins.ncp import driver_base
-from gbpservice.neutron.services.servicechain.plugins.ncp import model as ncp_model
+from gbpservice.neutron.services.servicechain.plugins.ncp import (
+        model as ncp_model)
 from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nfp_rpc_topics
@@ -117,6 +118,7 @@ class NodeInstanceDeleteFailed(n_exc.NeutronException):
 
 class NodeInstanceCreateFailed(n_exc.NeutronException):
     message = _("Node instance create failed in NFP Node driver")
+
 
 class NodeInstanceUpdateFailed(n_exc.NeutronException):
     message = _("Node instance update failed in NFP Node driver")
@@ -242,7 +244,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             self.resource_owner_tenant_id = None
         self._setup_rpc()
 
-
     def _setup_rpc(self):
         self.nfp_notifier = NFPClientApi(nfp_rpc_topics.NFP_NSO_TOPIC)
 
@@ -282,7 +283,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 # Request pts only for firewall, if both fw, vpn is in chain,
                 # and current service type is vpn, dont request pts.
                 LOG.info(_("Not requesting plumber for PTs for service type "
-                           "%s") % service_type)
+                    "%(service_type)s"), {'service_type': service_type})
                 return {}
         else:  # Loadbalancer which is one arm
             plumbing_request['consumer'] = []
@@ -304,7 +305,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         service_type = profile['service_type']
         return service_type
 
-
     def _is_service_type_in_chain(self, context, service_type):
         if service_type == self._get_service_type(context.current_profile):
             return True
@@ -317,13 +317,11 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                     context.plugin_context, filters)
                 for node in nodes:
                     service_profiles.append(node['service_profile_id'])
-            service_type_ha = "%s%s" %(service_type, "_HA")
             filters = {'id': service_profiles,
-                       'service_type': [service_type, service_type_ha]}
+                       'service_type': [service_type]}
             service_profiles = context.sc_plugin.get_service_profiles(
                 context.plugin_context, filters)
             return True if service_profiles else False
-
 
     def validate_create(self, context):
         if not context.current_profile:
@@ -398,7 +396,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
 
         self._wait_for_network_function_operation_completion(
             context, network_function_id, operation='update')
-
 
     def delete(self, context):
         context._plugin_context = self._get_resource_owner_context(
@@ -608,8 +605,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         else:
             LOG.info(_LI("No action to take on update"))
 
-
-
     def _get_shared_service_targets(self, context, service_type, relationship):
         current_specs = context.relevant_specs
         for spec in current_specs:
@@ -626,7 +621,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                         servicechain_node_id=node['id'],
                         relationship=relationship)
                     return service_targets
-
 
     def _get_service_targets(self, context):
         service_type = context.current_profile['service_type']

@@ -1322,7 +1322,8 @@ class HeatDriver(object):
                                         network_function_details[
                                             'network_function'],
                                         provider_port, stack_id,
-                                        mgmt_ip=mgmt_ip, pt_added_or_removed=True)
+                                        mgmt_ip=mgmt_ip,
+                                        pt_added_or_removed=True)
                 return stack_id
             except Exception:
                 LOG.exception(_LE("Processing policy target %(operation)s "

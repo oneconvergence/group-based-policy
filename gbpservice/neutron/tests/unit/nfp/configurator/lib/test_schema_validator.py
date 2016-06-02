@@ -56,6 +56,7 @@ class SchemaResources(object):
               'source_cidrs': '11.0.0.0/24',
               'destination_cidr': '22.0.0.0/24',
               'gateway_ip': '11.0.0.1',
+              'provider_mac': 'e1:6d:af:23:b8:91',
               'provider_interface_index': '2',
               }
 

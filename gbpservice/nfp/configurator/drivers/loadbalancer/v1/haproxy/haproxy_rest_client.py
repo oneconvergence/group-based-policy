@@ -19,6 +19,7 @@ from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
+
 class RestClientException(Exception):
     """Embeds the exceptions thrown by the REST Client."""
 

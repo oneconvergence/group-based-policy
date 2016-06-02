@@ -90,6 +90,7 @@ class FakeObjects(object):
                 "resource": "routes",
                 "resource_data": {
                     "provider_interface_index": 2,
+                    "provider_mac": "fa:16:3e:d9:4c:33",
                     "gateway_ip": "192.168.0.1",
                     "destination_cidr": "192.168.0.0/28",
                     "mgmt_ip": "11.0.0.37",
@@ -167,6 +168,7 @@ class FakeObjects(object):
                                 ],
                                 "description": '{\
                                     "vm_management_ip": "172.24.4.5",\
+                                    "provider_cidr": "11.0.1.0/24",\
                                     "service_vendor": "vyos"}',
                                 "admin_state_up": True,
                                 "firewall_policy_id":
@@ -233,6 +235,7 @@ class FakeObjects(object):
                     "resource_data": {
                         "mgmt_ip": "11.0.0.37",
                         "gateway_ip": "192.168.0.1",
+                        "provider_mac": "fa:16:3e:d9:4c:33",
                         "destination_cidr": "192.168.0.0/28",
                         "provider_interface_index": 2,
                         "source_cidrs": [
@@ -255,11 +258,12 @@ class FakeObjects(object):
         resource_data = {
                     'fake_resource_data': 'data',
                     'periodicity': 'initial',
-                    'provider_ip': 'provider_ip',
-                    'provider_cidr': 'provider_cidr',
+                    'provider_ip': '11.0.1.1',
+                    'provider_cidr': '11.0.1.0/24',
                     'provider_mac': '00:0a:95:9d:68:16',
-                    'stitching_ip': 'stitching_ip',
-                    'stitching_cidr': 'stitching_cidr',
+                    'stitching_ip': '192.168.0.3',
+                    'stitching_cidr': '192.168.0.0/28',
+                    'destination_cidr': '192.168.0.0/28',
                     'stitching_mac': '00:0a:95:9d:68:16',
                     'provider_interface_index': 'provider_interface_index',
                     'stitching_interface_index': 'stitching_interface_index',
@@ -288,9 +292,9 @@ class FakeObjects(object):
                          "650bfd2f-7766-4a0d-839f-218f33e16998"
                      ],
                      "tenant_id": "45977fa2dbd7482098dd68d0d8970117",
-                     "firewall_rule_list": True,
                      "description": '{\
                                     "vm_management_ip": "172.24.4.5",\
+                                    "provider_cidr": "11.0.1.0/24",\
                                     "service_vendor": "vyos"}',
                      "firewall_rule_list": True
                     }

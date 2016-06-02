@@ -11,5 +11,6 @@ gbp policy-action-create --action-type REDIRECT --action-value vpn_chainspec red
 gbp policy-classifier-create --protocol tcp --direction bi vpn-webredirect
 gbp policy-rule-create --classifier vpn-webredirect --actions redirect-to-vpn vpn-web-redirect-rule
 gbp policy-rule-set-create --policy-rules "vpn-web-redirect-rule" vpn-webredirect-ruleset
+gbp external-policy-create --external-segments default --consumed-policy-rule-sets "vpn-webredirect-ruleset=None" vpn-consumer 
 
 gbp group-create vpn-provider --provided-policy-rule-sets "vpn-webredirect-ruleset=None"

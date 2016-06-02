@@ -251,6 +251,55 @@ class DummyDictionaries(object):
         }
     }
 
+    appended_sc_firewall_policy = {
+        u'type': u'OS::Neutron::FirewallPolicy',
+        u'properties': {
+            u'name': u'',
+            u'firewall_rules': [
+                {
+                    u'get_resource': u'sc_firewall_rule0'
+                },
+                {u'get_resource': u'sc_firewall_rule1'},
+                {u'get_resource': u'sc_firewall_rule2'},
+                {u'get_resource': u'sc_firewall_rule3'},
+                {u'get_resource': u'sc_firewall_rule4'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_1'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_2'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_3'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_4'},
+                {'get_resource': 'node_driver_rule_2b86019a-45f7-44_5'},
+            ]
+        }
+    }
+
+    updated_sc_firewall_policy = {
+        u'type': u'OS::Neutron::FirewallPolicy',
+        u'properties': {
+            u'name': u'-fw_redirect',
+            u'firewall_rules': [
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_1'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_2'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_3'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_4'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_5'},
+            ]
+        }
+    }
+
+    updated_template_sc_firewall_policy = {
+        u'type': u'OS::Neutron::FirewallPolicy',
+        u'properties': {
+            u'name': u'',
+            u'firewall_rules': [
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_1'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_2'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_3'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_4'},
+                {'get_resource': u'node_driver_rule_af6a8a58-1e25-49_5'},
+            ]
+        }
+    }
+
     policy_targets = {
         'policy_targets': [
             {'name': 'provider_0132c_00b93',
@@ -313,7 +362,7 @@ class DummyDictionaries(object):
         u'proxied_group_id': None,
         u'l2_policy_id': u'120aa972-1b58-418d-aa5b-1d2f96612c49',
         u'id': u'af6a8a58-1e25-49c4-97a3-d5f50b3aa04b',
-        u'name': u'lb_redirect'
+        u'name': u'fw_redirect'
     }
 
     consumer_ptg = {
@@ -333,7 +382,7 @@ class DummyDictionaries(object):
         u'proxied_group_id': None,
         u'l2_policy_id': u'120aa972-1b58-418d-aa5b-1d2f96612c49',
         u'id': u'af6a8a58-1e25-49c4-97a3-d5f50b3aa04b',
-        u'name': u'lb_redirect'
+        u'name': u'fw_redirect'
     }
 
     l3_policies = {
@@ -345,7 +394,7 @@ class DummyDictionaries(object):
     policy_rule_sets = {
         u'policy_rule_sets': [
             {u'id': u'7d4b1ef2-eb80-415d-ad13-abf0ea0c52f3',
-             u'name': u'lb_redirect',
+             u'name': u'fw_redirect',
              u'policy_rules': [u'493788ad-2b9a-47b1-b04d-9096d4057fb5'],
              u'tenant_id': u'8ae6701128994ab281dde6b92207bb19',
              u'shared': False,
@@ -357,7 +406,7 @@ class DummyDictionaries(object):
     policy_rules = {
         u'policy_rules': [
             {u'id': u'493788ad-2b9a-47b1-b04d-9096d4057fb5',
-             u'name': u'lb_redirect',
+             u'name': u'fw_redirect',
              u'policy_actions': [u'0bab5fa6-4f89-4e15-8363-dacc7d825466'],
              u'policy_classifier_id': u'8e5fc80f-7544-484c-82d0-2a5794c10664',
              u'tenant_id': u'8ae6701128994ab281dde6b92207bb19',
@@ -367,7 +416,7 @@ class DummyDictionaries(object):
     policy_actions = {
         u'policy_actions': [
             {u'id': u'0bab5fa6-4f89-4e15-8363-dacc7d825466',
-             u'name': u'lb_redirect',
+             u'name': u'fw_redirect',
              u'action_value': u'1e83b288-4b56-4851-83e2-69c4365aa8e5',
              u'action_type': u'redirect',
              u'tenant_id': u'8ae6701128994ab281dde6b92207bb19',
@@ -394,7 +443,7 @@ class DummyDictionaries(object):
              u'proxied_group_id': None,
              u'l2_policy_id': u'120aa972-1b58-418d-aa5b-1d2f96612c49',
              u'id': u'af6a8a58-1e25-49c4-97a3-d5f50b3aa04b',
-             u'name': u'lb_redirect'}]
+             u'name': u'fw_redirect'}]
     }
 
     subnet_info = {
