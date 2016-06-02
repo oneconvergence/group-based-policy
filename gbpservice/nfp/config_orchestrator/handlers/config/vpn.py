@@ -13,14 +13,12 @@
 import ast
 import copy
 from gbpservice.nfp.config_orchestrator.common import common
-from gbpservice.nfp.config_orchestrator.common import topics as a_topics
-from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
 
 from neutron_vpnaas.db.vpn import vpn_db
 
 from oslo_log import helpers as log_helpers
-from gbpservice.nfp.core import log as nfp_logging
 import oslo_messaging as messaging
 
 LOG = nfp_logging.getLogger(__name__)

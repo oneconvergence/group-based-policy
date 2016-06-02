@@ -17,7 +17,8 @@ import time
 import traceback
 
 from gbpservice.nfp.config_orchestrator.common import common
-from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core.event import Event
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import poll as core_pt
 from gbpservice.nfp.lib import transport
 
@@ -26,13 +27,12 @@ from neutron_fwaas.db.firewall import firewall_db
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 from neutron_vpnaas.db.vpn import vpn_db
 
-from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.core.event import Event
 
 LOG = nfp_logging.getLogger(__name__)
 
 STOP_POLLING = {'poll': False}
 CONTINUE_POLLING = {'poll': True}
+
 
 def event_init(sc, conf):
     evs = [
@@ -112,7 +112,7 @@ class EventsHandler(core_pt.PollEventDesc):
     def poll_event_cancel(self, event):
         msg = ("Poll Event =%s got time out Event Data = %s " %
                (event.id, event.data))
-        LOG.info('%s' % (msg))
+        LOG.info(msg)
 
     def _get_all_data(self, data):
         notification_data = data['notification_data']
@@ -140,7 +140,8 @@ class EventsHandler(core_pt.PollEventDesc):
                         'LogMetaID': nf_id,
                         'eventid': 'SERVICE_CREATE_PENDING'
                         }
-        LOG.info("Stashing Event for data : %s" % (request_data))
+        msg = ("Stashing Event for data : %s" % (request_data))
+        LOG.info(msg)
         event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
@@ -163,7 +164,8 @@ class EventsHandler(core_pt.PollEventDesc):
                         'neutron_resource_id': firewall_id,
                         'eventid': 'SERVICE_DELETED'
                         }
-        LOG.info("Stashing Event for data : %s" % (request_data))
+        msg = ("Stashing Event for data : %s" % (request_data))
+        LOG.info(msg)
         event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
@@ -185,7 +187,8 @@ class EventsHandler(core_pt.PollEventDesc):
                         'neutron_resource_id': vip_id,
                         'eventid': 'SERVICE_DELETED'
                         }
-        LOG.info("Stashing Event for data : %s" % (request_data))
+        msg = ("Stashing Event for data : %s" % (request_data))
+        LOG.info(msg)
         event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
@@ -210,8 +213,8 @@ class EventsHandler(core_pt.PollEventDesc):
                             'LogMetaID': nf_id,
                             'eventid': 'SERVICE_CREATE_PENDING'
                             }
-            LOG.info("Stashing Event for data : %s" % (
-                request_data))
+            msg = ("Stashing Event for data : %s" % (request_data))
+            LOG.info(msg)
             event = self._sc.new_event(
                 id='STASH_EVENT', key='STASH_EVENT', data=request_data)
             self._sc.stash_event(event)
@@ -233,8 +236,8 @@ class EventsHandler(core_pt.PollEventDesc):
                             'LogMetaID': nf_id,
                             'eventid': 'SERVICE_CREATE_PENDING'
                             }
-            LOG.info("Stashing Event for data : %s" % (
-                request_data))
+            msg = ("Stashing Event for data : %s" % (request_data))
+            LOG.info(msg)
             event = self._sc.new_event(
                 id='STASH_EVENT', key='STASH_EVENT', data=request_data)
             self._sc.stash_event(event)
@@ -273,7 +276,8 @@ class EventsHandler(core_pt.PollEventDesc):
                         'LogMetaID': nf_id,
                         'eventid': 'SERVICE_DELETED'
                         }
-        LOG.info("Stashing Event for data : %s" % (request_data))
+        msg = ("Stashing Event for data : %s" % (request_data))
+        LOG.info(msg)
         event = self._sc.new_event(
             id='STASH_EVENT', key='STASH_EVENT', data=request_data)
         self._sc.stash_event(event)
@@ -317,7 +321,8 @@ class EventsHandler(core_pt.PollEventDesc):
                                 }
                 fw_request_data_list.append(request_data)
             except Exception as e:
-                LOG.error("firewall desc : %s " % e)
+                msg = ("firewall desc : %s " % (e))
+                LOG.error(msg)
         return fw_request_data_list
 
     def _get_vip_bulk_data(self, context, vips):
@@ -338,7 +343,8 @@ class EventsHandler(core_pt.PollEventDesc):
                                 }
                 vip_request_data_list.append(request_data)
             except Exception as e:
-                LOG.error("vip desc : %s " % (e))
+                msg = ("vip desc : %s " % (e))
+                LOG.error(msg)
         return vip_request_data_list
 
     def _get_dict_desc_from_string(self, vpn_svc):
@@ -370,7 +376,8 @@ class EventsHandler(core_pt.PollEventDesc):
                                 }
                 ipsec_request_data_list.append(request_data)
             except Exception as e:
-                LOG.error("ipsec desc : %s " % e)
+                msg = ("ipsec desc : %s " % e)
+                LOG.error(msg)
         return ipsec_request_data_list
 
     def _handle_otc_event(self, data):
@@ -394,21 +401,24 @@ class EventsHandler(core_pt.PollEventDesc):
 
             # Stashing all the event
             if bulk_response_data == []:
-                LOG.info("No Event to Stash")
+                msg = ("No Event to Stash")
+                LOG.info(msg)
 
             for response_data in bulk_response_data:
-                LOG.info("Stashing Event for data : %s" %
-                    (response_data))
+                msg = ("Stashing Event for data : %s" % (response_data))
+                LOG.info(msg)
                 event = self._sc.new_event(
                     id='STASH_EVENT', key='STASH_EVENT', data=response_data)
                 self._sc.stash_event(event)
 
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            LOG.error(
-                "get_bulk_network_function_context failed : Reason %s  %s" % (
-                    e, traceback.format_exception(
-                        exc_type, exc_value, exc_traceback)))
+
+            msg = ("get_bulk_network_function_context failed : Reason %s  %s"
+                   % (e, traceback.format_exception(exc_type,
+                                                    exc_value,
+                                                    exc_traceback)))
+            LOG.error(msg)
 
     def _prepare_request_data(self, event_data):
         request_data = None
@@ -431,8 +441,8 @@ class EventsHandler(core_pt.PollEventDesc):
                                       'eventid': event_type,
                                       'eventdata': event_data,
                                       'info': {'context':
-                                                 {'logging_context':
-                                                 nfp_log_ctx}}}
+                                               {'logging_context':
+                                                nfp_log_ctx}}}
 
         new_ev = self._sc.new_event(id=event_type,
                                     key=event_type,
@@ -445,7 +455,8 @@ class EventsHandler(core_pt.PollEventDesc):
         try:
             updated_event_data, context = self._prepare_request_data(
                 event_data)
-            LOG.info('%s' % (updated_event_data))
+            msg = ('%s' % (updated_event_data))
+            LOG.info(msg)
             if updated_event_data['nf']['status'] == 'ACTIVE':
                 self._trigger_service_event(
                     context, updated_event_data, 'SERVICE_CREATED')
@@ -453,13 +464,15 @@ class EventsHandler(core_pt.PollEventDesc):
 
             return CONTINUE_POLLING
         except Exception as e:
-            LOG.error('Failed : %s Reason : %s' % (event_data, e))
+            msg = ('Failed : %s Reason : %s' % (event_data, e))
+            LOG.error(msg)
             return STOP_POLLING
 
     @core_pt.poll_event_desc(event='SERVICE_OPERATION_POLL_EVENT', spacing=5)
     def service_operation_poll_stash_event(self, ev):
         events = self._sc.get_stashed_events()
-        LOG.debug("Stash Queue is: %s" % events)
+        msg = ("Stash Queue is: %s" % (events))
+        LOG.debug(msg)
         for event in events:
             data = copy.deepcopy(event.data)
             eventid = data.pop('eventid')
@@ -473,9 +486,11 @@ class EventsHandler(core_pt.PollEventDesc):
                 try:
                     updated_event_data, context = self._prepare_request_data(
                         data)
-                    LOG.info('%s' % (updated_event_data))
+                    msg = ('%s' % (updated_event_data))
+                    LOG.info(msg)
                     self._trigger_service_event(
                         context, updated_event_data, eventid)
                 except Exception as e:
-                    LOG.error('Failed : %s Reason : %s' % (data, e))
+                    msg = ('Failed : %s Reason : %s' % (data, e))
+                    LOG.error(msg)
             time.sleep(0)

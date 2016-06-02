@@ -11,8 +11,6 @@
 #    under the License.
 
 from gbpservice.nfp.config_orchestrator.common import topics as a_topics
-from gbpservice.nfp.config_orchestrator.handlers.notification import (
-    handler as notif_handler)
 from gbpservice.nfp.config_orchestrator.handlers.config import (
     firewall as fw)
 from gbpservice.nfp.config_orchestrator.handlers.config import (
@@ -20,6 +18,8 @@ from gbpservice.nfp.config_orchestrator.handlers.config import (
 from gbpservice.nfp.config_orchestrator.handlers.config import vpn
 from gbpservice.nfp.config_orchestrator.handlers.event import (
     handler as v_handler)
+from gbpservice.nfp.config_orchestrator.handlers.notification import (
+    handler as notif_handler)
 
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
