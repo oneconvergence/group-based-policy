@@ -74,6 +74,7 @@ function prepare_for_upgrade {
         launch_visibilityVM
         nfp_logs_forword
         nfp_configure_nova
+        
     else
         echo "Not supported."
     fi
@@ -82,8 +83,8 @@ function prepare_for_upgrade {
 function delete_instance_and_image {
     
     # delete the instance
-    echo "Deleting the '$1' instance."
-    nova delete $1
+    echo "Deleting the '$2' instance."
+    nova delete $2
     
     echo "Deleting the '$1' image."
     image_id=$(glance image-list | grep $1 | awk '{print $2}')
@@ -116,7 +117,8 @@ function upgrade {
         restart_processes
 
         image=configurator
-        delete_instance_and_image $image
+        instance_name=configuratorVM_instance
+        delete_instance_and_image $image $instance_name
 
     else
         echo "Not supported."

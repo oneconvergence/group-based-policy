@@ -20,7 +20,7 @@ ENABLE_NFP=True
 # Edit DEVSTACK_MODE with either 'base' or 'advanced' or 'enterprise'
 [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=base
 [[ $DEVSTACK_MODE != base ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
-[[ $DEVSTACK_MODE = enterprise ]] && enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
+[[ $DEVSTACK_MODE != base ]] && enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
 
 if [[ $DEVSTACK_MODE != base ]]; then
     GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
