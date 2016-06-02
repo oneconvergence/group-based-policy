@@ -49,6 +49,15 @@ function create_visibility_image {
     fi
     echo "Uploading Image: $VISIBILITY_QCOW2_IMAGE_NAME"
     glance image-create --name $VISIBILITY_QCOW2_IMAGE_NAME --disk-format qcow2 --container-format bare --visibility public --file $VISIBILITY_QCOW2_IMAGE
+    sleep 4
+    
+    if ! [[ -z $AsavQcow2Image ]]; then
+        gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_fw_profile
+
+        ASAV_QCOW2_IMAGE_NAME=asav
+        echo "Uploading Image: $ASAV_QCOW2_IMAGE_NAME"
+        glance image-create --name $ASAV_QCOW2_IMAGE_NAME --disk-format qcow2 --container-format bare --visibility public --file $AsavQcow2Image
+    fi
 }
 
 function nfp_configure_nova {
