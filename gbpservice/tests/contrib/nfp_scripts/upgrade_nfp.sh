@@ -3,6 +3,9 @@
 source upgrade_nfp.conf
 source $DEVSTACK_DIR/local.conf
 
+TODO(DEEPAK): Should be retrieved from a result file populated by advanced mode.
+EXT_NET_NAME=ext-net
+
 function create_port_for_vm {
     image_name=$1
 
@@ -10,7 +13,7 @@ function create_port_for_vm {
     echo "GroupName: $GROUP"
     PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
 
-    echo "Get IpAddr with port: $PortId"
+    echo "Getting IpAddr for port: $PortId"
     IpAddr_extractor=`neutron port-list|grep $PortId|awk '{print $11}'`
     IpAddr_purge_last=${IpAddr_extractor::-1}
     IpAddr=${IpAddr_purge_last//\"/}
@@ -70,8 +73,13 @@ function nfp_configure_nova {
 function prepare_for_upgrade {
     if [[ $FROM = advanced ]] && [[ $TO = enterprise ]]; then
         source $DEST/gbp/devstack/lib/nfp
+
+        echo "Preparing image creation"
         create_images
+
+        echo "Launching the Visibility VM"
         launch_visibilityVM
+
         nfp_logs_forword
         nfp_configure_nova
         
@@ -83,10 +91,10 @@ function prepare_for_upgrade {
 function delete_instance_and_image {
     
     # delete the instance
-    echo "Deleting the '$2' instance."
+    echo "Deleting the running '$2' instance."
     nova delete $2
     
-    echo "Deleting the '$1' image."
+    echo "Deleting '$1' glance image."
     image_id=$(glance image-list | grep $1 | awk '{print $2}')
     glance image-delete $image_id
 }
@@ -94,6 +102,7 @@ function delete_instance_and_image {
 
 function restart_processes {
     source $DEVSTACK_DIR/functions-common
+    source $DEVSTACK_DIR/openrc neutron service
     
     # restart proxy
     stop_process proxy
@@ -111,9 +120,9 @@ function restart_processes {
 
 function upgrade {
     if [[ $FROM = advanced ]] && [[ $TO = enterprise ]]; then
-        # edit nfp_proxy.ini with neutron port's fixed IP
         sed -i 's/rest_server_address=.*/rest_server_address='$IpAddr'/' /etc/nfp_proxy.ini
 
+        echo "Restarting various processes"
         restart_processes
 
         image=configurator
@@ -128,9 +137,10 @@ function upgrade {
 
 echo "Task: Upgrade of NFP from $FROM mode to $TO mode."
 
-echo "Preparing the upgrade..."
+echo "Preparing for the upgrade."
 prepare_for_upgrade
 
-echo "Upgrading to $TO mode..."
+echo "Upgrading to $TO mode. There will be a little downtime. Kindly bear with me."
 upgrade
 
+echo "Successfully upgraded from $FROM mode to $TO mode."
