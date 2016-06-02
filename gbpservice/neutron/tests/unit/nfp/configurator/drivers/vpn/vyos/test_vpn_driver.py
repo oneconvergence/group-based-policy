@@ -10,18 +10,18 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import requests
+import unittest
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import \
     vpn_test_data
 from gbpservice.nfp.configurator.agents import vpn
-from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
 from gbpservice.nfp.configurator.drivers.base import base_driver
+from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
+from oslo_serialization import jsonutils
 
 import json
 import mock
-from oslo_serialization import jsonutils
-import requests
-import unittest
 
 
 bdobj = base_driver.BaseDriver('conf')
@@ -102,8 +102,7 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
         self.resp = mock.Mock(status_code=200)
         kwargs = self.dict_objects.make_resource_data(operation='delete',
                                                       service_type='ipsec')
-        with mock.patch.object(self.plugin_rpc, 'ipsec_site_conn_deleted') as (
-                mock_plugin_delete),\
+        with mock.patch.object(self.plugin_rpc, 'ipsec_site_conn_deleted'),\
                 mock.patch.object(json, 'loads') as mock_resp,\
                 mock.patch.object(requests, 'delete') as (
                 mock_delete):
@@ -238,8 +237,7 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
 
         """
 
-        with mock.patch.object(
-                requests, 'post', return_value=self.resp) as mock_post, \
+        with mock.patch.object(requests, 'post', return_value=self.resp), \
             mock.patch.object(
                 requests, 'delete', return_value=self.resp) as mock_delete:
             self.driver.clear_routes(
@@ -310,7 +308,7 @@ class RestApiTestCase(unittest.TestCase):
         self.dict_objects = vpn_test_data.VPNTestData()
         self.args = {'peer_address': '1.103.2.2'}
         self.fake_resp_dict = {'status': None}
-        self.timeout = 240
+        self.timeout = 90
         self.data = {'data': 'data'}
         self.j_data = jsonutils.dumps(self.data)
 

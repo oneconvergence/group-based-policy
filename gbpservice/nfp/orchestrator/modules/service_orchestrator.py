@@ -1602,7 +1602,7 @@ class ServiceOrchestrator(object):
 
         nf_context = {'network_function_details': network_function_details,
                       'ports_info': ports_info,
-                      'mngmt_port_info':  mngmt_port_info,
+                      'mngmt_port_info': mngmt_port_info,
                       'monitor_port_info': monitor_port_info}
         return nf_context
 

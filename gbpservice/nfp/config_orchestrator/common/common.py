@@ -11,7 +11,6 @@
 #    under the License.
 
 from gbpservice.nfp.config_orchestrator.common import topics as a_topics
-from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.lib import transport
 
 from neutron.common import constants as n_constants
@@ -125,11 +124,13 @@ def get_network_function_details(context, network_function_id):
             context,
             'get_network_function_details',
             network_function_id=network_function_id)
-        LOG.info(" %s " % (network_function_details))
+        msg = (" %s " % (network_function_details))
+        LOG.info(msg)
         return network_function_details['network_function']
 
     except Exception as e:
-        LOG.info(" %s " % (e))
+        msg = (" %s " % (e))
+        LOG.info(msg)
 
 
 def get_network_function_map(context, network_function_id):
@@ -148,8 +149,10 @@ def get_network_function_map(context, network_function_id):
 
         request_data = _prepare_structure(network_function_details, ports_info,
                                           mngmt_port_info, monitor_port_info)
-        LOG.info(" %s " % (request_data))
+        msg = (" %s " % (request_data))
+        LOG.info(msg)
         return request_data
     except Exception as e:
-        LOG.info(" %s " % (e))
+        msg = (" %s " % (e))
+        LOG.info(msg)
         return request_data

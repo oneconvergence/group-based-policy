@@ -15,17 +15,16 @@ import copy
 
 from gbpservice.nfp.common import constants as const
 from gbpservice.nfp.config_orchestrator.common import common
-from gbpservice.nfp.config_orchestrator.common import topics as a_topics
-from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
 
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
 
 from oslo_log import helpers as log_helpers
-from gbpservice.nfp.core import log as nfp_logging
 import oslo_messaging as messaging
 
 LOG = nfp_logging.getLogger(__name__)
+
 """
 RPC handler for Loadbalancer service
 """
@@ -197,7 +196,8 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         try:
             pool = self._db_inst.get_pool(context, pool_id)
         except Exception as e:
-            LOG(LOGGER, 'ERROR', e)
+            msg = ("%s" % (e))
+            LOG.error(msg)
         return pool
 
     def _fetch_nf_from_resource_desc(self, desc):
