@@ -67,7 +67,7 @@ class OTCServiceEventsHandler(core_pt.PollEventDesc):
                                                "DELETE",
                                                network_function_event=True)
 
-    @core_pt.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=5)
+    @core_pt.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=2)
     def create_sevice_pending_event(self, ev):
         event_data = ev.data
         ctxt = n_context.Context.from_dict(event_data['context'])

@@ -82,7 +82,8 @@ class UnixRestClient(object):
         if method_type.upper() != 'GET':
             body = jsonutils.dumps(body)
             body = zlib.compress(body)
-
+        if body:
+            LOG.error("Compressed data for method %s : %s" %(method_type, len(body)))
         path = '/v1/nfp/' + path
         url = urlparse.urlunsplit((
             request_method,

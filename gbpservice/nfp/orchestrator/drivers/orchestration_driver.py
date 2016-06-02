@@ -30,6 +30,8 @@ from gbpservice.nfp.core import log as nfp_logging
 
 from gbpservice.nfp.core import context as nfp_core_context
 
+from gbpservice.nfp.core import threadpool as core_tp
+
 LOG = nfp_logging.getLogger(__name__)
 
 
@@ -54,7 +56,7 @@ class OrchestrationDriver(object):
     Launches the VM with all the management and data ports and a new VM
     is launched for each Network Service Instance
     """
-    def __init__(self, config, supports_device_sharing=True,
+    def __init__(self, config, supports_device_sharing=False,
                  supports_hotplug=True, max_interfaces=5):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
@@ -94,6 +96,8 @@ class OrchestrationDriver(object):
             return {nfp_constants.NEUTRON_MODE: True}
 
     def _get_admin_tenant_id(self, token=None):
+        return self.identity_handler.get_admin_tenant_id(token)
+        '''
         try:
             (dummy,
              dummy,
@@ -108,7 +112,7 @@ class OrchestrationDriver(object):
         except Exception:
             LOG.error(_LE("Failed to get admin's tenant ID"))
             raise
-
+        '''
     def _get_token(self, device_data_token):
 
         try:
@@ -148,22 +152,16 @@ class OrchestrationDriver(object):
     def _is_device_sharing_supported(self):
         return self.supports_device_sharing
 
-    def _create_management_interface(self, device_data, network_handler=None):
-        token = self._get_token(device_data.get('token'))
-        if not token:
-            return None
-
+    def _create_management_interface(self, token, admin_tenant_id, device_data, network_handler):
         name = nfp_constants.MANAGEMENT_INTERFACE_NAME
         mgmt_interface = network_handler.create_port(
                 token,
-                self._get_admin_tenant_id(token=token),
+                admin_tenant_id,
                 device_data['management_network_info']['id'],
                 name=name)
 
         return {'id': mgmt_interface['id'],
-                #[<--PERF]
                 'port_id': mgmt_interface['port_id'],
-                #[PERF-->]
                 'port_model': (nfp_constants.GBP_PORT
                                if device_data['service_details'][
                                                         'network_mode'] ==
@@ -233,12 +231,16 @@ class OrchestrationDriver(object):
                                                                 port['id'])})
         return port_infos
 
-    def _get_interfaces_for_device_create(self, device_data,
-                                          network_handler=None):
-        mgmt_interface = self._create_management_interface(
-                device_data,
-                network_handler=network_handler)
-        return [mgmt_interface]
+    def _get_interfaces_for_device_create(self, token, admin_tenant_id, network_handler, device_data):
+        try:
+            mgmt_interface = self._create_management_interface(
+                    token,
+                    admin_tenant_id,
+                    device_data,
+                    network_handler)
+            device_data['interfaces'] = [mgmt_interface]
+        except Exception as e:
+            LOG.error("Creating interfaces for device create failed !")
 
     def _delete_interfaces(self, device_data, interfaces,
                            network_handler=None):
@@ -281,6 +283,24 @@ class OrchestrationDriver(object):
             return None
         return vendor_data
 
+    def _get_vendor_data_perf(self, token, admin_tenant_id, image_name, device_data):
+        try:
+            metadata = self.compute_handler_nova.get_image_metadata(
+                    token,
+                    admin_tenant_id,
+                    image_name)
+        except Exception as e:
+            self._increment_stats_counter('image_details_get_failures')
+            LOG.error(_LE('Failed to get image metadata for image '
+                          'name: %(image_name)s. Error: %(error)s'),
+                      {'image_name': image_name, 'error': e})
+            return None
+        vendor_data = self._verify_vendor_data(image_name, metadata)
+        if not vendor_data:
+            return None
+        return vendor_data
+
+
     def _update_self_with_vendor_data(self, vendor_data, attr):
         attr_value = getattr(self, attr)
         if attr in vendor_data:
@@ -312,6 +332,27 @@ class OrchestrationDriver(object):
                           " proceeding with default values")
                       % (image_name))
 
+
+    def _update_vendor_data_perf(self, token, admin_tenant_id, image_name, device_data):
+        try:
+            vendor_data = self._get_vendor_data_perf(token, admin_tenant_id, image_name, device_data)
+            LOG.info(_LI("Vendor data, specified in image: %(vendor_data)s"),
+                     {'vendor_data': vendor_data})
+            if vendor_data:
+                self._update_self_with_vendor_data(vendor_data,
+                                            nfp_constants.MAXIMUM_INTERFACES)
+                self._update_self_with_vendor_data(vendor_data,
+                                            nfp_constants.SUPPORTS_SHARING)
+                self._update_self_with_vendor_data(vendor_data,
+                                            nfp_constants.SUPPORTS_HOTPLUG)
+            else:
+                LOG.info(_LI("No vendor data specified in image, "
+                             "proceeding with default values"))
+        except Exception:
+            LOG.error(_LE("Error while getting metadata for image name: %s,"
+                          " proceeding with default values")
+                      % (image_name))
+
     def _get_image_name(self, device_data):
         if device_data['service_details'].get('image_name'):
             image_name = device_data['service_details']['image_name']
@@ -322,6 +363,7 @@ class OrchestrationDriver(object):
                      % (device_data['service_details']['service_vendor']))
             image_name = device_data['service_details']['service_vendor']
             image_name = '%s' % image_name.lower()
+            device_data['service_details']['image_name'] = image_name
         return image_name
 
     def get_network_function_device_sharing_info(self, device_data):
@@ -428,6 +470,44 @@ class OrchestrationDriver(object):
                 return device
         return None
 
+    def get_image_id(self, nova, token, admin_tenant_id, image_name, result):
+        try:
+            image_id = nova.get_image_id(token, admin_tenant_id, image_name)
+            result['image_id'] = image_id
+        except Exception as e:
+            LOG.error("Get image id failed !!")
+
+
+    def create_instance(self, nova, token, admin_tenant_id, image_id, flavor, interfaces_to_attach, instance_name, result):
+        try:
+            instance_id = nova.create_instance(token, admin_tenant_id, image_id, flavor, interfaces_to_attach, instance_name)
+            result['result'] = instance_id
+        except Exception as e:
+            LOG.error("Create instance failed !!!")
+
+    def get_neutron_port_details(self, network_handler, token, port_id, result):
+        try:
+            (mgmt_ip_address,
+             mgmt_mac, mgmt_cidr, gateway_ip,
+             mgmt_port, mgmt_subnet) = network_handler.get_neutron_port_details(token, port_id)
+
+            result['result'] = {'neutron_port': mgmt_port['port'],
+                                'neutron_subnet': mgmt_subnet['subnet'],
+                                'ip_address': mgmt_ip_address,
+                                'mac': mgmt_mac,
+                                'cidr': mgmt_cidr,
+                                'gateway_ip': gateway_ip}
+        except Exception as e:
+            import sys
+            import traceback
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print traceback.format_exception(exc_type, exc_value,
+                exc_traceback)
+            LOG.error(traceback.format_exception(exc_type, exc_value,
+                                             exc_traceback))
+            LOG.error("Failed to get neutron port details !!!")
+            
+
     @_set_network_handler
     def create_network_function_device(self, device_data,
                                        network_handler=None):
@@ -476,42 +556,41 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        image_name = self._get_image_name(device_data)
-        if image_name:
-            self._update_vendor_data(device_data,
-                                 device_data.get('token'))
-        try:
-            interfaces = self._get_interfaces_for_device_create(
-                    device_data,
-                    network_handler=network_handler
-            )
-        except Exception as e:
-            LOG.exception(_LE('Failed to get interfaces for device creation.'
-                              'Error: %(error)s'), {'error', e})
-            return None
-        else:
-            self._increment_stats_counter('management_interfaces',
-                                          by=len(interfaces))
 
+        thread_pool = core_tp.ThreadPool()
+        image_name = self._get_image_name(device_data)
+
+        '''
         token = self._get_token(device_data.get('token'))
         if not token:
             return None
 
-        if device_data['service_details'].get('image_name'):
-            image_name = device_data['service_details']['image_name']
+        admin_tenant_id = self._get_admin_tenant_id(token=token)
+        '''
+        token = device_data['token']
+        admin_tenant_id = device_data['admin_tenant_id']
+
+        th1= thread_pool.dispatch(self._update_vendor_data_perf, token, admin_tenant_id, image_name, device_data)
+        th2 = thread_pool.dispatch(self._get_interfaces_for_device_create, token, admin_tenant_id, network_handler, device_data)
+        image_id_result = {}
+        th3 = thread_pool.dispatch(self.get_image_id, self.compute_handler_nova, token, admin_tenant_id, image_name, image_id_result)
+
+        th1.wait()
+        th2.wait()
+        th3.wait()
+        
+        interfaces = device_data.pop('interfaces', None)
+        if not interfaces:
+            LOG.exception(_LE('Failed to get interfaces for device creation.'
+                              'Error: %(error)s'), {'error', e})
+            return None
         else:
-            LOG.info(_LI("No image name provided in service profile's "
-                         "service flavor field, image will be selected "
-                         "based on service vendor's name : %s")
-                     % (device_data['service_details']['service_vendor']))
-            image_name = device_data['service_details']['service_vendor']
-            image_name = '%s' % image_name.lower()
-        try:
-            image_id = self.compute_handler_nova.get_image_id(
-                    token,
-                    self._get_admin_tenant_id(token=token),
-                    image_name)
-        except Exception as e:
+            management_interface = interfaces[0]
+            self._increment_stats_counter('management_interfaces',
+                                          by=len(interfaces))
+
+        image_id = image_id_result.get('image_id', None)
+        if not image_id:
             self._increment_stats_counter('image_details_get_failures')
             LOG.error(_LE('Failed to get image id for device creation.'
                           ' image name: %(image_name)s. Error: %(error)s'),
@@ -590,12 +669,21 @@ class OrchestrationDriver(object):
             return None
 
         instance_name = device_data['name']
-        try:
-            instance_id = self.compute_handler_nova.create_instance(
-                    token, self._get_admin_tenant_id(token=token),
-                    image_id, flavor,
-                    interfaces_to_attach, instance_name)
-        except Exception as e:
+
+        instance_id_result = {}
+        th1 = thread_pool.dispatch(self.create_instance, self.compute_handler_nova, 
+                                   token, admin_tenant_id, image_id, flavor, 
+                                   interfaces_to_attach, instance_name, instance_id_result)
+
+        port_details_result = {}
+        th2 = thread_pool.dispatch(self.get_neutron_port_details, network_handler, token,
+                                management_interface['port_id'], port_details_result)
+
+        th1.wait()
+        th2.wait()
+
+        instance_id = instance_id_result.get('result', None)
+        if not instance_id:
             self._increment_stats_counter('instance_launch_failures')
             LOG.error(_LE('Failed to create %(device_type)s instance.'
                           'Error: %(error)s'),
@@ -611,39 +699,16 @@ class OrchestrationDriver(object):
             self._increment_stats_counter('instances')
 
         mgmt_ip_address = None
-        mgmt_neutron_port_info = {}
-        try:
-            for interface in interfaces:
-                if interface['port_classification'] == (
-                                                    nfp_constants.MANAGEMENT):
-                    #[<--PERF]
-                    (mgmt_ip_address,
-                     mgmt_mac, mgmt_cidr, gateway_ip,
-                     mgmt_port, mgmt_subnet) = network_handler.get_neutron_port_details(token, interface['port_id'])
-
-                    mgmt_neutron_port_info = {'neutron_port': mgmt_port,
-                                              'neutron_subnet': mgmt_subnet,
-                                              'ip_address': mgmt_ip_address,
-                                              'mac': mgmt_mac,
-                                              'cidr': mgmt_cidr,
-                                              'gateway_ip': gateway_ip}
-                    '''
-                    (mgmt_ip_address,
-                     dummy, dummy,
-                     dummy) = network_handler.get_port_details(
-                                                        -token, interface['id'])
-                    '''
-                    #[-->PERF]
-                    break
-        except Exception as e:
+        mgmt_neutron_port_info = port_details_result.get('result', None)
+            
+        if not mgmt_neutron_port_info:
             self._increment_stats_counter('port_details_get_failures')
             LOG.error(_LE('Failed to get management port details. '
                           'Error: %(error)s'), {'error': e})
             try:
                 self.compute_handler_nova.delete_instance(
                                             token,
-                                            self._get_admin_tenant_id(
-                                                                token=token),
+                                            admin_tenant_id,
                                             instance_id)
             except Exception as e:
                 self._increment_stats_counter('instance_delete_failures')
@@ -659,6 +724,7 @@ class OrchestrationDriver(object):
                                           by=len(interfaces))
             return None
 
+        mgmt_ip_address = mgmt_neutron_port_info['ip_address']
         return {'id': instance_id,
                 'name': instance_name,
                 'mgmt_ip_address': mgmt_ip_address,
@@ -783,14 +849,10 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        token = self._get_token(device_data.get('token'))
-        if not token:
-            return None
-
         try:
             device = self.compute_handler_nova.get_instance(
-                            token,
-                            self._get_admin_tenant_id(token=token),
+                            device_data['token'],
+                            device_data['tenant_id'],
                             device_data['id'])
         except Exception:
             if ignore_failure:
@@ -801,6 +863,12 @@ class OrchestrationDriver(object):
             return None  # TODO(RPM): should we raise an Exception here?
 
         return device['status']
+
+    def set_promiscuos_mode(self, network_handler, token, port_id):
+        network_handler.set_promiscuos_mode_perf(token, port_id)
+
+    def attach_interface(self, nova, token, admin_tenant_id, instance_id, port_id):
+        nova.attach_interface(token, admin_tenant_id, instance_id, port_id)
 
     @_set_network_handler
     def plug_network_function_device_interfaces(self, device_data,
@@ -846,9 +914,6 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
-        token = self._get_token(device_data.get('token'))
-        if not token:
-            return None
 
         #[<--PERF]
         #This is already done in "create_network_function_device method of this class.
@@ -858,6 +923,8 @@ class OrchestrationDriver(object):
             self._update_vendor_data(device_data)
         '''
         #[-->PERF]
+        token = device_data['token']
+        tenant_id = device_data['tenant_id']
 
         update_ifaces = []
         try:
@@ -892,6 +959,21 @@ class OrchestrationDriver(object):
                 elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     pass
             else:
+                thread_pool = core_tp.ThreadPool()
+                threads = []
+                for port in device_data['ports']:
+                    service_type = device_data['service_details']['service_type'].lower()
+                    if service_type == nfp_constants.FIREWALL.lower():
+                        th = thread_pool.dispatch(self.set_promiscuos_mode, network_handler, token, port['id'])
+                        threads.append(th)
+                    port_id = port['id']
+                    th = thread_pool.dispatch(self.attach_interface, self.compute_handler_nova, token, tenant_id, device_data['id'], port_id)
+                    threads.append(th)
+
+                for th in threads:
+                    th.wait()
+
+                """
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.PROVIDER:
                         if (
@@ -899,19 +981,22 @@ class OrchestrationDriver(object):
                                 'service_type'].lower()
                             in [nfp_constants.FIREWALL.lower()]
                         ):
-                            network_handler.set_promiscuos_mode(token,
-                                                                port['id'])
-                        port_id = network_handler.get_port_id(token,
-                                                              port['id'])
+                            #network_handler.set_promiscuos_mode(token,
+                            #                                    port['id'])
+                            eventlet.spawn_n(self.set_promiscuos_mode, network_handler, token, port['id'])
                         #[<--PERF]
-                        # Saving the neutron port id for the gbp pt
-                        port['port_id'] = port_id
+                        # port_id = network_handler.get_port_id(token,
+                        #                                      port['id'])
+                        port_id = port['port_id']
                         #[-->PERF]
+                        eventlet.spawn_n(self.attach_interface, self.compute_handler_nova, token, admin_tenant_id, device_data['id'], port_id)
+                        '''
                         self.compute_handler_nova.attach_interface(
                                     token,
                                     self._get_admin_tenant_id(token=token),
                                     device_data['id'],
                                     port_id)
+                        '''
                         break
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.CONSUMER:
@@ -922,18 +1007,20 @@ class OrchestrationDriver(object):
                         ):
                             network_handler.set_promiscuos_mode(token,
                                                                 port['id'])
-                        port_id = network_handler.get_port_id(token,
-                                                              port['id'])
+
                         #[<--PERF]
-                        # Saving the neutron port id for the gbp pt
-                        port['port_id'] = port_id
+                        # port_id = network_handler.get_port_id(token,
+                        #                                      port['id'])
+                        port_id = port['port_id']
                         #[-->PERF]
+ 
                         self.compute_handler_nova.attach_interface(
                                     token,
                                     self._get_admin_tenant_id(token=token),
                                     device_data['id'],
                                     port_id)
                         break
+            """
         except Exception as e:
             self._increment_stats_counter('interface_plug_failures')
             LOG.error(_LE('Failed to plug interface(s) to the device.'
@@ -1149,12 +1236,37 @@ class OrchestrationDriver(object):
             ]
         }
 
+
+    def get_neutron_details(self, token, device_port, network_handler):
+        LOG.info("$$$$$$$$$$$$$$$$$ GET_NEUTRON_PORT_DETAILS $$$$$$$$$$$$$$$$")
+        try:
+            neutron_port_id = network_handler.get_port_id(token, device_port['id'])
+            device_port['port_id'] = neutron_port_id
+            (ip, mac, cidr, gateway_ip,
+                 port, subnet) = (
+                        network_handler.get_neutron_port_details(token, device_port['port_id'])
+            )
+            device_port['neutron_info'] = {'ip': ip,
+                                    'mac': mac,
+                                    'cidr': cidr,
+                                    'gateway_ip': gateway_ip,
+                                    'port': port['port'],
+                                    'subnet': subnet['subnet']}
+        except Exception as e:
+            import sys
+            import traceback
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print traceback.format_exception(exc_type, exc_value,
+                                             exc_traceback)
+
+        #wait_obj.set()
+        
     @_set_network_handler
     def get_network_function_device_port_info(self, device_data, network_handler=None):
         LOG.error("########## DEVICE DATA: %s" %(str(device_data)))
         if (
             type(device_data['ports']) is not list or
-
+    
             any(key not in port
                 for port in device_data['ports']
                 for key in ['id',
@@ -1168,7 +1280,49 @@ class OrchestrationDriver(object):
             return None
 
         new_device_ports = []
+        threads = []
+        thread_pool = core_tp.ThreadPool()
+
+        consumer_device_port = None
+        provider_device_port = None
+
+        for port in device_data['ports']:
+            port_classification = port['port_classification']
+            if port_classification == nfp_constants.CONSUMER:
+                consumer_device_port = port
+            elif port_classification == nfp_constants.PROVIDER:
+                provider_device_port = port
+
+        th1 = None
+        th2 = None
+        if consumer_device_port:
+            th1 = thread_pool.dispatch(self.get_neutron_details, token, consumer_device_port, network_handler)
+        if provider_device_port:
+            th2 = thread_pool.dispatch(self.get_neutron_details, token, provider_device_port, network_handler)
+
+        LOG.info("####### Profile: get_network_function_device_port_info, waiting_for threads to complete, start")
+        if th1:
+            th1.wait()
+        if th2:
+            th2.wait()
+        LOG.info("####### Profile: get_network_function_device_port_info, waiting_for threads to complete, end")
+
+        '''
         for device_port in device_data['ports']:
+            th = thread_pool.dispatch(self.get_neutron_details, token, device_port, network_handler)
+            threads.append(th)
+
+        LOG.info("####### Profile: get_network_function_device_port_info, waiting_for threads to complete, start")
+        for thread in threads:
+            thread.wait()
+        LOG.info("####### Profile: get_network_function_device_port_info, waiting_for threads to complete, end")
+        '''
+        LOG.info("@@@@@@@ CHECK PORT_INFO for neutron_info: %s" %(device_data['ports']))
+
+        
+        """
+            neutron_port_id = network_handler.get_port_id(token, device_port['id'])
+            device_port['port_id'] = neutron_port_id
             try:
                 (ip, mac, cidr, gateway_ip,
                      port, subnet) = (
@@ -1189,6 +1343,7 @@ class OrchestrationDriver(object):
                 return None
 
         device_data['ports'] = new_device_ports
+        """
 
     @_set_network_handler
     def get_network_function_device_config_info(self, device_data,
@@ -1219,6 +1374,7 @@ class OrchestrationDriver(object):
 
         :raises: exceptions.IncompleteData
         """
+        '''
         if (
             any(key not in device_data
                 for key in ['service_details',
@@ -1242,7 +1398,7 @@ class OrchestrationDriver(object):
         ):
             raise exceptions.IncompleteData()
 
-        token = self._get_token(device_data.get('token'))
+        token = device
         if not token:
             return None
 
@@ -1297,13 +1453,23 @@ class OrchestrationDriver(object):
                                   ' for get device config info operation'))
                     raise e
                     return None
+        '''
+        mgmt_ip = device_data.get('mgmt_ip', None)
+        provider_ip = device_data.get('provider_ip', None)
+        provider_mac = device_data.get('provider_mac', None)
+        provider_cidr = device_data.get('provider_cidr', None)
+        provider_gateway_ip = device_data.get('provider_gateway_ip', None)
+        consumer_ip = device_data.get('consumer_ip', None)
+        consumer_mac = device_data.get('consumer_mac', None)
+        consumer_cidr = device_data.get('consumer_cidr', None)
+        consumer_gateway_ip = device_data.get('consumer_gateway_ip', None)
 
         return {
             'config': [
                 {
                     'resource': nfp_constants.INTERFACE_RESOURCE,
                     'resource_data': {
-                        'mgmt_ip': device_data['mgmt_ip_address'],
+                        'mgmt_ip': mgmt_ip,
                         'provider_ip': provider_ip,
                         'provider_cidr': provider_cidr,
                         'provider_interface_index': 2,
@@ -1318,7 +1484,7 @@ class OrchestrationDriver(object):
                 {
                     'resource': nfp_constants.ROUTES_RESOURCE,
                     'resource_data': {
-                        'mgmt_ip': device_data['mgmt_ip_address'],
+                        'mgmt_ip': mgmt_ip,
                         'source_cidrs': ([provider_cidr, consumer_cidr]
                                          if consumer_cidr
                                          else [provider_cidr]),

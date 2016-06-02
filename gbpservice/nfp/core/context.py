@@ -15,20 +15,14 @@ import threading
 nfp_context_store = threading.local()
 
 class NfpContext(object):
-    def __init__(self, **kwargs):
-        self.admin_token = kwargs.get('admin_token', None)
-        self.tenant_tokens = kwargs.get('tenant_tokens', None)
-        self.nfp_device_data = kwargs.get('nfp_device_data', None)
-        self.nfp_service_data = kwargs.get('nfp_service_data', None)
-    
-    def to_dict(self):
-        return {'admin_token': self.admin_token,
-                'tenant_tokens': self.tenant_tokens,
-                'nfp_device_data': self.nfp_device_data,
-                'nfp_service_data': self.nfp_service_data}
+    def __init__(self, context):
+        self.context = context
 
-def store_nfp_context(**kwargs):
-    nfp_context_store.context = NfpContext(**kwargs)
+    def get_context(self):
+        return self.context
+
+def store_nfp_context(context):
+    nfp_context_store.context = NfpContext(context)
 
 def clear_nfp_context():
     nfp_context_store.context = None
@@ -36,5 +30,5 @@ def clear_nfp_context():
 def get_nfp_context():
     context = getattr(nfp_context_store, 'context', None)
     if context:
-        return context.to_dict()
+        return context.get_context()
     return {}

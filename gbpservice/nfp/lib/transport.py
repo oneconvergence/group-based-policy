@@ -203,6 +203,7 @@ def send_request_to_configurator(conf, context, body,
 
     elif conf.backend == UNIX_REST:
         try:
+            LOG.info("#############sends post_notification##############")
             resp, content = unix_rc.post(method_name,
                                          body=body)
             LOG.info(
@@ -257,6 +258,7 @@ def get_response_from_configurator(conf):
 
     elif conf.backend == UNIX_REST:
         try:
+            LOG.info("#############sends get_notification##############")
             resp, content = unix_rc.get('get_notifications')
             content = jsonutils.loads(content)
             if content:

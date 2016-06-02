@@ -45,6 +45,7 @@ from gbpservice.nfp.core import log as nfp_logging
 
 from gbpservice.nfp.core import context as nfp_core_context
 
+from gbpservice.nfp.core import threadpool as core_tp
 HEAT_DRIVER_OPTS = [
     cfg.StrOpt('svc_management_ptg_name',
                default='svc_management_ptg',
@@ -484,7 +485,9 @@ class HeatDriver(object):
         consumer = service_details['consumer_ptg']
         provider = service_details['provider_ptg']
 
-        _, consumer_eps = self._get_consumers_for_chain(auth_token, provider)
+        consumer_eps = service_details['consuming_external_policies']
+
+        #_, consumer_eps = self._get_consumers_for_chain(auth_token, provider)
         
         if (consumer is None) and (consumer_eps is None):
             return None
@@ -688,7 +691,7 @@ class HeatDriver(object):
                 keys.append(key)
         return keys
 
-    def _update_node_config_create(self, auth_token, tenant_id, service_chain_node, service_chain_instance,
+    def _create_node_config_data(self, auth_token, tenant_id, service_chain_node, service_chain_instance,
                             provider, provider_port, consumer, consumer_port, network_function,
                             mgmt_ip, service_details):
 
@@ -808,11 +811,6 @@ class HeatDriver(object):
                             provider, consumer_port, network_function,
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None, service_details=None):
-
-        if not update:
-            return self._update_node_config_create(auth_token, tenant_id, service_chain_node, service_chain_instance,
-                    provider, provider_port, consumer, consumer_port, network_function, mgmt_ip, service_details)
-
         nf_desc = None
         common_desc = {'network_function_id': network_function['id']}
         provider_cidr = provider_subnet = None
@@ -1057,6 +1055,81 @@ class HeatDriver(object):
             tag_str = nfp_constants.HEAT_CONFIG_TAG
         return tag_str, service_config
 
+    def get_servicechain_node(self, gbp, admin_token, service_id, result):
+        servicechain_node = gbp.get_servicechain_node(admin_token, service_id)
+        result['result'] = servicechain_node
+
+    def get_servicechain_instance(self, gbp, admin_token, service_chain_id, result):
+        servicechain_instance = gbp.get_servicechain_instance(admin_token, service_chain_id)
+        result['result'] = servicechain_instance
+
+    def get_ptg(self, gbp, admin_token, pt_id, result):
+        policy_target = gbp.get_policy_target(
+            admin_token, pt_id)
+        policy_target_group =  gbp.get_policy_target_group(
+                    admin_token,
+                    policy_target['policy_target_group_id'])
+        result['result'] = policy_target_group
+
+    def get_provider_details(self, gbp, admin_token, pt_id, result):
+        l_result = {}
+        self.get_ptg(gbp, admin_token, pt_id, l_result)
+        ptg = l_result['result']
+        result['ptg'] = ptg
+        _,consuming_eps = self._get_consumers_for_chain(admin_token, ptg)
+        result['consuming_eps'] = consuming_eps
+    
+    def get_provider_consumer_details(self, gbp, admin_token, nfp_context, thread_pool, result):
+        nfp_device_data = nfp_context['nfp_device_data']
+        consumer_th = None
+        consumer_result = {}
+        consumer_port = None
+        consumer_subnet = None
+        for port_info in nfp_device_data.get('ports'):
+            port_classification = None
+            if port_info['port_model'] == nfp_constants.GBP_PORT:
+                policy_target_id = port_info['id']
+                port_classification = port_info['port_classification']
+                port_id = port_info['port_id']
+            else:
+                port_id = port_info['id']
+
+            if port_classification == nfp_constants.CONSUMER:
+                consumer_port = port_info['neutron_info']['port']
+                consumer_subnet = port_info['neutron_info']['subnet']
+
+                # consumer_result = {}
+                consumer_th = thread_pool.dispatch(self.get_ptg, self.gbp_client, admin_token, policy_target_id, consumer_result)
+
+            elif port_classification == nfp_constants.PROVIDER:
+                LOG.info(_LI("provider info: %s") % (port_id))
+                provider_port = port_info['neutron_info']['port']
+                provider_subnet = port_info['neutron_info']['subnet']
+                provider_policy_target_group = None
+
+                provider_result = {}
+                provider_th = thread_pool.dispatch(self.get_provider_details, self.gbp_client, admin_token, policy_target_id, provider_result)
+
+        if consumer_th:
+            consumer_th.wait()
+        provider_th.wait()
+
+        consumer_policy_target_group = consumer_result.get('result', None)
+        provider_policy_target_group = provider_result.get('ptg', None)
+        consuming_external_policies = provider_result.get('consuming_eps', None)
+
+        result['consumer'] = {}
+        result['provider'] = {}
+
+        result['consumer']['ptg'] = consumer_policy_target_group
+        result['consumer']['port'] = consumer_port
+        result['consumer']['subnet'] = consumer_subnet
+
+        result['provider']['ptg'] = provider_policy_target_group
+        result['provider']['port'] = provider_port
+        result['provider']['subnet'] = provider_subnet
+        result['provider']['consuming_eps'] = consuming_external_policies
+        
     def get_service_details_from_cache(self, nfp_context, network_function_details):
         network_function = network_function_details['network_function']
         network_function_instance = network_function_details.get('network_function_instance')
@@ -1071,45 +1144,31 @@ class HeatDriver(object):
         admin_token = self.keystoneclient.get_admin_token()
         heat_stack_id = network_function['heat_stack_id']
         service_id = network_function['service_id']
-        servicechain_node = self.gbp_client.get_servicechain_node(admin_token,
-                                                                  service_id)
         service_chain_id = network_function['service_chain_id']
-        servicechain_instance = self.gbp_client.get_servicechain_instance(
-            admin_token,
-            service_chain_id)
 
-        nfp_device_data = nfp_context['nfp_device_data']
-        if network_function_instance:
-            # for port_info in network_function_instance.get('port_info'):
-            for port_info in nfp_device_data.get('ports'):
-                port_classification = None
-                if port_info['port_model'] == nfp_constants.GBP_PORT:
-                    policy_target_id = port_info['id']
-                    port_classification = port_info['port_classification']
-                    port_id = port_info['port_id']
-                else:
-                    port_id = port_info['id']
+        thread_pool = core_tp.ThreadPool()
 
-                if port_classification == nfp_constants.CONSUMER:
-                    consumer_port = port_info['neutron_info']['port']
-                    consumer_subnet = port_info['neutron_info']['subnet']
-                    policy_target = self.gbp_client.get_policy_target(
-                        admin_token, policy_target_id)
-                    consumer_policy_target_group = {'id': policy_target['policy_target_group_id']}
+        prov_cons_result={}
+        th3 = thread_pool.dispatch(self.get_provider_consumer_details, self.gbp_client, admin_token, nfp_context, thread_pool, prov_cons_result)
+        sc_node_result={}
+        th1 = thread_pool.dispatch(self.get_servicechain_node, self.gbp_client, admin_token, service_id, sc_node_result)
+        sc_instance_result={}
+        th2 = thread_pool.dispatch(self.get_servicechain_instance, self.gbp_client, admin_token, service_chain_id, sc_instance_result)
+        
+        th1.wait()
+        th2.wait()
+        th3.wait()
 
-                elif port_classification == nfp_constants.PROVIDER:
-                    LOG.info(_LI("provider info: %s") % (port_id))
-                    provider_port = port_info['neutron_info']['port']
-                    provider_subnet = port_info['neutron_info']['subnet']
-                    provider_policy_target_group = None
-                    
-                    policy_target = self.gbp_client.get_policy_target(
-                        admin_token, policy_target_id)
-                    provider_policy_target_group =  self.gbp_client.get_policy_target_group(
-                                admin_token,
-                                policy_target['policy_target_group_id'])
-                    
+        servicechain_node = sc_node_result.get('result', None)
+        servicechain_instance = sc_instance_result.get('result', None)
+        consumer_policy_target_group = prov_cons_result['consumer']['ptg']
+        provider_policy_target_group = prov_cons_result['provider']['ptg']
+        provider_port = prov_cons_result['provider']['port']
+        provider_subnet = prov_cons_result['provider']['subnet']
+        consumer_port = prov_cons_result['consumer']['port']
+        consumer_subnet = prov_cons_result['consumer']['subnet']
 
+        service_details['consuming_external_policies'] = prov_cons_result['provider']['consuming_eps']
 
         return {
             'service_profile': None,
@@ -1123,17 +1182,12 @@ class HeatDriver(object):
             'mgmt_ip': mgmt_ip,
             'heat_stack_id': heat_stack_id,
             'provider_ptg': provider_policy_target_group,
-            'consumer_ptg': consumer_policy_target_group
+            'consumer_ptg': consumer_policy_target_group,
+            'consuming_external_policies': service_details['consuming_external_policies']
         }
 
 
     def get_service_details(self, network_function_details):
-        #[<--PERF]
-        nfp_context = nfp_core_context.get_nfp_context()
-        if nfp_context:
-            return self.get_service_details_from_cache(nfp_context, network_function_details)
-
-
         db_handler = nfp_db.NFPDbBase()
         db_session = nfp_db_api.get_session()
         network_function = network_function_details['network_function']
@@ -1313,39 +1367,37 @@ class HeatDriver(object):
                              'stack_owner': stack.stack_owner})
                         return None
 
-    def is_config_complete(self, stack_id, tenant_id,
-                           network_function_details, heatclient=None):
+    def is_config_complete(self, nfp_context):
 
-        #[<--PERF]
-        nfp_context = nfp_core_context.get_nfp_context()
-        #[-->PERF]
+        token = nfp_context['resource_owner_context']['auth_token']
+        tenant_id = nfp_context['resource_owner_context']['tenant_id']
+        stack_id = nfp_context['heat_stack_id']
 
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
 
-        if not heatclient:
-            auth_token, resource_owner_tenant_id =\
-                self._get_resource_owner_context()
-            timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
-            if timeout_seconds:
-                timeout_mins = timeout_mins + 1
-            user, password, tenant, auth_url =\
-                self.keystoneclient.get_keystone_creds()
-            try:
-                heatclient = HeatClient(
-                    user,
-                    resource_owner_tenant_id,
-                    cfg.CONF.heat_driver.heat_uri,
-                    password,
-                    auth_token=auth_token,
-                    timeout_mins=timeout_mins)
-            except Exception:
-                LOG.exception(_LE("Failed to create heatclient object"))
-                return None
+        '''
+        auth_token, resource_owner_tenant_id =\
+            self._get_resource_owner_context()
+        '''
+        timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
+        if timeout_seconds:
+            timeout_mins = timeout_mins + 1
+        user, password, tenant, auth_url =\
+            self.keystoneclient.get_keystone_creds()
+        try:
+            heatclient = HeatClient(
+                user,
+                tenant_id,
+                cfg.CONF.heat_driver.heat_uri,
+                password,
+                auth_token=token,
+                timeout_mins=timeout_mins)
+        except Exception:
+            LOG.exception(_LE("Failed to create heatclient object"))
+            return None
 
-            #heatclient = self._get_heat_client(resource_owner_tenant_id,
-            #                                   tenant_id=tenant_id)
         if not heatclient:
             return failure_status
         try:
@@ -1353,12 +1405,14 @@ class HeatDriver(object):
             if stack.stack_status == 'DELETE_FAILED':
                 return failure_status
             elif stack.stack_status == 'CREATE_COMPLETE':
+                '''
                 if nfp_context:
                     service_type = nfp_context['nfp_service_data']['service_details']['service_type']
                     if service_type.lower() == pconst.LOADBALANCER.lower():
                         self.loadbalancer_post_stack_create(network_function_details)
                 else:
                     self.loadbalancer_post_stack_create(network_function_details)
+                '''
                 return success_status
             elif stack.stack_status == 'UPDATE_COMPLETE':
                 return success_status
@@ -1412,8 +1466,65 @@ class HeatDriver(object):
                           {'stack': stack_id})
             return failure_status
 
-    def apply_config(self, network_function_details):
-        service_details = self.get_service_details(network_function_details)
+    def get_heat_client_perf(self, owner_tenant, provider_tenant, result):
+        heatclient = self._get_heat_client(owner_tenant, tenant_id=provider_tenant, assign_admin=True)
+        result['result'] = heatclient
+
+    def update_node_config_perf(self, auth_token, provider_tenant_id, service_profile,
+                                service_chain_node, service_chain_instance, provider,
+                                consumer_port, network_function,
+                                provider_port, mgmt_ip, consumer, service_details, result):
+        stack_template, stack_params = self._update_node_config(
+            auth_token, provider_tenant_id, service_profile,
+            service_chain_node, service_chain_instance, provider,
+            consumer_port, network_function,
+            provider_port, mgmt_ip=mgmt_ip, consumer=consumer, service_details=service_details)
+        result['stack_template'] = stack_template
+        result['stack_params'] = stack_params
+
+    
+    def get_service_details_from_nfp_context(self, nfp_context):
+        network_function = nfp_context['network_function']
+        network_function_instance = nfp_context['network_function_instance']
+        service_details = nfp_context['service_details']
+        mgmt_ip = nfp_context['management']['port']['ip_address']
+        token = nfp_context['resource_owner_context']['auth_token']
+        heat_stack_id = network_function['heat_stack_id']
+        service_id = network_function['service_id']
+        service_chain_id = network_function['service_chain_id']
+        servicechain_instance = nfp_context['service_chain_instance']
+        servicechain_node = nfp_context['service_chain_node']
+
+        consumer_policy_target_group = nfp_context['consumer']['ptg']
+        provider_policy_target_group = nfp_context['provider']['ptg']
+        provider_port = nfp_context['provider']['port']
+        provider_subnet = nfp_context['provider']['subnet']
+        consumer_port = nfp_context['consumer']['port']
+        consumer_subnet = nfp_context['consumer']['subnet']
+        _,consuming_eps = self._get_consumers_for_chain(token, provider_policy_target_group)
+        service_details['consuming_external_policies'] = consuming_eps
+
+        return {
+            'service_profile': None,
+            'service_details': service_details,
+            'servicechain_node': servicechain_node,
+            'servicechain_instance': servicechain_instance,
+            'consumer_port': consumer_port,
+            'consumer_subnet': consumer_subnet,
+            'provider_port': provider_port,
+            'provider_subnet': provider_subnet,
+            'mgmt_ip': mgmt_ip,
+            'heat_stack_id': heat_stack_id,
+            'provider_ptg': provider_policy_target_group,
+            'consumer_ptg': consumer_policy_target_group,
+            'consuming_external_policies': service_details['consuming_external_policies']
+        }
+
+
+    def apply_config(self, nfp_context):
+        service_details = self.get_service_details_from_nfp_context(nfp_context)
+        # service_details = self.get_service_details(network_function_details)
+        network_function = nfp_context['network_function']
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
@@ -1423,19 +1534,39 @@ class HeatDriver(object):
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
 
+        '''
         if service_profile:
             service_details = transport.parse_service_flavor_string(
                 service_profile['service_flavor'])
+        '''
+        token = nfp_context['resource_owner_context']['auth_token']
+        tenant_id = nfp_context['resource_owner_context']['tenant_id']
 
-        auth_token, resource_owner_tenant_id =\
-            self._get_resource_owner_context()
+        timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
+        if timeout_seconds:
+            timeout_mins = timeout_mins + 1
 
-        provider_tenant_id = provider['tenant_id']
-        heatclient = self._get_heat_client(resource_owner_tenant_id,
-                                           tenant_id=provider_tenant_id, assign_admin=True)
+        user, password, tenant, auth_url =\
+            self.keystoneclient.get_keystone_creds()
+        heatclient = HeatClient(
+            user,
+            tenant_id,
+            cfg.CONF.heat_driver.heat_uri,
+            password,
+            auth_token=token,
+            timeout_mins=timeout_mins)
+
+        stack_template, stack_params = self._create_node_config_data(token, tenant_id, 
+                    service_chain_node, service_chain_instance,
+                    provider, provider_port, consumer, consumer_port, 
+                    network_function, mgmt_ip, service_details)
+
+        if not stack_template and not stack_params:
+            return None
 
         if not heatclient:
             return None
+
         stack_name = ("stack_" + service_chain_instance['name'] +
                       service_chain_node['name'] +
                       service_chain_instance['id'][:8] +
@@ -1443,15 +1574,7 @@ class HeatDriver(object):
                       time.strftime("%Y%m%d%H%M%S"))
         # Heat does not accept space in stack name
         stack_name = stack_name.replace(" ", "")
-        stack_template, stack_params = self._update_node_config(
-            auth_token, provider_tenant_id, service_profile,
-            service_chain_node, service_chain_instance, provider,
-            consumer_port, network_function_details['network_function'],
-            provider_port, mgmt_ip=mgmt_ip, consumer=consumer, service_details=service_details)
-
-        if not stack_template and not stack_params:
-            return None
-
+ 
         try:
             stack = heatclient.create(stack_name, stack_template, stack_params)
         except Exception as err:

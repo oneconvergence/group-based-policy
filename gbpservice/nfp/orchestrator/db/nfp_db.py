@@ -202,7 +202,7 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                 session.add(port_info_db)
             session.flush()
             nfd_db.mgmt_port_id = port_info_db['id']
-            del network_function_device['mgmt_port_id']
+            # del network_function_device['mgmt_port_id']
 
     def _set_plugged_in_port_for_nfd_interface(self, session, nfd_interface_db,
                                interface, is_update=False):
@@ -324,7 +324,11 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                     session,
                     network_function_device_db,
                     updated_network_function_device)
+            mgmt_port_id = updated_network_function_device.pop('mgmt_port_id', None)
+            if mgmt_port_id:
+                updated_network_function_device['mgmt_port_id'] = mgmt_port_id['id']
             network_function_device_db.update(updated_network_function_device)
+            updated_network_function_device['mgmt_port_id'] = mgmt_port_id
             return self._make_network_function_device_dict(
                 network_function_device_db)
 
