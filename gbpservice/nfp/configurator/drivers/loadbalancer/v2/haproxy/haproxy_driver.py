@@ -21,8 +21,6 @@ from oslo_log import log as logging
 
 from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.configurator.drivers.base import base_driver
-from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy.\
-    haproxy_lb_driver import LbGenericConfigDriver
 from gbpservice.nfp.configurator.drivers.loadbalancer.\
     v2.haproxy import neutron_lbaas_data_models as n_data_models
 from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
@@ -33,11 +31,66 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
     network import data_models as network_data_models
 from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy.\
     rest_api_driver import HaproxyAmphoraLoadBalancerDriver
+from gbpservice.nfp.configurator.lib import constants as common_const
+from gbpservice.nfp.configurator.lib import lb_constants
 from gbpservice.nfp.configurator.lib import lbv2_constants
 
 DRIVER_NAME = 'loadbalancerv2'
 
 LOG = logging.getLogger(__name__)
+
+
+# Copy from loadbalancer/v1/haproxy/haproxy_lb_driver.py
+""" Loadbalancer generic configuration driver for handling device
+configuration requests.
+"""
+
+
+class LbGenericConfigDriver(object):
+    """
+    Driver class for implementing loadbalancer configuration
+    requests from Orchestrator.
+    """
+
+    def __init__(self):
+        pass
+
+    def configure_interfaces(self, context, resource_data):
+        """ Configure interfaces for the service VM.
+        Calls static IP configuration function and implements
+        persistent rule addition in the service VM.
+        Issues REST call to service VM for configuration of interfaces.
+        :param context: neutron context
+        :param resource_data: a dictionary of loadbalancer objects
+        send by neutron plugin
+        Returns: SUCCESS/Failure message with reason.
+        """
+
+        mgmt_ip = resource_data['mgmt_ip']
+
+        try:
+            result_log_forward = self._configure_log_forwarding(
+                lb_constants.REQUEST_URL, mgmt_ip,
+                self.port)
+        except Exception as err:
+            msg = ("Failed to configure log forwarding for service at %s. "
+                   "Error: %s" % (mgmt_ip, err))
+            LOG.error(msg)
+            return msg
+        else:
+            if result_log_forward == common_const.UNHANDLED:
+                pass
+            elif result_log_forward != lb_constants.STATUS_SUCCESS:
+                msg = ("Failed to configure log forwarding for service at %s. "
+                       % mgmt_ip)
+                LOG.error(msg)
+                return result_log_forward
+            else:
+                msg = ("Configured log forwarding for service at %s. "
+                       "Result: %s" % (mgmt_ip, result_log_forward))
+                LOG.info(msg)
+
+        return lb_constants.STATUS_SUCCESS
 
 
 # As we use the rest client and amphora image from Octavia,

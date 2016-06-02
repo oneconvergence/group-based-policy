@@ -42,13 +42,6 @@ PENDING_UPDATE = "PENDING_UPDATE"
 PENDING_DELETE = "PENDING_DELETE"
 ERROR = "ERROR"
 
-# Constants to extend status strings in neutron.plugins.common.constants
-ONLINE = 'ONLINE'
-OFFLINE = 'OFFLINE'
-DEGRADED = 'DEGRADED'
-DISABLED = 'DISABLED'
-NO_MONITOR = 'NO_MONITOR'
-
 DEVICE_ORCHESTRATOR = "device_orch"
 SERVICE_ORCHESTRATOR = "service_orch"
 

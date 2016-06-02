@@ -19,6 +19,27 @@ LBAAS_GENERIC_CONFIG_RPC_TOPIC = 'lbaas_generic_config'
 LBAAS_PLUGIN_RPC_TOPIC = 'n-lbaas-plugin'
 AGENT_TYPE_LOADBALANCER = 'OC Loadbalancer V2 agent'
 
+# Resources names
+LOADBALANCER = 'loadbalancer'
+LISTENER = 'listener'
+POOL = 'pool'
+MEMBER = 'member'
+HEALTHMONITOR = 'healthmonitor'
+SNI = 'sni'
+L7POLICY = 'l7policy'
+L7RULE = 'l7rule'
+# Resources names for update apis
+OLD_LOADBALANCER = 'old_loadbalancer'
+OLD_LISTENER = 'old_listener'
+OLD_POOL = 'old_pool'
+OLD_MEMBER = 'old_member'
+OLD_HEALTHMONITOR = 'old_healthmonitor'
+
+# Operations
+CREATE = 'create'
+UPDATE = 'update'
+DELETE = 'delete'
+
 # Service operation status constants
 ACTIVE = "ACTIVE"
 DOWN = "DOWN"

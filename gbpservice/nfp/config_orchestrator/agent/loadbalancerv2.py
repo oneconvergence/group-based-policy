@@ -28,6 +28,13 @@ import oslo_messaging as messaging
 LOGGER = oslo_logging.getLogger(__name__)
 LOG = nfp_common.log
 
+# Constants to extend status strings in neutron.plugins.common.constants
+ONLINE = 'ONLINE'
+OFFLINE = 'OFFLINE'
+DEGRADED = 'DEGRADED'
+DISABLED = 'DISABLED'
+NO_MONITOR = 'NO_MONITOR'
+
 """
 RPC handler for Loadbalancer service
 """
@@ -390,10 +397,10 @@ class LoadbalancerV2Notifier(object):
                                  provisioning_status=obj_p_status,
                                  operating_status=obj_o_status)
         else:
-            lb_o_status = const.ONLINE
+            lb_o_status = ONLINE
             if obj_p_status == const.ERROR:
                 lb_p_status = const.ERROR
-                lb_o_status = const.OFFLINE
+                lb_o_status = OFFLINE
 
         rpcClient.cctxt.cast(context, 'update_status',
                              obj_type='loadbalancer',
