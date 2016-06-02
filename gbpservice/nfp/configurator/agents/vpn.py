@@ -11,28 +11,30 @@
 #    under the License.
 
 
+import os
+
 from gbpservice.nfp.configurator.agents import agent_base
+from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 from gbpservice.nfp.core import event as main
-from gbpservice.nfp.core import poll as nfp_poll
-from gbpservice.nfp.configurator.drivers.base import base_driver
-import os
-import oslo_messaging as messaging
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import poll as nfp_poll
+
+import oslo_messaging as messaging
 
 LOG = nfp_logging.getLogger(__name__)
 
-""" Implements VPNaas response path to Neutron plugin.
-
-Methods of this class are invoked by the VPNaasEventHandler class
-for sending response from driver to the VPNaas Neutron plugin.
-
-"""
-
 
 class VpnaasRpcSender(data_filter.Filter):
+    """
+    Implements VPNaas response path to Neutron plugin.
+
+    Methods of this class are invoked by the VPNaasEventHandler class
+    for sending response from driver to the VPNaas Neutron plugin.
+
+    """
     RPC_API_VERSION = '1.0'
     target = messaging.Target(version=RPC_API_VERSION)
 
@@ -41,7 +43,7 @@ class VpnaasRpcSender(data_filter.Filter):
         self._notify = agent_base.AgentBaseNotification(sc)
         super(VpnaasRpcSender, self).__init__(None, None)
 
-    def get_vpn_services(self, context, ids=None, filters={}):
+    def get_vpn_services(self, context, ids=None, filters=None):
         """Gets list of vpnservices for tenant.
         :param context: dictionary which holds details of vpn service type like
             For IPSEC connections :
@@ -57,7 +59,7 @@ class VpnaasRpcSender(data_filter.Filter):
             context,
             self.make_msg('get_vpn_services', ids=ids, filters=filters))
 
-    def get_vpn_servicecontext(self, context, filters={}):
+    def get_vpn_servicecontext(self, context, filters=None):
         """Get list of vpnservice context on this host.
         :param context: dictionary which holds details of vpn service type like
             For IPSEC connections :
@@ -114,16 +116,16 @@ class VpnaasRpcSender(data_filter.Filter):
                }
         self._notify._notification(msg)
 
-""" Implements VPNaasRpcManager class which receives requests
-    from Configurator to Agent.
-
-Methods of this class are invoked by the configurator. Events are
-created according to the requests received and enqueued to worker queues.
-
-"""
-
 
 class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
+    """
+    Implements VPNaasRpcManager class which receives requests
+        from Configurator to Agent.
+
+    Methods of this class are invoked by the configurator. Events are
+    created according to the requests received and enqueued to worker queues.
+
+    """
 
     RPC_API_VERSION = '1.0'
     target = messaging.Target(version=RPC_API_VERSION)
@@ -158,14 +160,13 @@ class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
         ev = self.sc.new_event(id='VPNSERVICE_UPDATED', data=arg_dict)
         self.sc.post_event(ev)
 
-"""
-Handler class to invoke the vpn driver methods.
-For every event that gets invoked from worker process lands over here
-to make a call to the driver methods.
-"""
-
 
 class VPNaasEventHandler(nfp_poll.PollEventDesc):
+    """
+    Handler class to invoke the vpn driver methods.
+    For every event that gets invoked from worker process lands over here
+    to make a call to the driver methods.
+    """
 
     def __init__(self, sc, drivers):
         """ Instantiates class object.

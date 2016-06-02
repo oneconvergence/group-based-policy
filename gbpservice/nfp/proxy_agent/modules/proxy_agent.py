@@ -14,9 +14,12 @@ from gbpservice.nfp.core.rpc import RpcAgent
 import gbpservice.nfp.lib.transport as transport
 from gbpservice.nfp.proxy_agent.lib import topics
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.lib import transport
+from neutron import context as n_context
 
 from oslo_log import helpers as log_helpers
 import oslo_messaging as messaging
+import time
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -35,6 +38,21 @@ def rpc_init(config, sc):
 def nfp_module_init(sc, conf):
     """Initialize module to register rpc & event handler"""
     rpc_init(conf, sc)
+
+
+def nfp_module_post_init(sc, conf):
+    uptime = time.strftime("%c")
+    body = {'eventdata': {'uptime': uptime,
+                          'module': 'proxy_agent'},
+            'eventid': 'NFP_UP_TIME',
+            'eventtype': 'NFP_CONTROLLER'}
+    context = n_context.Context('config_agent_user', 'config_agent_tenant')
+    transport.send_request_to_configurator(conf,
+                                           context,
+                                           body,
+                                           'CREATE',
+                                           network_function_event=True,
+                                           override_backend='tcp_rest')
 
 
 class RpcHandler(object):

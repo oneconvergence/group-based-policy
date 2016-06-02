@@ -13,11 +13,11 @@
 import os
 import oslo_messaging as messaging
 
-from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import nfp_service_constants as const
 from gbpservice.nfp.configurator.lib import utils as load_driver
 from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -72,6 +72,7 @@ appropriate handler class methods for ConfigScript methods.
 
 
 class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
+
     def __init__(self, sc, drivers, rpcmgr):
         """ Initializes parent and child class objects.
 
@@ -158,8 +159,8 @@ def events_init(sc, drivers, rpcmgr):
     """
 
     event = nfp_event.Event(
-                id=const.CREATE_NFP_SERVICE_EVENT,
-                handler=ConfigScriptEventHandler(sc, drivers, rpcmgr))
+        id=const.CREATE_NFP_SERVICE_EVENT,
+        handler=ConfigScriptEventHandler(sc, drivers, rpcmgr))
     sc.register_events([event])
 
 

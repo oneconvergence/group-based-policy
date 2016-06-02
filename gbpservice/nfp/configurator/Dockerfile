@@ -38,6 +38,7 @@ RUN cp -r /mitaka_21st_march_base/gbpservice /usr/local/lib/python2.7/dist-packa
 RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
 RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp_configurator.ini /etc/
+RUN sed -i "s/log_forward_ip_address=*.*/log_forward_ip_address=VIS_VM_IP_ADDRESS/" /etc/nfp_configurator.ini
 RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/policy.json /etc/
 RUN cp -r /mitaka_21st_march_base/gbpservice/nfp/configurator/config /etc/nfp_config
 RUN mkdir -p /var/log/nfp

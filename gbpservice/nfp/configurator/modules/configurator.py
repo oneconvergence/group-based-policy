@@ -18,7 +18,13 @@ from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.configurator.lib import demuxer
 from gbpservice.nfp.configurator.lib import schema_validator
 from gbpservice.nfp.configurator.lib import utils
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import rpc
+
+from neutron.common import rpc as n_rpc
+from neutron import context as n_context
+import oslo_messaging
+import time
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -89,8 +95,8 @@ class ConfiguratorRpcManager(object):
         # Format of sa_req_list:
         # [{'method': <m1>, 'kwargs': <rpc_data1>}, {}, ... ]
         sa_req_list, service_type = self.demuxer.get_service_agent_info(
-                                            operation, service_type,
-                                            request_data, is_generic_config)
+            operation, service_type,
+            request_data, is_generic_config)
         if not sa_req_list:
             msg = ("Configurator received invalid data format for service"
                    " type %s. Data format: %r" % (service_type, request_data))
@@ -514,6 +520,24 @@ def nfp_module_post_init(sc, conf):
     try:
         cm = get_configurator_module_instance(sc)
         cm.init_service_agents_complete(sc, conf)
+
+        #TODO(Rahul):Need to generalize the following code in library.
+        context = n_context.Context('configurator', 'configrator')
+        uptime = time.strftime("%c")
+        request_data = {'eventdata': {'uptime': uptime,
+                                      'module': 'configurator'},
+                        'eventid': 'NFP_UP_TIME',
+                        'eventtype': 'NFP_CONTROLLER'}
+        API_VERSION = '1.0'
+        target = oslo_messaging.Target(
+                        topic='visibility',
+                        version=API_VERSION)
+        client = n_rpc.get_client(target)
+        cctxt = client.prepare(version=API_VERSION,
+                               topic='visibility')
+        cctxt.cast(context,
+                   'network_function_event', request_data=request_data)
+
     except Exception as err:
         msg = ("Failed to trigger initialization complete for configurator"
                " agent modules. %s." % (str(err).capitalize()))

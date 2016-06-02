@@ -317,9 +317,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                     context.plugin_context, filters)
                 for node in nodes:
                     service_profiles.append(node['service_profile_id'])
-            service_type_ha = "%s%s" %(service_type, "_HA")
             filters = {'id': service_profiles,
-                       'service_type': [service_type, service_type_ha]}
+                       'service_type': [service_type]}
             service_profiles = context.sc_plugin.get_service_profiles(
                 context.plugin_context, filters)
             return True if service_profiles else False

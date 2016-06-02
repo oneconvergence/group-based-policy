@@ -13,7 +13,7 @@
 import socket
 import time
 
-from gbpservice.nfp.config_orchestrator.agent import topics
+from gbpservice.nfp.config_orchestrator.common import topics
 from neutron_lib import exceptions
 from neutron.common import rpc as n_rpc
 from neutron.db import agents_db

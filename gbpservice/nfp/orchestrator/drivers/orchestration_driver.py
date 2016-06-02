@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from collections import defaultdict
 from neutron._i18n import _LE
 from neutron._i18n import _LI
 
@@ -27,7 +28,7 @@ import ast
 import operator
 
 from gbpservice.nfp.core import log as nfp_logging
-from collections import defaultdict
+
 LOG = nfp_logging.getLogger(__name__)
 
 
@@ -571,7 +572,8 @@ class OrchestrationDriver(object):
                                 nfp_constants.PROVIDER):
                             if (device_data['service_details'][
                                         'service_type'].lower()
-                                in [nfp_constants.FIREWALL.lower()]):
+                                in [nfp_constants.FIREWALL.lower(),
+                                    nfp_constants.VPN.lower()]):
                                 network_handler.set_promiscuos_mode(
                                         token, port['id'])
                             port_id = network_handler.get_port_id(
@@ -582,7 +584,8 @@ class OrchestrationDriver(object):
                                 nfp_constants.CONSUMER):
                             if (device_data['service_details'][
                                         'service_type'].lower()
-                                in [nfp_constants.FIREWALL.lower()]):
+                                in [nfp_constants.FIREWALL.lower(),
+                                    nfp_constants.VPN.lower()]):
                                 network_handler.set_promiscuos_mode(
                                         token, port['id'])
                             port_id = network_handler.get_port_id(
@@ -896,7 +899,8 @@ class OrchestrationDriver(object):
                         if (
                             device_data['service_details'][
                                 'service_type'].lower()
-                            in [nfp_constants.FIREWALL.lower()]
+                            in [nfp_constants.FIREWALL.lower(),
+                                nfp_constants.VPN.lower()]
                         ):
                             network_handler.set_promiscuos_mode(token,
                                                                 port['id'])
@@ -913,7 +917,8 @@ class OrchestrationDriver(object):
                         if (
                             device_data['service_details'][
                                 'service_type'].lower()
-                            in [nfp_constants.FIREWALL.lower()]
+                            in [nfp_constants.FIREWALL.lower(),
+                                nfp_constants.VPN.lower()]
                         ):
                             network_handler.set_promiscuos_mode(token,
                                                                 port['id'])
@@ -977,7 +982,8 @@ class OrchestrationDriver(object):
     def _set_promiscous_mode(self, token, service_type,
                              port_ids, network_handler=None):
         for port_id in port_ids:
-            if (service_type.lower() in [nfp_constants.FIREWALL.lower()]):
+            if (service_type.lower() in [nfp_constants.FIREWALL.lower(),
+                                         nfp_constants.VPN.lower()]):
                 network_handler.set_promiscuos_mode(token, port_id)
 
     def _get_data_port_ids(self, token, ports, service_type,
