@@ -345,6 +345,7 @@ class Controller(object):
         """
         events = []
         if self._process_name == 'distributor-process':
+            # return at max 5 events
             maxx = 5
             # wait sometime for first event in the queue
             timeout = 0.1
