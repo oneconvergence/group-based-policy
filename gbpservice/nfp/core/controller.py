@@ -345,15 +345,19 @@ class Controller(object):
         """
         events = []
         if self._process_name == 'distributor-process':
+            maxx = 5
             # wait sometime for first event in the queue
             timeout = 0.1
-            try:
-                event = self._stashq.get(timeout=timeout)
-                self.decompress(event)
-                events.append(event)
-                timeout = 0
-            except Queue.Empty:
-                pass
+            while maxx:
+                try:
+                    event = self._stashq.get(timeout=timeout)
+                    self.decompress(event)
+                    events.append(event)
+                    timeout = 0
+                    maxx -= 1
+                except Queue.Empty:
+                    maxx = 0
+                    pass
         else:
             LOG.error("worker cannot pull stashed events")
         return events

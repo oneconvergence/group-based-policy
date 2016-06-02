@@ -22,4 +22,4 @@ EVENT_CLEAR_HEALTHMONITOR = 'CLEAR_HEALTHMONITOR'
 MAX_FAIL_COUNT = 12  # 5 secs delay * 12 = 60 secs
 INITIAL = 'initial'
 FOREVER = 'forever'
-INITIAL_HM_RETRIES = 24  # 5 secs delay * 24 = 120 secs
+INITIAL_HM_RETRIES = 90  # 5 secs delay * 24 = 120 secs

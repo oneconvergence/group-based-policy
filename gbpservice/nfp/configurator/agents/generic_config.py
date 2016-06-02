@@ -68,6 +68,7 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     'resource_data': resource_data}
         ev = self.sc.new_event(id=event_id, data=arg_dict, key=event_key)
+
         self.sc.post_event(ev)
 
     def configure_interfaces(self, context, resource_data):
@@ -222,6 +223,13 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                 return
             # Process HM poll events
             elif ev.id == gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR:
+                '''
+                # [AKASH]
+                result = common_const.SUCCESS
+                notification_data = self._prepare_notification_data(ev, result)
+                self.notify._notification(notification_data)
+                return
+                '''
                 resource_data = ev.data.get('resource_data')
                 periodicity = resource_data.get('periodicity')
                 if periodicity == gen_cfg_const.INITIAL:
@@ -273,7 +281,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                 notification_data = self._prepare_notification_data(ev, result)
                 # self.sc.poll_event_done(ev)
                 self.notify._notification(notification_data)
-                return STOP_POLLING 
+                return STOP_POLLING
             elif resource_data.get('periodicity') == gen_cfg_const.FOREVER:
                 if result == common_const.FAILED:
                     """If health monitoring fails continuously for 5 times
