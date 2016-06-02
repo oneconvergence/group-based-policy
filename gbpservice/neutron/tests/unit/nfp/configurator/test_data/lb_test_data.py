@@ -73,7 +73,7 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {'context': "",
+            "info": {'context': {"logging_context": {}},
                      'service_type': "loadbalancer",
                      'service_vendor': "haproxy",
                      },
@@ -93,7 +93,7 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {'context': "",
+            "info": {'context': {"logging_context": {}},
                      'service_type': "loadbalancer",
                      'service_vendor': "haproxy",
                      },
@@ -114,7 +114,7 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {'context': "",
+            "info": {'context': {"logging_context": {}},
                      'service_type': "loadbalancer",
                      'service_vendor': "haproxy",
                      },
@@ -135,7 +135,7 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {'context': "",
+            "info": {'context': {"logging_context": {}},
                      'service_type': "loadbalancer",
                      'service_vendor': "haproxy",
                      },
@@ -155,7 +155,7 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {'context': "",
+            "info": {'context': {"logging_context": {}},
                      'service_type': "loadbalancer",
                      'service_vendor': "haproxy",
                      },
@@ -176,7 +176,7 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {'context': "",
+            "info": {'context': {"logging_context": {}},
                      'service_type': "loadbalancer",
                      'service_vendor': "haproxy",
                      },
@@ -196,7 +196,7 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {'context': "",
+            "info": {'context': {"logging_context": {}},
                      'service_type': "loadbalancer",
                      'service_vendor': "haproxy",
                      },
@@ -217,7 +217,7 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {'context': "",
+            "info": {'context': {"logging_context": {}},
                      'service_type': "loadbalancer",
                      'service_vendor': "haproxy",
                      },
@@ -239,7 +239,7 @@ class FakeObjects(object):
         """
 
         request_data = {
-            "info": {'context': "",
+            "info": {'context': {"logging_context": {}},
                      'service_type': "loadbalancer",
                      'service_vendor': "haproxy",
                      },
