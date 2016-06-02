@@ -11,7 +11,6 @@
 #    under the License.
 
 import copy
-import json
 from keystoneclient.v2_0 import client as identity_client
 import mock
 from oslo_config import cfg
