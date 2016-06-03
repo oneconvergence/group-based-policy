@@ -147,7 +147,7 @@ class RestApi(object):
             else dict(GET_RESPONSE=result))
 
 
-class VPNSvcValidator(object):
+class VPNServiceValidator(object):
     def __init__(self, agent):
         self.agent = agent
 
@@ -212,8 +212,8 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
     def __init__(self):
         pass
 
-    def configure_bulk_cli(self, mgmt_ip, commands=None,
-                           response_data_expected=None):
+    def generic_configure_bulk_cli(self, mgmt_ip, commands,
+                                   response_data_expected=False):
         """ Prepares the set of commands in such a way so that it issues
             a bulk REST call to ASAv.
 
@@ -287,8 +287,8 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
         commands = list()
 
         commands.append("sh inte")
-        result = self.configure_bulk_cli(mgmt_ip, commands,
-                                         response_data_expected=True)
+        result = self.generic_configure_bulk_cli(mgmt_ip, commands,
+                                                 response_data_expected=True)
 
         if (type(result) is dict) and result.get('GET_RESPONSE'):
             data = ''.join(result['GET_RESPONSE']['response']).split(
@@ -363,7 +363,7 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
                 provider_intf_name, str(provider_interface_position),
                 provider_ip, provider_mask, security_level,
                 mac_address=provider_macs)
-            result = self.configure_bulk_cli(mgmt_ip, commands)
+            result = self.generic_configure_bulk_cli(mgmt_ip, commands)
             if result is not common_const.STATUS_SUCCESS:
                 return result
 
@@ -371,7 +371,7 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
                 stitching_intf_name, str(stitching_interface_position),
                 stitching_ip, stitching_mask, security_level,
                 mac_address=stitching_macs)
-            result = self.configure_bulk_cli(mgmt_ip, commands)
+            result = self.generic_configure_bulk_cli(mgmt_ip, commands)
             if result is not common_const.STATUS_SUCCESS:
                 msg = ("Failed to configure ASAv interfaces. Reason: %r" %
                        result)
@@ -416,7 +416,7 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
                             provider_interface_id)
             commands.append("clear configure interface " +
                             stitching_interface_id)
-            result = self.configure_bulk_cli(mgmt_ip, commands)
+            result = self.generic_configure_bulk_cli(mgmt_ip, commands)
 
             if result is not common_const.STATUS_SUCCESS:
                 msg = ("Failed to clear ASAv interfaces. Reason: %r" %
@@ -517,7 +517,7 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
             commands.append("policy-route route-map pbrmap%s" % (
                 source_cidr.replace('/', '_')))
 
-            result = self.configure_bulk_cli(mgmt_ip, commands)
+            result = self.generic_configure_bulk_clii(mgmt_ip, commands)
             if result is not common_const.STATUS_SUCCESS:
                 return result
 
@@ -530,7 +530,7 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
                            gateway_ip + " " + str(adm_distance))
             dns_config = self._configure_dns(dest_interface_name)
             command.extend(dns_config)
-            result = self.configure_bulk_cli(mgmt_ip, command)
+            result = self.generic_configure_bulk_cli(mgmt_ip, command)
 
             if result is not common_const.STATUS_SUCCESS:
                 msg = ("Failed to configure ASAv routes. Reason: %r" %
@@ -593,7 +593,7 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
                             source_cidr.replace('/', '_'))
             commands.append("clear configure interface " + interface_id)
 
-            self.configure_bulk_cli(mgmt_ip, commands)
+            self.generic_configure_bulk_cli(mgmt_ip, commands)
         except Exception as err:
             msg = ("Exception while deleting pbr route. "
                    "Reason: %s" % err)
@@ -663,6 +663,10 @@ class VPNaasDriver(VPNGenericConfigDriver):
 
     def __init__(self, conf):
         self.conf = conf
+        self.port = const.CONFIGURATION_SERVER_PORT
+        self.register_config_options()
+        self.timeout = const.REST_TIMEOUT
+        self.rest_api = RestApi(self.timeout)
         self.handlers = {
             'vpn_service': {
                 'create': self.create_vpn_service},
@@ -673,6 +677,15 @@ class VPNaasDriver(VPNGenericConfigDriver):
         self.auth = HTTPBasicAuth(self.conf.ASAV_CONFIG.mgmt_username,
                                   self.conf.ASAV_CONFIG.mgmt_userpass)
         super(VPNaasDriver, self).__init__()
+
+    def register_config_options(self):
+        """ Registers the config options.
+
+        Returns: None
+
+        """
+
+        self.conf.register_opts(asav_auth_opts, 'ASAV_CONFIG')
 
     def vpnservice_updated(self, context, resource_data):
         """Handle VPNaaS service driver change notifications."""
@@ -830,7 +843,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
 
     def create_vpn_service(self, context, resource_data):
         svc = resource_data.get('resource')
-        validator = VPNSvcValidator(self.agent)
+        validator = VPNServiceValidator(self.agent)
         validator.validate(context, svc)
 
     def create_ipsec_conn(self, context, resource_data):
@@ -902,7 +915,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
             rules = self._configure_access_list(fip, tunnel_local_cidr,
                                                 peer_cidr, conn['id'])
             access_list.extend(rules)
-        self.configure_bulk_cli(fip, access_list)
+        self._configure_bulk_cli(fip, access_list)
         self._init_state(context, conn)
 
     def _ipsec_delete_tunnel(self, context,
@@ -916,7 +929,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
                                                 peer_cidr, conn['id'],
                                                 delete=True)
             access_list.extend(rules)
-        self.configure_bulk_cli(fip, access_list)
+        self._configure_bulk_cli(fip, access_list)
 
     def _ipsec_delete_connection(self, context,
                                  conn, same_peer=False):
@@ -947,7 +960,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
         commands.append("no crypto ikev1 enable %s" % self.external_intf_name)
         commands.append("no sysopt connection permit-vpn")'''
         try:
-            self.configure_bulk_cli(fip, commands)
+            self._configure_bulk_cli(fip, commands)
         except Exception as e:
             msg = "Delete ipsec conn failed. Reason: %s" % e
             LOG.warn(msg)
@@ -990,7 +1003,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
             commands.extend(tunnelgroup)
         commands.extend(ipsec)
         try:
-            self.configure_bulk_cli(fip, commands)
+            self._configure_bulk_cli(fip, commands)
             self._init_state(context, conn)
         except Exception as ex:
             rollback = []
@@ -1020,7 +1033,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
                 # rollback.append("no crypto ikev1 enable %s" %
                 # self.external_intf_name)
                 # rollback.append("no sysopt connection permit-vpn")
-                self.configure_bulk_cli(fip, rollback)
+                self._configure_bulk_cli(fip, rollback)
             except Exception as ex:
                 msg = "Rollback ipsec failed. Reason: %s" % ex
                 LOG.warn(msg)
@@ -1158,7 +1171,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
         commands.append("ikev1 pre-shared-key %s" % ipsec_conn['psk'])
         return commands
 
-    def configure_bulk_cli(self, fip, commands):
+    def _configure_bulk_cli(self, fip, commands):
         resource_uri = "/api/cli"
         commands.append("write memory")
         data = {"commands": commands}
