@@ -494,12 +494,12 @@ class HeatDriver(object):
         return resource_keys
 
     def _create_firewall_template(self, auth_token, service_details, stack_template):
-        consumer = service_details['consumer_ptg']
         provider = service_details['provider_ptg']
 
+        consuming_ptg_details = service_details['consuming_ptg_details']
         consumer_eps = service_details['consuming_external_policies']
 
-        if (consumer is None) and (consumer_eps is None):
+        if (not consuming_ptg_details) and (not consumer_eps):
             return None
 
         is_template_aws_version = stack_template.get(
@@ -522,8 +522,24 @@ class HeatDriver(object):
             fw_rule_keys=fw_rule_keys,
             fw_policy_key=fw_policy_key)
 
-        consumer_cidr = service_details['consumer_subnet']['cidr']
-        self._append_firewall_rule(stack_template, provider_cidr, consumer_cidr, fw_template_properties, consumer['id'])
+        for consumer in consuming_ptg_details:
+            ptg = consumer['ptg']
+            subnets = consumer['subnets']
+
+            # Skip the stitching PTG
+            if ptg['proxied_group_id']:
+                continue
+
+            fw_template_properties.update({'name': ptg['id'][:3]})
+            for subnet in subnets:
+                if subnet['name'].startswith(APIC_OWNED_RES):
+                    continue
+
+                consumer_cidr = subnet['cidr']
+                self._append_firewall_rule(stack_template,
+                    provider_cidr, consumer_cidr, 
+                    fw_template_properties, ptg['id'])
+
         for consumer_ep in consumer_eps:
             fw_template_properties.update({'name': consumer_ep[:3]})
             self._append_firewall_rule(stack_template, provider_cidr,
@@ -1506,8 +1522,9 @@ class HeatDriver(object):
         provider_subnet = nfp_context['provider']['subnet']
         consumer_port = nfp_context['consumer']['port']
         consumer_subnet = nfp_context['consumer']['subnet']
-        _,consuming_eps = self._get_consumers_for_chain(token, provider_policy_target_group)
-        service_details['consuming_external_policies'] = consuming_eps
+        # consumers,consuming_eps = self._get_consumers_for_chain(token, provider_policy_target_group)
+        service_details['consuming_external_policies'] = nfp_context['consuming_ep_details']
+        service_details['consuming_ptg_details'] = nfp_context['consuming_ptg_details']
 
         return {
             'service_profile': None,
@@ -1522,7 +1539,8 @@ class HeatDriver(object):
             'heat_stack_id': heat_stack_id,
             'provider_ptg': provider_policy_target_group,
             'consumer_ptg': consumer_policy_target_group,
-            'consuming_external_policies': service_details['consuming_external_policies']
+            'consuming_external_policies': service_details['consuming_external_policies'],
+            'consuming_ptg_details': service_details['consuming_ptg_details']
         }
 
     def apply_config(self, network_function_details):

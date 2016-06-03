@@ -962,13 +962,28 @@ class OrchestrationDriver(object):
                 thread_pool = core_tp.ThreadPool()
                 threads = []
                 for port in device_data['ports']:
-                    service_type = device_data['service_details']['service_type'].lower()
-                    if service_type == nfp_constants.FIREWALL.lower():
-                        th = thread_pool.dispatch(self.set_promiscuos_mode, network_handler, token, port['id'])
+                    if port['port_classification'] == nfp_constants.PROVIDER:
+                        service_type = device_data['service_details']['service_type'].lower()
+                        if service_type == nfp_constants.FIREWALL.lower():
+                            th = thread_pool.dispatch(self.set_promiscuos_mode, network_handler, token, port['id'])
+                            threads.append(th)
+                        port_id = port['id']
+                        th = thread_pool.dispatch(self.attach_interface, self.compute_handler_nova, token, tenant_id, device_data['id'], port_id)
                         threads.append(th)
-                    port_id = port['id']
-                    th = thread_pool.dispatch(self.attach_interface, self.compute_handler_nova, token, tenant_id, device_data['id'], port_id)
-                    threads.append(th)
+                        break
+                for th in threads:
+                    th.wait()
+                threads = []
+                for port in device_data['ports']:
+                    if port['port_classification'] == nfp_constants.CONSUMER:
+                        service_type = device_data['service_details']['service_type'].lower()
+                        if service_type == nfp_constants.FIREWALL.lower():
+                            th = thread_pool.dispatch(self.set_promiscuos_mode, network_handler, token, port['id'])
+                            threads.append(th)
+                        port_id = port['id']
+                        th = thread_pool.dispatch(self.attach_interface, self.compute_handler_nova, token, tenant_id, device_data['id'], port_id)
+                        threads.append(th)
+                        break
 
                 for th in threads:
                     th.wait()
