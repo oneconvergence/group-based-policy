@@ -290,14 +290,13 @@ class VPNServiceValidator(object):
         self._active_state(context, vpnsvc)
 
 
-class VpnGenericConfigDriver(object):
+class VpnGenericConfigDriver(base_driver.BaseDriver):
     """
     VPN generic config driver for handling device configurations requests.
     This driver class implements VPN configuration.
     """
 
-    def __init__(self, conf):
-        self.conf = conf
+    def __init__(self):
         self.timeout = const.REST_TIMEOUT
 
     def _configure_static_ips(self, resource_data):
@@ -725,7 +724,7 @@ class VpnGenericConfigDriver(object):
                     "Response Content: %r" % (resp.status_code, resp.content))
 
 
-class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
+class VpnaasIpsecDriver(VpnGenericConfigDriver):
     """
     Driver class for implementing VPN IPSEC configuration
     requests from VPNaas Plugin.
