@@ -333,10 +333,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 service_type=context.current_profile['service_type'],
                 vendor=context.current_profile['vendor'])
 
-    def _create_per_node_perf(self, context, network_function_id):
-        self._wait_for_network_function_operation_completion(
-            context, network_function_id, operation='create')
-     
     def create(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
@@ -346,16 +342,16 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             context.instance['id'], network_function_id)
 
         # Check for NF status in a separate thread
-        gth = self.thread_pool.spawn(self._create_per_node_perf,
-            context, network_function_id)
+        gth = self.thread_pool.spawn(self._wait_for_network_function_operation_completion,
+                context, network_function_id, operation='create')
 
         self.active_threads.append(gth)
-        self.thread_list.append(th)
 
         # At last wait for the threads to complete, success/failure/timeout
         if len(self.active_threads) == self.sc_node_count:
             for gth in self.active_threads:
                 gth.wait()
+            self.active_threads = []
 
     def update(self, context):
         context._plugin_context = self._get_resource_owner_context(
