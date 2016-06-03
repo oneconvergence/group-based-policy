@@ -928,7 +928,9 @@ class OrchestrationDriver(object):
                                 self.compute_handler_nova.attach_interface,
                                 token, tenant_id, device_data['id'],
                                 port['id'])
-                        break
+
+                # Configurator expects interface to attach in order
+                executor.fire()
 
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.CONSUMER:

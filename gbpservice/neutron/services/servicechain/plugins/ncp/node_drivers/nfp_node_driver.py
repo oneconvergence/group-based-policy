@@ -39,7 +39,7 @@ from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nfp_rpc_topics
 
-
+from gbpservice.neutron.services.grouppolicy.common import constants as gp_constants
 
 NFP_NODE_DRIVER_OPTS = [
     cfg.BoolOpt('is_service_admin_owned',
@@ -682,6 +682,36 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             raise InvalidNodeOrderInChain(
                     node_order=allowed_chain_combinations)
 
+    def _get_consumers_for_provider(self, context, provider):
+        '''
+        {
+            consuming_ptgs_details: [{'ptg': <>, 'subnets': <>}]
+            consuming_eps_details: []
+        }
+        '''
+
+        consuming_ptgs_details = []
+        consuming_eps_details = []
+
+        provided_prs_id = provider['provided_policy_rule_sets'][0]
+        provided_prs = context.gbp_plugin.get_policy_rule_set(
+            context.plugin_context, provided_prs_id)
+        consuming_ptg_ids = provided_prs['consuming_policy_target_groups']
+        consuming_ep_ids = provided_prs['consuming_external_policies']
+    
+        consuming_ptgs = context.gbp_plugin.get_policy_target_groups(
+                context.plugin_context, filters={'id':consuming_ptg_ids})
+        consuming_eps_details = context.gbp_plugin.get_external_policies(
+                context.plugin_context, filters={'id': consuming_ep_ids})
+
+        for ptg in consuming_ptgs:
+            subnet_ids = ptg['subnets']
+            subnets = context.core_plugin.get_subnets(context.plugin_context, filters={'id':subnet_ids})
+            consuming_ptgs_details.append({'ptg':ptg, 'subnets':subnets})
+
+        return consuming_ptgs_details, consuming_ep_details
+
+    
     def _create_network_function(self, context):
         """
         nfp_create_nf_data :-
@@ -696,7 +726,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
          'management': {'pt':<>, 'ptg':<>, 'port':<>, 'subnet':<>},
          'management_ptg_id': <>,
          'network_function_mode': nfp_constants.GBP_MODE,
-         'tenant_id': <>
+         'tenant_id': <>,
+         'consuming_ptgs_details': [],
+         'consuming_eps_details': []
         }
 
         """
@@ -704,6 +736,11 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
 
         sc_instance = context.instance
         service_targets = self._get_service_targets(context)
+
+        consuming_ptgs_details, consuming_eps_details = \
+            self._get_consumers_for_provider(context,
+                service_targets['provider_ptg'][0])
+
         if context.current_profile['service_type'] == pconst.LOADBALANCER:
             config_param_values = sc_instance.get('config_param_values', {})
             if config_param_values:
@@ -767,7 +804,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             'management': management,
             'management_ptg_id': sc_instance['management_ptg_id'],
             'network_function_mode': nfp_constants.GBP_MODE,
-            'tenant_id': context.provider['tenant_id']}
+            'tenant_id': context.provider['tenant_id'],
+            'consuming_ptgs_details': consuming_ptgs_details,
+            'consuming_eps_details': consuming_eps_details}
 
         return self.nfp_notifier.create_network_function(
             context.plugin_context, network_function=nfp_create_nf_data)['id']
