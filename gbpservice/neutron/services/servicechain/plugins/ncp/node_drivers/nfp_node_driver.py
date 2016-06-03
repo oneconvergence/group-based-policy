@@ -696,6 +696,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
          'management': {'pt':<>, 'ptg':<>, 'port':<>, 'subnet':<>},
          'management_ptg_id': <>,
          'network_function_mode': nfp_constants.GBP_MODE,
+         'tenant_id': <>
         }
 
         """
@@ -765,7 +766,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             'consumer': consumer,
             'management': management,
             'management_ptg_id': sc_instance['management_ptg_id'],
-            'network_function_mode': nfp_constants.GBP_MODE}
+            'network_function_mode': nfp_constants.GBP_MODE,
+            'tenant_id': context.provider['tenant_id']}
 
         return self.nfp_notifier.create_network_function(
             context.plugin_context, network_function=nfp_create_nf_data)['id']

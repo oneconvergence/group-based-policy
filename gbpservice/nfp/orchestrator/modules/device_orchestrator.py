@@ -32,7 +32,6 @@ import sys
 import traceback
 
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.core import context as nfp_core_context
 
 
 LOG = nfp_logging.getLogger(__name__)
@@ -452,7 +451,7 @@ class DeviceOrchestrator(PollEventDesc):
 
     def _increment_device_interface_count(self, device):
         device['interfaces_in_use'] += len(device['ports'])
-        # self._update_network_function_device_db(device, device['status'])
+        self._update_network_function_device_db(device, device['status'])
 
     def _decrement_device_interface_count(self, device):
         device['interfaces_in_use'] -= len(device['ports'])
@@ -675,6 +674,20 @@ class DeviceOrchestrator(PollEventDesc):
             orchestration_driver.get_network_function_device_status(device))
 
         if is_device_up == nfp_constants.ACTIVE:
+            # [(mak)TODO] - Update interfaces count here before
+            # sending health monitor rpc in DEVICE_UP event.
+            # [HACK] to handle a very corner case where 
+            # PLUG_INTERFACES completes later than HEALTHMONITOR.
+            # till proper fix is identified.
+            provider = nfp_context['provider']['ptg']
+            consumer = nfp_context['consumer']['ptg']
+            network_function_device = nfp_context['network_function_device']
+        
+            if provider:
+                network_function_device['interfaces_in_use'] += 1
+            if consumer:
+                network_function_device['interfaces_in_use'] += 1
+
             # create event DEVICE_UP
             self._create_event(event_id='DEVICE_UP',
                                event_data=nfp_context)

@@ -28,9 +28,7 @@ import operator
 
 from gbpservice.nfp.core import log as nfp_logging
 
-from gbpservice.nfp.core import context as nfp_core_context
-
-from gbpservice.nfp.core import threadpool as core_tp
+from gbpservice.nfp.core import task as core_task
 
 LOG = nfp_logging.getLogger(__name__)
 

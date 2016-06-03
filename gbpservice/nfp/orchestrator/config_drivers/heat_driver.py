@@ -43,7 +43,6 @@ import yaml
 
 from gbpservice.nfp.core import log as nfp_logging
 
-from gbpservice.nfp.core import context as nfp_core_context
 
 from gbpservice.nfp.core import threadpool as core_tp
 HEAT_DRIVER_OPTS = [
@@ -207,10 +206,7 @@ class HeatDriver(object):
             return self.keystoneclient.get_scoped_keystone_token(
                 user, pwd, tenant_name)
 
-    def _get_heat_client_v1(self, nfp_context, assign_admin=False):
-        tenant_id = nfp_context['resource_owner_context']['tenant_id']
-        auth_token = nfp_context['resource_owner_context']['auth_token']
- 
+    def _get_heat_client_v1(self, tenant_id, assign_admin=False):
         if assign_admin:
             try:
                 self._assign_admin_user_to_project(tenant_id)
@@ -220,6 +216,8 @@ class HeatDriver(object):
 
         user, password, tenant, auth_url =\
             self.keystoneclient.get_keystone_creds()
+
+        auth_token = self.keystone(user, password, tenant, tenant_id=tenant_id)
 
         timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
         if timeout_seconds:
@@ -1408,15 +1406,9 @@ class HeatDriver(object):
             return failure_status
     
     def check_config_complete(self, nfp_context):
+        provider_tenant_id = nfp_context['tenant_id']
 
-        provider = nfp_context['provider']['ptg']
-
-        token = nfp_context['resource_owner_context']['auth_token']
-        tenant_id = nfp_context['resource_owner_context']['tenant_id']
-        resource_owner_tenant_id = tenant_id
-
-        heatclient = self._get_heat_client_v1(resource_owner_tenant_id,
-                                           tenant_id=provider['tenant_id'])
+        heatclient = self._get_heat_client_v1(provider_tenant_id)
         if not heatclient:
             return failure_status
         try:
@@ -1584,18 +1576,15 @@ class HeatDriver(object):
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
 
-        token = nfp_context['resource_owner_context']['auth_token']
-        tenant_id = nfp_context['resource_owner_context']['tenant_id']
-        resource_owner_tenant_id = tenant_id
-
-        heatclient = self._get_heat_client_v1(resource_owner_tenant_id,
-                                           tenant_id=provider['tenant_id'],
-                                           assign_admin=True)
+        auth_token = nfp_context['resource_owner_context']['auth_token']
+        provider_tenant_id = nfp_context['tenant_id']
+        heatclient = self._get_heat_client_v1(provider_tenant_id,
+                                              assign_admin=True)
         if not heatclient:
             return None
         
         stack_template, stack_params = self._create_node_config_data(
-                    token, tenant_id, 
+                    auth_token, provider_tenant_id, 
                     service_chain_node, service_chain_instance,
                     provider, provider_port, consumer, consumer_port, 
                     network_function, mgmt_ip, service_details)

@@ -620,11 +620,12 @@ class ServiceOrchestrator(object):
         network_function_info['resource_owner_context']['admin_token'] = admin_token
         network_function_info['resource_owner_context']['admin_tenant_id'] = admin_tenant_id
 
+        tenant_id = network_function_info['tenant_id']
+
         # GBP or Neutron
         mode = network_function_info['network_function_mode']
         service_profile = network_function_info['service_profile']
         admin_token = network_function_info['resource_owner_context']['auth_token']
-        tenant_id = network_function_info['resource_owner_context']['tenant_id']
         service_profile_id = service_profile['id']
         service_id = network_function_info['service_chain_node']['id']
         service_chain_id = network_function_info['service_chain_instance']['id']
@@ -843,8 +844,6 @@ class ServiceOrchestrator(object):
         request_data = event.data
         nfp_context = event.data['nfp_context']
 
-        nfp_core_context.store_nfp_context(nfp_context)
-        
         network_function = nfp_context['network_function']
         network_function_details = self.get_network_function_details(
             network_function['id'])
