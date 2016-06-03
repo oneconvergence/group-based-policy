@@ -183,10 +183,6 @@ class AgentBaseEventHandler(object):
                     result = getattr(driver, method)(context, resource_data)
                 else:
                     result = getattr(driver, method)(**resource_data)
-                '''
-                # [AKASH]
-                result = const.SUCCESS
-                '''
                 success = True if result == 'SUCCESS' else False
             except Exception as err:
                 result = ("Failed to process %s request. %s" %

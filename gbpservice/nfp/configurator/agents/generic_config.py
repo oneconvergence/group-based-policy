@@ -223,13 +223,6 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                 return
             # Process HM poll events
             elif ev.id == gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR:
-                '''
-                # [AKASH]
-                result = common_const.SUCCESS
-                notification_data = self._prepare_notification_data(ev, result)
-                self.notify._notification(notification_data)
-                return
-                '''
                 resource_data = ev.data.get('resource_data')
                 periodicity = resource_data.get('periodicity')
                 if periodicity == gen_cfg_const.INITIAL:
