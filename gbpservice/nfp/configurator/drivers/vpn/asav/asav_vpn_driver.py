@@ -1,20 +1,18 @@
-# One Convergence, Inc. CONFIDENTIAL
-# Copyright (c) 2012-2016, One Convergence, Inc., USA
-# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
 #
-# All information contained herein is, and remains the property of
-# One Convergence, Inc. and its suppliers, if any. The intellectual and
-# technical concepts contained herein are proprietary to One Convergence,
-# Inc. and its suppliers.
+#         http://www.apache.org/licenses/LICENSE-2.0
 #
-# Dissemination of this information or reproduction of this material is
-# strictly forbidden unless prior written permission is obtained from
-# One Convergence, Inc., USA
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
-import ast
+
 import copy
 import ipaddr
-import iptools
 import requests
 
 from oslo_concurrency import lockutils
@@ -676,10 +674,11 @@ class VPNaasDriver(VPNGenericConfigDriver):
                                   self.conf.ASAV_CONFIG.mgmt_userpass)
         super(VPNaasDriver, self).__init__()
 
-    def vpnservice_updated(self, context,  resource_data):
+    def vpnservice_updated(self, context, resource_data):
         """Handle VPNaaS service driver change notifications."""
-        LOG.debug(_("Handling VPN service update notification '%s'"),
-                  resource_data.get('reason', ''))
+        msg = "Handling VPN service update notification '%s'" % (
+                                            resource_data.get('reason', ''))
+        LOG.debug(msg)
 
         resource = resource_data.get('resource')
         tenant_id = resource['tenant_id']
@@ -696,7 +695,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
             if reason not in self.handlers[rsrc].keys():
                 raise UnknownReasonException(reason=reason)
 
-            self.handlers[rsrc][reason](context,  resource_data)
+            self.handlers[rsrc][reason](context, resource_data)
         return _vpnservice_updated(context, resource_data)
 
     def _update_conn_status(self, conn, status):
@@ -773,8 +772,8 @@ class VPNaasDriver(VPNGenericConfigDriver):
             if not on_delete:
                 # Something went wrong - atleast the current
                 # connection should be there
-                LOG.error(_("No tenant conns for filters \
-                    (%s)" % (str(filters))))
+                msg = "No tenant conns for filters (%s)" % (str(filters))
+                LOG.error(msg)
                 # Move conn into err state
                 self._error_state(context, conn)
 
@@ -824,8 +823,8 @@ class VPNaasDriver(VPNGenericConfigDriver):
 
             for pcidr in pcidrs:
                 if pcidr in t_pcidrs:
-                    LOG.error(_("Overlapping peer cidr \
-                        (%s)" % (pcidr)))
+                    msg = "Overlapping peer cidr (%s)" % (pcidr)
+                    LOG.error(msg)
                     self._error_state(
                         context, conn)
 
@@ -850,8 +849,8 @@ class VPNaasDriver(VPNGenericConfigDriver):
         b) First conn, create complete ipsec profile
         """
         if len(conn['peer_cidrs']) < 1:
-            LOG.error(_("Invalid #of peer_cidrs \
-                    can not be less than one"))
+            msg = "Invalid #of peer_cidrs can not be less than one"
+            LOG.error(msg)
             self._error_state(context, conn)
 
         tenant_conns = self._ipsec_get_tenant_conns(
@@ -862,10 +861,11 @@ class VPNaasDriver(VPNGenericConfigDriver):
             else:
                 self._ipsec_create_conn(context, conn, same_peer=True)
         except Exception as ex:
-            LOG.error("Configuring ipsec site conn failed Reason: %s" % ex)
+            msg = "Configuring ipsec site conn failed Reason: %s" % ex
+            LOG.error(msg)
             self._error_state(context, conn)
 
-    def delete_ipsec_conn(self,  context,  resource_data):
+    def delete_ipsec_conn(self, context, resource_data):
         conn = resource_data.get('resource')
         tenant_conns = self._ipsec_get_tenant_conns(
             context, conn, on_delete=True)
@@ -876,7 +876,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
             self._ipsec_delete_connection(
                 context, conn)
 
-    def update_ipsec_conn(self,  context,  resource_data):
+    def update_ipsec_conn(self, context, resource_data):
         # Talk to service manager and get floating ip
         # (with tenant_id & svc_type as criteria)
         # Might have to send some commands to
@@ -949,9 +949,10 @@ class VPNaasDriver(VPNGenericConfigDriver):
         try:
             self.configure_bulk_cli(fip, commands)
         except Exception as e:
-            LOG.warn("Delete ipsec conn failed. Reason: %s" % e)
+            msg = "Delete ipsec conn failed. Reason: %s" % e
+            LOG.warn(msg)
 
-    def check_status(self,  context, svc_context):
+    def check_status(self, context, svc_context):
         pass
 
     def _ipsec_create_conn(self, context, conn, same_peer=False):
@@ -966,7 +967,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
         siteconn = svc_context['siteconns'][0]['connection']
         self.external_intf_name = self._get_external_intf_name(
                                                         svc_context['service'])
-        # TODO: kedar shall this be in try-except?
+        # TODO(kedar) shall this be in try-except?
         ikepolicy_rest = self._configure_ikeconfig(fip, ikepolicy)
         access_list = []
         for peer_cidr in siteconn['peer_cidrs']:
@@ -994,7 +995,8 @@ class VPNaasDriver(VPNGenericConfigDriver):
         except Exception as ex:
             rollback = []
             access_list = []
-            LOG.error("Configuring ipsec failed, rolling back.: %s" % ex)
+            msg = "Configuring ipsec failed, rolling back.: %s" % ex
+            LOG.error(msg)
             try:
                 for peer_cidr in siteconn['peer_cidrs']:
                     rules = self._configure_access_list(fip, tunnel_local_cidr,
@@ -1020,7 +1022,8 @@ class VPNaasDriver(VPNGenericConfigDriver):
                 # rollback.append("no sysopt connection permit-vpn")
                 self.configure_bulk_cli(fip, rollback)
             except Exception as ex:
-                LOG.warn("Rollback ipsec failed. Reason: %s" % ex)
+                msg = "Rollback ipsec failed. Reason: %s" % ex
+                LOG.warn(msg)
             self._error_state(context, conn)
 
     def _get_ike_policies(self, fip):
@@ -1056,7 +1059,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
         if not used_seq:
             seq_no = 1
         else:
-            for i in xrange(1, max(used_seq)+2):
+            for i in xrange(1, max(used_seq) + 2):
                 if i not in used_seq:
                     seq_no = i
                     break
@@ -1107,7 +1110,8 @@ class VPNaasDriver(VPNGenericConfigDriver):
                     rule = "no " + rule
                 access_list.append(rule)
         except Exception as e:
-            LOG.error("Can not configure access list. Reason:%s" % e)
+            msg = "Can not configure access list. Reason:%s" % e
+            LOG.error(msg)
             raise e
         return access_list
 
@@ -1158,7 +1162,8 @@ class VPNaasDriver(VPNGenericConfigDriver):
         resource_uri = "/api/cli"
         commands.append("write memory")
         data = {"commands": commands}
-        LOG.debug(_("sending commands = %s" % commands))
+        msg = "sending commands = %s" % commands
+        LOG.debug(msg)
         RestApi(fip).post(resource_uri, data, self.auth)
 
     def _get_unique_sequenceno(self, fip):
@@ -1171,7 +1176,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
             used_seq = [item['sequence'] for item in resp['items']]
         if not used_seq:
             return 1
-        for i in xrange(1, max(used_seq)+2):
+        for i in xrange(1, max(used_seq) + 2):
             if i not in used_seq:
                 return i
 
