@@ -1,10 +1,11 @@
 #! /bin/bash
 
-source upgrade_nfp.conf
+source mode_shift.conf
 source $DEVSTACK_DIR/local.conf
 
+DEVSTACK_DIR=/home/stack/devstack
 NFPSERVICE_DIR=/opt/stack/gbp
-#TODO(DEEPAK): Should be retrieved from a result file populated by advanced mode.
+# TODO(DEEPAK): Should be retrieved from a result file populated by advanced mode.
 EXT_NET_NAME=ext-net
 
 function create_port_for_vm {
@@ -71,7 +72,7 @@ function nfp_configure_nova {
     iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
 }
 
-function prepare_for_upgrade {
+function prepare_for_mode_shift {
     if [[ $FROM = advanced ]] && [[ $TO = enterprise ]]; then
         source $DEST/gbp/devstack/lib/nfp
 
@@ -83,9 +84,8 @@ function prepare_for_upgrade {
 
         nfp_logs_forword
         nfp_configure_nova
-        
     else
-        echo "Not supported."
+        echo "Shifting from $FROM mode to $TO mode is not supported."
     fi
 }
 
@@ -94,6 +94,7 @@ function delete_instance_and_image {
     # delete the instance
     echo "Deleting the running '$2' instance."
     nova delete $2
+    sleep 5
     
     echo "Deleting '$1' glance image."
     image_id=$(glance image-list | grep $1 | awk '{print $2}')
@@ -115,11 +116,12 @@ function restart_processes {
     stop_process proxy_agent
     run_process proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
     echo "Restarted proxy agent process"
-       
+    sleep 3
+
 }
 
 
-function upgrade {
+function mode_shift {
     if [[ $FROM = advanced ]] && [[ $TO = enterprise ]]; then
         sudo sed -i 's/rest_server_address=.*/rest_server_address='$IpAddr'/' /etc/nfp_proxy.ini
 
@@ -129,19 +131,18 @@ function upgrade {
         image=configurator
         instance_name=configuratorVM_instance
         delete_instance_and_image $image $instance_name
-
     else
-        echo "Not supported."
+        echo "Shifting from $FROM mode to $TO mode is not supported."
     fi
 }
 
 
-echo "Task: Upgrade of NFP from $FROM mode to $TO mode."
+echo "Task: Shifting mode of NFP from $FROM mode to $TO mode."
 
-echo "Preparing for the upgrade."
-prepare_for_upgrade
+echo "Preparing for the NFP mode shift."
+prepare_for_mode_shift
 
-echo "Upgrading to $TO mode. There will be a little downtime. Kindly bear with me."
-upgrade
+echo "Shifting NFP to $TO mode. There will be a little downtime. Kindly bear with me."
+mode_shift
 
-echo "Successfully upgraded from $FROM mode to $TO mode."
+echo "Successfully shifted NFP from $FROM mode to $TO mode."
