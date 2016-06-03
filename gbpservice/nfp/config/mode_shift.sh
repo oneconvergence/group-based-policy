@@ -70,6 +70,22 @@ function nfp_configure_nova {
     NOVA_CONF=$NOVA_CONF_DIR/nova.conf
     source $DEVSTACK_DIR/inc/ini-config
     iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
+    
+    source $DEVSTACK_DIR/functions-common
+    stop_process n-cpu
+    stop_process n-cond 
+    stop_process n-sch 
+    stop_process n-novnc 
+    stop_process n-cauth
+    stop_process n-api 
+    
+    source $DEVSTACK_DIR/lib/nova
+    start_nova_compute
+    start_nova_api
+    run_process n-cond "$NOVA_BIN_DIR/nova-conductor --config-file $NOVA_CONF"
+    run_process n-sch "$NOVA_BIN_DIR/nova-scheduler --config-file $NOVA_CONF"
+    run_process n-novnc "$NOVA_BIN_DIR/nova-novncproxy --config-file $NOVA_CONF --web $DEST/noVNC"
+    run_process n-cauth "$NOVA_BIN_DIR/nova-consoleauth --config-file $NOVA_CONF"
 }
 
 function prepare_for_mode_shift {
