@@ -1,3 +1,4 @@
+
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -10,10 +11,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.config_orchestrator.agent import firewall
-from gbpservice.nfp.config_orchestrator.agent import loadbalancer
-from gbpservice.nfp.config_orchestrator.agent import notification_handler
-from gbpservice.nfp.config_orchestrator.agent import vpn
+from gbpservice.nfp.config_orchestrator.handlers.config import (
+    firewall)
+from gbpservice.nfp.config_orchestrator.handlers.config import (
+    loadbalancer)
+from gbpservice.nfp.config_orchestrator.handlers.config import vpn
+from gbpservice.nfp.config_orchestrator.handlers.notification import (
+    handler as notif_handler)
+
 import mock
 from neutron import context as ctx
 import unittest
@@ -312,24 +317,6 @@ class LoadBalanceTestCase(unittest.TestCase):
             vip = self._loadbalancer_data('vip')
             self.lb_handler.create_vip(self.context, vip)
 
-    def test_update_vip(self):
-        import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
-            gp.return_value = []
-            gv.return_value = []
-            gm.return_value = []
-            ghm.return_value = []
-            mock_call.side_effect = self._call_data
-            mock_send.side_effect = self._cast_loadbalancer
-            old_vip = self._loadbalancer_data('vip')
-            vip = self._loadbalancer_data('vip')
-            self.lb_handler.update_vip(self.context, old_vip, vip)
-
     def test_delete_vip(self):
         import_send = self.import_lib + '.send_request_to_configurator'
         with mock.patch(self.import_gp_api) as gp,\
@@ -364,24 +351,6 @@ class LoadBalanceTestCase(unittest.TestCase):
             pool = self._loadbalancer_data('pool')
             driver_name = "dummy"
             self.lb_handler.create_pool(self.context, pool, driver_name)
-
-    def test_update_pool(self):
-        import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
-            gp.return_value = []
-            gv.return_value = []
-            gm.return_value = []
-            ghm.return_value = []
-            mock_call.side_effect = self._call_data
-            mock_send.side_effect = self._cast_loadbalancer
-            old_pool = self._loadbalancer_data('pool')
-            pool = self._loadbalancer_data('pool')
-            self.lb_handler.update_pool(self.context, old_pool, pool)
 
     def test_delete_pool(self):
         import_send = self.import_lib + '.send_request_to_configurator'
@@ -419,29 +388,6 @@ class LoadBalanceTestCase(unittest.TestCase):
             member = self._loadbalancer_data('member')
             member.update({'pool_id': str(uuid.uuid4())})
             self.lb_handler.create_member(self.context, member)
-
-    def test_update_member(self):
-        import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(self._get_pool) as mock_pool,\
-                mock.patch(import_send) as mock_send:
-            gp.return_value = []
-            gv.return_value = []
-            gm.return_value = []
-            ghm.return_value = []
-            mock_call.side_effect = self._call_data
-            mock_send.side_effect = self._cast_loadbalancer
-            mock_pool.side_effect = self._get_mocked_pool
-            old_member = self._loadbalancer_data('member')
-            member = self._loadbalancer_data('member')
-            pool_id = str(uuid.uuid4())
-            old_member.update({'pool_id': pool_id})
-            member.update({'pool_id': pool_id})
-            self.lb_handler.update_member(self.context, old_member, member)
 
     def test_delete_member(self):
         import_send = self.import_lib + '.send_request_to_configurator'
@@ -483,28 +429,6 @@ class LoadBalanceTestCase(unittest.TestCase):
             pool_id = str(uuid.uuid4())
             self.lb_handler.create_pool_health_monitor(
                 self.context, hm, pool_id)
-
-    def test_update_pool_health_monitor(self):
-        import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(self._get_pool) as mock_pool,\
-                mock.patch(import_send) as mock_send:
-            gp.return_value = []
-            gv.return_value = []
-            gm.return_value = []
-            ghm.return_value = []
-            mock_call.side_effect = self._call_data
-            mock_send.side_effect = self._cast_loadbalancer
-            mock_pool.side_effect = self._get_mocked_pool
-            old_hm = self._loadbalancer_data('health_monitor')
-            hm = self._loadbalancer_data('health_monitor')
-            pool_id = str(uuid.uuid4())
-            self.lb_handler.update_pool_health_monitor(
-                self.context, old_hm, hm, pool_id)
 
     def test_delete_pool_health_monitor(self):
         import_send = self.import_lib + '.send_request_to_configurator'
@@ -623,13 +547,21 @@ class VPNTestCase(unittest.TestCase):
 
 class NotificationHandlerTestCase(unittest.TestCase):
 
+    class Controller(object):
+
+        def new_event(self, **kwargs):
+            return
+
+        def post_event(self, event):
+            return
+
     def setUp(self):
         self.conf = Conf()
-        self.n_handler = notification_handler.NotificationAgent(
-            self.conf, 'sc')
+        self.n_handler = notif_handler.NaasNotificationHandler(
+            self.conf, self.Controller())
         self.context = TestContext().get_context()
-        self.n_fw = ("gbpservice.nfp.config_orchestrator.agent"
-                     ".firewall.FirewallNotifier")
+        self.n_fw = ("gbpservice.nfp.config_orchestrator.handlers"
+                     ".notification.handler.FirewallNotifier")
 
     def _fw_nh_api(self, context, notification_data):
         return
@@ -645,8 +577,8 @@ class NotificationHandlerTestCase(unittest.TestCase):
              }
         with mock.patch(self.n_fw + '.set_firewall_status') as mock_fw:
             mock_fw.side_effect = self._fw_nh_api
-            self.n_handler.network_function_notification(self.context,
-                                                         notification_data)
+            self.n_handler.handle_notification(self.context,
+                                               notification_data)
 
 
 if __name__ == '__main__':
