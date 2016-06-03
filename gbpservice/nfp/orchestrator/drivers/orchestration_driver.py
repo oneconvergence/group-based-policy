@@ -924,7 +924,7 @@ class OrchestrationDriver(object):
         '''
         #[-->PERF]
         token = device_data['token']
-        tenant_id = device_data['tenant_id']
+        tenant_id = device_data['admin_tenant_id']
 
         update_ifaces = []
         try:

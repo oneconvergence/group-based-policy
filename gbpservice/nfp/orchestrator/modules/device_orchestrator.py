@@ -458,7 +458,7 @@ class DeviceOrchestrator(PollEventDesc):
 
     def _increment_device_interface_count(self, device):
         device['interfaces_in_use'] += len(device['ports'])
-        # self._update_network_function_device_db(device, device['status'])
+        self._update_network_function_device_db(device, device['status'])
 
     def _decrement_device_interface_count(self, device):
         device['interfaces_in_use'] -= len(device['ports'])
@@ -685,7 +685,7 @@ class DeviceOrchestrator(PollEventDesc):
         service_details= nfp_context['service_details']
         network_function_device = nfp_context['network_function_device']
         token = nfp_context['resource_owner_context']['auth_token']
-        tenant_id = nfp_context['resource_owner_context']['tenant_id']
+        tenant_id = nfp_context['resource_owner_context']['admin_tenant_id']
         device = {
             'token': token,
             'tenant_id': tenant_id,
@@ -707,6 +707,15 @@ class DeviceOrchestrator(PollEventDesc):
             # LOG.info("@@@@@@ Profile: get_network_function_device_port_info, start @@@@")
             # orchestration_driver.get_network_function_device_port_info(device)
             # LOG.info("@@@@@@ Profile: get_network_function_device_port_info, end @@@@")
+
+
+            provider = nfp_context['provider']
+            consumer = nfp_context['consumer']
+            network_function_device = nfp_context['network_function_device']
+            if provider['port']:
+                network_function_device['interfaces_in_use'] += 1
+            if consumer['port']:
+                network_function_device['interfaces_in_use'] += 1
 
             # create event DEVICE_UP
             self._create_event(event_id='DEVICE_UP',
@@ -852,7 +861,7 @@ class DeviceOrchestrator(PollEventDesc):
         service_details = nfp_context['service_details']
         network_function_device = nfp_context['network_function_device']
         token = nfp_context['resource_owner_context']['auth_token']
-        tenant_id = nfp_context['resource_owner_context']['tenant_id']
+        tenant_id = nfp_context['resource_owner_context']['admin_tenant_id']
         # device = nfp_context['nfp_device_data']
         orchestration_driver = self._get_orchestration_driver(
             service_details['service_vendor'])
@@ -867,12 +876,13 @@ class DeviceOrchestrator(PollEventDesc):
             ports.append({'id': provider['port']['id'],
                         'port_classification': provider['port_classification'],
                         'port_model': provider['port_model']})
+
         device = {
             'id': network_function_device['id'],
             'ports': ports,
             'service_details': service_details,
             'token': token,
-            'tenant_id': tenant_id,
+            'admin_tenant_id': tenant_id,
             'interfaces_in_use': network_function_device['interfaces_in_use']}
 
         _ifaces_plugged_in, advance_sharing_ifaces = (
@@ -929,7 +939,7 @@ class DeviceOrchestrator(PollEventDesc):
         nfp_context = event.data
         service_details = nfp_context['service_details']
         token = nfp_context['resource_owner_context']['auth_token']
-        tenant_id = nfp_context['resource_owner_context']['tenant_id']
+        tenant_id = nfp_context['resource_owner_context']['admin_tenant_id']
         consumer = nfp_context['consumer']
         provider = nfp_context['provider']
         management = nfp_context['management']
