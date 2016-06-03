@@ -15,9 +15,7 @@ gbp policy-rule-set-create --policy-rules "lb-web-redirect-rule" lb-webredirect-
 # Network service policy
 gbp network-service-policy-create --network-service-params type=ip_single,name=vip_ip,value=self_subnet lb_nsp
 
-#   For N-S create external-policy, for E-W create policy-target-group(consumer-group)
-#gbp external-policy-create --external-segments default --consumed-policy-rule-sets webredirect-ruleset=None web-consumer-external-policy
-#	(or for E-W)                                           
+# Consumer PTG
 gbp group-create lb-consumer --consumed-policy-rule-sets "lb-webredirect-ruleset=None"
 
 # Provider PTG

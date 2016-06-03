@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#source /root/keystonerc_cloud_admin
 source /home/stack/devstack/openrc demo demo
+
 echo "Make sure that policy-targets associated to PTGs are deleted!!"
 
 # Delete PTG
