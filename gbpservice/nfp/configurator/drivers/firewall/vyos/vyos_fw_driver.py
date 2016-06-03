@@ -564,10 +564,6 @@ class FwaasDriver(FwGenericConfigDriver):
                " %r. URL: %s" % (firewall['id'], firewall['tenant_id'], url))
         LOG.info(msg)
         data = jsonutils.dumps(firewall)
-        '''
-        # [AKASH]
-        return const.STATUS_ACTIVE
-        '''
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
