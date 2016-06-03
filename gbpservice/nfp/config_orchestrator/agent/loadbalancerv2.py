@@ -41,8 +41,7 @@ RPC handler for Loadbalancer service
 
 
 class Lbv2Agent(loadbalancer_dbv2.LoadBalancerPluginDbv2):
-    RPC_API_VERSION = '1.0'
-    target = messaging.Target(version=RPC_API_VERSION)
+    target = messaging.Target(version=const.LOADBALANCERV2_RPC_API_VERSION)
 
     def __init__(self, conf, sc):
         super(Lbv2Agent, self).__init__()
@@ -263,16 +262,6 @@ class Lbv2Agent(loadbalancer_dbv2.LoadBalancerPluginDbv2):
         self._delete(
             context, member['tenant_id'],
             'member', nf, member=member)
-
-    @log_helpers.log_method_call
-    def create_healthmonitor_on_pool(self, context, pool_id, healthmonitor):
-        loadbalancer = healthmonitor['pool']['loadbalancer']
-        # Fetch nf_id from description of the resource
-        nf_id = self._fetch_nf_from_resource_desc(loadbalancer["description"])
-        nf = common.get_network_function_details(context, nf_id)
-        self._post(
-            context, healthmonitor['tenant_id'],
-            'healthmonitor', nf, healthmonitor=healthmonitor)
 
     @log_helpers.log_method_call
     def create_healthmonitor(self, context, healthmonitor):
