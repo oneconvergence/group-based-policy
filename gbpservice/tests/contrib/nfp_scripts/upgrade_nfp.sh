@@ -3,6 +3,7 @@
 source upgrade_nfp.conf
 source $DEVSTACK_DIR/local.conf
 
+NFPSERVICE_DIR=/opt/stack/gbp
 #TODO(DEEPAK): Should be retrieved from a result file populated by advanced mode.
 EXT_NET_NAME=ext-net
 
@@ -106,7 +107,7 @@ function restart_processes {
     
     # restart proxy
     stop_process proxy
-    run_process proxy "source $NFPSERVICE_DIR/devstack/lib/nfp;namespace_delete $TOP_DIR;namespace_create $TOP_DIR $IpAddr"
+    run_process proxy "source $NFPSERVICE_DIR/devstack/lib/nfp;namespace_delete $DEVSTACK_DIR;namespace_create $DEVSTACK_DIR $IpAddr"
     echo "Restarted proxy process"
     sleep 10
 
@@ -120,7 +121,7 @@ function restart_processes {
 
 function upgrade {
     if [[ $FROM = advanced ]] && [[ $TO = enterprise ]]; then
-        sed -i 's/rest_server_address=.*/rest_server_address='$IpAddr'/' /etc/nfp_proxy.ini
+        sudo sed -i 's/rest_server_address=.*/rest_server_address='$IpAddr'/' /etc/nfp_proxy.ini
 
         echo "Restarting various processes"
         restart_processes
