@@ -918,16 +918,30 @@ class OrchestrationDriver(object):
                 executor = core_task.TaskExecutor(jobs=10)
 
                 for port in device_data['ports']:
-                    service_type = device_data['service_details']['service_type'].lower()
-                    if service_type == nfp_constants.FIREWALL.lower():
-                        executor.add_job('SET_PROMISCUOS_MODE',
-                            network_handler.set_promiscuos_mode,
-                            token, port['id'])
-                    executor.add_job('ATTACH_INTERFACE',
-                            self.compute_handler_nova.attach_interface,
-                            token, tenant_id, device_data['id'],
-                            port['id'])
-                
+                    if port['port_classification'] == nfp_constants.PROVIDER:
+                        service_type = device_data['service_details']['service_type'].lower()
+                        if service_type == nfp_constants.FIREWALL.lower():
+                            executor.add_job('SET_PROMISCUOS_MODE',
+                                network_handler.set_promiscuos_mode,
+                                token, port['id'])
+                        executor.add_job('ATTACH_INTERFACE',
+                                self.compute_handler_nova.attach_interface,
+                                token, tenant_id, device_data['id'],
+                                port['id'])
+                        break
+
+                for port in device_data['ports']:
+                    if port['port_classification'] == nfp_constants.CONSUMER:
+                        service_type = device_data['service_details']['service_type'].lower()
+                        if service_type == nfp_constants.FIREWALL.lower():
+                            executor.add_job('SET_PROMISCUOS_MODE',
+                                network_handler.set_promiscuos_mode,
+                                token, port['id'])
+                        executor.add_job('ATTACH_INTERFACE',
+                                self.compute_handler_nova.attach_interface,
+                                token, tenant_id, device_data['id'],
+                                port['id'])
+                        break
                 executor.fire()
 
         except Exception as e:

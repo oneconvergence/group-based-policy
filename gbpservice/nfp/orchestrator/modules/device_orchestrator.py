@@ -871,7 +871,8 @@ class DeviceOrchestrator(PollEventDesc):
             'service_details': service_details,
             'token': token,
             'tenant_id': tenant_id,
-            'interfaces_in_use': network_function_device['interfaces_in_use']}
+            'interfaces_in_use': network_function_device['interfaces_in_use'],
+            'status': network_function_device['status']}
 
         _ifaces_plugged_in, advance_sharing_ifaces = (
             orchestration_driver.plug_network_function_device_interfaces(
