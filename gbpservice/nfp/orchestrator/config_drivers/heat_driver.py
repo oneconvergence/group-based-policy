@@ -237,14 +237,13 @@ class HeatDriver(object):
         return heat_client
 
             
-    def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None, assign_admin=False):
+    def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None):
         user_tenant_id = tenant_id or resource_owner_tenant_id
-        if assign_admin:
-            try:
-                self._assign_admin_user_to_project(user_tenant_id)
-            except Exception:
-                LOG.exception(_LE("Failed to assign admin user to project"))
-                return None
+        try:
+            self._assign_admin_user_to_project(user_tenant_id)
+        except Exception:
+            LOG.exception(_LE("Failed to assign admin user to project"))
+            return None
         
         user, password, tenant, auth_url =\
             self.keystoneclient.get_keystone_creds()
