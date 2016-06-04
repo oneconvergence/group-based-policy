@@ -54,7 +54,7 @@ class OrchestrationDriver(object):
     Launches the VM with all the management and data ports and a new VM
     is launched for each Network Service Instance
     """
-    def __init__(self, config, supports_device_sharing=False,
+    def __init__(self, config, supports_device_sharing=True,
                  supports_hotplug=True, max_interfaces=5):
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
@@ -454,9 +454,12 @@ class OrchestrationDriver(object):
             LOG.error("Get image id failed !!")
 
 
-    def create_instance(self, nova, token, admin_tenant_id, image_id, flavor, interfaces_to_attach, instance_name, result):
+    def create_instance(self, nova, token, admin_tenant_id, 
+            image_id, flavor, interfaces_to_attach,
+            instance_name, result):
         try:
-            instance_id = nova.create_instance(token, admin_tenant_id, image_id, flavor, interfaces_to_attach, instance_name)
+            instance_id = nova.create_instance(token, admin_tenant_id,
+                image_id, flavor, interfaces_to_attach, instance_name)
             result['result'] = instance_id
         except Exception as e:
             LOG.error("Create instance failed !!!")
@@ -928,7 +931,7 @@ class OrchestrationDriver(object):
                                 self.compute_handler_nova.attach_interface,
                                 token, tenant_id, device_data['id'],
                                 port['id'])
-
+                        break
                 # Configurator expects interface to attach in order
                 executor.fire()
 

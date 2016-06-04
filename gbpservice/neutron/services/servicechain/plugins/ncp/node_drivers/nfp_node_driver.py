@@ -709,7 +709,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             subnets = context.core_plugin.get_subnets(context.plugin_context, filters={'id':subnet_ids})
             consuming_ptgs_details.append({'ptg':ptg, 'subnets':subnets})
 
-        return consuming_ptgs_details, consuming_ep_details
+        return consuming_ptgs_details, consuming_eps_details
 
     
     def _create_network_function(self, context):

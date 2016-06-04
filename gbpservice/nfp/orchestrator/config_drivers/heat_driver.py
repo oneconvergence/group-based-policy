@@ -138,7 +138,7 @@ class HeatDriver(object):
 
     def _get_resource_owner_context(self):
         if cfg.CONF.heat_driver.is_service_admin_owned:
-            tenant_id = None
+            tenant_id = self._resource_owner_tenant_id()
             user, pwd, tenant_name, auth_url =\
                 self.keystoneclient.get_keystone_creds()
             auth_token = self.keystoneclient.get_scoped_keystone_token(
@@ -490,7 +490,7 @@ class HeatDriver(object):
         consuming_ptgs_details = service_details['consuming_ptgs_details']
         consumer_eps = service_details['consuming_external_policies']
 
-        if (not consuming_ptg_details) and (not consumer_eps):
+        if (not consuming_ptgs_details) and (not consumer_eps):
             return None
 
         is_template_aws_version = stack_template.get(
@@ -505,7 +505,8 @@ class HeatDriver(object):
             stack_template['resources'], is_template_aws_version,
             'OS::Neutron::FirewallPolicy')[0]
 
-        provider_cidr = service_details['provider_subnet']['cidr']
+        provider_subnet = service_details['provider_subnet']
+        provider_cidr = provider_subnet['cidr']
 
         fw_template_properties = dict(
             resources_key=resources_key, properties_key=properties_key,
@@ -532,7 +533,7 @@ class HeatDriver(object):
                     fw_template_properties, ptg['id'])
 
         for consumer_ep in consumer_eps:
-            fw_template_properties.update({'name': consumer_ep[:3]})
+            fw_template_properties.update({'name': consumer_ep['id'][:3]})
             self._append_firewall_rule(stack_template, provider_cidr,
                                         "0.0.0.0/0", fw_template_properties,
                                         consumer_ep['id'])
@@ -827,7 +828,7 @@ class HeatDriver(object):
                             service_chain_node, service_chain_instance,
                             provider, consumer_port, network_function,
                             provider_port, update=False, mgmt_ip=None,
-                            consumer=None, service_details=None):
+                            consumer=None):
         nf_desc = None
         common_desc = {'network_function_id': network_function['id']}
         provider_cidr = provider_subnet = None
@@ -1147,62 +1148,6 @@ class HeatDriver(object):
         result['provider']['subnet'] = provider_subnet
         result['provider']['consuming_eps'] = consuming_external_policies
         
-    def get_service_details_from_cache(self, nfp_context, network_function_details):
-        network_function = network_function_details['network_function']
-        network_function_instance = network_function_details.get('network_function_instance')
-        service_details = nfp_context['nfp_service_data']['service_details']
-        if service_details['device_type'] != 'None':
-            network_function_device = network_function_details[
-                'network_function_device']
-            mgmt_ip = network_function_device['mgmt_ip_address']
-        else:
-            mgmt_ip = None
-
-        admin_token = self.keystoneclient.get_admin_token()
-        heat_stack_id = network_function['heat_stack_id']
-        service_id = network_function['service_id']
-        service_chain_id = network_function['service_chain_id']
-
-        thread_pool = core_tp.ThreadPool()
-
-        prov_cons_result={}
-        th3 = thread_pool.dispatch(self.get_provider_consumer_details, self.gbp_client, admin_token, nfp_context, thread_pool, prov_cons_result)
-        sc_node_result={}
-        th1 = thread_pool.dispatch(self.get_servicechain_node, self.gbp_client, admin_token, service_id, sc_node_result)
-        sc_instance_result={}
-        th2 = thread_pool.dispatch(self.get_servicechain_instance, self.gbp_client, admin_token, service_chain_id, sc_instance_result)
-        
-        th1.wait()
-        th2.wait()
-        th3.wait()
-
-        servicechain_node = sc_node_result.get('result', None)
-        servicechain_instance = sc_instance_result.get('result', None)
-        consumer_policy_target_group = prov_cons_result['consumer']['ptg']
-        provider_policy_target_group = prov_cons_result['provider']['ptg']
-        provider_port = prov_cons_result['provider']['port']
-        provider_subnet = prov_cons_result['provider']['subnet']
-        consumer_port = prov_cons_result['consumer']['port']
-        consumer_subnet = prov_cons_result['consumer']['subnet']
-
-        service_details['consuming_external_policies'] = prov_cons_result['provider']['consuming_eps']
-
-        return {
-            'service_profile': None,
-            'service_details': service_details,
-            'servicechain_node': servicechain_node,
-            'servicechain_instance': servicechain_instance,
-            'consumer_port': consumer_port,
-            'consumer_subnet': consumer_subnet,
-            'provider_port': provider_port,
-            'provider_subnet': provider_subnet,
-            'mgmt_ip': mgmt_ip,
-            'heat_stack_id': heat_stack_id,
-            'provider_ptg': provider_policy_target_group,
-            'consumer_ptg': consumer_policy_target_group,
-            'consuming_external_policies': service_details['consuming_external_policies']
-        }
-
 
     def get_service_details(self, network_function_details):
         db_handler = nfp_db.NFPDbBase()
@@ -1422,7 +1367,12 @@ class HeatDriver(object):
             return failure_status
     
     def check_config_complete(self, nfp_context):
+        success_status = "COMPLETED"
+        failure_status = "ERROR"
+        intermediate_status = "IN_PROGRESS"
+
         provider_tenant_id = nfp_context['tenant_id']
+        stack_id = nfp_context['heat_stack_id']
 
         heatclient = self._get_heat_client_v1(provider_tenant_id)
         if not heatclient:
