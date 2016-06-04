@@ -223,7 +223,8 @@ class OrchestrationDriver(object):
                     network_handler)
             device_data['interfaces'] = [mgmt_interface]
         except Exception as e:
-            LOG.error("Creating interfaces for device create failed !")
+            LOG.exception(_LE('Failed to get interfaces for device creation.'
+                              'Error: %(error)s'), {'error', e})
 
     def _delete_interfaces(self, device_data, interfaces,
                            network_handler=None):
@@ -451,31 +452,38 @@ class OrchestrationDriver(object):
             image_id = nova.get_image_id(token, admin_tenant_id, image_name)
             return image_id
         except Exception as e:
-            LOG.error("Get image id failed !!")
+            LOG.error(_LE('Failed to get image id for device creation.'
+                          ' image name: %(image_name)s. Error: %(error)s'),
+                      {'image_name': image_name, 'error': e})
 
 
     def create_instance(self, nova, token, admin_tenant_id, 
             image_id, flavor, interfaces_to_attach,
-            instance_name, result):
+            instance_name):
         try:
             instance_id = nova.create_instance(token, admin_tenant_id,
                 image_id, flavor, interfaces_to_attach, instance_name)
-            result['result'] = instance_id
+            return instance_id
         except Exception as e:
-            LOG.error("Create instance failed !!!")
+            LOG.error(_LE('Failed to create %(device_type)s instance.'
+                          'Error: %(error)s'),
+                      {'device_type': (
+                          device_data['service_details']['device_type']),
+                       'error': e})
 
-    def get_neutron_port_details(self, network_handler, token, port_id, result):
+    def get_neutron_port_details(self, network_handler, token, port_id):
         try:
             (mgmt_ip_address,
              mgmt_mac, mgmt_cidr, gateway_ip,
              mgmt_port, mgmt_subnet) = network_handler.get_neutron_port_details(token, port_id)
 
-            result['result'] = {'neutron_port': mgmt_port['port'],
+            result = {'neutron_port': mgmt_port['port'],
                                 'neutron_subnet': mgmt_subnet['subnet'],
                                 'ip_address': mgmt_ip_address,
                                 'mac': mgmt_mac,
                                 'cidr': mgmt_cidr,
                                 'gateway_ip': gateway_ip}
+            return result
         except Exception as e:
             import sys
             import traceback
@@ -484,7 +492,8 @@ class OrchestrationDriver(object):
                 exc_traceback)
             LOG.error(traceback.format_exception(exc_type, exc_value,
                                              exc_traceback))
-            LOG.error("Failed to get neutron port details !!!")
+            LOG.error(_LE('Failed to get management port details. '
+                          'Error: %(error)s'), {'error': e})
             
 
     @_set_network_handler
@@ -535,6 +544,10 @@ class OrchestrationDriver(object):
             raise exceptions.ComputePolicyNotSupported(
                 compute_policy=device_data['service_details']['device_type'])
 
+        token = device_data['token']
+        admin_tenant_id = device_data['admin_tenant_id']
+        image_name = self._get_image_name(device_data)
+
         executor = core_task.TaskExecutor(jobs=3)
 
         image_id_result = {}
@@ -555,8 +568,7 @@ class OrchestrationDriver(object):
 
         interfaces = device_data.pop('interfaces', None)
         if not interfaces:
-            LOG.exception(_LE('Failed to get interfaces for device creation.'
-                              'Error: %(error)s'), {'error', e})
+            LOG.exception(_LE('Failed to get interfaces for device creation.'))
             return None
         else:
             management_interface = interfaces[0]
@@ -566,9 +578,7 @@ class OrchestrationDriver(object):
         image_id = image_id_result.get('result', None)
         if not image_id:
             self._increment_stats_counter('image_details_get_failures')
-            LOG.error(_LE('Failed to get image id for device creation.'
-                          ' image name: %(image_name)s. Error: %(error)s'),
-                      {'image_name': image_name, 'error': e})
+            LOG.error(_LE('Failed to get image id for device creation.'))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -643,7 +653,7 @@ class OrchestrationDriver(object):
         executor.add_job('CREATE_INSTANCE',
             self.create_instance,
             self.compute_handler_nova,
-            token, admin_tenant_id, flavor,
+            token, admin_tenant_id, image_id, flavor,
             interfaces_to_attach, instance_name,
             result_store = instance_id_result)
 
@@ -659,11 +669,7 @@ class OrchestrationDriver(object):
         instance_id = instance_id_result.get('result', None)
         if not instance_id:
             self._increment_stats_counter('instance_launch_failures')
-            LOG.error(_LE('Failed to create %(device_type)s instance.'
-                          'Error: %(error)s'),
-                      {'device_type': (
-                          device_data['service_details']['device_type']),
-                       'error': e})
+            LOG.error(_LE('Failed to create %(device_type)s instance.'))
             self._delete_interfaces(device_data, interfaces,
                                     network_handler=network_handler)
             self._decrement_stats_counter('management_interfaces',
@@ -677,8 +683,7 @@ class OrchestrationDriver(object):
             
         if not mgmt_neutron_port_info:
             self._increment_stats_counter('port_details_get_failures')
-            LOG.error(_LE('Failed to get management port details. '
-                          'Error: %(error)s'), {'error': e})
+            LOG.error(_LE('Failed to get management port details. '))
             try:
                 self.compute_handler_nova.delete_instance(
                                             token,
@@ -925,7 +930,7 @@ class OrchestrationDriver(object):
                         service_type = device_data['service_details']['service_type'].lower()
                         if service_type == nfp_constants.FIREWALL.lower():
                             executor.add_job('SET_PROMISCUOS_MODE',
-                                network_handler.set_promiscuos_mode,
+                                network_handler.set_promiscuos_mode_v1,
                                 token, port['id'])
                         executor.add_job('ATTACH_INTERFACE',
                                 self.compute_handler_nova.attach_interface,
@@ -940,7 +945,7 @@ class OrchestrationDriver(object):
                         service_type = device_data['service_details']['service_type'].lower()
                         if service_type == nfp_constants.FIREWALL.lower():
                             executor.add_job('SET_PROMISCUOS_MODE',
-                                network_handler.set_promiscuos_mode,
+                                network_handler.set_promiscuos_mode_v1,
                                 token, port['id'])
                         executor.add_job('ATTACH_INTERFACE',
                                 self.compute_handler_nova.attach_interface,
@@ -1276,7 +1281,6 @@ class OrchestrationDriver(object):
                                          if consumer_cidr
                                          else [provider_cidr]),
                         'destination_cidr': consumer_cidr,
-                        'provider_mac': provider_mac,
                         'gateway_ip': consumer_gateway_ip,
                         'provider_interface_index': 2
                     }

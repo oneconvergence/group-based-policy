@@ -71,7 +71,7 @@ def events_init(controller, config, service_orchestrator):
               'DELETE_USER_CONFIG_IN_PROGRESS',
               'CONFIG_APPLIED', 'USER_CONFIG_APPLIED', 'USER_CONFIG_DELETED',
               'USER_CONFIG_DELETE_FAILED', 'USER_CONFIG_UPDATE_FAILED',
-              'USER_CONFIG_FAILED']
+              'USER_CONFIG_FAILED', 'CHECK_USER_CONFIG_COMPLETE']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -625,7 +625,6 @@ class ServiceOrchestrator(object):
         # GBP or Neutron
         mode = network_function_info['network_function_mode']
         service_profile = network_function_info['service_profile']
-        admin_token = network_function_info['resource_owner_context']['auth_token']
         service_profile_id = service_profile['id']
         service_id = network_function_info['service_chain_node']['id']
         service_chain_id = network_function_info['service_chain_instance']['id']

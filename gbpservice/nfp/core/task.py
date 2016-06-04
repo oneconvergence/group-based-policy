@@ -19,9 +19,9 @@ class InUse(Exception):
     """
     pass
 
-def _check_in_use(f):
+def check_in_use(f):
     def wrapped(self, *args, **kwargs):
-        if f.fired:
+        if self.fired:
             raise InUse("Executor in use")
         return f(self, *args, **kwargs)
     return wrapped
@@ -38,11 +38,16 @@ class TaskExecutor(object):
         self.fired = False
 
     @check_in_use
-    def add_job(id, func, *args, **kwargs):
+    def add_job(self, id, func, *args, **kwargs):
         result_store = kwargs.pop('result_store', None)
+
         job = {
-            'id':id, 'method': func, 'args': args, 
-            'kwargs': kwargs, 'result_store':result_store }
+            'id':id, 'method': func, 'args': args,
+            'kwargs': kwargs}
+
+        if result_store is not None:
+            job.update({'result_store': result_store})
+
         self.pipe_line.append(job)
 
     def _complete(self):
@@ -60,7 +65,7 @@ class TaskExecutor(object):
             result = job['thread'].wait()
             job.pop('thread')
             job['result'] = result
-            if job['result_store']:
+            if 'result_store' in job.keys():
                 job['result_store']['result'] = result
 
         done_jobs = self.pipe_line[:]

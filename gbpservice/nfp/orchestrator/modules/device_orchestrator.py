@@ -525,7 +525,7 @@ class DeviceOrchestrator(PollEventDesc):
         network_function_instance = nfp_context['network_function_instance']
         service_details = nfp_context['service_details']
 
-        device_data['token'] = nfp_context['resource_owner_context']['auth_token']
+        device_data['token'] = nfp_context['resource_owner_context']['admin_token']
         device_data['admin_tenant_id'] = nfp_context['resource_owner_context']['admin_tenant_id']
         device_data['name'] = network_function_instance['name']
         device_data['share_existing_device'] = nfp_context['share_existing_device']
@@ -658,7 +658,7 @@ class DeviceOrchestrator(PollEventDesc):
 
         service_details= nfp_context['service_details']
         network_function_device = nfp_context['network_function_device']
-        token = nfp_context['resource_owner_context']['auth_token']
+        token = nfp_context['resource_owner_context']['admin_token']
         tenant_id = nfp_context['resource_owner_context']['tenant_id']
 
         device = {
@@ -847,8 +847,8 @@ class DeviceOrchestrator(PollEventDesc):
 
         service_details = nfp_context['service_details']
         network_function_device = nfp_context['network_function_device']
-        token = nfp_context['resource_owner_context']['auth_token']
-        tenant_id = nfp_context['resource_owner_context']['tenant_id']
+        token = nfp_context['resource_owner_context']['admin_token']
+        tenant_id = nfp_context['resource_owner_context']['admin_tenant_id']
 
         consumer = nfp_context['consumer']
         provider = nfp_context['provider']
@@ -905,7 +905,7 @@ class DeviceOrchestrator(PollEventDesc):
         nfp_context = event.data
 
         service_details = nfp_context['service_details']
-        token = nfp_context['resource_owner_context']['auth_token']
+        token = nfp_context['resource_owner_context']['admin_token']
         tenant_id = nfp_context['resource_owner_context']['tenant_id']
         consumer = nfp_context['consumer']
         provider = nfp_context['provider']

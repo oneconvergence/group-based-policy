@@ -1439,7 +1439,6 @@ class HeatDriver(object):
         network_function_instance = nfp_context['network_function_instance']
         service_details = nfp_context['service_details']
         mgmt_ip = nfp_context['management']['port']['ip_address']
-        token = nfp_context['resource_owner_context']['auth_token']
         heat_stack_id = network_function['heat_stack_id']
         service_id = network_function['service_id']
         service_chain_id = network_function['service_chain_id']
@@ -1452,7 +1451,7 @@ class HeatDriver(object):
         provider_subnet = nfp_context['provider']['subnet']
         consumer_port = nfp_context['consumer']['port']
         consumer_subnet = nfp_context['consumer']['subnet']
-        service_details['consuming_external_policies'] = nfp_context['consuming_ep_details']
+        service_details['consuming_external_policies'] = nfp_context['consuming_eps_details']
         service_details['consuming_ptgs_details'] = nfp_context['consuming_ptgs_details']
 
         return {
@@ -1542,7 +1541,7 @@ class HeatDriver(object):
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
 
-        auth_token = nfp_context['resource_owner_context']['auth_token']
+        auth_token = nfp_context['resource_owner_context']['admin_token']
         provider_tenant_id = nfp_context['tenant_id']
         heatclient = self._get_heat_client_v1(provider_tenant_id,
                                               assign_admin=True)
