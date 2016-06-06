@@ -1,4 +1,5 @@
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
+
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
 #
@@ -938,7 +939,7 @@ class OrchestrationDriver(object):
                                 port['id'])
                         break
                 # Configurator expects interface to attach in order
-                executor.fire()
+                # executor.fire()
 
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.CONSUMER:

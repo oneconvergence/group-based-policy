@@ -18,28 +18,29 @@ from gbpservice.nfp.orchestrator.coal.networking import(
 
 class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
     def __init__(self, config):
-        self.network_handler = openstack_driver.NeutronClient(config)
+        # self.network_handler = openstack_driver.NeutronClient(config)
+	self.neutron_client = openstack_driver.NeutronClient(config)
 
     def setup_traffic_steering(self):
         pass
 
     def create_port(self, token, tenant_id, net_id, name=None):
-        port = self.network_handler.create_port(token, tenant_id, net_id,
+        port = self.neutron_client.create_port(token, tenant_id, net_id,
                                                 attrs={'name': name})
         return port
 
     def delete_port(self, token, port_id):
-        self.network_handler.delete_port(token, port_id)
+        self.neutron_client.delete_port(token, port_id)
 
     def get_port_id(self, token, port_id):
         return port_id
 
     def update_port(self, token, port_id, port):
-        port = self.network_handler.update_port(token, port_id, port)
+        port = self.neutron_client.update_port(token, port_id, port)
         return port['port']
 
     def get_port_and_subnet_details(self, token, port_id):
-        port = self.network_handler.get_port(token, port_id)
+        port = self.neutron_client.get_port(token, port_id)
 
         # ip
         ip = port['port']['fixed_ips'][0]['ip_address']
@@ -49,14 +50,14 @@ class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
 
         # gateway ip
         subnet_id = port['port']['fixed_ips'][0]['subnet_id']
-        subnet = self.network_handler.get_subnet(token, subnet_id)
+        subnet = self.neutron_client.get_subnet(token, subnet_id)
         cidr = subnet['subnet']['cidr']
         gateway_ip = subnet['subnet']['gateway_ip']
 
         return (ip, mac, cidr, gateway_ip, port, subnet)
 
     def get_port_details(self, token, port_id):
-        port = self.network_handler.get_port(token, port_id)
+        port = self.neutron_client.get_port(token, port_id)
 
         # ip
         ip = port['port']['fixed_ips'][0]['ip_address']
@@ -66,13 +67,13 @@ class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
 
         # gateway ip
         subnet_id = port['port']['fixed_ips'][0]['subnet_id']
-        subnet = self.network_handler.get_subnet(token, subnet_id)
+        subnet = self.neutron_client.get_subnet(token, subnet_id)
         cidr = subnet['subnet']['cidr']
         gateway_ip = subnet['subnet']['gateway_ip']
 
         return (ip, mac, cidr, gateway_ip)
 
     def set_promiscuos_mode(self, token, port_id):
-        self.network_handler.update_port(token, port_id,
+        self.neutron_client.update_port(token, port_id,
                                          security_groups=[],
                                          port_security_enabled=False)
