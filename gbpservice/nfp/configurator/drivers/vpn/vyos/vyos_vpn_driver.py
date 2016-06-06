@@ -742,7 +742,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
                 'create': self.create_ipsec_conn,
                 'update': self.update_ipsec_conn,
                 'delete': self.delete_ipsec_conn}}
-        super(VpnaasIpsecDriver, self).__init__(conf)
+        super(VpnaasIpsecDriver, self).__init__()
 
     def _update_conn_status(self, conn, status):
         """

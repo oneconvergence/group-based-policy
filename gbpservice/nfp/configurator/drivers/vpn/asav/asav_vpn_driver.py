@@ -37,16 +37,16 @@ LOG = nfp_logging.getLogger(__name__)
 
 
 class UnknownReasonException(exceptions.NeutronException):
-    message = _("Unsupported rpcreason '%(reason)s' from plugin ")
+    message = "Unsupported rpcreason '%(reason)s' from plugin "
 
 
 class UnknownResourceException(exceptions.NeutronException):
-    message = _("Unsupported resource '%(resource)s' from plugin ")
+    message = "Unsupported resource '%(resource)s' from plugin "
 
 
 class ResourceErrorState(exceptions.NeutronException):
-    message = _("Resource '%(name)s' : '%(id)s' \
-        went to error state, check log")
+    message = "Resource '%(name)s' : '%(id)s' \
+        went to error state, check log"
 
 asav_auth_opts = [
     cfg.StrOpt(
@@ -146,6 +146,52 @@ class RestApi(object):
             if not response_data_expected
             else dict(GET_RESPONSE=result))
 
+    def get(self, url, auth_header):
+
+        try:
+            resp = requests.get(url, headers=self.content_header,
+                                verify=False, auth=auth_header,
+                                timeout=self.timeout)
+        except requests.exceptions.SSLError as err:
+            msg = ("REST API GET request failed for ASAv. "
+                   "URL: %r,  Error: %r" % (
+                       url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        except Exception as err:
+            msg = ("Failed to issue GET call "
+                   "to service. URL: %r, Error: %r" %
+                   (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+
+            LOG.debug("GET url %s %d" % (url, resp.getcode()))
+            if resp.getcode() in common_const.SUCCESS_CODES:
+                LOG.debug("Rest API %s - Success" % url)
+                json_resp = resp.json()
+                return json_resp
+            else:
+                LOG.error("Rest API %s - Failed" % url)
+                raise Exception("Rest API get %s - Failed" % url)
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response, invalid JSON. URL: "
+                   "%r. %r" % (url, str(err).capitalize()))
+            LOG.error(msg)
+            return msg
+        if resp.status_code not in common_const.SUCCESS_CODES:
+            msg = ("Successfully issued a GET call. However, the result "
+                   "of the GET API is negative. URL: %r. Response code: %s."
+                   "Result: %r." % (url, resp.status_code, result))
+            LOG.error(msg)
+            return msg
+        msg = ("Successfully issued a GET call and the result of "
+               "the API operation is positive. URL: %r. Result: %r. "
+               "Status Code: %r." % (url, result, resp.status_code))
+        LOG.info(msg)
+        return result
+
 
 class VPNServiceValidator(object):
     def __init__(self, agent):
@@ -188,7 +234,7 @@ class VPNServiceValidator(object):
         Get the vpn services for this tenant
         Check for overlapping lcidr - not allowed
         """
-        filters = {'tenant_id': [context.tenant_id]}
+        filters = {'tenant_id': [context['tenant_id']]}
         t_vpnsvcs = self.agent.get_vpn_services(
             context, filters=filters)
         t_vpnsvcs.remove(vpnsvc)
@@ -517,7 +563,7 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
             commands.append("policy-route route-map pbrmap%s" % (
                 source_cidr.replace('/', '_')))
 
-            result = self.generic_configure_bulk_clii(mgmt_ip, commands)
+            result = self.generic_configure_bulk_cli(mgmt_ip, commands)
             if result is not common_const.STATUS_SUCCESS:
                 return result
 
@@ -776,7 +822,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
 
     def _ipsec_get_tenant_conns(self, context, conn, on_delete=False):
         filters = {
-            'tenant_id': [context.tenant_id],
+            'tenant_id': [context['tenant_id']],
             # 'vpnservice_id': [conn['vpnservice_id']],
             'peer_address': [conn['peer_address']]}
         tenant_conns = self.agent.get_ipsec_conns(
@@ -902,8 +948,8 @@ class VPNaasDriver(VPNGenericConfigDriver):
         pass
 
     def _ipsec_create_tunnel(self, context, conn):
-        svc_context = self.agent.get_ipsec_contexts(
-            context, conn_id=conn['id'])[0]
+        svc_context = self.agent.get_vpn_servicecontext(
+            context, self._get_filters(conn_id=conn['id']))[0]
 
         fip = self._get_fip(svc_context)
         tunnel_local_cidr = self.\
@@ -933,6 +979,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
 
     def _ipsec_delete_connection(self, context,
                                  conn, same_peer=False):
+
         commands = []
         fip = self._get_fip_from_vpnsvc(conn)
         tfset_name = conn['ikepolicy_id']
@@ -968,9 +1015,22 @@ class VPNaasDriver(VPNGenericConfigDriver):
     def check_status(self, context, svc_context):
         pass
 
+    def _get_filters(self, tenant_id=None, vpnservice_id=None, conn_id=None,
+                     peer_address=None):
+        filters = {}
+        if tenant_id:
+            filters['tenant_id'] = tenant_id
+        if vpnservice_id:
+            filters['vpnservice_id'] = vpnservice_id
+        if conn_id:
+            filters['siteconn_id'] = conn_id
+        if peer_address:
+            filters['peer_address'] = peer_address
+        return filters
+
     def _ipsec_create_conn(self, context, conn, same_peer=False):
-        svc_context = self.agent.get_ipsec_contexts(
-            context, conn_id=conn['id'])[0]
+        svc_context = self.agent.get_vpn_servicecontext(
+            context, self._get_filters(conn_id=conn['id']))[0]
 
         fip = self._get_fip(svc_context)
         tunnel_local_cidr = self.\
@@ -987,6 +1047,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
             rules = self._configure_access_list(fip, tunnel_local_cidr,
                                                 peer_cidr, conn['id'])
             access_list.extend(rules)
+
         ipsec = self._configure_ipsec(
             fip, ikepolicy['id'], ipsecpolicy, siteconn=siteconn)
         # execute rest apis
@@ -1039,9 +1100,10 @@ class VPNaasDriver(VPNGenericConfigDriver):
                 LOG.warn(msg)
             self._error_state(context, conn)
 
-    def _get_ike_policies(self, fip):
+    def _get_ike_policies(self, mgmt_ip):
         uri = "/api/vpn/ikev1policy"
-        resp = RestApi(fip).get(uri, self.auth)
+        url = const.REQUEST_URL % (mgmt_ip, uri)
+        resp = self.rest_api.get(url, self.auth)
         return resp
 
     def _correct_encryption_algo(self, algo):
@@ -1171,17 +1233,19 @@ class VPNaasDriver(VPNGenericConfigDriver):
         commands.append("ikev1 pre-shared-key %s" % ipsec_conn['psk'])
         return commands
 
-    def _configure_bulk_cli(self, fip, commands):
+    def _configure_bulk_cli(self, mgmt_ip, commands):
         resource_uri = "/api/cli"
+        url = const.REQUEST_URL % (mgmt_ip, resource_uri)
         commands.append("write memory")
         data = {"commands": commands}
         msg = "sending commands = %s" % commands
         LOG.debug(msg)
-        RestApi(fip).post(resource_uri, data, self.auth)
+        self.rest_api.post(url, data, self.auth)
 
-    def _get_unique_sequenceno(self, fip):
+    def _get_unique_sequenceno(self, mgmt_ip):
         uri = "/api/vpn/cryptomaps/%s/entries" % self.external_intf_name
-        resp = RestApi(fip).get(uri, self.auth)
+        url = const.REQUEST_URL % (mgmt_ip, uri)
+        resp = self.rest_api.get(url, self.auth)
         if resp == 404:
             resp = {}
         used_seq = []
@@ -1193,9 +1257,10 @@ class VPNaasDriver(VPNGenericConfigDriver):
             if i not in used_seq:
                 return i
 
-    def get_delete_seqno(self, fip, peer, peer_cidr=None):
+    def get_delete_seqno(self, mgmt_ip, peer, peer_cidr=None):
         uri = "/api/vpn/cryptomaps/%s/entries" % self.external_intf_name
-        resp = RestApi(fip).get(uri, self.auth)
+        url = const.REQUEST_URL % (mgmt_ip, uri)
+        resp = self.rest_api.get(url, self.auth)
         if resp == 404 or not resp:
             return 1
         if resp.get('items'):
