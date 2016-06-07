@@ -5,9 +5,28 @@ from neutron import manager
 from neutron.plugins.common import constants as n_const
 from oslo_config import cfg
 
+from functools import wraps
 from gbpservice.nfp.config_orchestrator.common import topics
-import neutron_fwaas.extensions
 from neutron_fwaas.services.firewall import fwaas_plugin as ref_fw_plugin
+
+import neutron_fwaas.extensions
+import time
+
+
+def poll_on_firewall_status(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        retry = 12
+        while retry > 0:
+            retry = retry - 1
+            context = args[0]
+            firewall_id = args[1]
+            fwall = self.get_firewall(context, firewall_id)
+            if fwall['status'] == 'ACTIVE':
+                break
+            time.sleep(5)
+        return func(self, *args, **kwargs)
+    return wrapper
 
 
 class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
@@ -58,3 +77,13 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
                 # self.validate_firewall_routers_not_in_use(context,
                 # router_ids)
                 return router_ids
+
+    @poll_on_firewall_status
+    def _ensure_update_firewall(self, context, firewall_id):
+        fwall = self.get_firewall(context, firewall_id)
+        if fwall['status'] in [n_const.PENDING_CREATE,
+                               n_const.PENDING_UPDATE,
+                               n_const.PENDING_DELETE]:
+            raise self.fw_ext.FirewallInPendingState(
+                                                firewall_id=firewall_id,
+                                                pending_state=fwall['status'])

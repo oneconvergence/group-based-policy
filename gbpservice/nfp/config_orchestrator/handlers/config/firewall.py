@@ -147,6 +147,17 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         nfp_logging.clear_logging_context()
 
     @log_helpers.log_method_call
+    def update_firewall(self, context, firewall, host):
+        # Fetch nf_id from description of the resource
+        nf_id = self._fetch_nf_from_resource_desc(firewall["description"])
+        nfp_logging.store_logging_context(meta_id=nf_id)
+        nf = common.get_network_function_details(context, nf_id)
+        body = self._data_wrapper(context, firewall, host, nf, 'UPDATE')
+        transport.send_request_to_configurator(self._conf,
+                                               context, body, "UPDATE")
+        nfp_logging.clear_logging_context()
+
+    @log_helpers.log_method_call
     def delete_firewall(self, context, firewall, host):
         # Fetch nf_id from description of the resource
         nf_id = self._fetch_nf_from_resource_desc(firewall["description"])

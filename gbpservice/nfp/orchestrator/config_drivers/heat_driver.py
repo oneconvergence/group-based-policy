@@ -1182,8 +1182,9 @@ class HeatDriver(object):
     def is_update_config_supported(self, service_type):
         return (
             False
-            if (service_type == pconst.VPN or
-                service_type == pconst.FIREWALL)
+            if (service_type == pconst.VPN)
+                # or
+                # service_type == pconst.FIREWALL)
             else True
         )
 
@@ -1217,7 +1218,8 @@ class HeatDriver(object):
             return None
 
         if stack_id:
-            if service_type == pconst.VPN or service_type == pconst.FIREWALL:
+            if service_type == pconst.VPN:
+                #  or service_type == pconst.FIREWALL:
                 stack_name = ("stack_" + service_chain_instance['name'] +
                               service_chain_node['name'] +
                               service_chain_instance['id'][:8] +

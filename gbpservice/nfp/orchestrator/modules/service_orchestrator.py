@@ -464,7 +464,7 @@ class ServiceOrchestrator(object):
     def _create_event(self, event_id, event_data=None,
                       key=None, binding_key=None, serialize=False,
                       is_poll_event=False, original_event=None,
-                      is_internal_event=False):
+                      is_internal_event=False, max_times=20):
         if not is_internal_event:
             if is_poll_event:
                 ev = self._controller.new_event(
@@ -473,7 +473,7 @@ class ServiceOrchestrator(object):
                     binding_key=original_event.binding_key,
                     key=original_event.desc.uid)
                 LOG.debug("poll event started for %s" % (ev.id))
-                self._controller.poll_event(ev, max_times=20)
+                self._controller.poll_event(ev, max_times=max_times)
             else:
                 if original_event:
                     ev = self._controller.new_event(
@@ -978,7 +978,8 @@ class ServiceOrchestrator(object):
             {'heat_stack_id': config_id})
         self._create_event('UPDATE_USER_CONFIG_STILL_IN_PROGRESS',
                            event_data=request_data,
-                           is_poll_event=True, original_event=event)
+                           is_poll_event=True, original_event=event,
+                           max_times=30)
 
     def handle_device_create_failed(self, event):
         request_data = event.data
