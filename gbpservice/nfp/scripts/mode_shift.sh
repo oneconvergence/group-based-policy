@@ -1,9 +1,9 @@
 #! /bin/bash
 
-source mode_shift.conf
-source $DEVSTACK_DIR/local.conf
+source /opt/stack/gbp/gbpservice/nfp/config/mode_shift.conf
 
 DEVSTACK_DIR=/home/stack/devstack
+source $DEVSTACK_DIR/local.conf
 NFPSERVICE_DIR=/opt/stack/gbp
 # TODO(DEEPAK): Should be retrieved from a result file populated by advanced mode.
 EXT_NET_NAME=ext-net
