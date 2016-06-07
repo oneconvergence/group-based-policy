@@ -55,7 +55,8 @@ service_chain_opts = [
 cfg.CONF.register_opts(service_chain_opts, "simplechain")
 
 # Service chain API supported Values
-sc_supported_type = [pconst.LOADBALANCER, pconst.FIREWALL]
+sc_supported_type = [pconst.LOADBALANCER, pconst.LOADBALANCERV2,
+                     pconst.FIREWALL]
 STACK_DELETE_RETRIES = cfg.CONF.simplechain.stack_delete_retries
 STACK_DELETE_RETRY_WAIT = cfg.CONF.simplechain.stack_delete_retry_wait
 

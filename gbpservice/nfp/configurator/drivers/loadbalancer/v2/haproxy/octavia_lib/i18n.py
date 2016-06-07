@@ -1,3 +1,5 @@
+# All Rights Reserved.
+#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -10,16 +12,19 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-FW_NFP_CONFIGAGENT_TOPIC = 'nfp-firewall-agent'
-LB_NFP_CONFIGAGENT_TOPIC = 'nfp-lbaas-agent'
-LBV2_NFP_CONFIGAGENT_TOPIC = 'nfp-lbaasv2-agent'
-VPN_NFP_CONFIGAGENT_TOPIC = 'nfp-vpn_agent'
-NFP_NSO_TOPIC = "nfp-service-orchestrator"
+import oslo_i18n as i18n
 
-FW_NFP_PLUGIN_TOPIC = 'q-firewall-plugin'
-LB_NFP_PLUGIN_TOPIC = 'n-lbaas-plugin'
-LBV2_NFP_PLUGIN_TOPIC = 'n-lbaasv2-plugin'
-VPN_NFP_PLUGIN_TOPIC = 'vpn_plugin'
-DEVICE_ORCH_TOPIC = 'nfp-configurator-ndo'
-SERVICE_ORCH_TOPIC = 'nfp-configurator-nso'
-CONFIG_ORCH_TOPIC = 'nfp-nco-notification-topic'
+_translators = i18n.TranslatorFactory(domain='octavia')
+
+# The primary translation function using the well-known name "_"
+_ = _translators.primary
+
+# Translators for log levels.
+#
+# The abbreviated names are meant to reflect the usual use of a short
+# name like '_'. The "L" is for "log" and the other letter comes from
+# the level.
+_LI = _translators.log_info
+_LW = _translators.log_warning
+_LE = _translators.log_error
+_LC = _translators.log_critical

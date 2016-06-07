@@ -473,7 +473,8 @@ class ServiceOrchestrator(object):
                     binding_key=original_event.binding_key,
                     key=original_event.desc.uid)
                 LOG.debug("poll event started for %s" % (ev.id))
-                self._controller.poll_event(ev, max_times=20)
+                self._controller.poll_event(ev, max_times=nfp_constants.
+                                            POOL_EVENT_MAX_TIMES)
             else:
                 if original_event:
                     ev = self._controller.new_event(

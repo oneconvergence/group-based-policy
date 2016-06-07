@@ -211,14 +211,19 @@ class NFPClientApi(object):
 
 class NFPNodeDriver(driver_base.NodeDriverBase):
     SUPPORTED_SERVICE_TYPES = [
-        pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN]
+        pconst.LOADBALANCER, pconst.FIREWALL, pconst.VPN,
+        pconst.LOADBALANCERV2]
     SUPPORTED_SERVICE_VENDOR_MAPPING = {
+        pconst.LOADBALANCERV2: ["haproxy_lbaasv2"],
         pconst.LOADBALANCER: ["haproxy"],
         pconst.FIREWALL: ["vyos", "nfp", "asav"],
         pconst.VPN: ["vyos", "asav"],
     }
     vendor_name = 'NFP'
     required_heat_resources = {
+        pconst.LOADBALANCERV2: ['OS::Neutron::LBaaS::LoadBalancer',
+                                'OS::Neutron::LBaaS::Listener',
+                                'OS::Neutron::LBaaS::Pool'],
         pconst.LOADBALANCER: ['OS::Neutron::LoadBalancer',
                               'OS::Neutron::Pool'],
         pconst.FIREWALL: ['OS::Neutron::Firewall',
@@ -424,7 +429,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             context.instance['id'])
 
     def update_policy_target_added(self, context, policy_target):
-        if context.current_profile['service_type'] == pconst.LOADBALANCER:
+        if context.current_profile['service_type'] in [pconst.LOADBALANCER,
+                                                       pconst.LOADBALANCERV2]:
             if self._is_service_target(policy_target):
                 return
             context._plugin_context = self._get_resource_owner_context(
@@ -442,7 +448,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                     context, network_function_id, operation='update')
 
     def update_policy_target_removed(self, context, policy_target):
-        if context.current_profile['service_type'] == pconst.LOADBALANCER:
+        if context.current_profile['service_type'] in [pconst.LOADBALANCER,
+                                                       pconst.LOADBALANCERV2]:
             if self._is_service_target(policy_target):
                 return
             context._plugin_context = self._get_resource_owner_context(
@@ -700,9 +707,13 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             [pconst.VPN],
             [pconst.VPN, pconst.FIREWALL],
             [pconst.VPN, pconst.FIREWALL, pconst.LOADBALANCER],
+            [pconst.VPN, pconst.FIREWALL, pconst.LOADBALANCERV2],
             [pconst.FIREWALL],
             [pconst.FIREWALL, pconst.LOADBALANCER],
-            [pconst.LOADBALANCER]]
+            [pconst.FIREWALL, pconst.LOADBALANCERV2],
+            [pconst.LOADBALANCER],
+            [pconst.LOADBALANCERV2]]
+
         if service_type_list_in_chain not in allowed_chain_combinations:
             raise InvalidNodeOrderInChain(
                     node_order=allowed_chain_combinations)
@@ -710,7 +721,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
     def _create_network_function(self, context):
         sc_instance = context.instance
         service_targets = self._get_service_targets(context)
-        if context.current_profile['service_type'] == pconst.LOADBALANCER:
+        if context.current_profile['service_type'] in [pconst.LOADBALANCER,
+                                                       pconst.LOADBALANCERV2]:
             config_param_values = sc_instance.get('config_param_values', {})
             if config_param_values:
                 config_param_values = jsonutils.loads(config_param_values)
