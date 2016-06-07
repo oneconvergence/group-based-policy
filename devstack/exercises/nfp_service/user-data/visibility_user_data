@@ -75,9 +75,4 @@ write_files:
       periodic_interval=60
 
 runcmd:
-  - docker load -i /usr/share/SCUI/docker/images/configurator-docker
-  - docker run -d --name configurator -it -p 5672:5672 -p 8070:8080 configurator-docker
-  - docker load -i   /usr/share/SCUI/docker/images/visibility-docker
-  - docker load -i   /usr/share/SCUI/docker/images/elastic
-  - docker load -i   /usr/share/SCUI/docker/images/graphite
   - cd /usr/share/visibility/docker/ && bash rundocker.sh
