@@ -94,12 +94,12 @@ function prepare_for_mode_shift {
 
         echo "Preparing image creation"
         create_images
-
+        nfp_configure_nova
+        sleep 10
         echo "Launching the Visibility VM"
         launch_visibilityVM
 
         nfp_logs_forword
-        nfp_configure_nova
     else
         echo "Shifting from $FROM mode to $TO mode is not supported."
     fi
