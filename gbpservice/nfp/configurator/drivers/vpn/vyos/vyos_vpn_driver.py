@@ -15,7 +15,10 @@ import copy
 import requests
 
 from gbpservice.nfp.configurator.drivers.base import base_driver
-from gbpservice.nfp.configurator.lib import vpn_constants as const
+from gbpservice.nfp.configurator.drivers.vpn.vyos import (
+    vyos_vpn_constants as const)
+from gbpservice.nfp.configurator.lib import constants as common_const
+from gbpservice.nfp.configurator.lib import vpn_constants as vpn_const
 from gbpservice.nfp.core import log as nfp_logging
 
 from oslo_concurrency import lockutils
@@ -234,7 +237,8 @@ class VPNServiceValidator(object):
         Returns: None
         """
         self.agent.update_status(
-            context, self._update_service_status(vpnsvc, const.STATE_ERROR))
+            context, self._update_service_status(vpnsvc,
+                                                 vpn_const.STATE_ERROR))
         raise ResourceErrorState(name='vpn_service', id=vpnsvc['id'],
                                  message=message)
 
@@ -249,7 +253,8 @@ class VPNServiceValidator(object):
         Returns: None
         """
         self.agent.update_status(
-            context, self._update_service_status(vpnsvc, const.STATE_ACTIVE))
+            context, self._update_service_status(vpnsvc,
+                                                 vpn_const.STATE_ACTIVE))
 
     def _get_local_cidr(self, vpn_svc):
         svc_desc = vpn_svc['description']
@@ -364,7 +369,7 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
 
         msg = ("Static IPs successfully added.")
         LOG.info(msg)
-        return const.STATUS_SUCCESS
+        return common_const.STATUS_SUCCESS
 
     def configure_interfaces(self, context, resource_data):
         """ Configure interfaces for the service VM.
@@ -388,7 +393,7 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
         else:
-            if result_static_ips != const.STATUS_SUCCESS:
+            if result_static_ips != common_const.STATUS_SUCCESS:
                 return result_static_ips
             else:
                 msg = ("Added static IPs. Result: %s" % result_static_ips)
@@ -435,7 +440,7 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
 
         msg = ("Persistent rule successfully added.")
         LOG.info(msg)
-        return const.STATUS_SUCCESS
+        return common_const.STATUS_SUCCESS
 
     def _clear_static_ips(self, resource_data):
         """ Clear static IPs for provider and stitching
@@ -497,7 +502,7 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
 
         msg = ("Static IPs successfully removed.")
         LOG.info(msg)
-        return const.STATUS_SUCCESS
+        return common_const.STATUS_SUCCESS
 
     def clear_interfaces(self, context, resource_data):
         """ Clear interfaces for the service VM.
@@ -521,7 +526,7 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
         else:
-            if result_static_ips != const.STATUS_SUCCESS:
+            if result_static_ips != common_const.STATUS_SUCCESS:
                 return result_static_ips
             else:
                 msg = ("Successfully removed static IPs. "
@@ -569,7 +574,7 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
             raise Exception(msg)
         msg = ("Persistent rule successfully deleted.")
         LOG.info(msg)
-        return const.STATUS_SUCCESS
+        return common_const.STATUS_SUCCESS
 
     def configure_routes(self, context, resource_data):
         """ Configure routes for the service VM.
@@ -631,7 +636,7 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
 
-        if resp.status_code in const.SUCCESS_CODES:
+        if resp.status_code in common_const.SUCCESS_CODES:
             message = jsonutils.loads(resp.text)
             if message.get("status", False):
                 msg = ("Route configured successfully for VYOS"
@@ -649,7 +654,7 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
                % (active_configured))
         LOG.info(msg)
         if active_configured:
-            return const.STATUS_SUCCESS
+            return common_const.STATUS_SUCCESS
         else:
             return ("Failed to configure source route. Response code: %s."
                     "Response Content: %r" % (resp.status_code, resp.content))
@@ -711,14 +716,14 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
             LOG.error(msg)
             return msg
 
-        if resp.status_code in const.SUCCESS_CODES:
+        if resp.status_code in common_const.SUCCESS_CODES:
             active_configured = True
 
         msg = ("Route deletion status : %r "
                % (active_configured))
         LOG.info(msg)
         if active_configured:
-            return const.STATUS_SUCCESS
+            return common_const.STATUS_SUCCESS
         else:
             return ("Failed to delete source route. Response code: %s."
                     "Response Content: %r" % (resp.status_code, resp.content))
@@ -730,7 +735,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
     requests from VPNaas Plugin.
     """
 
-    service_type = const.SERVICE_TYPE
+    service_type = vpn_const.SERVICE_TYPE
     service_vendor = const.SERVICE_VENDOR
 
     def __init__(self, conf):
@@ -780,7 +785,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
 
         self.agent.update_status(
             context, self._update_conn_status(conn,
-                                              const.STATE_ERROR))
+                                              vpn_const.STATE_ERROR))
         raise ResourceErrorState(id=conn['id'], message=message)
 
     def _init_state(self, context, conn):
@@ -797,11 +802,11 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
         LOG.info(msg)
         self.agent.update_status(
             context, self._update_conn_status(conn,
-                                              const.STATE_INIT))
+                                              vpn_const.STATE_INIT))
 
         for item in context['service_info']['ipsec_site_conns']:
             if item['id'] == conn['id']:
-                item['status'] = const.STATE_INIT
+                item['status'] = vpn_const.STATE_INIT
 
     def _get_fip_from_vpnsvc(self, vpn_svc):
         svc_desc = vpn_svc['description']
@@ -981,7 +986,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
             copy_conns = copy.deepcopy(conn_list)
             for tconn in copy_conns:
                 if tconn['status'] == (
-                        const.STATE_PENDING and tconn in conn_list):
+                        vpn_const.STATE_PENDING and tconn in conn_list):
                     conn_list.remove(tconn)
         return conn_list
 
@@ -1067,7 +1072,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
         c_state = None
         lcidr = self.\
             _get_ipsec_tunnel_local_cidr(svc_context)
-        if conn['status'] == const.STATE_INIT:
+        if conn['status'] == vpn_const.STATE_INIT:
             tunnel = {
                 'peer_address': conn['peer_address'],
                 'local_cidr': lcidr,
@@ -1078,11 +1083,11 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
             state = output['state']
 
             if state.upper() == 'UP' and\
-               conn['status'] != const.STATE_ACTIVE:
-                c_state = const.STATE_ACTIVE
+               conn['status'] != vpn_const.STATE_ACTIVE:
+                c_state = vpn_const.STATE_ACTIVE
             if state.upper() == 'DOWN' and\
-               conn['status'] == const.STATE_ACTIVE:
-                c_state = const.STATE_PENDING
+               conn['status'] == vpn_const.STATE_ACTIVE:
+                c_state = vpn_const.STATE_PENDING
 
         if c_state:
             return c_state, True

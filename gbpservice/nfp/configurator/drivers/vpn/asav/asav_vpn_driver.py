@@ -14,6 +14,7 @@
 import copy
 import ipaddr
 import requests
+import time
 
 from oslo_concurrency import lockutils
 from oslo_config import cfg
@@ -135,7 +136,7 @@ class RestApi(object):
             msg = ("Successfully issued a POST call. However, the result "
                    "of the POST API is negative. URL: %r. Response code: %s."
                    "Result: %r." % (url, resp.status_code, result))
-            LOG.error(msg)
+            LOG.warning(msg)
             return msg
         msg = ("Successfully issued a POST call and the result of "
                "the API operation is positive. URL: %r. Result: %r. "
@@ -359,6 +360,7 @@ class VPNGenericConfigDriver(base_driver.BaseDriver):
 
         """
 
+        time.sleep(10)  # wait time for the agent to come up
         try:
             mgmt_ip = resource_data['mgmt_ip']
             provider_ip = resource_data.get('provider_ip')
@@ -1039,7 +1041,6 @@ class VPNaasDriver(VPNGenericConfigDriver):
             rules = self._configure_access_list(fip, tunnel_local_cidr,
                                                 peer_cidr, conn['id'])
             access_list.extend(rules)
-
         ipsec = self._configure_ipsec(
             fip, ikepolicy['id'], ipsecpolicy, siteconn=siteconn)
         # execute rest apis
@@ -1241,7 +1242,6 @@ class VPNaasDriver(VPNGenericConfigDriver):
         if resp.status_code == 404:
             resp = {}
         used_seq = []
-        resp = resp.json()
         if resp.get('items'):
             used_seq = [item['sequence'] for item in resp['items']]
         if not used_seq:
