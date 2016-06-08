@@ -157,40 +157,32 @@ class RestApi(object):
                    "URL: %r,  Error: %r" % (
                        url, str(err).capitalize()))
             LOG.error(msg)
-            return msg
+            return resp
         except Exception as err:
             msg = ("Failed to issue GET call "
                    "to service. URL: %r, Error: %r" %
                    (url, str(err).capitalize()))
             LOG.error(msg)
-            return msg
+            return resp
 
-            LOG.debug("GET url %s %d" % (url, resp.getcode()))
-            if resp.getcode() in common_const.SUCCESS_CODES:
-                LOG.debug("Rest API %s - Success" % url)
-                json_resp = resp.json()
-                return json_resp
-            else:
-                LOG.error("Rest API %s - Failed" % url)
-                raise Exception("Rest API get %s - Failed" % url)
         try:
             result = resp.json()
         except ValueError as err:
             msg = ("Unable to parse response, invalid JSON. URL: "
                    "%r. %r" % (url, str(err).capitalize()))
             LOG.error(msg)
-            return msg
+            return resp
         if resp.status_code not in common_const.SUCCESS_CODES:
             msg = ("Successfully issued a GET call. However, the result "
                    "of the GET API is negative. URL: %r. Response code: %s."
                    "Result: %r." % (url, resp.status_code, result))
             LOG.error(msg)
-            return msg
+            return resp
         msg = ("Successfully issued a GET call and the result of "
                "the API operation is positive. URL: %r. Result: %r. "
                "Status Code: %r." % (url, result, resp.status_code))
         LOG.info(msg)
-        return result
+        return resp
 
 
 class VPNServiceValidator(object):
@@ -801,7 +793,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
     def _get_external_intf_name(self, vpn_svc):
         svc_desc = vpn_svc['description']
         tokens = svc_desc.split(';')
-        stitching_cidr = tokens[6].split('=')[1]
+        stitching_cidr = tokens[5].split('=')[1]
         return "interface-" + stitching_cidr.replace('/', '_')
 
     def _get_fip(self, svc_context):
@@ -1104,7 +1096,7 @@ class VPNaasDriver(VPNGenericConfigDriver):
         uri = "/api/vpn/ikev1policy"
         url = const.REQUEST_URL % (mgmt_ip, uri)
         resp = self.rest_api.get(url, self.auth)
-        return resp
+        return resp.json()
 
     def _correct_encryption_algo(self, algo):
         algos = {
@@ -1246,9 +1238,10 @@ class VPNaasDriver(VPNGenericConfigDriver):
         uri = "/api/vpn/cryptomaps/%s/entries" % self.external_intf_name
         url = const.REQUEST_URL % (mgmt_ip, uri)
         resp = self.rest_api.get(url, self.auth)
-        if resp == 404:
+        if resp.status_code == 404:
             resp = {}
         used_seq = []
+        resp = resp.json()
         if resp.get('items'):
             used_seq = [item['sequence'] for item in resp['items']]
         if not used_seq:
@@ -1261,8 +1254,9 @@ class VPNaasDriver(VPNGenericConfigDriver):
         uri = "/api/vpn/cryptomaps/%s/entries" % self.external_intf_name
         url = const.REQUEST_URL % (mgmt_ip, uri)
         resp = self.rest_api.get(url, self.auth)
-        if resp == 404 or not resp:
+        if resp.status_code == 404 or not resp:
             return 1
+        resp = resp.json()
         if resp.get('items'):
             for item in resp.get('items'):
                 # if (peer in item['peer'] and

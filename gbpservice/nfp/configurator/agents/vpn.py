@@ -180,9 +180,9 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         self._drivers = drivers
         self._plugin_rpc = VpnaasRpcSender(self._sc)
 
-    def _get_driver(self):
+    def _get_driver(self, service_vendor):
 
-        driver_id = const.SERVICE_TYPE + const.SERVICE_VENDOR
+        driver_id = const.SERVICE_TYPE + service_vendor
         return self._drivers[driver_id]
 
     def handle_event(self, ev):
@@ -203,8 +203,9 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
                        % (os.getpid(),
                           ev.id, const.VPN_GENERIC_CONFIG_RPC_TOPIC))
                 LOG.debug(msg)
-
-                driver = self._get_driver()
+                service_vendor = (
+                        ev.data['context']['agent_info']['service_vendor'])
+                driver = self._get_driver(service_vendor)
                 self._vpnservice_updated(ev, driver)
             except Exception as err:
                 msg = ("Failed to perform the operation: %s. %s"
@@ -266,7 +267,7 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         vendor = tokens[5].split('=')[1]
         return vendor
 
-    def _sync_ipsec_conns(self, context, svc_context):
+    def _sync_ipsec_conns(self, context, svc_context, service_vendor):
         """
         Gets the status of the vpn service.
         :param context: Dictionary of the vpn service type.
@@ -277,9 +278,9 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         Returns: None
         """
         try:
-            self._get_driver()
 
-            return self._get_driver().check_status(context, svc_context)
+            return self._get_driver(service_vendor).check_status(context,
+                                                                 svc_context)
         except Exception as err:
             msg = ("Failed to sync ipsec connection information. %s."
                    % str(err).capitalize())
@@ -296,8 +297,9 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         """
 
         context = ev.data.get('context')
+        service_vendor = ev.data['context']['agent_info']['service_vendor']
         s2s_contexts = self._plugin_rpc.get_vpn_servicecontext(context)
-        state = self._sync_ipsec_conns(context, s2s_contexts[0])
+        state = self._sync_ipsec_conns(context, s2s_contexts[0], service_vendor)
         if state == const.STATE_ACTIVE:
             return {'poll': False}
 
