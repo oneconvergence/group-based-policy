@@ -42,10 +42,10 @@ class LBaaSV2RpcSender(data_filter.Filter):
         :param obj_type: object type
         :param obj_id: object id
         :param root_lb_id: root loadbalancer id
-        :param provisioning_status: an enum of (‘ACTIVE’, ‘PENDING_CREATE’,
-        ‘PENDING_UPDATE’, ‘PENDING_DELETE’, ‘ERROR’)
+        :param provisioning_status: an enum of ('ACTIVE', 'PENDING_CREATE',
+        'PENDING_UPDATE', 'PENDING_DELETE', 'ERROR')
         :param operating_status:  an enum of
-        (‘ONLINE’, ‘OFFLINE’, ‘DEGRADED’, ‘ERROR’)
+        ('ONLINE', 'OFFLINE', 'DEGRADED', 'ERROR')
 
         """
 
