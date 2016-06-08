@@ -27,6 +27,7 @@ from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from gbpservice.nfp.orchestrator.db import api as nfp_db_api
 from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
+from gbpservice.nfp.core import module as nfp_api
 
 import sys
 import traceback
@@ -258,7 +259,7 @@ class RpcHandlerConfigurator(object):
         if is_poll_event:
             ev = self._controller.new_event(
                 id=event_id, data=event_data,
-                serialize=original_event.serialize,
+                serialize=original_event.sequence,
                 binding_key=original_event.binding_key,
                 key=original_event.key)
             LOG.debug("poll event started for %s" % (ev.id))
@@ -331,7 +332,7 @@ class RpcHandlerConfigurator(object):
         nfp_logging.clear_logging_context()
 
 
-class ServiceOrchestrator(object):
+class ServiceOrchestrator(nfp_api.NfpEventHandler):
 
     """Orchestrator For Network Services
 
@@ -469,18 +470,18 @@ class ServiceOrchestrator(object):
             if is_poll_event:
                 ev = self._controller.new_event(
                     id=event_id, data=event_data,
-                    serialize=original_event.serialize,
+                    serialize=original_event.sequence,
                     binding_key=original_event.binding_key,
-                    key=original_event.desc.uid)
+                    key=original_event.desc.uuid)
                 LOG.debug("poll event started for %s" % (ev.id))
                 self._controller.poll_event(ev, max_times=20)
             else:
                 if original_event:
                     ev = self._controller.new_event(
                         id=event_id, data=event_data,
-                        serialize=original_event.serialize,
+                        serialize=original_event.sequence,
                         binding_key=original_event.binding_key,
-                        key=original_event.desc.uid)
+                        key=original_event.desc.uuid)
                 else:
                     ev = self._controller.new_event(
                         id=event_id,
@@ -491,9 +492,9 @@ class ServiceOrchestrator(object):
             if original_event:
                 event = self._controller.new_event(
                     id=event_id, data=event_data,
-                    serialize=original_event.serialize,
+                    serialize=original_event.sequence,
                     binding_key=original_event.binding_key,
-                    key=original_event.desc.uid)
+                    key=original_event.desc.uuid)
             else:
                 # Same module API, so calling corresponding function
                 # directly.
@@ -1098,7 +1099,7 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            self._controller.event_done(event)
+            self._controller.event_complete(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
@@ -1111,7 +1112,7 @@ class ServiceOrchestrator(object):
                 self.db_session,
                 request_data['network_function_id'],
                 updated_network_function)
-            self._controller.event_done(event)
+            self._controller.event_complete(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
@@ -1131,12 +1132,12 @@ class ServiceOrchestrator(object):
                           " completion."), {'err': err})
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
-            self._controller.event_done(event)
+            self._controller.event_complete(event)
             return STOP_POLLING
         if config_status == nfp_constants.ERROR:
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
-            self._controller.event_done(event)
+            self._controller.event_complete(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
@@ -1156,7 +1157,7 @@ class ServiceOrchestrator(object):
                 self._create_event('USER_CONFIG_DELETED',
                                    event_data=event_data,
                                    is_internal_event=True)
-                self._controller.event_done(event)
+                self._controller.event_complete(event)
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
@@ -1341,6 +1342,7 @@ class ServiceOrchestrator(object):
             'network_function_details': network_function_details
         }
         if not config_id:
+            self._controller.event_complete(event)
             self._create_event('USER_CONFIG_FAILED',
                                event_data=request_data, is_internal_event=True)
             return
@@ -1348,6 +1350,7 @@ class ServiceOrchestrator(object):
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
+        self._controller.event_complete(event)
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
@@ -1403,6 +1406,7 @@ class ServiceOrchestrator(object):
             'network_function_details': network_function_details
         }
         if not config_id:
+            self._controller.event_complete(event)
             self._create_event('USER_CONFIG_FAILED',
                                event_data=request_data, is_internal_event=True)
             return
@@ -1410,6 +1414,8 @@ class ServiceOrchestrator(object):
             self.db_session,
             network_function['id'],
             {'heat_stack_id': config_id})
+
+        self._controller.event_complete(event)
         self._create_event('APPLY_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
@@ -1472,10 +1478,12 @@ class ServiceOrchestrator(object):
                 'operation': request_data['operation'],
                 'consumer_ptg': request_data['consumer_ptg']
             }
+            self._controller.event_complete(event)
             self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,
                                is_poll_event=True, original_event=event)
         else:
+            self._controller.event_complete(event)
             self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                                event_data=event.data,
                                is_internal_event=True)
@@ -1538,10 +1546,13 @@ class ServiceOrchestrator(object):
                 'operation': request_data['operation'],
                 'consumer_ptg': request_data['consumer_ptg']
             }
+
+            self._controller.event_complete(event)
             self._create_event('UPDATE_USER_CONFIG_PREPARING_TO_START',
                                event_data=request_data,
                                is_poll_event=True, original_event=event)
         else:
+            self._controller.event_complete(event)
             self._create_event('UPDATE_USER_CONFIG_IN_PROGRESS',
                                event_data=event.data,
                                is_internal_event=True)

@@ -207,8 +207,6 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
             mock.patch.object(
                 sc, 'poll_event') as mock_hm_poll_event, \
             mock.patch.object(
-                sc, 'poll_event_done') as mock_hm_poll_event_done, \
-            mock.patch.object(
                 driver, 'configure_healthmonitor', return_value='SUCCESS'), \
             mock.patch.object(
                 agent, '_get_driver', return_value=driver):
@@ -238,7 +236,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
                 elif periodicity == gen_cfg_const.FOREVER:
                     mock_hm_poll_event.assert_called_with(ev)
             elif ev.id == 'CLEAR_HEALTHMONITOR':
-                mock_hm_poll_event_done.assert_called_with(ev)
+                pass
 
     def _test_handle_periodic_event(self, ev):
         """ Test handle periodic event method of generic config agent
@@ -260,12 +258,9 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
             mock.patch.object(
                     driver, 'configure_healthmonitor',
                     return_value='SUCCESS'), \
-            mock.patch.object(
-                sc, 'poll_event_done') as mock_poll_event_done, \
             mock.patch.object(subprocess, 'check_output', return_value=True):
 
             agent.handle_configure_healthmonitor(ev)
-            mock_poll_event_done.assert_called_with(ev)
 
     def test_configure_interfaces_genericconfigeventhandler(self):
         """ Implements test case for configure interfaces method

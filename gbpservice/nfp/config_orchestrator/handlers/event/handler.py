@@ -19,7 +19,7 @@ import traceback
 from gbpservice.nfp.config_orchestrator.common import common
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.core import poll as core_pt
+from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.lib import transport
 
 from neutron import context as n_context
@@ -62,7 +62,7 @@ def event_init(sc, conf):
 """Periodic Class to service events for visiblity."""
 
 
-class EventsHandler(core_pt.PollEventDesc):
+class EventsHandler(nfp_api.NfpEventHandler):
 
     def __init__(self, sc, conf):
         self._sc = sc
