@@ -299,7 +299,8 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
         context = ev.data.get('context')
         service_vendor = ev.data['context']['agent_info']['service_vendor']
         s2s_contexts = self._plugin_rpc.get_vpn_servicecontext(context)
-        state = self._sync_ipsec_conns(context, s2s_contexts[0], service_vendor)
+        state = self._sync_ipsec_conns(context, s2s_contexts[0],
+                                       service_vendor)
         if state == const.STATE_ACTIVE:
             return {'poll': False}
 
