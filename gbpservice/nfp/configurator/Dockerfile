@@ -14,7 +14,6 @@ RUN apt-get -y --force-yes install vim\
  rabbitmq-server\
  unzip
  
-
 # python dependencies
 RUN pip install python-keystoneclient \
 oslo.config==3.6.0 \
@@ -28,6 +27,15 @@ pecan==1.0.4 \
 amqp==1.4.9 \
 wsme
 
+#haproxy lbaasv2 depedencies
+RUN sudo apt-get -y --force-yes install python-dev
+RUN pip install "octavia<0.8"
+
+RUN cd /tmp
+RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lbaas.git
+RUN cd /tmp/neutron-lbaas
+RUN sudo pip install -r requirements.txt --allow-all-external 
+RUN sudo python setup.py install
 
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lib.git neutron_lib
 RUN cp -r  /neutron_lib/neutron_lib /usr/local/lib/python2.7/dist-packages/

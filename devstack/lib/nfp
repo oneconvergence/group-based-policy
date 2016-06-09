@@ -314,7 +314,7 @@ function create_nfp_gbp_resources {
     neutron router-gateway-clear l3p_service_management
 }
 
-funcrtion create_service_profile_lbaasv2 {
+function create_service_profile_lbaasv2 {
     gbp service-profile-create --shared True --vendor NFP --servicetype LOADBALANCERV2 --service-flavor service_vendor=haproxy_lbaasv2,device_type=nova,flavor=m1.small --insertion-mode l3 lbv2_profile
 }
 
