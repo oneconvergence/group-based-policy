@@ -36,6 +36,7 @@ class Filter(object):
 
         """
         try:
+            filters = {}
             for fk, fv in msg['args'].items():
                 if dict == type(fv):
                     filters = fv
