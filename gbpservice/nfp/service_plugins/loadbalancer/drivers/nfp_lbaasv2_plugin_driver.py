@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.config_orchestrator.agent import topics
+from gbpservice.nfp.config_orchestrator.common import topics
 from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy import (
     haproxy_driver
 )
