@@ -17,7 +17,11 @@ from gbpservice.neutron.tests.unit.nfp.configurator.test_data import \
     vpn_test_data
 from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.base import base_driver
+from gbpservice.nfp.configurator.drivers.vpn.vyos import (
+    vyos_vpn_constants as const)
 from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
+
+from oslo_config import cfg
 from oslo_serialization import jsonutils
 
 import json
@@ -148,12 +152,13 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(VpnGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
-        self.conf = 'conf'
+        with mock.patch.object(cfg, 'CONF') as mock_cfg:
+            mock_cfg.configure_mock()
+            self.driver = vyos_vpn_driver.VpnaasIpsecDriver(mock_cfg)
         self.dict_objects = vpn_test_data.VPNTestData()
         self.context = self.dict_objects.make_service_context()
         self.plugin_rpc = vpn.VpnaasRpcSender(self.dict_objects.sc)
         self.rest_apt = vyos_vpn_driver.RestApi(self.dict_objects.vm_mgmt_ip)
-        self.driver = vyos_vpn_driver.VpnGenericConfigDriver(self.conf)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True}
         self.kwargs = self.dict_objects.fake_resource_data()
@@ -308,7 +313,7 @@ class RestApiTestCase(unittest.TestCase):
         self.dict_objects = vpn_test_data.VPNTestData()
         self.args = {'peer_address': '1.103.2.2'}
         self.fake_resp_dict = {'status': None}
-        self.timeout = 90
+        self.timeout = const.REST_TIMEOUT
         self.data = {'data': 'data'}
         self.j_data = jsonutils.dumps(self.data)
 
