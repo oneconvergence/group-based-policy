@@ -108,7 +108,9 @@ function create_nfp_image {
         fi
         echo "Uploading Image: $HaproxyQcow2ImageName"
         glance image-create --name $HaproxyQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $HaproxyQcow2Image
-
+        Haproxy_LBaasV2_Qcow2Image_Name=haproxy_lbaasv2
+        echo "Uploading Image: $Haproxy_LBaasV2_Qcow2Image_Name"
+        glance image-create --name $Haproxy_LBaasV2_Qcow2Image_Name --disk-format qcow2 --container-format bare --visibility public --file $Haproxy_LBaasV2_Qcow2Image
     fi
 
     # restore the apache2 setting that we did above
@@ -299,6 +301,7 @@ function create_nfp_gbp_resources {
         if [[ $DEVSTACK_MODE = enterprise ]]; then
             gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_fw_profile
         fi  
+        create_service_profile_lbaasv2
         create_ext_net
         create_ep_and_nsp
         create_advance_sharing_ptg
@@ -309,6 +312,10 @@ function create_nfp_gbp_resources {
 
     gbp group-create svc_management_ptg --service_management True --l2-policy svc_management_ptg
     neutron router-gateway-clear l3p_service_management
+}
+
+funcrtion create_service_profile_lbaasv2 {
+    gbp service-profile-create --shared True --vendor NFP --servicetype LOADBALANCERV2 --service-flavor service_vendor=haproxy_lbaasv2,device_type=nova,flavor=m1.small --insertion-mode l3 lbv2_profile
 }
 
 
