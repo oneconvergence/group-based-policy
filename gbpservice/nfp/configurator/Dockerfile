@@ -32,7 +32,7 @@ RUN sudo apt-get -y --force-yes install python-dev
 RUN pip install "octavia<0.8"
 
 RUN cd /tmp
-RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lbaas.git
+RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lbaas.git neutron-lbaas
 RUN cd /tmp/neutron-lbaas
 RUN sudo pip install -r requirements.txt --allow-all-external 
 RUN sudo python setup.py install
