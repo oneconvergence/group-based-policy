@@ -385,6 +385,28 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
         Returns: SUCCESS/Failure message with reason.
 
         """
+        mgmt_ip = resource_data['mgmt_ip']
+
+        try:
+            result_log_forward = self._configure_log_forwarding(
+                const.request_url, mgmt_ip, self.port)
+        except Exception as err:
+            msg = ("Failed to configure log forwarding for service at %s. "
+                   "Error: %s" % (mgmt_ip, err))
+            LOG.error(msg)
+            return msg
+        else:
+            if result_log_forward == common_const.UNHANDLED:
+                pass
+            elif result_log_forward != common_const.STATUS_SUCCESS:
+                msg = ("Failed to configure log forwarding for service at %s. "
+                       "Error: %s" % (mgmt_ip, err))
+                LOG.error(msg)
+                return result_log_forward
+            else:
+                msg = ("Configured log forwarding for service at %s. "
+                       "Result: %s" % (mgmt_ip, result_log_forward))
+                LOG.info(msg)
 
         try:
             result_static_ips = self._configure_static_ips(resource_data)
@@ -402,8 +424,6 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
         rule_info = dict(
             provider_mac=resource_data['provider_mac'],
             stitching_mac=resource_data['stitching_mac'])
-
-        mgmt_ip = resource_data['mgmt_ip']
 
         url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT, 'add_rule')
@@ -740,6 +760,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
 
     def __init__(self, conf):
         self.conf = conf
+        self.port = const.CONFIGURATION_SERVER_PORT
         self.handlers = {
             'vpn_service': {
                 'create': self.create_vpn_service},
@@ -1272,19 +1293,3 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
             self.handlers[rsrc][reason](context, resource_data)
 
         return _vpnservice_updated(context, resource_data)
-
-    def configure_healthmonitor(self, context, resource_data):
-        """Overriding BaseDriver's configure_healthmonitor().
-           It does netcat to CONFIGURATION_SERVER_PORT  8888.
-           Configuration agent runs inside service vm.Once agent is up and
-           reachable, service vm is assumed to be active.
-           :param context - context
-           :param resource_data - resource_data coming from orchestrator
-
-           Returns: SUCCESS/FAILED
-
-        """
-        ip = resource_data.get('mgmt_ip')
-        port = str(const.CONFIGURATION_SERVER_PORT)
-        command = 'nc ' + ip + ' ' + port + ' -z'
-        return self._check_vm_health(command)
