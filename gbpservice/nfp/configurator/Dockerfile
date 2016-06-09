@@ -31,11 +31,9 @@ wsme
 RUN sudo apt-get -y --force-yes install python-dev
 RUN pip install "octavia<0.8"
 
-RUN cd /tmp
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lbaas.git neutron-lbaas
-RUN cd /tmp/neutron-lbaas
-RUN sudo pip install -r requirements.txt --allow-all-external 
-RUN sudo python setup.py install
+RUN sudo pip install -r /neutron-lbaas/requirements.txt --allow-all-external
+RUN sudo python /neutron-lbaas/setup.py install
 
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lib.git neutron_lib
 RUN cp -r  /neutron_lib/neutron_lib /usr/local/lib/python2.7/dist-packages/
