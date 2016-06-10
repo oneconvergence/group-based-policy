@@ -295,13 +295,15 @@ function create_nfp_gbp_resources {
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
     else
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
+        gbp service-profile-create --shared True --vendor NFP --servicetype LOADBALANCERV2 --service-flavor service_vendor=haproxy_lbaasv2,device_type=nova,flavor=m1.small --insertion-mode l3 lbv2_profile
+}
+
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vyos_fw_profile
         gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
 
         if [[ $DEVSTACK_MODE = enterprise ]]; then
             gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_fw_profile
         fi  
-        create_service_profile_lbaasv2
         create_ext_net
         create_ep_and_nsp
         create_advance_sharing_ptg
@@ -314,9 +316,6 @@ function create_nfp_gbp_resources {
     neutron router-gateway-clear l3p_service_management
 }
 
-function create_service_profile_lbaasv2 {
-    gbp service-profile-create --shared True --vendor NFP --servicetype LOADBALANCERV2 --service-flavor service_vendor=haproxy_lbaasv2,device_type=nova,flavor=m1.small --insertion-mode l3 lbv2_profile
-}
 
 
 function copy_nfp_files_and_start_process {
