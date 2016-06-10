@@ -13,7 +13,9 @@
 """ Implements fake objects for assertion.
 
 """
-import json
+
+from gbpservice.nfp.configurator.drivers.vpn.vyos import (
+    vyos_vpn_constants as const)
 
 
 class VPNTestData(object):
@@ -76,7 +78,7 @@ class VPNTestData(object):
         self.data__ = {"local_cidr": "11.0.6.0/24",
                        "peer_address": "1.103.2.2",
                        "peer_cidr": "141.0.0.0/24"}
-        self.timeout = 90
+        self.timeout = const.REST_TIMEOUT
 
         self.ipsec_vpn_create = ['fip=192.168.20.75',
                                  'tunnel_local_cidr=11.0.6.0/24',

@@ -10,18 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.vpn'
 
-SERVICE_TYPE = 'vpn'
+REQUEST_URL = "https://%s%s"
+CONFIGURATION_SERVER_PORT = '443'
+SERVICE_VENDOR = 'asav'
 
-
-STATE_PENDING = 'PENDING_CREATE'
-STATE_INIT = 'INIT'
-STATE_ACTIVE = 'ACTIVE'
-STATE_ERROR = 'ERROR'
-
-
-VPN_GENERIC_CONFIG_RPC_TOPIC = "vyos_vpn_topic"
-
-VPN_PLUGIN_TOPIC = 'vpn_plugin'
-VPN_AGENT_TOPIC = 'vpn_agent'
+REST_TIMEOUT = 160
