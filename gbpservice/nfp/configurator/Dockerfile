@@ -29,6 +29,7 @@ wsme
 
 #haproxy lbaasv2 depedencies
 RUN sudo apt-get -y --force-yes install python-dev
+RUN sudo pip install python-pan
 RUN pip install "octavia<0.8"
 
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lbaas.git neutron-lbaas

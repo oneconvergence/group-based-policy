@@ -51,6 +51,7 @@ if [[ $DEVSTACK_MODE = enterprise ]]; then
     DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
     
     AsavQcow2Image=
+    PaloAltoQcow2Image=
 fi
 
 VyosQcow2Image=

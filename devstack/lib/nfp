@@ -74,6 +74,9 @@ function create_nfp_image {
             AsavQcow2ImageName=asav
             echo "Uploading Image: $AsavQcow2ImageName"
             glance image-create --name $AsavQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $AsavQcow2Image
+            PaloAltoQcow2ImageName=paloalto
+            echo "Uploading Image: $PaloAltoQcow2ImageName"
+            glance image-create --name $PaloAltoQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $PaloAltoQcow2Image
 
         else
 
@@ -428,18 +431,9 @@ function configure_visibility_user_data {
     sudo sed -i "8 i\      -\ $value" visibility_user_data
     sudo sed -i '9d' visibility_user_data
     sudo sed -i "s/visibility_vm_ip=*.*/visibility_vm_ip=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/sc_active_ip=*.*/sc_active_ip=$HOST_IP/g" visibility_user_data
-    sudo sed -i "s/sc_standby_ip=*.*/sc_standby_ip=$HOST_IP/g" visibility_user_data
-    sudo sed -i "s/service_controller_vip=*.*/service_controller_vip=$HOST_IP:8080/g" visibility_user_data
-    sudo sed -i "s/db_user=*.*/db_user=root/g" visibility_user_data
-    sudo sed -i "s/db_password=*.*/db_password=$MYSQL_PASSWORD/g" visibility_user_data
-    sudo sed -i "s/db_server_ip=*.*/db_server_ip=$HOST_IP/g" visibility_user_data
+    sudo sed -i "s/os_controller_ip=*.*/os_controller_ip=$HOST_IP:8080/g" visibility_user_data
     sudo sed -i "s/statsd_host=*.*/statsd_host=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/statsd_port=*.*/statsd_port=8125/g" visibility_user_data
-    sudo sed -i "s/rsyslog_host=*.*/rsyslog_host=$visibility_vm_ip/g" visibility_user_data
     sudo sed -i "s/rabbit_host=*.*/rabbit_host=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/rabbit_port=*.*/rabbit_port=5672/g" visibility_user_data
-    sudo sed -i "s/rsyslog_host=*.*/rsyslog_host=$visibility_vm_ip/g" visibility_user_data
     cd $CUR_DIR
 }
 
