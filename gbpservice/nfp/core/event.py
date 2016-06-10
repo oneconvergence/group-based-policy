@@ -18,6 +18,7 @@ from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core import sequencer as nfp_seq
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import graph as nfp_graph
 
 LOG = nfp_logging.getLogger(__name__)
 identify = nfp_common.identify
@@ -121,14 +122,23 @@ class Event(object):
             desc = EventDesc()
         self.desc = desc
 
+        # Will be set if this event is a event graph
+        self.graph = None
+        self.result = None
+
         cond = self.sequence is True and self.binding_key is None
         assert not cond
+
+    def set_fields(self, **kwargs):
+        if 'graph' in kwargs:
+            self.graph = kwargs['graph']
 
     def identify(self):
         if hasattr(self, 'desc'):
             return "uuid=%s,id=%s,type=%s,flag=%s" % (
                 self.desc.uuid, self.id, self.desc.type, self.desc.flag)
         return "id=%s" % (self.id)
+
 
 """Table of event handler's.
 
@@ -159,8 +169,8 @@ class NfpEventHandlers(object):
         """
         if not isinstance(event_handler, nfp_api.NfpEventHandler):
             LOG.error("%s - Handler is not"
-                "instance of NfpEventHandler" %
-                (self._log_meta(event_id, event_handler)))
+                      "instance of NfpEventHandler" %
+                      (self._log_meta(event_id, event_handler)))
             return
         try:
             poll_desc_table = event_handler.get_poll_desc_table()
@@ -179,7 +189,7 @@ class NfpEventHandlers(object):
                 (event_handler, poll_handler, spacing)]
 
         LOG.debug("%s - Registered handler" %
-            (self._log_meta(event_id, event_handler)))
+                  (self._log_meta(event_id, event_handler)))
 
     def get_event_handler(self, event_id):
         """Get the handler for the event_id. """
@@ -188,7 +198,7 @@ class NfpEventHandlers(object):
             eh = self._event_desc_table[event_id][0][0]
         finally:
             LOG.debug("%s - Returning event handler" %
-                (self._log_meta(event_id, eh)))
+                      (self._log_meta(event_id, eh)))
             return eh
 
     def get_poll_handler(self, event_id):
@@ -198,7 +208,7 @@ class NfpEventHandlers(object):
             ph = self._event_desc_table[event_id][0][1]
         finally:
             LOG.debug("%s - Returning poll handler" %
-                (self._log_meta(event_id, ph)))
+                      (self._log_meta(event_id, ph)))
             return ph
 
     def get_poll_spacing(self, event_id):
@@ -208,7 +218,7 @@ class NfpEventHandlers(object):
             spacing = self._event_desc_table[event_id][0][2]
         finally:
             LOG.debug("%s - Poll spacing %d" %
-                (self._log_meta(event_id), spacing))
+                      (self._log_meta(event_id), spacing))
             return spacing
 
 
@@ -295,7 +305,7 @@ class NfpEventManager(object):
         except ValueError as verr:
             verr = verr
             LOG.error("%s - event not in cache" %
-                (self._log_meta(event)))
+                      (self._log_meta(event)))
 
     def dispatch_event(self, event, event_type=None,
                        inc_load=True, cache=True):
@@ -306,7 +316,7 @@ class NfpEventManager(object):
             poll_event does not contribute to load.
         """
         LOG.debug("%s - Dispatching to worker %d" %
-            (self._log_meta(event), self._pid))
+                  (self._log_meta(event), self._pid))
         # Update the worker information in the event.
         event.desc.worker = self._pid
         # Update the event with passed type

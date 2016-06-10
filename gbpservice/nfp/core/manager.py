@@ -18,6 +18,7 @@ from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import sequencer as nfp_sequencer
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import graph as nfp_graph
 
 LOG = nfp_logging.getLogger(__name__)
 NfpEventManager = nfp_event.NfpEventManager
@@ -33,6 +34,10 @@ def IS_SCHEDULED_EVENT_ACK(event):
 def IS_SCHEDULED_NEW_EVENT(event):
     return event.desc.type == nfp_event.SCHEDULE_EVENT and \
         event.desc.flag == nfp_event.EVENT_NEW
+
+
+def IS_SCHEDULED_EVENT_GRAPH(event):
+    return IS_SCHEDULED_NEW_EVENT(event) and (event.graph)
 
 '''
 def IS_SCHEDULED_EVENT_COMPLETE(event):
@@ -153,18 +158,24 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
         event_manager, load_info = self._get_min_loaded_em(load_info)
         event_manager.dispatch_event(event)
 
-    def _scheduled_new_event(self, event):
+    def _scheduled_event_graph(self, event):
+        nfp_graph.execute(self, event)
+
+    def _scheduled_new_event(self, event, dispatch=True):
         # Cache the event object
         self._event_cache[event.desc.uuid] = event
         # Event needs to be sequenced ?
         if not event.sequence:
-            # Dispatch to a worker
-            self._dispatch_event(event)
+            if dispatch:
+                # Dispatch to a worker
+                self._dispatch_event(event)
         else:
             LOG.debug("(event - %s) - sequencing" %
-                (event.identify()))
+                      (event.identify()))
             # Sequence the event which will be processed later
             self._event_sequencer.sequence(event.binding_key, event)
+
+        return event.sequence
 
     def _scheduled_event_ack(self, ack_event):
         try:
@@ -178,18 +189,20 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
         except KeyError as kerr:
             kerr = kerr
             LOG.error("(event - %s) - acked,"
-                "missing from cache" % (event.identify()))
+                      "missing from cache" % (event.identify()))
         except AssertionError as aerr:
             aerr = aerr
             LOG.error("(event - %s) - acked,"
-                "process handling is dead, event will be"
-                "replayed in new process" %
-                (event.identify()))
+                      "process handling is dead, event will be"
+                      "replayed in new process" %
+                      (event.identify()))
 
     def _scheduled_event_complete(self, event, expired=False):
         # Pop it from cache
+        cached_event = None
         try:
-            self._event_cache.pop(event.desc.uuid)
+            cached_event = self._event_cache.pop(event.desc.uuid)
+            cached_event.result = event.result
             # Get the em managing the event
             evmanager = self._get_event_manager(event.desc.worker)
             assert evmanager
@@ -201,18 +214,19 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
         except KeyError as kerr:
             kerr = kerr
             LOG.error("(event - %s) - completed, not in cache" %
-                (event.identify()))
+                      (event.identify()))
         except AssertionError as aerr:
             aerr = aerr
             # No event manager for the event, worker could have got
             # killed, ignore.
             LOG.error("(event - %s) - assertion error" %
-                (event.identify()))
+                      (event.identify()))
             pass
         finally:
             # Release the sequencer for this sequence,
             # so that next event can get scheduled.
             self._event_sequencer.release(event.binding_key, event)
+            nfp_graph.event_complete(self, cached_event)
 
     def _non_schedule_event(self, event):
         if event.desc.type == nfp_event.POLL_EVENT:
@@ -245,7 +259,7 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
             except KeyError as kerr:
                 kerr = kerr
                 LOG.error("%s - event missing in cache" %
-                    (event_id))
+                          (event_id))
 
     def process_events(self, events):
         """Process the consumed event.
@@ -258,7 +272,10 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
         """
         for event in events:
             LOG.debug("%s - processing event" % (event.identify()))
-            if IS_SCHEDULED_EVENT_ACK(event):
+
+            if IS_SCHEDULED_EVENT_GRAPH(event):
+                self._scheduled_event_graph(event)
+            elif IS_SCHEDULED_EVENT_ACK(event):
                 self._scheduled_event_ack(event)
             elif IS_SCHEDULED_NEW_EVENT(event):
                 self._scheduled_new_event(event)
@@ -309,15 +326,15 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
             except KeyError as kerr:
                 kerr = kerr
                 LOG.error("%s - eventid missing in cache" %
-                    (event_id))
+                          (event_id))
 
     def _child_watcher(self):
         dead, new = super(NfpResourceManager, self).child_watcher()
         if len(dead) and len(dead) != len(new):
             LOG.error("Killed process - %s, "
-                "New Process - %s, "
-                "does not match in count, few killed process"
-                "will not be replaced" % (str(dead), str(new)))
+                      "New Process - %s, "
+                      "does not match in count, few killed process"
+                      "will not be replaced" % (str(dead), str(new)))
 
         # Loop over dead workers and assign its
         # event manager to one of the new worker
@@ -367,7 +384,7 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
         except KeyError as err:
             err = err
             LOG.error("(event - %s) - timedout, not in cache" %
-                (event.identify()))
+                      (event.identify()))
         except AssertionError as aerr:
             aerr = aerr
             # Process associated with event could be killed.

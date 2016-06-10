@@ -17,6 +17,7 @@ eventlet.monkey_patch()
 import multiprocessing
 import operator
 import os
+import pickle
 import Queue
 import sys
 import time
@@ -155,11 +156,16 @@ class NfpService(object):
         setattr(event.desc, 'poll_desc', poll_desc)
         return event
 
-    def event_complete(self, event):
+    def event_complete(self, event, result=None):
         """To declare and event complete. """
-        event.sequence = False
-        event.desc.flag = nfp_event.EVENT_COMPLETE
-        return event
+        try:
+            pickle.dumps(result)
+            event.sequence = False
+            event.desc.flag = nfp_event.EVENT_COMPLETE
+            event.result = result
+            return event
+        except Exception as e:
+            raise e
 
     def create_work(self, work):
         """Create a work, collection of events. """
@@ -266,8 +272,8 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         proc = self._fork(args=(wrap.service, parent_pipe, child_pipe, self))
 
         LOG.info("Forked a new child: %d"
-            "Parent Pipe: % s, Child Pipe: % s" % (
-                proc.pid, str(parent_pipe), str(child_pipe)))
+                 "Parent Pipe: % s, Child Pipe: % s" % (
+                     proc.pid, str(parent_pipe), str(child_pipe)))
 
         try:
             wrap.child_pipe_map[proc.pid] = parent_pipe
@@ -347,12 +353,12 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         if self.PROCESS_TYPE == "worker":
             # Event posted in worker context, send it to parent process
             LOG.debug("(event - %s) - new event in worker"
-                "posting to distributor process" % (event.identify()))
+                      "posting to distributor process" % (event.identify()))
             # Send it to the distributor process
             self.pipe_send(self._pipe, event)
         else:
             LOG.debug("(event - %s) - new event in distributor"
-                "processing event" % (event.identify()))
+                      "processing event" % (event.identify()))
             self._manager.process_events([event])
 
     def poll_event(self, event, spacing=2, max_times=sys.maxint):
@@ -435,7 +441,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             LOG.error("worker cannot pull stashed events")
         return events
 
-    def event_complete(self, event):
+    def event_complete(self, event, result=None):
         """To mark an event complete.
 
             Module can invoke this API to mark an event complete.
@@ -450,7 +456,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             Returns: None
         """
         LOG.debug("(event - %s) complete" % (event.identify()))
-        event = super(NfpController, self).event_complete(event)
+        event = super(NfpController, self).event_complete(event, result=result)
         if self.PROCESS_TYPE == "distributor":
             self._manager.process_events([event])
         else:
@@ -477,7 +483,7 @@ def load_nfp_modules(conf, controller):
                         pymodule.nfp_module_init(controller, conf)
                         pymodules += [pymodule]
                         LOG.debug("(module - %s) - Initialized" %
-                            (identify(pymodule)))
+                                  (identify(pymodule)))
                     except AttributeError as e:
                         import sys
                         import traceback
@@ -485,8 +491,8 @@ def load_nfp_modules(conf, controller):
                         print traceback.format_exception(exc_type, exc_value,
                                                          exc_traceback)
                         LOG.error("(module - %s) - "
-                            "does not implement"
-                            "nfp_module_init()" % (identify(pymodule)))
+                                  "does not implement"
+                                  "nfp_module_init()" % (identify(pymodule)))
                 except ImportError:
                     LOG.error(
                         "Failed to import module %s" % (pyfile))
@@ -513,8 +519,8 @@ def nfp_modules_post_init(conf, nfp_modules, nfp_controller):
             module.nfp_module_post_init(nfp_controller, conf)
         except AttributeError:
             LOG.debug("(module - %s) - "
-                "does not implement"
-                "nfp_module_post_init(), ignoring" % (identify(module)))
+                      "does not implement"
+                      "nfp_module_post_init(), ignoring" % (identify(module)))
 
 
 def main():
