@@ -296,7 +296,6 @@ function create_nfp_gbp_resources {
     else
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
         gbp service-profile-create --shared True --vendor NFP --servicetype LOADBALANCERV2 --service-flavor service_vendor=haproxy_lbaasv2,device_type=nova,flavor=m1.small --insertion-mode l3 lbv2_profile
-}
 
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vyos_fw_profile
         gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
