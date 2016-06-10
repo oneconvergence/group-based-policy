@@ -54,6 +54,7 @@ if [[ $DEVSTACK_MODE = enterprise ]]; then
     PaloAltoQcow2Image=
 fi
 
+Haproxy_LBaasV2_Qcow2Image=
 VyosQcow2Image=
 
 # Make sure that your public interface is not attached to any bridge.
