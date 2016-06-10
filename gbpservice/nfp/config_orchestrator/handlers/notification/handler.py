@@ -11,6 +11,8 @@
 #    under the License.
 
 from gbpservice.nfp.common import constants as const
+from gbpservice.nfp.config_orchestrator.common import lbv2_constants \
+    as lbv2_const
 from gbpservice.nfp.config_orchestrator.common import topics as a_topics
 from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
@@ -180,6 +182,65 @@ class LoadbalancerNotifier(object):
         pass
 
 
+class LoadbalancerV2Notifier(object):
+
+    def __init__(self, conf, sc):
+        self._sc = sc
+        self._conf = conf
+
+    def update_status(self, context, notification_data):
+        notification = notification_data['notification'][0]
+
+        request_info = notification_data.get('info')
+        request_context = request_info.get('context')
+        logging_context = request_context.get('logging_context')
+        nfp_logging.store_logging_context(**logging_context)
+
+        resource_data = notification['data']
+        obj_type = resource_data['obj_type']
+        obj_id = resource_data['obj_id']
+
+        rpcClient = transport.RPCClient(a_topics.LBV2_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt = rpcClient.client.prepare(
+            version=const.LOADBALANCERV2_RPC_API_VERSION)
+
+        lb_p_status = const.ACTIVE
+        lb_o_status = None
+        obj_p_status = resource_data['provisioning_status']
+        obj_o_status = resource_data['operating_status']
+
+        msg = ("NCO received LB's update_status API, making an update_status "
+               "RPC call to plugin for %s: %s with status %s" % (
+                   obj_type, obj_id, obj_p_status))
+        LOG.info(msg)
+
+        if obj_type == 'healthmonitor':
+                obj_o_status = None
+
+        if obj_type != 'loadbalancer':
+            rpcClient.cctxt.cast(context, 'update_status',
+                                 obj_type=obj_type,
+                                 obj_id=obj_id,
+                                 provisioning_status=obj_p_status,
+                                 operating_status=obj_o_status)
+        else:
+            lb_o_status = lbv2_const.ONLINE
+            if obj_p_status == const.ERROR:
+                lb_p_status = const.ERROR
+                lb_o_status = lbv2_const.OFFLINE
+
+        rpcClient.cctxt.cast(context, 'update_status',
+                             obj_type='loadbalancer',
+                             obj_id=resource_data['root_lb_id'],
+                             provisioning_status=lb_p_status,
+                             operating_status=lb_o_status)
+        nfp_logging.clear_logging_context()
+
+    # TODO(jiahao): implememnt later
+    def update_loadbalancer_stats(self, context, loadbalancer_id, stats_data):
+        pass
+
+
 class VpnNotifier(object):
 
     def __init__(self, conf, sc):
@@ -210,6 +271,7 @@ class VpnNotifier(object):
 
 ServicetypeToHandlerMap = {'firewall': FirewallNotifier,
                            'loadbalancer': LoadbalancerNotifier,
+                           'loadbalancerv2': LoadbalancerV2Notifier,
                            'vpn': VpnNotifier}
 
 

@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.loadbalancer'
+DRIVERS_DIR = 'gbpservice.nfp.configurator.drivers.loadbalancer.v1'
 SERVICE_TYPE = 'loadbalancer'
 NEUTRON = 'neutron'
 
