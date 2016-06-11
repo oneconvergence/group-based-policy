@@ -24,10 +24,16 @@ class StaticIp(configOpts):
         self.hotplug_timeout = 25
 
     def save(self):
-        session.commit()
-        session.save()
-        time.sleep(3)
-        session.teardown_config_session()
+        retries = 10
+        while retries:
+            try:
+                session.commit()
+                session.save()
+                time.sleep(3)
+                session.teardown_config_session()
+                return
+            except Exception:
+                retries -= 1
 
     def discard(self):
         session.discard()
