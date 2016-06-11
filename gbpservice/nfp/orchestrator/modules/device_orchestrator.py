@@ -670,11 +670,10 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             }
             
             self._create_event(event_id='DEVICE_SPAWNING',
-                               event_data=nfp_context,
-                               is_poll_event=True,
-                               original_event=event)
-
-			self._create_event(event_id='DEVICE_CREATED',
+                                event_data=nfp_context,
+                                is_poll_event=True,
+                                original_event=event)
+            self._create_event(event_id='DEVICE_CREATED',
                                event_data=device_created_data)
 
     @nfp_api.poll_event_desc(event='DEVICE_SPAWNING', spacing=2)

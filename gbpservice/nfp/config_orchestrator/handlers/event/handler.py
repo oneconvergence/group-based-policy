@@ -449,7 +449,7 @@ class EventsHandler(nfp_api.NfpEventHandler):
                                     data=new_event_data)
         self._sc.post_event(new_ev)
 
-    @core_pt.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=5)
+    @nfp_api.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=5)
     def create_sevice_pending_event(self, ev):
         event_data = copy.deepcopy(ev.data)
         try:
@@ -468,7 +468,7 @@ class EventsHandler(nfp_api.NfpEventHandler):
             LOG.error(msg)
             return STOP_POLLING
 
-    @core_pt.poll_event_desc(event='SERVICE_OPERATION_POLL_EVENT', spacing=5)
+    @nfp_api.poll_event_desc(event='SERVICE_OPERATION_POLL_EVENT', spacing=5)
     def service_operation_poll_stash_event(self, ev):
         events = self._sc.get_stashed_events()
         msg = ("Stash Queue is: %s" % (events))

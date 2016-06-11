@@ -427,18 +427,20 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             Executor: distributor-process
         """
         events = []
-        if self.PROCESS_TYPE == "distributor":
-            # wait sometime for first event in the queue
-            timeout = 0.1
+        # return at max 5 events
+        maxx = 5
+        # wait sometime for first event in the queue
+        timeout = 0.1
+        while maxx:
             try:
                 event = self._stashq.get(timeout=timeout)
                 self.decompress(event)
                 events.append(event)
                 timeout = 0
+                maxx -= 1
             except Queue.Empty:
+                maxx = 0
                 pass
-        else:
-            LOG.error("worker cannot pull stashed events")
         return events
 
     def event_complete(self, event, result=None):

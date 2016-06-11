@@ -58,7 +58,7 @@ class PullNotification(nfp_api.NfpEventHandler):
         except Exception as e:
             raise Exception(e)
 
-    @nfp_api.poll_event_desc(event='PULL_NOTIFICATIONS', spacing=10)
+    @nfp_api.poll_event_desc(event='PULL_NOTIFICATIONS', spacing=2)
     def pull_notifications(self, ev):
         """Pull and handle notification from configurator."""
         notifications = transport.get_response_from_configurator(self._conf)
