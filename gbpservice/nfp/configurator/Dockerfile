@@ -28,6 +28,21 @@ pecan==1.0.4 \
 amqp==1.4.9 \
 wsme
 
+#haproxy lbaasv2 depedencies
+RUN sudo apt-get -y --force-yes install python-dev
+RUN pip install "octavia<0.8"
+
+RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lbaas.git neutron-lbaas
+RUN sudo pip install -r /neutron-lbaas/requirements.txt --allow-all-external
+RUN cur_dir=$PWD
+RUN cd /neutron-lbaas && sudo python setup.py install
+RUN cd $cur_dir
+
+RUN git clone https://github.com/kevinsteves/pan-python.git pan-python
+RUN cur_dir=$PWD
+RUN cd /pan-python && sudo ./setup.py install
+RUN cd $cur_dir
+
 
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lib.git neutron_lib
 RUN cp -r  /neutron_lib/neutron_lib /usr/local/lib/python2.7/dist-packages/

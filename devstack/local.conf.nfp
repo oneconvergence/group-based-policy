@@ -51,9 +51,11 @@ if [[ $DEVSTACK_MODE = enterprise ]]; then
     DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
     
     AsavQcow2Image=
+    PaloAltoQcow2Image=
 fi
 
 VyosQcow2Image=
+Haproxy_LBaasV2_Qcow2Image=
 
 # Make sure that your public interface is not attached to any bridge.
 PUBLIC_INTERFACE=
