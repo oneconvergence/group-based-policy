@@ -33,6 +33,7 @@ class StaticIp(configOpts):
                 session.teardown_config_session()
                 return
             except Exception:
+                time.sleep(1)
                 retries -= 1
 
     def discard(self):

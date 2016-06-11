@@ -847,11 +847,11 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             return
         # Sending LogMeta Details to visibility
         self._report_logging_info(network_function,
-                                  network_function_instance,
+                                  nfi_db,
                                   service_details['service_type'],
                                   service_details['service_vendor'])
 
-        nfp_context['network_function_instance'] = network_function_instance
+        nfp_context['network_function_instance'] = nfi_db
 
         LOG.info(_LI("[Event:CreateService]"))
         self._create_event('CREATE_NETWORK_FUNCTION_DEVICE',
