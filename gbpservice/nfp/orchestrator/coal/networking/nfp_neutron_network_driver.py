@@ -17,16 +17,17 @@ from gbpservice.nfp.orchestrator.coal.networking import(
 
 
 class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
+
     def __init__(self, config):
         # self.network_handler = openstack_driver.NeutronClient(config)
-	self.neutron_client = openstack_driver.NeutronClient(config)
+        self.neutron_client = openstack_driver.NeutronClient(config)
 
     def setup_traffic_steering(self):
         pass
 
     def create_port(self, token, tenant_id, net_id, name=None):
         port = self.neutron_client.create_port(token, tenant_id, net_id,
-                                                attrs={'name': name})
+                                               attrs={'name': name})
         return port
 
     def delete_port(self, token, port_id):
@@ -75,8 +76,8 @@ class NFPNeutronNetworkDriver(ndb.NFPNetworkDriverBase):
 
     def set_promiscuos_mode(self, token, port_id):
         self.neutron_client.update_port(token, port_id,
-                                         security_groups=[],
-                                         port_security_enabled=False)
+                                        security_groups=[],
+                                        port_security_enabled=False)
 
     def get_service_profile(self, token, service_profile_id):
         return {}
