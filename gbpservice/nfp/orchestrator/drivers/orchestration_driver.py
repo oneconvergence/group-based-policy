@@ -1326,3 +1326,78 @@ class OrchestrationDriver(object):
                 }
             ]
         }
+
+
+
+    @_set_network_handler
+    def get_create_network_function_device_config_info(self, device_data,
+                                                network_handler=None):
+        """ Get the configuration information for NFD
+
+        :param device_data: NFD
+        :type device_data: dict
+
+        :returns: None -- On Failure
+        :returns: dict -- It has the following scheme
+        {
+            'config': [
+                {
+                    'resource': 'interfaces',
+                    'resource_data': {
+                        ...
+                    }
+                },
+                {
+                    'resource': 'routes',
+                    'resource_data': {
+                        ...
+                    }
+                }
+            ]
+        }
+
+        :raises: exceptions.IncompleteData
+        """
+
+        mgmt_ip = device_data.get('mgmt_ip', None)
+        provider_ip = device_data.get('provider_ip', None)
+        provider_mac = device_data.get('provider_mac', None)
+        provider_cidr = device_data.get('provider_cidr', None)
+        provider_gateway_ip = device_data.get('provider_gateway_ip', None)
+        consumer_ip = device_data.get('consumer_ip', None)
+        consumer_mac = device_data.get('consumer_mac', None)
+        consumer_cidr = device_data.get('consumer_cidr', None)
+        consumer_gateway_ip = device_data.get('consumer_gateway_ip', None)
+
+        return {
+            'config': [
+                {
+                    'resource': nfp_constants.INTERFACE_RESOURCE,
+                    'resource_data': {
+                        'mgmt_ip': mgmt_ip,
+                        'provider_ip': provider_ip,
+                        'provider_cidr': provider_cidr,
+                        'provider_interface_index': 2,
+                        'stitching_ip': consumer_ip,
+                        'stitching_cidr': consumer_cidr,
+                        'stitching_interface_index': 3,
+                        'provider_mac': provider_mac,
+                        'stitching_mac': consumer_mac,
+                    },
+
+                },
+                {
+                    'resource': nfp_constants.ROUTES_RESOURCE,
+                    'resource_data': {
+                        'mgmt_ip': mgmt_ip,
+                        'source_cidrs': ([provider_cidr, consumer_cidr]
+                                         if consumer_cidr
+                                         else [provider_cidr]),
+                        'destination_cidr': consumer_cidr,
+						'provider_mac': provider_mac,
+                        'gateway_ip': consumer_gateway_ip,
+                        'provider_interface_index': 2
+                    }
+                }
+            ]
+        }

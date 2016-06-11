@@ -1148,6 +1148,42 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         elif config_status == nfp_constants.IN_PROGRESS:
             return CONTINUE_POLLING
 
+    def check_for_user_config_complete(self, event):
+        nfp_context = event.data
+
+        network_function = nfp_context['network_function']
+        config_status = self.config_driver.check_config_complete(nfp_context)
+
+        if config_status == nfp_constants.ERROR:
+            LOG.info(_LI("NSO: applying user config failed for "
+                         "network function %(network_function_id)s data "
+                         "%(data)s"), {'data': nfp_context,
+                                       'network_function_id':
+                                       network_function['id']})
+            updated_network_function = {'status': nfp_constants.ERROR}
+            self.db_handler.update_network_function(
+                self.db_session,
+                network_function['id'],
+                updated_network_function)
+            self._controller.event_complete(event)
+            return STOP_POLLING
+            # Trigger RPC to notify the Create_Service caller with status
+        elif config_status == nfp_constants.COMPLETED:
+            updated_network_function = {'status': nfp_constants.ACTIVE}
+            LOG.info(_LI("NSO: applying user config is successfull moving "
+                         "network function %(network_function_id)s to ACTIVE"),
+                     {'network_function_id':
+                      network_function['id']})
+            self.db_handler.update_network_function(
+                self.db_session,
+                network_function['id'],
+                updated_network_function)
+            self._controller.event_complete(event)
+            return STOP_POLLING
+            # Trigger RPC to notify the Create_Service caller with status
+        elif config_status == nfp_constants.IN_PROGRESS:
+            return CONTINUE_POLLING
+
     def check_for_user_config_deleted(self, event):
         request_data = event.data
         event_data = {

@@ -744,7 +744,17 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         # The driver tells which protocol / port to monitor ??
         orchestration_driver = self._get_orchestration_driver(
-            device['service_details']['service_vendor'])
+            service_details['service_vendor'])
+
+        device ={
+            'id': network_function_device['id'],
+            'mgmt_ip_address': mgmt_ip_address,
+            'service_details': service_details,
+            'network_function_id': network_function['id'],
+            'network_function_instance_id': network_function_instance['id'],
+            'nfp_context': nfp_context
+            }
+
         hm_req = (
             orchestration_driver.get_network_function_device_healthcheck_info(
                                                                 device))

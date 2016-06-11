@@ -168,7 +168,6 @@ class Connection(object):
     def _wait(self, timeout):
         if self.type == 'unix':
             eventlet.sleep(timeout)
-            self._socket.settimeout(0.0)
             self._socket.setblocking(0)
         else:
             self._socket.settimeout(timeout)
@@ -191,7 +190,6 @@ class Connection(object):
         self._socket.setblocking(1)
         self._socket.sendall(data)
         self._socket.setblocking(0)
-		
 
     def close(self):
         LOG.debug("Closing Socket - %d" % (self.identify()))
