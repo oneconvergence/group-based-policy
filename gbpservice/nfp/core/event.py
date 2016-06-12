@@ -69,7 +69,11 @@ class EventDesc(object):
     def __init__(self, **kwargs):
         # Unique id of the event, use what user passed or
         # generate a new unique id.
-        self.uuid = kwargs.get('key', pyuuid.uuid4())
+        uuid = kwargs.get('key', pyuuid.uuid4())
+        uuid_id = kwargs.get('id')
+        if uuid_id and uuid:
+            uuid = str(uuid)+str(uuid_id)
+        self.uuid = uuid
         # see 'Event Types'
         self.type = kwargs.get('type')
         # see 'Event Flag'
@@ -84,6 +88,14 @@ class EventDesc(object):
         self.flag = desc.flag
         self.worker = desc.worker
         self.poll_desc = desc.poll_desc
+
+    def to_dict(self):
+        return {'uuid': self.uuid,
+                'type': self.type,
+                'flag': self.flag,
+                'worker': self.worker,
+                'poll_desc': self.poll_desc
+        }
 
 """Defines the event structure.
 
@@ -117,9 +129,10 @@ class Event(object):
         self.context = kwargs.get('context', {})
         # Prepare the base descriptor
         if self.key:
-            desc = EventDesc(**{'key': self.key})
+            desc = EventDesc(**{'key': self.key,
+                                'id': self.id})
         else:
-            desc = EventDesc()
+            desc = EventDesc(**{'id': self.id})
         self.desc = desc
 
         # Will be set if this event is a event graph

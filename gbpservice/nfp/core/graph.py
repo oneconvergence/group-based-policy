@@ -1,4 +1,7 @@
 import os
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
+
 
 """Event Types """
 SCHEDULE_EVENT = 'schedule_event'
@@ -147,6 +150,7 @@ class Executor(object):
 
         if not l_nodes:
             if not self.graph.waiting_events(node):
+                LOG.info("Event : %s triggered" %(node.event.id))
                 self._scheduled_new_event(node.event)
                 self.graph.unlink_node(node)
 
@@ -163,6 +167,7 @@ class Executor(object):
         return self.manager._scheduled_new_event(event, dispatch=dispatch)
 
     def complete(self, node):
+        LOG.info("Event : %s completed" %(node.event.id))
         p_node = self.graph.remove_node(node)
         if p_node:
             self.run(node=p_node)
