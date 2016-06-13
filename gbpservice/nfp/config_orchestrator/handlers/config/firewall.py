@@ -39,67 +39,10 @@ class FwAgent(firewall_db.Firewall_db_mixin):
         self._conf = conf
         self._sc = sc
         self._db_inst = super(FwAgent, self)
-
-    def _get_firewalls(self, context, tenant_id,
-                       firewall_policy_id, description):
-        filters = {'tenant_id': [tenant_id],
-                   'firewall_policy_id': [firewall_policy_id]}
-        args = {'context': context, 'filters': filters}
-        firewalls = self._db_inst.get_firewalls(**args)
-        for firewall in firewalls:
-            firewall['description'] = description
-        return firewalls
-
-    def _get_firewall_policies(self, context, tenant_id,
-                               firewall_policy_id, description):
-        filters = {'tenant_id': [tenant_id],
-                   'id': [firewall_policy_id]}
-        args = {'context': context, 'filters': filters}
-        firewall_policies = self._db_inst.get_firewall_policies(**args)
-        return firewall_policies
-
-    def _get_firewall_rules(self, context, tenant_id,
-                            firewall_policy_id, description):
-        filters = {'tenant_id': [tenant_id],
-                   'firewall_policy_id': [firewall_policy_id]}
-        args = {'context': context, 'filters': filters}
-        firewall_rules = self._db_inst.get_firewall_rules(**args)
-        return firewall_rules
-
-    def _get_firewall_context(self, **kwargs):
-        firewalls = self._get_firewalls(**kwargs)
-        firewall_policies = self._get_firewall_policies(**kwargs)
-        firewall_rules = self._get_firewall_rules(**kwargs)
-        return {'firewalls': firewalls,
-                'firewall_policies': firewall_policies,
-                'firewall_rules': firewall_rules}
-
-    def _get_core_context(self, context, filters):
-        return common.get_core_context(context,
-                                       filters,
-                                       self._conf.host)
-
-    def _context(self, **kwargs):
-        context = kwargs.get('context')
-        if context.is_admin:
-            kwargs['tenant_id'] = context.tenant_id
-        db = self._get_firewall_context(**kwargs)
-        # Commenting below as ports, subnets and routers data not need
-        # by firewall with present configurator
-
-        # db.update(self._get_core_context(context, filters))
-        return db
-
     def _prepare_resource_context_dicts(self, **kwargs):
-        # Prepare context_dict
         context = kwargs.get('context')
         ctx_dict = context.to_dict()
-        # Collecting db entry required by configurator.
-        # Addind service_info to neutron context and sending
-        # dictionary format to the configurator.
-        db = self._context(**kwargs)
         rsrc_ctx_dict = copy.deepcopy(ctx_dict)
-        rsrc_ctx_dict.update({'service_info': db})
         return ctx_dict, rsrc_ctx_dict
 
     def _data_wrapper(self, context, firewall, host, nf, reason):
