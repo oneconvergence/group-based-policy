@@ -20,7 +20,7 @@ from oslo_log import log as oslo_logging
 
 oslo_logging.register_options(oslo_cfg.CONF)
 
-def Object(object): pass
+class Object(object): pass
 
 def init():
     """Initialize logging. """
