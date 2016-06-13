@@ -18,7 +18,7 @@ from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import sequencer as nfp_sequencer
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.core import graph as nfp_graph
+from gbpservice.nfp.core import executor as nfp_executor
 
 LOG = nfp_logging.getLogger(__name__)
 NfpEventManager = nfp_event.NfpEventManager
@@ -36,8 +36,11 @@ def IS_SCHEDULED_NEW_EVENT(event):
         event.desc.flag == nfp_event.EVENT_NEW
 
 
-def IS_SCHEDULED_EVENT_GRAPH(event):
+def IS_SCHEDULED_EVENT_GRAPHEVENT(event):
     return IS_SCHEDULED_NEW_EVENT(event) and (event.graph)
+
+def IS_EVENT_GRAPH(event):
+    return event.desc.type == nfp_event.EVENT_GRAPH
 
 '''
 def IS_SCHEDULED_EVENT_COMPLETE(event):
@@ -158,9 +161,38 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
         event_manager, load_info = self._get_min_loaded_em(load_info)
         event_manager.dispatch_event(event)
 
-    def _scheduled_event_graph(self, event):
-        nfp_graph.execute(self, event)
+    def _execute_event_graph(self, event, state=None):
+        graph = event.graph
+        g_executor = nfp_executor.EventGraphExecutor(self, graph)
+        g_executor.run(event=state)
 
+    def _graph_event_complete(self, event):
+        graph = event.graph
+        g_executor = nfp_executor.EventGraphExecutor(self, graph)
+        g_executor.complete(event.desc.uuid, event.result)
+
+    def _scheduled_event_graph(self, event):
+        if event.graph == True:
+            # Cache the event object
+            self._event_cache[event.desc.uuid] = event
+        else:
+            #from gbpservice.nfp.core.common import ForkedPdb
+            #ForkedPdb().set_trace()
+            self._execute_event_graph(event, state=event.desc.uuid)
+
+    def _get_event_by_id(self, uuid):
+        try:
+            return self._event_cache[uuid]
+        except KeyError as ke:
+            LOG.error("(event - %s) - no event with uuid" %
+                    (uuid))
+            raise ke
+
+    def schedule_graph_event(self, uuid, graph, dispatch=True):
+        event = self._get_event_by_id(uuid)
+        event.graph = graph
+        return self._scheduled_new_event(event, dispatch=dispatch)
+               
     def _scheduled_new_event(self, event, dispatch=True):
         # Cache the event object
         self._event_cache[event.desc.uuid] = event
@@ -226,7 +258,7 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
             # Release the sequencer for this sequence,
             # so that next event can get scheduled.
             self._event_sequencer.release(event.binding_key, event)
-            nfp_graph.event_complete(self, cached_event)
+            self._graph_event_complete(cached_event)
 
     def _non_schedule_event(self, event):
         if event.desc.type == nfp_event.POLL_EVENT:
@@ -273,7 +305,9 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
         for event in events:
             LOG.debug("%s - processing event" % (event.identify()))
 
-            if IS_SCHEDULED_EVENT_GRAPH(event):
+            if IS_EVENT_GRAPH(event):
+                self._execute_event_graph(event)
+            elif IS_SCHEDULED_EVENT_GRAPHEVENT(event):
                 self._scheduled_event_graph(event)
             elif IS_SCHEDULED_EVENT_ACK(event):
                 self._scheduled_event_ack(event)

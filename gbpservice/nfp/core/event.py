@@ -18,7 +18,6 @@ from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core import sequencer as nfp_seq
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.core import graph as nfp_graph
 
 LOG = nfp_logging.getLogger(__name__)
 identify = nfp_common.identify
@@ -28,6 +27,7 @@ SCHEDULE_EVENT = 'schedule_event'
 POLL_EVENT = 'poll_event'
 STASH_EVENT = 'stash_event'
 EVENT_EXPIRED = 'event_expired'
+EVENT_GRAPH = 'event_graph'
 
 """Event Flag """
 EVENT_NEW = 'new_event'
@@ -39,6 +39,108 @@ SequencerEmpty = nfp_seq.SequencerEmpty
 SequencerBusy = nfp_seq.SequencerBusy
 
 deque = collections.deque
+
+class EventGraphNode(object):
+    def __init__(self, event, p_event=None):
+        self.p_link = ()
+        self.c_links = []
+        self.w_links = []
+        self.e_links = []
+        self.event  = event
+        self.result = None
+
+        if p_event:
+            self.p_link = p_event
+
+    def __getstate__(self):
+        return (self.p_link, self.c_links,
+                self.e_links, self.w_links, self.event, self.result)
+
+    def __setstate__(self, state):
+        (self.p_link, self.c_links, self.e_links,
+            self.w_links, self.event, self.result) = state
+
+    def add_link(self, event):
+        self.c_links.append(event)
+        self.w_links.append(event)
+
+    def remove_link(self, event):
+        self.e_links.append(event)
+        self.w_links.remove(event)
+
+    def remove_c_link(self, event):
+        try:
+            self.c_links.remove(event)
+        except ValueError:
+            pass
+
+    def get_c_links(self):
+        return self.c_links
+
+    def get_w_links(self):
+        return self.w_links
+
+    def get_executed_links(self):
+        return self.e_links
+
+
+class EventGraph(object):
+
+    def __init__(self, event):
+        self.root_node = EventGraphNode(event.desc.uuid)
+        self.nodes = {event.desc.uuid: self.root_node}
+
+    def __getstate__(self):
+        return self.root_node, self.nodes
+
+    def __setstate__(self, state):
+        self.root_node, self.nodes = state
+
+    def add_node(self, event, p_event):
+        node = EventGraphNode(event.desc.uuid, p_event.desc.uuid)
+        self.nodes.update({event.desc.uuid: node})
+        p_node = self.nodes.get(p_event.desc.uuid)
+        p_node.add_link(event.desc.uuid)
+
+    def remove_node(self, node):
+        p_node = self.nodes.get(node.p_link)
+        if p_node:
+            p_node.remove_link(node.event)
+        return p_node
+
+    def unlink_node(self, node):
+        p_node = self.nodes.get(node.p_link)
+        if p_node:
+            p_node.remove_c_link(node.event)
+
+    def get_pending_leaf_nodes(self, node):
+        c_links = node.get_c_links()
+        c_nodes = []
+        for link in c_links:
+            c_nodes.append(self.nodes[link])
+
+        return c_nodes
+
+    def waiting_events(self, node):
+        return len(node.get_w_links())
+
+    def get_leaf_node_results(self, event):
+        results = []
+        node = self.nodes[event.desc.uuid]
+        e_links = node.get_executed_links()
+        for link in e_links:
+            node = self.nodes[link]
+            uuid = node.event
+            key, id  = uuid.split(':')
+            result = object()
+            setattr(result, 'id', id)
+            setattr(result, 'key', key)
+            setattr(result, 'result', node.result)
+            results.append(result)
+        return results
+
+    def get_node(self, event):
+        return self.nodes[event]
 
 """Defines poll descriptor of an event.
 
@@ -69,11 +171,11 @@ class EventDesc(object):
     def __init__(self, **kwargs):
         # Unique id of the event, use what user passed or
         # generate a new unique id.
-        uuid = kwargs.get('key', pyuuid.uuid4())
-        uuid_id = kwargs.get('id')
-        if uuid_id and uuid:
-            uuid = str(uuid)+str(uuid_id)
-        self.uuid = uuid
+        uuid = kwargs.get('key', pyuuid.uuid4()) 
+        id = kwargs.get('id', '')
+
+        self.uuid = str(uuid) + ':' + id
+        
         # see 'Event Types'
         self.type = kwargs.get('type')
         # see 'Event Flag'
@@ -136,8 +238,8 @@ class Event(object):
         self.desc = desc
 
         # Will be set if this event is a event graph
-        self.graph = None
-        self.result = None
+        self.graph    = kwargs.get('graph', False)
+        self.result   = None
 
         cond = self.sequence is True and self.binding_key is None
         assert not cond

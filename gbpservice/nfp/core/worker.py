@@ -82,7 +82,7 @@ class NfpWorker(Service):
 
     def _send_event_ack(self, event):
         # Create new event from existing one
-        ack_event = nfp_event.Event()
+        ack_event = nfp_event.Event(id=event.id)
         ack_event.id = event.id
         desc = nfp_event.EventDesc(**event.desc.__dict__)
         desc.uuid = event.desc.uuid

@@ -17,7 +17,7 @@ import oslo_messaging as messaging
 from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import topics as nsf_topics
 from gbpservice.nfp.core.event import Event
-from gbpservice.nfp.core import graph
+from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
@@ -774,18 +774,29 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             nf_id = nfp_context['network_function']['id']
             hmc_event = self._controller.new_event(id="HEALTH_MONITOR_COMPLETE",
                                                    key=nf_id,
-                                                   data=nfp_context)
+                                                   data=nfp_context,
+                                                   graph=True)
+            self._controller.post_event(hmc_event)
             device_up_event = self._controller.new_event(id="DEVICE_UP",
                                                          key=nf_id,
-                                                         data=nfp_context)
+                                                         data=nfp_context,
+                                                         graph=True)
+            self._controller.post_event(device_up_event)
             plug_int_event = self._controller.new_event(id="PLUG_INTERFACES",
                                                         key=nf_id,
-                                                        data=nfp_context)
-            prepare_graph = graph.Graph(hmc_event)
+                                                        data=nfp_context,
+                                                        graph=True)
+            self._controller.post_event(plug_int_event)
+
+            
+            prepare_graph = nfp_event.EventGraph(hmc_event)
             prepare_graph.add_node(device_up_event, hmc_event)
             prepare_graph.add_node(plug_int_event, hmc_event)
-            hmc_event.set_fields(graph=prepare_graph)
-            self._controller.post_event(hmc_event)
+
+            graph_event = self._controller.new_event(id="HEALTH_MONITOR_GRAPH",
+                                                     graph=prepare_graph)
+
+            self._controller.post_event_graph(graph_event)
             return STOP_POLLING
         elif is_device_up == nfp_constants.ERROR:
             # create event DEVICE_NOT_UP
@@ -894,7 +905,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
     def device_healthy(self, event):
         nfp_context = event.data
         device = nfp_context['network_function_device']
-        event_results = event.graph.get_leaf_events(event)
+        event_results = event.graph.get_leaf_node_results(event)
         flag = True
         for event_result in event_results:
             if event_result.id == "DEVICE_UP":
@@ -918,18 +929,27 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         nf_id = nfp_context['network_function']['id']
         device_configured_event = self._controller.new_event(id='DEVICE_CONFIGURED',
                                                              key=nf_id,
-                                                             data=nfp_context)
+                                                             data=nfp_context,
+                                                             graph=True)
+        self._controller.post_event(device_configured_event)
         device_configure_event = self._controller.new_event(id='CREATE_DEVICE_CONFIGURATION',
                                                             key=nf_id,
-                                                            data=nfp_context)
+                                                            data=nfp_context,
+                                                            graph=True)
+        self._controller.post_event(device_configure_event)
         device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
                                                          key=nf_id,
-                                                         data=nfp_context)
-        prepare_graph = graph.Graph(device_configured_event)
+                                                         data=nfp_context,
+                                                         graph=True)
+        self._controller.post_event(device_active_event)
+
+        prepare_graph = nfp_event.EventGraph(device_configured_event)
         prepare_graph.add_node(device_configure_event, device_configured_event)
         prepare_graph.add_node(device_active_event, device_configured_event)
-        device_configured_event.set_fields(graph=prepare_graph)
-        self._controller.post_event(device_configured_event)
+
+        event_graph = self._controller.new_event(id='DEVICE_CONFIGURATION_GRAPH',
+                                                 graph=prepare_graph)
+        self._controller.post_event_graph(event_graph)
         self._controller.event_complete(event)
         
 
@@ -1091,7 +1111,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         network_function = nfp_context['network_function']
         # Change status to active in DB and generate an event DEVICE_ACTIVE
         # to inform NSO
-        event_results = event.graph.get_leaf_events(event)
+        event_results = event.graph.get_leaf_node_results(event)
         for event_result in event_results:
             if event_result.id == "CREATE_DEVICE_CONFIGURATION":
                 if event_result.result == 'SUCCESS':

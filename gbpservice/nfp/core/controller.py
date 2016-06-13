@@ -95,6 +95,12 @@ class NfpService(object):
             LOG.exception("%s" % (aerr))
         return event
 
+    def post_event_graph(self, event):
+        event.desc.type = nfp_event.EVENT_GRAPH
+        event.desc.flag = ''
+        event.desc.pid  = os.getpid()
+        return event
+
     def post_event(self, event):
         """Post an event.
 
@@ -334,6 +340,20 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         for agent in self._rpc_agents:
             rpc_agent = operator.itemgetter(0)(agent)
             rpc_agent.report_state()
+
+    def post_event_graph(self, event):
+        event = super(NfpController, self).post_event_graph(event)
+        LOG.debug("(event - %s) - New event" % (event.identify()))
+        if self.PROCESS_TYPE == "worker":
+            # Event posted in worker context, send it to parent process
+            LOG.debug("(event - %s) - new event in worker"
+                      "posting to distributor process" % (event.identify()))
+            # Send it to the distributor process
+            self.pipe_send(self._pipe, event)
+        else:
+            LOG.debug("(event - %s) - new event in distributor"
+                      "processing event" % (event.identify()))
+            self._manager.process_events([event])
 
     def post_event(self, event):
         """Post a new event into the system.

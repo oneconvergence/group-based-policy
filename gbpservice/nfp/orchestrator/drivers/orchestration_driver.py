@@ -29,7 +29,7 @@ import operator
 
 from gbpservice.nfp.core import log as nfp_logging
 
-from gbpservice.nfp.core import task as core_task
+from gbpservice.nfp.core import executor as nfp_executor
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -604,7 +604,7 @@ class OrchestrationDriver(object):
         admin_tenant_id = device_data['admin_tenant_id']
         image_name = self._get_image_name(device_data)
 
-        executor = core_task.TaskExecutor(jobs=3)
+        executor = nfp_executor.TaskExecutor(jobs=3)
 
         image_id_result = {}
 
@@ -979,7 +979,7 @@ class OrchestrationDriver(object):
                 elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     pass
             else:
-                executor = core_task.TaskExecutor(jobs=10)
+                executor = nfp_executor.TaskExecutor(jobs=10)
 
                 for port in device_data['ports']:
                     if port['port_classification'] == nfp_constants.PROVIDER:
