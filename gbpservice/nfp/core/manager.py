@@ -168,20 +168,21 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
 
     def _graph_event_complete(self, event):
         if not event.graph: return
+
         graph = event.graph
         g_executor = nfp_executor.EventGraphExecutor(self, graph)
-        g_executor.complete(event.desc.uuid, event.result)
+        g_executor.event_complete(event.result, event=event.desc.uuid)
 
     def _scheduled_event_graph(self, event):
         if event.graph == True:
             # Cache the event object
             self._event_cache[event.desc.uuid] = event
         else:
-            #from gbpservice.nfp.core.common import ForkedPdb
-            #ForkedPdb().set_trace()
+            # This case happens when a serialized event of
+            # a graph is desequenced and is processed.
             self._execute_event_graph(event, state=event.desc.uuid)
 
-    def _get_event_by_id(self, uuid):
+    def _get_event_from_cache(self, uuid):
         try:
             return self._event_cache[uuid]
         except KeyError as ke:
@@ -190,8 +191,11 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
             raise ke
 
     def schedule_graph_event(self, uuid, graph, dispatch=True):
-        event = self._get_event_by_id(uuid)
+        # Get event from cache
+        event = self._get_event_from_cache(uuid)
+        # Update the graph in event, which will be stored in cache
         event.graph = graph
+        # Schedule the event
         return self._scheduled_new_event(event, dispatch=dispatch)
                
     def _scheduled_new_event(self, event, dispatch=True):

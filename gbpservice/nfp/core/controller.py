@@ -80,7 +80,6 @@ class NfpService(object):
         """Register rpc handlers with core. """
         for agent in agents:
             self._rpc_agents.append((agent,))
-        LOG.debug("###  RPC AGENTS - %s ###" % (self._rpc_agents))
 
     def new_event(self, **kwargs):
         """Define and return a new event. """
@@ -96,6 +95,11 @@ class NfpService(object):
         return event
 
     def post_event_graph(self, event):
+        """Post a event graph.
+
+            As base class, set only the required
+            attributes of event.
+        """
         event.desc.type = nfp_event.EVENT_GRAPH
         event.desc.flag = ''
         event.desc.pid  = os.getpid()
@@ -109,15 +113,6 @@ class NfpService(object):
         """
         handler = self._event_handlers.get_event_handler(event.id)
         assert handler, "No handler registered for event %s" % (event.id)
-        '''
-        kwargs = {'type': nfp_event.SCHEDULE_EVENT,
-                  'flag': nfp_event.EVENT_NEW,
-                  'pid': os.getpid()}
-        if event.key:
-            kwargs.update({'key': event.key})
-        desc = nfp_event.EventDesc(**kwargs)
-        setattr(event, 'desc', desc)
-        '''
         event.desc.type = nfp_event.SCHEDULE_EVENT
         event.desc.flag = nfp_event.EVENT_NEW
         event.desc.pid = os.getpid()
@@ -139,16 +134,6 @@ class NfpService(object):
         handler = self._event_handlers.get_poll_handler(event.id)
         assert handler, "No poll handler found for event %s" % (event.id)
 
-        '''
-        if not hasattr(event, 'desc'):
-            kwargs = {'type': nfp_event.SCHEDULE_EVENT,
-                      'flag': nfp_event.EVENT_NEW,
-                      'pid': os.getpid()}
-            if event.key:
-                kwargs.update({'key': event.key})
-            desc = nfp_event.EventDesc(**kwargs)
-            setattr(event, 'desc', desc)
-        '''
         refuuid = event.desc.uuid
         event = self._make_new_event(event)
         event.lifetime = 0
@@ -342,6 +327,17 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             rpc_agent.report_state()
 
     def post_event_graph(self, event):
+        """Post a new event graph into system.
+
+            Graph is a collection of events to be
+            executed in a certain manner. Use the
+            commonly defined 'Event' class to define
+            even the graph.
+
+            :param event: Object of 'Event' class.
+
+            Return: None
+        """
         event = super(NfpController, self).post_event_graph(event)
         LOG.debug("(event - %s) - New event" % (event.identify()))
         if self.PROCESS_TYPE == "worker":
@@ -512,7 +508,7 @@ def load_nfp_modules(conf, controller):
                         exc_type, exc_value, exc_traceback = sys.exc_info()
                         print traceback.format_exception(exc_type, exc_value,
                                                          exc_traceback)
-                        LOG.error("(module - %s) - "
+                        LOG.warn("(module - %s) - "
                                   "does not implement"
                                   "nfp_module_init()" % (identify(pymodule)))
                 except ImportError:

@@ -419,7 +419,7 @@ class NfpEventManager(object):
             self._load -= 1
         except ValueError as verr:
             verr = verr
-            LOG.error("%s - event not in cache" %
+            LOG.warn("%s - event not in cache" %
                       (self._log_meta(event)))
 
     def dispatch_event(self, event, event_type=None,

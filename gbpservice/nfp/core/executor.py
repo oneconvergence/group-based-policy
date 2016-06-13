@@ -6,13 +6,17 @@ LOG = nfp_logging.getLogger(__name__)
 
 class InUse(Exception):
 
-    """Exception raised when same executor is fired twice or jobs
-       added after executor is fired.
+    """Exception raised when same task executor instance
+        is fired twice or jobs
+        added after executor is fired.
     """
     pass
 
 
 def check_in_use(f):
+    """Check if instance of task executor is already
+        fired and executing jobs.
+    """
     def wrapped(self, *args, **kwargs):
         if self.fired:
             raise InUse("Executor in use")
@@ -20,7 +24,16 @@ def check_in_use(f):
     return wrapped
 
 class TaskExecutor(object):
+    """Executes given jobs in green threads.
 
+        Any number of jobs can be added till executor
+        is fired. When fired, executes all jobs in
+        paralell in green threads. Waits for threads
+        to complete, captures the return values of thread
+        function.
+        Caller can choose to pass result_store where the
+        return value will be updated.
+    """
     def __init__(self, jobs=0):
         if not jobs:
             self.thread_pool = core_tp.ThreadPool()
@@ -29,21 +42,29 @@ class TaskExecutor(object):
 
         self.pipe_line = []
         self.fired = False
+        LOG.debug(
+            "TaskExecutor - created with thread pool size - %d" %
+            (thread_pool_size))
 
     @check_in_use
     def add_job(self, id, func, *args, **kwargs):
         result_store = kwargs.pop('result_store', None)
 
         job = {
-            'id': id, 'method': func, 'args': args,
-            'kwargs': kwargs}
+            'id': id, 'method': func,
+            'args': args, 'kwargs': kwargs
+            }
 
         if result_store is not None:
             job.update({'result_store': result_store})
 
+        LOG.debug("TaskExecutor - (job - %s) added to pipeline" %
+            (str(job)))
+
         self.pipe_line.append(job)
 
     def _complete(self):
+        LOG.debug("TaskExecutor - complete")
         self.pipe_line = []
         self.fired = False
 
@@ -51,12 +72,20 @@ class TaskExecutor(object):
     def fire(self):
         self.fired = True
         for job in self.pipe_line:
+            LOG.debug(
+                "TaskExecutor - (job - %s) dispatched" %
+                (str(job)))
+
             th = self.thread_pool.dispatch(
                 job['method'], *job['args'], **job['kwargs'])
             job['thread'] = th
 
         for job in self.pipe_line:
             result = job['thread'].wait()
+            LOG.debug(
+                "TaskExecutor - (job - %s) complete" %
+                (str(job)))
+
             job.pop('thread')
             job['result'] = result
             if 'result_store' in job.keys():
@@ -68,6 +97,9 @@ class TaskExecutor(object):
 
 
 def set_node(f):
+    """To find and set a graph node for a
+        given event.
+    """
     def decorator(self, *args, **kwargs):
         node = kwargs.get('node')
         event = kwargs.get('event')
@@ -79,40 +111,76 @@ def set_node(f):
         return f(self, *args, **kwargs)
     return decorator
 
-def get_event_graph_node(f):
-    def decorator(self, *args, **kwargs):
-        event = args[0]
-        node = self.graph.get_node(event)
-        kwargs['node'] = node
-        return f(self, *args, **kwargs)
-    return decorator
-
 class EventGraphExecutor(object):
+    """Executor which executs a graph of events.
+
+        An event graph can consist of events defined
+        in any combination of paralell and sequence
+        events. Executor will execute them in the
+        order and manner specified.
+        Eg., E1 -> (E2, E3) 
+                [E1 should execute after E2, E3 completes,
+                 while E2 & E3 can happen in paralell]
+            E2 -> (E4, E5)
+                [E2 should execute after E4, E5 completes,
+                 while E4 & E5 should happen in sequence]
+            E3 -> (None)
+                [No child events for E3]
+
+        Executor will run the above graph and execute events
+        in the exact specific order mentioned.
+        At each level, parent event holds the result of child
+        events, caller can use parent event complete notification
+        to get the child events execution status.
+    """
+
     def __init__(self, manager, graph):
         self.manager = manager
         self.graph = graph
 
     @set_node
     def run(self, event=None, node=None):
-        if self.manager.schedule_graph_event(node.event, self.graph, dispatch=False):
+        LOG.debug("GraphExecutor - (event - %s)" %
+            (node.event))
+
+        # Call to check if event would get sequenced
+        if self.manager.schedule_graph_event(
+                node.event, self.graph, dispatch=False):
+            LOG.debug("GraphExecutor - "
+                "(event - %s) - sequenced" %
+                (node.event))
+            # Event would have got added to sequencer,
+            # unlink it from pending links of graph
             return self.graph.unlink_node(node)
 
         l_nodes = self.graph.get_pending_leaf_nodes(node)
+        LOG.debug("GraphExecutor - "
+            "(event - %s) - number of leaf nodes - %d" %
+            (node.event, len(l_nodes)))
 
         if not l_nodes:
             if not self.graph.waiting_events(node):
-                LOG.info("Event : %s triggered" %(node.event))
+                LOG.debug("GraphExecutor - "
+                    "(event - %s) - Scheduling event" %
+                    (node.event))
                 self.manager.schedule_graph_event(node.event, self.graph)
                 self.graph.unlink_node(node)
 
         if l_nodes:
             for l_node in l_nodes:
+                LOG.debug("GraphExecutor -"
+                    "(event - %s) executing leaf node" %
+                    (node.event))
                 self.run(node=l_node)
 
-    @get_event_graph_node
-    def complete(self, event, result, node=None):
-        LOG.info("Event : %s completed" %(node.event))
+    @set_node
+    def event_complete(self, result, event=None, node=None):
+        LOG.debug("GraphExecutor - (event - %s) complete" %
+            (node.event))
         node.result = result
         p_node = self.graph.remove_node(node)
         if p_node:
+            LOG.debug("GraphExecutor - "
+                "(event - %s) complete, rerunning parent - %s" %
+                (node.event, p_node.event))
             self.run(node=p_node)
