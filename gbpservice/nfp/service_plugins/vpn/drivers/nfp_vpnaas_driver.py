@@ -62,12 +62,16 @@ class NFPIPsecVPNDriverCallBack(base_ipsec.IPsecVpnDriverCallBack):
         super(NFPIPsecVPNDriverCallBack, self).__init__(driver)
         self.driver = driver
 
-    def update_status(self, context, status):
+    def update_status(self, context, status=None, description=None):
         """Update status of vpnservices."""
         if 'ipsec_site_connections' not in status[0]:
             status[0]['ipsec_site_connections'] = {}
         plugin = self.driver.service_plugin
         plugin.update_status_by_agent(context, status)
+        if description:
+            plugin.update_vpnservice(context, status[0]['id'],
+                                     {'vpnservice':
+                                         {'description': description}})
 
     def ipsec_site_conn_deleted(self, context, ipsec_site_conn_id):
         """ Delete ipsec connection notification from driver."""
@@ -78,6 +82,7 @@ class NFPIPsecVPNDriverCallBack(base_ipsec.IPsecVpnDriverCallBack):
         vpnservice_id = kwargs['id']
         plugin = self.driver.service_plugin
         plugin._delete_vpnservice(context, vpnservice_id)
+
 
 class NFPIPsecVpnAgentApi(base_ipsec.IPsecVpnAgentApi):
     """API and handler for NFP IPSec plugin to agent RPC messaging."""
@@ -270,7 +275,7 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
             context,
             vpnservice['id'],
             rsrc_type='vpn_service',
-            svc_type=const.SERVICE_TYPE_IPSEC,
+            svc_type=self.service_type,
             rsrc_id=vpnservice['id'],
             resource=vpnservice,
             reason='delete', service_vendor=service_vendor)
