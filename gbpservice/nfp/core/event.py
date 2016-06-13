@@ -238,7 +238,7 @@ class Event(object):
         self.desc = desc
 
         # Will be set if this event is a event graph
-        self.graph    = kwargs.get('graph', False)
+        self.graph    = kwargs.get('graph', None)
         self.result   = None
 
         cond = self.sequence is True and self.binding_key is None

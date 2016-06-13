@@ -167,6 +167,7 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
         g_executor.run(event=state)
 
     def _graph_event_complete(self, event):
+        if not event.graph: return
         graph = event.graph
         g_executor = nfp_executor.EventGraphExecutor(self, graph)
         g_executor.complete(event.desc.uuid, event.result)
