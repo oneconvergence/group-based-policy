@@ -72,7 +72,8 @@ def events_init(controller, config, service_orchestrator):
               'DELETE_USER_CONFIG_IN_PROGRESS',
               'CONFIG_APPLIED', 'USER_CONFIG_APPLIED', 'USER_CONFIG_DELETED',
               'USER_CONFIG_DELETE_FAILED', 'USER_CONFIG_UPDATE_FAILED',
-              'USER_CONFIG_FAILED', 'CHECK_USER_CONFIG_COMPLETE']
+              'USER_CONFIG_FAILED', 'CHECK_USER_CONFIG_COMPLETE',
+              'SERVICE_CONFIGURED']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -430,7 +431,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             "USER_CONFIG_DELETED": self.handle_user_config_deleted,
             "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
             "USER_CONFIG_UPDATE_FAILED": self.handle_update_user_config_failed,
-            "USER_CONFIG_FAILED": self.handle_user_config_failed
+            "USER_CONFIG_FAILED": self.handle_user_config_failed,
+            "SERVICE_CONFIGURED": self.handle_service_configured
         }
         if event_id not in event_handler_mapping:
             raise Exception("Invalid Event ID")
@@ -1156,6 +1158,19 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         elif config_status == nfp_constants.IN_PROGRESS:
             return CONTINUE_POLLING
 
+    def handle_service_configured(self, event):
+        nfp_context = event.data
+        network_function = nfp_context['network_function']
+        updated_network_function = {'status': nfp_constants.ACTIVE}
+        LOG.info(_LI("NSO: applying user config is successfull moving "
+                     "network function %(network_function_id)s to ACTIVE"),
+                     {'network_function_id':network_function['id']})
+        self.db_handler.update_network_function(
+            self.db_session,
+            network_function['id'],
+            updated_network_function)
+        self._controller.event_complete(event)
+
     def check_for_user_config_complete(self, event):
         nfp_context = event.data
 
@@ -1179,26 +1194,16 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             event_desc = nfp_context.pop('event_desc')
             device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
                                                              key=network_function['id'],
-                                                             desc=event_desc)
+                                                             desc_dict=event_desc)
             self._controller.event_complete(device_active_event, result="FAILED")
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
-            updated_network_function = {'status': nfp_constants.ACTIVE}
-            LOG.info(_LI("NSO: applying user config is successfull moving "
-                         "network function %(network_function_id)s to ACTIVE"),
-                     {'network_function_id':
-                      network_function['id']})
-            self.db_handler.update_network_function(
-                self.db_session,
-                network_function['id'],
-                updated_network_function)
-
             # Complete the original event DEVICE_ACTIVE here
             event_desc = nfp_context.pop('event_desc')
             device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
                                                              key=network_function['id'],
-                                                             desc=event_desc)
+                                                             desc_dict=event_desc)
             self._controller.event_complete(device_active_event, result="SUCCESS")
 
             return STOP_POLLING

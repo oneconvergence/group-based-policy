@@ -42,9 +42,6 @@ class TaskExecutor(object):
 
         self.pipe_line = []
         self.fired = False
-        LOG.debug(
-            "TaskExecutor - created with thread pool size - %d" %
-            (thread_pool_size))
 
     @check_in_use
     def add_job(self, id, func, *args, **kwargs):

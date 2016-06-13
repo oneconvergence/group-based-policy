@@ -14,6 +14,8 @@
 # limitations under the License.
 
 import eventlet
+eventlet.monkey_patch()
+
 from eventlet import greenpool
 from keystoneclient import exceptions as k_exceptions
 from keystoneclient.v2_0 import client as keyclient
@@ -382,8 +384,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             context.instance['id'], network_function_id)
 
         # Check for NF status in a separate thread
-        gth = self.thread_pool.spawn(self._wait_for_network_function_operation_completion,
-                context, network_function_id, operation='create')
+        gth = self.thread_pool.spawn(
+            self._wait_for_network_function_operation_completion,
+            context, network_function_id, operation='create')
 
         self.active_threads.append(gth)
 

@@ -230,7 +230,7 @@ class Event(object):
         # Log metadata context
         self.context = kwargs.get('context', {})
         # Prepare the base descriptor
-        desc = kwargs.get('desc')
+        desc = kwargs.get('desc_dict')
         if desc:
             desc['key'] = self.key
             desc['id'] = self.id
