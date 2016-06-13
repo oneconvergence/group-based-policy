@@ -132,7 +132,7 @@ class EventGraph(object):
             node = self.nodes[link]
             uuid = node.event
             key, id  = uuid.split(':')
-            result = object()
+            result = nfp_common.Object()
             setattr(result, 'id', id)
             setattr(result, 'key', key)
             setattr(result, 'result', node.result)
