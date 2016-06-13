@@ -236,6 +236,26 @@ class ConfiguratorRpcManager(object):
             logging_context = log_info['context']['logging_context']
             nfp_logging.store_logging_context(**logging_context)
 
+            if request_data['info']['service_type'] == 'loadbalancer':
+                resource_name = str(request_data['config'][0]['resource'])
+                if resource_name == 'pool_health_monitor':
+                    resource_name = 'health_monitor'
+                if resource_name != 'heat':
+                    resource = request_data['config'][0]['resource_data'][
+                        resource_name]
+                    resource_list_nm = resource_name + 's'
+                    resource_list = request_data['config'][0][
+                        'resource_data'][
+                        'neutron_context'][
+                        'service_info'][
+                        resource_list_nm]
+                    for rsr in resource_list:
+                        if (rsr['id'] == resource['id'] and
+                                rsr['tenant_id'] == resource['tenant_id']):
+                            break
+                    request_data['config'][0]['resource_data'][
+                        resource_name] = rsr
+
             self._invoke_service_agent('create', request_data)
         except Exception as err:
             msg = ("Failed to create network service configuration. %s" %
