@@ -133,7 +133,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             str_description)
         resource = kwargs['rsrc_type']
         resource_data = kwargs['resource']
-        resource_data['description'] = str_description
+        resource_data['description'] = description
         if resource.lower() == 'ipsec_site_connection':
             nfp_context = {'network_function_id': nf['id'],
                            'ipsec_site_connection_id': kwargs[
@@ -160,7 +160,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     def _is_network_function_mode_neutron(kwargs):
         desc = kwargs['resource']['description']
         # Only expecting service_profile_id
-        if len(desc.split(';')) == 1 and 'service_profile_id' in desc:
+        if 'service_profile_id' in desc:
             return True
         else:
             return False
@@ -168,6 +168,9 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     @log_helpers.log_method_call
     def vpnservice_updated(self, context, **kwargs):
         LOG(LOGGER, 'DEBUG', "vpnservice_updated, kwargs %r" % kwargs)
+        if not kwargs:
+            # update calls come without kwargs, need to handle that
+            return
         if self._is_network_function_mode_neutron(kwargs):
             neutron_agent = NeutronVpnaasAgent(self._conf, self._sc)
             neutron_agent.handle_neutron_service_updated(context, **kwargs)
@@ -647,8 +650,14 @@ class NeutronVpnaasAgent(PollEventDesc):
                 'status': nw_func['status'],
                 'updated_pending_status': True,
                 'ipsec_site_connections': {}}]
+            dict_description = ast.literal_eval(nw_func['description'])
+            description = ('service_profile_id=%s;'
+                           'user_access_ip=%s' % (
+                                nw_func['service_profile_id'],
+                                dict_description['user_access_ip']))
             vpn_plugin.cctxt.cast(context, 'update_status',
-                                  status=vpnsvc_status)
+                                  status=vpnsvc_status,
+                                  description=description)
         elif nw_func['status'] == "ERROR":
             vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
             self._sc.poll_event_done(event)
