@@ -13,7 +13,7 @@
 
 from oslo_config import cfg as oslo_config
 
-from gbpservice.nfp.core import version
+# from gbpservice.nfp.core import version
 
 NFP_OPTS = [
     oslo_config.IntOpt(
@@ -59,8 +59,8 @@ def init(args, **kwargs):
     oslo_config.CONF.register_opts(NFP_OPTS)
     oslo_config.CONF.register_opts(es_openstack_opts, "keystone_authtoken")
     oslo_config.CONF(args=args, project='nfp',
-                     version='%%(prog)s %s' % (
-                         version.version_info.release_string()),
+                     version='%%(prog)s %s' % ('version'),
+                     #version.version_info.release_string()),
                      **kwargs)
 
     return oslo_config.CONF
