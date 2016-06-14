@@ -902,17 +902,15 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         network_function = nfp_context['network_function']
         network_function_details = self.get_network_function_details(
             network_function['id'])
-        request_data['heat_stack_id'], heat_client = self.config_driver.apply_heat_config(
+        request_data['heat_stack_id'] = self.config_driver.apply_heat_config(
             nfp_context)  # Heat driver to launch stack
         request_data['network_function_id'] = network_function['id']
 
         if not request_data['heat_stack_id']:
-            device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
-                                                             key=network_function['id'])
             event_desc = nfp_context.pop('event_desc')
-            device_active_event = self._set_event_desc_to_event(
-                device_active_event,
-                event_desc)
+            device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
+                                                             key=network_function['id'],
+                                                             desc_dict=event_desc)
             self._controller.event_complete(device_active_event, result="FAILED")
             self._create_event('USER_CONFIG_FAILED',
                                event_data=request_data, is_internal_event=True)

@@ -390,15 +390,26 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             context.instance['id'], network_function_id)
 
         # Check for NF status in a separate thread
+        LOG.debug("Spawning thread for nf ACTIVE poll")
+
         gth = self.thread_pool.spawn(
             self._wait_for_network_function_operation_completion,
             context, network_function_id, operation='create')
 
         self.active_threads.append(gth)
 
+        LOG.debug("Active Threads count (%d), sc_node_count (%d)" %(
+            len(self.active_threads), self.sc_node_count))
+
         # At last wait for the threads to complete, success/failure/timeout
         if len(self.active_threads) == self.sc_node_count:
             self.thread_pool.waitall()
+            # Get the results
+            for gth in self.active_threads:
+                result = gth.wait()
+                if isinstance(result, Exception):
+                    self.active_threads = []
+                    raise result
             self.active_threads = []
 
     def update(self, context):
@@ -568,6 +579,11 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 break
             eventlet.sleep(5)
             time_waited = time_waited + 5
+
+        LOG.info(_LI(operation + "Got network function result: "
+                     "%(network_function)s"),
+                 {'network_function': network_function})
+
 
         if network_function['status'] != 'ACTIVE':
             LOG.error(_LE(operation + "network function %(network_function)s "

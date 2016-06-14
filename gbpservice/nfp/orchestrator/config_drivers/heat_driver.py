@@ -1578,7 +1578,7 @@ class HeatDriver(object):
                  {'stack_id': stack_id, 'stack_name': stack_name,
                   'provider': provider['id']})
 
-        return stack_id, heatclient
+        return stack_id
 
     def delete_config(self, stack_id, tenant_id):
         auth_token, resource_owner_tenant_id =\
