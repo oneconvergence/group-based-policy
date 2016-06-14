@@ -275,16 +275,6 @@ class Filter(object):
                 service_info['vips'], 'id', pool['vip_id'])
             retval['vip'] = vip  # self._make_vip_dict(vip)
 
-            port = self.get_record(service_info['ports'],
-                                   'id', vip['port_id'])
-            retval['vip']['port'] = port  # self._make_port_dict(port)
-
-            subnets = service_info['subnets']
-            for fixed_ip in retval['vip']['port']['fixed_ips']:
-                fixed_ip['subnet'] = self.get_record(
-                    subnets, 'id',
-                    fixed_ip['subnet_id'])
-
         pool_members = pool['members']
         retval['members'] = []
 

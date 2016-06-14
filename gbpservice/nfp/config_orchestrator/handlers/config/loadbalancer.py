@@ -40,30 +40,6 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         self._sc = sc
         self._db_inst = super(LbAgent, self)
 
-    def _filter_service_info_with_resource(self, lb_db, core_db):
-        updated_db = {'subnets': [],
-                      'ports': []}
-        for pool in lb_db['pools']:
-            psubnet_id = pool['subnet_id']
-            for subnet in core_db['subnets']:
-                if subnet['id'] == psubnet_id:
-                    updated_db['subnets'].append(subnet)
-        for vip in lb_db['vips']:
-            vport_id = vip['port_id']
-            for port in core_db['ports']:
-                if port['id'] == vport_id:
-                    updated_db['ports'].append(port)
-        lb_db.update(updated_db)
-        return lb_db
-
-    def _get_core_context(self, context, tenant_id):
-        filters = {'tenant_id': [tenant_id]}
-        core_context_dict = common.get_core_context(context,
-                                                    filters,
-                                                    self._conf.host)
-        del core_context_dict['routers']
-        return core_context_dict
-
     def _get_pools(self, **kwargs):
         context = kwargs.get('context')
         filters = {'tenant_id': [kwargs.get('tenant_id')],
@@ -119,9 +95,7 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
         if context.is_admin:
             kwargs['tenant_id'] = context.tenant_id
         lb_db = self._get_lb_context(**kwargs)
-        core_db = self._get_core_context(context, kwargs['tenant_id'])
-        db = self._filter_service_info_with_resource(lb_db, core_db)
-        return db
+        return lb_db
 
     def _prepare_resource_context_dicts(self, **kwargs):
         # Prepare context_dict
