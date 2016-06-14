@@ -19,7 +19,7 @@ from gbpservice.nfp.configurator.lib import lbv2_constants as lb_const
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.core import poll as nfp_poll
+from gbpservice.nfp.core import module as nfp_api
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -422,7 +422,7 @@ invoked by core service controller.
 
 
 class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
-                          nfp_poll.PollEventDesc):
+                          nfp_api.PollEventDesc):
     instance_mapping = {}
 
     def __init__(self, sc, drivers, rpcmgr):
@@ -781,7 +781,7 @@ class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
         self.sc.poll_event(ev)
 
     # TODO(jiahao): copy from v1 agent need to review
-    @nfp_poll.poll_event_desc(event=lb_const.EVENT_COLLECT_STATS,
+    @nfp_api.poll_event_desc(event=lb_const.EVENT_COLLECT_STATS,
                               spacing=60)
     def collect_stats(self, ev):
         for pool_id, driver_name in \

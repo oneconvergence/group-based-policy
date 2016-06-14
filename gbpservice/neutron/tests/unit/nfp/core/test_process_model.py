@@ -10,308 +10,786 @@
 #  License for the specific language governing permissions and limitations
 #  under the License.
 
-from gbpservice.nfp.core import cfg as nfp_config
-from gbpservice.nfp.core import controller
+from gbpservice.nfp.core import controller as nfp_controller
+from gbpservice.nfp.core import event as nfp_event
+from gbpservice.nfp.core import worker as nfp_worker
 import mock
 import multiprocessing as multiprocessing
-from neutron.agent.common import config as n_config
-import os
 from oslo_config import cfg as oslo_config
 from oslo_log import log as oslo_logging
-import sys
+import random
 import time
 import unittest
 LOG = oslo_logging.getLogger(__name__)
 
+NFP_MODULES_PATH = 'gbpservice.neutron.tests.unit.nfp.core.test_nfp_module'
+
+
+class MockedPipe(object):
+
+    def __init__(self):
+        self.fd = random.randint(14, 34)
+        self.other_end_event_proc_func = None
+
+    def poll(self, *args, **kwargs):
+        return False
+
+    def send(self, event):
+        self.other_end_event_proc_func(event)
+
+
+class MockedProcess(object):
+
+    def __init__(self, parent_pipe=None, child_pipe=None, controller=None):
+        self.parent_pipe = parent_pipe
+        self.child_pipe = child_pipe
+        self.controller = controller
+        self.daemon = True
+        self.pid = random.randint(8888, 9999)
+
+    def start(self):
+        self.worker = nfp_worker.NfpWorker({}, threads=0)
+        self.worker.parent_pipe = self.parent_pipe
+        self.worker.pipe = self.child_pipe
+        self.worker.controller = nfp_controller.NfpController(
+            self.controller._conf)
+
+        # fork a new controller object
+        self.worker.controller.PROCESS_TYPE = "worker"
+        self.worker.controller._pipe = self.worker.pipe
+        self.worker.controller._event_handlers = \
+            self.controller._event_handlers
+        self.worker.event_handlers = self.controller.get_event_handlers()
+
+        self.parent_pipe.other_end_event_proc_func = \
+            self.worker._process_event
+        self.child_pipe.other_end_event_proc_func = \
+            self.controller._process_event
+
+
+def mocked_pipe(**kwargs):
+    return MockedPipe(), MockedPipe()
+
+
+def mocked_process(target=None, args=None):
+    return MockedProcess(parent_pipe=args[1],
+                         child_pipe=args[2], controller=args[3])
+
+nfp_controller.PIPE = mocked_pipe
+nfp_controller.PROCESS = mocked_process
+
+
+class Object(object):
+
+    def __init__(self):
+        pass
+
 
 class Test_Process_Model(unittest.TestCase):
 
-    @mock.patch(
-        'gbpservice.nfp.core.controller.Controller._pipe_send'
-    )
-    def test_event_create(self, mock_put):
-        event = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT1', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=True
-        )
-        self.sc.post_event(event)
-        self.assertIsNotNone(event.desc.worker_attached)
-        pipe = self.sc._worker_pipe_map[event.desc.worker_attached]
-        mock_put.assert_called_once_with(pipe, event)
+    def _mocked_fork(self, args):
+        proc = Object()
+        pid = random.randint(8888, 9999)
+        setattr(proc, 'pid', pid)
+        return proc
+
+    def _mocked_oslo_wrap(self):
+        wrap = Object()
+        setattr(wrap, 'service', {})
+        return wrap
+
+    def _mocked_event_ack(self, event):
+        if event.id == 'TEST_EVENT_ACK_FROM_WORKER':
+            if hasattr(event, 'desc'):
+                if event.desc.worker:
+                    self.controller.event_ack_wait_obj.set()
+
+    def test_nfp_module_init(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'nfp_module_init_wait_obj', wait_obj)
+        nfp_controller.load_nfp_modules(conf, controller)
+        controller.nfp_module_init_wait_obj.wait(1)
+        called = controller.nfp_module_init_wait_obj.is_set()
+        self.assertTrue(called)
+
+    def test_nfp_module_init_wrong_path(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = 'tmp.nfp'
+        controller = nfp_controller.NfpController(oslo_config.CONF)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'nfp_module_init_wait_obj', wait_obj)
+        nfp_controller.load_nfp_modules(conf, controller)
+        controller.nfp_module_init_wait_obj.wait(1)
+        called = controller.nfp_module_init_wait_obj.is_set()
+        self.assertFalse(called)
+
+    def test_nfp_module_post_init_called(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'nfp_module_post_init_wait_obj', wait_obj)
+        nfp_modules = nfp_controller.load_nfp_modules(conf, controller)
+        nfp_controller.nfp_modules_post_init(conf, nfp_modules, controller)
+        controller.nfp_module_post_init_wait_obj.wait(1)
+        called = controller.nfp_module_post_init_wait_obj.is_set()
+        self.assertTrue(called)
+
+    def test_nfp_module_post_init_ignored(self):
+        # None the post_init method in test handler
+        from gbpservice.neutron.tests.unit.nfp.core.test_nfp_module \
+            import nfp_module
+        del nfp_module.nfp_module_post_init
+
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'nfp_module_post_init_wait_obj', wait_obj)
+        nfp_modules = nfp_controller.load_nfp_modules(conf, controller)
+        nfp_controller.nfp_modules_post_init(conf, nfp_modules, controller)
+        controller.nfp_module_post_init_wait_obj.wait(1)
+        called = controller.nfp_module_post_init_wait_obj.is_set()
+        self.assertFalse(called)
 
     @mock.patch(
-        'gbpservice.nfp.core.controller.Controller._pipe_send'
+        'gbpservice.nfp.core.controller.NfpController._fork'
     )
-    def test_events_with_same_binding_keys(self, mock_put):
-        event1 = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT1', data=self.service1,
-            binding_key=self.service1['tenant'],
-            key=self.service1['id'], serialize=True
-        )
-        event2 = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT2', data=self.service1,
-            binding_key=self.service1['tenant'],
-            key=self.service1['id'], serialize=True
-        )
-        self.sc.post_event(event1)
-        self.sc.post_event(event2)
-        self.assertIsNotNone(event1.desc.worker_attached)
-        self.assertIsNotNone(event2.desc.worker_attached)
-        self.assertEqual(
-            event1.desc.worker_attached, event2.desc.worker_attached)
-        self.assertEqual(mock_put.call_count, 2)
+    def test_nfp_controller_launch_2_workers(self, mock_fork):
+        mock_fork.side_effect = self._mocked_fork
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = ''
+        controller = nfp_controller.NfpController(conf)
+        controller.launch(2)
+        # Check if 2 childrens are created
+        childrens = controller.get_childrens()
+        pids = childrens.keys()
+        self.assertTrue(len(pids) == 2)
+        self.assertTrue(pid in range(8888, 9999) for pid in pids)
 
     @mock.patch(
-        'gbpservice.nfp.core.controller.Controller._pipe_send'
+        'gbpservice.nfp.core.controller.NfpController._fork'
     )
-    def test_events_with_no_binding_key(self, mock_put):
-        event1 = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT1', data=self.service1,
-            key=self.service1['id'], serialize=False
-        )
-        event2 = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT2', data=self.service1,
-            key=self.service1['id'], serialize=False
-        )
-        self.sc.post_event(event1)
-        self.sc.post_event(event2)
-        self.assertIsNotNone(event1.desc.worker_attached)
-        self.assertIsNotNone(event2.desc.worker_attached)
-        self.assertNotEqual(
-            event1.desc.worker_attached, event2.desc.worker_attached)
-        self.assertEqual(mock_put.call_count, 2)
+    def test_nfp_controller_launch_4_workers(self, mock_fork):
+        mock_fork.side_effect = self._mocked_fork
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = ''
+        controller = nfp_controller.NfpController(conf)
+        controller.launch(4)
+        # Check if 4 childrens are created
+        childrens = controller.get_childrens()
+        pids = childrens.keys()
+        self.assertTrue(len(pids) == 4)
+        self.assertTrue(pid in range(8888, 9999) for pid in pids)
 
     @mock.patch(
-        'gbpservice.nfp.core.controller.Controller._pipe_send'
+        'gbpservice.nfp.core.controller.NfpController._fork'
     )
-    def test_loadbalancing_events(self, mock_put):
-        event1 = self.sc.new_event(
-            id='SERVICE_CREATE', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=False
-        )
-        self.sc.post_event(event1)
-        count = 0
-        for worker in self.sc._workers:
-            if event1.desc.worker_attached == worker[0].pid:
-                rrid_event1 = count
-                break
-            count = count + 1
+    def test_nfp_rsrc_manager_new_childs(self, mock_fork):
+        mock_fork.side_effect = self._mocked_fork
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = ''
+        controller = nfp_controller.NfpController(conf)
+        controller.launch(2)
+        controller._update_manager()
+        # Check if 2 childrens are added to manager
+        pids = controller._manager._resource_map.keys()
+        self.assertTrue(len(pids) == 2)
+        self.assertTrue(pid in range(8888, 9999) for pid in pids)
 
-        event2 = self.sc.new_event(
-            id='SERVICE_CREATE', data=self.service2,
-            binding_key=self.service2['id'],
-            key=self.service2['id'], serialize=False
-        )
-        self.sc.post_event(event2)
-        if rrid_event1 + 1 == len(self.sc._workers):
-            self.assertEqual(event2.desc.worker_attached,
-                             self.sc._workers[0][0].pid)
-        else:
-            self.assertEqual(
-                event2.desc.worker_attached,
-                self.sc._workers[rrid_event1 + 1][0].pid
-            )
-        self.assertEqual(mock_put.call_count, 2)
+    @mock.patch(
+        'gbpservice.nfp.core.controller.NfpController._fork'
+    )
+    def test_nfp_rsrc_manager_kill_child(self, mock_fork):
+        mock_fork.side_effect = self._mocked_fork
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = ''
+        controller = nfp_controller.NfpController(conf)
+        controller.launch(2)
+        controller._update_manager()
+        # run so that it stores the snapshot
+        controller._manager.manager_run()
+        # Mock killing a child, remove it from childrens list
+        childrens = controller.get_childrens()
+        old_childs = list(childrens.keys())
+        del controller.children[old_childs[0]]
+        # Mock creating a new child which replaces the killed one
+        wrap = self._mocked_oslo_wrap()
+        pid = controller.fork_child(wrap)
+        controller.children[pid] = wrap
 
-    @mock.patch('gbpservice.nfp.core.controller.EventSequencer.add')
-    def test_serialize_events_serialize_false(self, mock_sequencer):
-        event1 = self.mock_event(
-            id='SERVICE_CREATE', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=False,
-            worker_attached=self.sc._workers[0][0].pid
-        )
-        sequenced_event1 = self.sc.sequencer_put_event(event1)
-        self.assertEqual(mock_sequencer.call_count, 0)
-        self.assertEqual(sequenced_event1, event1)
+        # Run one more time and check if it detects the difference
+        controller._manager.manager_run()
+        pids = controller._manager._resource_map.keys()
+        self.assertTrue(len(pids) == 2)
+        self.assertFalse(old_childs[0] in pids)
+        self.assertTrue(old_childs[1] in pids)
 
-    @mock.patch('gbpservice.nfp.core.controller.EventSequencer.add')
-    def test_serialize_events_serialze_true(self, mock_sequencer):
-        event1 = self.mock_event(
-            id='SERVICE_CREATE', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=True,
-            worker_attached=self.sc._workers[0][0].pid
-        )
-        mock_sequencer.return_value = True
-        sequenced_event1 = self.sc.sequencer_put_event(event1)
-        mock_sequencer.assert_called_once_with(event1)
-        self.assertEqual(sequenced_event1, None)
-        mock_sequencer.return_value = False
-        sequenced_event1 = self.sc.sequencer_put_event(event1)
-        self.assertEqual(sequenced_event1, event1)
-
-    @mock.patch('gbpservice.nfp.core.controller.EventSequencer')
-    def test_EventSequencer_add(self, mocked_sequencer):
-        event1 = self.mock_event(
-            id='SERVICE_CREATE', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=True,
-            worker_attached=self.sc._workers[0][0].pid
-        )
-        mocked_sequencer_map = mock.Mock()
-        mocked_sequencer._sequencer_map = mocked_sequencer_map
-        mocked_sequencer_map = {}
-        self.assertFalse(self.EventSequencer.add(event1))
-        mocked_sequencer_map = self.create_sequencer_map(
-            self.sc._workers[0][0].pid,
-            self.service1['id']
-        )
-        self.assertTrue(self.EventSequencer.add(event1))
-
-    def test_handle_event_on_queue(self):
-        event1 = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT1', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=True
-        )
-        self.sc.post_event(event1)
-        time.sleep(10)
-        handle_event_invoked = self.sc._event.wait(1)
-        self.assertTrue(handle_event_invoked)
-
-    def test_poll_handle_event(self):
-        ev = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT2', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=True
-        )
-        self.sc.post_event(ev)
-        time.sleep(30)
-        poll_handle_event_invoked = self.sc._event.wait(1)
-        self.assertTrue(poll_handle_event_invoked)
-
-    def test_poll_event_maxtimes(self):
-        ev = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT3', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=True
-        )
-        self.sc.post_event(ev)
-        time.sleep(80)
-        event_polled_maxtimes = self.sc._event.wait(1)
-        self.assertTrue(event_polled_maxtimes)
-
-    def test_poll_event_done(self):
-        ev = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT4', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=True
-        )
-        self.sc.post_event(ev)
-        time.sleep(30)
-        sc_event_set = self.sc._event.wait(1)
-        self.assertFalse(sc_event_set)
-
-    def test_periodic_method_withspacing_10(self):
-        ev = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT5', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=True)
-        self.sc.post_event(ev)
-        time.sleep(30)
-        called_with_correct_spacing = self.sc._event.wait(1)
-        self.assertTrue(called_with_correct_spacing)
-
-    def test_periodic_method_withspacing_20(self):
-        ev = self.sc.new_event(
-            id='DUMMY_SERVICE_EVENT6', data=self.service1,
-            binding_key=self.service1['id'],
-            key=self.service1['id'], serialize=True)
-        self.sc.post_event(ev)
-        time.sleep(30)
-        called_with_correct_spacing = self.sc._event.wait(1)
-        self.assertTrue(called_with_correct_spacing)
-
-    def test_worker_process_initilized(self):
-        workers = self.sc._workers
-        test_process = multiprocessing.Process()
-        self.assertEqual(len(workers), 4)
-        for worker in workers:
-            self.assertTrue(type(worker[0]), type(test_process))
-
-    def create_sequencer_map(self, worker_attached, binding_key):
-        sequencer_map = {}
-        sequencer_map[worker_attached] = {}
-        mapp = sequencer_map[worker_attached]
-        mapp[binding_key] = {'in_use': True, 'queue': []}
-        return sequencer_map
-
-    def mock_event(self, **kwargs):
-        event = self.sc.new_event(**kwargs)
-        event.desc.poll_event = \
-            kwargs.get('poll_event') if 'poll_event' in kwargs else None
-        event.desc.worker_attached = \
-            kwargs.get(
-                'worker_attached') if 'worker_attached' in kwargs else None
-        event.last_run = kwargs.get(
-            'last_run') if 'last_run' in kwargs else None
-        event.max_times = kwargs.get(
-            'max_times') if 'max_times' in kwargs else -1
-        return event
-
-    def modules_import(self):
-        modules = []
-        modules_dir = 'gbpservice.neutron.tests.unit.nfp.core.EventHandler'
-        base_module = __import__(
-            modules_dir,
-            globals(), locals(),
-            ['modules'], -1
-        )
-        modules_dir_test = base_module.__path__[0]
-        syspath = sys.path
-        sys.path = [modules_dir_test] + syspath
+    def test_post_event_with_no_handler(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = ''
+        controller = nfp_controller.NfpController(conf)
+        event = controller.create_event(
+            id='EVENT_INVALID', data='INVALID_DATA',
+            binding_key='EVENT_INVALID')
         try:
-            files = os.listdir(modules_dir_test)
-        except OSError:
-            LOG.error(_("Failed to read files.."))
-            files = []
-        for fname in files:
-            if fname.endswith(".py") and fname != '__init__.py':
-                module = __import__(
-                    modules_dir,
-                    globals(), locals(),
-                    [fname[:-3]], -1
-                )
-                modules += [__import__(fname[:-3])]
-        sys.path = syspath
-        return modules
+            controller.post_event(event)
+        except AssertionError:
+            return
 
-    def setUp(self):
-        oslo_config.CONF.register_opts(nfp_config.OPTS)
-        modules = self.modules_import()
-        n_config.register_interface_driver_opts_helper(oslo_config.CONF)
-        n_config.register_agent_state_opts_helper(oslo_config.CONF)
-        n_config.register_root_helper(oslo_config.CONF)
-        oslo_config.CONF.workers = 4
-        self.service1 = {
-            'id': 'sc2f2b13-e284-44b1-9d9a-2597e216271a',
-            'tenant': '40af8c0695dd49b7a4980bd1b47e1a1b',
-            'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e2161c',
-            'servicefunction': 'sf2f2b13-e284-44b1-9d9a-2597e216561d',
-            'vip_id': '13948da4-8dd9-44c6-adef-03a6d8063daa',
-            'service_vendor': 'haproxy',
-            'service_type': 'loadbalancer',
-            'ip': '192.168.20.199'
-        }
-        self.service2 = {
-            'id': 'sc2f2b13-e284-44b1-9d9a-2597e216272a',
-            'tenant': '40af8c0695dd49b7a4980bd1b47e1a2b',
-            'servicechain': 'sc2f2b13-e284-44b1-9d9a-2597e216562c',
-            'servicefunction': 'sf2f2b13-e284-44b1-9d9a-2597e216562d',
-            'mac_address': 'fa:16:3e:3f:93:05',
-            'service_vendor': 'vyos',
-            'service_type': 'firewall',
-            'ip': '192.168.20.197'
-        }
-        n_config.setup_logging()
-        self._conf = oslo_config.CONF
-        self._modules = modules
-        self.sc = controller.Controller(oslo_config.CONF, modules)
-        self.EventSequencer = controller.EventSequencer(self.sc)
-        self.sc.start()
+        self.assertTrue(False)
+
+    def mocked_pipe_send(self, pipe, event):
+        if event.id == 'EVENT_1':
+            if hasattr(event, 'desc'):
+                if event.desc.worker:
+                    self.controller.nfp_event_1_wait_obj.set()
+        elif 'EVENT_LOAD' in event.id:
+            if hasattr(event, 'desc'):
+                if event.desc.worker == event.data:
+                    self.controller.nfp_event_load_wait_obj.set()
+        elif 'SEQUENCE' in event.id:
+            if hasattr(event, 'desc'):
+                if event.desc.worker:
+                    if 'EVENT_1' in event.id:
+                        self.controller.sequence_event_1_wait_obj.set()
+                    elif 'EVENT_2' in event.id:
+                        self.controller.sequence_event_2_wait_obj.set()
+        elif 'POLL' in event.id:
+            if hasattr(event, 'desc'):
+                if hasattr(event.desc, 'poll_desc'):
+                    if event.desc.worker:
+                        if event.id == 'POLL_EVENT':
+                            self.controller.poll_event_wait_obj.set()
+                        if event.id == 'POLL_EVENT_DECORATOR':
+                            self.controller.poll_event_dec_wait_obj.set()
+
+    @mock.patch(
+        'gbpservice.nfp.core.controller.NfpController.pipe_send'
+    )
+    def test_post_event_in_distributor(self, mock_pipe_send):
+        mock_pipe_send.side_effect = self.mocked_pipe_send
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'nfp_event_1_wait_obj', wait_obj)
+        event = controller.create_event(
+            id='EVENT_1',
+            data='post_event_in_distributor')
+
+        # Store in class object
+        self.controller = controller
+        controller.post_event(event)
+        controller.nfp_event_1_wait_obj.wait(1)
+        called = controller.nfp_event_1_wait_obj.is_set()
+        self.assertTrue(called)
+
+    @mock.patch(
+        'gbpservice.nfp.core.controller.NfpController.pipe_send'
+    )
+    def test_load_distribution_to_workers(self, mock_pipe_send):
+        mock_pipe_send.side_effect = self.mocked_pipe_send
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(3)
+        controller._update_manager()
+
+        # Load distribution as -> worker1 - 2, worker2 - 4, worker3 - 6
+        # 10 events to be distributed.
+        # worker1 will get 5
+        # worker2 will get 4
+        # worker3 will get 1
+        # At the end all workers should be @load 7
+
+        # Initialize with above load
+        init_load = [6, 4, 2]
+        worker_pids = []
+        resource_map = controller._manager._resource_map
+        for pid, em in resource_map.iteritems():
+            load = init_load.pop()
+            em._load = load
+            worker_pids.append(pid)
+
+        events = [
+            controller.create_event(id='EVENT_LOAD_1', data=worker_pids[0]),
+            controller.create_event(id='EVENT_LOAD_2', data=worker_pids[0]),
+            controller.create_event(id='EVENT_LOAD_3', data=worker_pids[0]),
+            controller.create_event(id='EVENT_LOAD_4', data=worker_pids[1]),
+            controller.create_event(id='EVENT_LOAD_5', data=worker_pids[0]),
+            controller.create_event(id='EVENT_LOAD_6', data=worker_pids[1]),
+            controller.create_event(id='EVENT_LOAD_7', data=worker_pids[0]),
+            controller.create_event(id='EVENT_LOAD_8', data=worker_pids[1]),
+            controller.create_event(id='EVENT_LOAD_9', data=worker_pids[2])]
+
+        for i in range(0, 9):
+            wait_obj = multiprocessing.Event()
+            setattr(controller, 'nfp_event_load_wait_obj', wait_obj)
+            event = events[i]
+            controller.post_event(event)
+            controller.nfp_event_load_wait_obj.wait(1)
+            called = controller.nfp_event_load_wait_obj.is_set()
+            self.assertTrue(called)
+
+    def test_new_event_with_sequence_and_no_binding_key(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = ''
+        controller = nfp_controller.NfpController(conf)
+        event = controller.create_event(
+            id='EVENT_SEQUENCE', data='NO_DATA',
+            serialize=True)
+        self.assertTrue(event is None)
+
+    @mock.patch(
+        'gbpservice.nfp.core.controller.NfpController.pipe_send'
+    )
+    def test_events_sequencing_with_same_binding_key(self, mock_pipe_send):
+        mock_pipe_send.side_effect = self.mocked_pipe_send
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'sequence_event_1_wait_obj', wait_obj)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'sequence_event_2_wait_obj', wait_obj)
+        event_1 = controller.create_event(
+            id='SEQUENCE_EVENT_1', data='NO_DATA',
+            serialize=True, binding_key='SEQUENCE')
+        event_2 = controller.create_event(
+            id='SEQUENCE_EVENT_2', data='NO_DATA',
+            serialize=True, binding_key='SEQUENCE')
+        controller.post_event(event_1)
+        controller.post_event(event_2)
+
+        controller._manager.manager_run()
+        controller.sequence_event_1_wait_obj.wait(1)
+        called = controller.sequence_event_1_wait_obj.is_set()
+        self.assertTrue(called)
+        controller.event_complete(event_1)
+        controller._manager.manager_run()
+        controller.sequence_event_2_wait_obj.wait(1)
+        called = controller.sequence_event_2_wait_obj.is_set()
+        self.assertTrue(called)
+        controller.event_complete(event_2)
+
+    @mock.patch(
+        'gbpservice.nfp.core.controller.NfpController.pipe_send'
+    )
+    def test_events_sequencing_with_diff_binding_key(self, mock_pipe_send):
+        mock_pipe_send.side_effect = self.mocked_pipe_send
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'sequence_event_1_wait_obj', wait_obj)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'sequence_event_2_wait_obj', wait_obj)
+        event_1 = controller.create_event(
+            id='SEQUENCE_EVENT_1', data='NO_DATA',
+            serialize=True, binding_key='SEQUENCE_1')
+        event_2 = controller.create_event(
+            id='SEQUENCE_EVENT_2', data='NO_DATA',
+            serialize=True, binding_key='SEQUENCE_2')
+        controller.post_event(event_1)
+        controller.post_event(event_2)
+
+        controller._manager.manager_run()
+        controller.sequence_event_1_wait_obj.wait(1)
+        called = controller.sequence_event_1_wait_obj.is_set()
+        self.assertTrue(called)
+        controller.sequence_event_2_wait_obj.wait(1)
+        called = controller.sequence_event_2_wait_obj.is_set()
+        self.assertTrue(called)
+
+    @mock.patch(
+        'gbpservice.nfp.core.controller.NfpController.pipe_send'
+    )
+    def test_events_sequencing_negative(self, mock_pipe_send):
+        mock_pipe_send.side_effect = self.mocked_pipe_send
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'sequence_event_1_wait_obj', wait_obj)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'sequence_event_2_wait_obj', wait_obj)
+        event_1 = controller.create_event(
+            id='SEQUENCE_EVENT_1', data='NO_DATA',
+            serialize=True, binding_key='SEQUENCE')
+        event_2 = controller.create_event(
+            id='SEQUENCE_EVENT_2', data='NO_DATA',
+            serialize=True, binding_key='SEQUENCE')
+        controller.post_event(event_1)
+        controller.post_event(event_2)
+
+        controller._manager.manager_run()
+        controller.sequence_event_1_wait_obj.wait(1)
+        called = controller.sequence_event_1_wait_obj.is_set()
+        self.assertTrue(called)
+        controller._manager.manager_run()
+        controller.sequence_event_2_wait_obj.wait(1)
+        called = controller.sequence_event_2_wait_obj.is_set()
+        # Should not be called
+        self.assertFalse(called)
+        controller.event_complete(event_1)
+        controller.event_complete(event_2)
+
+    @mock.patch(
+        'gbpservice.nfp.core.controller.NfpController.pipe_send'
+    )
+    def test_poll_event(self, mock_pipe_send):
+        mock_pipe_send.side_effect = self.mocked_pipe_send
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'poll_event_wait_obj', wait_obj)
+        event = controller.create_event(
+            id='POLL_EVENT', data='NO_DATA')
+
+        # Update descriptor
+        desc = nfp_event.EventDesc(**{})
+        setattr(event, 'desc', desc)
+        event.desc.worker = controller.get_childrens().keys()[0]
+
+        controller.poll_event(event, spacing=1)
+        # controller._manager.manager_run()
+
+        start_time = time.time()
+        # relinquish for 1sec
+        time.sleep(1)
+
+        controller.poll()
+        controller.poll_event_wait_obj.wait(0.1)
+        called = controller.poll_event_wait_obj.is_set()
+        end_time = time.time()
+        self.assertTrue(called)
+        self.assertTrue(round(end_time - start_time) == 1.0)
+
+    @mock.patch(
+        'gbpservice.nfp.core.controller.NfpController.pipe_send'
+    )
+    def test_poll_event_with_no_worker(self, mock_pipe_send):
+        mock_pipe_send.side_effect = self.mocked_pipe_send
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'poll_event_wait_obj', wait_obj)
+        event = controller.create_event(
+            id='POLL_EVENT', data='NO_DATA')
+
+        # Update descriptor
+        desc = nfp_event.EventDesc(**{})
+        setattr(event, 'desc', desc)
+        # Explicitly make it none
+        event.desc.worker = None
+
+        controller.poll_event(event, spacing=1)
+        # controller._manager.manager_run()
+
+        start_time = time.time()
+        # relinquish for 1sec
+        time.sleep(1)
+
+        controller.poll()
+        controller.poll_event_wait_obj.wait(0.1)
+        called = controller.poll_event_wait_obj.is_set()
+        end_time = time.time()
+        self.assertTrue(called)
+        self.assertTrue(round(end_time - start_time) == 1.0)
+
+    @mock.patch(
+        'gbpservice.nfp.core.controller.NfpController.pipe_send'
+    )
+    def test_poll_event_with_decorator_spacing(self, mock_pipe_send):
+        mock_pipe_send.side_effect = self.mocked_pipe_send
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'poll_event_dec_wait_obj', wait_obj)
+        event = controller.create_event(
+            id='POLL_EVENT_DECORATOR', data='NO_DATA')
+
+        # Update descriptor
+        desc = nfp_event.EventDesc(**{})
+        setattr(event, 'desc', desc)
+        # Explicitly make it none
+        event.desc.worker = None
+
+        controller.poll_event(event)
+        # controller._manager.manager_run()
+
+        start_time = time.time()
+        # relinquish for 2secs
+        time.sleep(2)
+
+        controller.poll()
+        controller.poll_event_dec_wait_obj.wait(0.1)
+        called = controller.poll_event_dec_wait_obj.is_set()
+        end_time = time.time()
+        self.assertTrue(called)
+        self.assertTrue(round(end_time - start_time) == 2.0)
+
+    def test_poll_event_with_no_spacing(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        event = controller.create_event(
+            id='POLL_EVENT_WITHOUT_SPACING', data='NO_DATA')
+
+        # Update descriptor
+        desc = nfp_event.EventDesc(**{})
+        setattr(event, 'desc', desc)
+        # Explicitly make it none
+        event.desc.worker = None
+
+        try:
+            controller.poll_event(event)
+        except AssertionError as aerr:
+            if aerr.message == "No spacing specified for polling":
+                self.assertTrue(True)
+                return
+
+        self.assertTrue(False)
+
+    def test_poll_event_with_no_handler(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        event = controller.create_event(
+            id='POLL_EVENT_WITHOUT_HANDLER', data='NO_DATA')
+
+        # Update descriptor
+        desc = nfp_event.EventDesc(**{})
+        setattr(event, 'desc', desc)
+        # Explicitly make it none
+        event.desc.worker = None
+
+        try:
+            controller.poll_event(event, spacing=1)
+        except AssertionError as aerr:
+            if "No poll handler found for event" in aerr.message:
+                self.assertTrue(True)
+                return
+
+        self.assertTrue(False)
+
+    @mock.patch(
+        'gbpservice.nfp.core.manager.NfpResourceManager._event_acked'
+    )
+    def test_event_ack_from_worker(self, mock_event_acked):
+        mock_event_acked.side_effect = self._mocked_event_ack
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        # Check if 1 worker is added to manager
+        pids = controller._manager._resource_map.keys()
+        self.assertTrue(len(pids) == 1)
+        self.assertTrue(pid in range(8888, 9999) for pid in pids)
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'event_ack_wait_obj', wait_obj)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'event_ack_handler_cb_obj', wait_obj)
+        event = controller.create_event(
+            id='TEST_EVENT_ACK_FROM_WORKER', data='NO_DATA')
+        controller.post_event(event)
+        controller._manager.manager_run()
+
+        # wait for event to be acked
+        controller.event_ack_wait_obj.wait(1)
+        called = controller.event_ack_wait_obj.is_set()
+        self.assertTrue(called)
+
+        # Check if event handler callback is invoked
+        controller.event_ack_handler_cb_obj.wait(1)
+        called = controller.event_ack_handler_cb_obj.is_set()
+        self.assertTrue(called)
+
+    def test_post_event_from_worker(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        # Check if 1 worker is added to manager
+        pids = controller._manager._resource_map.keys()
+        self.assertTrue(len(pids) == 1)
+        self.assertTrue(pid in range(8888, 9999) for pid in pids)
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'post_event_worker_wait_obj', wait_obj)
+        event = controller.create_event(
+            id='TEST_POST_EVENT_FROM_WORKER', data='NO_DATA')
+        worker_process = controller._worker_process.values()[0]
+        worker_process.worker.controller.post_event(event)
+
+        controller._manager.manager_run()
+
+        # Check if event handler callback is invoked
+        controller.post_event_worker_wait_obj.wait(1)
+        called = controller.post_event_worker_wait_obj.is_set()
+        self.assertTrue(called)
+
+    def test_poll_event_from_worker(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        # Check if 1 worker is added to manager
+        pids = controller._manager._resource_map.keys()
+        self.assertTrue(len(pids) == 1)
+        self.assertTrue(pid in range(8888, 9999) for pid in pids)
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'poll_event_worker_wait_obj', wait_obj)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'poll_event_poll_wait_obj', wait_obj)
+
+        event = controller.create_event(
+            id='TEST_POLL_EVENT_FROM_WORKER', data='NO_DATA')
+        worker_process = controller._worker_process.values()[0]
+        worker_process.worker.controller.post_event(event)
+
+        controller._manager.manager_run()
+
+        # Check if event handler callback is invoked
+        controller.poll_event_worker_wait_obj.wait(1)
+        called = controller.poll_event_worker_wait_obj.is_set()
+        self.assertTrue(called)
+
+        time.sleep(1)
+        controller.poll()
+
+        controller.poll_event_poll_wait_obj.wait(1)
+        called = controller.poll_event_poll_wait_obj.is_set()
+        self.assertTrue(called)
+
+    def test_poll_event_cancelled_from_worker(self):
+        conf = oslo_config.CONF
+        conf.nfp_modules_path = NFP_MODULES_PATH
+        controller = nfp_controller.NfpController(conf)
+        self.controller = controller
+        nfp_controller.load_nfp_modules(conf, controller)
+        # Mock launching of a worker
+        controller.launch(1)
+        controller._update_manager()
+        self.controller = controller
+
+        # Check if 1 worker is added to manager
+        pids = controller._manager._resource_map.keys()
+        self.assertTrue(len(pids) == 1)
+        self.assertTrue(pid in range(8888, 9999) for pid in pids)
+
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'poll_event_worker_wait_obj', wait_obj)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'poll_event_poll_wait_obj', wait_obj)
+        wait_obj = multiprocessing.Event()
+        setattr(controller, 'poll_event_poll_cancel_wait_obj', wait_obj)
+
+        event = controller.create_event(
+            id='TEST_POLL_EVENT_CANCEL_FROM_WORKER', data='NO_DATA')
+        worker_process = controller._worker_process.values()[0]
+        worker_process.worker.controller.post_event(event)
+
+        controller._manager.manager_run()
+
+        # Check if event handler callback is invoked
+        controller.poll_event_worker_wait_obj.wait(1)
+        called = controller.poll_event_worker_wait_obj.is_set()
+        self.assertTrue(called)
+
+        time.sleep(1)
+        controller.poll()
+
+        controller.poll_event_poll_wait_obj.wait(1)
+        called = controller.poll_event_poll_wait_obj.is_set()
+        self.assertTrue(called)
+
+        time.sleep(1)
+        controller.poll()
+
+        controller.poll_event_poll_wait_obj.wait(1)
+        called = controller.poll_event_poll_wait_obj.is_set()
+        self.assertTrue(called)
+
+        controller.poll_event_poll_cancel_wait_obj.wait(1)
+        called = controller.poll_event_poll_cancel_wait_obj.is_set()
+        self.assertTrue(called)
 
 if __name__ == '__main__':
     unittest.main()

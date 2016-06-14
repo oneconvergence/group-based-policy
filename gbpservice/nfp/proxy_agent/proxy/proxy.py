@@ -143,6 +143,7 @@ class Connection(object):
         self._start_time = time.time()
         self._end_time = time.time()
         self.type = type
+        self.socket_id = self._socket.fileno()
 
     def _tick(self):
         self._idle_count += 1
@@ -167,7 +168,9 @@ class Connection(object):
     def _wait(self, timeout):
         if self.type == 'unix':
             eventlet.sleep(timeout)
-        self._socket.settimeout(timeout)
+            self._socket.setblocking(0)
+        else:
+            self._socket.settimeout(timeout)
 
     def recv(self):
         self._wait(self._idle_wait)
@@ -184,14 +187,21 @@ class Connection(object):
         return None
 
     def send(self, data):
-        self._socket.send(data)
+        self._socket.setblocking(1)
+        self._socket.sendall(data)
+        self._socket.setblocking(0)
 
     def close(self):
         LOG.debug("Closing Socket - %d" % (self.identify()))
-        self._socket.close()
+        try:
+            self._socket.shutdown(socket.SHUT_RDWR)
+            self._socket.close()
+        except Exception as exc:
+            LOG.error("%s - exception while closing - %s" %
+                (self.identify(), str(exc)))
 
     def identify(self):
-        return self._socket.fileno()
+        return self.socket_id
 
 
 """

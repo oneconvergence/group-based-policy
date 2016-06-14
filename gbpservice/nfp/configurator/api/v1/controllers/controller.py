@@ -12,7 +12,7 @@
 
 import oslo_serialization.jsonutils as jsonutils
 
-from neutron.agent.common import config
+# from neutron.agent.common import config
 from neutron.common import rpc as n_rpc
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -141,8 +141,8 @@ class Controller(BaseController):
             pecan.response.status = 400
             msg = ("Failed to serve HTTP post request %s %s."
                    % (self.method_name, str(err).capitalize()))
-            extra_import = ("need to remove this import %s" % config)
-            LOG.debug(extra_import)
+            # extra_import = ("need to remove this import %s" % config)
+            # LOG.debug(extra_import)
             LOG.error(msg)
             error_data = self._format_description(msg)
             return jsonutils.dumps(error_data)

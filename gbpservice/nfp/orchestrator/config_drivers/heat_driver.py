@@ -90,11 +90,22 @@ LOG = nfp_logging.getLogger(__name__)
 
 
 class HeatDriver(object):
+
     def __init__(self, config):
         self.keystoneclient = KeystoneClient(config)
         self.gbp_client = GBPClient(config)
         self.neutron_client = NeutronClient(config)
         # self.resource_owner_tenant_id = None
+
+        keystone_conf = cfg.CONF.keystone_authtoken
+        keystone_version = keystone_conf.auth_version
+        self.v2client = self.keystoneclient._get_v2_keystone_admin_client()
+        self.admin_id = self.v2client.users.find(
+            name=keystone_conf.admin_user).id
+        self.admin_role = self._get_role_by_name(
+            self.v2client, "admin", keystone_version)
+        self.heat_role = self._get_role_by_name(
+            self.v2client, "heat_stack_owner", keystone_version)
 
     '''
     @property
@@ -155,29 +166,25 @@ class HeatDriver(object):
                 allocated_role_names.append(role.name)
         return allocated_role_names
 
+    def _assign_admin_user_to_project_v2(self, project_id):
+        allocated_role_names = self.get_allocated_roles(
+            self.v2client, self.admin_id, project_id)
+        if self.admin_role:
+            if self.admin_role.name not in allocated_role_names:
+                self.v2client.roles.add_user_role(
+                    self.admin_id, self.admin_role.id, tenant=project_id)
+        if self.heat_role:
+            if self.heat_role.name not in allocated_role_names:
+                self.v2client.roles.add_user_role(self.admin_id,
+                                                  self.heat_role.id,
+                                                  tenant=project_id)
+
     def _assign_admin_user_to_project(self, project_id):
         keystone_conf = cfg.CONF.keystone_authtoken
         keystone_version = keystone_conf.auth_version
 
         if keystone_version == 'v2.0':
-            v2client = self.keystoneclient._get_v2_keystone_admin_client()
-            admin_id = v2client.users.find(name=keystone_conf.admin_user).id
-            admin_role = self._get_role_by_name(v2client, "admin",
-                                                keystone_version)
-            allocated_role_names = self.get_allocated_roles(
-                v2client, admin_id, project_id)
-
-            if admin_role:
-                if admin_role.name not in allocated_role_names:
-                    v2client.roles.add_user_role(
-                        admin_id, admin_role.id, tenant=project_id)
-
-            heat_role = self._get_role_by_name(v2client, "heat_stack_owner",
-                                               keystone_version)
-            if heat_role:
-                if heat_role.name not in allocated_role_names:
-                    v2client.roles.add_user_role(admin_id, heat_role.id,
-                                                 tenant=project_id)
+            return self._assign_admin_user_to_project_v2(project_id)
         else:
             v3client = self.keystoneclient._get_v3_keystone_admin_client()
             admin_id = v3client.users.find(name=keystone_conf.admin_user).id
@@ -200,6 +207,36 @@ class HeatDriver(object):
             return self.keystoneclient.get_scoped_keystone_token(
                 user, pwd, tenant_name)
 
+    def _get_heat_client_v1(self, tenant_id, assign_admin=False):
+        if assign_admin:
+            try:
+                self._assign_admin_user_to_project(tenant_id)
+            except Exception:
+                LOG.exception(_LE("Failed to assign admin user to project"))
+                return None
+
+        user, password, tenant, auth_url =\
+            self.keystoneclient.get_keystone_creds()
+
+        auth_token = self.keystone(user, password, tenant, tenant_id=tenant_id)
+
+        timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
+        if timeout_seconds:
+            timeout_mins = timeout_mins + 1
+        try:
+            heat_client = HeatClient(
+                user,
+                tenant_id,
+                cfg.CONF.heat_driver.heat_uri,
+                password,
+                auth_token=auth_token,
+                timeout_mins=timeout_mins)
+        except Exception:
+            LOG.exception(_LE("Failed to create heatclient object"))
+            return None
+
+        return heat_client
+
     def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None):
         user_tenant_id = tenant_id or resource_owner_tenant_id
         try:
@@ -207,6 +244,7 @@ class HeatDriver(object):
         except Exception:
             LOG.exception(_LE("Failed to assign admin user to project"))
             return None
+
         user, password, tenant, auth_url =\
             self.keystoneclient.get_keystone_creds()
         admin_token = self.keystone(
@@ -490,6 +528,70 @@ class HeatDriver(object):
                 resource_keys.append(key)
         return resource_keys
 
+    def _create_firewall_template(self, auth_token,
+                                  service_details, stack_template):
+
+        provider = service_details['provider_ptg']
+
+        consuming_ptgs_details = service_details['consuming_ptgs_details']
+        consumer_eps = service_details['consuming_external_policies']
+
+        if (not consuming_ptgs_details) and (not consumer_eps):
+            return None
+
+        is_template_aws_version = stack_template.get(
+            'AWSTemplateFormatVersion', False)
+        resources_key = 'Resources' if is_template_aws_version else 'resources'
+        properties_key = ('Properties' if is_template_aws_version
+                          else 'properties')
+        fw_rule_keys = self._get_all_heat_resource_keys(
+            stack_template[resources_key], is_template_aws_version,
+            'OS::Neutron::FirewallRule')
+        fw_policy_key = self._get_all_heat_resource_keys(
+            stack_template['resources'], is_template_aws_version,
+            'OS::Neutron::FirewallPolicy')[0]
+
+        provider_subnet = service_details['provider_subnet']
+        provider_cidr = provider_subnet['cidr']
+
+        fw_template_properties = dict(
+            resources_key=resources_key, properties_key=properties_key,
+            is_template_aws_version=is_template_aws_version,
+            fw_rule_keys=fw_rule_keys,
+            fw_policy_key=fw_policy_key)
+
+        for consumer in consuming_ptgs_details:
+            ptg = consumer['ptg']
+            subnets = consumer['subnets']
+
+            # Skip the stitching PTG
+            if ptg['proxied_group_id']:
+                continue
+
+            fw_template_properties.update({'name': ptg['id'][:3]})
+            for subnet in subnets:
+                if subnet['name'].startswith(APIC_OWNED_RES):
+                    continue
+
+                consumer_cidr = subnet['cidr']
+                self._append_firewall_rule(stack_template,
+                                           provider_cidr, consumer_cidr,
+                                           fw_template_properties, ptg['id'])
+
+        for consumer_ep in consumer_eps:
+            fw_template_properties.update({'name': consumer_ep['id'][:3]})
+            self._append_firewall_rule(stack_template, provider_cidr,
+                                       "0.0.0.0/0", fw_template_properties,
+                                       consumer_ep['id'])
+
+        for rule_key in fw_rule_keys:
+            del stack_template[resources_key][rule_key]
+            stack_template[resources_key][fw_policy_key][
+                properties_key]['firewall_rules'].remove(
+                    {'get_resource': rule_key})
+
+        return stack_template
+
     def _update_firewall_template(self, auth_token, provider, stack_template):
         consumer_ptgs, consumer_eps = self._get_consumers_for_chain(
             auth_token, provider)
@@ -650,6 +752,119 @@ class HeatDriver(object):
             if template_resource_dict[key].get(type_key) == resource_name:
                 keys.append(key)
         return keys
+
+    def _create_node_config_data(self, auth_token, tenant_id,
+                                 service_chain_node, service_chain_instance,
+                                 provider, provider_port, consumer,
+                                 consumer_port, network_function,
+                                 mgmt_ip, service_details):
+
+        nf_desc = None
+        common_desc = {'network_function_id': network_function['id']}
+
+        service_type = service_details['service_details']['service_type']
+        service_vendor = service_details['service_details']['service_vendor']
+        device_type = service_details['service_details']['device_type']
+        base_mode_support = (True if device_type == 'None'
+                             else False)
+
+        _, stack_template_str = self.parse_template_config_string(
+            service_chain_node.get('config'))
+        try:
+            stack_template = (jsonutils.loads(stack_template_str) if
+                              stack_template_str.startswith('{') else
+                              yaml.load(stack_template_str))
+        except Exception:
+            LOG.error(_LE(
+                "Unable to load stack template for service chain "
+                "node:  %(node_id)s") % {'node_id': service_chain_node})
+            return None, None
+        config_param_values = service_chain_instance.get(
+            'config_param_values', '{}')
+        stack_params = {}
+        try:
+            config_param_values = jsonutils.loads(config_param_values)
+        except Exception:
+            LOG.error(_LE("Unable to load config parameters"))
+            return None, None
+
+        is_template_aws_version = stack_template.get(
+            'AWSTemplateFormatVersion', False)
+        resources_key = ('Resources' if is_template_aws_version
+                         else 'resources')
+        parameters_key = ('Parameters' if is_template_aws_version
+                          else 'parameters')
+        properties_key = ('Properties' if is_template_aws_version
+                          else 'properties')
+
+        if not base_mode_support:
+            provider_port_mac = provider_port['mac_address']
+            provider_cidr = service_details['provider_subnet']['cidr']
+            provider_subnet = service_details['provider_subnet']
+        else:
+            provider_port_mac = ''
+            provider_cidr = ''
+        standby_provider_port_mac = None
+
+        if service_type == pconst.LOADBALANCER:
+            self._generate_pool_members(
+                auth_token, stack_template, config_param_values,
+                provider, is_template_aws_version)
+            config_param_values['Subnet'] = provider_subnet['id']
+            config_param_values['service_chain_metadata'] = ""
+            if not base_mode_support:
+                config_param_values[
+                    'service_chain_metadata'] = str(common_desc)
+                nf_desc = str((SC_METADATA % (service_chain_instance['id'],
+                                              mgmt_ip,
+                                              provider_port_mac,
+                                              standby_provider_port_mac,
+                                              network_function['id'],
+                                              service_vendor)))
+
+                lb_pool_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Pool')
+                stack_template[resources_key][lb_pool_key][properties_key][
+                    'description'] = str(common_desc)
+        elif service_type == pconst.FIREWALL:
+            stack_template = self._create_firewall_template(
+                auth_token, service_details, stack_template)
+
+            if not stack_template:
+                return None, None
+            self._modify_fw_resources_name(
+                stack_template, provider, is_template_aws_version)
+            if not base_mode_support:
+                firewall_desc = {'vm_management_ip': mgmt_ip,
+                                 'provider_ptg_info': [provider_port_mac],
+                                 'provider_cidr': provider_cidr,
+                                 'service_vendor': service_vendor,
+                                 'network_function_id': network_function[
+                                     'id']}
+
+                fw_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::Firewall')
+                stack_template[resources_key][fw_key][properties_key][
+                    'description'] = str(common_desc)
+
+                nf_desc = str(firewall_desc)
+
+        if nf_desc:
+            network_function['description'] = network_function[
+                'description'] + '\n' + nf_desc
+
+        for parameter in stack_template.get(parameters_key) or []:
+            if parameter in config_param_values:
+                stack_params[parameter] = config_param_values[parameter]
+
+        LOG.info(_LI('Final stack_template : %(stack_data)s, '
+                     'stack_params : %(params)s') %
+                 {'stack_data': stack_template, 'params': stack_params})
+        return (stack_template, stack_params)
 
     def _update_node_config(self, auth_token, tenant_id, service_profile,
                             service_chain_node, service_chain_instance,
@@ -1140,6 +1355,42 @@ class HeatDriver(object):
                           {'stack': stack_id})
             return failure_status
 
+    def check_config_complete(self, nfp_context):
+        success_status = "COMPLETED"
+        failure_status = "ERROR"
+        intermediate_status = "IN_PROGRESS"
+
+        provider_tenant_id = nfp_context['tenant_id']
+        stack_id = nfp_context['heat_stack_id']
+
+        heatclient = self._get_heat_client_v1(provider_tenant_id)
+        if not heatclient:
+            return failure_status
+        try:
+            stack = heatclient.get(stack_id)
+            if stack.stack_status == 'DELETE_FAILED':
+                return failure_status
+            elif stack.stack_status == 'CREATE_COMPLETE':
+                return success_status
+            elif stack.stack_status == 'UPDATE_COMPLETE':
+                return success_status
+            elif stack.stack_status == 'DELETE_COMPLETE':
+                LOG.info(_LI("Stack %(stack)s is deleted"),
+                         {'stack': stack_id})
+                return failure_status
+            elif stack.stack_status == 'CREATE_FAILED':
+                return failure_status
+            elif stack.stack_status == 'UPDATE_FAILED':
+                return failure_status
+            elif stack.stack_status not in [
+                    'UPDATE_IN_PROGRESS', 'CREATE_IN_PROGRESS',
+                    'DELETE_IN_PROGRESS']:
+                return intermediate_status
+        except Exception:
+            LOG.exception(_LE("Retrieving the stack %(stack)s failed."),
+                          {'stack': stack_id})
+            return failure_status
+
     def is_config_delete_complete(self, stack_id, tenant_id):
         success_status = "COMPLETED"
         failure_status = "ERROR"
@@ -1172,6 +1423,47 @@ class HeatDriver(object):
             LOG.exception(_LE("Retrieving the stack %(stack)s failed."),
                           {'stack': stack_id})
             return failure_status
+
+    def get_service_details_from_nfp_context(self, nfp_context):
+        network_function = nfp_context['network_function']
+        network_function_instance = nfp_context['network_function_instance']
+        service_details = nfp_context['service_details']
+        mgmt_ip = nfp_context['management']['port']['ip_address']
+        heat_stack_id = network_function['heat_stack_id']
+        service_id = network_function['service_id']
+        service_chain_id = network_function['service_chain_id']
+        servicechain_instance = nfp_context['service_chain_instance']
+        servicechain_node = nfp_context['service_chain_node']
+
+        consumer_policy_target_group = nfp_context['consumer']['ptg']
+        provider_policy_target_group = nfp_context['provider']['ptg']
+        provider_port = nfp_context['provider']['port']
+        provider_subnet = nfp_context['provider']['subnet']
+        consumer_port = nfp_context['consumer']['port']
+        consumer_subnet = nfp_context['consumer']['subnet']
+        service_details['consuming_external_policies'] = nfp_context[
+            'consuming_eps_details']
+        service_details['consuming_ptgs_details'] = nfp_context[
+            'consuming_ptgs_details']
+
+        return {
+            'service_profile': None,
+            'service_details': service_details,
+            'servicechain_node': servicechain_node,
+            'servicechain_instance': servicechain_instance,
+            'consumer_port': consumer_port,
+            'consumer_subnet': consumer_subnet,
+            'provider_port': provider_port,
+            'provider_subnet': provider_subnet,
+            'mgmt_ip': mgmt_ip,
+            'heat_stack_id': heat_stack_id,
+            'provider_ptg': provider_policy_target_group,
+            'consumer_ptg': consumer_policy_target_group,
+            'consuming_external_policies':
+            service_details['consuming_external_policies'],
+            'consuming_ptgs_details':
+            service_details['consuming_ptgs_details']
+        }
 
     def apply_config(self, network_function_details):
         service_details = self.get_service_details(network_function_details)
@@ -1228,6 +1520,65 @@ class HeatDriver(object):
                   'provider': provider['id']})
 
         return stack_id
+
+    def apply_heat_config(self, nfp_context):
+        service_details = self.get_service_details_from_nfp_context(
+            nfp_context)
+
+        network_function = nfp_context['network_function']
+        service_profile = service_details['service_profile']
+        service_chain_node = service_details['servicechain_node']
+        service_chain_instance = service_details['servicechain_instance']
+        provider = service_details['provider_ptg']
+        consumer = service_details['consumer_ptg']
+        consumer_port = service_details['consumer_port']
+        provider_port = service_details['provider_port']
+        mgmt_ip = service_details['mgmt_ip']
+
+        auth_token = nfp_context['resource_owner_context']['admin_token']
+        provider_tenant_id = nfp_context['tenant_id']
+        heatclient = self._get_heat_client_v1(provider_tenant_id,
+                                              assign_admin=True)
+        if not heatclient:
+            return None
+
+        stack_template, stack_params = self._create_node_config_data(
+            auth_token, provider_tenant_id,
+            service_chain_node, service_chain_instance,
+            provider, provider_port, consumer, consumer_port,
+            network_function, mgmt_ip, service_details)
+
+        if not stack_template and not stack_params:
+            return None
+
+        if not heatclient:
+            return None
+
+        stack_name = ("stack_" + service_chain_instance['name'] +
+                      service_chain_node['name'] +
+                      service_chain_instance['id'][:8] +
+                      service_chain_node['id'][:8] + '-' +
+                      time.strftime("%Y%m%d%H%M%S"))
+        # Heat does not accept space in stack name
+        stack_name = stack_name.replace(" ", "")
+
+        try:
+            stack = heatclient.create(stack_name, stack_template, stack_params)
+        except Exception as err:
+            LOG.error(_LE("Heat stack creation failed for template : "
+                          "%(template)s and stack parameters : %(params)s "
+                          "with Error: %(error)s") %
+                      {'template': stack_template, 'params': stack_params,
+                       'error': err})
+            return None
+
+        stack_id = stack['stack']['id']
+        LOG.info(_LI("Created stack with ID %(stack_id)s and "
+                     "name %(stack_name)s for provider PTG %(provider)s"),
+                 {'stack_id': stack_id, 'stack_name': stack_name,
+                  'provider': provider['id']})
+
+        return stack_id, heatclient
 
     def delete_config(self, stack_id, tenant_id):
         auth_token, resource_owner_tenant_id =\

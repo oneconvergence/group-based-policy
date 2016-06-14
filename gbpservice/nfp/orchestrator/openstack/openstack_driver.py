@@ -41,6 +41,7 @@ class OpenstackApi(object):
         self.tenant_name = (tenant_name or
                             config.keystone_authtoken.admin_tenant_name)
         self.token = None
+        self.admin_tenant_id = None
 
 
 class KeystoneClient(OpenstackApi):
@@ -102,6 +103,13 @@ class KeystoneClient(OpenstackApi):
             raise Exception(err)
         else:
             return scoped_token
+
+    def get_admin_tenant_id(self, token):
+        if not self.admin_tenant_id:
+            _,_,name,_ = self.get_keystone_creds()
+            self.admin_tenant_id = self.get_tenant_id(token, name)
+
+        return self.admin_tenant_id
 
     def get_tenant_id(self, token, tenant_name):
         """ Get the tenant UUID associated to tenant name
