@@ -55,7 +55,7 @@ class ConfiguratorRpcManager(object):
         self.demuxer = demuxer
         self.sv = schema_validator.SchemaValidator()
 
-    def _restructure_request_data(slef, reason, service_type, request_data):
+    def _restructure_request_data(self, reason, service_type, request_data):
         if reason == 'create'and service_type == 'loadbalancer':
             resource_name = str(request_data['config'][0]['resource'])
             if resource_name == 'pool_health_monitor':
