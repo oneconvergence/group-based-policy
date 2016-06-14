@@ -1083,12 +1083,13 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         device = nfp_context['network_function_device']
         network_function = nfp_context['network_function']
 
-        self._increment_device_ref_count(device)
-        self._update_network_function_device_db(device, nfp_constants.ACTIVE)
-        LOG.info(_LI("Device Configuration completed for device: %(device_id)s"
-                 "Updated DB status to ACTIVE, Incremented device "
-                 "reference count for %(device)s"),
-                 {'device_id': device['id'], 'device': device})
+        if result.lower() == 'success':
+            self._increment_device_ref_count(device)
+            self._update_network_function_device_db(device, nfp_constants.ACTIVE)
+            LOG.info(_LI("Device Configuration completed for device: %(device_id)s"
+                     "Updated DB status to ACTIVE, Incremented device "
+                     "reference count for %(device)s"),
+                     {'device_id': device['id'], 'device': device})
 
 
         # Invoke event_complete for original event which is
