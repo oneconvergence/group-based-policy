@@ -521,11 +521,8 @@ class OrchestrationDriver(object):
                 image_id, flavor, interfaces_to_attach, instance_name)
             return instance_id
         except Exception as e:
-            LOG.error(_LE('Failed to create %(device_type)s instance.'
-                          'Error: %(error)s'),
-                      {'device_type': (
-                          device_data['service_details']['device_type']),
-                       'error': e})
+            LOG.error(_LE('Failed to create instance.'
+                          'Error: %(error)s'), {'error': e})
 
     def get_neutron_port_details(self, network_handler, token, port_id):
         try:
