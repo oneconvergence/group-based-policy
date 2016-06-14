@@ -132,6 +132,13 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         body = common.prepare_request_data(nfp_context, resource,
                                            resource_type, kwargs,
                                            description['service_vendor'])
+        _resource_id = body['config'][0]['resource_data']['resource']['id']
+        _tenant = body['config'][0]['resource_data']['resource']['tenant_id']
+
+        _resource = {'id': _resource_id,
+                     'tenant_id': _tenant}
+        body['config'][0]['resource_data']['resource'] = _resource
+
         return body
 
     def _fetch_nf_from_resource_desc(self, desc):
