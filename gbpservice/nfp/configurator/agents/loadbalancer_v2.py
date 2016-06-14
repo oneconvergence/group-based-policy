@@ -140,7 +140,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     lb_const.LOADBALANCER: loadbalancer,
                     'driver_name': driver_name
                     }
-        self._send_event(lb_const.EVENT_CREATE_LOADBALANCER, arg_dict,
+        self._send_event(lb_const.EVENT_CREATE_LOADBALANCER_V2, arg_dict,
                          serialize=True, binding_key=loadbalancer['id'],
                          key=loadbalancer['id'])
 
@@ -158,7 +158,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     lb_const.OLD_LOADBALANCER: old_loadbalancer,
                     lb_const.LOADBALANCER: loadbalancer,
                     }
-        self._send_event(lb_const.EVENT_UPDATE_LOADBALANCER, arg_dict,
+        self._send_event(lb_const.EVENT_UPDATE_LOADBALANCER_V2, arg_dict,
                          serialize=True, binding_key=loadbalancer['id'],
                          key=loadbalancer['id'])
 
@@ -174,7 +174,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     lb_const.LOADBALANCER: loadbalancer,
                     }
-        self._send_event(lb_const.EVENT_DELETE_LOADBALANCER, arg_dict,
+        self._send_event(lb_const.EVENT_DELETE_LOADBALANCER_V2, arg_dict,
                          serialize=True, binding_key=loadbalancer['id'],
                          key=loadbalancer['id'])
 
@@ -190,7 +190,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     lb_const.LISTENER: listener,
                     }
-        self._send_event(lb_const.EVENT_CREATE_LISTENER, arg_dict,
+        self._send_event(lb_const.EVENT_CREATE_LISTENER_V2, arg_dict,
                          serialize=True,
                          binding_key=listener['loadbalancer_id'],
                          key=listener['id'])
@@ -209,7 +209,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     lb_const.OLD_LISTENER: old_listener,
                     lb_const.LISTENER: listener,
                     }
-        self._send_event(lb_const.EVENT_UPDATE_LISTENER, arg_dict,
+        self._send_event(lb_const.EVENT_UPDATE_LISTENER_V2, arg_dict,
                          serialize=True,
                          binding_key=listener['loadbalancer_id'],
                          key=listener['id'])
@@ -226,7 +226,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     lb_const.LISTENER: listener,
                     }
-        self._send_event(lb_const.EVENT_DELETE_LISTENER, arg_dict,
+        self._send_event(lb_const.EVENT_DELETE_LISTENER_V2, arg_dict,
                          serialize=True,
                          binding_key=listener['loadbalancer_id'],
                          key=listener['id'])
@@ -244,7 +244,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     lb_const.POOL: pool
                     }
         # TODO: M:N pool is not yet implemented.
-        self._send_event(lb_const.EVENT_CREATE_POOL, arg_dict,
+        self._send_event(lb_const.EVENT_CREATE_POOL_V2, arg_dict,
                          serialize=True,
                          binding_key=pool['loadbalancer_id'],
                          key=pool['id'])
@@ -263,7 +263,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     lb_const.OLD_POOL: old_pool,
                     lb_const.POOL: pool,
                     }
-        self._send_event(lb_const.EVENT_UPDATE_POOL, arg_dict,
+        self._send_event(lb_const.EVENT_UPDATE_POOL_V2, arg_dict,
                          serialize=True,
                          binding_key=pool['loadbalancer_id'],
                          key=pool['id'])
@@ -280,7 +280,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     lb_const.POOL: pool,
                     }
-        self._send_event(lb_const.EVENT_DELETE_POOL, arg_dict,
+        self._send_event(lb_const.EVENT_DELETE_POOL_V2, arg_dict,
                          serialize=True,
                          binding_key=pool['loadbalancer_id'],
                          key=pool['id'])
@@ -297,7 +297,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     lb_const.MEMBER: member,
                     }
-        self._send_event(lb_const.EVENT_CREATE_MEMBER, arg_dict,
+        self._send_event(lb_const.EVENT_CREATE_MEMBER_V2, arg_dict,
                          serialize=True,
                          binding_key=member[lb_const.POOL]['loadbalancer_id'],
                          key=member['id'])
@@ -316,7 +316,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     lb_const.OLD_MEMBER: old_member,
                     lb_const.MEMBER: member,
                     }
-        self._send_event(lb_const.EVENT_UPDATE_MEMBER, arg_dict,
+        self._send_event(lb_const.EVENT_UPDATE_MEMBER_V2, arg_dict,
                          serialize=True,
                          binding_key=member[lb_const.POOL]['loadbalancer_id'],
                          key=member['id'])
@@ -333,7 +333,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     lb_const.MEMBER: member,
                     }
-        self._send_event(lb_const.EVENT_DELETE_MEMBER, arg_dict,
+        self._send_event(lb_const.EVENT_DELETE_MEMBER_V2, arg_dict,
                          serialize=True,
                          binding_key=member[lb_const.POOL]['loadbalancer_id'],
                          key=member['id'])
@@ -351,7 +351,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     lb_const.HEALTHMONITOR: healthmonitor
                     }
-        self._send_event(lb_const.EVENT_CREATE_HEALTH_MONITOR,
+        self._send_event(lb_const.EVENT_CREATE_HEALTH_MONITOR_V2,
                          arg_dict, serialize=True,
                          binding_key=healthmonitor[lb_const.POOL][
                              'loadbalancer_id'],
@@ -372,7 +372,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
                     lb_const.OLD_HEALTHMONITOR: old_healthmonitor,
                     lb_const.HEALTHMONITOR: healthmonitor
                     }
-        self._send_event(lb_const.EVENT_UPDATE_HEALTH_MONITOR,
+        self._send_event(lb_const.EVENT_UPDATE_HEALTH_MONITOR_V2,
                          arg_dict, serialize=True,
                          binding_key=healthmonitor[lb_const.POOL][
                              'loadbalancer_id'],
@@ -391,7 +391,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
         arg_dict = {'context': context,
                     lb_const.HEALTHMONITOR: healthmonitor
                     }
-        self._send_event(lb_const.EVENT_DELETE_HEALTH_MONITOR,
+        self._send_event(lb_const.EVENT_DELETE_HEALTH_MONITOR_V2,
                          arg_dict, serialize=True,
                          binding_key=healthmonitor[lb_const.POOL][
                              'loadbalancer_id'],
@@ -409,7 +409,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
         """
         arg_dict = {'context': context,
                     'payload': payload}
-        self._send_event(lb_const.EVENT_AGENT_UPDATED, arg_dict)
+        self._send_event(lb_const.EVENT_AGENT_UPDATED_V2, arg_dict)
 
 
 """Implements event handlers and their helper methods.
@@ -527,7 +527,7 @@ class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
                    % (ev.id, str(err).capitalize()))
             LOG.error(msg)
         finally:
-            if ev.id == lb_const.EVENT_COLLECT_STATS:
+            if ev.id == lb_const.EVENT_COLLECT_STATS_V2:
                 """Do not say event done for collect stats as it is
                    to be executed forever
                 """
@@ -589,13 +589,13 @@ class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
                     lb_const.ACTIVE, lb_const.ONLINE,
                     agent_info, None)
 
-    def _create_loadbalancer(self, ev):
+    def _create_loadbalancer_v2(self, ev):
         self._handle_event_loadbalancer(ev, lb_const.CREATE)
 
-    def _update_loadbalancer(self, ev):
+    def _update_loadbalancer_v2(self, ev):
         self._handle_event_loadbalancer(ev, lb_const.UPDATE)
 
-    def _delete_loadbalancer(self, ev):
+    def _delete_loadbalancer_v2(self, ev):
         self._handle_event_loadbalancer(ev, lb_const.DELETE)
 
     def _handle_event_listener(self, ev, operation):
@@ -631,13 +631,13 @@ class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
                     lb_const.ACTIVE, lb_const.ONLINE,
                     agent_info, None)
 
-    def _create_listener(self, ev):
+    def _create_listener_v2(self, ev):
         self._handle_event_listener(ev, lb_const.CREATE)
 
-    def _update_listener(self, ev):
+    def _update_listener_v2(self, ev):
         self._handle_event_listener(ev, lb_const.UPDATE)
 
-    def _delete_listener(self, ev):
+    def _delete_listener_v2(self, ev):
         self._handle_event_listener(ev, lb_const.DELETE)
 
     def _handle_event_pool(self, ev, operation):
@@ -673,13 +673,13 @@ class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
                     lb_const.ACTIVE, lb_const.ONLINE,
                     agent_info, None)
 
-    def _create_pool(self, ev):
+    def _create_pool_v2(self, ev):
         self._handle_event_pool(ev, lb_const.CREATE)
 
-    def _update_pool(self, ev):
+    def _update_pool_v2(self, ev):
         self._handle_event_pool(ev, lb_const.UPDATE)
 
-    def _delete_pool(self, ev):
+    def _delete_pool_v2(self, ev):
         self._handle_event_pool(ev, lb_const.DELETE)
 
     def _handle_event_member(self, ev, operation):
@@ -714,13 +714,13 @@ class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
                     lb_const.ACTIVE, lb_const.ONLINE,
                     agent_info, None)
 
-    def _create_member(self, ev):
+    def _create_member_v2(self, ev):
         self._handle_event_member(ev, lb_const.CREATE)
 
-    def _update_member(self, ev):
+    def _update_member_v2(self, ev):
         self._handle_event_member(ev, lb_const.UPDATE)
 
-    def _delete_member(self, ev):
+    def _delete_member_v2(self, ev):
         self._handle_event_member(ev, lb_const.DELETE)
 
     def _handle_event_health_monitor(self, ev, operation):
@@ -762,13 +762,13 @@ class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
                     lb_const.ACTIVE, lb_const.ONLINE,
                     agent_info, None)
 
-    def _create_health_monitor(self, ev):
+    def _create_health_monitor_v2(self, ev):
         self._handle_event_health_monitor(ev, lb_const.CREATE)
 
-    def _update_health_monitor(self, ev):
+    def _update_health_monitor_v2(self, ev):
         self._handle_event_health_monitor(ev, lb_const.UPDATE)
 
-    def _delete_health_monitor(self, ev):
+    def _delete_health_monitor_v2(self, ev):
         self._handle_event_health_monitor(ev, lb_const.DELETE)
 
     # TODO(jiahao): copy from v1 agent need to review
@@ -781,9 +781,9 @@ class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
         self.sc.poll_event(ev)
 
     # TODO(jiahao): copy from v1 agent need to review
-    @nfp_api.poll_event_desc(event=lb_const.EVENT_COLLECT_STATS,
+    @nfp_api.poll_event_desc(event=lb_const.EVENT_COLLECT_STATS_V2,
                               spacing=60)
-    def collect_stats(self, ev):
+    def collect_stats_v2(self, ev):
         for pool_id, driver_name in \
                 LBaaSV2EventHandler.instance_mapping.items():
             driver_id = lb_const.SERVICE_TYPE + driver_name
@@ -811,27 +811,27 @@ def events_init(sc, drivers, rpcmgr):
     Returns: None
 
     """
-    ev_ids = [lb_const.EVENT_CREATE_LOADBALANCER,
-              lb_const.EVENT_UPDATE_LOADBALANCER,
-              lb_const.EVENT_DELETE_LOADBALANCER,
+    ev_ids = [lb_const.EVENT_CREATE_LOADBALANCER_V2,
+              lb_const.EVENT_UPDATE_LOADBALANCER_V2,
+              lb_const.EVENT_DELETE_LOADBALANCER_V2,
 
-              lb_const.EVENT_CREATE_LISTENER,
-              lb_const.EVENT_UPDATE_LISTENER,
-              lb_const.EVENT_DELETE_LISTENER,
+              lb_const.EVENT_CREATE_LISTENER_V2,
+              lb_const.EVENT_UPDATE_LISTENER_V2,
+              lb_const.EVENT_DELETE_LISTENER_V2,
 
-              lb_const.EVENT_CREATE_POOL, lb_const.EVENT_UPDATE_POOL,
-              lb_const.EVENT_DELETE_POOL,
+              lb_const.EVENT_CREATE_POOL_V2, lb_const.EVENT_UPDATE_POOL_V2,
+              lb_const.EVENT_DELETE_POOL_V2,
 
-              lb_const.EVENT_CREATE_MEMBER,
-              lb_const.EVENT_UPDATE_MEMBER,
-              lb_const.EVENT_DELETE_MEMBER,
+              lb_const.EVENT_CREATE_MEMBER_V2,
+              lb_const.EVENT_UPDATE_MEMBER_V2,
+              lb_const.EVENT_DELETE_MEMBER_V2,
 
-              lb_const.EVENT_CREATE_HEALTH_MONITOR,
-              lb_const.EVENT_UPDATE_HEALTH_MONITOR,
-              lb_const.EVENT_DELETE_HEALTH_MONITOR,
+              lb_const.EVENT_CREATE_HEALTH_MONITOR_V2,
+              lb_const.EVENT_UPDATE_HEALTH_MONITOR_V2,
+              lb_const.EVENT_DELETE_HEALTH_MONITOR_V2,
 
-              lb_const.EVENT_AGENT_UPDATED,
-              lb_const.EVENT_COLLECT_STATS
+              lb_const.EVENT_AGENT_UPDATED_V2,
+              lb_const.EVENT_COLLECT_STATS_V2
               ]
 
     evs = []
@@ -932,7 +932,7 @@ def _start_collect_stats(sc):
     """
 
     arg_dict = {}
-    ev = sc.new_event(id=lb_const.EVENT_COLLECT_STATS, data=arg_dict)
+    ev = sc.new_event(id=lb_const.EVENT_COLLECT_STATS_V2, data=arg_dict)
     sc.post_event(ev)
 
 
