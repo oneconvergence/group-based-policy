@@ -3,7 +3,7 @@
 source /home/stack/devstack/openrc neutron service
 
 # Service chain node and spec creation
-gbp servicechain-node-create --service-profile vyos_fw_profile --template-file ./templates/fw_template.yml FW_LB-FWNODE
+gbp servicechain-node-create --service-profile fw_profile --template-file ./templates/fw_template.yml FW_LB-FWNODE
 gbp servicechain-node-create --service-profile lb_profile --template-file ./templates/haproxy.template FW_LB-LBNODE
 gbp servicechain-spec-create --nodes "FW_LB-FWNODE FW_LB-LBNODE" fw_lb_chainspec
 
