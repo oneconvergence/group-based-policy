@@ -828,6 +828,30 @@ class HeatDriver(object):
                     'OS::Neutron::Pool')
                 stack_template[resources_key][lb_pool_key][properties_key][
                     'description'] = str(common_desc)
+
+        elif service_type == pconst.LOADBALANCERV2:
+            self._generate_lbaasv2_pool_members(
+                auth_token, stack_template, config_param_values,
+                provider, is_template_aws_version)
+            config_param_values['Subnet'] = provider_subnet['id']
+            config_param_values['service_chain_metadata'] = ""
+            if not base_mode_support:
+                config_param_values[
+                    'service_chain_metadata'] = str(common_desc)
+                nf_desc = str((SC_METADATA % (service_chain_instance['id'],
+                                              mgmt_ip,
+                                              provider_port_mac,
+                                              standby_provider_port_mac,
+                                              network_function['id'],
+                                              service_vendor)))
+
+            lb_loadbalancer_key = self._get_heat_resource_key(
+                    stack_template[resources_key],
+                    is_template_aws_version,
+                    'OS::Neutron::LBaaS::LoadBalancer')
+            stack_template[resources_key][lb_loadbalancer_key][
+                properties_key]['description'] = str(common_desc)
+
         elif service_type == pconst.FIREWALL:
             stack_template = self._create_firewall_template(
                 auth_token, service_details, stack_template)
