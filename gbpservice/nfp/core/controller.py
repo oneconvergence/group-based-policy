@@ -326,7 +326,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             rpc_agent = operator.itemgetter(0)(agent)
             rpc_agent.report_state()
 
-    def post_event_graph(self, event):
+    def post_event_graph(self, event, graph_nodes):
         """Post a new event graph into system.
 
             Graph is a collection of events to be
@@ -338,6 +338,11 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
 
             Return: None
         """
+
+        # Post events for all the graph nodes
+        for node in graph_nodes:
+            self.post_event(node)
+
         event = super(NfpController, self).post_event_graph(event)
         LOG.debug("(event - %s) - New event" % (event.identify()))
         if self.PROCESS_TYPE == "worker":

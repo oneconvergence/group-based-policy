@@ -705,28 +705,25 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                                                key=nf_id,
                                                data=nfp_context,
                                                graph=True)
-        self._controller.post_event(du_event)
 
         hc_event = self._controller.new_event(id="PERFORM_HEALTH_CHECK",
                                                      key=nf_id,
                                                      data=nfp_context,
                                                      graph=True)
-        self._controller.post_event(hc_event)
 
         plug_int_event = self._controller.new_event(id="PLUG_INTERFACES",
                                                     key=nf_id,
                                                     data=nfp_context,
                                                     graph=True)
-        self._controller.post_event(plug_int_event)
 
-        
         graph = nfp_event.EventGraph(du_event)
         graph.add_node(hc_event, du_event)
         graph.add_node(plug_int_event, du_event)
 
         graph_event = self._controller.new_event(id="HEALTH_MONITOR_GRAPH",
                                                  graph=graph)
-        self._controller.post_event_graph(graph_event)
+        graph_nodes = [du_event, hc_event, plug_int_event]
+        self._controller.post_event_graph(graph_event, graph_nodes)
 
 
     @nfp_api.poll_event_desc(event='DEVICE_SPAWNING', spacing=2)
@@ -787,17 +784,14 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                                                              key=nf_id,
                                                              data=nfp_context,
                                                              graph=True)
-        self._controller.post_event(device_configured_event)
         device_configure_event = self._controller.new_event(id='CREATE_DEVICE_CONFIGURATION',
                                                             key=nf_id,
                                                             data=nfp_context,
                                                             graph=True)
-        self._controller.post_event(device_configure_event)
         device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
                                                          key=nf_id,
                                                          data=nfp_context,
                                                          graph=True)
-        self._controller.post_event(device_active_event)
 
         graph = nfp_event.EventGraph(device_configured_event)
         graph.add_node(device_configure_event, device_configured_event)
@@ -805,7 +799,9 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         event_graph = self._controller.new_event(id='DEVICE_CONFIGURATION_GRAPH',
                                                  graph=graph)
-        self._controller.post_event_graph(event_graph)
+        graph_nodes = [device_configured_event, device_configure_event,
+            device_active_event]
+        self._controller.post_event_graph(event_graph, graph_nodes)
     
     def device_up(self, event):
         nfp_context = event.data
