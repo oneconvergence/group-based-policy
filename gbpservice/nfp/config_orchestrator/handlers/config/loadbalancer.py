@@ -176,6 +176,18 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
     def _post(self, context, tenant_id, name, nf, **kwargs):
         body = self._data_wrapper(context, tenant_id, name,
                                   'CREATE', nf, **kwargs)
+        if name == 'pool_health_monitor':
+            resource_name = 'health_monitor'
+        else:
+            resource_name = name
+
+        new_resource = {'id': body['config'][0]['resource_data'][
+            resource_name]['id'],
+            'tenant_id':  body['config'][0]['resource_data'][
+            resource_name]['tenant_id']}
+
+        body['config'][0]['resource_data'][resource_name] = new_resource
+
         transport.send_request_to_configurator(self._conf,
                                                context, body, "CREATE")
 

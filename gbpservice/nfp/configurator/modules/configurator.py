@@ -55,6 +55,51 @@ class ConfiguratorRpcManager(object):
         self.demuxer = demuxer
         self.sv = schema_validator.SchemaValidator()
 
+    def _restructure_request_data(self, reason, service_type, request_data):
+        if reason == 'create'and service_type == 'loadbalancer':
+            resource_name = str(request_data['config'][0]['resource'])
+            if resource_name == 'pool_health_monitor':
+                resource_name = 'health_monitor'
+            if resource_name != 'heat':
+                resource = request_data['config'][0]['resource_data'][
+                    resource_name]
+                resource_list_nm = resource_name + 's'
+                resource_list = request_data['config'][0][
+                    'resource_data'][
+                    'neutron_context'][
+                    'service_info'][
+                    resource_list_nm]
+                for rsr in resource_list:
+                    if (rsr['id'] == resource['id'] and
+                            rsr['tenant_id'] == resource['tenant_id']):
+                        break
+                request_data['config'][0]['resource_data'][
+                    resource_name] = rsr
+
+        elif reason != 'delete' and service_type == 'vpn':
+            resource_name = str(request_data['config'][0]['resource'])
+            if resource_name != 'heat':
+                resource = request_data['config'][0][
+                    'resource_data']['resource']
+                if resource_name == 'ipsec_site_connection':
+                    resource_list_nm = 'ipsec_site_conns'
+                elif resource_name == 'vpn_service':
+                    resource_list_nm = 'vpnservices'
+                else:
+                    resource_list_nm = resource_name + 's'
+                resource_list = request_data['config'][0][
+                    'resource_data'][
+                    'neutron_context'][
+                    'service_info'][
+                    resource_list_nm]
+                for rsr in resource_list:
+                    if (rsr['id'] == resource['id'] and
+                            rsr['tenant_id'] == resource['tenant_id']):
+                        break
+                request_data['config'][0]['resource_data'][
+                    'resource'] = rsr
+        return request_data
+
     def _get_service_agent_instance(self, service_type):
         """Provides service agent instance based on service type.
 
@@ -236,6 +281,11 @@ class ConfiguratorRpcManager(object):
             logging_context = log_info['context']['logging_context']
             nfp_logging.store_logging_context(**logging_context)
 
+            _reason = 'create'
+            _service_type = str(request_data['info']['service_type'])
+            request_data = self._restructure_request_data(_reason,
+                                                          _service_type,
+                                                          request_data)
             self._invoke_service_agent('create', request_data)
         except Exception as err:
             msg = ("Failed to create network service configuration. %s" %
@@ -292,6 +342,11 @@ class ConfiguratorRpcManager(object):
             logging_context = log_info['context']['logging_context']
             nfp_logging.store_logging_context(**logging_context)
 
+            _reason = 'update'
+            _service_type = str(request_data['info']['service_type'])
+            request_data = self._restructure_request_data(_reason,
+                                                          _service_type,
+                                                          request_data)
             self._invoke_service_agent('update', request_data)
         except Exception as err:
             msg = ("Failed to update network service configuration. %s" %
