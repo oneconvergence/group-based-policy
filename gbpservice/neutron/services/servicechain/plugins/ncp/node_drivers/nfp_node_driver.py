@@ -398,8 +398,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
 
         # At last wait for the threads to complete, success/failure/timeout
         if len(self.active_threads) == self.sc_node_count:
-            for gth in self.active_threads:
-                gth.wait()
+            self.thread_pool.waitall()
             self.active_threads = []
 
     def update(self, context):
