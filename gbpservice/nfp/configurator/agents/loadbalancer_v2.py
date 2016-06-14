@@ -422,7 +422,7 @@ invoked by core service controller.
 
 
 class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
-                          nfp_api.PollEventDesc):
+                          nfp_api.NfpEventHandler):
     instance_mapping = {}
 
     def __init__(self, sc, drivers, rpcmgr):
