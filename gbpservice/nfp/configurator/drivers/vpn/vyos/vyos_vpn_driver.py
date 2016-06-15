@@ -1157,11 +1157,6 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                    "with local cidr." % t_lcidr)
             LOG.error(msg)
             self._error_state(context, conn, msg)
-        if len(conn['peer_cidrs']) != 1:
-            msg = ("IPSec: Invalid number of peer CIDR. Should not be"
-                   " less than 1.")
-            LOG.error(msg)
-            self._error_state(context, conn, msg)
 
         try:
             tenant_conns = self._ipsec_get_tenant_conns(

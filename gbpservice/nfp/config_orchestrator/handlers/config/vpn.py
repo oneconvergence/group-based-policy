@@ -13,15 +13,29 @@
 import ast
 import copy
 from gbpservice.nfp.config_orchestrator.common import common
+from gbpservice.nfp.config_orchestrator.common import topics as a_topics
+from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core.poll import poll_event_desc, PollEventDesc
 from gbpservice.nfp.lib import transport
 
 from neutron_vpnaas.db.vpn import vpn_db
 
 from oslo_log import helpers as log_helpers
 import oslo_messaging as messaging
+from neutron_lib import exceptions as n_exec
+from neutron import context as n_context
 
 LOG = nfp_logging.getLogger(__name__)
+
+
+class VPNServiceDeleteFailed(n_exec.NeutronException):
+    message = "VPN Service Deletion failed"
+
+
+class VPNServiceCreateFailed(n_exec.NeutronException):
+    message = "VPN Service Creation Failed"
+
 
 """
 RPC handler for VPN service
@@ -41,9 +55,12 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
     def _get_dict_desc_from_string(self, vpn_svc):
         svc_desc = vpn_svc.split(";")
         desc = {}
-        for ele in svc_desc:
-            s_ele = ele.split("=")
-            desc.update({s_ele[0]: s_ele[1]})
+        try:
+            for ele in svc_desc:
+                s_ele = ele.split("=")
+                desc.update({s_ele[0]: s_ele[1]})
+        except IndexError:
+            desc = ast.literal_eval(vpn_svc)
         return desc
 
     def _get_vpn_context(self, context, tenant_id, vpnservice_id,
@@ -114,7 +131,7 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
             str_description)
         resource = kwargs['rsrc_type']
         resource_data = kwargs['resource']
-        resource_data['description'] = str_description
+        resource_data['description'] = description
         if resource.lower() == 'ipsec_site_connection':
             nfp_context = {'network_function_id': nf['id'],
                            'ipsec_site_connection_id': kwargs[
@@ -139,20 +156,40 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         nf_id = desc_dict['network_function_id']
         return nf_id
 
+    @staticmethod
+    def _is_network_function_mode_neutron(kwargs):
+        desc = kwargs['resource']['description']
+        # Only expecting service_profile_id
+        if 'service_profile_id' in desc:
+            return True
+        else:
+            return False
+
     @log_helpers.log_method_call
     def vpnservice_updated(self, context, **kwargs):
-        # Fetch nf_id from description of the resource
-        nf_id = self._fetch_nf_from_resource_desc(kwargs[
-            'resource']['description'])
-        nfp_logging.store_logging_context(meta_id=nf_id)
-        nf = common.get_network_function_details(context, nf_id)
-        reason = kwargs['reason']
-        body = self._data_wrapper(context, kwargs[
-            'resource']['tenant_id'], nf, **kwargs)
-        transport.send_request_to_configurator(self._conf,
-                                               context, body,
-                                               reason)
-        nfp_logging.clear_logging_context()
+        if not kwargs:
+            # update calls come without kwargs, need to handle that
+            return
+        if self._is_network_function_mode_neutron(kwargs):
+            neutron_agent = NeutronVpnaasAgent(self._conf, self._sc)
+            neutron_agent.handle_neutron_service_updated(context, **kwargs)
+        else:
+            if (kwargs['reason'] == 'delete' and
+                    kwargs['rsrc_type'] == 'vpn_service'):
+                return
+            else:
+                # Fetch nf_id from description of the resource
+                nf_id = self._fetch_nf_from_resource_desc(kwargs[
+                    'resource']['description'])
+                nfp_logging.store_logging_context(meta_id=nf_id)
+                nf = common.get_network_function_details(context, nf_id)
+                reason = kwargs['reason']
+                body = self._data_wrapper(context, kwargs[
+                    'resource']['tenant_id'], nf, **kwargs)
+                transport.send_request_to_configurator(self._conf,
+                                                       context, body,
+                                                       reason)
+                nfp_logging.clear_logging_context()
 
     def _filter_core_data(self, db_data, vpnservices):
         filtered_core_data = {'subnets': [],
@@ -201,3 +238,361 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
         for ipsec_site_conn in ipsec_site_conns:
             ipsec_site_conn['description'] = desc
         return ipsec_site_conns
+
+
+class VpnNotifier(object):
+
+    def __init__(self, conf, sc):
+        self._sc = sc
+        self._conf = conf
+
+    def _prepare_request_data(self, context, nf_id,
+                              resource_id, ipsec_id, service_type):
+        request_data = None
+        try:
+            request_data = common.get_network_function_map(
+                context, nf_id)
+            # Adding Service Type #
+            request_data.update({"service_type": service_type,
+                                 "ipsec_site_connection_id": ipsec_id,
+                                 "neutron_resource_id": resource_id,
+                                 "LogMetaID": nf_id})
+        except Exception as e:
+            LOG(LOGGER, 'ERROR', '%s' % (e))
+
+            return request_data
+        return request_data
+
+    def _trigger_service_event(self, context, event_type, event_id,
+                               request_data):
+        event_data = {'resource': None,
+                      'context': context.to_dict()}
+        event_data['resource'] = {'eventtype': event_type,
+                                  'eventid': event_id,
+                                  'eventdata': request_data}
+        ev = self._sc.new_event(id=event_id,
+                                key=event_id, data=event_data)
+        self._sc.post_event(ev)
+
+    def update_status(self, context, notification_data):
+        resource_data = notification_data['notification'][0]['data']
+        notification_info = notification_data['info']
+        status = resource_data['status']
+        msg = ("NCO received VPN's update_status API,"
+               "making an update_status RPC call to plugin for object"
+               "with status %s" % (status))
+        LOG(LOGGER, 'INFO', " %s " % (msg))
+        rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt.cast(context, 'update_status',
+                             status=status)
+
+        # Sending An Event for visiblity
+        if notification_data['notification'][0]['resource'].lower() ==\
+                'ipsec_site_connection':
+            nf_id = notification_info['context']['network_function_id']
+            ipsec_id = notification_info['context']['ipsec_site_connection_id']
+            service_type = notification_info['service_type']
+
+            event_data = {'context': context.to_dict(),
+                          'nf_id': nf_id,
+                          'ipsec_id': ipsec_id,
+                          'service_type': service_type,
+                          'resource_id': ipsec_id
+                          }
+            ev = self._sc.new_event(id='SERVICE_CREATE_PENDING',
+                                    key='SERVICE_CREATE_PENDING',
+                                    data=event_data, max_times=24)
+            self._sc.poll_event(ev)
+
+    def ipsec_site_conn_deleted(self, context, notification_data):
+        # Sending An Event for visiblity
+        notification_info = notification_data['info']
+        nf_id = notification_info['context']['network_function_id']
+        ipsec_id = notification_info['context']['ipsec_site_connection_id']
+        msg = ("NCO received VPN's ipsec_site_conn_deleted API,"
+               "making an ipsec_site_conn_deleted RPC call to plugin for "
+               " ipsec ")
+        LOG(LOGGER, 'INFO', " %s " % (msg))
+        rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+        rpcClient.cctxt.cast(context, 'ipsec_site_conn_deleted',
+                             ipsec_site_conn_id=ipsec_id)
+        # Sending An Event for visiblity
+        resource_id = notification_info['context']['ipsec_site_connection_id']
+        service_type = notification_info['service_type']
+        request_data = self._prepare_request_data(context,
+                                                  nf_id,
+                                                  resource_id,
+                                                  ipsec_id,
+                                                  service_type)
+        LOG(LOGGER, 'INFO', "%s : %s " % (request_data, nf_id))
+
+        self._trigger_service_event(context, 'SERVICE', 'SERVICE_DELETED',
+                                    request_data)
+
+
+class NeutronVpnaasAgent(PollEventDesc):
+    def __init__(self, conf, sc):
+        self._conf = conf
+        self._sc = sc
+        super(NeutronVpnaasAgent, self).__init__()
+
+    def event_method_mapping(self, event_id):
+        event_handler_mapping = {
+            'VPN_SERVICE_SPAWNING': self.wait_for_device_ready,
+            'VPN_SERVICE_DELETE_IN_PROGRESS':
+                self.validate_and_process_vpn_delete_service_request
+        }
+
+        if event_id not in event_handler_mapping:
+            raise Exception("Invalid Event ID")
+        else:
+            return event_handler_mapping[event_id]
+
+    def handle_neutron_service_updated(self, context, **kwargs):
+        agent = VpnAgent(self._conf, self._sc)
+        if kwargs['reason'] == 'create':
+            nw_fun_info = (
+                self.validate_and_process_vpn_create_service_request(
+                    context, kwargs))
+            if kwargs['rsrc_type'] == 'ipsec_site_connection':
+                if ('nw_func' in nw_fun_info and
+                        nw_fun_info["nw_func"]["status"] == "ACTIVE"):
+                    kwargs['resource']['description'] = nw_fun_info[
+                        'nw_func']['description']
+                    self.call_configurator(context, [nw_fun_info["nw_func"]],
+                                           agent, kwargs)
+        if kwargs['reason'] == 'delete':
+            if kwargs['rsrc_type'] == 'ipsec_site_connection':
+                rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+                nw_func = rpcc.cctxt.call(
+                    context, 'get_network_functions',
+                    filters={'service_id': [kwargs['resource'][
+                                                'vpnservice_id']]})
+                if nw_func:
+                    kwargs['resource']['description'] = nw_func[0][
+                        'description']
+                resource = kwargs['resource']
+                vpn_svc = agent._get_vpnservices(context,
+                                                 resource['tenant_id'],
+                                                 resource['vpnservice_id'],
+                                                 resource['description'])
+                rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+                rpcc.cctxt.call(context, 'remove_subnet_route',
+                                router_id=vpn_svc[0]['router_id'],
+                                subnet_cidr=resource['peer_cidrs'])
+                self.call_configurator(context, nw_func, agent, kwargs)
+
+            else:
+                kwargs.update({'context': context.to_dict()})
+                filters = {'service_id': [kwargs['rsrc_id']]}
+                rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+                nw_function = rpcc.cctxt.call(
+                        context, 'get_network_functions', filters=filters)
+                if not nw_function:
+                    vpn_plugin = transport.RPCClient(
+                            a_topics.VPN_NFP_PLUGIN_TOPIC)
+                    vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
+                                          id=kwargs['rsrc_id'])
+                    return
+                rpcc.cctxt.cast(context,
+                                'delete_network_function',
+                                network_function_id=nw_function[0]['id'])
+                self._create_event(
+                    event_id='VPN_SERVICE_DELETE_IN_PROGRESS',
+                    event_data=kwargs,
+                    is_poll_event=True,
+                    serialize=True,
+                    binding_key=kwargs['resource']['id'])
+
+    def call_configurator(self, context, nw_func, agent, kwargs):
+        tenant_id = kwargs['resource']['tenant_id']
+        resource = kwargs['rsrc_type']
+        resource_data = kwargs
+        ctx_dict, rsrc_ctx_dict = agent.\
+            _prepare_resource_context_dicts(context, tenant_id, resource,
+                                            resource_data['resource'])
+        nfp_context = {'neutron_context': ctx_dict,
+                       'requester': 'nas_service'}
+        resource_type = 'vpn'
+        if resource.lower() == 'ipsec_site_connection':
+            nf_id = nw_func[0]['id']
+            ipsec_site_connection_id = kwargs['rsrc_id']
+            nfp_context.update(
+                {'network_function_id': nf_id,
+                 'ipsec_site_connection_id': ipsec_site_connection_id})
+        resource_data.update({'neutron_context': rsrc_ctx_dict})
+        reason = kwargs.get('reason')
+        body = common.prepare_request_data(nfp_context, resource,
+                                           resource_type, resource_data)
+        transport.send_request_to_configurator(self._conf,
+                                               context, body,
+                                               reason)
+
+    def _create_event(self, event_id, event_data=None, is_poll_event=False,
+                      serialize=False, binding_key=None, key=None,
+                      max_times=10):
+        if is_poll_event:
+            ev = self._sc.new_event(
+                    id=event_id, data=event_data, serialize=serialize,
+                    binding_key=binding_key, key=key)
+            LOG(LOGGER, 'DEBUG', "poll event started for %s" % (ev.id))
+            self._sc.poll_event(ev, max_times=max_times)
+        else:
+            ev = self._sc.new_event(id=event_id, data=event_data)
+            self._sc.post_event(ev)
+        self._log_event_created(event_id, event_data)
+
+    def poll_event_cancel(self, event):
+        LOG(LOGGER, 'INFO', "poll event cancelled for %s" % (event.id))
+        if event.id == "VPN_SERVICE_SPAWNING":
+            pass
+        elif event.id == "VPN_SERVICE_DELETE_IN_PROGRESS":
+            data = event.data
+            context = n_context.Context.from_dict(data['context'])
+            vpnsvc_status = [{
+                'id': data['resource']['id'],
+                'status': "ERROR",
+                'updated_pending_status': True,
+                'ipsec_site_connections': {}}]
+            vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+            vpn_plugin.cctxt.cast(context, 'update_status',
+                                  status=vpnsvc_status)
+
+    def validate_and_process_vpn_create_service_request(self, context,
+                                                        resource_data):
+        """
+        :param context:
+        :param resource_data:
+        :return:
+        """
+        rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+        vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+        if resource_data['rsrc_type'].lower() == 'vpn_service':
+            nw_function_info = self.prepare_request_data_for_orch(
+                context, resource_data['resource']['id'], resource_data)
+            nw_func = rpcc.cctxt.call(context,
+                                      'neutron_update_nw_function_config',
+                                      network_function=nw_function_info)
+            nw_function_info.update({'nw_func': nw_func, 'context':
+                                     context.to_dict()})
+            self._create_event(event_id='VPN_SERVICE_SPAWNING',
+                               event_data=nw_function_info, is_poll_event=True,
+                               serialize=True,
+                               binding_key=resource_data['resource']['id'])
+        else:
+            nw_function_info = self.prepare_request_data_for_orch(
+                context, resource_data['resource']['vpnservice_id'],
+                resource_data)
+            try:
+                nw_func = rpcc.cctxt.call(
+                            context, 'neutron_update_nw_function_config',
+                            network_function=nw_function_info)
+            except Exception:
+                vpnconn_status = [{
+                    'id': resource_data['resource']['vpnservice_id'],
+                    'status':'ACTIVE',
+                    'updated_pending_status':False,
+                    'ipsec_site_connections':{
+                        resource_data['resource']['id']: {
+                            'status': "ERROR",
+                            'updated_pending_status': True}}}]
+                vpn_plugin.cctxt.cast(context, 'update_status',
+                                      status=vpnconn_status)
+                nw_function_info["status"] = "ERROR"
+                return nw_function_info
+            if "ipsec_service_status" in nw_func and nw_func[
+                    "ipsec_service_status"] == "ACTIVE":
+                nw_function_info.update(nw_func=nw_func)
+            else:
+                vpn_plugin.cctxt.cast(context, 'update_status',
+                                      status="ERROR")
+                nw_function_info["status"] = "ERROR"
+        return nw_function_info
+
+    @staticmethod
+    def prepare_request_data_for_orch(context, vpnservice_id, vpn_data):
+        resource = vpn_data.get('resource')
+        router_id = resource.get('router_id')
+        subnet = resource.get('subnet_id')
+        port = resource.get('port')
+        service_info = [{'router_id': router_id, 'port': port,
+                         'subnet': subnet}]
+        network_function_info = dict()
+        desc = resource['description']
+        rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+        nw_func = rpcc.cctxt.call(
+                        context, 'get_network_functions',
+                        filters={'service_id': vpnservice_id})
+        fields = desc.split(';')
+        if nw_func:
+            resource['description'] = nw_func[0]['description']
+
+        for field in fields:
+            if 'service_profile_id' in field:
+                network_function_info['service_profile_id'] = field.split(
+                    '=')[1]
+        if 'service_profile_id' not in network_function_info:
+            err = ("Service profile id must be specified in description")
+            raise Exception(err)
+        network_function_info.update(network_function_mode='neutron',
+                                     tenant_id=resource['tenant_id'],
+                                     service_type=vpn_data.get('rsrc_type'),
+                                     service_info=service_info,
+                                     resource_data=resource)
+        return network_function_info
+
+    @poll_event_desc(event="VPN_SERVICE_SPAWNING", spacing=30)
+    def wait_for_device_ready(self, event):
+        nw_function_info_data = event.data
+        context = n_context.Context.from_dict(
+                      nw_function_info_data['context'])
+        nw_func = nw_function_info_data['nw_func']
+        rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+        nw_func = rpcc.cctxt.call(context, 'get_network_function',
+                                  network_function_id=nw_func['id'])
+        if nw_func['status'] == "ACTIVE":
+            vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+            self._sc.poll_event_done(event)
+            vpnsvc_status = [{
+                'id': nw_function_info_data['resource_data']['id'],
+                'status': nw_func['status'],
+                'updated_pending_status': True,
+                'ipsec_site_connections': {}}]
+            dict_description = ast.literal_eval(nw_func['description'])
+            description = ('service_profile_id=%s;'
+                           'user_access_ip=%s' % (
+                                nw_func['service_profile_id'],
+                                dict_description['user_access_ip']))
+            vpn_plugin.cctxt.cast(context, 'update_status',
+                                  status=vpnsvc_status,
+                                  description=description)
+        elif nw_func['status'] == "ERROR":
+            vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+            self._sc.poll_event_done(event)
+            vpnsvc_status = [{
+                'id': nw_function_info_data['resource_data']['resource']['id'],
+                'status': nw_func['status'],
+                'updated_pending_status': True,
+                'ipsec_site_connections': {}}]
+            vpn_plugin.cctxt.cast(context, 'update_status',
+                                  status=vpnsvc_status)
+
+    @poll_event_desc(event="VPN_SERVICE_DELETE_IN_PROGRESS", spacing=30)
+    def validate_and_process_vpn_delete_service_request(self, event):
+        data = event.data
+        context = n_context.Context.from_dict(data['context'])
+        resource_data = data
+        rpcc = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+        nw_func = rpcc.cctxt.call(context, 'get_network_functions',
+                                  filters={'service_id': [resource_data[
+                                           'resource']['id']]})
+        if not nw_func:
+            self._sc.poll_event_done(event)
+            vpn_plugin = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)
+            vpn_plugin.cctxt.cast(context, 'vpnservice_deleted',
+                                  id=resource_data['resource']['id'])
+
+    @staticmethod
+    def _log_event_created(event_id, event_data):
+        LOG(LOGGER, 'DEBUG', ("VPN Agent created event %s with "
+            "event data %s") % (event_id, event_data))

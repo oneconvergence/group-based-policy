@@ -33,7 +33,7 @@ sub get_ipsec_tunnel_idx {
     my $tun = $tunnel_hash[$i+1];
     my $lsnet = $tun->{_lsnet};
     my $rsnet = $tun->{_rsnet};
-    if ($lcidr == $lsnet && $pcidr == $rsnet) {
+    if ($lcidr eq $lsnet && $pcidr eq $rsnet) {
       print "tunnel=$tun->{_tunnelnum} \n";
       return $tun->{_tunnelnum};
     }

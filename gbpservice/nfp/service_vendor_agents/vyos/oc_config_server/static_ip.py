@@ -34,13 +34,17 @@ class StaticIp(configOpts):
         time.sleep(3)
         session.teardown_config_session()
 
-    def check_if_interface_is_up(self, pip, sip):
+    def check_if_interface_is_up(self, stitching, provider=None):
         start_time = time.time()
         while time.time() - start_time < self.hotplug_timeout:
             interfaces = netifaces.interfaces()
-            if (pip in interfaces and sip in interfaces):
-                return True
-            time.sleep(2)
+            if provider:
+                if (provider in interfaces and stitching in interfaces):
+                    return True
+            else:
+                if stitching in interfaces:
+                    return True
+            time.sleep(1)
         return False
 
     def _get_interface_name(self, interface_mac):
@@ -55,18 +59,23 @@ class StaticIp(configOpts):
         try:
             session.setup_config_session()
             ip_mac_map = {}
-            provider_ip = data['provider_ip']
-            provider_mac = data['provider_mac']
-            provider_cidr = data['provider_cidr'].split('/')[1]
-            provider_interface = self._get_interface_name(provider_mac)
-
+            provider_ip = None
+            provider_mac = None
+            provider_cidr = None
+            provider_interface = None
             stitching_ip = data['stitching_ip']
             stitching_mac = data['stitching_mac']
             stitching_cidr = data['stitching_cidr'].split('/')[1]
             stitching_interface = self._get_interface_name(stitching_mac)
+            provider_ip = data['provider_ip']
+            if provider_ip:
+                provider_mac = data['provider_mac']
+                provider_cidr = data['provider_cidr'].split('/')[1]
+                provider_interface = self._get_interface_name(provider_mac)
 
-            if not self.check_if_interface_is_up(provider_interface,
-                                                 stitching_interface):
+
+            if not self.check_if_interface_is_up(stitching_interface,
+                                                 provider=provider_interface):
                 msg = ("Interfaces are not hotplugged even after waiting "
                        "for %s seconds." % self.hotplug_timeout)
                 raise Exception(msg)
@@ -106,7 +115,8 @@ class StaticIp(configOpts):
             ip_mac_map = {}
             provider_ip = data['provider_ip']
             provider_mac = data['provider_mac']
-            provider_cidr = data['provider_cidr'].split('/')[1]
+            if data.get('provider_cidr'):
+                provider_cidr = data['provider_cidr'].split('/')[1]
 
             stitching_ip = data['stitching_ip']
             stitching_mac = data['stitching_mac']

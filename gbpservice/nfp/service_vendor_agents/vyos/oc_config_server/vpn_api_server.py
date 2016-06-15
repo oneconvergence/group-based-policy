@@ -237,9 +237,7 @@ class VPNHandler(configOpts):
     def _delete_ipsec_site_conn(self, peer_address):
         cmds = copy.deepcopy(IPSEC_SITE2SITE_COMMANDS)
         cmd = cmds['delete'][0]
-
         cmd = cmd % peer_address
-        #cmd = cmds['delete'][2]
 
         self._set_commands([cmd])
 
@@ -353,7 +351,7 @@ class VPNHandler(configOpts):
         conn_cmds[7] = conn_cmds[7] % (
             conn['peer_address'], 1, conn['tunnel_local_cidr'])
         conn_cmds[8] = conn_cmds[8] % (
-            conn['peer_address'], 1, conn['peer_cidrs'][0])
+            conn['peer_address'], 1, conn['peer_cidr'])
         conn_cmds[9] = conn_cmds[9] % (conn['peer_address'], conn['access_ip'])
         if vrrp_cmd:
             conn_cmds.append(vrrp_cmd)
