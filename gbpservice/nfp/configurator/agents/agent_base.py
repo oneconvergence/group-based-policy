@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.core import log as nfp_logging
 
@@ -128,7 +129,7 @@ class AgentBaseNotification(object):
         self.sc.stash_event(event)
 
 
-class AgentBaseEventHandler(object):
+class AgentBaseEventHandler(nfp_api.NfpEventHandler):
 
     def __init__(self, sc, drivers, rpcmgr):
         self.sc = sc

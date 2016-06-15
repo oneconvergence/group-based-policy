@@ -18,9 +18,10 @@ from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
-from gbpservice.nfp.core import event as main
+from gbpservice.nfp.core import controller as main
+from gbpservice.nfp.core.event import Event
+from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.core import poll as nfp_poll
 
 import oslo_messaging as messaging
 
@@ -161,7 +162,7 @@ class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
         self.sc.post_event(ev)
 
 
-class VPNaasEventHandler(nfp_poll.PollEventDesc):
+class VPNaasEventHandler(nfp_api.NfpEventHandler):
     """
     Handler class to invoke the vpn driver methods.
     For every event that gets invoked from worker process lands over here
@@ -285,7 +286,7 @@ class VPNaasEventHandler(nfp_poll.PollEventDesc):
                    % str(err).capitalize())
             LOG.error(msg)
 
-    @nfp_poll.poll_event_desc(event='VPN_SYNC', spacing=10)
+    @nfp_api.poll_event_desc(event='VPN_SYNC', spacing=10)
     def sync(self, ev):
         """Periodically updates the status of vpn service, whether the
         tunnel is UP or DOWN.
@@ -315,9 +316,9 @@ def events_init(sc, drivers):
     Returns: None
     """
     evs = [
-        main.Event(id='VPNSERVICE_UPDATED',
+        Event(id='VPNSERVICE_UPDATED',
                    handler=VPNaasEventHandler(sc, drivers)),
-        main.Event(id='VPN_SYNC',
+        Event(id='VPN_SYNC',
                    handler=VPNaasEventHandler(sc, drivers))]
 
     sc.register_events(evs)

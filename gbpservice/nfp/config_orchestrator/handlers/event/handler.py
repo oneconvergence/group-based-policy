@@ -19,7 +19,7 @@ import traceback
 from gbpservice.nfp.config_orchestrator.common import common
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.core import poll as core_pt
+from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.lib import transport
 
 from neutron import context as n_context
@@ -62,7 +62,7 @@ def event_init(sc, conf):
 """Periodic Class to service events for visiblity."""
 
 
-class EventsHandler(core_pt.PollEventDesc):
+class EventsHandler(nfp_api.NfpEventHandler):
 
     def __init__(self, sc, conf):
         self._sc = sc
@@ -449,7 +449,7 @@ class EventsHandler(core_pt.PollEventDesc):
                                     data=new_event_data)
         self._sc.post_event(new_ev)
 
-    @core_pt.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=5)
+    @nfp_api.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=5)
     def create_sevice_pending_event(self, ev):
         event_data = copy.deepcopy(ev.data)
         try:
@@ -468,7 +468,7 @@ class EventsHandler(core_pt.PollEventDesc):
             LOG.error(msg)
             return STOP_POLLING
 
-    @core_pt.poll_event_desc(event='SERVICE_OPERATION_POLL_EVENT', spacing=5)
+    @nfp_api.poll_event_desc(event='SERVICE_OPERATION_POLL_EVENT', spacing=5)
     def service_operation_poll_stash_event(self, ev):
         events = self._sc.get_stashed_events()
         msg = ("Stash Queue is: %s" % (events))

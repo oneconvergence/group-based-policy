@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-
 from oslo_config import cfg as oslo_config
 
 from oslo_service import loopingcall as oslo_looping_call
@@ -25,7 +24,8 @@ from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
-identify = nfp_common.identify
+
+n_rpc.init(oslo_config.CONF)
 
 """Wrapper class for Neutron RpcAgent definition.
 
@@ -104,16 +104,16 @@ class ReportState(object):
 
 class ReportStateTask(oslo_periodic_task.PeriodicTasks):
 
-    def __init__(self, sc):
-        super(ReportStateTask, self).__init__(oslo_config.CONF)
-        self._sc = sc
+    def __init__(self, conf, controller):
+        super(ReportStateTask, self).__init__(conf)
+        self._controller = controller
         # Start a looping at the defined pulse
         pulse = oslo_looping_call.FixedIntervalLoopingCall(
             self.run_periodic_tasks, None, None)
         pulse.start(
-            interval=oslo_config.CONF.reportstate_interval, initial_delay=None)
+            interval=1, initial_delay=None)
 
-    @oslo_periodic_task.periodic_task(spacing=5)
+    @oslo_periodic_task.periodic_task(spacing=10)
     def report_state(self, context):
         # trigger the state reporting
-        self._sc.report_state()
+        self._controller.report_state()

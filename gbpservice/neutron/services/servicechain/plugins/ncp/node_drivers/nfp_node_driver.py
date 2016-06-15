@@ -14,6 +14,10 @@
 # limitations under the License.
 
 import eventlet
+eventlet.monkey_patch()
+
+from eventlet import greenpool
+
 from keystoneclient import exceptions as k_exceptions
 from keystoneclient.v2_0 import client as keyclient
 from neutron._i18n import _LE
@@ -235,6 +239,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
     def __init__(self):
         super(NFPNodeDriver, self).__init__()
         self._lbaas_plugin = None
+        self.thread_pool = greenpool.GreenPool(10)
+        self.active_threads = []
+        self.sc_node_count = 0
 
     @property
     def name(self):
@@ -381,8 +388,29 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         self._set_node_instance_network_function_map(
             context.plugin_session, context.current_node['id'],
             context.instance['id'], network_function_id)
-        self._wait_for_network_function_operation_completion(
+
+        # Check for NF status in a separate thread
+        LOG.debug("Spawning thread for nf ACTIVE poll")
+
+        gth = self.thread_pool.spawn(
+            self._wait_for_network_function_operation_completion,
             context, network_function_id, operation='create')
+
+        self.active_threads.append(gth)
+
+        LOG.debug("Active Threads count (%d), sc_node_count (%d)" %(
+            len(self.active_threads), self.sc_node_count))
+
+        # At last wait for the threads to complete, success/failure/timeout
+        if len(self.active_threads) == self.sc_node_count:
+            self.thread_pool.waitall()
+            # Get the results
+            for gth in self.active_threads:
+                result = gth.wait()
+                if isinstance(result, Exception):
+                    self.active_threads = []
+                    raise result
+            self.active_threads = []
 
     def update(self, context):
         context._plugin_context = self._get_resource_owner_context(
@@ -552,6 +580,11 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             eventlet.sleep(5)
             time_waited = time_waited + 5
 
+        LOG.info(_LI(operation + "Got network function result: "
+                     "%(network_function)s"),
+                 {'network_function': network_function})
+
+
         if network_function['status'] != 'ACTIVE':
             LOG.error(_LE(operation + "network function %(network_function)s "
                           "failed. Status: %(status)s"),
@@ -664,23 +697,49 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                           {'service_type': service_type})
                 raise Exception("Service Targets are not created for the Node")
 
-        service_target_info = {'provider_ports': [], 'provider_pts': [],
-                               'consumer_ports': [], 'consumer_pts': []}
+        service_target_info = {
+            'provider_ports': [],
+            'provider_subnet': None,
+            'provider_pts': [],
+            'provider_pt_objs': [],
+            'provider_ptg': [],
+            'consumer_ports': [],
+            'consumer_subnet': None,
+            'consumer_pts': [],
+            'consumer_pt_objs': [],
+            'consumer_ptg': []}
+
         for service_target in provider_service_targets:
             policy_target = context.gbp_plugin.get_policy_target(
                 context.plugin_context, service_target.policy_target_id)
+            policy_target_group = context.gbp_plugin.get_policy_target_group(
+                context.plugin_context, policy_target['policy_target_group_id'])
             port = context.core_plugin.get_port(
                 context.plugin_context, policy_target['port_id'])
+            port['ip_address'] = port['fixed_ips'][0]['ip_address']
+            subnet = context.core_plugin.get_subnet(
+                context.plugin_context, port['fixed_ips'][0]['subnet_id'])
             service_target_info['provider_ports'].append(port)
+            service_target_info['provider_subnet'] = subnet
             service_target_info['provider_pts'].append(policy_target['id'])
+            service_target_info['provider_pt_objs'].append(policy_target)
+            service_target_info['provider_ptg'].append(policy_target_group)
 
         for service_target in consumer_service_targets:
             policy_target = context.gbp_plugin.get_policy_target(
                 context.plugin_context, service_target.policy_target_id)
+            policy_target_group = context.gbp_plugin.get_policy_target_group(
+                context.plugin_context, policy_target['policy_target_group_id'])
             port = context.core_plugin.get_port(
                 context.plugin_context, policy_target['port_id'])
+            port['ip_address'] = port['fixed_ips'][0]['ip_address']
+            subnet = context.core_plugin.get_subnet(
+                context.plugin_context, port['fixed_ips'][0]['subnet_id'])
             service_target_info['consumer_ports'].append(port)
+            service_target_info['consumer_subnet'] = subnet
             service_target_info['consumer_pts'].append(policy_target['id'])
+            service_target_info['consumer_pt_objs'].append(policy_target)
+            service_target_info['consumer_ptg'].append(policy_target_group)
 
         return service_target_info
 
@@ -692,6 +751,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         for spec in current_specs:
             node_list.extend(spec['nodes'])
 
+        self.sc_node_count = len(node_list)
         for node_id in node_list:
             node_info = context.sc_plugin.get_servicechain_node(
                 context.plugin_context, node_id)
@@ -718,9 +778,65 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             raise InvalidNodeOrderInChain(
                     node_order=allowed_chain_combinations)
 
+    def _get_consumers_for_provider(self, context, provider):
+        '''
+        {
+            consuming_ptgs_details: [{'ptg': <>, 'subnets': <>}]
+            consuming_eps_details: []
+        }
+        '''
+
+        consuming_ptgs_details = []
+        consuming_eps_details = []
+
+        provided_prs_id = provider['provided_policy_rule_sets'][0]
+        provided_prs = context.gbp_plugin.get_policy_rule_set(
+            context.plugin_context, provided_prs_id)
+        consuming_ptg_ids = provided_prs['consuming_policy_target_groups']
+        consuming_ep_ids = provided_prs['consuming_external_policies']
+    
+        consuming_ptgs = context.gbp_plugin.get_policy_target_groups(
+                context.plugin_context, filters={'id':consuming_ptg_ids})
+        consuming_eps_details = context.gbp_plugin.get_external_policies(
+                context.plugin_context, filters={'id': consuming_ep_ids})
+
+        for ptg in consuming_ptgs:
+            subnet_ids = ptg['subnets']
+            subnets = context.core_plugin.get_subnets(context.plugin_context, filters={'id':subnet_ids})
+            consuming_ptgs_details.append({'ptg':ptg, 'subnets':subnets})
+
+        return consuming_ptgs_details, consuming_eps_details
+
+    
     def _create_network_function(self, context):
+        """
+        nfp_create_nf_data :-
+
+        {'resource_owner_context': <>,
+         'service_chain_instance': <>,
+         'service_chain_node': <>,
+         'service_profile': <>,
+         'service_config': context.current_node.get('config'),
+         'provider': {'pt':<>, 'ptg':<>, 'port':<>, 'subnet':<>},
+         'consumer': {'pt':<>, 'ptg':<>, 'port':<>, 'subnet':<>},
+         'management': {'pt':<>, 'ptg':<>, 'port':<>, 'subnet':<>},
+         'management_ptg_id': <>,
+         'network_function_mode': nfp_constants.GBP_MODE,
+         'tenant_id': <>,
+         'consuming_ptgs_details': [],
+         'consuming_eps_details': []
+        }
+
+        """
+        nfp_create_nf_data = {}
+
         sc_instance = context.instance
         service_targets = self._get_service_targets(context)
+
+        consuming_ptgs_details, consuming_eps_details = \
+            self._get_consumers_for_provider(context,
+                service_targets['provider_ptg'][0])
+
         if context.current_profile['service_type'] in [pconst.LOADBALANCER,
                                                        pconst.LOADBALANCERV2]:
             config_param_values = sc_instance.get('config_param_values', {})
@@ -739,35 +855,58 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 context.core_plugin.update_port(
                     context.plugin_context, provider_port['id'], port)
 
-        port_info = []
-        if service_targets.get('provider_pts'):
-            # Device case, for Base mode ports won't be available.
-            port_info = [
-                {
-                    'id': service_targets['provider_pts'][0],
-                    'port_model': nfp_constants.GBP_PORT,
-                    'port_classification': nfp_constants.PROVIDER,
-                }
-            ]
-        if service_targets.get('consumer_ports'):
-            port_info.append({
-                'id': service_targets['consumer_pts'][0],
-                'port_model': nfp_constants.GBP_PORT,
-                'port_classification': nfp_constants.CONSUMER,
-            })
-        network_function = {
-            'tenant_id': context.provider['tenant_id'],
-            'service_chain_id': sc_instance['id'],
-            'service_id': context.current_node['id'],
-            'service_profile_id': context.current_profile['id'],
-            'management_ptg_id': sc_instance['management_ptg_id'],
+        provider = {
+            'pt': service_targets.get('provider_pt_objs', [None])[0],
+            'ptg': service_targets.get('provider_ptg', [None])[0],
+            'port': service_targets.get('provider_ports', [None])[0],
+            'subnet': service_targets.get('provider_subnet', None),
+            'port_model': nfp_constants.GBP_PORT,
+            'port_classification': nfp_constants.PROVIDER}
+
+        consumer_pt = None
+        consumer_ptg = None
+        consumer_ports = None
+
+        if service_targets['consumer_pt_objs']:
+            consumer_pt = service_targets.get('consumer_pt_objs', [None])[0]
+        if service_targets['consumer_ptg']:
+            consumer_ptg = service_targets.get('consumer_ptg', [None])[0]
+        if service_targets['consumer_ports']:
+            consumer_ports = service_targets.get('consumer_ports', [None])[0]
+
+        consumer = {
+            'pt': consumer_pt,
+            'ptg': consumer_ptg,
+            'port': consumer_ports,
+            'subnet': service_targets.get('consumer_subnet', None),
+            'port_model': nfp_constants.GBP_PORT,
+            'port_classification': nfp_constants.CONSUMER}
+
+        management = {
+            'pt': None,
+            'ptg': None,
+            'port': None,
+            'subnet': None,
+            'port_model': nfp_constants.GBP_NETWORK,
+            'port_classification': nfp_constants.MANAGEMENT}
+
+        nfp_create_nf_data = {
+            'resource_owner_context': context._plugin_context.to_dict(),
+            'service_chain_instance': sc_instance,
+            'service_chain_node': context.current_node,
+            'service_profile': context.current_profile,
             'service_config': context.current_node.get('config'),
-            'port_info': port_info,
+            'provider': provider,
+            'consumer': consumer,
+            'management': management,
+            'management_ptg_id': sc_instance['management_ptg_id'],
             'network_function_mode': nfp_constants.GBP_MODE,
-        }
+            'tenant_id': context.provider['tenant_id'],
+            'consuming_ptgs_details': consuming_ptgs_details,
+            'consuming_eps_details': consuming_eps_details}
 
         return self.nfp_notifier.create_network_function(
-            context.plugin_context, network_function=network_function)['id']
+            context.plugin_context, network_function=nfp_create_nf_data)['id']
 
     def _set_node_instance_network_function_map(
         self, session, sc_node_id, sc_instance_id, network_function_id):
