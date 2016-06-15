@@ -51,27 +51,6 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
         if router_ids == attr.ATTR_NOT_SPECIFIED:
             return tenant_id
 
-    def create_firewall(self, context, firewall, status=None):
-        fw = firewall['firewall']
-        tenant_id = fw['tenant_id']
-        # distributed routers may required a more complex state machine;
-        # the introduction of a new 'CREATED' state allows this, whilst
-        # keeping a backward compatible behavior of the logical resource.
-        if not status:
-            status = n_const.PENDING_CREATE
-        with context.session.begin(subtransactions=True):
-            self._validate_fw_parameters(context, fw, tenant_id)
-            firewall_db = n_firewall.Firewall(
-                    id=uuidutils.generate_uuid(),
-                    tenant_id=tenant_id,
-                    name=fw['name'],
-                    description=fw['description'],
-                    firewall_policy_id=fw['firewall_policy_id'],
-                    admin_state_up=fw['admin_state_up'],
-                    status=status)
-            context.session.add(firewall_db)
-        return self._make_firewall_dict(firewall_db)
-
     def set_routers_for_firewall(self, context, fw):
         """Sets the routers associated with the fw."""
         pass
