@@ -384,7 +384,8 @@ class NfpEventManager(object):
         try:
             while pipe.poll(timeout):
                 timeout = 0
-                events.append(pipe.recv())
+                event = self._controller.pipe_recv()
+                events.append(event)
         except multiprocessing.TimeoutError as err:
             LOG.exception("%s" % (err))
         return events
