@@ -214,6 +214,11 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
                         e))
                 raise e
 
+    def pipe_recv(self, pipe):
+        event = pipe.recv()
+        if event: self.decompress(event)
+        return event
+
     def pipe_send(self, pipe, event):
         self.compress(event)
         pipe.send(event)
