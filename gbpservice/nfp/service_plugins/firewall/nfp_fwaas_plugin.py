@@ -1,14 +1,27 @@
 from neutron.api.v2 import attributes as attr
 
 from neutron import context as neutron_context
+from neutron.common import constants as l3_constants
 from neutron import manager
+#from neutron.common import common as n_topics
+from neutron.common import exceptions as n_exc
+from neutron.db import models_v2
+from neutron.db import l3_db
+from neutron.db.l3_db import (
+        RouterPort, EXTERNAL_GW_INFO, DEVICE_OWNER_ROUTER_INTF)
 from neutron.plugins.common import constants as n_const
 import netaddr
 from oslo_config import cfg
+from oslo_utils import uuidutils
+from sqlalchemy import orm
 
 from gbpservice.nfp.config_orchestrator.common import topics
 import neutron_fwaas.extensions
 from neutron_fwaas.services.firewall import fwaas_plugin as ref_fw_plugin
+
+from neutron_fwaas.db.firewall import (
+        firewall_router_insertion_db as ref_fw_router_ins_db)
+from neutron_fwaas.db.firewall import firewall_db as n_firewall
 
 
 class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
@@ -17,6 +30,7 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
         # L3 agent was where reference firewall agent runs
         # patch that topic to the NFP firewall agent's topic name
         ref_fw_plugin.f_const.L3_AGENT = topics.FW_NFP_CONFIGAGENT_TOPIC
+        #n_topics.L3_AGENT = topics.FW_NFP_CONFIGAGENT_TOPIC
 
         # Ensure neutron fwaas extensions are loaded
         ext_path = neutron_fwaas.extensions.__path__[0]
