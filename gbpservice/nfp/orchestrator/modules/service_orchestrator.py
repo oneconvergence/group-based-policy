@@ -61,7 +61,7 @@ def events_init(controller, config, service_orchestrator):
               'CREATE_NETWORK_FUNCTION_INSTANCE',
               'DELETE_NETWORK_FUNCTION_INSTANCE',
               'DEVICE_CREATED', 'DEVICE_ACTIVE', 'DEVICE_DELETED',
-              'DEVICE_CREATE_FAILED',
+              'DEVICE_CREATE_FAILED', 'SEND_HEAT_CONFIG', 'CHECK_HEAT_CONFIG_RESULT',
               'APPLY_USER_CONFIG', 'DELETE_USER_CONFIG', 'UPDATE_USER_CONFIG',
               'POLICY_TARGET_ADD', 'POLICY_TARGET_REMOVE',
               'CONSUMER_ADD', 'CONSUMER_REMOVE',
@@ -241,7 +241,7 @@ class RpcHandlerConfigurator(object):
         self.conf = conf
         self._controller = controller
         self.rpc_event_mapping = {
-            'heat': ['APPLY_USER_CONFIG',
+            'heat': ['CHECK_HEAT_CONFIG_RESULT',
                      'DELETE_USER_CONFIG',
                      'UPDATE_USER_CONFIG',
                      'POLICY_TARGET_ADD',
@@ -405,9 +405,11 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 self.delete_network_function_instance),
             "DEVICE_CREATED": self.handle_device_created,
             "DEVICE_ACTIVE": self.handle_device_active,
+            "SEND_HEAT_CONFIG": self.send_heat_config,
             "DEVICE_DELETED": self.handle_device_deleted,
             "DEVICE_CREATE_FAILED": self.handle_device_create_failed,
             "APPLY_USER_CONFIG": self.apply_user_config,
+            "CHECK_HEAT_CONFIG_RESULT" : self.check_heat_config_result,
             "DELETE_USER_CONFIG": self.delete_user_config,
             "UPDATE_USER_CONFIG": self.handle_update_user_config,
             "POLICY_TARGET_ADD": self.policy_target_add_user_config,
@@ -869,6 +871,34 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             self.db_session, request_data['network_function_instance_id'], nfi)
         return
 
+    def send_heat_config(self, event):
+        nfp_context = event.data
+
+        network_function_instance = nfp_context['network_function_instance']
+        network_function_device = nfp_context['network_function_device']
+        network_function = nfp_context['network_function']
+
+        request_data = {'network_function_device_id': network_function_device['id'],
+                        'network_function_instance_id': network_function_instance['id']}
+
+        nfi = {
+            'status': nfp_constants.ACTIVE,
+            'network_function_device_id': request_data[
+                'network_function_device_id']
+        }
+        nfi = self.db_handler.update_network_function_instance(
+            self.db_session, request_data['network_function_instance_id'], nfi)
+        network_function_instance['status'] = nfp_constants.ACTIVE
+        network_function_instance['network_function_device_id'] = network_function_device['id']
+
+        service_config = network_function['service_config']
+        nfp_context['event_desc'] = event.desc.to_dict()
+        nfp_context['key'] = event.key
+        nfp_context['id'] = event.id
+        nfp_core_context.store_nfp_context(nfp_context)
+        self.create_network_function_user_config(network_function['id'],
+                                                 service_config)
+   
     def handle_device_active(self, event):
         nfp_context = event.data
 
@@ -890,41 +920,54 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         network_function_instance['network_function_device_id'] = network_function_device['id']
 
         service_config = network_function['service_config']
-        nfp_core_context.store_nfp_context(nfp_context)
         nfp_context['event_desc'] = event.desc.to_dict()
+        nfp_context_rpc = {'event_desc': nfp_context['event_desc']}
+        nfp_core_context.store_nfp_context(nfp_context_rpc)
         self.create_network_function_user_config(network_function['id'],
                                                  service_config)
 
-    def apply_user_config(self, event):
-        request_data = event.data
+    def check_heat_config_result(self, event):
         nfp_context = event.data['nfp_context']
 
+        event_desc = nfp_context['event_desc']
+        key = nfp_context['key']
+        id = nfp_context['id']
+
+        # Complete the original event here
+        event = self._controller.new_event(id=id, key=key,  desc_dict=event_desc)
+        self._controller.event_complete(event, result='SUCCESS')
+
+
+    def apply_user_config(self, event):
+        # request_data = event.data
+        nfp_context = event.data
+        nfp_core_context.store_nfp_context(nfp_context)
         network_function = nfp_context['network_function']
         network_function_details = self.get_network_function_details(
             network_function['id'])
-        request_data['heat_stack_id'] = self.config_driver.apply_heat_config(
+        nfp_context['heat_stack_id'] = self.config_driver.apply_heat_config(
             nfp_context)  # Heat driver to launch stack
-        request_data['network_function_id'] = network_function['id']
+        nfp_context['network_function_id'] = network_function['id']
 
-        if not request_data['heat_stack_id']:
-            event_desc = nfp_context.pop('event_desc')
-            device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
-                                                             key=network_function['id'],
-                                                             desc_dict=event_desc)
-            self._controller.event_complete(device_active_event, result="FAILED")
+        if not nfp_context['heat_stack_id']:
+            # event_desc = nfp_context.pop('event_desc')
+            # device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
+                                                             # key=network_function['id'],
+                                                             # desc_dict=event_desc)
+            # self._controller.event_complete(device_active_event, result="FAILED")
             self._create_event('USER_CONFIG_FAILED',
-                               event_data=request_data, is_internal_event=True)
-            self._controller.event_complete(event)
+                               event_data=nfp_context, is_internal_event=True)
+            self._controller.event_complete(event, result='FAILED')
             return
         
         LOG.debug("handle_device_active heat_stack_id: %s"
-                  % (request_data['heat_stack_id']))
+                  % (nfp_context['heat_stack_id']))
 
-        nfp_context['heat_stack_id'] = request_data['heat_stack_id']
         nfp_context['network_function'].update({
-            'heat_stack_id': request_data['heat_stack_id'],
+            'heat_stack_id': nfp_context['heat_stack_id'],
             'description': network_function['description']})
 
+        nfp_context['event_desc'] = event.desc.to_dict()
         self._create_event('CHECK_USER_CONFIG_COMPLETE',
                            event_data=nfp_context,
                            is_poll_event=True,
@@ -932,7 +975,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
 
         self.db_handler.update_network_function(
             self.db_session, network_function['id'],
-            {'heat_stack_id': request_data['heat_stack_id'],
+            {'heat_stack_id': nfp_context['heat_stack_id'],
              'description': network_function['description']})
 
     def handle_update_user_config(self, event):
@@ -1188,21 +1231,21 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 network_function['id'],
                 updated_network_function)
             
-            # Complete the original event DEVICE_ACTIVE here
+            # Complete the original event APPLY_USER_CONFIG here
             event_desc = nfp_context.pop('event_desc')
-            device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
+            apply_config_event = self._controller.new_event(id='APPLY_USER_CONFIG',
                                                              key=network_function['id'],
                                                              desc_dict=event_desc)
-            self._controller.event_complete(device_active_event, result="FAILED")
+            self._controller.event_complete(apply_config_event, result="FAILED")
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
             # Complete the original event DEVICE_ACTIVE here
             event_desc = nfp_context.pop('event_desc')
-            device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
+            apply_config_event = self._controller.new_event(id='APPLY_USER_CONFIG',
                                                              key=network_function['id'],
                                                              desc_dict=event_desc)
-            self._controller.event_complete(device_active_event, result="SUCCESS")
+            self._controller.event_complete(apply_config_event, result="SUCCESS")
 
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
@@ -1749,6 +1792,10 @@ class NSOConfiguratorRpcApi(object):
             'network_function_details']
         network_function_instance = network_function_details.get(
             'network_function_instance')
+        nfp_context = nfp_core_context.get_nfp_context()
+        nfp_context_rpc = None
+        if nfp_context:
+            nfp_context_rpc = {'event_desc': nfp_context['event_desc'], 'key': nfp_context.pop('key'), 'id': nfp_context.pop('id')}
         request_info = {
             'nf_id': network_function_details['network_function']['id'],
             'nfi_id': (network_function_instance['id']
@@ -1757,7 +1804,7 @@ class NSOConfiguratorRpcApi(object):
             'requester': nfp_constants.SERVICE_ORCHESTRATOR,
             'operation': operation,
             'logging_context': nfp_logging.get_logging_context(),
-            'nfp_context': nfp_core_context.get_nfp_context()
+            'nfp_context': nfp_context_rpc
         }
         if operation in ['consumer_add', 'consumer_remove']:
             request_info.update({'consumer_ptg': user_config_data[

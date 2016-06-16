@@ -401,8 +401,10 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         LOG.debug("Active Threads count (%d), sc_node_count (%d)" %(
             len(self.active_threads), self.sc_node_count))
 
+        self.sc_node_count -= 1
+
         # At last wait for the threads to complete, success/failure/timeout
-        if len(self.active_threads) == self.sc_node_count:
+        if self.sc_node_count == 0:
             self.thread_pool.waitall()
             # Get the results
             for gth in self.active_threads:

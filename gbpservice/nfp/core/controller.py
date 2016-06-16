@@ -454,7 +454,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         """
         events = []
         # return at max 5 events
-        maxx = 5
+        maxx = 1
         # wait sometime for first event in the queue
         timeout = 0.1
         while maxx:
