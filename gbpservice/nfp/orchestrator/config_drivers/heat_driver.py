@@ -896,7 +896,7 @@ class HeatDriver(object):
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
         nf_desc = None
-        common_desc = {'network_function_id': network_function['id']}
+        common_desc = {'network_function_id':str(network_function['id'])}
         provider_cidr = provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
