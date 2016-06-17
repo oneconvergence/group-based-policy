@@ -84,8 +84,9 @@ class LbGenericConfigDriver(object):
                 msg = ("Failed to configure log forwarding for service at %s. "
                        "Error: %s" % (mgmt_ip, err))
                 LOG.error(msg)
-                # Temporary workaround to prevent log forward API
-                # from blocking chain creation
+                # Failure in log forward configuration won't break chain
+                # creation. However, error will be logged for detecting
+                # failure.
                 # return result_log_forward
             else:
                 msg = ("Configured log forwarding for service at %s. "
