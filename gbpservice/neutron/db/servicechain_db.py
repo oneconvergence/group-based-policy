@@ -12,7 +12,7 @@
 
 import ast
 
-from neutron._i18n import _LE
+from neutron.i18n import _LE
 from neutron.db import common_db_mixin
 from neutron.db import model_base
 from neutron.db import models_v2

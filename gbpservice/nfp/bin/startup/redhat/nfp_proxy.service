@@ -3,7 +3,8 @@ Description=One Convergence NFP Proxy
 After=syslog.target network.target
 
 [Service]
-ExecStart=source /opt/stack/gbp/devstack/lib/nfp;namespace_delete /home/stack/devstack;namespace_create /home/stack/devstack configurator-ip
+User=root
+ExecStart=/usr/bin/nfpproxy_startup
 Restart=on-abort
 
 [Install]

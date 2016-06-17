@@ -12,8 +12,8 @@
 
 import sys
 
-from neutron._i18n import _
-from neutron._i18n import _LE
+from neutron.i18n import _
+from neutron.i18n import _LE
 from oslo_config import cfg
 from oslo_log import log as logging
 import six
