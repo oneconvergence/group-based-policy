@@ -32,9 +32,9 @@ from gbpservice.nfp.orchestrator.openstack.openstack_driver\
 
 from heatclient import exc as heat_exc
 from keystoneclient import exceptions as k_exceptions
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from neutron._i18n import _LW
+from neutron.i18n import _LE
+from neutron.i18n import _LI
+from neutron.i18n import _LW
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
 from oslo_serialization import jsonutils
@@ -896,7 +896,7 @@ class HeatDriver(object):
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
         nf_desc = None
-        common_desc = {'network_function_id': network_function['id']}
+	common_desc = {'network_function_id':str(network_function['id'])}
         provider_cidr = provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
