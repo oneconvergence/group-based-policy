@@ -12,8 +12,7 @@
 
 import pecan
 
-from gbpservice.tests.contrib.nfp_service.reference_configurator.\
-    api.v1.controllers import controller
+import controller
 
 
 class ControllerResolver(object):
