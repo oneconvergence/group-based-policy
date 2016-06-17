@@ -84,7 +84,9 @@ class LbGenericConfigDriver(object):
                 msg = ("Failed to configure log forwarding for service at %s. "
                        "Error: %s" % (mgmt_ip, err))
                 LOG.error(msg)
-                return result_log_forward
+                # Temporary workaround to prevent log forward API
+                # from blocking chain creation
+                # return result_log_forward
             else:
                 msg = ("Configured log forwarding for service at %s. "
                        "Result: %s" % (mgmt_ip, result_log_forward))
@@ -101,7 +103,7 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
     def __init__(self, plugin_rpc=None, conf=None):
         self.plugin_rpc = plugin_rpc
         self.conf = conf
-        self.timeout = 30
+        self.timeout = 60
         self.port = lb_constants.HAPROXY_AGENT_LISTEN_PORT
         super(HaproxyOnVmDriver, self).__init__()
 
