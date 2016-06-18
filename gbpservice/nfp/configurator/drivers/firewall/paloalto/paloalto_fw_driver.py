@@ -64,73 +64,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         time.sleep(60)
         vm_mgmt_ip = kwargs.get('mgmt_ip')
         self._check_auto_commit_status(hostname=vm_mgmt_ip)
-
-        # apply staic ip to stitching interface
-        stitching_interface_index = kwargs.get('stitching_interface_index')
-        stitching_interface_name = "ethernet1/%d" % \
-                                   (stitching_interface_index-1)
-        stitching_ip = kwargs.get('stitching_ip')
-        stitching_ip = ("%s/24" % stitching_ip)
-        self._apply_static_ip(vm_mgmt_ip,
-                              stitching_interface_name,
-                              stitching_ip)
-
-        # apply staic ip to provider interface
-        provider_interface_index = kwargs.get('provider_interface_index')
-        provider_interface_name = "ethernet1/%d" % (provider_interface_index-1)
-        provider_ip = kwargs.get('provider_ip')
-        self._apply_static_ip(vm_mgmt_ip, provider_interface_name, provider_ip)
-
-        # commit
-        try:
-            resp = self.commit(hostname=vm_mgmt_ip)
-        except pan.xapi.PanXapiError as err:
-            self._print_exception('PanXapiError', err, const.COMMIT)
-            raise pan.xapi.PanXapiError(err)
-        except pan.config.PanConfigError as err:
-            self._print_exception('PanConfigError', err, const.COMMIT)
-            raise pan.config.PanConfigError(err)
-        except Exception as err:
-            self._print_exception('UnexpectedError', err, const.COMMIT, resp)
-            raise Exception(err)
-
-        if self.analyze_response("COMMITED the configuration to Service VM",
-                                 resp, const.COMMIT) == \
-                common_const.STATUS_ERROR:
-            return common_const.STATUS_ERROR
-
-        # wait till commit is finished
-        job_id = resp['response']['result']['job']
-        self._check_commit_status(vm_mgmt_ip, job_id)
-
         return common_const.STATUS_SUCCESS
-
-    def _apply_static_ip(self, hostname, interface_name, interface_ip):
-        """ Configure static ip for a interface on service VM.
-
-        :param hostname: service VM's IP address
-        :param interface_name: the interface name to be configured
-        :param interface_ip: the static ip to be applied to interface
-
-        """
-        LOG.info("Applying static ip '%s' to interface '%s'" %
-                 (interface_ip, interface_name))
-        element = (const.INTERFACE_CONFIG_TEMPLATE %
-                   (interface_name, interface_ip))
-        try:
-            resp = self._edit_interface(hostname, interface_name, element)
-        except pan.xapi.PanXapiError as err:
-            self._print_exception('PanXapiError', err,
-                                  const.APPLY_STATIC_IP)
-            raise pan.xapi.PanXapiError(err)
-        except pan.config.PanConfigError as err:
-            self._print_exception('PanConfigError', err,
-                                  const.APPLY_STATIC_IP)
-            raise pan.config.PanConfigError(err)
-        except Exception as err:
-            self._print_exception('UnexpectedError', err,
-                                  const.APPLY_STATIC_IP, resp)
-            raise Exception(err)
 
     def configure_routes(self, context, kwargs):
         """ Configure routes for the service VM.
