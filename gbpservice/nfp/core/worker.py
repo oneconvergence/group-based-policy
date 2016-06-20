@@ -147,8 +147,8 @@ class NfpWorker(Service):
         if self._threads:
             th = self.tg.add_thread(handler, *args)
             LOG.debug("%s - (handler - %s) - "
-                "dispatched to thread %d" %
-                (self._log_meta(), identify(handler), th.ident))
+                "dispatched to thread" %
+                (self._log_meta(), identify(handler)))
         else:
             handler(*args)
             LOG.debug("%s - (handler - %s) - invoked" %
