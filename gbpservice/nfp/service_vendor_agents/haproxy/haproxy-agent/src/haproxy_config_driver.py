@@ -128,7 +128,7 @@ class HaproxyDriver:
     # Send Gratuitous arp to inform the fabric of the vip ip
     def _arping(self, interface_name, ip_address):
         eventlet.sleep(10)
-        arping_cmd = ['arping', '-U', ip_address, '-S', ip_address, '-P',
+        arping_cmd = ['arping', '-A', ip_address, '-s', ip_address,
                       '-I', interface_name, '-c', '5']
         try:
             commands.getstatusoutput(' '.join(arping_cmd))
@@ -136,7 +136,7 @@ class HaproxyDriver:
             self.logger.error("Failed sending gratuitous ARP: %s", str(e))
         # Do it once more in case the previous one was not processed
         eventlet.sleep(60)
-        arping_cmd = ['arping', '-U', ip_address, '-S', ip_address, '-P',
+        arping_cmd = ['arping', '-A', ip_address, '-s', ip_address,
                       '-I', interface_name, '-c', '5']
         try:
             commands.getstatusoutput(' '.join(arping_cmd))
