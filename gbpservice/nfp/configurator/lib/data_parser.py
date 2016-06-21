@@ -16,7 +16,6 @@ STITCHING = 'stitching'
 
 class DataParser(object):
     def __init__(self):
-        self.resource_data = dict()
         self.interface_type_map = {
                     'mgmt': 'mgmt_',
                     'monitor': 'monitoring_',
@@ -26,49 +25,49 @@ class DataParser(object):
 
     ''' Expects resource and resource data to be passed '''
     def parse_data(self, resource, resource_data):
+        self.resource_data = dict()
         nfd = resource_data['nfds'][0]
         self.resource_data.update({
                         'tenant_id': resource_data['tenant_id'],
                         'role': nfd['role'],
                         'mgmt_ip': nfd['svc_mgmt_fixed_ip']})
-        method = 'parse' + resource + 'data'
+        method = '_parse_' + resource + '_data'
         getattr(self, method)(nfd)
         return self.resource_data
 
-    def parse_interfaces_data(self, nfd):
+    def _parse_interfaces_data(self, nfd):
         networks = nfd['networks']
         for network in networks:
-            prefix = self.interface_type_map(network['type'])
+            prefix = self.interface_type_map[network['type']]
             if network['type'] in [PROVIDER, STITCHING]:
                 port = network['ports'][0]
                 self.resource_data.update({
                                 (prefix + 'cidr'): network['cidr'],
                                 (prefix + 'ip'): port['fixed_ip'],
                                 (prefix + 'mac'): port['mac'],
-                                (prefix + 'interface_position'): network[
+                                (prefix + 'interface_position'): port[
                                                         'interface_index']})
 
-    def parse_routes_data(self, nfd):
+    def _parse_routes_data(self, nfd):
         networks = nfd['networks']
+        cidrs = list()
         for network in networks:
-            prefix = self.interface_type_map(network['type'])
-            cidrs = list()
-            if network['type'] is PROVIDER:
+            prefix = self.interface_type_map[network['type']]
+            if network['type'] in PROVIDER:
                 port = network['ports'][0]
                 self.resource_data.update({
                                 (prefix + 'mac'): port['mac'],
-                                (prefix + 'interface_position'): network[
+                                (prefix + 'interface_position'): port[
                                                         'interface_index']})
-                self.resource_data.update({'source_cidrs': cidrs.append(
-                                                        network['cidr'])})
+                cidrs.append(network['cidr'])
 
-            if network['type'] is STITCHING:
+            if network['type'] in STITCHING:
                 self.resource_data.update({'gateway_ip': network['gw_ip']})
                 self.resource_data.update({'destination_cidr': network[
                                                                     'cidr']})
-                self.resource_data.update({'source_cidrs': cidrs.append(
-                                                        network['cidr'])})
+                cidrs.append(network['cidr'])
+        self.resource_data.update({'source_cidrs': cidrs})
 
-    def parse_healthmonitor_data(self, nfd):
+    def _parse_healthmonitor_data(self, nfd):
         self.resource_data.update({'periodicity': nfd['periodicity'],
                                    'vmid': nfd['vmid']})

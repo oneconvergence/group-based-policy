@@ -13,6 +13,7 @@
 import os
 
 from gbpservice.nfp.configurator.agents import agent_base
+from gbpservice.nfp.configurator.lib import data_parser
 from gbpservice.nfp.configurator.lib import (
                             generic_config_constants as gen_cfg_const)
 from gbpservice.nfp.configurator.lib import constants as common_const
@@ -49,6 +50,7 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
+        self.parse = data_parser.DataParser()
         super(GenericConfigRpcManager, self).__init__(sc, conf)
 
     def _send_event(self, context, resource_data, event_id, event_key=None):
@@ -138,6 +140,7 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
+        resource_data = self.parse.parse_data('healthmonitor', resource_data)
         resource_data['fail_count'] = 0
         self._send_event(context,
                          resource_data,
@@ -155,6 +158,7 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
+        resource_data = self.parse.parse_data('healthmonitor', resource_data)
         self._send_event(context,
                          resource_data,
                          gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,

@@ -21,6 +21,7 @@ from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.drivers.firewall.vyos import (
                                                 vyos_fw_constants as const)
 from gbpservice.nfp.configurator.lib import constants as common_const
+from gbpservice.nfp.configurator.lib import data_parser
 from gbpservice.nfp.configurator.lib import fw_constants as fw_const
 
 LOG = nfp_logging.getLogger(__name__)
@@ -123,6 +124,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         """
 
+        resource_data = self.parse.parse_data('interfaces', resource_data)
         mgmt_ip = resource_data['mgmt_ip']
 
         try:
@@ -277,6 +279,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         """
 
+        resource_data = self.parse.parse_data('interfaces', resource_data)
         try:
             result_static_ips = self._clear_static_ips(resource_data)
         except Exception as err:
@@ -347,6 +350,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         """
 
+        resource_data = self.parse.parse_data('routes', resource_data)
         mgmt_ip = resource_data.get('mgmt_ip')
         source_cidrs = resource_data.get('source_cidrs')
         gateway_ip = resource_data.get('gateway_ip')
@@ -415,6 +419,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         """
 
+        resource_data = self.parse.parse_data('routes', resource_data)
         mgmt_ip = resource_data.get('mgmt_ip')
         source_cidrs = resource_data.get('source_cidrs')
 
@@ -475,6 +480,7 @@ class FwaasDriver(FwGenericConfigDriver):
         self.timeout = const.REST_TIMEOUT
         self.host = self.conf.host
         self.port = const.CONFIGURATION_SERVER_PORT
+        self.parse = data_parser.DataParser()
         super(FwaasDriver, self).__init__()
 
     def _get_firewall_attribute(self, firewall):
