@@ -95,7 +95,6 @@ class PortInfo(BASE, HasId, HasTenant):
                                             nfp_constants.CONSUMER,
                                             nfp_constants.MANAGEMENT,
                                             nfp_constants.MONITOR,
-                                            nfp_constants.ADVANCE_SHARING,
                                             name='port_classification'))
     port_role = sa.Column(sa.Enum(nfp_constants.ACTIVE_PORT,
                                   nfp_constants.STANDBY_PORT,
