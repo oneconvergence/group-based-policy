@@ -48,7 +48,7 @@ function nfp_configure_neutron {
 
 function configure_nfp_loadbalancer {
     echo "Configuring NFP Loadbalancer plugin driver"
-    sudo sed -i "s/service_provider\ *=\ *LOADBALANCER:Haproxy:neutron_lbaas.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver:default/service_provider\ =\ LOADBALANCER:Haproxy:neutron_lbaas.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver\nservice_provider\ =\ LOADBALANCER:loadbalancer:gbpservice.nfp.service_plugins.loadbalancer.drivers.nfp_lbaas_plugin_driver.HaproxyOnVMPluginDriver:default/g" /etc/neutron/neutron_lbaas.conf
+    sudo sed -i "s/service_provider\ *=\ *LOADBALANCER:Haproxy:neutron_lbaas.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver:default/service_provider\ =\ LOADBALANCER:Haproxy:neutron_lbaas.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver\nservice_provider\ =\ LOADBALANCER:loadbalancer:gbpservice.nfp.service_plugins.loadbalancer.drivers.nfp_lbaas_plugin_driver.HaproxyOnVMPluginDriver:default\n#service_provider\ =\ LOADBALANCERV2:loadbalancerv2:gbpservice.nfp.service_plugins.loadbalancer.drivers.nfp_lbaasv2_plugin_driver.HaproxyOnVMPluginDriver:default/g" /etc/neutron/neutron_lbaas.conf
 }
 
 function configure_nfp_firewall {
