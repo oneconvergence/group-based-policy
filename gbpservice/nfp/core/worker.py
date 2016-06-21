@@ -62,7 +62,7 @@ class NfpWorker(Service):
             try:
                 event = None
                 if self.pipe.poll():
-                    event = self.pipe.recv()
+                    event = self.controller.pipe_recv(self.pipe)
                 if event:
                     LOG.debug("%s - received event" %
                         (self._log_meta(event)))
@@ -88,7 +88,7 @@ class NfpWorker(Service):
         desc.uuid = event.desc.uuid
         desc.flag = nfp_event.EVENT_ACK
         setattr(ack_event, 'desc', desc)
-        self.pipe.send(ack_event)
+        self.controller.pipe_send(self.pipe, ack_event)
 
     def _process_event(self, event):
         """Process & dispatch the event.
@@ -120,9 +120,16 @@ class NfpWorker(Service):
     def _repoll(self, ret, event, eh):
         status = self._build_poll_status(ret, event)
         if status['poll']:
+            LOG.debug("(event - %s) - "
+                "repolling event - pending times - %d" %(
+                event.identify(), 
+                event.desc.poll_desc.max_times))
             if event.desc.poll_desc.max_times:
-                self.pipe.send(status['event'])
+                self.controller.pipe_send(self.pipe, status['event'])
             else:
+                LOG.debug("(event - %s) - "
+                    "max timed out, calling event_cancelled" %(
+                    event.identify()))
                 eh.event_cancelled(event, 'MAX_TIMED_OUT')
 
     def _handle_poll_event(self, event):

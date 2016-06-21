@@ -788,19 +788,24 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                                                             key=nf_id,
                                                             data=nfp_context,
                                                             graph=True)
-        device_active_event = self._controller.new_event(id='DEVICE_ACTIVE',
+        user_config_event = self._controller.new_event(id='APPLY_USER_CONFIG',
                                                          key=nf_id,
                                                          data=nfp_context,
                                                          graph=True)
 
+        check_heat_config = self._controller.new_event(id='SEND_HEAT_CONFIG',
+                                                        key=nf_id,
+                                                        data=nfp_context,
+                                                        graph=True)
         graph = nfp_event.EventGraph(device_configured_event)
         graph.add_node(device_configure_event, device_configured_event)
-        graph.add_node(device_active_event, device_configured_event)
+        graph.add_node(user_config_event, device_configured_event)
+        graph.add_node(check_heat_config, user_config_event)
 
         event_graph = self._controller.new_event(id='DEVICE_CONFIGURATION_GRAPH',
                                                  graph=graph)
         graph_nodes = [device_configured_event, device_configure_event,
-            device_active_event]
+            user_config_event, check_heat_config]
         self._controller.post_event_graph(event_graph, graph_nodes)
     
     def device_up(self, event):
@@ -836,7 +841,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             'service_details': service_details,
             'network_function_id': network_function['id'],
             'network_function_instance_id': network_function_instance['id'],
-            'nfp_context': nfp_context
+            'nfp_context': {'event_desc': nfp_context['event_desc'], 'id':event.id, 'key':event.key}
         }
 
         hm_req = (
@@ -906,14 +911,16 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
     def health_monitor_complete(self, event, result='SUCCESS'):
         nfp_context = event.data['nfp_context']
-        device = nfp_context['network_function_device']
-        network_function = nfp_context['network_function']
+        #device = nfp_context['network_function_device']
+        #network_function = nfp_context['network_function']
 
         # Invoke event_complete for original event which is
         # PERFORM_HEALTH_CHECK
         event_desc = nfp_context.pop('event_desc')
+        id = nfp_context.pop('id')
+        key = nfp_context.pop('key')
         event = self._controller.new_event(id="PERFORM_HEALTH_CHECK",
-            key = network_function['id'], desc_dict=event_desc)
+            key = key, desc_dict=event_desc)
         self._controller.event_complete(event, result=result)
         
 
@@ -1054,7 +1061,9 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             'service_details': service_details,
             'network_function_id': network_function['id'],
             'network_function_instance_id': network_function_instance['id'],
-            'nfp_context': nfp_context})
+            'nfp_context': {
+                'event_desc': nfp_context['event_desc'], 'id':event.id, 'key':event.key,
+                'network_function_device': network_function_device}})
 
         if not config_params:
             self._controller.event_complete(event, result="FAILED")
@@ -1081,7 +1090,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         nfp_context = event.data['nfp_context']
 
         device = nfp_context['network_function_device']
-        network_function = nfp_context['network_function']
 
         if result.lower() == 'success':
             self._increment_device_ref_count(device)
@@ -1094,10 +1102,10 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         # Invoke event_complete for original event which is
         # CREATE_DEVICE_CONFIGURATION
-        network_function = nfp_context['network_function']
         event_desc = nfp_context.pop('event_desc')
+        key = nfp_context.pop('key')
         event = self._controller.new_event(id="CREATE_DEVICE_CONFIGURATION",
-            key = network_function['id'], desc_dict=event_desc)
+            key = key, desc_dict=event_desc)
         self._controller.event_complete(event, result=result)
 
 

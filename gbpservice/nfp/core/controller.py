@@ -214,6 +214,11 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
                         e))
                 raise e
 
+    def pipe_recv(self, pipe):
+        event = pipe.recv()
+        if event: self.decompress(event)
+        return event
+
     def pipe_send(self, pipe, event):
         self.compress(event)
         pipe.send(event)
@@ -449,7 +454,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         """
         events = []
         # return at max 5 events
-        maxx = 5
+        maxx = 1
         # wait sometime for first event in the queue
         timeout = 0.1
         while maxx:

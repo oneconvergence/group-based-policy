@@ -381,6 +381,14 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 service_type=context.current_profile['service_type'],
                 vendor=context.current_profile['vendor'])
 
+    def _wait(self, thread):
+        try:
+            result = thread.wait()
+            return result
+        except Exception as e:
+            self.active_threads = []
+            raise e
+
     def create(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
@@ -401,15 +409,14 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         LOG.debug("Active Threads count (%d), sc_node_count (%d)" %(
             len(self.active_threads), self.sc_node_count))
 
+        self.sc_node_count -= 1
+
         # At last wait for the threads to complete, success/failure/timeout
-        if len(self.active_threads) == self.sc_node_count:
+        if self.sc_node_count == 0:
             self.thread_pool.waitall()
             # Get the results
             for gth in self.active_threads:
-                result = gth.wait()
-                if isinstance(result, Exception):
-                    self.active_threads = []
-                    raise result
+                result = self._wait(gth)
             self.active_threads = []
 
     def update(self, context):
