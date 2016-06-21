@@ -185,4 +185,3 @@ class NetworkFunctionDevice(BASE, HasId, HasTenant, HasStatusDescription):
     max_interfaces = sa.Column(sa.Integer(), nullable=False)
     reference_count = sa.Column(sa.Integer(), nullable=False)
     interfaces_in_use = sa.Column(sa.Integer(), nullable=False)
-

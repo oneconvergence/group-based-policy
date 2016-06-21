@@ -544,4 +544,3 @@ class NFPDBTestCase(SqlTestCase):
                           self.nfp_db.get_port_info,
                           self.session,
                           mgmt_port_id)
-
