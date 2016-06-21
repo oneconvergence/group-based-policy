@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron.i18n import _LE
-from neutron.i18n import _LI
+from neutron._i18n import _LE
+from neutron._i18n import _LI
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
 from oslo_log import helpers as log_helpers
