@@ -339,7 +339,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
             notification_data['notification'].append(data)
         return notification_data
 
-    def poll_event_cancel(self, ev):
+    def event_cancelled(self, ev, reason):
         """Invoked by process framework when poll ev object reaches
            polling threshold ev.max_times.
            Finally it Enqueues response into notification queue.

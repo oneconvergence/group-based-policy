@@ -109,7 +109,7 @@ class EventsHandler(nfp_api.NfpEventHandler):
         elif ev.id == 'SERVICE_OPERATION_POLL_EVENT':
             self._sc.poll_event(ev)
 
-    def poll_event_cancel(self, event):
+    def event_cancelled(self, event, reason):
         msg = ("Poll Event =%s got time out Event Data = %s " %
                (event.id, event.data))
         LOG.info(msg)
