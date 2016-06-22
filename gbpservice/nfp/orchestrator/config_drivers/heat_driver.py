@@ -896,7 +896,7 @@ class HeatDriver(object):
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
         nf_desc = None
-        common_desc = {'network_function_id':str(network_function['id'])}
+        common_desc = {'network_function_id': str(network_function['id'])}
         provider_cidr = provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
@@ -909,10 +909,8 @@ class HeatDriver(object):
             LOG.error(_LE("No provider cidr availabale"))
             return None, None
         service_type = service_profile['service_type']
-        service_details = transport.parse_service_flavor_string(
-            service_profile['service_flavor'])
-        service_vendor = service_details['service_vendor']
-        base_mode_support = (True if service_details['device_type'] == 'None'
+        service_vendor = service_profile['service_vendor']
+        base_mode_support = (True if service_profile['device_type'] == 'None'
                              else False)
 
         # stack_template = service_chain_node.get('config')
@@ -955,7 +953,6 @@ class HeatDriver(object):
             provider_cidr = ''
         standby_provider_port_mac = None
 
-        service_vendor = service_details['service_vendor']
         if service_type == pconst.LOADBALANCER:
             self._generate_pool_members(
                 auth_token, stack_template, config_param_values,
@@ -1101,7 +1098,7 @@ class HeatDriver(object):
                             provider_cidr + ";user_access_ip=" +
                             stitching_port_fip + ";fixed_ip=" +
                             consumer_port['fixed_ips'][0]['ip_address'] +
-                            ';service_vendor=' + service_details[
+                            ';service_vendor=' + service_profile[
                                 'service_vendor'] +
                             ';stitching_cidr=' + stitching_cidr +
                             ';stitching_gateway=' + stitching_subnet[
@@ -1181,6 +1178,10 @@ class HeatDriver(object):
             mgmt_ip = network_function_device['mgmt_ip_address']
         else:
             mgmt_ip = None
+        service_type = service_profile['service_type']
+        service_profile = copy.deepcopy(service_details)
+        service_profile['service_type'] = service_type
+        service_details = {}
 
         heat_stack_id = network_function['heat_stack_id']
         service_id = network_function['service_id']
@@ -1450,12 +1451,9 @@ class HeatDriver(object):
 
     def get_service_details_from_nfp_context(self, nfp_context):
         network_function = nfp_context['network_function']
-        network_function_instance = nfp_context['network_function_instance']
         service_details = nfp_context['service_details']
         mgmt_ip = nfp_context['management']['port']['ip_address']
         heat_stack_id = network_function['heat_stack_id']
-        service_id = network_function['service_id']
-        service_chain_id = network_function['service_chain_id']
         servicechain_instance = nfp_context['service_chain_instance']
         servicechain_node = nfp_context['service_chain_node']
 
@@ -1469,9 +1467,13 @@ class HeatDriver(object):
             'consuming_eps_details']
         service_details['consuming_ptgs_details'] = nfp_context[
             'consuming_ptgs_details']
+        service_profile = {}
+        service_profile['service_type'] = service_details['service_type']
+        service_profile['service_vendor'] = service_details['service_vendor']
+        service_profile['device_type'] = service_details['device_type']
 
         return {
-            'service_profile': None,
+            'service_profile': service_profile,
             'service_details': service_details,
             'servicechain_node': servicechain_node,
             'servicechain_instance': servicechain_instance,
@@ -1494,15 +1496,11 @@ class HeatDriver(object):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
         provider = service_details['provider_ptg']
         consumer = service_details['consumer_ptg']
         consumer_port = service_details['consumer_port']
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
-
-        service_details = transport.parse_service_flavor_string(
-            service_profile['service_flavor'])
 
         auth_token, resource_owner_tenant_id =\
             self._get_resource_owner_context()
@@ -1563,6 +1561,7 @@ class HeatDriver(object):
         provider_tenant_id = nfp_context['tenant_id']
         heatclient = self._get_heat_client_v1(provider_tenant_id,
                                               assign_admin=True)
+
         if not heatclient:
             return None
 
@@ -1585,6 +1584,11 @@ class HeatDriver(object):
                       time.strftime("%Y%m%d%H%M%S"))
         # Heat does not accept space in stack name
         stack_name = stack_name.replace(" ", "")
+        stack_template, stack_params = self._update_node_config(
+            auth_token, provider_tenant_id, service_profile,
+            service_chain_node, service_chain_instance, provider,
+            consumer_port, network_function,
+            provider_port, mgmt_ip=mgmt_ip, consumer=consumer)
 
         try:
             stack = heatclient.create(stack_name, stack_template, stack_params)
