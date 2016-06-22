@@ -20,6 +20,7 @@ import constants
 import commands
 import netifaces
 import sys, traceback
+import time
 
 STATS_MAP = {
     constants.STATS_ACTIVE_CONNECTIONS:'scur',
