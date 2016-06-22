@@ -72,8 +72,10 @@ RESOURCE_OWNER_TENANT_ID = '8ae6701128994ab281dde6b92207bb19'
 class TestHeatDriver(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
+        # import pdb;pdb.set_trace()
         super(TestHeatDriver, self).__init__(*args, **kwargs)
-        self.heat_driver_obj = heat_driver.HeatDriver(cfg.CONF)
+        with mock.patch.object(identity_client, "Client") as identity_client_obj:
+            self.heat_driver_obj = heat_driver.HeatDriver(cfg.CONF)
         self.mock_dict = mock_dicts.DummyDictionaries()
 
     def setUp(self):
@@ -133,50 +135,51 @@ class TestHeatDriver(unittest.TestCase):
                          expected_resource_owner_tenant_id)
 
     def mock_objects(self):
-        self.heat_driver_obj = heat_driver.HeatDriver(cfg.CONF)
-        self.heat_driver_obj.keystoneclient.get_scoped_keystone_token =\
-            mock.MagicMock(return_value='token')
-        self.heat_driver_obj.keystoneclient.get_tenant_id = mock.MagicMock(
-            return_value='8ae6701128994ab281dde6b92207bb19')
-        self.heat_driver_obj.neutron_client.get_port = mock.MagicMock(
-            return_value=self.mock_dict.port_info)
-        self.heat_driver_obj.neutron_client.get_floating_ips = mock.MagicMock(
-            return_value=[])
-        self.heat_driver_obj.neutron_client.get_subnets = mock.MagicMock(
-            return_value=self.mock_dict.subnets_info['subnets'])
-        self.heat_driver_obj.neutron_client.get_subnet = mock.MagicMock(
-            return_value=self.mock_dict.subnet_info)
-        self.heat_driver_obj.gbp_client.get_external_policies = mock.MagicMock(
-            return_value=self.mock_dict.external_policies[
-                'external_policies'])
-        self.heat_driver_obj.gbp_client.get_network_service_policies =\
-            mock.MagicMock(return_value={})
-        self.heat_driver_obj.gbp_client.get_l3_policies = mock.MagicMock(
-            return_value=self.mock_dict.l3_policies['l3_policies'])
-        self.heat_driver_obj.gbp_client.get_policy_targets = mock.MagicMock(
-            return_value=self.mock_dict.policy_targets['policy_targets'])
-        self.heat_driver_obj.gbp_client.get_policy_target_groups =\
-            mock.MagicMock(
-                return_value=self.mock_dict.policy_target_groups[
-                    'policy_target_groups'])
-        self.heat_driver_obj.gbp_client.get_policy_rule_sets = mock.MagicMock(
-            return_value=self.mock_dict.policy_rule_sets['policy_rule_sets'])
-        self.heat_driver_obj.gbp_client.get_policy_rules = mock.MagicMock(
-            return_value=self.mock_dict.policy_rules['policy_rules'])
-        self.heat_driver_obj.gbp_client.get_policy_actions = mock.MagicMock(
-            return_value=self.mock_dict.policy_actions['policy_actions'])
-        self.heat_driver_obj.gbp_client.get_l3_policy = mock.MagicMock(
-            return_value={})
-        self.heat_driver_obj.gbp_client.get_l2_policy = mock.MagicMock(
-            return_value={})
-        self.heat_driver_obj.gbp_client.update_policy_target_group =\
-            mock.MagicMock(return_value={})
-        self.heat_driver_obj.gbp_client.create_policy_target_group =\
-            mock.MagicMock(return_value={})
-        self.heat_driver_obj.gbp_client.create_policy_target =\
-            mock.MagicMock(return_value=self.mock_dict.policy_target)
-        self.heat_driver_obj.gbp_client.create_network_service_policy =\
-            mock.MagicMock(return_value={})
+        with mock.patch.object(identity_client, "Client") as identity_client_obj:
+            self.heat_driver_obj = heat_driver.HeatDriver(cfg.CONF)
+            self.heat_driver_obj.keystoneclient.get_scoped_keystone_token =\
+                mock.MagicMock(return_value='token')
+            self.heat_driver_obj.keystoneclient.get_tenant_id = mock.MagicMock(
+                return_value='8ae6701128994ab281dde6b92207bb19')
+            self.heat_driver_obj.neutron_client.get_port = mock.MagicMock(
+                return_value=self.mock_dict.port_info)
+            self.heat_driver_obj.neutron_client.get_floating_ips = mock.MagicMock(
+                return_value=[])
+            self.heat_driver_obj.neutron_client.get_subnets = mock.MagicMock(
+                return_value=self.mock_dict.subnets_info['subnets'])
+            self.heat_driver_obj.neutron_client.get_subnet = mock.MagicMock(
+                return_value=self.mock_dict.subnet_info)
+            self.heat_driver_obj.gbp_client.get_external_policies = mock.MagicMock(
+                return_value=self.mock_dict.external_policies[
+                    'external_policies'])
+            self.heat_driver_obj.gbp_client.get_network_service_policies =\
+                mock.MagicMock(return_value={})
+            self.heat_driver_obj.gbp_client.get_l3_policies = mock.MagicMock(
+                return_value=self.mock_dict.l3_policies['l3_policies'])
+            self.heat_driver_obj.gbp_client.get_policy_targets = mock.MagicMock(
+                return_value=self.mock_dict.policy_targets['policy_targets'])
+            self.heat_driver_obj.gbp_client.get_policy_target_groups =\
+                mock.MagicMock(
+                    return_value=self.mock_dict.policy_target_groups[
+                        'policy_target_groups'])
+            self.heat_driver_obj.gbp_client.get_policy_rule_sets = mock.MagicMock(
+                return_value=self.mock_dict.policy_rule_sets['policy_rule_sets'])
+            self.heat_driver_obj.gbp_client.get_policy_rules = mock.MagicMock(
+                return_value=self.mock_dict.policy_rules['policy_rules'])
+            self.heat_driver_obj.gbp_client.get_policy_actions = mock.MagicMock(
+                return_value=self.mock_dict.policy_actions['policy_actions'])
+            self.heat_driver_obj.gbp_client.get_l3_policy = mock.MagicMock(
+                return_value={})
+            self.heat_driver_obj.gbp_client.get_l2_policy = mock.MagicMock(
+                return_value={})
+            self.heat_driver_obj.gbp_client.update_policy_target_group =\
+                mock.MagicMock(return_value={})
+            self.heat_driver_obj.gbp_client.create_policy_target_group =\
+                mock.MagicMock(return_value={})
+            self.heat_driver_obj.gbp_client.create_policy_target =\
+                mock.MagicMock(return_value=self.mock_dict.policy_target)
+            self.heat_driver_obj.gbp_client.create_network_service_policy =\
+                mock.MagicMock(return_value={})
 
     def test_get_resource_owner_context(self):
         self.mock_objects()

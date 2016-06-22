@@ -24,6 +24,7 @@ from mock import patch
 from oslo_config import cfg
 import unittest
 
+import uuid as pyuuid
 
 class DummyEvent(object):
     def __init__(self, data, status, ref_count=0):
@@ -32,7 +33,7 @@ class DummyEvent(object):
         self.data['id'] = 'vm-id'
 
         self.data['network_function_id'] = 'network_function_id'
-        self.data['network_function_device_id'] = 'network_function_device_id'
+        self.data['network_function_device_id'] = 'vm-id'
         self.data['network_function_instance_id'] = (
             'network_function_instance_id')
         self.data['ports'] = [{'id': 'myid1',
@@ -48,6 +49,12 @@ class DummyEvent(object):
         self.data['interfaces_in_use'] = 1
         self.data['reference_count'] = ref_count
         self.data['service_details'] = {'service_vendor': 'vyos'}
+        self.data['network_function'] = {'id': 'network_function_id'}
+        self.data['network_function_device'] = {'id': 'vm-id'}
+        self.data['network_function_instance'] = {'id': 'network_function_instance_id'}
+        self.data['resource_owner_context'] = {'admin_token': str(pyuuid.uuid4()), 'tenant_id': str(pyuuid.uuid4())}
+        self.data['provider'] = {'ptg': None}
+        self.data['consumer'] = {'ptg': None}
         self.context = {}
 
 
@@ -231,18 +238,28 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         orig_event_data['status'] = status
         orig_event_data['status_description'] = ndo_handler.status_map[status]
 
-        ndo_handler.check_device_is_up(self.event)
-        mock_update_nsd.assert_called_with(ndo_handler.db_session,
-                                           orig_event_data['id'],
-                                           orig_event_data)
-
+        poll_status = ndo_handler.check_device_is_up(self.event)
+        self.assertEqual(poll_status, {'poll': False})
         orchestration_driver.get_network_function_device_status = (
                 mock.MagicMock(return_value='ERROR'))
         status = 'DEVICE_NOT_UP'
         orig_event_data['status'] = status
         orig_event_data['status_description'] = ndo_handler.status_map[status]
 
-        ndo_handler.check_device_is_up(self.event)
+        poll_status = ndo_handler.check_device_is_up(self.event)
+        self.assertEqual(poll_status, {'poll': False})
+        del orig_event_data['network_function']
+        del orig_event_data['network_function_device']
+        del orig_event_data['network_function_instance']
+        del orig_event_data['resource_owner_context']
+        del orig_event_data['provider']
+        del orig_event_data['consumer']
+        del orig_event_data['ports']
+        del orig_event_data['mgmt_port_id']
+        del orig_event_data['service_details']
+        del orig_event_data['reference_count']
+        del orig_event_data['interfaces_in_use']
+
         mock_update_nsd.assert_called_with(ndo_handler.db_session,
                                            orig_event_data['id'],
                                            orig_event_data)

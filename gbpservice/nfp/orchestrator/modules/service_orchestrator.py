@@ -900,15 +900,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                                                  service_config)
    
     def handle_device_active(self, event):
-        nfp_context = event.data
-
-        network_function_instance = nfp_context['network_function_instance']
-        network_function_device = nfp_context['network_function_device']
-        network_function = nfp_context['network_function']
-
-        request_data = {'network_function_device_id': network_function_device['id'],
-                        'network_function_instance_id': network_function_instance['id']}
-
+        request_data = event.data
         nfi = {
             'status': nfp_constants.ACTIVE,
             'network_function_device_id': request_data[
@@ -916,13 +908,10 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         }
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, request_data['network_function_instance_id'], nfi)
-        network_function_instance['status'] = nfp_constants.ACTIVE
-        network_function_instance['network_function_device_id'] = network_function_device['id']
-
+        network_function = self.db_handler.get_network_function(
+            self.db_session, nfi['network_function_id'])
         service_config = network_function['service_config']
-        nfp_context['event_desc'] = event.desc.to_dict()
-        nfp_context_rpc = {'event_desc': nfp_context['event_desc']}
-        nfp_core_context.store_nfp_context(nfp_context_rpc)
+
         self.create_network_function_user_config(network_function['id'],
                                                  service_config)
 
@@ -1711,6 +1700,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         service_type = None
 
         nfp_context = nfp_core_context.get_nfp_context()
+        print nfp_context
         if nfp_context:
             network_function = nfp_context['network_function']
             network_function_instance = nfp_context['network_function_instance']

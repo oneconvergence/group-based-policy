@@ -389,6 +389,9 @@ class NFPDBTestCase(SqlTestCase):
         network_function_device = self.nfp_db.create_network_function_device(
             self.session, attrs)
         for key in attrs:
+            if key == 'mgmt_port_id':
+                self.assertEqual(attrs[key]['id'], network_function_device[key])
+                continue
             self.assertEqual(attrs[key], network_function_device[key])
         self.assertIsNotNone(network_function_device['id'])
 
@@ -446,6 +449,9 @@ class NFPDBTestCase(SqlTestCase):
         db_network_function_device = self.nfp_db.get_network_function_device(
             self.session, network_function_device['id'])
         for key in attrs:
+            if key == 'mgmt_port_id':
+                self.assertEqual(attrs[key]['id'], network_function_device[key])
+                continue
             self.assertEqual(attrs[key], db_network_function_device[key])
 
     def test_list_network_function_device(self):
@@ -495,6 +501,10 @@ class NFPDBTestCase(SqlTestCase):
         network_function_device = self.nfp_db.create_network_function_device(
             self.session, attrs)
         for key in attrs:
+            if key == 'mgmt_port_id':
+                self.assertEqual(attrs[key]['id'], network_function_device[key])
+                continue
+
             self.assertEqual(attrs[key], network_function_device[key])
         self.assertIsNotNone(network_function_device['id'])
 
@@ -509,6 +519,9 @@ class NFPDBTestCase(SqlTestCase):
         self.assertEqual('new_name', updated_nfd['name'])
         del updated_nfd['name']
         for key in attrs:
+            if key == 'mgmt_port_id':
+                self.assertEqual(attrs[key]['id'], network_function_device[key])
+                continue
             if key != 'name':
                 self.assertEqual(attrs[key], updated_nfd[key])
 
