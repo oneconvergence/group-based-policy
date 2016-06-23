@@ -268,13 +268,13 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         status = 'DEVICE_UP'
         orig_event_data['status'] = status
         orig_event_data['status_description'] = ndo_handler.status_map[status]
-        orig_event_data['token'] = self.event.data[
-            'resource_owner_context']['admin_token']
-        orig_event_data['tenant_id'] = self.event.data[
-            'resource_owner_context']['tenant_id']
+        # orig_event_data['token'] = self.event.data[
+        #    'resource_owner_context']['admin_token']
+        # orig_event_data['tenant_id'] = self.event.data[
+        #    'resource_owner_context']['tenant_id']
         orig_event_data['id'] = self.event.data['id']
-        orig_event_data['service_details'] = self.event.data[
-            'service_details']
+        # orig_event_data['service_details'] = self.event.data[
+        #    'service_details']
         poll_status = ndo_handler.check_device_is_up(self.event)
         self.assertEqual(poll_status, {'poll': False})
         orchestration_driver.get_network_function_device_status = (
@@ -282,7 +282,12 @@ class DeviceOrchestratorTestCase(unittest.TestCase):
         status = 'DEVICE_NOT_UP'
         orig_event_data['status'] = status
         orig_event_data['status_description'] = ndo_handler.status_map[status]
-
+        orig_event_data['network_function_id'] = self.event.data[
+            'network_function']['id']
+        orig_event_data['network_function_instance_id'] = self.event.data[
+            'network_function_instance']['id']
+        orig_event_data['network_function_device_id'] = self.event.data[
+            'network_function_device']['id']
         poll_status = ndo_handler.check_device_is_up(self.event)
         self.assertEqual(poll_status, {'poll': False})
 
