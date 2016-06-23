@@ -942,6 +942,9 @@ class OrchestrationDriver(object):
 
         token = device_data['token']
         tenant_id = device_data['tenant_id']
+        image_name = self._get_image_name(device_data)
+        if image_name:
+            self._update_vendor_data(device_data)
 
         update_ifaces = []
         try:

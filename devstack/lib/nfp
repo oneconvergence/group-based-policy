@@ -275,7 +275,6 @@ function create_ep_and_nsp {
     gbp external-segment-create --ip-version 4 --cidr $EXT_NET_CIDR/$EXT_NET_MASK --external-route destination=0.0.0.0/0,nexthop= --shared True --subnet_id=$subnet_id default
     gbp nat-pool-create --ip-version 4 --ip-pool $EXT_NET_CIDR/$EXT_NET_MASK --external-segment default --shared True default 
     
-    gbp ep-create --external-segments default ext_connect    
     gbp nsp-create --network-service-params type=ip_pool,name=vip_ip,value=nat_pool svc_mgmt_fip_policy
 }
 
@@ -301,10 +300,11 @@ function create_nfp_gbp_resources {
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
         gbp service-profile-create --shared True --vendor NFP --servicetype LOADBALANCERV2 --service-flavor service_vendor=haproxy_lbaasv2,device_type=nova,flavor=m1.small --insertion-mode l3 lbv2_profile
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vyos_fw_profile
-        gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
+        gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vyos_vpn_profile
 
         if [[ $DEVSTACK_MODE = enterprise ]]; then
             gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_fw_profile
+            gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_vpn_profile
         fi  
         create_ext_net
         create_ep_and_nsp

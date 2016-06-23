@@ -557,6 +557,22 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         device.update(device_data)
         return device
 
+    def _make_ports_dict(self, consumer, provider, port_type):
+        t_ports = []
+        if consumer[port_type]:
+            t_ports.append({
+                'id': consumer[port_type]['id'],
+                'port_classification': consumer['port_classification'],
+                'port_model': consumer['port_model']})
+
+        if provider[port_type]:
+            t_ports.append({
+                'id': provider[port_type]['id'],
+                'port_classification': provider['port_classification'],
+                'port_model': provider['port_model']})
+
+        return t_ports
+
     def _prepare_device_data_from_nfp_context(self, nfp_context):
         device_data = {}
 
@@ -581,17 +597,10 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         provider = nfp_context['provider']
         ports = []
 
-        if consumer['port']:
-            ports.append({
-                'id': consumer['port']['id'],
-                'port_classification': consumer['port_classification'],
-                'port_model': consumer['port_model']})
-
-        if provider['port']:
-            ports.append({
-                'id': provider['port']['id'],
-                'port_classification': provider['port_classification'],
-                'port_model': provider['port_model']})
+        if consumer['port_model'] == 'gbp_policy_target':
+            ports = self._make_ports_dict(consumer, provider, 'pt')
+        else:
+            ports = self._make_ports_dict(consumer, provider, 'port')
 
         device_data['management_network_info'] = management_network_info
 
