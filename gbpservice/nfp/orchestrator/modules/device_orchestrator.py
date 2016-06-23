@@ -59,8 +59,7 @@ def events_init(controller, config, device_orchestrator):
               'DELETE_NETWORK_FUNCTION_DEVICE',
               'DELETE_CONFIGURATION_COMPLETED', 'DEVICE_BEING_DELETED',
               'DEVICE_NOT_REACHABLE',
-              'DEVICE_CONFIGURATION_FAILED', 'PERFORM_HEALTH_CHECK','PLUG_INTERFACES',
-              'PLUG_INTERFACE_FAILED']
+              'DEVICE_CONFIGURATION_FAILED', 'PERFORM_HEALTH_CHECK','PLUG_INTERFACES']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -819,11 +818,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         for result in results:
             if result.result.lower() != 'success':
-                if result.id == "PLUG_INTERFACES":
-                    plug_event = self._controller.new_event(id="PLUG_INTERFACE_FAILED",
-                                                            key=nf_id,
-                                                            data=nfp_context)
-                    self._controller.post_event(plug_event)
                 return self._controller.event_complete(event, result='FAILED')
 
         self._post_configure_device_graph(nfp_context)
@@ -1011,8 +1005,11 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             #[mak:  TODO] - Check how incremented ref count can be updated in DB
             self._controller.event_complete(event, result="SUCCESS")
         else:
-            self._controller.event_complete(event, result="FAILED")
-        
+            self._create_event(event_id="PLUG_INTERFACE_FAILED",
+                               event_data=nfp_context,
+                               key=nf_id,
+                               is_internal_event=True)
+            self._controller.event_complete(event, result="FAILED") 
 
     def configure_device(self, event):
         device = event.data
