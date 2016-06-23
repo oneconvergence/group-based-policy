@@ -811,7 +811,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
     
     def device_up(self, event):
         nfp_context = event.data
-        nf_id = nfp_context['network_function']['id']
         # Get the results of PLUG_INTERFACES & PERFORM_HEALTH_CHECK events
         # results.
         results = event.graph.get_leaf_node_results(event)
@@ -1007,7 +1006,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         else:
             self._create_event(event_id="PLUG_INTERFACE_FAILED",
                                event_data=nfp_context,
-                               key=nf_id,
                                is_internal_event=True)
             self._controller.event_complete(event, result="FAILED") 
 
