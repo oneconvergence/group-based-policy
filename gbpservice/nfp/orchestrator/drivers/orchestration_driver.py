@@ -244,7 +244,7 @@ class OrchestrationDriver(object):
             device_data['interfaces'] = [mgmt_interface]
         except Exception as e:
             LOG.exception(_LE('Failed to get interfaces for device creation.'
-                              'Error: %(error)s'), {'error', e})
+                              'Error: %(error)s'), {'error': e})
 
     def _delete_interfaces(self, device_data, interfaces,
                            network_handler=None):

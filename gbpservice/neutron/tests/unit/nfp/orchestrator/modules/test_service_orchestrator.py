@@ -678,7 +678,6 @@ class ServiceOrchestratorTestCase(NSOModuleTestCase):
         nfi = self.create_network_function_instance()
         network_function = self.nfp_db.get_network_function(
             self.session, nfi['network_function_id'])
-        print network_function
         transport.parse_service_flavor_string = mock.MagicMock(return_value=
                                                     {'device_type': 'VM',
                                                      'service_vendor': 'vyos'})

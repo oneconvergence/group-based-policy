@@ -21,6 +21,7 @@ from gbpservice.nfp.orchestrator.drivers import (
     orchestration_driver
 )
 
+import uuid as pyuuid
 
 cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
 OPENSTACK_DRIVER_CLASS_PATH = ('gbpservice.nfp.orchestrator'
@@ -153,7 +154,8 @@ class OrchestrationDriverTestCase(unittest.TestCase):
         driver.identity_handler.get_keystone_creds = mock.MagicMock(
                                     return_value=(None, None, 'admin', None))
         driver.network_handler.create_port = mock.MagicMock(
-                                                return_value={'id': '5'})
+                                                return_value={'id': str(pyuuid.uuid4()),
+                                                              'port_id': str(pyuuid.uuid4())})
         driver.network_handler.set_promiscuos_mode = mock.MagicMock(
                                                         return_value=None)
         driver.compute_handler_nova.get_image_id = mock.MagicMock(
@@ -170,6 +172,9 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                                                           'aa:bb:cc:dd:ee:ff',
                                                           'p.q.r.s/t',
                                                           'w.x.y.z'))
+        driver.network_handler.get_neutron_port_details = mock.MagicMock(return_value=(1,2,3,4,
+                                                                         {'port':{}},
+                                                                         {'subnet': {}}))
         # test for create device when interface hotplug is enabled
         device_data = {'service_details': {'device_type': 'xyz',
                                            'service_type': 'firewall',
@@ -182,7 +187,9 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                                   'port_classification': 'provider'},
                                  {'id': '4',
                                   'port_model': 'gbp',
-                                  'port_classification': 'consumer'}]}
+                                  'port_classification': 'consumer'}],
+                       'token': str(pyuuid.uuid4()),
+                       'admin_tenant_id': str(pyuuid.uuid4())}
         self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.create_network_function_device,
                           device_data)
@@ -259,7 +266,9 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                        'service_details': {'device_type': 'xyz',
                                            'service_type': 'firewall',
                                            'service_vendor': 'vyos',
-                                           'network_mode': 'gbp'}}
+                                           'network_mode': 'gbp'},
+                       'token': str(pyuuid.uuid4()),
+                       'tenant_id': str(pyuuid.uuid4())}
 
         self.assertRaises(exceptions.ComputePolicyNotSupported,
                           driver.get_network_function_device_status,
@@ -302,7 +311,9 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                                   'port_classification': 'provider'},
                                  {'id': '4',
                                   'port_model': 'neutron',
-                                  'port_classification': 'consumer'}]}
+                                  'port_classification': 'consumer'}],
+                       'token': str(pyuuid.uuid4()),
+                       'tenant_id': str(pyuuid.uuid4())}
 
         #self.assertRaises(exceptions.ComputePolicyNotSupported,
         #                  driver.plug_network_function_device_interfaces,
