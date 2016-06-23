@@ -347,6 +347,11 @@ class HaproxyLoadBalancerDriver(n_driver_base.LoadBalancerBaseDriver,
         self.health_monitor = HaproxyHealthMonitorManager(self)
         self.o_models_builder = OctaviaDataModelBuilder(self)
 
+    # TODO(jiahao):visibility for lbaasv2 is not implememnted.
+    # Temporary solution to get around it.
+    def _configure_log_forwarding(self, url, mgmt_ip, port):
+        return common_const.UNHANDLED
+
     @classmethod
     def get_name(self):
         return DRIVER_NAME
