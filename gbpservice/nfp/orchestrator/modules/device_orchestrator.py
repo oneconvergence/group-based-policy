@@ -264,6 +264,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             "DELETE_DEVICE": self.delete_device,
             "DELETE_CONFIGURATION": self.delete_device_configuration,
             "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
+            "PLUG_INTERFACE_FAILED": self.handle_plug_interface_failed,
             "DEVICE_CONFIGURATION_FAILED": self.handle_device_config_failed,
             "DEVICE_ERROR": self.handle_device_create_error,
             "DEVICE_NOT_UP": self.handle_device_not_up,
@@ -322,14 +323,14 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                 data=event_data)
             self.handle_event(event)
 
-    def poll_event_cancel(self, ev):
+    def event_cancelled(self, ev, reason):
         LOG.info(_LI("Poll event %(event_id)s cancelled."),
                  {'event_id': ev.id})
 
         if ev.id == 'DEVICE_SPAWNING':
             LOG.info(_LI("Device is not up still after 10secs of launch"))
             # create event DEVICE_NOT_UP
-            device = ev.data
+            device = self._prepare_failure_case_device_data(ev.data)
             self._create_event(event_id='DEVICE_NOT_UP',
                                event_data=device,
                                is_internal_event=True)
@@ -616,9 +617,8 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         device = None
 
-        nfd_request = event.data
         nfp_context = event.data
-
+        nfd_request = self._prepare_failure_case_device_data(nfp_context)
         service_details = nfp_context['service_details']
 
         LOG.info(_LI("Device Orchestrator received create network service "
@@ -657,6 +657,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             driver_device_info = (
                 orchestration_driver.create_network_function_device(
                     device_data))
+
             if not driver_device_info:
                 LOG.info(_LI("Device creation failed"))
                 self._create_event(event_id='DEVICE_ERROR',
@@ -687,7 +688,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             # Create an event to NSO, to give device_id
             device_created_data = {
                 'network_function_instance_id': (
-                    nfd_request['network_function_instance']['id']),
+                    nfp_context['network_function_instance']['id']),
                 'network_function_device_id': device['id']
             }
 
@@ -746,7 +747,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         is_device_up = (
             orchestration_driver.get_network_function_device_status(device))
-
         if is_device_up == nfp_constants.ACTIVE:
             # [(mak)TODO] - Update interfaces count here before
             # sending health monitor rpc in PERFORM_HEALTH_CHECK event.
@@ -768,6 +768,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             return STOP_POLLING
         elif is_device_up == nfp_constants.ERROR:
             # create event DEVICE_NOT_UP
+            device = self._prepare_failure_case_device_data(nfp_context)
             self._create_event(event_id='DEVICE_NOT_UP',
                                event_data=device,
                                is_internal_event=True)
@@ -810,7 +811,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
     
     def device_up(self, event):
         nfp_context = event.data
-
         # Get the results of PLUG_INTERFACES & PERFORM_HEALTH_CHECK events
         # results.
         results = event.graph.get_leaf_node_results(event)
@@ -1004,8 +1004,10 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             #[mak:  TODO] - Check how incremented ref count can be updated in DB
             self._controller.event_complete(event, result="SUCCESS")
         else:
-            self._controller.event_complete(event, result="FAILED")
-        
+            self._create_event(event_id="PLUG_INTERFACE_FAILED",
+                               event_data=nfp_context,
+                               is_internal_event=True)
+            self._controller.event_complete(event, result="FAILED") 
 
     def configure_device(self, event):
         device = event.data
@@ -1066,6 +1068,9 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                 'network_function_device': network_function_device}})
 
         if not config_params:
+            self._create_event(event_id='DRIVER_ERROR',
+                               event_data=device,
+                               is_internal_event=True)
             self._controller.event_complete(event, result="FAILED")
             return None
         # Sends RPC to configurator to create generic config
@@ -1222,6 +1227,26 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         desc = 'Device not became ACTIVE'
         self._update_network_function_device_db(device, status, desc)
         device['network_function_device_id'] = device['id']
+        self._create_event(event_id='DEVICE_CREATE_FAILED',
+                           event_data=device)
+
+    def _prepare_failure_case_device_data(self, nfp_context):
+        network_function = nfp_context['network_function']
+        network_function_instance = nfp_context['network_function_instance']
+        device = {'network_function_id': network_function['id'],
+                  'network_function_instance_id': network_function_instance['id']}
+        network_function_device = nfp_context.get('network_function_device')
+        if network_function_device :
+            device.update({'network_function_device_id': network_function_device['id']})
+            device.update(network_function_device)
+        return device
+
+    def handle_plug_interface_failed(self, event):
+        nfp_context = event.data
+        device = self._prepare_failure_case_device_data(nfp_context)
+        status = nfp_constants.ERROR
+        desc = "Failed to plug interfaces"
+        self._update_network_function_device_db(device, status, desc)
         self._create_event(event_id='DEVICE_CREATE_FAILED',
                            event_data=device)
 
