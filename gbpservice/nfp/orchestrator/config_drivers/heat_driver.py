@@ -531,7 +531,7 @@ class HeatDriver(object):
     def _create_firewall_template(self, auth_token,
                                   service_details, stack_template):
 
-        provider = service_details['provider_ptg']
+        # provider = service_details['provider_ptg']
 
         consuming_ptgs_details = service_details['consuming_ptgs_details']
         consumer_eps = service_details['consuming_external_policies']
@@ -846,9 +846,9 @@ class HeatDriver(object):
                                               service_vendor)))
 
             lb_loadbalancer_key = self._get_heat_resource_key(
-                    stack_template[resources_key],
-                    is_template_aws_version,
-                    'OS::Neutron::LBaaS::LoadBalancer')
+                stack_template[resources_key],
+                is_template_aws_version,
+                'OS::Neutron::LBaaS::LoadBalancer')
             stack_template[resources_key][lb_loadbalancer_key][
                 properties_key]['description'] = str(common_desc)
 
@@ -896,7 +896,7 @@ class HeatDriver(object):
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
         nf_desc = None
-        common_desc = {'network_function_id':str(network_function['id'])}
+        common_desc = {'network_function_id': str(network_function['id'])}
         provider_cidr = provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
@@ -996,9 +996,9 @@ class HeatDriver(object):
                                               service_vendor)))
 
             lb_loadbalancer_key = self._get_heat_resource_key(
-                    stack_template[resources_key],
-                    is_template_aws_version,
-                    'OS::Neutron::LBaaS::LoadBalancer')
+                stack_template[resources_key],
+                is_template_aws_version,
+                'OS::Neutron::LBaaS::LoadBalancer')
             stack_template[resources_key][lb_loadbalancer_key][
                 properties_key]['description'] = str(common_desc)
 
@@ -1450,12 +1450,12 @@ class HeatDriver(object):
 
     def get_service_details_from_nfp_context(self, nfp_context):
         network_function = nfp_context['network_function']
-        network_function_instance = nfp_context['network_function_instance']
+        # network_function_instance = nfp_context['network_function_instance']
         service_details = nfp_context['service_details']
         mgmt_ip = nfp_context['management']['port']['ip_address']
         heat_stack_id = network_function['heat_stack_id']
-        service_id = network_function['service_id']
-        service_chain_id = network_function['service_chain_id']
+        # service_id = network_function['service_id']
+        # service_chain_id = network_function['service_chain_id']
         servicechain_instance = nfp_context['service_chain_instance']
         servicechain_node = nfp_context['service_chain_node']
 
@@ -1550,7 +1550,7 @@ class HeatDriver(object):
             nfp_context)
 
         network_function = nfp_context['network_function']
-        service_profile = service_details['service_profile']
+        # service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
         provider = service_details['provider_ptg']

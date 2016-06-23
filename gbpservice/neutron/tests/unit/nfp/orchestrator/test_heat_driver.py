@@ -74,7 +74,7 @@ class TestHeatDriver(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         # import pdb;pdb.set_trace()
         super(TestHeatDriver, self).__init__(*args, **kwargs)
-        with mock.patch.object(identity_client, "Client") as identity_client_obj:
+        with mock.patch.object(identity_client, "Client"):
             self.heat_driver_obj = heat_driver.HeatDriver(cfg.CONF)
         self.mock_dict = mock_dicts.DummyDictionaries()
 
@@ -135,7 +135,7 @@ class TestHeatDriver(unittest.TestCase):
                          expected_resource_owner_tenant_id)
 
     def mock_objects(self):
-        with mock.patch.object(identity_client, "Client") as identity_client_obj:
+        with mock.patch.object(identity_client, "Client"):
             self.heat_driver_obj = heat_driver.HeatDriver(cfg.CONF)
             self.heat_driver_obj.keystoneclient.get_scoped_keystone_token =\
                 mock.MagicMock(return_value='token')
@@ -143,31 +143,38 @@ class TestHeatDriver(unittest.TestCase):
                 return_value='8ae6701128994ab281dde6b92207bb19')
             self.heat_driver_obj.neutron_client.get_port = mock.MagicMock(
                 return_value=self.mock_dict.port_info)
-            self.heat_driver_obj.neutron_client.get_floating_ips = mock.MagicMock(
-                return_value=[])
+            self.heat_driver_obj.neutron_client.get_floating_ips =\
+                mock.MagicMock(return_value=[])
             self.heat_driver_obj.neutron_client.get_subnets = mock.MagicMock(
                 return_value=self.mock_dict.subnets_info['subnets'])
             self.heat_driver_obj.neutron_client.get_subnet = mock.MagicMock(
                 return_value=self.mock_dict.subnet_info)
-            self.heat_driver_obj.gbp_client.get_external_policies = mock.MagicMock(
-                return_value=self.mock_dict.external_policies[
-                    'external_policies'])
+            self.heat_driver_obj.gbp_client.get_external_policies =\
+                mock.MagicMock(
+                    return_value=self.mock_dict.external_policies[
+                        'external_policies'])
             self.heat_driver_obj.gbp_client.get_network_service_policies =\
                 mock.MagicMock(return_value={})
             self.heat_driver_obj.gbp_client.get_l3_policies = mock.MagicMock(
                 return_value=self.mock_dict.l3_policies['l3_policies'])
-            self.heat_driver_obj.gbp_client.get_policy_targets = mock.MagicMock(
-                return_value=self.mock_dict.policy_targets['policy_targets'])
+            self.heat_driver_obj.gbp_client.get_policy_targets =\
+                mock.MagicMock(
+                    return_value=self.mock_dict.policy_targets[
+                        'policy_targets'])
             self.heat_driver_obj.gbp_client.get_policy_target_groups =\
                 mock.MagicMock(
                     return_value=self.mock_dict.policy_target_groups[
                         'policy_target_groups'])
-            self.heat_driver_obj.gbp_client.get_policy_rule_sets = mock.MagicMock(
-                return_value=self.mock_dict.policy_rule_sets['policy_rule_sets'])
+            self.heat_driver_obj.gbp_client.get_policy_rule_sets =\
+                mock.MagicMock(
+                    return_value=self.mock_dict.policy_rule_sets[
+                        'policy_rule_sets'])
             self.heat_driver_obj.gbp_client.get_policy_rules = mock.MagicMock(
                 return_value=self.mock_dict.policy_rules['policy_rules'])
-            self.heat_driver_obj.gbp_client.get_policy_actions = mock.MagicMock(
-                return_value=self.mock_dict.policy_actions['policy_actions'])
+            self.heat_driver_obj.gbp_client.get_policy_actions =\
+                mock.MagicMock(
+                    return_value=self.mock_dict.policy_actions[
+                        'policy_actions'])
             self.heat_driver_obj.gbp_client.get_l3_policy = mock.MagicMock(
                 return_value={})
             self.heat_driver_obj.gbp_client.get_l2_policy = mock.MagicMock(
@@ -298,16 +305,16 @@ class TestHeatDriver(unittest.TestCase):
             self.mock_dict.fw_template_properties,
             consumer_id)
         self.assertEqual(stack_template['resources']['sc_firewall_policy'],
-                self.mock_dict.appended_sc_firewall_policy)
+                         self.mock_dict.appended_sc_firewall_policy)
 
     @mock.patch.object(heat_client.HeatClient, 'delete')
     @mock.patch.object(heat_client.HeatClient, 'get')
     @mock.patch.object(identity_client, "Client")
     def test_delete_config(self, mock_obj, heat_get_mock_obj,
-            heat_delete_mock_obj):
+                           heat_delete_mock_obj):
         heat_get_mock_obj.return_value = MockStackObject('DELETE_COMPLETE')
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
-                return_value=None)
+            return_value=None)
 
         instance = mock_obj.return_value
         instance.auth_token = True
@@ -330,13 +337,13 @@ class TestHeatDriver(unittest.TestCase):
         instance.auth_token = True
         expected_status = 'COMPLETED'
         status = self.heat_driver_obj.is_config_complete(
-                stack_id, tenant_id, self.mock_dict.network_function_details)
+            stack_id, tenant_id, self.mock_dict.network_function_details)
         self.assertEqual(status, expected_status)
 
     @mock.patch.object(heat_client.HeatClient, 'get')
     @mock.patch.object(identity_client, "Client")
     def test_is_config_delete_complete(self, identity_mock_obj,
-            heat_get_mock_obj):
+                                       heat_get_mock_obj):
         stack_id = '70754fdd-0325-4856-8a39-f171b65617d6'
         tenant_id = '8ae6701128994ab281dde6b92207bb19'
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
@@ -400,7 +407,8 @@ class TestHeatDriver(unittest.TestCase):
         stack_template = self.heat_driver_obj._update_firewall_template(
             auth_token,
             self.mock_dict.provider_ptg, stack_template)
-        self.assertEqual(stack_template['resources']['sc_firewall_policy'],
+        self.assertEqual(
+            stack_template['resources']['sc_firewall_policy'],
             copy.deepcopy(self.mock_dict.updated_template_sc_firewall_policy))
 
     @mock.patch.object(gbp_client.Client, "list_l3_policies")
@@ -463,7 +471,7 @@ class TestHeatDriver(unittest.TestCase):
                 self.mock_dict.network_function_details['network_function'],
                 provider_port, mgmt_ip)
         self.assertEqual(stack_template['resources']['sc_firewall_policy'],
-            self.mock_dict.updated_sc_firewall_policy)
+                         self.mock_dict.updated_sc_firewall_policy)
 
     @mock.patch.object(heat_client.HeatClient, "delete")
     @mock.patch.object(heat_client.HeatClient, "update")

@@ -47,20 +47,20 @@ class OrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_nfd_sharing_info_when_device_sharing_unsupported(self):
         driver = orchestration_driver.OrchestrationDriver(
-                        cfg.CONF, supports_device_sharing=False)
+            cfg.CONF, supports_device_sharing=False)
         device_data = {'tenant_id': 'tenant_id',
                        'service_details': {'device_type': 'xyz',
                                            'service_type': 'firewall',
                                            'service_vendor': 'vyos',
                                            'network_mode': 'gbp'}}
         self.assertIsNone(driver.get_network_function_device_sharing_info(
-                                                                device_data))
+            device_data))
 
     def test_get_network_function_device_sharing_info(self):
         driver = orchestration_driver.OrchestrationDriver(
-                        cfg.CONF,
-                        supports_device_sharing=True,
-                        supports_hotplug=True)
+            cfg.CONF,
+            supports_device_sharing=True,
+            supports_hotplug=True)
         device_data = {'tenant_id': 'tenant_id',
                        'service_details': {'device_type': 'xyz',
                                            'service_type': 'firewall',
@@ -78,9 +78,9 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                                        % (k)))
 
     def test_select_network_function_device_when_device_sharing_unsupported(
-                                                                        self):
+            self):
         driver = orchestration_driver.OrchestrationDriver(
-                        cfg.CONF, supports_device_sharing=False)
+            cfg.CONF, supports_device_sharing=False)
         device_data = {'service_details': {'device_type': 'xyz',
                                            'service_type': 'firewall',
                                            'service_vendor': 'vyos',
@@ -91,26 +91,26 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                                   'port_model': 'gbp'}]
                        }
         devices = [
-                   {'id': '1',
-                    'interfaces_in_use': 9}
+            {'id': '1',
+             'interfaces_in_use': 9}
         ]
         self.assertIsNone(driver.select_network_function_device(devices,
-            device_data))
+                                                                device_data))
 
     def test_select_network_function_device(self):
         driver = orchestration_driver.OrchestrationDriver(
-                        cfg.CONF,
-                        supports_device_sharing=True,
-                        supports_hotplug=True,
-                        max_interfaces=10)
+            cfg.CONF,
+            supports_device_sharing=True,
+            supports_hotplug=True,
+            max_interfaces=10)
         driver.identity_handler.get_admin_token = mock.MagicMock(
-                                                        return_value='token')
+            return_value='token')
 
         # test to get device when max interfaces is permissible
         devices = [
-                   {'id': '1',
-                    'interfaces_in_use': 9,
-                    'network_functions': []}
+            {'id': '1',
+             'interfaces_in_use': 9,
+             'network_functions': []}
         ]
         device_data = {'service_details': {'device_type': 'xyz',
                                            'service_type': 'firewall',
@@ -122,11 +122,11 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                                   'port_model': 'gbp'}]
                        }
         self.assertIsNotNone(driver.select_network_function_device(
-                                                                devices,
-                                                                device_data),
-                             msg=('Device sharing is broken with respect to'
-                                  ' maximum interfaces that'
-                                  ' the device supports'))
+            devices,
+            device_data),
+            msg=('Device sharing is broken with respect to'
+                 ' maximum interfaces that'
+                 ' the device supports'))
 
         # test to get device when max interfaces is not permissible
         device_data['ports'].append({'id': '3',
@@ -140,41 +140,43 @@ class OrchestrationDriverTestCase(unittest.TestCase):
 
     def test_create_network_function_device(self):
         driver = orchestration_driver.OrchestrationDriver(
-                        cfg.CONF,
-                        supports_device_sharing=True,
-                        supports_hotplug=True,
-                        max_interfaces=10)
+            cfg.CONF,
+            supports_device_sharing=True,
+            supports_hotplug=True,
+            max_interfaces=10)
         driver.network_handler = driver.network_handlers['gbp']
 
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
-                                                        return_value='token')
+            return_value='token')
         driver.identity_handler.get_tenant_id = mock.MagicMock(
-                                                            return_value='8')
+            return_value='8')
         driver.identity_handler.get_keystone_creds = mock.MagicMock(
-                                    return_value=(None, None, 'admin', None))
+            return_value=(None, None, 'admin', None))
         driver.network_handler.create_port = mock.MagicMock(
-                                                return_value={'id': str(pyuuid.uuid4()),
-                                                              'port_id': str(pyuuid.uuid4())})
+            return_value={'id': str(pyuuid.uuid4()),
+                          'port_id': str(pyuuid.uuid4())})
         driver.network_handler.set_promiscuos_mode = mock.MagicMock(
-                                                        return_value=None)
+            return_value=None)
         driver.compute_handler_nova.get_image_id = mock.MagicMock(
-                                                return_value='6')
+            return_value='6')
         driver.compute_handler_nova.get_image_metadata = mock.MagicMock(
-                                                return_value=[])
+            return_value=[])
         driver.compute_handler_nova.create_instance = mock.MagicMock(
-                                                return_value='8')
+            return_value='8')
         driver.network_handler.delete_port = mock.MagicMock(
-                                                return_value=None)
+            return_value=None)
         driver.network_handler.get_port_id = mock.MagicMock(return_value='7')
         driver.network_handler.get_port_details = mock.MagicMock(
-                                            return_value=('a.b.c.d',
-                                                          'aa:bb:cc:dd:ee:ff',
-                                                          'p.q.r.s/t',
-                                                          'w.x.y.z'))
-        driver.network_handler.get_neutron_port_details = mock.MagicMock(return_value=(1,2,3,4,
-                                                                         {'port':{}},
-                                                                         {'subnet': {}}))
+            return_value=('a.b.c.d',
+                          'aa:bb:cc:dd:ee:ff',
+                          'p.q.r.s/t',
+                          'w.x.y.z'))
+        driver.network_handler.get_neutron_port_details = mock.MagicMock(
+            return_value=(1, 2, 3, 4,
+                          {'port': {}},
+                          {'subnet': {}}))
+
         # test for create device when interface hotplug is enabled
         device_data = {'service_details': {'device_type': 'xyz',
                                            'service_type': 'firewall',
@@ -195,38 +197,38 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                           device_data)
         device_data['service_details']['device_type'] = 'nova'
         self.assertIsInstance(driver.create_network_function_device(
-                                                                device_data),
-                              dict,
-                              msg=('Return value from the'
-                                   ' create_network_function_device call'
-                                   ' is not a dictionary'))
+            device_data),
+            dict,
+            msg=('Return value from the'
+                 ' create_network_function_device call'
+                 ' is not a dictionary'))
 
         # test for create device along with provider port
         driver.supports_hotplug = False
         self.assertIsInstance(driver.create_network_function_device(
-                                                                device_data),
-                              dict,
-                              msg=('Return value from the'
-                                   ' create_network_function_device call'
-                                   ' is not a dictionary'))
+            device_data),
+            dict,
+            msg=('Return value from the'
+                 ' create_network_function_device call'
+                 ' is not a dictionary'))
 
     def test_delete_network_function_device(self):
         driver = orchestration_driver.OrchestrationDriver(
-                        cfg.CONF,
-                        supports_device_sharing=True,
-                        supports_hotplug=True,
-                        max_interfaces=10)
+            cfg.CONF,
+            supports_device_sharing=True,
+            supports_hotplug=True,
+            max_interfaces=10)
         driver.network_handler = driver.network_handlers['gbp']
 
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
-                                                        return_value='token')
+            return_value='token')
         driver.identity_handler.get_tenant_id = mock.MagicMock(
-                                                            return_value='8')
+            return_value='8')
         driver.identity_handler.get_keystone_creds = mock.MagicMock(
-                                    return_value=(None, None, 'admin', None))
+            return_value=(None, None, 'admin', None))
         driver.compute_handler_nova.delete_instance = mock.MagicMock(
-                                                        return_value=None)
+            return_value=None)
         driver.network_handler.delete_port = mock.MagicMock(return_value=None)
 
         device_data = {'id': '1',
@@ -247,20 +249,20 @@ class OrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_network_function_device_status(self):
         driver = orchestration_driver.OrchestrationDriver(
-                        cfg.CONF,
-                        supports_device_sharing=True,
-                        supports_hotplug=True,
-                        max_interfaces=10)
+            cfg.CONF,
+            supports_device_sharing=True,
+            supports_hotplug=True,
+            max_interfaces=10)
 
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
-                                                        return_value='token')
+            return_value='token')
         driver.identity_handler.get_tenant_id = mock.MagicMock(
-                                                            return_value='8')
+            return_value='8')
         driver.identity_handler.get_keystone_creds = mock.MagicMock(
-                                    return_value=(None, None, 'admin', None))
+            return_value=(None, None, 'admin', None))
         driver.compute_handler_nova.get_instance = mock.MagicMock(
-                                            return_value={'status': 'ACTIVE'})
+            return_value={'status': 'ACTIVE'})
 
         device_data = {'id': '1',
                        'service_details': {'device_type': 'xyz',
@@ -277,28 +279,28 @@ class OrchestrationDriverTestCase(unittest.TestCase):
 
         # self.assertTrue(driver.is_device_up(device_data))
         self.assertTrue(
-                driver.get_network_function_device_status(device_data) ==
-                'ACTIVE')
+            driver.get_network_function_device_status(device_data) ==
+            'ACTIVE')
 
     def test_plug_network_function_device_interfaces(self):
         driver = orchestration_driver.OrchestrationDriver(
-                cfg.CONF,
-                supports_device_sharing=True,
-                supports_hotplug=False,
-                max_interfaces=10)
+            cfg.CONF,
+            supports_device_sharing=True,
+            supports_hotplug=False,
+            max_interfaces=10)
         driver.network_handler = driver.network_handlers['gbp']
 
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
-                                                        return_value='token')
+            return_value='token')
         driver.identity_handler.get_tenant_id = mock.MagicMock(
-                                                            return_value='8')
+            return_value='8')
         driver.identity_handler.get_keystone_creds = mock.MagicMock(
-                                    return_value=(None, None, 'admin', None))
+            return_value=(None, None, 'admin', None))
         driver.network_handler.set_promiscuos_mode = mock.MagicMock(
-                                                        return_value=None)
+            return_value=None)
         driver.compute_handler_nova.attach_interface = mock.MagicMock(
-                                                        return_value=None)
+            return_value=None)
         driver.network_handler.get_port_id = mock.MagicMock(return_value='7')
 
         device_data = {'id': '1',
@@ -315,33 +317,33 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                        'token': str(pyuuid.uuid4()),
                        'tenant_id': str(pyuuid.uuid4())}
 
-        #self.assertRaises(exceptions.ComputePolicyNotSupported,
+        # self.assertRaises(exceptions.ComputePolicyNotSupported,
         #                  driver.plug_network_function_device_interfaces,
         #                  device_data)
 
         device_data['service_details']['device_type'] = 'nova'
 
         self.assertTrue(driver.plug_network_function_device_interfaces(
-                                                                device_data),
-                        msg='')
+            device_data),
+            msg='')
 
     def test_unplug_network_function_device_interfaces(self):
         driver = orchestration_driver.OrchestrationDriver(
-                cfg.CONF,
-                supports_device_sharing=True,
-                supports_hotplug=False,
-                max_interfaces=10)
+            cfg.CONF,
+            supports_device_sharing=True,
+            supports_hotplug=False,
+            max_interfaces=10)
         driver.network_handler = driver.network_handlers['gbp']
 
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
-                                                        return_value='token')
+            return_value='token')
         driver.identity_handler.get_tenant_id = mock.MagicMock(
-                                                            return_value='8')
+            return_value='8')
         driver.identity_handler.get_keystone_creds = mock.MagicMock(
-                                    return_value=(None, None, 'admin', None))
+            return_value=(None, None, 'admin', None))
         driver.compute_handler_nova.detach_interface = mock.MagicMock(
-                                                        return_value=None)
+            return_value=None)
         driver.network_handler.get_port_id = mock.MagicMock(return_value='7')
 
         device_data = {'id': '1',
@@ -356,22 +358,22 @@ class OrchestrationDriverTestCase(unittest.TestCase):
                                   'port_model': 'neutron',
                                   'port_classification': 'consumer'}]}
 
-        #self.assertRaises(exceptions.ComputePolicyNotSupported,
+        # self.assertRaises(exceptions.ComputePolicyNotSupported,
         #                  driver.unplug_network_function_device_interfaces,
         #                  device_data)
 
         device_data['service_details']['device_type'] = 'nova'
 
         self.assertTrue(driver.unplug_network_function_device_interfaces(
-                                                                device_data),
-                        msg='')
+            device_data),
+            msg='')
 
     def test_get_network_function_device_healthcheck_info(self):
         driver = orchestration_driver.OrchestrationDriver(
-                cfg.CONF,
-                supports_device_sharing=True,
-                supports_hotplug=False,
-                max_interfaces=10)
+            cfg.CONF,
+            supports_device_sharing=True,
+            supports_hotplug=False,
+            max_interfaces=10)
 
         device_data = {'id': '1',
                        'mgmt_ip_address': 'a.b.c.d'}
@@ -382,20 +384,20 @@ class OrchestrationDriverTestCase(unittest.TestCase):
 
     def test_get_network_function_device_config_info(self):
         driver = orchestration_driver.OrchestrationDriver(
-                cfg.CONF,
-                supports_device_sharing=True,
-                supports_hotplug=False,
-                max_interfaces=10)
+            cfg.CONF,
+            supports_device_sharing=True,
+            supports_hotplug=False,
+            max_interfaces=10)
         driver.network_handler = driver.network_handlers['gbp']
 
         # Monkey patch the methods
         driver.identity_handler.get_admin_token = mock.MagicMock(
-                                                        return_value='token')
+            return_value='token')
         driver.network_handler.get_port_details = mock.MagicMock(
-                                            return_value=('a.b.c.d',
-                                                          'aa:bb:cc:dd:ee:ff',
-                                                          'p.q.r.s/t',
-                                                          'w.x.y.z'))
+            return_value=('a.b.c.d',
+                          'aa:bb:cc:dd:ee:ff',
+                          'p.q.r.s/t',
+                          'w.x.y.z'))
 
         device_data = {'service_details': {'device_type': 'xyz',
                                            'service_type': 'firewall',
