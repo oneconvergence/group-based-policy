@@ -160,6 +160,20 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
                          gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
                          resource_data['vmid'])
 
+    def configure_ha(self, context, resource_data):
+        """Enqueues event for worker to process configure ha request.
+
+        :param context: The agent info dictionary prepared in demuxer library
+         which contains the API context alongside other information.
+        :param kwargs: RPC Request data
+
+        Returns: None
+
+        """
+
+        self._send_event(context,
+                         resource_data,
+                         gen_cfg_const.EVENT_CONFIGURE_HA)
 
 """Implements event handlers and their helper methods.
 
@@ -203,6 +217,7 @@ class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
         - Clear routes
         - Configure health monitor
         - Clear health monitor
+        - Configure HA
         Enqueues responses into notification queue.
 
         Returns: None
@@ -391,7 +406,8 @@ def events_init(sc, drivers, rpcmgr):
                         gen_cfg_const.EVENT_CLEAR_ROUTES,
                         gen_cfg_const.EVENT_CONFIGURE_HEALTHMONITOR,
                         gen_cfg_const.EVENT_CLEAR_HEALTHMONITOR,
-                        common_const.EVENT_PROCESS_BATCH
+                        common_const.EVENT_PROCESS_BATCH,
+                        gen_cfg_const.EVENT_CONFIGURE_HA
                     ]
     events = []
 

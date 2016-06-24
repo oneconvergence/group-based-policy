@@ -64,12 +64,15 @@ class ConfiguratorUtils(object):
         for module in modules:
             for name, class_obj in inspect.getmembers(module):
                 if inspect.isclass(class_obj):
-                    key = ''
-                    if hasattr(class_obj, 'service_type'):
-                        key += class_obj.service_type
-                    if hasattr(class_obj, 'service_vendor'):
-                        key += class_obj.service_vendor
-                    if key:
+                    key = None
+                    if (hasattr(class_obj, 'service_type') and
+                            hasattr(class_obj, 'service_vendor')):
+                        key = class_obj.service_type + class_obj.service_vendor
+                    if hasattr(class_obj, 'ha'):
+                        """Remove non ha driver if it was loaded earlier"""
+                        if key in driver_objects:
+                            driver_objects.pop(key)
+                    if key and driver_objects.get(key) == None:
                         driver_objects[key] = class_obj
 
         return driver_objects
