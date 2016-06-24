@@ -24,15 +24,22 @@ class DataParser(object):
                     'failover': 'failover_'}
 
     ''' Expects resource and resource data to be passed '''
-    def parse_data(self, resource, resource_data):
+    def parse_data(self, resource, data):
         self.resource_data = dict()
-        nfd = resource_data['nfds'][0]
+        if data['nfds']:
+            tenant_id = data['tenant_id']
+            data = data['nfds'][0]
+        else:
+            tenant_id = data['resource_data']['tenant_id']
+            data = data['resource_data']['nfs'][0]
+
         self.resource_data.update({
-                        'tenant_id': resource_data['tenant_id'],
-                        'role': nfd['role'],
-                        'mgmt_ip': nfd['svc_mgmt_fixed_ip']})
+                        'tenant_id': tenant_id,
+                        'role': data['role'],
+                        'mgmt_ip': data['svc_mgmt_fixed_ip']})
+
         method = '_parse_' + resource + '_data'
-        getattr(self, method)(nfd)
+        getattr(self, method)(data)
         return self.resource_data
 
     def _parse_interfaces_data(self, nfd):
@@ -71,3 +78,13 @@ class DataParser(object):
     def _parse_healthmonitor_data(self, nfd):
         self.resource_data.update({'periodicity': nfd['periodicity'],
                                    'vmid': nfd['vmid']})
+
+    def _parse_firewall_data(self, nfs):
+        networks = nfs['networks']
+        for network in networks:
+            prefix = self.interface_type_map[network['type']]
+            if network['type'] in PROVIDER:
+                port = network['ports'][0]
+                self.resource_data.update({
+                                (prefix + 'cidr'): network['cidr'],
+                                (prefix + 'mac'): port['mac']})
