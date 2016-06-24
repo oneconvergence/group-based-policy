@@ -4,7 +4,7 @@ import requests
 from gbpservice.nfp.configurator.drivers.firewall.vyos import vyos_fw_driver
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.core import log as nfp_logging
-from oslo.config import cfg
+from oslo_config import cfg
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -38,6 +38,7 @@ class VyosFWHADriver(vyos_fw_driver.FwaasDriver):
     apis here only ?
     """
     def __init__(self, conf):
+        self.request_url = "http://%s:%s/%s"
         super(VyosFWHADriver, self).__init__(conf=conf)
         self._vrrp_params()
 
@@ -218,23 +219,12 @@ class VyosFWHADriver(vyos_fw_driver.FwaasDriver):
                  % (rule_info, svc_mgmt_ip))
 
     def configure_routes(self, context, resource_data):
-        nfds = resource_data['nfds']  # fetch nfds
-        resource_data.pop('nfds')  # remove nfds from resource_data
-        try:
-            for nfd in nfds:
-                # add single nfd to make it similar as if non HA api
-                # is being called
-                resource_data['nfds'] = [nfd]
-                super(VyosFWHADriver, self).configure_routes(self, context,
-                                                             resource_data)
-        except Exception as e:
-            raise e
-        finally:
-            # restore all original nfds in resource_data
-            resource_data['nfds'] = nfds
-        return common_const.STATUS_SUCCESS
+        return self._routes("configure_routes", context, resource_data)
 
     def clear_routes(self, context, resource_data):
+        return self._routes("clear_routes", context, resource_data)
+
+    def _routes(self, api, context, resource_data):
         nfds = resource_data['nfds']  # fetch nfds
         resource_data.pop('nfds')  # remove nfds from resource_data
         try:
@@ -242,9 +232,15 @@ class VyosFWHADriver(vyos_fw_driver.FwaasDriver):
                 # add single nfd to make it similar as if non HA api
                 # is being called
                 resource_data['nfds'] = [nfd]
-                super(VyosFWHADriver, self).clear_routes(
-                                               self, context, resource_data)
+                msg = ("Failed %s:%s for %s service vm"
+                       % (api, resource_data, nfd['role']))
+                method = getattr(super(VyosFWHADriver, self), api)
+                result = method(context, resource_data)
+                if result != common_const.STATUS_SUCCESS:
+                    LOG.error(msg)
+                    return result
         except Exception as e:
+            LOG.error(msg)
             raise e
         finally:
             # restore all original nfds in resource_data
@@ -257,37 +253,35 @@ class VyosFWHADriver(vyos_fw_driver.FwaasDriver):
         # then only send result.
         try:
             return super(VyosFWHADriver, self).configure_healthmonitor(
-                                           self, context, resource_data)
+                                                        context, resource_data)
         except Exception as e:
             raise e
 
     def create_firewall(self, context, firewall, host):
-        return self._execute_firewall_api(common_const.CREATE, context,
-                                          firewall, host)
+        return self._firewall("create_firewall", context, firewall, host)
 
     def update_firewall(self, context, firewall, host):
-        return self._execute_firewall_api(common_const.UPDATE, context,
-                                          firewall, host)
+        return self._firewall("update_firewall", context, firewall, host)
 
     def delete_firewall(self, context, firewall, host):
-        return self._execute_firewall_api(common_const.DELETE, context,
-                                          firewall, host)
+        return self._firewall("delete_firewall", context, firewall, host)
 
-    def _execute_firewall_api(self, action, context, firewall, host):
+    def _firewall(self, api, context, firewall, host):
         nfs = context['nfs']
         context.pop('nfs')
+        msg = ""
         try:
             for nf in nfs:
+                msg = ("Failed %s:%s for %s service vm"
+                       % (api, firewall, nf['role']))
                 context['nfs'] = [nf]
-                method = getattr(super(VyosFWHADriver, self),
-                                 action + "_firewall")
-                result = method(self, context, firewall, host)
+                method = getattr(super(VyosFWHADriver, self), api)
+                result = method(context, firewall, host)
                 if result == common_const.STATUS_ERROR:
-                    msg = ("Failed %s_firewall %s for %s service vm"
-                           % (action, firewall, nf['role']))
                     LOG.error(msg)
                     return common_const.STATUS_ERROR
         except Exception as e:
+            LOG.error(msg)
             raise e
         finally:
             context['nfs'] = nfs
