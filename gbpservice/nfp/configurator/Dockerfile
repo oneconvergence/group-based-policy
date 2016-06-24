@@ -48,14 +48,14 @@ RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neut
 RUN cp -r  /neutron_lib/neutron_lib /usr/local/lib/python2.7/dist-packages/
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron.git neutron
 RUN cp -r /neutron/neutron /usr/local/lib/python2.7/dist-packages/
-RUN git clone -b mitaka_21st_march_base --single-branch https://github.com/oneconvergence/group-based-policy.git mitaka_21st_march_base
-RUN cp -r /mitaka_21st_march_base/gbpservice /usr/local/lib/python2.7/dist-packages/
-RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp /usr/bin/
+RUN git clone -b liberty_nfp_14_june_2016_oslo_perf_patches --single-branch https://github.com/oneconvergence/group-based-policy.git liberty_nfp_14_june_2016_oslo_perf_patches
+RUN cp -r /liberty_nfp_14_june_2016_oslo_perf_patches/gbpservice /usr/local/lib/python2.7/dist-packages/
+RUN cp /liberty_nfp_14_june_2016_oslo_perf_patches/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
-RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp_configurator.ini /etc/
+RUN cp /liberty_nfp_14_june_2016_oslo_perf_patches/gbpservice/nfp/bin/nfp_configurator.ini /etc/
 RUN sed -i "s/log_forward_ip_address=*.*/log_forward_ip_address=VIS_VM_IP_ADDRESS/" /etc/nfp_configurator.ini
-RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/policy.json /etc/
-RUN cp -r /mitaka_21st_march_base/gbpservice/nfp/configurator/config /etc/nfp_config
+RUN cp /liberty_nfp_14_june_2016_oslo_perf_patches/gbpservice/nfp/bin/policy.json /etc/
+RUN cp -r /liberty_nfp_14_june_2016_oslo_perf_patches/gbpservice/nfp/configurator/config /etc/nfp_config
 RUN mkdir -p /var/log/nfp
 RUN touch /var/log/nfp/nfp_configurator.log
 RUN touch /var/log/nfp/nfp_pecan.log
