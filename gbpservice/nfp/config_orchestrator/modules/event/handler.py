@@ -56,7 +56,22 @@ def event_init(sc, conf):
               handler=EventsHandler(sc, conf)),
         Event(id='SERVICE_CREATE_PENDING',
               handler=EventsHandler(sc, conf))]
-    return evs
+
+    sc.register_events(evs)
+
+
+def nfp_module_init(sc, conf):
+    event_init(sc, conf)
+
+
+def nfp_module_post_init(sc, conf):
+    try:
+        ev = sc.new_event(id='SERVICE_OPERATION_POLL_EVENT',
+                          key='SERVICE_OPERATION_POLL_EVENT')
+        sc.post_event(ev)
+    except Exception as e:
+        msg = ("%s" % (e))
+        LOG.error(msg)
 
 
 """Periodic Class to service events for visiblity."""
@@ -109,7 +124,7 @@ class EventsHandler(nfp_api.NfpEventHandler):
         elif ev.id == 'SERVICE_OPERATION_POLL_EVENT':
             self._sc.poll_event(ev)
 
-    def event_cancelled(self, event, reason):
+    def poll_event_cancel(self, event):
         msg = ("Poll Event =%s got time out Event Data = %s " %
                (event.id, event.data))
         LOG.info(msg)

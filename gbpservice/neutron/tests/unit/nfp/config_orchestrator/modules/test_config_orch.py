@@ -141,8 +141,7 @@ class GeneralConfigStructure(object):
                 if context['service_info']:
                     data = context['service_info']
                     if all(k in data for k in ["pools", "vips", "members",
-                                               "health_monitors",
-                                               "subnets", "ports"]):
+                                               "health_monitors"]):
                         return True
             except AttributeError:
                 return False

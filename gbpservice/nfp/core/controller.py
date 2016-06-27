@@ -102,7 +102,7 @@ class NfpService(object):
         """
         event.desc.type = nfp_event.EVENT_GRAPH
         event.desc.flag = ''
-        event.desc.pid  = os.getpid()
+        event.desc.pid = os.getpid()
         return event
 
     def post_event(self, event):
@@ -216,7 +216,8 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
 
     def pipe_recv(self, pipe):
         event = pipe.recv()
-        if event: self.decompress(event)
+        if event:
+            self.decompress(event)
         return event
 
     def pipe_send(self, pipe, event):
@@ -499,34 +500,48 @@ def load_nfp_modules(conf, controller):
         base_module = __import__(conf.nfp_modules_path,
                                  globals(), locals(), ['modules'], -1)
         modules_dir = base_module.__path__[0]
-        try:
-            files = os.listdir(modules_dir)
-            for pyfile in set([f for f in files if f.endswith(".py")]):
-                try:
-                    pymodule = __import__(conf.nfp_modules_path,
-                                          globals(), locals(),
-                                          [pyfile[:-3]], -1)
-                    pymodule = eval('pymodule.%s' % (pyfile[:-3]))
+        modules_dir_list = [modules_dir]
+        while modules_dir_list:
+            current_path = modules_dir_list.pop(0)
+            tmp_path = current_path[1:]
+            tmp_path = tmp_path.replace('/', '.')
+            index = tmp_path.index('gbpservice.nfp')
+            nfp_formatted_path = tmp_path[index:]
+            try:
+                files = os.listdir(current_path)
+                for f in files:
+                    test_path = os.path.join(current_path, f)
+                    if os.path.isdir(test_path):
+                        modules_dir_list.append(test_path)
+                for pyfile in set([f for f in files if f.endswith(".py") and
+                                  not f.startswith('__init__')]):
                     try:
-                        pymodule.nfp_module_init(controller, conf)
-                        pymodules += [pymodule]
-                        LOG.debug("(module - %s) - Initialized" %
-                                  (identify(pymodule)))
-                    except AttributeError as e:
-                        import sys
-                        import traceback
-                        exc_type, exc_value, exc_traceback = sys.exc_info()
-                        print traceback.format_exception(exc_type, exc_value,
-                                                         exc_traceback)
-                        LOG.warn("(module - %s) - "
-                                  "does not implement"
-                                  "nfp_module_init()" % (identify(pymodule)))
-                except ImportError:
-                    LOG.error(
-                        "Failed to import module %s" % (pyfile))
-        except OSError:
-            LOG.error(
-                "Failed to read files from %s" % (modules_dir))
+                        pymodule = __import__(nfp_formatted_path,
+                                              globals(), locals(),
+                                              [pyfile[:-3]], -1)
+                        pymodule = eval('pymodule.%s' % (pyfile[:-3]))
+                        try:
+                            pymodule.nfp_module_init(controller, conf)
+                            pymodules += [pymodule]
+                            LOG.debug("(module - %s) - Initialized" %
+                                      (identify(pymodule)))
+                        except AttributeError as e:
+                            import sys
+                            import traceback
+                            exc_type, exc_value, exc_traceback = sys.exc_info()
+                            print traceback.format_exception(exc_type,
+                                                             exc_value,
+                                                             exc_traceback)
+                            LOG.warn("(module - %s) - "
+                                     "does not implement"
+                                     "nfp_module_init()"
+                                     % (identify(pymodule)))
+                    except ImportError:
+                        LOG.error(
+                            "Failed to import module %s" % (pyfile))
+            except OSError:
+                LOG.error(
+                    "Failed to read files from %s" % (current_path))
     except ImportError:
         LOG.error(
             "Failed to import module from path %s" % (conf.nfp_modules_path))
