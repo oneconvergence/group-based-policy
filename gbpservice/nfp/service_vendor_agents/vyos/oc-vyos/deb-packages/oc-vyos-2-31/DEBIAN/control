@@ -1,8 +1,0 @@
-Package: oc-vyos
-Source: oc-vyos-2-31
-Version: 2-31
-Architecture: all
-Maintainer: Mahesh Kurund 
-Section: devel
-Priority: optional
-Description: oc vyos package
