@@ -59,8 +59,7 @@ function configure_nfp_firewall {
 
 function configure_nfp_vpn {
     echo "Configuring NFP VPN plugin driver"
-
-        sudo sed -i "s/service_provider\ *=\ *VPN:openswan:neutron_vpnaas.services.vpn.service_drivers.ipsec.IPsecVPNDriver:default/service_provider\ =\ VPN:openswan:neutron_vpnaas.services.vpn.service_drivers.ipsec.IPsecVPNDriver\nservice_provider\ =\ VPN:vpn:gbpservice.nfp.service_plugins.vpn.drivers.nfp_vpnaas_driver.NFPIPsecVPNDriver:default/g" /etc/neutron/neutron_vpnaas.conf
+    sudo sed -i "s/service_provider\ *=\ *VPN:openswan:neutron_vpnaas.services.vpn.service_drivers.ipsec.IPsecVPNDriver:default/service_provider\ =\ VPN:openswan:neutron_vpnaas.services.vpn.service_drivers.ipsec.IPsecVPNDriver\nservice_provider\ =\ VPN:vpn:gbpservice.nfp.service_plugins.vpn.drivers.nfp_vpnaas_driver.NFPIPsecVPNDriver:default/g" /etc/neutron/neutron_vpnaas.conf
 }
 
 # Process contract
@@ -81,8 +80,8 @@ if is_service_enabled group-policy; then
         if [[ $ENABLE_NFP = True ]]; then
             echo_summary "Configuring $NFP"
             nfp_configure_neutron
-            [[ $DEVSTACK_MODE = enterprise ]] && nfp_configure_nova
-            if [[ $DEVSTACK_MODE != base ]]; then
+            [[ $NFP_DEVSTACK_MODE = enterprise ]] && nfp_configure_nova
+            if [[ $NFP_DEVSTACK_MODE != base ]]; then
                 configure_nfp_loadbalancer
                 configure_nfp_firewall
                 configure_nfp_vpn
@@ -107,8 +106,8 @@ if is_service_enabled group-policy; then
             assign_user_role_credential
             create_nfp_gbp_resources
             create_nfp_image
-            [[ $DEVSTACK_MODE = advanced ]] && launch_configuratorVM
-            [[ $DEVSTACK_MODE = enterprise ]] && launch_visibilityVM && nfp_logs_forword
+            [[ $NFP_DEVSTACK_MODE = advanced ]] && launch_configuratorVM
+            [[ $NFP_DEVSTACK_MODE = enterprise ]] && launch_visibilityVM && nfp_logs_forword
             copy_nfp_files_and_start_process
         fi
     fi

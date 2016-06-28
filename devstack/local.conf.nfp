@@ -16,13 +16,12 @@ SERVICE_TOKEN=admin
 
 # NFP Service
 ENABLE_NFP=True
-# TODO(dpak): Change DEVSTACK_MODE to NFP_DEVSTACK_MODE
-# Edit DEVSTACK_MODE with either 'base' or 'advanced' or 'enterprise'
-[[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=base
-[[ $DEVSTACK_MODE != base ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
-[[ $DEVSTACK_MODE != base ]] && enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
+# Edit NFP_DEVSTACK_MODE with either 'base' or 'advanced' or 'enterprise'
+[[ $ENABLE_NFP = True ]] && NFP_DEVSTACK_MODE=base
+[[ $NFP_DEVSTACK_MODE != base ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
+[[ $NFP_DEVSTACK_MODE != base ]] && enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
 
-if [[ $DEVSTACK_MODE != base ]]; then
+if [[ $NFP_DEVSTACK_MODE != base ]]; then
     GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
     GBPSERVICE_BRANCH=mitaka_21st_march_base
 else
@@ -31,16 +30,18 @@ else
 fi
 enable_plugin gbp $GBPSERVICE_REPO $GBPSERVICE_BRANCH
 
-if [[ $DEVSTACK_MODE != base ]]; then
+if [[ $NFP_DEVSTACK_MODE != base ]]; then
     # External Network
     EXT_NET_GATEWAY=
     EXT_NET_ALLOCATION_POOL_START=
     EXT_NET_ALLOCATION_POOL_END=
     EXT_NET_CIDR=
-    EXT_NET_MASK=
+
+    VyosQcow2Image=
+    Haproxy_LBaasV2_Qcow2Image=
 fi
 
-if [[ $DEVSTACK_MODE = enterprise ]]; then
+if [[ $NFP_DEVSTACK_MODE = enterprise ]]; then
     # Visibility GIT path
     # Default visibility repo https://github.com/oneconvergence/visibility.git
     VISIBILITY_GIT_BRANCH=master
@@ -54,8 +55,3 @@ if [[ $DEVSTACK_MODE = enterprise ]]; then
     PaloAltoQcow2Image=
 fi
 
-VyosQcow2Image=
-Haproxy_LBaasV2_Qcow2Image=
-
-# Make sure that your public interface is not attached to any bridge.
-PUBLIC_INTERFACE=
