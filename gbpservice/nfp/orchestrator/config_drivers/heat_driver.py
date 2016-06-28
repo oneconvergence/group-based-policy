@@ -536,8 +536,8 @@ class HeatDriver(object):
         consuming_ptgs_details = service_details['consuming_ptgs_details']
         consumer_eps = service_details['consuming_external_policies']
 
-        if (not consuming_ptgs_details) and (not consumer_eps):
-            return None
+        # if (not consuming_ptgs_details) and (not consumer_eps):
+        #    return None
 
         is_template_aws_version = stack_template.get(
             'AWSTemplateFormatVersion', False)
