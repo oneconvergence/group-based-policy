@@ -172,15 +172,15 @@ class NetworkFunctionDevice(BASE, HasId, HasTenant, HasStatusDescription):
     mgmt_ip_address = sa.Column(sa.String(36), nullable=True)
     mgmt_port_id = sa.Column(sa.String(36),
                              sa.ForeignKey('nfp_port_infos.id',
-                                           ondelete= 'SET NULL'),
+                                           ondelete='SET NULL'),
                              nullable=True)
     monitoring_port_id = sa.Column(sa.String(36),
                                    sa.ForeignKey('nfp_port_infos.id',
-                                                 ondelete= 'SET NULL'),
+                                                 ondelete='SET NULL'),
                                    nullable=True)
     monitoring_port_network = sa.Column(sa.String(36),
                                         sa.ForeignKey('nfp_network_infos.id',
-                                                      ondelete= 'SET NULL'),
+                                                      ondelete='SET NULL'),
                                         nullable=True)
     service_vendor = sa.Column(sa.String(36), nullable=False, index=True)
     max_interfaces = sa.Column(sa.Integer(), nullable=False)
@@ -194,12 +194,12 @@ class NetworkFunctionDeviceInterface(BASE, HasId, HasTenant,):
 
     plugged_in_port_id = sa.Column(sa.String(36),
                                    sa.ForeignKey('nfp_port_infos.id',
-                                                 ondelete= 'SET NULL'),
+                                                 ondelete='SET NULL'),
                                    nullable=True)
     interface_position = sa.Column(sa.Integer(), nullable=False)
     mapped_real_port_id = sa.Column(sa.String(36),
                                     sa.ForeignKey('nfp_port_infos.id',
-                                                  ondelete= 'SET NULL'),
+                                                  ondelete='SET NULL'),
                                     nullable=True)
     network_function_device_id = sa.Column(
         sa.String(36),
