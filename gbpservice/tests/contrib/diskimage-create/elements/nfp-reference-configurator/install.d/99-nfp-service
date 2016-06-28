@@ -6,16 +6,11 @@ set -eu
 
 cd /usr/local/lib/python2.7/dist-packages/
 
-mkdir -p 'gbpservice/tests/contrib/nfp_service'
+service_path='gbpservice/tests/contrib/nfp_service'
+mkdir -p $service_path
 mkdir -p 'gbpservice/nfp'
-touch 'gbpservice/nfp'/__init__.py
-
-dirArray=('gbpservice' 'tests' 'contrib' 'nfp_service')
-for directory in "${dirArray[@]}"
-do
-    cd $directory
-    touch __init__.py
-done
+find gbpservice/ -type d -exec touch {}/__init__.py \;
+cd $service_path
 
 PWD = `pwd`
 mv /root/reference_configurator $pwd/
