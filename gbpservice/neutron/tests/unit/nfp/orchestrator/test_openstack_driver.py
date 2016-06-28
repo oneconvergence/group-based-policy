@@ -24,6 +24,7 @@ cfg.CONF.import_group('keystone_authtoken', 'keystonemiddleware.auth_token')
 
 
 class SampleData(unittest.TestCase):
+
     def __init__(self, *args, **kwargs):
         super(SampleData, self).__init__(*args, **kwargs)
         self.AUTH_TOKEN = '6db9dfa4d29d442eb2b23811ad4b3a6d'
@@ -42,6 +43,7 @@ class SampleData(unittest.TestCase):
 
 @mock.patch.object(identity_client, "Client")
 class TestKeystoneClient(SampleData):
+
     def __init__(self, *args, **kwargs):
         super(TestKeystoneClient, self).__init__(*args, **kwargs)
         self.keystone_obj = openstack_driver.KeystoneClient(cfg.CONF)
@@ -105,6 +107,7 @@ class TestKeystoneClient(SampleData):
 
 @mock.patch.object(nova_client, "Client")
 class TestNovaClient(SampleData):
+
     def __init__(self, *args, **kwargs):
         super(TestNovaClient, self).__init__(*args, **kwargs)
         self.nova_obj = openstack_driver.NovaClient(cfg.CONF)
@@ -236,6 +239,7 @@ class TestNovaClient(SampleData):
 
 @mock.patch.object(neutron_client, "Client")
 class TestNeutronClient(SampleData):
+
     def __init__(self, *args, **kwargs):
         super(TestNeutronClient, self).__init__(*args, **kwargs)
         self.neutron_obj = openstack_driver.NeutronClient(cfg.CONF)
@@ -398,6 +402,7 @@ class TestNeutronClient(SampleData):
 
 @mock.patch.object(gbp_client, "Client")
 class TestGBPClient(SampleData):
+
     def __init__(self, *args, **kwargs):
         super(TestGBPClient, self).__init__(*args, **kwargs)
         self.gbp_obj = openstack_driver.GBPClient(cfg.CONF)
@@ -425,9 +430,9 @@ class TestGBPClient(SampleData):
         obj = instance.update_policy_target_group(
             body='policy_target_group_info')['policy_target_group']
         retval = self.gbp_obj.update_policy_target_group(
-                                        self.AUTH_TOKEN,
-                                        'ptg_id',
-                                        'policy_target_group_info')
+            self.AUTH_TOKEN,
+            'ptg_id',
+            'policy_target_group_info')
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
@@ -436,7 +441,7 @@ class TestGBPClient(SampleData):
         instance = mock_obj.return_value
         obj = instance.update_policy_target('policy_target_id',
                                             body='policy_target_info')[
-                                                            'policy_target']
+            'policy_target']
         retval = self.gbp_obj.update_policy_target(self.AUTH_TOKEN,
                                                    'policy_target_id',
                                                    'updated_pt')
@@ -482,8 +487,8 @@ class TestGBPClient(SampleData):
         instance = mock_obj.return_value
         obj = instance.delete_policy_target_group('policy_target_id')
         retval = self.gbp_obj.delete_policy_target_group(
-                                            self.AUTH_TOKEN,
-                                            'policy_target_group_id')
+            self.AUTH_TOKEN,
+            'policy_target_group_id')
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
@@ -533,8 +538,8 @@ class TestGBPClient(SampleData):
         obj = instance.create_network_service_policy(
             body='network_service_policy_info')['network_service_policy']
         retval = self.gbp_obj.create_network_service_policy(
-                                self.AUTH_TOKEN,
-                                'network_service_policy_info')
+            self.AUTH_TOKEN,
+            'network_service_policy_info')
         self.assertEqual(retval, obj)
         mock_obj.assert_called_once_with(token=self.AUTH_TOKEN,
                                          endpoint_url=self.ENDPOINT_URL)
@@ -542,7 +547,7 @@ class TestGBPClient(SampleData):
     def test_get_network_service_policies(self, mock_obj):
         instance = mock_obj.return_value
         obj = instance.list_network_service_policies({})[
-                                                    'network_service_policies']
+            'network_service_policies']
         retval = self.gbp_obj.get_network_service_policies(self.AUTH_TOKEN,
                                                            filters={})
         self.assertEqual(retval, obj)
