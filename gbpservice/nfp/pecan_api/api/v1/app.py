@@ -10,25 +10,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# -*- coding: utf-8 -*-
-try:
-    import setuptools
-except ImportError:
-    import ez_setup
-    ez_setup.use_setuptools()
-    import setuptools
+import pecan
 
-setuptools.setup(
-    name='api',
-    version='0.1',
-    description='',
-    author='',
-    author_email='',
-    install_requires=[
-        "pecan",
-    ],
-    test_suite='api',
-    zip_safe=False,
-    include_package_data=True,
-    packages=setuptools.find_packages(exclude=['ez_setup'])
-)
+
+def setup_app(config, **kwargs):
+
+    app_conf = dict(config.app)
+    app_conf.update(kwargs)
+    import pdb;pdb.set_trace()
+    return pecan.make_app(
+        app_conf.pop('root'),
+        logging=getattr(config, 'logging', {}),
+        **app_conf
+    )

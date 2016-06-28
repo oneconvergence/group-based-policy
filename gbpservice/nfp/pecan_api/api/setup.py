@@ -10,23 +10,29 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import pecan
+# -*- coding: utf-8 -*-
+try:
+    import setuptools
+except ImportError:
+    import ez_setup
+    ez_setup.use_setuptools()
+    import setuptools
 
-from v1 import controllers
-
-
-class RootController(object):
-    """This is root controller that forward the request to __init__.py
-    file inside controller folder inside v1
-
+setuptools.setup(
+    name='api',
+    version='0.1',
+    description='',
+    author='',
+    author_email='',
+    install_requires=[
+        "pecan",
+    ],
+    test_suite='api',
+    zip_safe=False,
+    include_package_data=True,
+    packages=setuptools.find_packages(exclude=['ez_setup']),
+    entry_points="""
+    [pecan.command]
+    custom_command = custom_command:CustomCommand
     """
-
-    v1 = controllers.V1Controller()
-
-    @pecan.expose()
-    def get(self):
-        # TODO(blogan): once a decision is made on how to do versions, do that
-        # here
-        return {'versions': [{'status': 'CURRENT',
-                              'updated': '2014-12-11T00:00:00Z',
-                              'id': 'v1'}]}
+)
