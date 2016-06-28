@@ -1,0 +1,14 @@
+1) Add the following line in /etc/rc.local file as give in sample rc.local file
+    sudo bash /usr/share/oc-pbr/pbr_init & 
+2) Modify the interfaces file to looks like given sample interfaces file
+
+3) mkdir -p /usr/share/oc-pbr
+
+4) copy pbr_init and pbr to /usr/share/oc-pbr
+
+
+vyos agent (server2.py) adds route to the controller node received from pushed
+configuration, and also writes a route in the
+/usr/share/oc-pbr/controller_route file. This is to make the added route
+persistent even if the instance is rebooted. 
+controller_route is called from pbr_init file.

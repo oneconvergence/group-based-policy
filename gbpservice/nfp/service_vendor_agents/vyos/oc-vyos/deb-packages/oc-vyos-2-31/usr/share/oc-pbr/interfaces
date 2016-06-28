@@ -1,0 +1,59 @@
+# Used by ifup(8) and ifdown(8). See the interfaces(5) manpage or
+# /usr/share/doc/ifupdown/examples for more information.
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth1
+iface eth1 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth2
+iface eth2 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth3
+iface eth3 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth4
+iface eth4 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth5
+iface eth5 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth6
+iface eth6 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth7
+iface eth7 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth8
+iface eth8 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth9
+iface eth9 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth10
+iface eth10 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth11
+iface eth11 inet dhcp
+post-up /etc/network/interface-post-up
+
+allow-hotplug eth12
+iface eth12 inet dhcp
+post-up /etc/network/interface-post-up
+

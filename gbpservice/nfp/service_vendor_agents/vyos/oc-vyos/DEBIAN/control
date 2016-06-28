@@ -1,0 +1,8 @@
+Package: oc-vyos
+Source: oc-vyos
+Version: 2.5
+Architecture: all
+Maintainer: Mahesh Kurund 
+Section: devel
+Priority: optional
+Description: oc vyos package

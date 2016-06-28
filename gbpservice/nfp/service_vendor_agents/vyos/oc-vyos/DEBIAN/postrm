@@ -1,0 +1,3 @@
+#!/bin/bash
+echo ""
+#sed -i '/pbr_init/d' /etc/rc.local
