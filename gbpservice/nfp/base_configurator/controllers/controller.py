@@ -18,7 +18,7 @@ import requests
 import subprocess
 import time
 
-from gbpservice.nfp.base_configurator.api.base_controller import BaseController
+from gbpservice.nfp.base_configurator.base_controller import BaseController
 
 LOG = logging.getLogger(__name__)
 TOPIC = 'configurator'
