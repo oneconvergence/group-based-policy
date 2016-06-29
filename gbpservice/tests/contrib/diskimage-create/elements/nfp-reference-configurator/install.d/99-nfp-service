@@ -7,13 +7,16 @@ set -eu
 cd /usr/local/lib/python2.7/dist-packages/
 
 service_path='gbpservice/tests/contrib/nfp_service'
+pecan_path='gbpservice/nfp'
 mkdir -p $service_path
-mkdir -p 'gbpservice/nfp'
-find gbpservice/ -type d -exec touch {}/__init__.py \;
-cd $service_path
+mkdir -p $pecan_api
 
+find gbpservice/ -type d -exec touch {}/__init__.py \;
+mv /root/reference_configurator $service_path/
+mv /root/pecan_api $pecan_path/
+
+cd $service_path
 PWD = `pwd`
-mv /root/reference_configurator $pwd/
 ls -lR $PWD/
 
 # copy the pecan.service file
