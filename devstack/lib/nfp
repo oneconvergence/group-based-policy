@@ -99,7 +99,7 @@ function create_nfp_image {
             echo "Building Image: $VyosQcow2ImageName"
 			cur_dir=$PWD
 			cd $DISK_IMAGE_DIR/diskimage-create/vyos/
-            python vyos_image_create.py vyos_conf.json
+            sudo python vyos_image_create.py vyos_conf.json
 			cd $cur_dir
             VyosQcow2Image=$(cat /tmp/image_path)
         fi
