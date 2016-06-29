@@ -307,9 +307,9 @@ class DummyDictionaries(object):
     }
 
     policy_target = {
-            'policy_target': {
-                'name': 'service_target_provider_0132c_00b93'
-            }
+        'policy_target': {
+            'name': 'service_target_provider_0132c_00b93'
+        }
     }
 
     port_info = {
