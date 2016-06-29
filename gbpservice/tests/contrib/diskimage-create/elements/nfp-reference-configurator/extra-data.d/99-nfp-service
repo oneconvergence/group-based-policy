@@ -2,6 +2,10 @@
 set -eu
 
 # copy the reference_configurator and pecan_api folders to VM at /root/
+echo ${SERVICE_GIT_PATH}
+echo ${PECAN_GIT_PATH}
+echo ${TMP_MOUNT_PATH}
+
 cp -rL ${SERVICE_GIT_PATH}/reference_configurator ${TMP_MOUNT_PATH}/root/
 cp -rL ${PECAN_GIT_PATH}/pecan_api ${TMP_MOUNT_PATH}/root/
 
