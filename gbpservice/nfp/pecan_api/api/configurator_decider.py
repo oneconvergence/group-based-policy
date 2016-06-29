@@ -12,7 +12,7 @@
 
 
 import pecan
-class CustomCommand(pecan.commands.serve.ServeCommand):
+class DecideConfigurator(pecan.commands.serve.ServeCommand):
     ''' Custom Commands '''
     arguments = pecan.commands.serve.ServeCommand.arguments + ({
         'name': '--base_with_vm',
@@ -23,5 +23,5 @@ class CustomCommand(pecan.commands.serve.ServeCommand):
     def run(self, args):
         print args.base_with_vm
         setattr(pecan, 'base_with_vm', args.base_with_vm)
-        super(CustomCommand, self).run(args)
+        super(DecideConfigurator, self).run(args)
 

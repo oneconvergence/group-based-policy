@@ -13,8 +13,8 @@
 import pecan
 
 from gbpservice.tests.contrib.nfp_service.reference_configurator.\
-    api.v1 import controllers as ref_controllers
-from gbpservice.nfp.base_configurator.api.v1 import controllers as \
+    import controllers as ref_controllers
+from gbpservice.nfp.base_configurator import controllers as \
     base_controllers
 
 class RootController(object):

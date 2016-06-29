@@ -163,7 +163,7 @@ def dib(nfp_branch_name):
         elif element == 'nfp-reference-configurator':
             image_name = 'nfp_reference_service'
             service_dir = "%s/../nfp_service/" % cur_dir
-            pecan_dir = "%s/../../../../nfp/" % cur_dir
+            pecan_dir = "%s/../../../nfp/" % cur_dir
             service_dir = os.path.realpath(service_dir)
             pecan_dir = os.path.realpath(pecan_dir)
             os.environ['SERVICE_GIT_PATH'] = service_dir

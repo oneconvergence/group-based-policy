@@ -33,6 +33,6 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=['ez_setup']),
     entry_points="""
     [pecan.command]
-    custom_command = custom_command:CustomCommand
+    configurator_decider = configurator_decider:DecideConfigurator
     """
 )
