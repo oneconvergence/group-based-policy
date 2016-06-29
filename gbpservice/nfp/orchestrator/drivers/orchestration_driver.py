@@ -228,13 +228,16 @@ class OrchestrationDriver(object):
                                                advance_sharing_network_id)
             port_infos.append({'id': port['id'],
                                'port_model': port_model,
-                               'port_classification': nfp_constants.ADVANCE_SHARING,
-                               'port_role': None,
-                               'plugged_in_pt_id': network_handler.get_port_id(token,
-                                                                               port['id'])})
+                               'port_classification': (
+                nfp_constants.ADVANCE_SHARING),
+                'port_role': None,
+                'plugged_in_pt_id': (
+                network_handler.get_port_id(token,
+                                            port['id']))})
         return port_infos
 
-    def _get_interfaces_for_device_create(self, token, admin_tenant_id, network_handler, device_data):
+    def _get_interfaces_for_device_create(self, token, admin_tenant_id,
+                                          network_handler, device_data):
         try:
             mgmt_interface = self._create_management_interface(
                 token,
@@ -244,7 +247,7 @@ class OrchestrationDriver(object):
             device_data['interfaces'] = [mgmt_interface]
         except Exception as e:
             LOG.exception(_LE('Failed to get interfaces for device creation.'
-                              'Error: %(error)s'), {'error', e})
+                              'Error: %(error)s'), {'error': e})
 
     def _delete_interfaces(self, device_data, interfaces,
                            network_handler=None):
@@ -322,12 +325,15 @@ class OrchestrationDriver(object):
             LOG.info(_LI("Vendor data, specified in image: %(vendor_data)s"),
                      {'vendor_data': vendor_data})
             if vendor_data:
-                self._update_self_with_vendor_data(vendor_data,
-                                                   nfp_constants.MAXIMUM_INTERFACES)
-                self._update_self_with_vendor_data(vendor_data,
-                                                   nfp_constants.SUPPORTS_SHARING)
-                self._update_self_with_vendor_data(vendor_data,
-                                                   nfp_constants.SUPPORTS_HOTPLUG)
+                self._update_self_with_vendor_data(
+                    vendor_data,
+                    nfp_constants.MAXIMUM_INTERFACES)
+                self._update_self_with_vendor_data(
+                    vendor_data,
+                    nfp_constants.SUPPORTS_SHARING)
+                self._update_self_with_vendor_data(
+                    vendor_data,
+                    nfp_constants.SUPPORTS_HOTPLUG)
             else:
                 LOG.info(_LI("No vendor data specified in image, "
                              "proceeding with default values"))
@@ -494,7 +500,8 @@ class OrchestrationDriver(object):
                 self.maximum_interfaces
             ):
                 if (service_type.lower() == nfp_constants.VPN.lower() and
-                        service_type in device_service_types_map[device['id']]):
+                        service_type in device_service_types_map[
+                            device['id']]):
                     # Restrict multiple VPN services to share same device
                     # If nfd request service type is VPN and current filtered
                     # device already has VPN service instantiated, ignore this
@@ -542,8 +549,8 @@ class OrchestrationDriver(object):
             import sys
             import traceback
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print traceback.format_exception(exc_type, exc_value,
-                                             exc_traceback)
+            print(traceback.format_exception(exc_type, exc_value,
+                                             exc_traceback))
             LOG.error(traceback.format_exception(exc_type, exc_value,
                                                  exc_traceback))
             LOG.error(_LE('Failed to get management port details. '
@@ -616,7 +623,8 @@ class OrchestrationDriver(object):
                          self.compute_handler_nova, token, admin_tenant_id,
                          image_name, result_store=image_id_result)
 
-        completed = executor.fire()
+        # completed = executor.fire()
+        executor.fire()
 
         interfaces = device_data.pop('interfaces', None)
         if not interfaces:
@@ -717,7 +725,8 @@ class OrchestrationDriver(object):
                          management_interface['port_id'],
                          result_store=port_details_result)
 
-        completed = executor.fire()
+        # completed = executor.fire()
+        executor.fire()
 
         instance_id = instance_id_result.get('result', None)
         if not instance_id:
@@ -966,11 +975,12 @@ class OrchestrationDriver(object):
 
                     for data_port_id, iface in zip(data_port_ids,
                                                    unused_ifaces):
-                        self._update_attached_port_with_data_port(token,
-                                                                  iface,
-                                                                  data_port_id,
-                                                                  network_handler,
-                                                                  stitch=True)
+                        self._update_attached_port_with_data_port(
+                            token,
+                            iface,
+                            data_port_id,
+                            network_handler,
+                            stitch=True)
                         iface['mapped_real_port_id'] = data_port_id
                     update_ifaces = unused_ifaces
                 elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
@@ -1167,11 +1177,12 @@ class OrchestrationDriver(object):
                         data_port_ids)
 
                     for data_port_id, iface in zip(data_port_ids, used_ifaces):
-                        self._update_attached_port_with_data_port(token,
-                                                                  iface,
-                                                                  data_port_id,
-                                                                  network_handler,
-                                                                  stitch=False)
+                        self._update_attached_port_with_data_port(
+                            token,
+                            iface,
+                            data_port_id,
+                            network_handler,
+                            stitch=False)
                         iface['mapped_real_port_id'] = ''
                     update_ifaces = used_ifaces
                 elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
@@ -1386,7 +1397,7 @@ class OrchestrationDriver(object):
         provider_ip = device_data.get('provider_ip', None)
         provider_mac = device_data.get('provider_mac', None)
         provider_cidr = device_data.get('provider_cidr', None)
-        provider_gateway_ip = device_data.get('provider_gateway_ip', None)
+        # provider_gateway_ip = device_data.get('provider_gateway_ip', None)
         consumer_ip = device_data.get('consumer_ip', None)
         consumer_mac = device_data.get('consumer_mac', None)
         consumer_cidr = device_data.get('consumer_cidr', None)
