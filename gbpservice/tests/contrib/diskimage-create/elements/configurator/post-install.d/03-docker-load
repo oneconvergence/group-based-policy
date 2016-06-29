@@ -1,5 +1,11 @@
 #!/bin/bash
+set -eux
 
-# start docker and load the configurator image
+# start docker for loading the configurator image
 docker daemon --raw-logs &
+
+# wait for docker daemon to come up
+sleep 10
+
+# preload the docker image inside the VM
 docker load -i /usr/share/configurator/docker/images/configurator-docker
