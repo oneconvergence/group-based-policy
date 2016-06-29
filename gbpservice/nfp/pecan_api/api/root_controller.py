@@ -12,10 +12,15 @@
 
 import pecan
 
-from gbpservice.tests.contrib.nfp_service.reference_configurator.\
-    import controllers as ref_controllers
-from gbpservice.nfp.base_configurator import controllers as \
-    base_controllers
+import pecan
+
+try:
+    from gbpservice.tests.contrib.nfp_service.reference_configurator\
+        import controllers as ref_controllers
+    from gbpservice.nfp.base_configurator import controllers as \
+        base_controllers
+except:
+    pass
 
 class RootController(object):
     """This is root controller that forward the request to __init__.py

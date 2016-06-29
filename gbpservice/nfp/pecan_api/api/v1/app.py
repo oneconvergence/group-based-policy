@@ -17,7 +17,6 @@ def setup_app(config, **kwargs):
 
     app_conf = dict(config.app)
     app_conf.update(kwargs)
-    import pdb;pdb.set_trace()
     return pecan.make_app(
         app_conf.pop('root'),
         logging=getattr(config, 'logging', {}),
