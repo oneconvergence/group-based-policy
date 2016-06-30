@@ -12,7 +12,7 @@
 # One Convergence, Inc., USA
 
 #!/usr/bin/env python
-    
+
 import sys
 import os
 import logging
@@ -20,7 +20,7 @@ topdir = os.path.dirname(os.path.realpath(__file__)) + "../.."
 topdir = os.path.realpath(topdir)
 sys.path.insert(0, topdir)
 from execformat.executor import execUtils, OperationFailed
-from vyos_session import utils 
+from vyos_session import utils
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -32,21 +32,21 @@ class configOpts(object):
         pass
 
     def set_1(self, args):
-        exe=execUtils(list(args))
+        exe = execUtils(list(args))
         exe.execmd()
 
     def delete_1(self, args):
-        exe=execUtils(list(args))
+        exe = execUtils(list(args))
         exe.execmd()
 
     def show(self, args):
-        exe=execUtils(list(args))
-        res,output=exe.execmd(nonsession=True)
-        return res,output
+        exe = execUtils(list(args))
+        res, output = exe.execmd(nonsession=True)
+        return res, output
 
     def set(self, args):
         args.insert(0, 'set')
-        exe=execUtils(list(args))
+        exe = execUtils(list(args))
         try:
             exe.execmd()
             return True
@@ -56,7 +56,7 @@ class configOpts(object):
 
     def delete(self, args):
         args.insert(0, 'delete')
-        exe=execUtils(list(args))
+        exe = execUtils(list(args))
         try:
             exe.execmd()
             return True

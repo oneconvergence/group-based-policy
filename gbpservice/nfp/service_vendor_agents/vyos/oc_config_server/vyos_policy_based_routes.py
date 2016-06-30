@@ -37,6 +37,7 @@ VYOS_PBR_COMMANDS = {
 
 
 class RoutesConfigHandler(configOpts):
+
     def __init__(self):
         super(RoutesConfigHandler, self).__init__()
         self.vyos_wrapper = "/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper"
@@ -47,13 +48,15 @@ class RoutesConfigHandler(configOpts):
                                          stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE)
         except Exception as err:
-            message = 'Executing command %s failed with error %s' %(command, err)
+            message = 'Executing command %s failed with error %s' % (
+                command, err)
             logger.error(message)
             return False
 
         cmd_output, cmd_error = exec_pipe.communicate()
         if exec_pipe.returncode != 0:
-            message = 'Executing command %s failed with error %s' %(command, cmd_error)
+            message = 'Executing command %s failed with error %s' % (
+                command, cmd_error)
             logger.error(message)
             return False
         else:
@@ -61,14 +64,14 @@ class RoutesConfigHandler(configOpts):
             return True
 
     def _begin_command(self):
-        begin_cmd = "%s begin" %(self.vyos_wrapper)
+        begin_cmd = "%s begin" % (self.vyos_wrapper)
         if self._run_command(begin_cmd):
             return True
         else:
             return False
 
     def _discard_changes(self):
-        discard_cmd = "%s discard" %(self.vyos_wrapper)
+        discard_cmd = "%s discard" % (self.vyos_wrapper)
         if self._run_command(discard_cmd):
             return True
         else:
@@ -76,13 +79,13 @@ class RoutesConfigHandler(configOpts):
 
     def _set_commands(self, cmds):
         for cmd in cmds:
-            set_cmd = "%s %s" %(self.vyos_wrapper, cmd)
+            set_cmd = "%s %s" % (self.vyos_wrapper, cmd)
             if not self._run_command(set_cmd):
                 return False
         return True
 
     def _commit_command(self):
-        commit_cmd = "%s commit" %(self.vyos_wrapper)
+        commit_cmd = "%s commit" % (self.vyos_wrapper)
         if self._run_command(commit_cmd):
             return True
         else:
@@ -101,17 +104,17 @@ class RoutesConfigHandler(configOpts):
             return False
 
         if not self._set_commands(configure_commands):
-            logger.error("Executing commands %s failed" %(configure_commands))
+            logger.error("Executing commands %s failed" % (configure_commands))
             self._discard_changes()
             return False
 
         if not self._commit_command():
-            logger.error("Committing %s failed" %(configure_commands))
+            logger.error("Committing %s failed" % (configure_commands))
             self._discard_changes()
             return False
 
         if not self._save_command():
-            logger.error("Saving %s failed" %(configure_commands))
+            logger.error("Saving %s failed" % (configure_commands))
             self._discard_changes()
             return False
 
@@ -120,16 +123,16 @@ class RoutesConfigHandler(configOpts):
     def _configure_policy_route(self, source_cidr, gateway_ip,
                                 source_interface):
         try:
-            interface_number_string = source_interface.split("eth",1)[1]
+            interface_number_string = source_interface.split("eth", 1)[1]
         except IndexError:
             logger.error("Retrieved wrong interface %s for configuring "
-                         "routes" %(source_interface))
-            msg = "Wrong interface %s retrieved for source %s" %(
+                         "routes" % (source_interface))
+            msg = "Wrong interface %s retrieved for source %s" % (
                 source_interface, source_cidr)
             raise Exception(msg)
         routing_table_number = ROUTING_TABLE_BASE + int(
             interface_number_string.split('v')[0])
-        pbr_name = "%s_%s" %("pbr", source_interface)
+        pbr_name = "%s_%s" % ("pbr", source_interface)
         cmds = copy.deepcopy(VYOS_PBR_COMMANDS)
         pbr_commands = []
         pbr_commands.append(cmds['policy_route'][0] % (pbr_name, "1"))
@@ -138,11 +141,11 @@ class RoutesConfigHandler(configOpts):
         pbr_commands.append(
             cmds['policy_route'][2] % (pbr_name, "1", source_cidr))
 
-        pbr_commands.append(cmds['table_route'][0] %(
-                                routing_table_number, "0.0.0.0/0", gateway_ip))
+        pbr_commands.append(cmds['table_route'][0] % (
+            routing_table_number, "0.0.0.0/0", gateway_ip))
 
         pbr_commands.append(
-            cmds['interface_pbr'][0] %(source_interface, pbr_name))
+            cmds['interface_pbr'][0] % (source_interface, pbr_name))
 
         if not self._configure_vyos(pbr_commands):
             logger.error("Configuring Policy Based Routing failed")
@@ -161,34 +164,34 @@ class RoutesConfigHandler(configOpts):
             except Exception as err:
                 logger.debug("Trying to clear any existing routes before "
                              "setting source routing failed with error: %s"
-                             %(err))
+                             % (err))
             try:
                 self._configure_policy_route(
                     source_cidr, gateway_ip, source_interface)
             except Exception as err:
                 message = ("Configuring Policy based route failed. "
-                           "Error: %s" %(err))
+                           "Error: %s" % (err))
                 raise Exception(message)
         return json.dumps(dict(status=True))
 
     # FIXME: When invoked on delete path we have to propagate the error
     def _delete_policy_route(self, source_cidr, source_interface):
         try:
-            interface_number_string = source_interface.split("eth",1)[1]
+            interface_number_string = source_interface.split("eth", 1)[1]
         except IndexError:
             logger.error("Retrieved wrong interface %s for configuring "
-                         "routes" %(source_interface))
-            msg = "Wrong interface %s retrieved for source %s" %(
+                         "routes" % (source_interface))
+            msg = "Wrong interface %s retrieved for source %s" % (
                 source_interface, source_cidr)
             raise Exception(msg)
         routing_table_number = ROUTING_TABLE_BASE + int(
             interface_number_string.split('v')[0])
-        pbr_name = "%s_%s" %("pbr", source_interface)
+        pbr_name = "%s_%s" % ("pbr", source_interface)
         cmds = copy.deepcopy(VYOS_PBR_COMMANDS)
 
         delete_pbr_commands = []
         delete_pbr_commands.append(cmds['delete'][0] % (
-                                        source_interface, pbr_name))
+            source_interface, pbr_name))
         if not self._configure_vyos(delete_pbr_commands):
             logger.warn("Deleting PBR failed")
 
@@ -229,9 +232,9 @@ class RoutesConfigHandler(configOpts):
                     ip_address = inet_info.get('addr')
                     subnet_prefix = cidr.split("/")
                     if (ip_address == subnet_prefix[0] and
-                        (len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
+                            (len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
                         return interface
-                    ip_address_netmask = '%s/%s' %(ip_address, netmask)
+                    ip_address_netmask = '%s/%s' % (ip_address, netmask)
                     interface_cidr = netaddr.IPNetwork(ip_address_netmask)
                     if str(interface_cidr.cidr) == cidr:
                         return interface

@@ -20,6 +20,7 @@ COMMAND = "interfaces ethernet %s address %s/%s"
 
 
 class StaticIp(configOpts):
+
     def __init__(self):
         self.hotplug_timeout = 25
 
@@ -57,7 +58,6 @@ class StaticIp(configOpts):
             if netifaces.ifaddresses(interface)[AF_LINK][0]['addr'] == interface_mac:
                 return interface
 
-
     def configure(self, data):
         try:
             session.setup_config_session()
@@ -82,11 +82,11 @@ class StaticIp(configOpts):
             self.provider_ptg_interfaces = list()
             for interface in interfaces:
                 physical_interface = netifaces.ifaddresses(
-                                                interface).get(AF_LINK)
+                    interface).get(AF_LINK)
                 if not physical_interface:
                     continue
                 mac_addr = netifaces.ifaddresses(
-                                        interface)[AF_LINK][0]['addr']
+                    interface)[AF_LINK][0]['addr']
                 if 'eth' in interface:
                     ip_mac_map.update({interface: mac_addr})
 
@@ -123,11 +123,11 @@ class StaticIp(configOpts):
             self.provider_ptg_interfaces = list()
             for interface in interfaces:
                 physical_interface = netifaces.ifaddresses(
-                                                interface).get(AF_LINK)
+                    interface).get(AF_LINK)
                 if not physical_interface:
                     continue
                 mac_addr = netifaces.ifaddresses(
-                                        interface)[AF_LINK][0]['addr']
+                    interface)[AF_LINK][0]['addr']
                 if 'eth' in interface:
                     ip_mac_map.update({interface: mac_addr})
 

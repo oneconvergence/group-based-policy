@@ -22,9 +22,9 @@ init_logger(logger)
 
 
 class OCVyOSServer(object):
+
     def __init__(self):
         pass
-
 
 
 def handler(signum, frame):

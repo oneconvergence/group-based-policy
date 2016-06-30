@@ -14,10 +14,20 @@ VYOS_SAVE_SCRIPT = 'vyatta-save-config.pl'
 # logger = init_logger()
 
 
-class SessionAlreadyExists(Exception): pass
-class SetupSessionFailed(Exception): pass
-class OperationFailed(Exception): pass
-class SessionNotExists(Exception): pass
+class SessionAlreadyExists(Exception):
+    pass
+
+
+class SetupSessionFailed(Exception):
+    pass
+
+
+class OperationFailed(Exception):
+    pass
+
+
+class SessionNotExists(Exception):
+    pass
 
 
 class Session(object):
@@ -116,7 +126,7 @@ class ConfigSession(Session):
         """
         Returns True if commit action succeed. False otherwise.
         """
-        out = _run(os.path.join(VYOS_SBIN_DIR ,'my_commit -l'), output=True)
+        out = _run(os.path.join(VYOS_SBIN_DIR, 'my_commit -l'), output=True)
         if not out:
             logger.error('Commit changes failed')
             raise OperationFailed('[ERROR] Commit changes failed !')
@@ -127,7 +137,7 @@ class ConfigSession(Session):
         """
         Undo config modifications
         """
-        out = _run(os.path.join(VYOS_SBIN_DIR ,'my_discard'), output=True)
+        out = _run(os.path.join(VYOS_SBIN_DIR, 'my_discard'), output=True)
         if not out:
             raise OperationFailed('[ERROR] Discard changes failed !')
         # return out.splitlines()[0]

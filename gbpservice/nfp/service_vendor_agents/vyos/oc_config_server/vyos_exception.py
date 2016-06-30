@@ -14,4 +14,3 @@ class OCException(Exception):
         rv = dict(self.payload or ())
         rv["message"] = self.message
         return rv
-

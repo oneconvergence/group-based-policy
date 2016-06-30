@@ -7,7 +7,7 @@ import logging.handlers as handlers
 # In production environment CONFIG_DIR should be /etc/pyatta/
 CONFIG_DIR = "/usr/share/vyos-oc"
 CONFIG_FILE_NAME = "oc-vyos.conf"
-AVAILABLE_LOG_LEVELS = ['DEBUG','INFO','WARN','ERROR','CRITICAL']
+AVAILABLE_LOG_LEVELS = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']
 DEFAULT_LOG_LEVEL = 'INFO'
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def get_log_filehandler():
             return False
         print "[INFO] Create log file %s" % log_file_path
     # create file handler
-    fh = logging.FileHandler(log_file_path,'a')
+    fh = logging.FileHandler(log_file_path, 'a')
     fh.setLevel(eval('logging.{0}'.format(get_log_level())))
     return fh
 
@@ -90,14 +90,15 @@ def _run(cmd, output=False):
                                          stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE)
         except Exception as err:
-            message = 'Executing command %s failed with error %s' %(cmd, err)
+            message = 'Executing command %s failed with error %s' % (cmd, err)
             logger.error(message)
             return False
 
         cmd_output, cmd_error = exec_pipe.communicate()
-	    # VPN commits succeed but we are getting perl locale warnings on stderr
+        # VPN commits succeed but we are getting perl locale warnings on stderr
         if exec_pipe.returncode != 0:
-            message = 'Executing command %s failed with error %s. Output is: %s'%(cmd, cmd_error, cmd_output)
+            message = 'Executing command %s failed with error %s. Output is: %s' % (
+                cmd, cmd_error, cmd_output)
             logger.error(message)
             return False
         else:
@@ -106,7 +107,7 @@ def _run(cmd, output=False):
     else:
         try:
             logger.debug('exec command: "%s"', cmd)
-            out = subprocess.check_call(cmd, shell=True) # returns 0 for True
+            out = subprocess.check_call(cmd, shell=True)  # returns 0 for True
         except subprocess.CalledProcessError as err:
             logger.error('command execution failed with Error: %s', err)
             out = 1  # returns 1 for False
@@ -118,14 +119,16 @@ def _run(cmd, output=False):
 # issue :http://vyatta38.rssing.com/chan-10627532/all_p7.html
 # Not sure if the other commands also may fails or if there is an issue with
 # the way the config module does things
+
+
 def _alternate_set_and_commit(cmd):
     try:
         vyos_wrapper = "/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper"
-        begin_cmd = "%s begin" %(vyos_wrapper)
-        set_cmd = "%s %s" %(vyos_wrapper, cmd)
-        commit_cmd = "%s commit" %(vyos_wrapper)
+        begin_cmd = "%s begin" % (vyos_wrapper)
+        set_cmd = "%s %s" % (vyos_wrapper, cmd)
+        commit_cmd = "%s commit" % (vyos_wrapper)
         save_cmd = "%s save" % (vyos_wrapper)
-        end_cmd = "%s end" %(vyos_wrapper)
+        end_cmd = "%s end" % (vyos_wrapper)
         command = "%s;%s;%s;%s;%s" % (begin_cmd, set_cmd, commit_cmd, save_cmd,
                                       end_cmd)
         logger.debug('exec command: "%s"', command)
@@ -133,26 +136,29 @@ def _alternate_set_and_commit(cmd):
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
     except Exception as err:
-        message = 'Executing command %s failed with error %s' %(command, err)
+        message = 'Executing command %s failed with error %s' % (command, err)
         logger.error(message)
         return False
 
     cmd_output, cmd_error = exec_pipe.communicate()
     # VPN commits succeed but we are getting perl locale warnings on stderr
     if exec_pipe.returncode != 0:
-        message = 'Executing command %s failed with error %s' %(command, cmd_error)
+        message = 'Executing command %s failed with error %s' % (
+            command, cmd_error)
         logger.error(message)
         return False
     else:
         logger.debug('command output: %s', cmd_output)
         return True
 
+
 def clean_environ(env):
     """
     Delete some envionment variables from system.
     """
     for key in env.keys():
-        if os.environ.get('key'): del os.environ[key]
+        if os.environ.get('key'):
+            del os.environ[key]
 
 
 def ip2network(ip):

@@ -22,20 +22,22 @@ OP_FAILED = False
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
 
+
 class APIHandler(object):
+
     def __init__(self):
         pass
 
     def run_command(self, command):
         proc = subprocess.Popen(command,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
 
         out, err = proc.communicate()
         if err:
             logger.error("Unable to run command %s,  ERROR- %s" %
-                (command, err))
+                         (command, err))
             return None
         return out
 
@@ -45,7 +47,7 @@ class APIHandler(object):
                 /opt/vyatta/sbin/vyatta-cfg-cmd-wrapper set system syslog host %s facility all level %s
                 /opt/vyatta/sbin/vyatta-cfg-cmd-wrapper commit
                 /opt/vyatta/sbin/vyatta-cfg-cmd-wrapper save
-                """ %(config['server_ip'], config['log_level'])
+                """ % (config['server_ip'], config['log_level'])
 
         try:
             out = self.run_command(command)

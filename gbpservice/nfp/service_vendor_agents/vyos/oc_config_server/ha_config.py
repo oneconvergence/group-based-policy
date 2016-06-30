@@ -31,6 +31,7 @@ class VYOSHAConfig(configOpts):
     """
     Class to configure HA for VYOS.
     """
+
     def __init__(self):
         super(VYOSHAConfig, self).__init__()
         pass
@@ -121,7 +122,7 @@ class VYOSHAConfig(configOpts):
 
         data_interface, data_ip = self._get_interface_name(
             dict(data_mac=data_macs['provider_mac']), interface_type='data')
-            
+
         provider_vrrp_delete = "interfaces ethernet %s vrrp" % data_interface
 
         data_interface, data_ip = self._get_interface_name(
@@ -152,7 +153,7 @@ class VYOSHAConfig(configOpts):
             # session.discard()
             logger.error("Error deleting stitching vrrp %r " % err)
             # raise Exception(err)
-        
+
         # try:
         #    self.delete(delete_conntrack_cluster.split())
         # except Exception, err:
@@ -160,7 +161,7 @@ class VYOSHAConfig(configOpts):
             # session.teardown_config_session()
             # raise Exception(err)
         #    logger.error("Error deleting conntrack - %r " % err)
-       
+
         session.commit()
         time.sleep(5)
         session.save()
@@ -177,7 +178,7 @@ class VYOSHAConfig(configOpts):
         direct_call = False
         if isinstance(data_info, str):
             direct_call = True
-            data_info = json.loads(data_info) 
+            data_info = json.loads(data_info)
         data_macs = data_info.get("data_macs", {})
         vips = data_info.get("vip", {})
         vrrp_groups = data_info["vrrp_group"]
@@ -278,7 +279,7 @@ class VYOSHAConfig(configOpts):
                     interface_type.lower() == 'monitoring':
                 return interface, ip_addr
             elif (mac_addr == ha_config.get('data_mac', None) and
-                          interface_type.lower() == 'data'):
+                  interface_type.lower() == 'data'):
                 mlen = sum([bin(int(x)).count('1') for x in
                             netmask.split('.')])
                 ip_addr += ("/" + str(mlen))
@@ -361,7 +362,3 @@ class VYOSHAConfig(configOpts):
         session.save()
         time.sleep(5)
         session.teardown_config_session()
-
-
-
-

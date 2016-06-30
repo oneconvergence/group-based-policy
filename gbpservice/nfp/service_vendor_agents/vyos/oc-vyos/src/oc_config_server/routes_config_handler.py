@@ -14,6 +14,7 @@ utils.init_logger(logger)
 
 
 class RoutesConfigHandler(object):
+
     def __init__(self):
         super(RoutesConfigHandler, self).__init__()
 
@@ -24,35 +25,35 @@ class RoutesConfigHandler(object):
             gateway_ip = route_info['gateway_ip']
             source_interface = self._get_if_name_by_cidr(source_cidr)
             try:
-                interface_number_string = source_interface.split("eth",1)[1]
+                interface_number_string = source_interface.split("eth", 1)[1]
             except IndexError:
                 logger.error("Retrieved wrong interface %s for configuring "
-                             "routes" %(source_interface))
+                             "routes" % (source_interface))
             routing_table_number = ROUTING_TABLE_BASE + int(
                 interface_number_string.split('v')[0])
-            ip_rule_command = "ip rule add from %s table %s" %(
+            ip_rule_command = "ip rule add from %s table %s" % (
                 source_cidr, routing_table_number)
             out1 = subprocess.Popen(ip_rule_command, shell=True,
                                     stdout=subprocess.PIPE).stdout.read()
-            ip_rule_command = "ip rule add to %s table main" %(source_cidr)
+            ip_rule_command = "ip rule add to %s table main" % (source_cidr)
             out2 = subprocess.Popen(ip_rule_command, shell=True,
                                     stdout=subprocess.PIPE).stdout.read()
-            ip_route_command = "ip route add table %s default via %s" %(
-                                    routing_table_number, gateway_ip)
+            ip_route_command = "ip route add table %s default via %s" % (
+                routing_table_number, gateway_ip)
             out3 = self._add_default_route_in_table(ip_route_command,
                                                     routing_table_number)
-            output = "%s\n%s\n%s" %(out1, out2, out3)
-            logger.info("Static route configuration result: %s" %(output))
+            output = "%s\n%s\n%s" % (out1, out2, out3)
+            logger.info("Static route configuration result: %s" % (output))
         return json.dumps(dict(status=True))
 
     def _del_default_route_in_table(self, table):
-        route_del_command = "ip route del table %s default" %(table)
+        route_del_command = "ip route del table %s default" % (table)
         command_pipe = subprocess.Popen(route_del_command, shell=True,
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE)
         out, err = command_pipe.communicate()
         if command_pipe.returncode != 0:
-            logger.error("Deleting default route failed: %s" %(err))
+            logger.error("Deleting default route failed: %s" % (err))
 
     def _add_default_route_in_table(self, route_cmd, table):
         command_pipe = subprocess.Popen(route_cmd, shell=True,
@@ -64,8 +65,8 @@ class RoutesConfigHandler(object):
             if "File exists" in err:
                 self._del_default_route_in_table(table)
             else:
-                logger.error("Adding default route failed: %s" %(route_cmd))
-                logger.error("Error: %s" %(err))
+                logger.error("Adding default route failed: %s" % (route_cmd))
+                logger.error("Error: %s" % (err))
                 raise Exception("Setting Default Table route failed")
         else:
             return out
@@ -75,8 +76,8 @@ class RoutesConfigHandler(object):
                                         stderr=subprocess.PIPE)
         out, err = command_pipe.communicate()
         if command_pipe.returncode != 0:
-            logger.error("Adding default route failed: %s" %(route_cmd))
-            logger.error("Error: %s" %(err))
+            logger.error("Adding default route failed: %s" % (route_cmd))
+            logger.error("Error: %s" % (err))
             raise Exception("Setting Default Table route failed")
         else:
             return out
@@ -84,7 +85,7 @@ class RoutesConfigHandler(object):
     def _delete_ip_rule(self, cidr):
         count = 0
         for direction in ["from", "to"]:
-            ip_rule_cmd = "ip rule del %s %s" %(direction, cidr)
+            ip_rule_cmd = "ip rule del %s %s" % (direction, cidr)
             while True:
                 command_pipe = subprocess.Popen(ip_rule_cmd, shell=True,
                                                 stdout=subprocess.PIPE,
@@ -98,17 +99,17 @@ class RoutesConfigHandler(object):
                     if count >= 10:
                         logger.error("Deleting policy based routing for CIDR: "
                                      "%s not completed even after 10 attempts"
-                                     %(cidr))
+                                     % (cidr))
                         break
 
     def _del_default_route_in_table(self, table):
-        route_del_command = "ip route del table %s default" %(table)
+        route_del_command = "ip route del table %s default" % (table)
         command_pipe = subprocess.Popen(route_del_command, shell=True,
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE)
         out, err = command_pipe.communicate()
         if command_pipe.returncode != 0:
-            logger.error("Deleting default route failed: %s" %(err))
+            logger.error("Deleting default route failed: %s" % (err))
 
     def _add_default_route_in_table(self, route_cmd, table):
         command_pipe = subprocess.Popen(route_cmd, shell=True,
@@ -120,8 +121,8 @@ class RoutesConfigHandler(object):
             if "File exists" in err:
                 self._del_default_route_in_table(table)
             else:
-                logger.error("Adding default route failed: %s" %(route_cmd))
-                logger.error("Error: %s" %(err))
+                logger.error("Adding default route failed: %s" % (route_cmd))
+                logger.error("Error: %s" % (err))
                 raise Exception("Setting Default Table route failed")
         else:
             return out
@@ -131,8 +132,8 @@ class RoutesConfigHandler(object):
                                         stderr=subprocess.PIPE)
         out, err = command_pipe.communicate()
         if command_pipe.returncode != 0:
-            logger.error("Adding default route failed: %s" %(route_cmd))
-            logger.error("Error: %s" %(err))
+            logger.error("Adding default route failed: %s" % (route_cmd))
+            logger.error("Error: %s" % (err))
             raise Exception("Setting Default Table route failed")
         else:
             return out
@@ -140,7 +141,7 @@ class RoutesConfigHandler(object):
     def _delete_ip_rule(self, cidr):
         count = 0
         for direction in ["from", "to"]:
-            ip_rule_cmd = "ip rule del %s %s" %(direction, cidr)
+            ip_rule_cmd = "ip rule del %s %s" % (direction, cidr)
             while True:
                 command_pipe = subprocess.Popen(ip_rule_cmd, shell=True,
                                                 stdout=subprocess.PIPE,
@@ -154,7 +155,7 @@ class RoutesConfigHandler(object):
                     if count >= 10:
                         logger.error("Deleting policy based routing for CIDR: "
                                      "%s not completed even after 10 attempts"
-                                     %(cidr))
+                                     % (cidr))
                         break
 
     # REVISIT(Magesh): There may be a chance that there are duplicate rules
@@ -165,18 +166,18 @@ class RoutesConfigHandler(object):
             source_cidr = route_info['source_cidr']
             source_interface = self._get_if_name_by_cidr(source_cidr)
             try:
-                interface_number_string = source_interface.split("eth",1)[1]
+                interface_number_string = source_interface.split("eth", 1)[1]
             except IndexError:
                 logger.error("Retrieved wrong interface %s for deleting routes"
-                             %(source_interface))
+                             % (source_interface))
             routing_table_number = ROUTING_TABLE_BASE + int(
-            interface_number_string.split('v')[0])
+                interface_number_string.split('v')[0])
             self._delete_ip_rule(source_cidr)
-            ip_route_command = "ip route del table %s default" %(
+            ip_route_command = "ip route del table %s default" % (
                 routing_table_number)
             out = subprocess.Popen(ip_route_command, shell=True,
-                                    stdout=subprocess.PIPE).stdout.read()
-            logger.info("Static route delete result: %s" %(out))
+                                   stdout=subprocess.PIPE).stdout.read()
+            logger.info("Static route delete result: %s" % (out))
         return json.dumps(dict(status=True))
 
     def _get_if_name_by_cidr(self, cidr):
@@ -194,10 +195,10 @@ class RoutesConfigHandler(object):
                     ip_address = inet_info.get('addr')
                     subnet_prefix = cidr.split("/")
                     if (ip_address == subnet_prefix[0] and
-                        (len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
+                            (len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
                         return interface
-                    ip_address_netmask = '%s/%s' %(ip_address, netmask)
-                    interface_cidr = netaddr.IPNetwork(ip_address_netmask)                    
+                    ip_address_netmask = '%s/%s' % (ip_address, netmask)
+                    interface_cidr = netaddr.IPNetwork(ip_address_netmask)
                     if str(interface_cidr.cidr) == cidr:
                         return interface
             # Sometimes the hotplugged interface takes time to get IP

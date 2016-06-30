@@ -76,7 +76,7 @@ SSL_VPN_COMMANDS = {
         'set interfaces openvpn %s openvpn-option \
             "--client-cert-not-required --script-security 3 \
             --auth-user-pass-verify /usr/share/vyos-oc/auth_pam.pl via-file"'],
-        #'set interfaces openvpn %s local-host %s'],
+    #'set interfaces openvpn %s local-host %s'],
     'delete': [
         'delete interfaces openvpn %s',
         'delete interfaces openvpn vtun0 server push-route %s']}
@@ -86,11 +86,13 @@ utils.init_logger(logger)
 
 
 class NoInterfaceOnCidr(Exception):
+
     def __init__(self, **kwargs):
         self.message = _("No interface in the network '%(cidr)s'") % kwargs
 
 
 class VPNHandler(configOpts):
+
     def __init__(self):
         super(VPNHandler, self).__init__()
 
@@ -98,7 +100,7 @@ class VPNHandler(configOpts):
         session.setup_config_session()
         siteconn = ctx['siteconns'][0]
         self._create_ike_group(siteconn['ikepolicy'],
-                                   siteconn['connection']['dpd'])
+                               siteconn['connection']['dpd'])
         self._create_esp_group(siteconn['ipsecpolicy'])
         self._create_ipsec_site_conn(ctx)
         session.commit()
@@ -308,7 +310,8 @@ class VPNHandler(configOpts):
         self._set_commands(tun_cmds)
 
     def _get_vrrp_group(self, ifname):
-        command = ("vbash -c -i 'show vrrp' | grep %s | awk '{print $2}'" % ifname)
+        command = (
+            "vbash -c -i 'show vrrp' | grep %s | awk '{print $2}'" % ifname)
         #vrrp_ifname = ifname + "v" + os.popen(command).read().strip()
         return os.popen(command).read().strip()
 
@@ -333,8 +336,8 @@ class VPNHandler(configOpts):
             group_no = self._get_vrrp_group(ifname)
             ip = conn['stitching_fixed_ip']
             vrrp_cmd = ('set interfaces ethernet %s vrrp vrrp-group %s '
-             'run-transition-scripts master /config/scripts/restart_vpn') % (
-                    ifname, group_no)
+                        'run-transition-scripts master /config/scripts/restart_vpn') % (
+                ifname, group_no)
             ifname = ifname + "v" + str(group_no)
             logger.info("vrrp interface name: %s" % ifname)
 
@@ -395,18 +398,18 @@ class VPNHandler(configOpts):
             route_cmd = ("%s protocols static route %s next-hop"
                          " %s distance 1" % (action, cidr, gateway_ip))
         else:
-            route_cmd = "%s protocols static route %s" %(action, cidr)
+            route_cmd = "%s protocols static route %s" % (action, cidr)
         # The config module we use everywhere else is not used here
         # because of the issue mentioned here:
         # http://vyatta38.rssing.com/chan-10627532/all_p7.html
         # Note: The issue is inconsistent, but not seen anymore with this
         # new approach of setting configuration
         utils._alternate_set_and_commit(route_cmd)
-        #session.setup_config_session()
-        #self._set_commands([route_cmd])
-        #session.commit()
-        #time.sleep(2)
-        #session.teardown_config_session()
+        # session.setup_config_session()
+        # self._set_commands([route_cmd])
+        # session.commit()
+        # time.sleep(2)
+        # session.teardown_config_session()
         return OP_SUCCESS
 
     def _get_all_ifs(self):
@@ -422,8 +425,8 @@ class VPNHandler(configOpts):
         namestr = names.tostring()
         lst = []
         for i in range(0, outbytes, 40):
-            name = namestr[i:i+16].split('\0', 1)[0]
-            ip = namestr[i+20:i+24]
+            name = namestr[i:i + 16].split('\0', 1)[0]
+            ip = namestr[i + 20:i + 24]
             lst.append((name, ip))
         return lst
 

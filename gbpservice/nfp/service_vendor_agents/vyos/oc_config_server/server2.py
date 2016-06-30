@@ -70,7 +70,7 @@ def auth_server_config():
     f.write("\n")
 
     try:
-        host_ip = data['host_mapping'].split()[0]+"/32"
+        host_ip = data['host_mapping'].split()[0] + "/32"
         command = 'grep "new_routers" /var/lib/dhcp3/dhclient_eth0_lease |tail -1| cut -d: -d "=" -f2'
         gateway_ip = os.popen(command).read().strip().strip("'")
         status = vpnhandler().configure_static_route("set", host_ip, gateway_ip)
@@ -84,7 +84,7 @@ def auth_server_config():
             os.system("sudo chown vyos:users /etc/hosts")
             os.system("sudo echo '\n%s' >> /etc/hosts" % data['host_mapping'])
             os.system("sudo chown root:root /etc/hosts")
-            #with open('/etc/hosts', 'a') as hosts:
+            # with open('/etc/hosts', 'a') as hosts:
             #    hosts.write(data['host_mapping'])
     except Exception as e:
         logger.error("Error in writing host mapping in /etc/hosts - %s" % e)
@@ -332,7 +332,7 @@ def delete_stitching_route():
     try:
         gateway_ip = request.args.get('gateway_ip')
         status = vpnhandler().configure_static_route(
-                    "delete", "0.0.0.0/0", gateway_ip)
+            "delete", "0.0.0.0/0", gateway_ip)
         return json.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in delete_stitching_route. Reason: %s" % ex)
@@ -473,6 +473,7 @@ def configure_rsyslog_as_client():
         logger.error(err)
         return json.dumps(dict(status=False, reason=err))
 
+
 @app.route('/get-fw-stats', methods=['GET'])
 def get_fw_stats():
     try:
@@ -483,6 +484,7 @@ def get_fw_stats():
         err = ("Error while getting firewall stats. Reason: %s" % ex)
         logger.error(err)
         return json.dumps(dict(status=False, reason=err))
+
 
 @app.route('/get-vpn-stats', methods=['GET'])
 def get_vpn_stats():
@@ -523,12 +525,12 @@ def get_interface_to_bind():
             ip_addr = getipaddr()
             logger.info("Management interface up on - %r " %
                         ''.join([netifaces.ifaddresses('eth0')[17][0][
-                                     'addr'][:2],
-                                 netifaces.ifaddresses('eth0')[17][0][
-                                     'addr'][-2:],
-                                 netifaces.ifaddresses('eth0')[2][0][
-                                     'addr'].split('.')[-1]
-                                 ]))
+                            'addr'][:2],
+                            netifaces.ifaddresses('eth0')[17][0][
+                            'addr'][-2:],
+                            netifaces.ifaddresses('eth0')[2][0][
+                            'addr'].split('.')[-1]
+                        ]))
         except ValueError:
             logger.error("Management Interface not UP")
             time.sleep(5)
@@ -557,4 +559,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

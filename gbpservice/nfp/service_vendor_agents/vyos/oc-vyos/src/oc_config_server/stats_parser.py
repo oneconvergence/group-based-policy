@@ -21,20 +21,22 @@ from vyos_session import utils
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
 
+
 class APIHandler(object):
+
     def __init__(self):
         pass
 
     def run_command(self, command):
         proc = subprocess.Popen(command,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
 
         out, err = proc.communicate()
         if err:
             logger.error("Unable to run command %s,  ERROR- %s" %
-                (command, err))
+                         (command, err))
             return None
         return out
 
@@ -49,7 +51,7 @@ class APIHandler(object):
 
             except KeyError as keyerr:
                 logger.error('Unable to Parse Stats Data, ' +
-                    'KeyError: {}'.format(keyerr))
+                             'KeyError: {}'.format(keyerr))
         return None
 
     def parse_firewall_stats(self, interface, raw_stats):
@@ -78,13 +80,13 @@ class APIHandler(object):
           condition - saddr 0.0.0.0/0 daddr 0.0.0.0/0
 
         """
-        firewall  = {}
+        firewall = {}
         firewalls = []
         firewall_start = False
         table = False
         status = None
         rule_keys = ['rulepriority', 'packets', 'bytes', 'action',
-                    'source', 'destination']
+                     'source', 'destination']
 
         try:
             for line in raw_stats.split('\n'):
@@ -106,18 +108,19 @@ class APIHandler(object):
                     command = ('/opt/vyatta/bin/vyatta-show-firewall.pl "all_all" ' +
                                '/opt/vyatta/share/xsl/show_firewall_detail.xsl')
                     show_fw_data = self.run_command(command)
-                    firewall = self.add_protocol_and_dest_port_info(firewall, show_fw_data)
+                    firewall = self.add_protocol_and_dest_port_info(
+                        firewall, show_fw_data)
                     logger.info("packed firewall \n %s" % firewall)
                     firewalls.append(firewall)
                     break
 
         except KeyError as keyerr:
             logger.error('Unable to Parse Firewall Stats Data, ' +
-                    'KeyError: {}'.format(keyerr))
+                         'KeyError: {}'.format(keyerr))
 
         except IndexError as inderr:
             logger.error('Unable to Parse Firewall Stats Data, ' +
-                    'IndexError: {}'.format(inderr))
+                         'IndexError: {}'.format(inderr))
 
         return firewalls
 
@@ -151,11 +154,11 @@ class APIHandler(object):
 
         except KeyError as keyerr:
             logger.error('Unable to Parse Firewall Stats Data, ' +
-                    'KeyError: {}'.format(keyerr))
+                         'KeyError: {}'.format(keyerr))
 
         except IndexError as inderr:
             logger.error('Unable to Parse Firewall Stats Data, ' +
-                    'IndexError: {}'.format(inderr))
+                         'IndexError: {}'.format(inderr))
 
         return firewall
 
@@ -201,7 +204,7 @@ class APIHandler(object):
                 key = ''
                 value = ''
                 if ':' in line:
-                    key,value = line.split(":")
+                    key, value = line.split(":")
 
                 if 'Peer IP' in key:
                     s2s_connection['peerip'] = value.strip(" \t\n\r")
@@ -211,25 +214,25 @@ class APIHandler(object):
 
                 elif "Tunnel" in key:
                     s2s_connection['tunnels'] = []
-                    tunnel_info = { 'tunnel' :
-                                key.strip(" \t\n\r").split(" ")[-1] }
+                    tunnel_info = {'tunnel':
+                                   key.strip(" \t\n\r").split(" ")[-1]}
 
                 elif "Inbound Bytes" in key:
-                    tunnel_info['in']  = value.strip(" \t\n\r")
+                    tunnel_info['in'] = value.strip(" \t\n\r")
 
                 elif "Outbound Bytes" in key:
-                    tunnel_info['out']  = value.strip(" \t\n\r")
+                    tunnel_info['out'] = value.strip(" \t\n\r")
                     s2s_connection['tunnels'].append(tunnel_info)
                     s2s_connections.append(s2s_connection)
                     s2s_connection = {}
 
         except KeyError as keyerr:
             logger.error('Unable to Parse IPSec VPN Stats Data, ' +
-                        'KeyError: {}'.format(keyerr))
+                         'KeyError: {}'.format(keyerr))
 
         except IndexError as inderr:
             logger.error('Unable to Parse IPSec VPN Stats Data, ' +
-                        'IndexError: {}'.format(inderr))
+                         'IndexError: {}'.format(inderr))
 
         return s2s_connections
 
@@ -246,7 +249,8 @@ class APIHandler(object):
         table = False
         remote_connection = {}
         remote_connections = []
-        keys = ['clientCN', 'remoteip', 'tunnelip', 'in', 'out', 'connected_since']
+        keys = ['clientCN', 'remoteip', 'tunnelip',
+                'in', 'out', 'connected_since']
 
         try:
             for line in raw_stats.split('\n'):
@@ -262,11 +266,11 @@ class APIHandler(object):
 
         except KeyError as keyerr:
             logger.error('Unable to Parse Remote VPN Stats Data, ' +
-                        'KeyError: {}'.format(keyerr))
+                         'KeyError: {}'.format(keyerr))
 
         except IndexError as inderr:
             logger.error('Unable to Parse Remote VPN Stats Data, ' +
-                        'IndexError: {}'.format(inderr))
+                         'IndexError: {}'.format(inderr))
 
         return remote_connections
 
@@ -291,13 +295,13 @@ class APIHandler(object):
         parsed_stats = {}
 
         command = ('/opt/vyatta/bin/vyatta-show-firewall.pl "all_all" ' +
-                    '/opt/vyatta/share/xsl/show_firewall_statistics.xsl')
+                   '/opt/vyatta/share/xsl/show_firewall_statistics.xsl')
 
         raw_stats = self.run_command(command)
         interface = self._get_interface_name(mac_address)
         if not interface:
             logger.error('No interface available for mac address: %s' %
-                        mac_address)
+                         mac_address)
             return parsed_stats
         parsed_stats = self.parse_firewall_stats(interface, raw_stats)
 
@@ -307,7 +311,7 @@ class APIHandler(object):
     def get_vpn_stats(self):
         vpn_parsed_data = {}
         command = ('sudo /opt/vyatta/bin/sudo-users/vyatta-op-vpn.pl ' +
-                    '--show-ipsec-sa-detail')
+                   '--show-ipsec-sa-detail')
 
         raw_ipsec_stats = self.run_command(command)
         if raw_ipsec_stats:
@@ -320,7 +324,7 @@ class APIHandler(object):
             logger.warning("Empty IPSec VPN Stats")
 
         command = ('sudo /opt/vyatta/bin/sudo-users/vyatta-show-ovpn.pl ' +
-                    '--mode=server')
+                   '--mode=server')
 
         raw_remote_stats = self.run_command(command)
         if raw_remote_stats:

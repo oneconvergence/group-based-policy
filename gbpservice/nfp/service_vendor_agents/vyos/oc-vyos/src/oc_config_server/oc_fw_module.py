@@ -27,12 +27,12 @@ FWN = 'firewall name'
 # oc_fw_identifier = 'oc_fw'
 rule = 'rule'
 firewall_rules = {
-                    'protocol': '%s protocol %s',
-                    'source_ip_address': '%s source address %s',
-                    'destination_ip_address': '%s destination address %s',
-                    'source_port': '%s source port %s',
-                    'destination_port': '%s destination port %s'
-                }
+    'protocol': '%s protocol %s',
+    'source_ip_address': '%s source address %s',
+    'destination_ip_address': '%s destination address %s',
+    'source_port': '%s source port %s',
+    'destination_port': '%s destination port %s'
+}
 
 firewall_action = {'allow': 'accept', 'deny': 'drop'}
 
@@ -155,8 +155,8 @@ class OCFWConfigClass(configOpts):
             self.rules.extend(
                 [firewall_rules[k] %
                  (common_fw_rule_prefix, fw_rule[k]
-                 if k not in ['source_port', 'destination_port']
-                 else fw_rule[k].replace(':', '-'))
+                  if k not in ['source_port', 'destination_port']
+                  else fw_rule[k].replace(':', '-'))
                  for k, v in fw_rule.iteritems()
                  if fw_rule[k] and k in firewall_rules]
             )
@@ -354,4 +354,3 @@ class OCFWConfigClass(configOpts):
             return
         session.save()
         session.teardown_config_session()
-

@@ -12,6 +12,7 @@ ADD_RULE = 'SUBSYSTEM=="net", DRIVERS=="?*", ATTR{address}=="%s", NAME="%s"'
 
 
 class EditPersistentRule(object):
+
     def __init__(self):
         pass
 
@@ -81,8 +82,3 @@ class EditPersistentRule(object):
         except Exception, err:
             logger.error("ERROR deleting stale persistent rule. Interfaces: "
                          "%r . Details: %r" % (interface_list, str(err)))
-
-
-
-
-

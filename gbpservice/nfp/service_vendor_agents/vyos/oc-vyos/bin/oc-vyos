@@ -16,10 +16,9 @@
 
 import sys
 
-#sys.path.append("/home/vikash/vyos-oc")
+# sys.path.append("/home/vikash/vyos-oc")
 sys.path.append("/usr/share/vyos-oc")
 
 from oc_config_server.server2 import main
 #sys.argv=[__name__, '-h', '0', '-p', 8888]
 main()
-
