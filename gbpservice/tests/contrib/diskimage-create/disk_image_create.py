@@ -35,8 +35,8 @@ def parse_json(j_file):
 def get_nfp_branch_name_for_docker(file_path):
     data = file(file_path)
 
-    for line in data:                                                              
-        if 'GBPSERVICE_BRANCH' in line:
+    for line in data:
+        if not line.lstrip().startswith('#') and 'GBPSERVICE_BRANCH' in line:
             data.close()
             return line.split('=')[1].rstrip()
 
