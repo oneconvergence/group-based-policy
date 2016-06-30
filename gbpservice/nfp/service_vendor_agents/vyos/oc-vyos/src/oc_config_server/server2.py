@@ -24,7 +24,7 @@ import netifaces
 
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
 from vyos_session.utils import init_logger
-from oc_fw_module import OCFWConfigClass
+from fw_module import OCFWConfigClass
 from edit_persistent_rule import EditPersistentRule
 from static_ip import StaticIp
 from flask import Flask, request
@@ -44,7 +44,7 @@ init_logger(logger)
 
 app = Flask(__name__)
 
-oc_fw_module = None
+fw_module = None
 e = EditPersistentRule()
 
 error_msgs = {
@@ -241,10 +241,10 @@ def get_ssl_vpn_conn_state():
 
 @app.route('/configure-firewall-rule', methods=['POST'])
 def configure_firewall_rule():
-    global oc_fw_module
+    global fw_module
     firewall_data = request.data
     try:
-        response = oc_fw_module.set_up_rule_on_interfaces(firewall_data)
+        response = fw_module.set_up_rule_on_interfaces(firewall_data)
     except Exception as err:
         try:
             return send_error_response(OCException(err[0], status_code=err[1],
@@ -260,9 +260,9 @@ def configure_firewall_rule():
 
 @app.route('/delete-firewall-rule', methods=['DELETE'])
 def delete_firewall_rule():
-    global oc_fw_module
+    global fw_module
     try:
-        response = oc_fw_module.reset_firewall(request.data)
+        response = fw_module.reset_firewall(request.data)
     except Exception as err:
         try:
             return send_error_response(OCException(err[0], status_code=err[1],
@@ -278,10 +278,10 @@ def delete_firewall_rule():
 
 @app.route('/update-firewall-rule', methods=['PUT'])
 def update_firewall_rule():
-    global oc_fw_module
+    global fw_module
     try:
-        oc_fw_module.reset_firewall(request.data)
-        response = oc_fw_module.set_up_rule_on_interfaces(request.data)
+        fw_module.reset_firewall(request.data)
+        response = fw_module.set_up_rule_on_interfaces(request.data)
     except Exception as err:
         try:
             return send_error_response(OCException(err[0], status_code=err[1],
@@ -438,7 +438,7 @@ def del_static_ip():
 def add_rule():
     # configuring sshd to listen on management ip address
     ip_addr = get_interface_to_bind()
-    oc_fw_module.run_sshd_on_mgmt_ip(ip_addr)
+    fw_module.run_sshd_on_mgmt_ip(ip_addr)
 
     data = json.loads(request.data)
     try:
@@ -547,8 +547,8 @@ def main():
 
     :type ip_addr: Server listen address
     """
-    global oc_fw_module, vyos_ha_config
-    oc_fw_module = OCFWConfigClass()
+    global fw_module, vyos_ha_config
+    fw_module = OCFWConfigClass()
     vyos_ha_config = VYOSHAConfig()
     ip_addr = get_interface_to_bind()
     signal.signal(signal.SIGTERM, handler)

@@ -75,14 +75,9 @@ copy_source_code () {
     commit_id=`git log | head -1`
     branch_name=`git rev-parse --abbrev-ref HEAD`
     echo "Version: $version-$release" > $DEBIAN_PATH/etc/sc-version
-    #echo "Branch: $branch_name" >> $DEBIAN_PATH/etc/sc-version
-    #echo $commit_id >> $DEBIAN_PATH/etc/sc-version
 
-    #cp -r $SOURCE_CODE_DIR/packages/debian/oc-vyos/* $DEBIAN_PATH/.
-    #cp -r $SOURCE_CODE_DIR/* $DEBIAN_PATH/.
     cp -r $SOURCE_CODE_DIR/DEBIAN $DEBIAN_PATH/.
     cp -r $SOURCE_CODE_DIR/etc $DEBIAN_PATH/.
-    #cp -r $SOURCE_CODE_DIR/src $DEBIAN_PATH/.
 
     cp -r $SOURCE_CODE_DIR/bin/oc-vyos $DEBIAN_PATH/usr/bin/.
     cp -r $SOURCE_CODE_DIR/src $DEBIAN_PATH/usr/share/vyos-oc
@@ -90,8 +85,8 @@ copy_source_code () {
     cp -r $SOURCE_CODE_DIR/src/oc-pbr/interfaces $DEBIAN_PATH/etc/network/.
     cp -r $SOURCE_CODE_DIR/src/oc-pbr/interface-post-up $DEBIAN_PATH/etc/network/.
     cp -r $SOURCE_CODE_DIR/src/oc-pbr/management_pbr $DEBIAN_PATH/etc/dhcp3/dhclient-exit-hooks.d/.
+
     # TODO: Do we need this
-    #cp -r $SOURCE_CODE_DIR/vendor_certs/Sungard/sungard_certs/server/* $DEBIAN_PATH/config/auth/.
     cp -r $SOURCE_CODE_DIR/src/vyos_init_script/restart_vpn $DEBIAN_PATH/config/scripts/.
     mv $DEBIAN_PATH/usr/share/vyos-oc/oc-pbr $DEBIAN_PATH/usr/share/
     sed -i "s/oc-vyos ([0-9]*.[0-9]*-*[0-9]*)/oc-vyos ($version-$release)/g" $DEBIAN_PATH/DEBIAN/changelog    
@@ -106,7 +101,7 @@ build_deb_package () {
     dpkg-deb --build oc-vyos-$version-$release
     cd $CURDIR
 
-    echo "OC Vyos package will be available in : $DEB_PACKAGE_DIR/oc-vyos-$version-$release.deb "
+    echo "Vyos package will be available in : $DEB_PACKAGE_DIR/oc-vyos-$version-$release.deb "
 }
 
 
