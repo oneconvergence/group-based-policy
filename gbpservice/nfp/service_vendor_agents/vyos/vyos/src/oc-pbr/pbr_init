@@ -79,7 +79,7 @@ for interface in ${interfaces[*]}; do
     if [ "$interface" == "eth1" ] && [ $flag == 0 ]
     then
 	#echo "Set default route on $interface ${default_route[$index]} $index"
-        cmd="bash /usr/share/oc-pbr/pbr ${default_route[$index]}"
+        cmd="bash /usr/share/vyos-pbr/pbr ${default_route[$index]}"
         #sudo su - vyos -c "$cmd"
         #/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper begin
         #/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper set protocols static route 0.0.0.0/0 next-hop ${default_route[$index]} 
@@ -94,5 +94,5 @@ for interface in ${interfaces[*]}; do
     ((index++))
 done
 
-#bash /usr/share/oc-pbr/controller_route
+#bash /usr/share/vyos-pbr/controller_route
 echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore
