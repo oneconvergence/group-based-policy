@@ -50,7 +50,7 @@ class configOpts(object):
         try:
             exe.execmd()
             return True
-        except OperationFailed, e:
+        except OperationFailed as e:
             logger.error(e.message)
             return False
 
@@ -60,6 +60,6 @@ class configOpts(object):
         try:
             exe.execmd()
             return True
-        except OperationFailed, e:
+        except OperationFailed as e:
             logger.error(e.message)
             return False

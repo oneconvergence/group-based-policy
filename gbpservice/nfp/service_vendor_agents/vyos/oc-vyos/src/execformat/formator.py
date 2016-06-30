@@ -33,7 +33,7 @@ class showConfig():
               #  return False
             execstate, output = exe.execmd()
             logger.debug("=====>>>>>> args after executor call = %s" % args)
-        except OperationFailed, e:
+        except OperationFailed as e:
             logger.error(e.message)
             return False
         if execstate == True:

@@ -79,6 +79,6 @@ class EditPersistentRule(object):
                 cmd = 'sudo sed -i /%s/d %s' % (
                     interface, INTERFACE_RULE_FILE)
                 call(cmd.split())
-        except Exception, err:
+        except Exception as err:
             logger.error("ERROR deleting stale persistent rule. Interfaces: "
                          "%r . Details: %r" % (interface_list, str(err)))

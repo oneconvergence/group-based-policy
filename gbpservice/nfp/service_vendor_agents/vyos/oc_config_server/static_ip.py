@@ -55,7 +55,8 @@ class StaticIp(configOpts):
         interfaces = netifaces.interfaces()
 
         for interface in interfaces:
-            if netifaces.ifaddresses(interface)[AF_LINK][0]['addr'] == interface_mac:
+            if netifaces.ifaddresses(interface)[AF_LINK][0][
+                    'addr'] == interface_mac:
                 return interface
 
     def configure(self, data):

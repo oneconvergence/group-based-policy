@@ -54,7 +54,7 @@ class ConfigSession(Session):
 
     def setup_config_session(self):
         """
-        Setup vyos session. A random uuid is generated as a sesssion identifier 
+        Setup vyos session. A random uuid is generated as a sesssion identifier
         ($PPID -Shell PID- could be used as well).
         """
 

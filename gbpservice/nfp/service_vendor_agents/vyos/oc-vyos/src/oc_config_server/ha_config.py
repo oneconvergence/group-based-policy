@@ -85,7 +85,7 @@ class VYOSHAConfig(configOpts):
             vip = ha_config["vip"]
             tenant_id = ha_config["tenant_id"]
             advertised_interval = ha_config["advertised_interval"]
-        except KeyError, err:
+        except KeyError as err:
             raise Exception("HA configuration for interface failed. Value "
                             "not found. %r" % str(err),
                             400, dict(interface_config=ha_config))
@@ -142,14 +142,14 @@ class VYOSHAConfig(configOpts):
 
         try:
             self.delete(provider_vrrp_delete.split())
-        except Exception, err:
+        except Exception as err:
             # session.discard()
             logger.error("Error deleting provider vrrp %r " % err)
             # raise Exception(err)
 
         try:
             self.delete(stitching_vrrp_delete.split())
-        except Exception, err:
+        except Exception as err:
             # session.discard()
             logger.error("Error deleting stitching vrrp %r " % err)
             # raise Exception(err)
@@ -301,7 +301,7 @@ class VYOSHAConfig(configOpts):
             priority = ha_config["priority"]
             vip = ha_config["vip"]
             advertised_interval = ha_config["advertised_interval"]
-        except KeyError, err:
+        except KeyError as err:
             raise Exception("Parameters missing for conntrack configuration "
                             "%r" % str(err), 400, {"ha_config": ha_config})
 
