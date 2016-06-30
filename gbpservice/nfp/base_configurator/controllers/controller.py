@@ -26,13 +26,6 @@ NFP_SERVICE_LIST = ['heat', 'ansible']
 SUCCESS_RESULTS = ['unhandled', 'success']
 FAILURE = 'failure'
 
-"""Implements all the APIs Invoked by HTTP requests.
-
-Implements following HTTP methods.
-    -get
-    -post
-
-"""
 
 notifications = []
 cache_ips = set()
@@ -40,6 +33,13 @@ cache_ips = set()
 
 class Controller(BaseController):
 
+    """Implements all the APIs Invoked by HTTP requests.
+
+    Implements following HTTP methods.
+        -get
+        -post
+
+    """
     def __init__(self, method_name):
         try:
             self.method_name = method_name
@@ -178,64 +178,6 @@ class Controller(BaseController):
                                             result, config_data, service_type)
                 else:
                     result = "Unsupported resource type"
-                    self._push_notification(context,
-                                            result, config_data, service_type)
-        except Exception as err:
-            pecan.response.status = 400
-            msg = ("Failed to serve HTTP post request %s %s."
-                   % (self.method_name, str(err).capitalize()))
-            LOG.error(msg)
-            error_data = self._format_description(msg)
-            return jsonutils.dumps(error_data)
-
-    @pecan.expose(method='PUT', content_type='application/json')
-    def put(self, **body):
-        """Method of REST server to handle all the put requests.
-
-        This method sends an RPC cast to configurator according to the
-        HTTP request.
-
-        :param body: This method excepts dictionary as a parameter in HTTP
-        request and send this dictionary to configurator with RPC cast.
-
-        Returns: None
-
-        """
-
-        try:
-            global cache_ips
-            global notifications
-            body = None
-            if pecan.request.is_body_readable:
-                body = pecan.request.json_body
-
-            # Assuming config list will have only one element
-            config_data = body['config'][0]
-            context = body['info']['context']
-            service_type = body['info']['service_type']
-            resource = config_data['resource']
-
-            if 'device_ip' in context:
-                msg = ("PUTTING DATA TO VM :: %s" % body)
-                LOG.info(msg)
-                device_ip = context['device_ip']
-                ip = str(device_ip)
-                is_vm_reachable = self._verify_vm_reachability(ip,
-                                                               self.vm_port)
-                if is_vm_reachable:
-                    requests.post(
-                        'http://' + ip + ':' + self.vm_port + '/v1/nfp/' +
-                        self.method_name, data=jsonutils.dumps(body))
-                else:
-                    raise Exception('VM is not reachable')
-                cache_ips.add(device_ip)
-            else:
-                if (resource in NFP_SERVICE_LIST):
-                    result = "unhandled"
-                    self._push_notification(context,
-                                            result, config_data, service_type)
-                else:
-                    result = "error"
                     self._push_notification(context,
                                             result, config_data, service_type)
         except Exception as err:
