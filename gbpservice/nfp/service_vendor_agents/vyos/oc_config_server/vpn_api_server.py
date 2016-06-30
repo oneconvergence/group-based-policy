@@ -335,9 +335,10 @@ class VPNHandler(configOpts):
             logger.debug("Get vrrp group number for interface %s" % ifname)
             group_no = self._get_vrrp_group(ifname)
             ip = conn['stitching_fixed_ip']
-            vrrp_cmd = ('set interfaces ethernet %s vrrp vrrp-group %s '
-                        'run-transition-scripts master /config/scripts/restart_vpn') % (
-                ifname, group_no)
+            vrrp_cmd = (
+                'set interfaces ethernet %s vrrp vrrp-group %s '
+                'run-transition-scripts master /config/scripts/restart_vpn') % (ifname,
+                                                                                group_no)
             ifname = ifname + "v" + str(group_no)
             logger.info("vrrp interface name: %s" % ifname)
 

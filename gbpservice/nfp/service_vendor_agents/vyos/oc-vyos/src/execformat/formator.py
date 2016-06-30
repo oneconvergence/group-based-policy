@@ -36,5 +36,5 @@ class showConfig():
         except OperationFailed as e:
             logger.error(e.message)
             return False
-        if execstate == True:
+        if execstate:
             return vparser.decode_string(output)

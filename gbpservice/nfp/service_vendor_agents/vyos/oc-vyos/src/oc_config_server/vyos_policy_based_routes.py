@@ -231,8 +231,8 @@ class RoutesConfigHandler(configOpts):
                     netmask = inet_info.get('netmask')
                     ip_address = inet_info.get('addr')
                     subnet_prefix = cidr.split("/")
-                    if (ip_address == subnet_prefix[0] and
-                            (len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
+                    if (ip_address == subnet_prefix[0] and (
+                            len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
                         return interface
                     ip_address_netmask = '%s/%s' % (ip_address, netmask)
                     interface_cidr = netaddr.IPNetwork(ip_address_netmask)

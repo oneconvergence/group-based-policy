@@ -105,8 +105,9 @@ class APIHandler(object):
                         rule = dict(zip(rule_keys, words))
                         firewall['rules'].append(rule)
                 elif table and status == "Active":
-                    command = ('/opt/vyatta/bin/vyatta-show-firewall.pl "all_all" ' +
-                               '/opt/vyatta/share/xsl/show_firewall_detail.xsl')
+                    command = (
+                        '/opt/vyatta/bin/vyatta-show-firewall.pl "all_all" ' +
+                        '/opt/vyatta/share/xsl/show_firewall_detail.xsl')
                     show_fw_data = self.run_command(command)
                     firewall = self.add_protocol_and_dest_port_info(
                         firewall, show_fw_data)
