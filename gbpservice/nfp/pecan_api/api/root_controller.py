@@ -11,16 +11,26 @@
 #    under the License.
 
 import pecan
-from v1 import controllers
 
+import pecan
+
+try:
+    from gbpservice.tests.contrib.nfp_service.reference_configurator\
+        import controllers as ref_controllers
+    from gbpservice.nfp.base_configurator import controllers as \
+        base_controllers
+except:
+    pass
 
 class RootController(object):
     """This is root controller that forward the request to __init__.py
     file inside controller folder inside v1
 
     """
-
-    v1 = controllers.V1Controller()
+    if pecan.base_with_vm:
+        v1 = ref_controllers.V1Controller()
+    else:
+        v1 = base_controllers.V1Controller()
 
     @pecan.expose()
     def get(self):

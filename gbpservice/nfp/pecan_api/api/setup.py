@@ -30,5 +30,9 @@ setuptools.setup(
     test_suite='api',
     zip_safe=False,
     include_package_data=True,
-    packages=setuptools.find_packages(exclude=['ez_setup'])
+    packages=setuptools.find_packages(exclude=['ez_setup']),
+    entry_points="""
+    [pecan.command]
+    configurator_decider = configurator_decider:DecideConfigurator
+    """
 )
