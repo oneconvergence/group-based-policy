@@ -13,10 +13,9 @@
 import pecan
 
 
-def setup_app(config, **kwargs):
+def setup_app(config):
 
     app_conf = dict(config.app)
-    app_conf.update(kwargs)
     return pecan.make_app(
         app_conf.pop('root'),
         logging=getattr(config, 'logging', {}),

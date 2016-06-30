@@ -1,7 +1,7 @@
 #! /bin/bash
 set -eu
 
-# copy the reference_configurator and pecan_api folders to VM at 
+# copy the reference_configurator and pecan folders to VM at 
 # /usr/local/lib/python2.7/dist-packages/
 
 cd /usr/local/lib/python2.7/dist-packages/
@@ -13,7 +13,7 @@ mkdir -p $pecan_path
 
 find gbpservice/ -type d -exec touch {}/__init__.py \;
 mv /root/reference_configurator $service_path/
-mv /root/pecan_api $pecan_path/
+mv /root/pecan $pecan_path/
 
 cd $service_path
 PWD=`pwd`

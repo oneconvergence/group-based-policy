@@ -10,18 +10,22 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-
 import pecan
+
+from gbpservice.nfp.pecan import constants
+
+
 class DecideConfigurator(pecan.commands.serve.ServeCommand):
-    ''' Custom Commands '''
+    ''' decides the type of configurtor to be used
+        like base_configurator or reference_configurator
+    '''
     arguments = pecan.commands.serve.ServeCommand.arguments + ({
-        'name': '--base_with_vm',
-        'help': 'an extra command line argument',
-        'action': 'store_true',
+        'name': '--mode',
+        'help': 'decides the type of configurtor to be used',
+        'choices': constants.modes,
     },)
 
     def run(self, args):
-        print args.base_with_vm
-        setattr(pecan, 'base_with_vm', args.base_with_vm)
+        setattr(pecan, 'mode', args.mode)
         super(DecideConfigurator, self).run(args)
 

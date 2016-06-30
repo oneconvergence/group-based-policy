@@ -12,30 +12,29 @@
 
 import pecan
 
-import pecan
+from gbpservice.nfp.pecan import constants
 
-try:
-    from gbpservice.tests.contrib.nfp_service.reference_configurator\
-        import controllers as ref_controllers
-    from gbpservice.nfp.base_configurator import controllers as \
-        base_controllers
-except:
-    pass
 
 class RootController(object):
     """This is root controller that forward the request to __init__.py
     file inside controller folder inside v1
 
     """
-    if pecan.base_with_vm:
-        v1 = ref_controllers.V1Controller()
-    else:
-        v1 = base_controllers.V1Controller()
+    _controllers = {}
+
+    for name, controller in constants.controllers.items():
+        _controllers.update({name: __import__(controller,
+                                              globals(),
+                                              locals(),
+                                              ['controllers'], -1)})
+
+    if pecan.mode == constants.base_with_vm:
+        v1 = _controllers[constants.REFERENCE_CONTROLLER].V1Controller()
+    elif pecan.mode == constants.base:
+        v1 = _controllers[constants.BASE_CONTROLLER].V1Controller()
 
     @pecan.expose()
     def get(self):
-        # TODO(blogan): once a decision is made on how to do versions, do that
-        # here
         return {'versions': [{'status': 'CURRENT',
                               'updated': '2014-12-11T00:00:00Z',
                               'id': 'v1'}]}
