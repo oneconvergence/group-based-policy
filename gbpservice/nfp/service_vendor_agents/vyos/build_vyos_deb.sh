@@ -6,7 +6,7 @@ SOURCE_CODE_DIR=$1
 DEB_PACKAGE_DIR=$1/deb-packages
 version=$2
 release=$3
-DEBIAN_PATH=$DEB_PACKAGE_DIR/oc-vyos-$version-$release
+DEBIAN_PATH=$DEB_PACKAGE_DIR/vyos-$version-$release
 
 print_usage () {
 
@@ -79,7 +79,7 @@ copy_source_code () {
     cp -r $SOURCE_CODE_DIR/DEBIAN $DEBIAN_PATH/.
     cp -r $SOURCE_CODE_DIR/etc $DEBIAN_PATH/.
 
-    cp -r $SOURCE_CODE_DIR/bin/oc-vyos $DEBIAN_PATH/usr/bin/.
+    cp -r $SOURCE_CODE_DIR/bin/vyos $DEBIAN_PATH/usr/bin/.
     cp -r $SOURCE_CODE_DIR/src $DEBIAN_PATH/usr/share/vyos
 
     cp -r $SOURCE_CODE_DIR/src/oc-pbr/interfaces $DEBIAN_PATH/etc/network/.
@@ -89,8 +89,8 @@ copy_source_code () {
     # TODO: Do we need this
     cp -r $SOURCE_CODE_DIR/src/vyos_init_script/restart_vpn $DEBIAN_PATH/config/scripts/.
     mv $DEBIAN_PATH/usr/share/vyos/oc-pbr $DEBIAN_PATH/usr/share/
-    sed -i "s/oc-vyos ([0-9]*.[0-9]*-*[0-9]*)/oc-vyos ($version-$release)/g" $DEBIAN_PATH/DEBIAN/changelog    
-    sed -i "/^Source:/c Source: oc-vyos-$version-$release" $DEBIAN_PATH/DEBIAN/control
+    sed -i "s/vyos ([0-9]*.[0-9]*-*[0-9]*)/vyos ($version-$release)/g" $DEBIAN_PATH/DEBIAN/changelog    
+    sed -i "/^Source:/c Source: vyos-$version-$release" $DEBIAN_PATH/DEBIAN/control
     sed -i "s/^Version:.*/Version: $version-$release/g" $DEBIAN_PATH/DEBIAN/control
 }
 
@@ -98,10 +98,10 @@ build_deb_package () {
 
     CURDIR=${PWD}
     cd $DEB_PACKAGE_DIR
-    dpkg-deb --build oc-vyos-$version-$release
+    dpkg-deb --build vyos-$version-$release
     cd $CURDIR
 
-    echo "Vyos package will be available in : $DEB_PACKAGE_DIR/oc-vyos-$version-$release.deb "
+    echo "Vyos package will be available in : $DEB_PACKAGE_DIR/vyos-$version-$release.deb "
 }
 
 

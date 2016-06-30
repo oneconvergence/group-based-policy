@@ -14,23 +14,23 @@
 # One Convergence, Inc., USA
 #
 ### BEGIN INIT INFO
-# Provides: oc-vyos
+# Provides: vyos
 # Required-Start: $remote_fs $syslog
 # Required-Stop: $remote_fs $syslog
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
 # Short-Description: OC vyos service
-# Description: Provides the oc-vyos service
+# Description: Provides the vyos service
 ### END INIT INFO
 set -e
-PIDFILE=/var/run/elastic_services/oc-vyos.pid
-LOGFILE=/var/log/elastic_services/oc-vyos.log
-DAEMON=/usr/bin/oc-vyos
+PIDFILE=/var/run/elastic_services/vyos.pid
+LOGFILE=/var/log/elastic_services/vyos.log
+DAEMON=/usr/bin/vyos
 DAEMON_ARGS="--log-file=$LOGFILE"
 DAEMON_DIR=/var/run/elastic_services
 ENABLED=true
-if test -f /etc/default/oc-vyos; then
-. /etc/default/oc-vyos
+if test -f /etc/default/vyos; then
+. /etc/default/vyos
 fi
 mkdir -p /var/run/elastic_services
 mkdir -p /var/log/elastic_services
@@ -59,8 +59,8 @@ fi
 if [ $start -eq 1 ]; then
 ## ensure stale processes killed
 set +e
-running_processes=`ps aux | grep "python /usr/bin/oc-vyos" | grep -v grep | awk '{print $2}' | wc -l`
-[ $running_processes -gt 0 ] && ps aux | grep "python /usr/bin/oc-vyos" | grep -v grep | awk '{print $2}' | xargs kill -9
+running_processes=`ps aux | grep "python /usr/bin/vyos" | grep -v grep | awk '{print $2}' | wc -l`
+[ $running_processes -gt 0 ] && ps aux | grep "python /usr/bin/vyos" | grep -v grep | awk '{print $2}' | xargs kill -9
 set -e
 log_daemon_msg "Starting oc vyos"
 # We have completely messed up the rc level scripts
@@ -68,7 +68,7 @@ sudo chown vyos:users -R /var/run/elastic_services
 sudo -u vyos start-stop-daemon -Sbmv --pidfile $PIDFILE --chdir $DAEMON_DIR --exec $DAEMON -- $DAEMON_ARGS
 log_end_msg $?
 else
-echo "oc-vyos[$pid] is already running"
+echo "vyos[$pid] is already running"
 fi
 ;;
 stop)
@@ -90,8 +90,8 @@ echo "PID file not existing"
 fi
 ## ensure stale processes killed
 set +e
-running_processes=`ps aux | grep "python /usr/bin/oc-vyos" | grep -v grep | awk '{print $2}' | wc -l`
-[ $running_processes -gt 0 ] && ps aux | grep "python /usr/bin/oc-vyos" | grep -v grep | awk '{print $2}' | xargs kill -9
+running_processes=`ps aux | grep "python /usr/bin/vyos" | grep -v grep | awk '{print $2}' | wc -l`
+[ $running_processes -gt 0 ] && ps aux | grep "python /usr/bin/vyos" | grep -v grep | awk '{print $2}' | xargs kill -9
 set -e
 ;;
 restart|force-reload)
@@ -120,10 +120,10 @@ fi
 ;;
 status)
 test "$ENABLED" = "true" || exit 0
-status_of_proc -p $PIDFILE $DAEMON oc-vyos && exit 0 || exit $?
+status_of_proc -p $PIDFILE $DAEMON vyos && exit 0 || exit $?
 ;;
 *)
-log_action_msg "Usage: /etc/init.d/oc-vyos {start|stop|restart|force-reload|reload|status}"
+log_action_msg "Usage: /etc/init.d/vyos {start|stop|restart|force-reload|reload|status}"
 exit 1
 ;;
 esac

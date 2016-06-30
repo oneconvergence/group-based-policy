@@ -6,7 +6,7 @@ import logging.handlers as handlers
 
 # In production environment CONFIG_DIR should be /etc/pyatta/
 CONFIG_DIR = "/usr/share/vyos"
-CONFIG_FILE_NAME = "oc-vyos.conf"
+CONFIG_FILE_NAME = "vyos.conf"
 AVAILABLE_LOG_LEVELS = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']
 DEFAULT_LOG_LEVEL = 'INFO'
 

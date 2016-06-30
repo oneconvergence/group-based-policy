@@ -8,7 +8,7 @@
         notifempty
         create 644 vyos users
 }
-/var/log/oc/oc-vyos.log {
+/var/log/oc/vyos.log {
         monthly
         rotate 12
         size 10M
@@ -18,7 +18,7 @@
         notifempty
         create 644 vyos users
         postrotate
-            sudo /etc/init.d/oc-vyos restart
+            sudo /etc/init.d/vyos restart
         endscript
 }
 
