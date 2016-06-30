@@ -143,13 +143,22 @@ class NfpWorker(Service):
             ret = poll_handler(event_handler, event)
         self._repoll(ret, event, event_handler)
 
-    def dispatch(self, handler, *args):
+    def log_dispatch(self, handler, event, *args):
+        try:
+            nfp_logging.store_logging_context(**(event.context))
+            handler(event, *args)
+            nfp_logging.clear_logging_context()
+        except Exception as e:
+            LOG.error("%r" %e)
+            handler(event, *args)
+
+    def dispatch(self, handler, event, *args):
         if self._threads:
-            th = self.tg.add_thread(handler, *args)
+            th = self.tg.add_thread(self.log_dispatch, handler, event, *args)
             LOG.debug("%s - (handler - %s) - "
                 "dispatched to thread %d" %
                 (self._log_meta(), identify(handler), th.ident))
         else:
-            handler(*args)
+            handler(event, *args)
             LOG.debug("%s - (handler - %s) - invoked" %
                 (self._log_meta(), identify(handler)))

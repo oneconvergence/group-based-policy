@@ -151,6 +151,7 @@ class NFPClientApi(object):
         self.client = n_rpc.get_client(target)
 
     def create_network_function(self, context, network_function):
+        context.auth_token = context.provider_auth_token
         cctxt = self.client.prepare(
             fanout=False, topic=nfp_rpc_topics.NFP_NSO_TOPIC)
         return cctxt.call(
@@ -159,6 +160,7 @@ class NFPClientApi(object):
             network_function=network_function)
 
     def delete_network_function(self, context, network_function_id):
+        context.auth_token = context.provider_auth_token
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(
             context,
@@ -166,6 +168,7 @@ class NFPClientApi(object):
             network_function_id=network_function_id)
 
     def update_network_function(self, context, network_function_id, config):
+        context.auth_token = context.provider_auth_token
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(
             context,
@@ -174,6 +177,7 @@ class NFPClientApi(object):
             config=config)
 
     def get_network_function(self, context, network_function_id):
+        context.auth_token = context.provider_auth_token
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(
             context,
@@ -182,6 +186,7 @@ class NFPClientApi(object):
 
     def consumer_ptg_added_notification(self, context, network_function_id,
                                         policy_target_group):
+        context.auth_token = context.provider_auth_token
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(context,
                    'consumer_ptg_added_notification',
@@ -190,6 +195,7 @@ class NFPClientApi(object):
 
     def consumer_ptg_removed_notification(self, context, network_function_id,
                                           policy_target_group):
+        context.auth_token = context.provider_auth_token
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(context,
                    'consumer_ptg_removed_notification',
@@ -198,6 +204,7 @@ class NFPClientApi(object):
 
     def policy_target_added_notification(self, context, network_function_id,
                                          policy_target):
+        context.auth_token = context.provider_auth_token
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(context,
                    'policy_target_added_notification',
@@ -206,6 +213,7 @@ class NFPClientApi(object):
 
     def policy_target_removed_notification(self, context, network_function_id,
                                            policy_target):
+        context.auth_token = context.provider_auth_token
         cctxt = self.client.prepare(version=self.RPC_API_VERSION)
         return cctxt.call(context,
                    'policy_target_removed_notification',
@@ -272,8 +280,11 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         return service_details
 
     def get_plumbing_info(self, context):
+        provider_auth_token = context._plugin_context.auth_token
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
+        setattr(context.plugin_context,
+                'provider_auth_token', provider_auth_token)
         service_type = context.current_profile['service_type']
 
         service_flavor_str = context.current_profile['service_flavor']
@@ -896,7 +907,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             'subnet': None,
             'port_model': nfp_constants.GBP_NETWORK,
             'port_classification': nfp_constants.MANAGEMENT}
-
         nfp_create_nf_data = {
             'resource_owner_context': context._plugin_context.to_dict(),
             'service_chain_instance': sc_instance,
@@ -911,7 +921,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             'tenant_id': context.provider['tenant_id'],
             'consuming_ptgs_details': consuming_ptgs_details,
             'consuming_eps_details': consuming_eps_details}
-
         return self.nfp_notifier.create_network_function(
             context.plugin_context, network_function=nfp_create_nf_data)['id']
 
