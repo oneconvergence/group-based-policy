@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu
+set -eux
 
 # create 'images' directory to hold docker images
 sudo mkdir -p ${TMP_MOUNT_PATH}/usr/share/configurator/docker/images
