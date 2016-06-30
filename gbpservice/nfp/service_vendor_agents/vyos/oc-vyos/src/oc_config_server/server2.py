@@ -55,7 +55,7 @@ error_msgs = {
 @app.route('/auth-server-config', methods=['POST'])
 def auth_server_config():
     data = json.loads(request.data)
-    f = open("/usr/share/vyos-oc/auth_server.conf", 'w')
+    f = open("/usr/share/vyos/auth_server.conf", 'w')
     f.write(data['auth_uri'])
     f.write('\n')
     f.write(data['admin_tenant_name'])

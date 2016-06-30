@@ -22,7 +22,7 @@ from execformat.executor import session
 OP_SUCCESS = True
 OP_FAILED = False
 
-OP_COMMAND_SCRIPT = "/usr/share/vyos-oc/vpn_op_commands.pl"
+OP_COMMAND_SCRIPT = "/usr/share/vyos/vpn_op_commands.pl"
 
 IPSEC_SITE2SITE_COMMANDS = {
     'ike': [
@@ -75,7 +75,7 @@ SSL_VPN_COMMANDS = {
         'set interfaces openvpn %s server push-route %s',
         'set interfaces openvpn %s openvpn-option \
             "--client-cert-not-required --script-security 3 \
-            --auth-user-pass-verify /usr/share/vyos-oc/auth_pam.pl via-file"'],
+            --auth-user-pass-verify /usr/share/vyos/auth_pam.pl via-file"'],
     #'set interfaces openvpn %s local-host %s'],
     'delete': [
         'delete interfaces openvpn %s',

@@ -8,6 +8,6 @@ sudo update-rc.d oc-vyos defaults
 sudo mkdir -p /var/log/oc
 touch /var/log/oc/oc-vyos.log
 echo "" > /var/log/oc/vyos_monitor
-sudo chown vyos:users -R /var/log/oc /usr/share/vyos-oc /usr/share/oc-pbr
+sudo chown vyos:users -R /var/log/oc /usr/share/vyos /usr/share/oc-pbr
 cp /usr/share/oc-pbr/dhclient-script /sbin/dhclient-script
-sudo cp /usr/share/vyos-oc/oc_config_server/vyos-oc-log /etc/logrotate.d/vyos-oc-log
+sudo cp /usr/share/vyos/oc_config_server/vyos-log /etc/logrotate.d/vyos-log

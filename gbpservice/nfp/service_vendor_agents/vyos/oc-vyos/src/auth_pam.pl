@@ -81,7 +81,7 @@ my $url_get_role_assignment = $KEYSTONE_AUTH_URL . "/v3/role_assignments?user.id
 
 sub read_auth_server_conf {
 	# Get auth server conf from file
-	my $AUTH_SERVER_CONF_FILE = "/usr/share/vyos-oc/auth_server.conf";
+	my $AUTH_SERVER_CONF_FILE = "/usr/share/vyos/auth_server.conf";
 
 	if (!open (AUTHFILE, $AUTH_SERVER_CONF_FILE)) {
 		print "Could not open auth file : $AUTH_SERVER_CONF_FILE\n";
