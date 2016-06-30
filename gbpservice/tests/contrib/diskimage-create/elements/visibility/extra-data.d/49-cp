@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu
+set -eux
 
 # create SCUI directory
 sudo mkdir -p ${TMP_MOUNT_PATH}/usr/share/SCUI
