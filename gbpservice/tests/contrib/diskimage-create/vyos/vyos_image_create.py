@@ -21,14 +21,14 @@ def parse_json(j_file):
 def update_vyos_repo():
 
     vyos_vendor_dir = ("%s/../../../../nfp/service_vendor_agents/vyos/" % cur_dir)
-    service = 'oc-vyos'
+    service = 'agent'
     version = '2'
     release = '1'
     subprocess.call(['rm', '-rf',
                      "%s/%s/deb-packages" % (vyos_vendor_dir, service)])
     os.chdir(vyos_vendor_dir)
     ret = subprocess.call(['bash',
-                           'build_oc_vyos_deb.sh',
+                           'build_vyos_deb.sh',
                            service,
                            version, release])
 
@@ -38,9 +38,9 @@ def update_vyos_repo():
 
     subprocess.call(["rm", "-rf", "/var/www/html/vyos"])
     subprocess.call(["mkdir", "-p", "/var/www/html/vyos/amd64"])
-    vyos_agent_deb = ("%s/%s/deb-packages/%s-%s-%s.deb"
+    vyos_agent_deb = ("%s/%s/deb-packages/vyos-%s-%s.deb"
                          % (vyos_vendor_dir, service,
-                            service, version, release))
+                            version, release))
     subprocess.call(["cp", vyos_agent_deb, "/var/www/html/vyos/amd64/"])
 
     # update repo Packages.gz
@@ -66,14 +66,9 @@ def packer_build():
     # packer expects VM size in MB
     conf_packer['builders'][0]['disk_size'] = conf['packer']['image_size'] * 1024
     # packer exptects new output dir name for each run, packer creates the dir
-    #timestamp = datetime.datetime.now().strftime('%I%M%p-%d-%m-%Y')
-    #output_dir = "./output_" + timestamp
-    #conf_packer['builders'][0]['output_directory'] = output_dir
     # update VM output file name
     filepath = os.environ.get('ISO_IMAGE', '-1')
     iso = os.path.basename(filepath)
-    #vm_name = iso[:-4] + '.qcow2'
-    #conf_packer['builders'][0]['vm_name'] = vm_name
 
     # update the packer.json file
     with open('packer.json', 'w') as f:
@@ -87,14 +82,6 @@ def packer_build():
     if ret:
         print "ERROR: packer build failed"
 
-    '''
-    # move to vyos image to output directory
-    old_file = output_dir + "/" + vm_name
-    new_file = "./output/vyos.qcow2"
-    ret = subprocess.call(["mv", old_file, new_file])
-    if ret:
-        print "ERROR: unable to move file"
-    '''
     image_path = "%s/output/%s.qcow2" % (cur_dir, "vyos")
     print("Image location: %s" % image_path)
     with open("/tmp/image_path", "w") as f:
@@ -151,7 +138,7 @@ def get_vyos_iso():
         if(sums.find(iso_file)) > 0:
             sha1sum_web = sums.split(' ')[0]
 
-    # calcualte the sha1 of downloaded file
+    # calculate the sha1 of downloaded file
     sha1sum_local = commands.getoutput("sha1sum %s" % (iso_path + iso_file)).split(' ')[0]
 
     if not sha1sum_web == sha1sum_local:

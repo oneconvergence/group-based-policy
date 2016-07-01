@@ -16,11 +16,6 @@ set firewall syn-cookies 'enable'
 set firewall twa-hazards-protection 'disable'
 set  'policy'
 set protocols 'static'
-#set system config-management commit-revisions '20'
-#set system console device ttyS0 speed '9600'
-#set system syslog global facility all level 'notice'
-#set system syslog global facility protocols level 'debug'
-
 
 # delete non-working repository
 delete system package repository community
@@ -47,9 +42,9 @@ sudo apt-get -o Acquire::Check-Valid-Until=false update
 sudo apt-get -y install python-netifaces python-flask python-netaddr
 
 # get oc-vyos package
-sudo apt-get -y --force-yes install oc-vyos
+sudo apt-get -y --force-yes install vyos
 
-set system task-scheduler task health-monitor executable path '/usr/share/vyos-oc/oc_config_server/interface_monitor.sh'
+set system task-scheduler task health-monitor executable path '/usr/share/vyos/config_server/interface_monitor.sh'
 set system task-scheduler task health-monitor interval '5m'
 
 # delete the local repo
