@@ -733,7 +733,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         service_details = nfp_context['service_details']
         network_function_device = nfp_context['network_function_device']
         token = nfp_context['resource_owner_context']['admin_token']
-        tenant_id = nfp_context['resource_owner_context']['tenant_id']
+        tenant_id = nfp_context['resource_owner_context']['admin_tenant_id']
 
         device = {
             'token': token,
@@ -1332,7 +1332,6 @@ class NDOConfiguratorRpcApi(object):
             'requester': nfp_constants.DEVICE_ORCHESTRATOR,
             'operation': operation,
             'logging_context': nfp_logging.get_logging_context(),
-            # So that notification callbacks can work on cached data
             'nfp_context': device.get('nfp_context', None)
         }
         nfd_ip = device['mgmt_ip_address']
@@ -1351,8 +1350,6 @@ class NDOConfiguratorRpcApi(object):
 
     def create_network_function_device_config(self, device_data,
                                               config_params):
-        nfp_logging.store_logging_context(
-            meta_id=device_data['network_function_id'])
         self._update_params(device_data, config_params, operation='create')
         LOG.info(_LI("Sending create NFD config request to configurator "
                      "with config_params = %(config_params)s"),
@@ -1367,8 +1364,6 @@ class NDOConfiguratorRpcApi(object):
 
     def delete_network_function_device_config(self, device_data,
                                               config_params):
-        nfp_logging.store_logging_context(
-            meta_id=device_data['network_function_id'])
         self._update_params(device_data, config_params, operation='delete')
         LOG.info(_LI("Sending delete NFD config request to configurator "
                      "with config_params = %(config_params)s"),

@@ -90,6 +90,8 @@ class NfpService(object):
         event = None
         try:
             event = nfp_event.Event(**kwargs)
+            logging_context = nfp_logging.get_logging_context()
+            event.context = logging_context
         except AssertionError as aerr:
             LOG.exception("%s" % (aerr))
         return event
