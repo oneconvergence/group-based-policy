@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 import array
-import ast
 import copy
 import fcntl
-import json
 import logging
 import os
 import socket
@@ -11,12 +9,9 @@ import struct
 import subprocess
 import time
 
-import netaddr
-import netifaces
 #from vyos_session.configsession import ConfigSession as session
 from execformat.executor import session
 from netaddr import IPAddress, IPNetwork
-from netifaces import AF_BRIDGE, AF_INET, AF_INET6, AF_LINK, AF_PACKET
 from operations import configOpts
 from vyos_session import utils
 

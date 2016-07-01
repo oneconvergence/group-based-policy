@@ -33,7 +33,6 @@ class VYOSHAConfig(configOpts):
 
     def __init__(self):
         super(VYOSHAConfig, self).__init__()
-        pass
 
     def configure_conntrack_sync(self, ha_config):
         """

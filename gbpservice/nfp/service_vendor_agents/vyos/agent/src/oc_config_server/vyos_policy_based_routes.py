@@ -6,7 +6,6 @@ import time
 
 import netaddr
 import netifaces
-from execformat.executor import session
 from operations import configOpts
 from vyos_session import utils
 

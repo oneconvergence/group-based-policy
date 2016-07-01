@@ -3,7 +3,6 @@ import logging
 import os
 import shlex
 import subprocess
-import sys
 
 from vyos_session import utils
 # sys.path.append('/home/vyos/vyos-api/project/')

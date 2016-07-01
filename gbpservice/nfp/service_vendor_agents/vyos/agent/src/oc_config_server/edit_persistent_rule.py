@@ -2,7 +2,6 @@ import logging
 from subprocess import call
 
 import netifaces
-from vyos_dhc import initiate_dhclient
 from vyos_session import utils
 
 logger = logging.getLogger(__name__)

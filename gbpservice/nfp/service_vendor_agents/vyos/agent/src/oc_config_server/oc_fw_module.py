@@ -20,7 +20,7 @@ import time
 import fw_constants
 import netifaces
 from execformat.executor import session
-from netifaces import AF_BRIDGE, AF_INET, AF_INET6, AF_LINK, AF_PACKET
+from netifaces import AF_LINK
 from operations import configOpts
 from vyos_session import utils
 

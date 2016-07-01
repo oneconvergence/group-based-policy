@@ -71,7 +71,7 @@ def auth_server_config():
         host_ip = data['host_mapping'].split()[0] + "/32"
         command = 'grep "new_routers" /var/lib/dhcp3/dhclient_eth0_lease |tail -1| cut -d: -d "=" -f2'
         gateway_ip = os.popen(command).read().strip().strip("'")
-        status = vpnhandler().configure_static_route("set", host_ip, gateway_ip)
+        vpnhandler().configure_static_route("set", host_ip, gateway_ip)
 
     except Exception as ex:
         err = ("Error in adding rvpn route. Reason: %s" % ex)

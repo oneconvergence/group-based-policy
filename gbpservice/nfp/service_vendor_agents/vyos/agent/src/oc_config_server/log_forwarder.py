@@ -50,7 +50,7 @@ class APIHandler(object):
                 """ % (config['server_ip'], config['log_level'])
 
         try:
-            out = self.run_command(command)
+            self.run_command(command)
             return OP_SUCCESS
         except Exception as ex:
             logger.error("Error while configuring rsyslog as client. %s" % ex)
