@@ -33,8 +33,6 @@ from vyos_policy_based_routes import RoutesConfigHandler as routes_handler
 from vyos_session.utils import init_logger
 
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
-# sys.path.insert(0, dirname(dirname(abspath(__file__))))
-# sys.path.insert(0, (abspath(__file__)))
 
 logger = logging.getLogger(__name__)
 init_logger(logger)
@@ -244,12 +242,12 @@ def configure_firewall_rule():
         response = fw_module.set_up_rule_on_interfaces(firewall_data)
     except Exception as err:
         try:
-            return send_error_response(VyosException(err[0], status_code=err[1],
-                                                   payload=err[2]))
+            return send_error_response(VyosException(
+                    err[0], status_code=err[1], payload=err[2]))
         except IndexError:
             return send_error_response(
                 VyosException(str(err), status_code=500,
-                            payload=dict(err=error_msgs['unexpected'] % (
+                              payload=dict(err=error_msgs['unexpected'] % (
                                 'configuring', 'firewall'))))
     else:
         return jsonify(**response)
@@ -262,12 +260,12 @@ def delete_firewall_rule():
         response = fw_module.reset_firewall(request.data)
     except Exception as err:
         try:
-            return send_error_response(VyosException(err[0], status_code=err[1],
-                                                   payload=err[2]))
+            return send_error_response(VyosException(
+                    err[0], status_code=err[1], payload=err[2]))
         except IndexError:
             return send_error_response(
                 VyosException(str(err), status_code=500,
-                            payload=dict(err=error_msgs['unexpected'] % (
+                              payload=dict(err=error_msgs['unexpected'] % (
                                 'deleting', 'firewall'))))
     else:
         return jsonify(**response)
@@ -281,12 +279,12 @@ def update_firewall_rule():
         response = fw_module.set_up_rule_on_interfaces(request.data)
     except Exception as err:
         try:
-            return send_error_response(VyosException(err[0], status_code=err[1],
-                                                   payload=err[2]))
+            return send_error_response(VyosException(
+                    err[0], status_code=err[1], payload=err[2]))
         except IndexError:
             return send_error_response(
                 VyosException(str(err), status_code=500,
-                            payload=dict(err=error_msgs['unexpected'] % (
+                              payload=dict(err=error_msgs['unexpected'] % (
                                 'updating', 'firewall'))))
     else:
         return jsonify(**response)
@@ -347,12 +345,12 @@ def configure_conntrack_sync():
         # This flask version has issue in implicit way of registering
         # error handler.
         try:
-            return send_error_response(VyosException(err[0], status_code=err[1],
-                                                   payload=err[2]))
+            return send_error_response(VyosException(
+                    err[0], status_code=err[1], payload=err[2]))
         except IndexError:
             return send_error_response(
                 VyosException(str(err), status_code=500,
-                            payload=dict(err=error_msgs['unexpected'] % (
+                              payload=dict(err=error_msgs['unexpected'] % (
                                 'configuring', 'conntrack sync'))))
     else:
         return jsonify(**response)
@@ -365,12 +363,12 @@ def configure_interface_ha():
         response = vyos_ha_config.set_vrrp_for_interface(request.data)
     except Exception as err:
         try:
-            return send_error_response(VyosException(err[0], status_code=err[1],
-                                                   payload=err[2]))
+            return send_error_response(VyosException(
+                    err[0], status_code=err[1], payload=err[2]))
         except IndexError:
             return send_error_response(
                 VyosException(str(err), status_code=500,
-                            payload=dict(
+                              payload=dict(
                                 err=error_msgs['unexpected'] % (
                                     'configuring', 'HA for the interface'))))
     else:
@@ -384,12 +382,12 @@ def delete_vrrp():
         response = vyos_ha_config.delete_vrrp(request.data)
     except Exception as err:
         try:
-            return send_error_response(VyosException(err[0], status_code=err[1],
-                                                   payload=err[2]))
+            return send_error_response(VyosException(
+                        err[0], status_code=err[1], payload=err[2]))
         except IndexError:
             return send_error_response(
                 VyosException(str(err), status_code=500,
-                            payload=dict(err=error_msgs['unexpected'] % (
+                              payload=dict(err=error_msgs['unexpected'] % (
                                 'deleting', 'VRRP'))))
     else:
         return jsonify(**response)
