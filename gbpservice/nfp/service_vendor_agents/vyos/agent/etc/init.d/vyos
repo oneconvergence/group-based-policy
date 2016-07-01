@@ -1,18 +1,17 @@
 #! /bin/sh
 #
-# One Convergence, Inc. CONFIDENTIAL
-# Copyright (c) 2012-2014, One Convergence, Inc., USA
-# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
 #
-# All information contained herein is, and remains the property of
-# One Convergence, Inc. and its suppliers, if any. The intellectual and
-# technical concepts contained herein are proprietary to One Convergence,
-# Inc. and its suppliers.
+#         http://www.apache.org/licenses/LICENSE-2.0
 #
-# Dissemination of this information or reproduction of this material is
-# strictly forbidden unless prior written permission is obtained from
-# One Convergence, Inc., USA
-#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 ### BEGIN INIT INFO
 # Provides: vyos
 # Required-Start: $remote_fs $syslog
@@ -62,7 +61,7 @@ set +e
 running_processes=`ps aux | grep "python /usr/bin/vyos" | grep -v grep | awk '{print $2}' | wc -l`
 [ $running_processes -gt 0 ] && ps aux | grep "python /usr/bin/vyos" | grep -v grep | awk '{print $2}' | xargs kill -9
 set -e
-log_daemon_msg "Starting oc vyos"
+log_daemon_msg "Starting Vyos Agent"
 # We have completely messed up the rc level scripts
 sudo chown vyos:users -R /var/run/elastic_services
 sudo -u vyos start-stop-daemon -Sbmv --pidfile $PIDFILE --chdir $DAEMON_DIR --exec $DAEMON -- $DAEMON_ARGS
@@ -78,7 +77,7 @@ set +e
 kill -0 `cat $PIDFILE` > /dev/null 2>&1
 if [ $? -eq 0 ]; then
 set -e
-log_daemon_msg "Stopping oc vyos"
+log_daemon_msg "Stopping Vyos Agent"
 start-stop-daemon --stop --oknodo --pidfile ${PIDFILE}
 log_end_msg $?
 else
@@ -108,14 +107,14 @@ set +e
 kill -0 `cat $PIDFILE` > /dev/null 2>&1
 if [ $? -eq 0 ]; then
 set -e
-log_daemon_msg "Reloading oc vyos"
+log_daemon_msg "Reloading vyos agent"
 start-stop-daemon --stop --signal 1 --quiet --oknodo --pidfile $PIDFILE
 log_end_msg $?
 else
 echo "No process with PID `cat $PIDFILE` found running, removing the PID file"
 fi
 else
-echo "oc vyos is not running or PID file not existing"
+echo "Vyos agent is not running or PID file not existing"
 fi
 ;;
 status)

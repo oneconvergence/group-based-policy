@@ -82,13 +82,13 @@ copy_source_code () {
     cp -r $SOURCE_CODE_DIR/bin/vyos $DEBIAN_PATH/usr/bin/.
     cp -r $SOURCE_CODE_DIR/src $DEBIAN_PATH/usr/share/vyos
 
-    cp -r $SOURCE_CODE_DIR/src/oc-pbr/interfaces $DEBIAN_PATH/etc/network/.
-    cp -r $SOURCE_CODE_DIR/src/oc-pbr/interface-post-up $DEBIAN_PATH/etc/network/.
-    cp -r $SOURCE_CODE_DIR/src/oc-pbr/management_pbr $DEBIAN_PATH/etc/dhcp3/dhclient-exit-hooks.d/.
+    cp -r $SOURCE_CODE_DIR/src/vyos-pbr/interfaces $DEBIAN_PATH/etc/network/.
+    cp -r $SOURCE_CODE_DIR/src/vyos-pbr/interface-post-up $DEBIAN_PATH/etc/network/.
+    cp -r $SOURCE_CODE_DIR/src/vyos-pbr/management_pbr $DEBIAN_PATH/etc/dhcp3/dhclient-exit-hooks.d/.
 
     # TODO: Do we need this
     cp -r $SOURCE_CODE_DIR/src/vyos_init_script/restart_vpn $DEBIAN_PATH/config/scripts/.
-    mv $DEBIAN_PATH/usr/share/vyos/oc-pbr $DEBIAN_PATH/usr/share/
+    mv $DEBIAN_PATH/usr/share/vyos/vyos-pbr $DEBIAN_PATH/usr/share/
     sed -i "s/vyos ([0-9]*.[0-9]*-*[0-9]*)/vyos ($version-$release)/g" $DEBIAN_PATH/DEBIAN/changelog    
     sed -i "/^Source:/c Source: vyos-$version-$release" $DEBIAN_PATH/DEBIAN/control
     sed -i "s/^Version:.*/Version: $version-$release/g" $DEBIAN_PATH/DEBIAN/control

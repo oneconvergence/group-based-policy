@@ -2,7 +2,7 @@ Package: vyos
 Source: vyos
 Version: 2.5
 Architecture: all
-Maintainer: Mahesh Kurund 
+Maintainer: One Convergence
 Section: devel
 Priority: optional
-Description: oc vyos package
+Description: vyos package

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+sudo chown -R root:vyattacfg /config/auth/
+sudo chown -R root:vyattacfg /config/scripts/
+sudo update-rc.d vyos defaults
+sudo mkdir -p /var/log/vyos
+touch /var/log/vyos/vyos.log
+echo "" > /var/log/vyos/vyos_monitor
+sudo chown vyos:users -R /var/log/vyos /usr/share/vyos /usr/share/vyos-pbr
+cp /usr/share/vyos-pbr/dhclient-script /sbin/dhclient-script
+sudo cp /usr/share/vyos/oc_config_server/vyos-log /etc/logrotate.d/vyos-log
