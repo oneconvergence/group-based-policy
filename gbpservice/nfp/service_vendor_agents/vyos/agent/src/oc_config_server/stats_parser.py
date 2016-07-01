@@ -1,15 +1,14 @@
-# One Convergence, Inc. CONFIDENTIAL
-# Copyright (c) 2012-2015, One Convergence, Inc., USA
-# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
 #
-# All information contained herein is, and remains the property of
-# One Convergence, Inc. and its suppliers, if any. The intellectual and
-# technical concepts contained herein are proprietary to One Convergence,
-# Inc. and its suppliers.
+#         http://www.apache.org/licenses/LICENSE-2.0
 #
-# Dissemination of this information or reproduction of this material is
-# strictly forbidden unless prior written permission is obtained from
-# One Convergence, Inc., USA
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
 import logging
 import subprocess
@@ -93,7 +92,8 @@ class APIHandler(object):
                 words = line.split()
                 if 'IPv4 Firewall' in line:
                     firewall_start = True
-                if 'Active on' in line and interface in line and firewall_start:
+                if 'Active on' in line and interface in line and (
+                                                            firewall_start):
                     status = "Active"
                     (interface, direction) = words[2][1:-1].split(',')
                     firewall['interface'] = interface
@@ -138,7 +138,8 @@ class APIHandler(object):
                 firewall_info_started = True
             if firewall_started and firewall_info_started:
                 firewall_info.append(line)
-            if firewall_started and firewall_info_started and firewall_info_end in line:
+            if firewall_started and firewall_info_started and (
+                                                firewall_info_end in line):
                 break
         try:
             for rule in firewall.get('rules', []):
@@ -292,7 +293,7 @@ class APIHandler(object):
         10000 0         0         DROP    0.0.0.0/0           0.0.0.0/0
 
         """
-        interface = None
+
         parsed_stats = {}
 
         command = ('/opt/vyatta/bin/vyatta-show-firewall.pl "all_all" ' +

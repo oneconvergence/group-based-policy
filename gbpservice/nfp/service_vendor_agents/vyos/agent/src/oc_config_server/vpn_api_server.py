@@ -1,4 +1,15 @@
-#!/usr/bin/env python
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import array
 import copy
 import fcntl
@@ -9,7 +20,6 @@ import struct
 import subprocess
 import time
 
-#from vyos_session.configsession import ConfigSession as session
 from execformat.executor import session
 from netaddr import IPAddress, IPNetwork
 from operations import configOpts
@@ -72,7 +82,6 @@ SSL_VPN_COMMANDS = {
         'set interfaces openvpn %s openvpn-option \
             "--client-cert-not-required --script-security 3 \
             --auth-user-pass-verify /usr/share/vyos/auth_pam.pl via-file"'],
-    #'set interfaces openvpn %s local-host %s'],
     'delete': [
         'delete interfaces openvpn %s',
         'delete interfaces openvpn vtun0 server push-route %s']}
@@ -234,9 +243,6 @@ class VPNHandler(configOpts):
 
     def _delete_ipsec_site_conn(self, peer_address):
         cmds = copy.deepcopy(IPSEC_SITE2SITE_COMMANDS)
-        #cmd = cmds['delete'][0]
-
-        #cmd = cmd % peer_address
         cmd = cmds['delete'][2]
 
         self._set_commands([cmd])
@@ -308,7 +314,6 @@ class VPNHandler(configOpts):
     def _get_vrrp_group(self, ifname):
         command = (
             "vbash -c -i 'show vrrp' | grep %s | awk '{print $2}'" % ifname)
-        #vrrp_ifname = ifname + "v" + os.popen(command).read().strip()
         return os.popen(command).read().strip()
 
     def _create_ipsec_site_conn(self, ctx):
@@ -333,8 +338,8 @@ class VPNHandler(configOpts):
             ip = conn['stitching_fixed_ip']
             vrrp_cmd = (
                 'set interfaces ethernet %s vrrp vrrp-group %s '
-                'run-transition-scripts master /config/scripts/restart_vpn') % (ifname,
-                                                                                group_no)
+                'run-transition-scripts master /config/scripts/restart_vpn'
+                ) % (ifname, group_no)
             ifname = ifname + "v" + str(group_no)
             logger.info("vrrp interface name: %s" % ifname)
 
@@ -377,7 +382,6 @@ class VPNHandler(configOpts):
         conn_cmds[6] = conn_cmds[6] % ('vtun0')
         conn_cmds[7] = conn_cmds[7] % ('vtun0', cidr)
         conn_cmds[8] = conn_cmds[8] % ('vtun0')
-        #conn_cmds[9] = conn_cmds[9] % ('vtun0', conn['stitching_fixed_ip'])
 
         self._set_commands(conn_cmds)
 
@@ -402,11 +406,6 @@ class VPNHandler(configOpts):
         # Note: The issue is inconsistent, but not seen anymore with this
         # new approach of setting configuration
         utils._alternate_set_and_commit(route_cmd)
-        # session.setup_config_session()
-        # self._set_commands([route_cmd])
-        # session.commit()
-        # time.sleep(2)
-        # session.teardown_config_session()
         return OP_SUCCESS
 
     def _get_all_ifs(self):
