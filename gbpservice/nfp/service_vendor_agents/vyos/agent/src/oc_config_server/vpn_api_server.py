@@ -1,23 +1,24 @@
 #!/usr/bin/env python
-import logging
-import json
-import netifaces
-import netaddr
-import socket
-import fcntl
-import struct
 import array
-import time
 import ast
 import copy
-import subprocess
+import fcntl
+import json
+import logging
 import os
-from netaddr import IPNetwork, IPAddress
-from operations import configOpts
-from vyos_session import utils
-from netifaces import AF_INET, AF_INET6, AF_LINK, AF_PACKET, AF_BRIDGE
+import socket
+import struct
+import subprocess
+import time
+
+import netaddr
+import netifaces
 #from vyos_session.configsession import ConfigSession as session
 from execformat.executor import session
+from netaddr import IPAddress, IPNetwork
+from netifaces import AF_BRIDGE, AF_INET, AF_INET6, AF_LINK, AF_PACKET
+from operations import configOpts
+from vyos_session import utils
 
 OP_SUCCESS = True
 OP_FAILED = False

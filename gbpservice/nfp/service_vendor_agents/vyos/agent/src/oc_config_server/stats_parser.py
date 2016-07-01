@@ -13,8 +13,8 @@
 
 import logging
 import subprocess
-import netifaces
 
+import netifaces
 from netifaces import AF_LINK
 from vyos_session import utils
 

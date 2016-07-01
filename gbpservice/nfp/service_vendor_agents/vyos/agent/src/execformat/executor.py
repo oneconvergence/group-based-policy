@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-import sys
-import subprocess
-import os
-
-# sys.path.append('/home/vyos/vyos-api/project/')
-from vyos_session.configsession import ConfigSession, SessionNotExists, \
-    SetupSessionFailed
-from vyos_session import utils
 import logging
+import os
 import shlex
+import subprocess
+import sys
+
+from vyos_session import utils
+# sys.path.append('/home/vyos/vyos-api/project/')
+from vyos_session.configsession import (ConfigSession, SessionNotExists,
+                                        SetupSessionFailed)
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)

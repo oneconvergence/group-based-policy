@@ -1,12 +1,15 @@
 #!/usr/bin/env python
-import sys
 import os
+import sys
+
+from executor import execUtils as executor
+from executor import OperationFailed
+from vyos_session.utils import logger
+from vyosparser import vyos_parser as vparser
+
 topdir = os.path.dirname(os.path.realpath(__file__)) + "../.."
 topdir = os.path.realpath(topdir)
 sys.path.insert(0, topdir)
-from executor import OperationFailed, execUtils as executor
-from vyos_session.utils import logger
-from vyosparser import vyos_parser as vparser
 
 
 class ServiceError(Exception):

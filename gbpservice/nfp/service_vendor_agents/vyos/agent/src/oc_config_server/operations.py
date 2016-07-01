@@ -13,14 +13,16 @@
 
 #!/usr/bin/env python
 
-import sys
-import os
 import logging
+import os
+import sys
+
+from execformat.executor import OperationFailed, execUtils
+from vyos_session import utils
+
 topdir = os.path.dirname(os.path.realpath(__file__)) + "../.."
 topdir = os.path.realpath(topdir)
 sys.path.insert(0, topdir)
-from execformat.executor import execUtils, OperationFailed
-from vyos_session import utils
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)

@@ -1,6 +1,7 @@
-import netifaces
 import shlex
 import subprocess
+
+import netifaces
 
 
 def initiate_dhclient():

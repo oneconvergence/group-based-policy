@@ -11,17 +11,18 @@
 # strictly forbidden unless prior written permission is obtained from
 # One Convergence, Inc., USA
 
+import ast
+import json
 #!/usr/bin/env python
 import logging
-import json
-import netifaces
 import time
+
 import fw_constants
-import ast
+import netifaces
+from execformat.executor import session
+from netifaces import AF_BRIDGE, AF_INET, AF_INET6, AF_LINK, AF_PACKET
 from operations import configOpts
 from vyos_session import utils
-from netifaces import AF_INET, AF_INET6, AF_LINK, AF_PACKET, AF_BRIDGE
-from execformat.executor import session
 
 FWN = 'firewall name'
 # oc_fw_identifier = 'oc_fw'

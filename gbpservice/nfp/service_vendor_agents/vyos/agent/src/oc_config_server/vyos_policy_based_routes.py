@@ -1,15 +1,14 @@
 import copy
 import json
 import logging
-import netifaces
 import subprocess
-import netaddr
 import time
 
+import netaddr
+import netifaces
 from execformat.executor import session
 from operations import configOpts
 from vyos_session import utils
-
 
 ROUTING_TABLE_BASE = 10
 

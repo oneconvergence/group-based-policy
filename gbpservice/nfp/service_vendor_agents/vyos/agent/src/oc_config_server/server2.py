@@ -11,31 +11,29 @@
 # strictly forbidden unless prior written permission is obtained from
 # One Convergence, Inc., USA
 
-import sys
-import os
-import json
-import signal
-import logging
 import ast
+import json
+import logging
+import os
+import signal
+import sys
 import time
 from os.path import abspath, dirname
 
 import netifaces
+from edit_persistent_rule import EditPersistentRule
+from flask import Flask, jsonify, request
+from fw_module import OCFWConfigClass
+from ha_config import VYOSHAConfig
+from log_forwarder import APIHandler as apihandler
+from static_ip import StaticIp
+from stats_parser import APIHandler as stats_apihandler
+from vpn_api_server import VPNHandler as vpnhandler
+from vyos_exception import OCException
+from vyos_policy_based_routes import RoutesConfigHandler as routes_handler
+from vyos_session.utils import init_logger
 
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
-from vyos_session.utils import init_logger
-from fw_module import OCFWConfigClass
-from edit_persistent_rule import EditPersistentRule
-from static_ip import StaticIp
-from flask import Flask, request
-from os.path import abspath, dirname
-from vpn_api_server import VPNHandler as vpnhandler
-from vyos_policy_based_routes import RoutesConfigHandler as routes_handler
-from ha_config import VYOSHAConfig
-from vyos_exception import OCException
-from flask import jsonify
-from log_forwarder import APIHandler as apihandler
-from stats_parser import APIHandler as stats_apihandler
 # sys.path.insert(0, dirname(dirname(abspath(__file__))))
 # sys.path.insert(0, (abspath(__file__)))
 

@@ -1,7 +1,8 @@
+import logging
 import os
 from uuid import uuid4
-from utils import get_config_params, _run, clean_environ, init_logger
-import logging
+
+from utils import _run, clean_environ, get_config_params, init_logger
 
 logger = logging.getLogger(__name__)
 init_logger(logger)

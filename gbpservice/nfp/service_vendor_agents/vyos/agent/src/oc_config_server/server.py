@@ -11,11 +11,11 @@
 # strictly forbidden unless prior written permission is obtained from
 # One Convergence, Inc., USA
 
-import signal
 import logging
+import signal
 import sys
-from vyos_session.utils import init_logger
 
+from vyos_session.utils import init_logger
 
 logger = logging.getlogger(__name__)
 init_logger(logger)

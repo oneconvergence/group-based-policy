@@ -1,8 +1,8 @@
 import ConfigParser
-import subprocess
-import os
 import logging
 import logging.handlers as handlers
+import os
+import subprocess
 
 # In production environment CONFIG_DIR should be /etc/pyatta/
 CONFIG_DIR = "/usr/share/vyos"

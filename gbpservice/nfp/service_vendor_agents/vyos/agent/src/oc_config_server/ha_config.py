@@ -13,13 +13,12 @@
 
 #!/usr/bin/env python
 import json
-import netifaces
-import time
 import logging
-from netifaces import AF_INET, AF_LINK
+import time
 
+import netifaces
 from execformat.executor import session
-
+from netifaces import AF_INET, AF_LINK
 from operations import configOpts
 from vyos_session import utils
 
