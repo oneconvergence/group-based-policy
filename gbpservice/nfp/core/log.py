@@ -82,12 +82,14 @@ class NfpLogContext(object):
 
     def __init__(self, **kwargs):
         self.meta_id = kwargs.get('meta_id', '')
+        self.auth_token = kwargs.get('auth_token', '')
 
     def emit(self):
         return "[LogMetaID:%s]" % (self.meta_id)
 
     def to_dict(self):
-        return {'meta_id': self.meta_id}
+        return {'meta_id': self.meta_id,
+                'auth_token': self.auth_token}
 
 def getLogger(name):
     return oslo_logging.getLogger(name)
