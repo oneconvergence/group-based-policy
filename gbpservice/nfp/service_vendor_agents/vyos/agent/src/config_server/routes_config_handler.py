@@ -114,62 +114,6 @@ class RoutesConfigHandler(object):
                                      % (cidr))
                         break
 
-    def _del_default_route_in_table(self, table):
-        route_del_command = "ip route del table %s default" % (table)
-        command_pipe = subprocess.Popen(route_del_command, shell=True,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
-        out, err = command_pipe.communicate()
-        if command_pipe.returncode != 0:
-            logger.error("Deleting default route failed: %s" % (err))
-
-    def _add_default_route_in_table(self, route_cmd, table):
-        command_pipe = subprocess.Popen(route_cmd, shell=True,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
-        out, err = command_pipe.communicate()
-        # Delete the existing default route if any and retry
-        if command_pipe.returncode != 0:
-            if "File exists" in err:
-                self._del_default_route_in_table(table)
-            else:
-                logger.error("Adding default route failed: %s" % (route_cmd))
-                logger.error("Error: %s" % (err))
-                raise Exception("Setting Default Table route failed")
-        else:
-            return out
-
-        command_pipe = subprocess.Popen(route_cmd, shell=True,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
-        out, err = command_pipe.communicate()
-        if command_pipe.returncode != 0:
-            logger.error("Adding default route failed: %s" % (route_cmd))
-            logger.error("Error: %s" % (err))
-            raise Exception("Setting Default Table route failed")
-        else:
-            return out
-
-    def _delete_ip_rule(self, cidr):
-        count = 0
-        for direction in ["from", "to"]:
-            ip_rule_cmd = "ip rule del %s %s" % (direction, cidr)
-            while True:
-                command_pipe = subprocess.Popen(ip_rule_cmd, shell=True,
-                                                stdout=subprocess.PIPE,
-                                                stderr=subprocess.PIPE)
-                out, err = command_pipe.communicate()
-                # Delete the existing default route if any and retry
-                if command_pipe.returncode != 0 and "No such file" in err:
-                    break
-                else:
-                    count = count + 1
-                    if count >= 10:
-                        logger.error("Deleting policy based routing for CIDR: "
-                                     "%s not completed even after 10 attempts"
-                                     % (cidr))
-                        break
-
     # REVISIT(Magesh): There may be a chance that there are duplicate rules
     # May have to do a list and cleanup multiple entries
     def delete_source_route(self, routes_info):

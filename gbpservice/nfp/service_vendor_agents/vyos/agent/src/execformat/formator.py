@@ -42,9 +42,6 @@ class showConfig():
             raise ServiceError('unknown such service!')
         exe = executor(list(args))
         try:
-            # if not exe.checkcmd(' '.join(args)):
-             #   logger.error("%s: given args does not match with existing configs!"%args)
-              #  return False
             execstate, output = exe.execmd()
             logger.debug("=====>>>>>> args after executor call = %s" % args)
         except OperationFailed as e:

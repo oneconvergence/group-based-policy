@@ -51,8 +51,6 @@ class VYOSHAConfig(configOpts):
             interface_type='monitoring')
 
         if not monitoring_interface:
-            # return {'status': 500,
-            #         'message': 'Failed to get monitoring interface name'}
             logger.error("Failed to configure conntrack for CLUSTER- %r" %
                          cluster_name)
             raise Exception("Conntrack sync configuration failed. Reason - "
@@ -114,7 +112,6 @@ class VYOSHAConfig(configOpts):
         """
         vrrp_config = json.loads(vrrp_config)
         data_macs = vrrp_config["data_macs"]
-        # cluster_name = vrrp_config.get("cluster_name", "CLUSTER-1")
 
         data_interface, data_ip = self._get_interface_name(
             dict(data_mac=data_macs['provider_mac']), interface_type='data')
@@ -126,44 +123,21 @@ class VYOSHAConfig(configOpts):
         stitching_vrrp_delete = "interfaces ethernet %s vrrp" % data_interface
 
         session.setup_config_session()
-        # delete_conntrack_cluster = ("service conntrack-sync "
-        #                            "failover-mechanism vrrp sync-group %s" %
-        #                            cluster_name)
-        # try:
-        #     self.delete(group_delete.split())
-        # except Exception, err:
-        #     session.discard()
-        #     session.teardown_config_session()
-        #     raise Exception(err)
 
         try:
             self.delete(provider_vrrp_delete.split())
         except Exception as err:
-            # session.discard()
             logger.error("Error deleting provider vrrp %r " % err)
-            # raise Exception(err)
 
         try:
             self.delete(stitching_vrrp_delete.split())
         except Exception as err:
-            # session.discard()
             logger.error("Error deleting stitching vrrp %r " % err)
-            # raise Exception(err)
 
-        # try:
-        #    self.delete(delete_conntrack_cluster.split())
-        # except Exception, err:
-            # session.discard()
-            # session.teardown_config_session()
-            # raise Exception(err)
-        #    logger.error("Error deleting conntrack - %r " % err)
 
         session.commit()
         time.sleep(5)
         session.save()
-        # REVISIT (VK) This sleep need to get invoked if we see any issue
-        # with session teardown.
-        # time.sleep(5)
         session.teardown_config_session()
         logger.debug("VRRP succesfully deleted for interfaces")
         return {'status': 200, 'message': 'VRRP succesfully deleted for '
@@ -180,7 +154,6 @@ class VYOSHAConfig(configOpts):
         vrrp_groups = data_info["vrrp_group"]
 
         for mac_type, mac in data_macs.iteritems():
-            # mac_type - provider_mac, stitching_mac
             data_mac = dict(data_mac=str(mac))
             vip_type = mac_type.split("_")[0] + "_vip"
             vip_ip = vips.get(vip_type)
@@ -209,8 +182,6 @@ class VYOSHAConfig(configOpts):
                 data_info["advertised_interval"])
 
             preempt_set = common_command + "preempt true"
-            # preempt_set = common_command + "preempt %s" % data_info[
-            # "preempt"]
             preempt_delay_set = common_command + "preempt-delay %s" % \
                                                  data_info["preempt_delay"]
             priority_set = common_command + "priority %s" % data_info[

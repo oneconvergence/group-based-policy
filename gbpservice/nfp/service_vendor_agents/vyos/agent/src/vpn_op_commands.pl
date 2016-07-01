@@ -45,7 +45,6 @@ sub get_ipsec_tunnel_idx {
 sub get_ipsec_tunnel_state {
   my @args = @_;
 
-  #args[0] will be subroutine name
 
   my $peer = $args[1];
   my $tunnel = $args[2];
@@ -60,7 +59,6 @@ sub get_ipsec_tunnel_state {
   return $state
 }
 
-#print Dumper \@ARGV;
 
 my $call=$ARGV[0];
 $call->(@ARGV);

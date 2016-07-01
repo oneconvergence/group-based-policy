@@ -23,9 +23,6 @@ VYOS_SHELL_API = get_config_params('bin', 'shell_api_path')
 VYOS_SBIN_DIR = get_config_params('bin', 'vyos_sbin_dir')
 VYOS_SAVE_SCRIPT = 'vyatta-save-config.pl'
 
-# Create/Get the logger object
-# logger = init_logger()
-
 
 class SessionAlreadyExists(Exception):
     pass
@@ -153,7 +150,6 @@ class ConfigSession(Session):
         out = _run(os.path.join(VYOS_SBIN_DIR, 'my_discard'), output=True)
         if not out:
             raise OperationFailed('[ERROR] Discard changes failed !')
-        # return out.splitlines()[0]
         return out
 
     def save(self):

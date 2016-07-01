@@ -31,8 +31,6 @@ class EditPersistentRule(object):
     def add(self, mac_info):
         provider_rule, stitching_rule, interface_list = self.get_rule(mac_info)
         self.clean_stale_rules(interface_list)
-        # line = ADD_RULE % (mac, interface)
-        # initiate_dhclient()
         self.delete(mac_info)
         try:
             call("sudo chown vyos: "

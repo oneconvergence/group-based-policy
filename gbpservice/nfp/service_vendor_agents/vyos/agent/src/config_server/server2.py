@@ -79,8 +79,6 @@ def auth_server_config():
             os.system("sudo chown vyos:users /etc/hosts")
             os.system("sudo echo '\n%s' >> /etc/hosts" % data['host_mapping'])
             os.system("sudo chown root:root /etc/hosts")
-            # with open('/etc/hosts', 'a') as hosts:
-            #    hosts.write(data['host_mapping'])
     except Exception as e:
         logger.error("Error in writing host mapping in /etc/hosts - %s" % e)
 
@@ -393,7 +391,6 @@ def delete_vrrp():
         return jsonify(**response)
 
 
-# @app.errorhandler(VyosException)
 def send_error_response(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code

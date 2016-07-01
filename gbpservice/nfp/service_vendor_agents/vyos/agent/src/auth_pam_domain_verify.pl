@@ -93,7 +93,6 @@ sub read_auth_server_conf {
 	chomp $REMOTE_VPN_ROLE_NAME;
 	chomp $PROJECT_ID;
 
-	#$DB::single = 1;
 
 	close(AUTHFILE);
 }
@@ -131,16 +130,13 @@ sub read_username_passwd {
 
 
 sub get_cloud_admin_token {
-    #$DB::single = 1;
 
     my $http_req = HTTP::Request->new(POST => $url_get_admin_token);
     $http_req->header('content-type' => 'application/json');
     $get_admin_token_data->{"auth"}{"identity"}{"password"}{"user"}{"name"} = $cloud_admin_username;
     $get_admin_token_data->{"auth"}{"identity"}{"password"}{"user"}{"password"} = $cloud_admin_password;
-    #$get_admin_token_data->{"auth"}{"scope"}{"project"}{"name"} = $cloud_admin_projname;
     $json_string = to_json($get_admin_token_data);
     $http_req->content($json_string);
-    #$http_req->content($get_admin_token_data);
     my $http_resp = $httpclient->request($http_req);
     if ($http_resp->is_success) {
         my $message = $http_resp->decoded_content;
@@ -157,7 +153,6 @@ sub get_cloud_admin_token {
 
 sub get_domain_id {
     my $http_req = HTTP::Request->new(GET => $url_get_domain);
-    #$DB::single = 1;
     $http_req->header('content-type' => 'application/json');
     $http_req->header('x-auth-token' => $admin_token_id);
 
@@ -177,7 +172,6 @@ sub get_domain_id {
 
 sub get_role_id {
     my $http_req = HTTP::Request->new(GET => $url_get_role_id);
-    #$DB::single = 1;
     $http_req->header('content-type' => 'application/json');
     $http_req->header('x-auth-token' => $admin_token_id);
 
@@ -210,7 +204,6 @@ sub user_authenticate {
 
     if ($http_resp->is_success) {
         my $message = $http_resp->decoded_content;
-	#$DB::single = 1;
         my $decoded_resp = decode_json($message);
         $user_token_id = $http_resp->headers->{'x-subject-token'};
 	$user_id = $decoded_resp->{'token'}->{'user'}->{'id'};
@@ -227,7 +220,6 @@ sub user_authenticate {
 sub get_user_roles {
     $url_get_role_assignment = $KEYSTONE_AUTH_URL . "/v3/role_assignments?user.id=$user_id&role.id=$user_role_id";
     my $http_req = HTTP::Request->new(GET => $url_get_role_assignment);
-    #$DB::single = 1;
     $http_req->header('content-type' => 'application/json');
     $http_req->header('x-auth-token' => $admin_token_id);
 
@@ -235,7 +227,6 @@ sub get_user_roles {
     if ($http_resp->is_success) {
         my $message = $http_resp->decoded_content;
         my $decoded_resp = decode_json($message);
-	#$DB::single = 1;
 	my $user_roles = $decoded_resp->{'role_assignments'};
         my $len = @{$user_roles};
 	if ($len) {

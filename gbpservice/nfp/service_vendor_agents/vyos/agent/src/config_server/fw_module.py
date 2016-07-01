@@ -296,7 +296,6 @@ class VyosFWConfigClass(configOpts):
         for interface in interfaces:
             # IPV4 support only
             # (Fixme) what in the case of aliasing?
-            # ip = netifaces.ifaddresses(interface)[AF_INET][0]['addr']
             # TODO (Vikash) Not reqd for L2 , need to revisit for L3
             # vpn tunnel interface for ssl vpn does not have a mac address
             physical_interface = netifaces.ifaddresses(interface).get(AF_LINK)

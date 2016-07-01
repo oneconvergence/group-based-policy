@@ -3,7 +3,6 @@ case $reason in
     BOUND|RENEW|REBIND|REBOOT)
       if [ "eth0" == $interface ]; then
           echo $new_routers > /usr/share/vyos-pbr/eth0_route
-          #unset new_routers
       else
           unset new_routers
       fi
