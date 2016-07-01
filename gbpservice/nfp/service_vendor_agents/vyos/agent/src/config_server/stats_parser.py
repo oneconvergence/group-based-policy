@@ -57,7 +57,7 @@ class APIHandler(object):
         """
         sample data for command show_firewall_detail.xsl :
 
-        IPv4 Firewall "oc_fw_eth1":
+        IPv4 Firewall "fw_eth1":
 
         Active on (eth1,OUT)
 
@@ -280,7 +280,7 @@ class APIHandler(object):
         """
         sample data for command show_firewall_statistics.xsl :
 
-        IPv4 Firewall "oc_fw_eth1":
+        IPv4 Firewall "fw_eth1":
 
         Active on (eth1,OUT)
 

@@ -16,5 +16,5 @@ import sys
 
 sys.path.append("/usr/share/vyos")
 
-from oc_config_server.server2 import main
+from config_server.server2 import main
 main()

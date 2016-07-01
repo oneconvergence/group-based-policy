@@ -18,8 +18,8 @@
 # Required-Stop: $remote_fs $syslog
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
-# Short-Description: OC vyos service
-# Description: Provides the vyos service
+# Short-Description: Vyos agent service
+# Description: Provides the vyos agent service
 ### END INIT INFO
 set -e
 PIDFILE=/var/run/elastic_services/vyos.pid

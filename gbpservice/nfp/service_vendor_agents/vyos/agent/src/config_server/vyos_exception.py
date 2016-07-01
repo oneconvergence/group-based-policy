@@ -11,7 +11,7 @@
 #    under the License.
 
 
-class OCException(Exception):
+class VyosException(Exception):
     """
     """
     status_code = 400

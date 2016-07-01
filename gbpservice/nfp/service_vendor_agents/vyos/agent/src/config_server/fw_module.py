@@ -23,7 +23,6 @@ from operations import configOpts
 from vyos_session import utils
 
 FWN = 'firewall name'
-# oc_fw_identifier = 'oc_fw'
 rule = 'rule'
 firewall_rules = {
     'protocol': '%s protocol %s',
@@ -39,11 +38,11 @@ logger = logging.getLogger(__name__)
 utils.init_logger(logger)
 
 
-class OCFWConfigClass(configOpts):
+class VyosFWConfigClass(configOpts):
 
     def __init__(self):
-        super(OCFWConfigClass, self).__init__()
-        self.oc_fw_identifier = 'oc_fw'
+        super(VyosFWConfigClass, self).__init__()
+        self.fw_identifier = 'fw'
         self.provider_ptg_interfaces = list()
         self.rules = list()
 
@@ -122,12 +121,12 @@ class OCFWConfigClass(configOpts):
             session.teardown_config_session()
 
     def add_common_rule(self):
-        self.oc_fw_identifier = ('oc_fw' + '_' +
+        self.fw_identifier = ('fw' + '_' +
                                  self.provider_ptg_interfaces[0])
-        default_action = (FWN + ' ' + self.oc_fw_identifier +
+        default_action = (FWN + ' ' + self.fw_identifier +
                           ' default-action drop'
                           )
-        common_fw_rule_prefix = (FWN + ' ' + self.oc_fw_identifier + ' ' +
+        common_fw_rule_prefix = (FWN + ' ' + self.fw_identifier + ' ' +
                                  rule + ' 10')
         accept_action = (common_fw_rule_prefix + ' action accept')
         established_action = (common_fw_rule_prefix +
@@ -144,7 +143,7 @@ class OCFWConfigClass(configOpts):
         position = str(int(fw_rule.get('position', '100')) + 10)
         if position < 1:
             position *= 10
-        common_fw_rule_prefix = (FWN + ' ' + self.oc_fw_identifier + ' ' +
+        common_fw_rule_prefix = (FWN + ' ' + self.fw_identifier + ' ' +
                                  rule + ' ' + position)
         self.rules.append(common_fw_rule_prefix)
         self.rules.append(''.join([common_fw_rule_prefix, ' action %s' %
@@ -170,7 +169,7 @@ class OCFWConfigClass(configOpts):
             # TODO(Vikash) Its not always the bridge will have same name every
             #  time. Its only for intercloud
             interface_conf = ("interfaces bridge br0 firewall in name " +
-                              self.oc_fw_identifier)
+                              self.fw_identifier)
             self.rules += [interface_conf]
         else:
             # It would be always 1 for now.
@@ -178,7 +177,7 @@ class OCFWConfigClass(configOpts):
                 if interface.lower() == 'lo':
                     continue
                 interface_conf = ('interfaces ethernet ' + interface + ' ' +
-                                  'firewall out name ' + self.oc_fw_identifier)
+                                  'firewall out name ' + self.fw_identifier)
                 self.rules += [interface_conf]
 
     def reset_firewall(self, firewall):
@@ -202,7 +201,7 @@ class OCFWConfigClass(configOpts):
 
         if fw_constants.intercloud:
             bridge_rule = ("interfaces bridge br0 firewall in name " +
-                           self.oc_fw_identifier)
+                           self.fw_identifier)
             try:
                 self.delete(bridge_rule.split())
             except Exception as err:
@@ -235,9 +234,9 @@ class OCFWConfigClass(configOpts):
 
         # sleep for 2 sec. Got removed in last merge.
         time.sleep(2)
-        self.oc_fw_identifier = ('oc_fw' + '_' +
+        self.fw_identifier = ('fw' + '_' +
                                  self.provider_ptg_interfaces[0])
-        del_firewall = FWN + ' ' + self.oc_fw_identifier
+        del_firewall = FWN + ' ' + self.fw_identifier
         try:
             self.delete(del_firewall.split())
         except Exception as err:
@@ -325,9 +324,9 @@ class OCFWConfigClass(configOpts):
         del_interface_rule = (
             'interfaces ethernet ' + self.provider_ptg_interfaces[0] +
             ' ' + 'firewall')
-        self.oc_fw_identifier = ('oc_fw' + '_' +
+        self.fw_identifier = ('fw' + '_' +
                                  self.provider_ptg_interfaces[0])
-        del_firewall = FWN + ' ' + self.oc_fw_identifier
+        del_firewall = FWN + ' ' + self.fw_identifier
         try:
             self.delete(del_interface_rule.split())
             # delete firewall

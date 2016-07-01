@@ -19,7 +19,7 @@
 # Required-Stop: $remote_fs $syslog
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
-# Short-Description: OC vyos service
+# Short-Description: vyos service
 # Description: Provides the vyos service
 ### END INIT INFO
 set -e
@@ -62,7 +62,7 @@ set +e
 running_processes=`ps aux | grep "python /usr/bin/vyos" | grep -v grep | awk '{print $2}' | wc -l`
 [ $running_processes -gt 0 ] && ps aux | grep "python /usr/bin/vyos" | grep -v grep | awk '{print $2}' | xargs kill -9
 set -e
-log_daemon_msg "Starting oc vyos"
+log_daemon_msg "Starting vyos agent"
 # We have completely messed up the rc level scripts
 sudo chown vyos:users -R /var/run/elastic_services
 sudo -u vyos start-stop-daemon -Sbmv --pidfile $PIDFILE --chdir $DAEMON_DIR --exec $DAEMON -- $DAEMON_ARGS
@@ -78,7 +78,7 @@ set +e
 kill -0 `cat $PIDFILE` > /dev/null 2>&1
 if [ $? -eq 0 ]; then
 set -e
-log_daemon_msg "Stopping oc vyos"
+log_daemon_msg "Stopping vyos agent"
 start-stop-daemon --stop --oknodo --pidfile ${PIDFILE}
 log_end_msg $?
 else
@@ -108,14 +108,14 @@ set +e
 kill -0 `cat $PIDFILE` > /dev/null 2>&1
 if [ $? -eq 0 ]; then
 set -e
-log_daemon_msg "Reloading oc vyos"
+log_daemon_msg "Reloading Vyos agent"
 start-stop-daemon --stop --signal 1 --quiet --oknodo --pidfile $PIDFILE
 log_end_msg $?
 else
 echo "No process with PID `cat $PIDFILE` found running, removing the PID file"
 fi
 else
-echo "oc vyos is not running or PID file not existing"
+echo "Vyos agent is not running or PID file not existing"
 fi
 ;;
 status)

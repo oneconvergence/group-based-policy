@@ -22,13 +22,13 @@ from os.path import abspath, dirname
 import netifaces
 from edit_persistent_rule import EditPersistentRule
 from flask import Flask, jsonify, request
-from fw_module import OCFWConfigClass
+from fw_module import VyosFWConfigClass
 from ha_config import VYOSHAConfig
 from log_forwarder import APIHandler as apihandler
 from static_ip import StaticIp
 from stats_parser import APIHandler as stats_apihandler
 from vpn_api_server import VPNHandler as vpnhandler
-from vyos_exception import OCException
+from vyos_exception import VyosException
 from vyos_policy_based_routes import RoutesConfigHandler as routes_handler
 from vyos_session.utils import init_logger
 
@@ -244,11 +244,11 @@ def configure_firewall_rule():
         response = fw_module.set_up_rule_on_interfaces(firewall_data)
     except Exception as err:
         try:
-            return send_error_response(OCException(err[0], status_code=err[1],
+            return send_error_response(VyosException(err[0], status_code=err[1],
                                                    payload=err[2]))
         except IndexError:
             return send_error_response(
-                OCException(str(err), status_code=500,
+                VyosException(str(err), status_code=500,
                             payload=dict(err=error_msgs['unexpected'] % (
                                 'configuring', 'firewall'))))
     else:
@@ -262,11 +262,11 @@ def delete_firewall_rule():
         response = fw_module.reset_firewall(request.data)
     except Exception as err:
         try:
-            return send_error_response(OCException(err[0], status_code=err[1],
+            return send_error_response(VyosException(err[0], status_code=err[1],
                                                    payload=err[2]))
         except IndexError:
             return send_error_response(
-                OCException(str(err), status_code=500,
+                VyosException(str(err), status_code=500,
                             payload=dict(err=error_msgs['unexpected'] % (
                                 'deleting', 'firewall'))))
     else:
@@ -281,11 +281,11 @@ def update_firewall_rule():
         response = fw_module.set_up_rule_on_interfaces(request.data)
     except Exception as err:
         try:
-            return send_error_response(OCException(err[0], status_code=err[1],
+            return send_error_response(VyosException(err[0], status_code=err[1],
                                                    payload=err[2]))
         except IndexError:
             return send_error_response(
-                OCException(str(err), status_code=500,
+                VyosException(str(err), status_code=500,
                             payload=dict(err=error_msgs['unexpected'] % (
                                 'updating', 'firewall'))))
     else:
@@ -347,11 +347,11 @@ def configure_conntrack_sync():
         # This flask version has issue in implicit way of registering
         # error handler.
         try:
-            return send_error_response(OCException(err[0], status_code=err[1],
+            return send_error_response(VyosException(err[0], status_code=err[1],
                                                    payload=err[2]))
         except IndexError:
             return send_error_response(
-                OCException(str(err), status_code=500,
+                VyosException(str(err), status_code=500,
                             payload=dict(err=error_msgs['unexpected'] % (
                                 'configuring', 'conntrack sync'))))
     else:
@@ -365,11 +365,11 @@ def configure_interface_ha():
         response = vyos_ha_config.set_vrrp_for_interface(request.data)
     except Exception as err:
         try:
-            return send_error_response(OCException(err[0], status_code=err[1],
+            return send_error_response(VyosException(err[0], status_code=err[1],
                                                    payload=err[2]))
         except IndexError:
             return send_error_response(
-                OCException(str(err), status_code=500,
+                VyosException(str(err), status_code=500,
                             payload=dict(
                                 err=error_msgs['unexpected'] % (
                                     'configuring', 'HA for the interface'))))
@@ -384,18 +384,18 @@ def delete_vrrp():
         response = vyos_ha_config.delete_vrrp(request.data)
     except Exception as err:
         try:
-            return send_error_response(OCException(err[0], status_code=err[1],
+            return send_error_response(VyosException(err[0], status_code=err[1],
                                                    payload=err[2]))
         except IndexError:
             return send_error_response(
-                OCException(str(err), status_code=500,
+                VyosException(str(err), status_code=500,
                             payload=dict(err=error_msgs['unexpected'] % (
                                 'deleting', 'VRRP'))))
     else:
         return jsonify(**response)
 
 
-# @app.errorhandler(OCException)
+# @app.errorhandler(VyosException)
 def send_error_response(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
@@ -546,7 +546,7 @@ def main():
     :type ip_addr: Server listen address
     """
     global fw_module, vyos_ha_config
-    fw_module = OCFWConfigClass()
+    fw_module = VyosFWConfigClass()
     vyos_ha_config = VYOSHAConfig()
     ip_addr = get_interface_to_bind()
     signal.signal(signal.SIGTERM, handler)
