@@ -15,9 +15,9 @@ import multiprocessing
 import uuid as pyuuid
 
 from gbpservice.nfp.core import common as nfp_common
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core import sequencer as nfp_seq
-from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 identify = nfp_common.identify
@@ -40,13 +40,15 @@ SequencerBusy = nfp_seq.SequencerBusy
 
 deque = collections.deque
 
+
 class EventGraphNode(object):
+
     def __init__(self, event, p_event=None):
         self.p_link = ()
         self.c_links = []
         self.w_links = []
         self.e_links = []
-        self.event  = event
+        self.event = event
         self.result = None
 
         if p_event:
@@ -131,7 +133,7 @@ class EventGraph(object):
         for link in e_links:
             node = self.nodes[link]
             uuid = node.event
-            key, id  = uuid.split(':')
+            key, id = uuid.split(':')
             result = nfp_common.Object()
             setattr(result, 'id', id)
             setattr(result, 'key', key)
@@ -171,11 +173,11 @@ class EventDesc(object):
     def __init__(self, **kwargs):
         # Unique id of the event, use what user passed or
         # generate a new unique id.
-        uuid = kwargs.get('key', pyuuid.uuid4()) 
+        uuid = kwargs.get('key', pyuuid.uuid4())
         id = kwargs.get('id', '')
 
         self.uuid = str(uuid) + ':' + id
-        
+
         # see 'Event Types'
         self.type = kwargs.get('type')
         # see 'Event Flag'
@@ -197,7 +199,7 @@ class EventDesc(object):
                 'flag': self.flag,
                 'worker': self.worker,
                 'poll_desc': self.poll_desc
-        }
+                }
 
 """Defines the event structure.
 
@@ -243,8 +245,8 @@ class Event(object):
         self.desc = desc
 
         # Will be set if this event is a event graph
-        self.graph    = kwargs.get('graph', None)
-        self.result   = None
+        self.graph = kwargs.get('graph', None)
+        self.result = None
 
         cond = self.sequence is True and self.binding_key is None
         assert not cond
@@ -288,9 +290,9 @@ class NfpEventHandlers(object):
             for the event and caches it.
         """
         if not isinstance(event_handler, nfp_api.NfpEventHandler):
-            LOG.error("%s - Handler is not"
-                      "instance of NfpEventHandler" %
-                      (self._log_meta(event_id, event_handler)))
+            message = "%s - Handler is not instance of NfpEventHandler" % (
+                self._log_meta(event_id, event_handler))
+            LOG.error(message)
             return
         try:
             poll_desc_table = event_handler.get_poll_desc_table()
@@ -307,9 +309,9 @@ class NfpEventHandlers(object):
         except KeyError:
             self._event_desc_table[event_id] = [
                 (event_handler, poll_handler, spacing)]
-
-        LOG.debug("%s - Registered handler" %
-                  (self._log_meta(event_id, event_handler)))
+        message = "%s - Registered handler" % (
+            self._log_meta(event_id, event_handler))
+        LOG.debug(message)
 
     def get_event_handler(self, event_id):
         """Get the handler for the event_id. """
@@ -317,8 +319,9 @@ class NfpEventHandlers(object):
         try:
             eh = self._event_desc_table[event_id][0][0]
         finally:
-            LOG.debug("%s - Returning event handler" %
-                      (self._log_meta(event_id, eh)))
+            message = "%s - Returning event handler" % (
+                self._log_meta(event_id, eh))
+            LOG.debug(message)
             return eh
 
     def get_poll_handler(self, event_id):
@@ -327,8 +330,9 @@ class NfpEventHandlers(object):
         try:
             ph = self._event_desc_table[event_id][0][1]
         finally:
-            LOG.debug("%s - Returning poll handler" %
-                      (self._log_meta(event_id, ph)))
+            message = "%s - Returning poll handler" % (
+                self._log_meta(event_id, ph))
+            LOG.debug(message)
             return ph
 
     def get_poll_spacing(self, event_id):
@@ -337,8 +341,9 @@ class NfpEventHandlers(object):
         try:
             spacing = self._event_desc_table[event_id][0][2]
         finally:
-            LOG.debug("%s - Poll spacing %d" %
-                      (self._log_meta(event_id), spacing))
+            message = "%s - Poll spacing %d" % (
+                self._log_meta(event_id), spacing)
+            LOG.debug(message)
             return spacing
 
 
@@ -387,7 +392,8 @@ class NfpEventManager(object):
                 event = self._controller.pipe_recv(pipe)
                 events.append(event)
         except multiprocessing.TimeoutError as err:
-            LOG.exception("%s" % (err))
+            message = "%s" % (err)
+            LOG.exception(message)
         return events
 
     def init_from_event_manager(self, em):
@@ -419,14 +425,16 @@ class NfpEventManager(object):
 
             Removes event from cache.
         """
-        LOG.debug("%s - pop event" % (self._log_meta(event)))
+        message = "%s - pop event" % (self._log_meta(event))
+        LOG.debug(message)
         try:
             self._cache.remove(event.desc.uuid)
             self._load -= 1
         except ValueError as verr:
             verr = verr
-            LOG.warn("%s - event not in cache" %
-                      (self._log_meta(event)))
+            message = "%s - event not in cache" % (
+                self._log_meta(event))
+            LOG.warn(message)
 
     def dispatch_event(self, event, event_type=None,
                        inc_load=True, cache=True):
@@ -436,8 +444,9 @@ class NfpEventManager(object):
             Increments load if event_type is SCHEDULED event,
             poll_event does not contribute to load.
         """
-        LOG.debug("%s - Dispatching to worker %d" %
-                  (self._log_meta(event), self._pid))
+        message = "%s - Dispatching to worker %d" % (
+            self._log_meta(event), self._pid)
+        LOG.debug(message)
         # Update the worker information in the event.
         event.desc.worker = self._pid
         # Update the event with passed type

@@ -10,16 +10,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core.rpc import RpcAgent
-import gbpservice.nfp.lib.transport as transport
-from gbpservice.nfp.proxy_agent.lib import topics
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.lib import transport
-from neutron import context as n_context
+from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.lib import transport as transport
+from gbpservice.nfp.proxy_agent.lib import topics
+
 
 from oslo_log import helpers as log_helpers
 import oslo_messaging as messaging
-import time
 
 LOG = nfp_logging.getLogger(__name__)
 

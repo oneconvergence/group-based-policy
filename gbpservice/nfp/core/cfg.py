@@ -13,8 +13,6 @@
 
 from oslo_config import cfg as oslo_config
 
-# from gbpservice.nfp.core import version
-
 NFP_OPTS = [
     oslo_config.IntOpt(
         'workers',

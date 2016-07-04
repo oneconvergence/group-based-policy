@@ -10,9 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import os
-import pdb
-import sys
 import time
 
 from oslo_config import cfg as oslo_cfg
@@ -20,27 +17,15 @@ from oslo_log import log as oslo_logging
 
 oslo_logging.register_options(oslo_cfg.CONF)
 
-class Object(object): pass
+
+class Object(object):
+    pass
+
 
 def init():
     """Initialize logging. """
     product_name = "nfp"
     oslo_logging.setup(oslo_cfg.CONF, product_name)
-
-class ForkedPdb(pdb.Pdb):
-
-    """A Pdb subclass that may be used
-    from a forked multiprocessing child
-
-    """
-
-    def interaction(self, *args, **kwargs):
-        _stdin = sys.stdin
-        try:
-            sys.stdin = file('/dev/stdin')
-            pdb.Pdb.interaction(self, *args, **kwargs)
-        finally:
-            sys.stdin = _stdin
 
 
 def _is_class(obj):
@@ -92,4 +77,3 @@ def time_stamp():
     """
     _time_ms = lambda: int(round(time.time() * 1000.0))
     return _time_ms()
-
