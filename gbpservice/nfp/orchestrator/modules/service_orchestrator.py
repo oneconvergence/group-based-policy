@@ -1043,10 +1043,10 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
     def apply_user_config(self, event):
         event_results = event.graph.get_leaf_node_results(event)
         for c_event in event_results:
-            if event.id == "SEND_HEAT_CONFIG" and (
-                    event.result.upper() == "HANDLED"):
+            if c_event.id == "SEND_HEAT_CONFIG" and (
+                    c_event.result.upper() == "HANDLED"):
                 self._controller.event_complete(
-                    event, result="SUCCESS")
+                    c_event, result="SUCCESS")
             return
         nfp_context = event.data
         nfp_core_context.store_nfp_context(nfp_context)
@@ -1431,6 +1431,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
     def handle_config_applied(self, event):
         nfp_context = event.data['nfp_context']
         base_mode = nfp_context['base_mode']
+        network_function_id = nfp_context['network_function']['id']
         if base_mode:
             network_function = {
                 'status': nfp_constants.ACTIVE,
@@ -1444,8 +1445,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                      {'network_function_id':
                       network_function_id})
         else:
-            network_function_instance_id = event_data.get(
-                'network_function_instance_id')
+            network_function_instance_id = (
+                nfp_context['network_function_instance']['id'])
             if network_function_instance_id:
                 nfi = {
                     'status': nfp_constants.ACTIVE,
