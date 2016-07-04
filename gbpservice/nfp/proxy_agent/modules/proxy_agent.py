@@ -161,13 +161,19 @@ class RpcHandler(object):
         """Method of rpc handler for create_service.
         Return: Http Response.
         """
-        body_info = body.get('info')
-        body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context', {})
-        nfp_logging.store_logging_context(**logging_context)
+        if 'eventid' in body and body['eventid'] == 'NFP_UP_TIME':
+            transport.send_request_to_configurator(self._conf,
+                                                   context, body,
+                                                   "CREATE",
+                                                   network_function_event=True)
+        else:
+            body_info = body.get('info')
+            body_context = body_info.get('context')
+            logging_context = body_context.get('logging_context', {})
+            nfp_logging.store_logging_context(**logging_context)
 
-        transport.send_request_to_configurator(self._conf,
-                                               context, body,
-                                               "CREATE",
-                                               network_function_event=True)
-        nfp_logging.clear_logging_context()
+            transport.send_request_to_configurator(self._conf,
+                                                   context, body,
+                                                   "CREATE",
+                                                   network_function_event=True)
+            nfp_logging.clear_logging_context()
