@@ -1046,7 +1046,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             if c_event.id == "SEND_HEAT_CONFIG" and (
                     c_event.result.upper() == "HANDLED"):
                 self._controller.event_complete(
-                    c_event, result="SUCCESS")
+                    event, result="SUCCESS")
             return
         nfp_context = event.data
         nfp_core_context.store_nfp_context(nfp_context)
