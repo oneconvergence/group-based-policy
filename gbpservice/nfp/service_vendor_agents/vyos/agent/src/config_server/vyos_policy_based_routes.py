@@ -11,13 +11,14 @@
 #    under the License.
 
 import copy
-import json
 import logging
+import netaddr
+import netifaces
 import subprocess
 import time
 
-import netaddr
-import netifaces
+from oslo_serialization import jsonutils
+
 from operations import configOpts
 from vyos_session import utils
 
@@ -164,7 +165,7 @@ class RoutesConfigHandler(configOpts):
             return True
 
     def add_source_route(self, routes_info):
-        routes_info = json.loads(routes_info)
+        routes_info = jsonutils.loads(routes_info)
         for route_info in routes_info:
             source_cidr = route_info['source_cidr']
             gateway_ip = route_info['gateway_ip']
@@ -182,7 +183,7 @@ class RoutesConfigHandler(configOpts):
                 message = ("Configuring Policy based route failed. "
                            "Error: %s" % (err))
                 raise Exception(message)
-        return json.dumps(dict(status=True))
+        return jsonutils.dumps(dict(status=True))
 
     # FIXME: When invoked on delete path we have to propagate the error
     def _delete_policy_route(self, source_cidr, source_interface):
@@ -218,14 +219,14 @@ class RoutesConfigHandler(configOpts):
         return
 
     def delete_source_route(self, routes_info):
-        routes_info = json.loads(routes_info)
+        routes_info = jsonutils.loads(routes_info)
         for route_info in routes_info:
             source_cidr = route_info['source_cidr']
             source_interface = self._get_if_name_by_cidr(source_cidr,
                                                          delete=True)
             if source_interface:
                 self._delete_policy_route(source_cidr, source_interface)
-        return json.dumps(dict(status=True))
+        return jsonutils.dumps(dict(status=True))
 
     def _get_if_name_by_cidr(self, cidr, delete=False):
         interfaces = netifaces.interfaces()

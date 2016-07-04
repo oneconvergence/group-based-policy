@@ -10,13 +10,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import json
 import logging
 import subprocess
 import time
-
 import netaddr
 import netifaces
+
+from oslo_serialization import jsonutils
+
 from vyos_session import utils
 
 ROUTING_TABLE_BASE = 10
@@ -31,7 +32,7 @@ class RoutesConfigHandler(object):
         super(RoutesConfigHandler, self).__init__()
 
     def add_source_route(self, routes_info):
-        routes_info = json.loads(routes_info)
+        routes_info = jsonutils.loads(routes_info)
         for route_info in routes_info:
             source_cidr = route_info['source_cidr']
             gateway_ip = route_info['gateway_ip']
@@ -56,7 +57,7 @@ class RoutesConfigHandler(object):
                                                     routing_table_number)
             output = "%s\n%s\n%s" % (out1, out2, out3)
             logger.info("Static route configuration result: %s" % (output))
-        return json.dumps(dict(status=True))
+        return jsonutils.dumps(dict(status=True))
 
     def _del_default_route_in_table(self, table):
         route_del_command = "ip route del table %s default" % (table)
@@ -117,7 +118,7 @@ class RoutesConfigHandler(object):
     # REVISIT(Magesh): There may be a chance that there are duplicate rules
     # May have to do a list and cleanup multiple entries
     def delete_source_route(self, routes_info):
-        routes_info = json.loads(routes_info)
+        routes_info = jsonutils.loads(routes_info)
         for route_info in routes_info:
             source_cidr = route_info['source_cidr']
             source_interface = self._get_if_name_by_cidr(source_cidr)
@@ -134,7 +135,7 @@ class RoutesConfigHandler(object):
             out = subprocess.Popen(ip_route_command, shell=True,
                                    stdout=subprocess.PIPE).stdout.read()
             logger.info("Static route delete result: %s" % (out))
-        return json.dumps(dict(status=True))
+        return jsonutils.dumps(dict(status=True))
 
     def _get_if_name_by_cidr(self, cidr):
         interfaces = netifaces.interfaces()

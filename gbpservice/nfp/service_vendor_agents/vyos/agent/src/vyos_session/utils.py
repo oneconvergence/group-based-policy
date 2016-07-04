@@ -57,9 +57,9 @@ def get_log_filehandler():
             os.makedirs(log_dir)
             open(log_file_path, 'a').close()
         except OSError as exception:
-            print exception
+            logger.error(exception)
             return False
-        print "[INFO] Create log file %s" % log_file_path
+        logger.info("[INFO] Create log file %s" % log_file_path)
     # create file handler
     fh = logging.FileHandler(log_file_path, 'a')
     fh.setLevel(eval('logging.{0}'.format(get_log_level())))

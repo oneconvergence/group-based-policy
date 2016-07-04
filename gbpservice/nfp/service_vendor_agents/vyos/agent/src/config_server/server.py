@@ -39,7 +39,7 @@ def main(argv):
     host = ''
     port = 0
     if len(argv) != 5:
-        print "server.py -h <host> -p <port>"
+        logger.info("server.py -h <host> -p <port>")
         sys.exit(2)
 
     # Review - OSM: We should accept -h -p in any order.

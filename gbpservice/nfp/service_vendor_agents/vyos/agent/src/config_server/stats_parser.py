@@ -244,9 +244,9 @@ class APIHandler(object):
 
         OpenVPN server status on vtun0 []
 
-        Client CN       Remote IP       Tunnel IP       TX byte RX byte Connected Since
-        ---------       ---------       ---------       ------- ------- ---------------
-        UNDEF           192.168.2.81    192.168.200.4      8.0K    2.7K Tue Mar  8 09:01:05 2016
+        Client CN  Remote IP    Tunnel IP    TX byte  RX byte  Connected Since
+        ---------  ---------    ---------    -------  -------  ---------------
+        UNDEF     192.168.2.81 192.168.200.4  8.0K     2.7K   Tue Mar 8 09:01:05 2016
         """
         table = False
         remote_connection = {}

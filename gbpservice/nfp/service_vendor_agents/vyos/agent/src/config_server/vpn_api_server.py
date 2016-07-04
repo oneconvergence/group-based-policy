@@ -21,7 +21,8 @@ import subprocess
 import time
 
 from execformat.executor import session
-from netaddr import IPAddress, IPNetwork
+from netaddr import IPAddress
+from netaddr import IPNetwork
 from operations import configOpts
 from vyos_session import utils
 
@@ -263,7 +264,7 @@ class VPNHandler(configOpts):
 
     def _set_commands(self, cmds):
         for cmd in cmds:
-            print cmd
+            logger.debug(cmd)
             self.set_1(cmd.split(' '))
 
     def _create_ike_group(self, ike, dpd):

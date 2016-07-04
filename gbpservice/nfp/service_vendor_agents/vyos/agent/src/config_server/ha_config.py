@@ -10,11 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import json
-import logging
+import netifaces
 import time
 
-import netifaces
+from oslo_serialization import jsonutils
+
 from execformat.executor import session
 from netifaces import AF_INET, AF_LINK
 from operations import configOpts
@@ -37,7 +37,7 @@ class VYOSHAConfig(configOpts):
         :param ha_config:
         :return:
         """
-        ha_config = json.loads(ha_config)
+        ha_config = jsonutils.loads(ha_config)
         monitoring_info, data_info = self.get_conntrack_request_data(
             ha_config)
         event_queue_size = monitoring_info["event_queue_size"]
@@ -69,7 +69,7 @@ class VYOSHAConfig(configOpts):
         return {'status': 200, 'message': 'VRRP configured succesfully'}
 
     def set_interface_ha(self, interface_config):
-        ha_config = json.loads(interface_config)
+        ha_config = jsonutils.loads(interface_config)
         try:
             cluster_name = ha_config["cluster_name"]
             vrrp_group = ha_config["vrrp_group"]
@@ -110,7 +110,7 @@ class VYOSHAConfig(configOpts):
         Exception code will be incorporated once the exception established
         case.
         """
-        vrrp_config = json.loads(vrrp_config)
+        vrrp_config = jsonutils.loads(vrrp_config)
         data_macs = vrrp_config["data_macs"]
 
         data_interface, data_ip = self._get_interface_name(
@@ -134,7 +134,6 @@ class VYOSHAConfig(configOpts):
         except Exception as err:
             logger.error("Error deleting stitching vrrp %r " % err)
 
-
         session.commit()
         time.sleep(5)
         session.save()
@@ -148,7 +147,7 @@ class VYOSHAConfig(configOpts):
         direct_call = False
         if isinstance(data_info, str):
             direct_call = True
-            data_info = json.loads(data_info)
+            data_info = jsonutils.loads(data_info)
         data_macs = data_info.get("data_macs", {})
         vips = data_info.get("vip", {})
         vrrp_groups = data_info["vrrp_group"]
@@ -308,7 +307,7 @@ class VYOSHAConfig(configOpts):
         for command in all_commands:
             try:
                 self.set(command.split())
-            except:
+            except Exception:
                 logger.error("Failed to configure HA. Tenant - %r" % tenant_id)
                 session.teardown_config_session()
                 raise Exception("Failed to configure HA for tenant %s" %
@@ -316,7 +315,7 @@ class VYOSHAConfig(configOpts):
                                                  "failed_command": command})
         try:
             session.commit()
-        except:
+        except Exception:
             logger.error("Failed to commit HA configuration. Tenant - %r"
                          % tenant_id)
             session.discard()

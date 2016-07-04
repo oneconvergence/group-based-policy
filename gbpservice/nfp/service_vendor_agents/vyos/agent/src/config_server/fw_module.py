@@ -11,12 +11,13 @@
 #    under the License.
 
 import ast
-import json
+import fw_constants
 import logging
+import netifaces
 import time
 
-import fw_constants
-import netifaces
+from oslo_serialization import jsonutils
+
 from execformat.executor import session
 from netifaces import AF_LINK
 from operations import configOpts
@@ -66,7 +67,7 @@ class VyosFWConfigClass(configOpts):
         """
         sorted_rule_list, self.provider_ptg_interfaces = list(), list()
 
-        firewall = json.loads(firewall)
+        firewall = jsonutils.loads(firewall)
         fw_rule_list = firewall['firewall_rule_list']
         logger.info("Initiating firewall - %s build. of Tenant: %s" % (
             firewall['id'], firewall['tenant_id']))
@@ -92,7 +93,7 @@ class VyosFWConfigClass(configOpts):
         # before on the interface. Need to evaluate side effect of this method.
         try:
             self._ensure_clean_interface()
-        except:
+        except Exception:
             pass
         self.rules = list()
         self.add_common_rule()
@@ -181,7 +182,7 @@ class VyosFWConfigClass(configOpts):
                 self.rules += [interface_conf]
 
     def reset_firewall(self, firewall):
-        fw_data = json.loads(firewall)
+        fw_data = jsonutils.loads(firewall)
         try:
             self.set_provider_interface(fw_data)
         except Exception as err:
@@ -343,7 +344,7 @@ class VyosFWConfigClass(configOpts):
         self.set(command.split())
         try:
             session.commit()
-        except:
+        except Exception:
             logger.error("Failed to update sshd listen-address to %s" %
                          mgmt_ip)
             session.discard()

@@ -11,15 +11,17 @@
 #    under the License.
 
 import ast
-import json
 import logging
+import netifaces
 import os
 import signal
 import sys
 import time
-from os.path import abspath, dirname
 
-import netifaces
+from os.path import abspath
+from os.path import dirname
+from oslo_serialization import jsonutils
+
 from edit_persistent_rule import EditPersistentRule
 from flask import Flask, jsonify, request
 from fw_module import VyosFWConfigClass
@@ -49,7 +51,7 @@ error_msgs = {
 
 @app.route('/auth-server-config', methods=['POST'])
 def auth_server_config():
-    data = json.loads(request.data)
+    data = jsonutils.loads(request.data)
     f = open("/usr/share/vyos/auth_server.conf", 'w')
     f.write(data['auth_uri'])
     f.write('\n')
@@ -66,14 +68,15 @@ def auth_server_config():
 
     try:
         host_ip = data['host_mapping'].split()[0] + "/32"
-        command = 'grep "new_routers" /var/lib/dhcp3/dhclient_eth0_lease |tail -1| cut -d: -d "=" -f2'
+        command = ('grep "new_routers" /var/lib/dhcp3/dhclient_eth0_lease'
+                   ' |tail -1| cut -d: -d "=" -f2')
         gateway_ip = os.popen(command).read().strip().strip("'")
         vpnhandler().configure_static_route("set", host_ip, gateway_ip)
 
     except Exception as ex:
         err = ("Error in adding rvpn route. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
     try:
         if data['host_mapping'].split()[1]:
             os.system("sudo chown vyos:users /etc/hosts")
@@ -82,7 +85,7 @@ def auth_server_config():
     except Exception as e:
         logger.error("Error in writing host mapping in /etc/hosts - %s" % e)
 
-    return json.dumps(dict(status=True))
+    return jsonutils.dumps(dict(status=True))
 
 
 @app.route('/create-ipsec-site-conn', methods=['POST'])
@@ -93,13 +96,13 @@ def create_ipsec_site_conn():
     "commit" the changes
     """
     try:
-        data = json.loads(request.data)
+        data = jsonutils.loads(request.data)
         status = vpnhandler().create_ipsec_site_conn(data)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = "Error in configuring ipsec_site_conection. Reason: %s" % ex
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/create-ipsec-site-tunnel', methods=['POST'])
@@ -110,16 +113,16 @@ def create_ipsec_site_tunnel():
     "commit" the changes
     """
     try:
-        tunnel = json.loads(request.data)
+        tunnel = jsonutils.loads(request.data)
         pcidrs = tunnel['peer_cidrs']
         for pcidr in pcidrs:
             tunnel['peer_cidr'] = pcidr
             status = vpnhandler().create_ipsec_site_tunnel(tunnel)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in configuring ipsec_site_tunnel. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/delete-ipsec-site-tunnel', methods=['DELETE'])
@@ -135,11 +138,11 @@ def delete_ipsec_site_tunnel():
             tunnel['local_cidr'] = local_cidr
             tunnel['peer_cidr'] = pcidr
             status = vpnhandler().delete_ipsec_site_tunnel(tunnel)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in deleting ipsec_site_tunnel. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/delete-ipsec-site-conn', methods=['DELETE'])
@@ -147,11 +150,11 @@ def delete_ipsec_site_conn():
     try:
         peer_address = request.args.get('peer_address')
         status = vpnhandler().delete_ipsec_site_conn(peer_address)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in deleting ipsec_site_connection. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/get-ipsec-site-tunnel-state', methods=['GET'])
@@ -165,35 +168,35 @@ def get_ipsec_site_tunnel_state():
         tunnel['local_cidr'] = lcidr
         tunnel['peer_cidr'] = pcidr
         status, state = vpnhandler().get_ipsec_site_tunnel_state(tunnel)
-        return json.dumps(dict(state=state))
+        return jsonutils.dumps(dict(state=state))
     except Exception as ex:
         err = ("Error in get_ipsec_site_tunnel_state. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/create-ssl-vpn-conn', methods=['POST'])
 def create_ssl_vpn_conn():
     try:
-        data = json.loads(request.data)
+        data = jsonutils.loads(request.data)
         status = vpnhandler().create_ssl_vpn_conn(data)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in create_ssl_vpn_connection. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/ssl-vpn-push-route', methods=['POST'])
 def ssl_vpn_push_route():
     try:
-        data = json.loads(request.data)
+        data = jsonutils.loads(request.data)
         status = vpnhandler().ssl_vpn_push_route(data)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in ssl_vpn_push_route. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/delete-ssl-vpn-conn', methods=['DELETE'])
@@ -201,11 +204,11 @@ def delete_ssl_vpn_conn():
     try:
         tunnel_name = request.args.get('tunnel')
         status = vpnhandler().delete_ssl_vpn_conn(tunnel_name)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in delete_ssl_vpn_conn. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/delete-ssl-vpn-route', methods=['DELETE'])
@@ -213,11 +216,11 @@ def delete_ssl_vpn_route():
     try:
         route = request.args.get('route')
         status = vpnhandler().delete_ssl_vpn_route(route)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in delete_ssl_vpn_route. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/get-ssl-vpn-conn-state', methods=['GET'])
@@ -225,11 +228,11 @@ def get_ssl_vpn_conn_state():
     try:
         tunnel_name = request.args.get('tunnel')
         status, state = vpnhandler().get_ssl_vpn_conn_state(tunnel_name)
-        return json.dumps(dict(status=status, state=state))
+        return jsonutils.dumps(dict(status=status, state=state))
     except Exception as ex:
         err = ("Error in get_ssl_vpn_conn_state. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/configure-firewall-rule', methods=['POST'])
@@ -295,7 +298,7 @@ def add_source_route():
     except Exception as ex:
         err = ("Exception in adding source route. %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/delete-source-route', methods=['DELETE'])
@@ -305,20 +308,20 @@ def delete_source_route():
     except Exception as ex:
         err = ("Exception in deleting source route. %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/add-stitching-route', methods=['POST'])
 def add_stitching_route():
     try:
-        gateway_ip = json.loads(request.data).get('gateway_ip')
+        gateway_ip = jsonutils.loads(request.data).get('gateway_ip')
         status = vpnhandler().configure_static_route("set", "0.0.0.0/0",
                                                      gateway_ip)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in add_stitching_route. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/delete-stitching-route', methods=['DELETE'])
@@ -327,11 +330,11 @@ def delete_stitching_route():
         gateway_ip = request.args.get('gateway_ip')
         status = vpnhandler().configure_static_route(
             "delete", "0.0.0.0/0", gateway_ip)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error in delete_stitching_route. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/configure_conntrack_sync', methods=['POST'])
@@ -401,30 +404,30 @@ def send_error_response(error):
 def add_static_ip():
     try:
         static_ip_obj = StaticIp()
-        data = json.loads(request.data)
+        data = jsonutils.loads(request.data)
         static_ip_obj.configure(data)
     except Exception as err:
         msg = ("Error adding static IPs for hotplugged interfaces. "
                "Data: %r. Error: %r" % (data, str(err)))
         logger.error(msg)
-        return json.dumps(dict(status=False, reason=msg))
+        return jsonutils.dumps(dict(status=False, reason=msg))
     else:
-        return json.dumps(dict(status=True))
+        return jsonutils.dumps(dict(status=True))
 
 
 @app.route('/del_static_ip', methods=['DELETE'])
 def del_static_ip():
     try:
         static_ip_obj = StaticIp()
-        data = json.loads(request.data)
+        data = jsonutils.loads(request.data)
         static_ip_obj.clear(data)
     except Exception as err:
         msg = ("Error clearing static IPs for hotplugged interfaces. "
                "Data: %r. Error: %r" % (data, str(err)))
         logger.error(msg)
-        return json.dumps(dict(status=False, reason=msg))
+        return jsonutils.dumps(dict(status=False, reason=msg))
     else:
-        return json.dumps(dict(status=True))
+        return jsonutils.dumps(dict(status=True))
 
 
 @app.route('/add_rule', methods=['POST'])
@@ -433,38 +436,38 @@ def add_rule():
     ip_addr = get_interface_to_bind()
     fw_module.run_sshd_on_mgmt_ip(ip_addr)
 
-    data = json.loads(request.data)
+    data = jsonutils.loads(request.data)
     try:
         EditPersistentRule.add(e, data)
     except Exception as err:
         logger.error("Error adding persistent rule %r" % str(err))
-        return json.dumps(dict(status=False))
+        return jsonutils.dumps(dict(status=False))
     else:
-        return json.dumps(dict(status=True))
+        return jsonutils.dumps(dict(status=True))
 
 
 @app.route('/delete_rule', methods=['DELETE'])
 def del_rule():
-    data = json.loads(request.data)
+    data = jsonutils.loads(request.data)
     try:
         EditPersistentRule.delete(e, data)
     except Exception as err:
         logger.error("Error deleting persistent rule %r" % str(err))
-        return json.dumps(dict(status=False))
+        return jsonutils.dumps(dict(status=False))
     else:
-        return json.dumps(dict(status=True))
+        return jsonutils.dumps(dict(status=True))
 
 
 @app.route('/configure-rsyslog-as-client', methods=['POST'])
 def configure_rsyslog_as_client():
     try:
-        config_data = json.loads(request.data)
+        config_data = jsonutils.loads(request.data)
         status = apihandler().configure_rsyslog_as_client(config_data)
-        return json.dumps(dict(status=status))
+        return jsonutils.dumps(dict(status=status))
     except Exception as ex:
         err = ("Error while conifiguring rsyslog client. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/get-fw-stats', methods=['GET'])
@@ -472,22 +475,22 @@ def get_fw_stats():
     try:
         mac_address = request.args.get('mac_address')
         fw_stats = stats_apihandler().get_fw_stats(mac_address)
-        return json.dumps(dict(stats=fw_stats))
+        return jsonutils.dumps(dict(stats=fw_stats))
     except Exception as ex:
         err = ("Error while getting firewall stats. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 @app.route('/get-vpn-stats', methods=['GET'])
 def get_vpn_stats():
     try:
         vpn_stats = stats_apihandler().get_vpn_stats()
-        return json.dumps(dict(stats=vpn_stats))
+        return jsonutils.dumps(dict(stats=vpn_stats))
     except Exception as ex:
         err = ("Error while getting vpn stats. Reason: %s" % ex)
         logger.error(err)
-        return json.dumps(dict(status=False, reason=err))
+        return jsonutils.dumps(dict(status=False, reason=err))
 
 
 def handler(signum, frame):
@@ -498,12 +501,14 @@ def handler(signum, frame):
 
 
 def add_management_pbr():
-    command = 'grep "new_routers" /var/lib/dhcp3/dhclient_eth0_lease |tail -1| cut -d: -d "=" -f2'
+    command = ('grep "new_routers" /var/lib/dhcp3/dhclient_eth0_lease'
+               ' |tail -1| cut -d: -d "=" -f2')
     gateway_ip = os.popen(command).read().strip().strip("'")
-    command = 'grep "new_ip_address" /var/lib/dhcp3/dhclient_eth0_lease |tail -1| cut -d: -d "=" -f2'
+    command = ('grep "new_ip_address" /var/lib/dhcp3/dhclient_eth0_lease'
+               ' |tail -1| cut -d: -d "=" -f2')
     src_ip = os.popen(command).read().strip().strip("'")
     routes_info = [{'source_cidr': src_ip, 'gateway_ip': gateway_ip}]
-    routes_handler().add_source_route(json.dumps(routes_info))
+    routes_handler().add_source_route(jsonutils.dumps(routes_info))
 
 
 def getipaddr():
