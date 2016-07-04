@@ -1,5 +1,3 @@
-# Copyright (c) 2016 OpenStack Foundation.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,31 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from oslo_db.sqlalchemy import models
-from oslo_utils import uuidutils
+from neutron.db import model_base
 import sqlalchemy as sa
-from sqlalchemy.ext import declarative
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import orm
 
 from gbpservice.nfp.common import constants as nfp_constants
 
 TENANT_ID_MAX_LEN = 255
-DESCRIPTION_MAX_LEN = 255
-
-
-class HasTenant(object):
-    """Tenant mixin, add to subclasses that have a tenant."""
-
-    tenant_id = sa.Column(sa.String(TENANT_ID_MAX_LEN), index=True)
-
-
-class HasId(object):
-    """id mixin, add to subclasses that have an id."""
-
-    id = sa.Column(sa.String(36),
-                   primary_key=True,
-                   default=uuidutils.generate_uuid)
+DESCRIPTION_MAX_LEN = 4096
 
 
 class HasStatus(object):
@@ -52,39 +34,10 @@ class HasStatusDescription(HasStatus):
     status_description = sa.Column(sa.String(DESCRIPTION_MAX_LEN))
 
 
-# Do we need anything to be overridden from modelBase ??
-class NetworkFunctionBase(models.ModelBase):
-    """Base class for NFP Models."""
-
-    __table_args__ = {'mysql_engine': 'InnoDB'}
-
-    def __iter__(self):
-        self._i = iter(orm.object_mapper(self).columns)
-        return self
-
-    def next(self):
-        n = next(self._i).name
-        return n, getattr(self, n)
-
-    __next__ = next
-
-    def __repr__(self):
-        """sqlalchemy based automatic __repr__ method."""
-        items = ['%s=%r' % (col.name, getattr(self, col.name))
-                 for col in self.__table__.columns]
-        return "<%s.%s[object at %x] {%s}>" % (self.__class__.__module__,
-                                               self.__class__.__name__,
-                                               id(self), ', '.join(items))
-
-    @declarative.declared_attr
-    def __tablename__(cls):
-        return cls.__name__.lower() + 's'
+BASE = declarative_base(cls=model_base.NeutronBaseV2)
 
 
-BASE = declarative_base(cls=NetworkFunctionBase)
-
-
-class PortInfo(BASE, HasId, HasTenant):
+class PortInfo(BASE, model_base.HasId, model_base.HasTenant):
     """Represents the Port Information"""
     __tablename__ = 'nfp_port_infos'
 
@@ -104,7 +57,7 @@ class PortInfo(BASE, HasId, HasTenant):
                           nullable=True)
 
 
-class NetworkInfo(BASE, HasId, HasTenant):
+class NetworkInfo(BASE, model_base.HasId, model_base.HasTenant):
     """Represents the Network Service Instance"""
     __tablename__ = 'nfp_network_infos'
 
@@ -127,7 +80,8 @@ class NSIPortAssociation(BASE):
                              primary_key=True)
 
 
-class NetworkFunctionInstance(BASE, HasId, HasTenant, HasStatusDescription):
+class NetworkFunctionInstance(BASE, model_base.HasId, model_base.HasTenant,
+        HasStatusDescription):
     """Represents the Network Function Instance"""
     __tablename__ = 'nfp_network_function_instances'
 
@@ -147,7 +101,8 @@ class NetworkFunctionInstance(BASE, HasId, HasTenant, HasStatusDescription):
         cascade='all, delete-orphan')
 
 
-class NetworkFunction(BASE, HasId, HasTenant, HasStatusDescription):
+class NetworkFunction(BASE, model_base.HasId, model_base.HasTenant,
+        HasStatusDescription):
     """Represents the Network Function object"""
     __tablename__ = 'nfp_network_functions'
 
@@ -163,7 +118,8 @@ class NetworkFunction(BASE, HasId, HasTenant, HasStatusDescription):
         backref='network_function')
 
 
-class NetworkFunctionDevice(BASE, HasId, HasTenant, HasStatusDescription):
+class NetworkFunctionDevice(BASE, model_base.HasId, model_base.HasTenant,
+        HasStatusDescription):
     """Represents the Network Function Device"""
     __tablename__ = 'nfp_network_function_devices'
 
@@ -172,15 +128,15 @@ class NetworkFunctionDevice(BASE, HasId, HasTenant, HasStatusDescription):
     mgmt_ip_address = sa.Column(sa.String(36), nullable=True)
     mgmt_port_id = sa.Column(sa.String(36),
                              sa.ForeignKey('nfp_port_infos.id',
-                                           ondelete='SET NULL'),
+                                           ondelete= 'SET NULL'),
                              nullable=True)
     monitoring_port_id = sa.Column(sa.String(36),
                                    sa.ForeignKey('nfp_port_infos.id',
-                                                 ondelete='SET NULL'),
+                                                 ondelete= 'SET NULL'),
                                    nullable=True)
     monitoring_port_network = sa.Column(sa.String(36),
                                         sa.ForeignKey('nfp_network_infos.id',
-                                                      ondelete='SET NULL'),
+                                                      ondelete= 'SET NULL'),
                                         nullable=True)
     service_vendor = sa.Column(sa.String(36), nullable=False, index=True)
     max_interfaces = sa.Column(sa.Integer(), nullable=False)
