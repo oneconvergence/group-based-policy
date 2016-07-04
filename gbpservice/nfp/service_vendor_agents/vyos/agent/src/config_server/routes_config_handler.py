@@ -11,10 +11,10 @@
 #    under the License.
 
 import logging
-import subprocess
-import time
 import netaddr
 import netifaces
+import subprocess
+import time
 
 from oslo_serialization import jsonutils
 
@@ -152,7 +152,8 @@ class RoutesConfigHandler(object):
                     ip_address = inet_info.get('addr')
                     subnet_prefix = cidr.split("/")
                     if (ip_address == subnet_prefix[0] and (
-                            len(subnet_prefix) == 1 or subnet_prefix[1] == "32")):
+                            len(subnet_prefix) == 1 or subnet_prefix[
+                                                                1] == "32")):
                         return interface
                     ip_address_netmask = '%s/%s' % (ip_address, netmask)
                     interface_cidr = netaddr.IPNetwork(ip_address_netmask)

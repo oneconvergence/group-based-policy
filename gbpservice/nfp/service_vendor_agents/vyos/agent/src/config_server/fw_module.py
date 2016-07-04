@@ -122,8 +122,7 @@ class VyosFWConfigClass(configOpts):
             session.teardown_config_session()
 
     def add_common_rule(self):
-        self.fw_identifier = ('fw' + '_' +
-                                 self.provider_ptg_interfaces[0])
+        self.fw_identifier = ('fw' + '_' + self.provider_ptg_interfaces[0])
         default_action = (FWN + ' ' + self.fw_identifier +
                           ' default-action drop'
                           )
@@ -235,8 +234,7 @@ class VyosFWConfigClass(configOpts):
 
         # sleep for 2 sec. Got removed in last merge.
         time.sleep(2)
-        self.fw_identifier = ('fw' + '_' +
-                                 self.provider_ptg_interfaces[0])
+        self.fw_identifier = ('fw' + '_' + self.provider_ptg_interfaces[0])
         del_firewall = FWN + ' ' + self.fw_identifier
         try:
             self.delete(del_firewall.split())
@@ -297,7 +295,7 @@ class VyosFWConfigClass(configOpts):
         for interface in interfaces:
             # IPV4 support only
             # (Fixme) what in the case of aliasing?
-            # TODO (Vikash) Not reqd for L2 , need to revisit for L3
+            # TODO(Vikash) Not reqd for L2 , need to revisit for L3
             # vpn tunnel interface for ssl vpn does not have a mac address
             physical_interface = netifaces.ifaddresses(interface).get(AF_LINK)
             if not physical_interface:
@@ -324,8 +322,7 @@ class VyosFWConfigClass(configOpts):
         del_interface_rule = (
             'interfaces ethernet ' + self.provider_ptg_interfaces[0] +
             ' ' + 'firewall')
-        self.fw_identifier = ('fw' + '_' +
-                                 self.provider_ptg_interfaces[0])
+        self.fw_identifier = ('fw' + '_' + self.provider_ptg_interfaces[0])
         del_firewall = FWN + ' ' + self.fw_identifier
         try:
             self.delete(del_interface_rule.split())

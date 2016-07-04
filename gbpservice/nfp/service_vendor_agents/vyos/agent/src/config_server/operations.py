@@ -14,7 +14,8 @@ import logging
 import os
 import sys
 
-from execformat.executor import OperationFailed, execUtils
+from execformat.executor import execUtils
+from execformat.executor import OperationFailed
 from vyos_session import utils
 
 topdir = os.path.dirname(os.path.realpath(__file__)) + "../.."

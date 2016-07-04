@@ -14,7 +14,10 @@ import logging
 import os
 from uuid import uuid4
 
-from utils import _run, clean_environ, get_config_params, init_logger
+from utils import _run
+from utils import clean_environ
+from utils import get_config_params
+from utils import init_logger
 
 logger = logging.getLogger(__name__)
 init_logger(logger)
@@ -72,7 +75,8 @@ class ConfigSession(Session):
         env = dict()
         env['VYATTA_CHANGES_ONLY_DIR'] = \
             '/opt/vyatta/config/tmp/changes_only_{0}'.format(identifier)
-        env['VYATTA_CONFIG_TEMPLATE'] = '/opt/vyatta/share/vyatta-cfg/templates'
+        env['VYATTA_CONFIG_TEMPLATE'] = ('/opt/vyatta/share/'
+                                         'vyatta-cfg/templates')
         env['VYATTA_ACTIVE_CONFIGURATION_DIR'] = '/opt/vyatta/config/active'
         env['VYATTA_EDIT_LEVEL'] = '/'
         env['VYATTA_TEMP_CONFIG_DIR'] = '/opt/vyatta/config/tmp/new_config_{' \

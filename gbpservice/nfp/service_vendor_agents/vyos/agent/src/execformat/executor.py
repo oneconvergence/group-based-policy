@@ -15,9 +15,9 @@ import os
 import shlex
 import subprocess
 
+from vyos_session.configsession import ConfigSession
+from vyos_session.configsession import SessionNotExists
 from vyos_session import utils
-from vyos_session.configsession import (ConfigSession,
-                                        SessionNotExists)
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -81,7 +81,7 @@ def _op_command(command=None):
     return out
 
 
-class execUtils:
+class execUtils(object):
     """ Executes possible operations in a Vyos configure session."""
 
     def __init__(self, args):

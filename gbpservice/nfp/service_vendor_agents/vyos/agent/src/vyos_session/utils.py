@@ -109,8 +109,8 @@ def _run(cmd, output=False):
         cmd_output, cmd_error = exec_pipe.communicate()
         # VPN commits succeed but we are getting perl locale warnings on stderr
         if exec_pipe.returncode != 0:
-            message = 'Executing command %s failed with error %s. Output is: %s' % (
-                cmd, cmd_error, cmd_output)
+            message = ('Executing command %s failed with error %s. '
+                       'Output is: %s' % (cmd, cmd_error, cmd_output))
             logger.error(message)
             return False
         else:

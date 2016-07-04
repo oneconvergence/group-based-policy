@@ -14,7 +14,6 @@ import array
 import copy
 import fcntl
 import logging
-import os
 import socket
 import struct
 import subprocess
@@ -312,11 +311,6 @@ class VPNHandler(configOpts):
 
         self._set_commands(tun_cmds)
 
-    def _get_vrrp_group(self, ifname):
-        command = (
-            "vbash -c -i 'show vrrp' | grep %s | awk '{print $2}'" % ifname)
-        return os.popen(command).read().strip()
-
     def _create_ipsec_site_conn(self, ctx):
         cmds = copy.deepcopy(IPSEC_SITE2SITE_COMMANDS)
         conn_cmds = cmds['conn']
@@ -331,18 +325,6 @@ class VPNHandler(configOpts):
         conn = ctx['siteconns'][0]['connection']
         esp = ctx['siteconns'][0]['ipsecpolicy']
         ike = ctx['siteconns'][0]['ikepolicy']
-
-        vrrp_cmd = None
-        if conn['stitching_fixed_ip'] and conn.get('standby_fip', None):
-            logger.debug("Get vrrp group number for interface %s" % ifname)
-            group_no = self._get_vrrp_group(ifname)
-            ip = conn['stitching_fixed_ip']
-            vrrp_cmd = (
-                'set interfaces ethernet %s vrrp vrrp-group %s '
-                'run-transition-scripts master /config/scripts/restart_vpn'
-                ) % (ifname, group_no)
-            ifname = ifname + "v" + str(group_no)
-            logger.info("vrrp interface name: %s" % ifname)
 
         conn_cmds[0] = conn_cmds[0] % (ifname)
         conn_cmds[1] = conn_cmds[1] % (conn['peer_address'])
@@ -361,8 +343,6 @@ class VPNHandler(configOpts):
         conn_cmds[8] = conn_cmds[8] % (
             conn['peer_address'], 1, conn['peer_cidrs'][0])
         conn_cmds[9] = conn_cmds[9] % (conn['peer_address'], conn['access_ip'])
-        if vrrp_cmd:
-            conn_cmds.append(vrrp_cmd)
 
         self._set_commands(conn_cmds)
 

@@ -11,9 +11,9 @@
 #    under the License.
 
 import logging
+import netifaces
 import time
 
-import netifaces
 from execformat.executor import session
 from netifaces import AF_LINK
 from operations import configOpts

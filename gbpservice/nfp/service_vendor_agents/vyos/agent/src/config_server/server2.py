@@ -23,12 +23,12 @@ from os.path import dirname
 from oslo_serialization import jsonutils
 
 from edit_persistent_rule import EditPersistentRule
-from flask import Flask, jsonify, request
+from flask import Flask
+from flask import jsonify
+from flask import request
 from fw_module import VyosFWConfigClass
-from ha_config import VYOSHAConfig
 from log_forwarder import APIHandler as apihandler
 from static_ip import StaticIp
-from stats_parser import APIHandler as stats_apihandler
 from vpn_api_server import VPNHandler as vpnhandler
 from vyos_exception import VyosException
 from vyos_policy_based_routes import RoutesConfigHandler as routes_handler
@@ -249,7 +249,7 @@ def configure_firewall_rule():
             return send_error_response(
                 VyosException(str(err), status_code=500,
                               payload=dict(err=error_msgs['unexpected'] % (
-                                'configuring', 'firewall'))))
+                                                'configuring', 'firewall'))))
     else:
         return jsonify(**response)
 
@@ -267,7 +267,7 @@ def delete_firewall_rule():
             return send_error_response(
                 VyosException(str(err), status_code=500,
                               payload=dict(err=error_msgs['unexpected'] % (
-                                'deleting', 'firewall'))))
+                                                    'deleting', 'firewall'))))
     else:
         return jsonify(**response)
 
@@ -286,7 +286,7 @@ def update_firewall_rule():
             return send_error_response(
                 VyosException(str(err), status_code=500,
                               payload=dict(err=error_msgs['unexpected'] % (
-                                'updating', 'firewall'))))
+                                                    'updating', 'firewall'))))
     else:
         return jsonify(**response)
 
@@ -335,63 +335,6 @@ def delete_stitching_route():
         err = ("Error in delete_stitching_route. Reason: %s" % ex)
         logger.error(err)
         return jsonutils.dumps(dict(status=False, reason=err))
-
-
-@app.route('/configure_conntrack_sync', methods=['POST'])
-def configure_conntrack_sync():
-    global vyos_ha_config
-    try:
-        response = vyos_ha_config.configure_conntrack_sync(request.data)
-    except Exception as err:
-        # This flask version has issue in implicit way of registering
-        # error handler.
-        try:
-            return send_error_response(VyosException(
-                    err[0], status_code=err[1], payload=err[2]))
-        except IndexError:
-            return send_error_response(
-                VyosException(str(err), status_code=500,
-                              payload=dict(err=error_msgs['unexpected'] % (
-                                'configuring', 'conntrack sync'))))
-    else:
-        return jsonify(**response)
-
-
-@app.route('/configure_interface_ha', methods=['POST'])
-def configure_interface_ha():
-    global vyos_ha_config
-    try:
-        response = vyos_ha_config.set_vrrp_for_interface(request.data)
-    except Exception as err:
-        try:
-            return send_error_response(VyosException(
-                    err[0], status_code=err[1], payload=err[2]))
-        except IndexError:
-            return send_error_response(
-                VyosException(str(err), status_code=500,
-                              payload=dict(
-                                err=error_msgs['unexpected'] % (
-                                    'configuring', 'HA for the interface'))))
-    else:
-        return jsonify(**response)
-
-
-@app.route('/delete_vrrp', methods=['DELETE'])
-def delete_vrrp():
-    global vyos_ha_config
-    try:
-        response = vyos_ha_config.delete_vrrp(request.data)
-    except Exception as err:
-        try:
-            return send_error_response(VyosException(
-                        err[0], status_code=err[1], payload=err[2]))
-        except IndexError:
-            return send_error_response(
-                VyosException(str(err), status_code=500,
-                              payload=dict(err=error_msgs['unexpected'] % (
-                                'deleting', 'VRRP'))))
-    else:
-        return jsonify(**response)
 
 
 def send_error_response(error):
@@ -470,29 +413,6 @@ def configure_rsyslog_as_client():
         return jsonutils.dumps(dict(status=False, reason=err))
 
 
-@app.route('/get-fw-stats', methods=['GET'])
-def get_fw_stats():
-    try:
-        mac_address = request.args.get('mac_address')
-        fw_stats = stats_apihandler().get_fw_stats(mac_address)
-        return jsonutils.dumps(dict(stats=fw_stats))
-    except Exception as ex:
-        err = ("Error while getting firewall stats. Reason: %s" % ex)
-        logger.error(err)
-        return jsonutils.dumps(dict(status=False, reason=err))
-
-
-@app.route('/get-vpn-stats', methods=['GET'])
-def get_vpn_stats():
-    try:
-        vpn_stats = stats_apihandler().get_vpn_stats()
-        return jsonutils.dumps(dict(stats=vpn_stats))
-    except Exception as ex:
-        err = ("Error while getting vpn stats. Reason: %s" % ex)
-        logger.error(err)
-        return jsonutils.dumps(dict(status=False, reason=err))
-
-
 def handler(signum, frame):
     if signum in [2, 3, 9, 11, 15]:
         sys.exit(0)
@@ -545,9 +465,8 @@ def main():
 
     :type ip_addr: Server listen address
     """
-    global fw_module, vyos_ha_config
+    global fw_module
     fw_module = VyosFWConfigClass()
-    vyos_ha_config = VYOSHAConfig()
     ip_addr = get_interface_to_bind()
     signal.signal(signal.SIGTERM, handler)
     signal.signal(signal.SIGINT, handler)

@@ -41,12 +41,12 @@ class APIHandler(object):
         return out
 
     def configure_rsyslog_as_client(self, config):
-        command = """
-                /opt/vyatta/sbin/vyatta-cfg-cmd-wrapper begin
-                /opt/vyatta/sbin/vyatta-cfg-cmd-wrapper set system syslog host %s facility all level %s
-                /opt/vyatta/sbin/vyatta-cfg-cmd-wrapper commit
-                /opt/vyatta/sbin/vyatta-cfg-cmd-wrapper save
-                """ % (config['server_ip'], config['log_level'])
+        command = ("/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper begin "
+                   "/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper set system "
+                   "syslog host %s facility all level %s"
+                   "/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper commit"
+                   "/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper save" % (
+                                    config['server_ip'], config['log_level']))
 
         try:
             self.run_command(command)
