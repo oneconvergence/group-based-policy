@@ -258,9 +258,9 @@ class RpcHandlerConfigurator(object):
 
     def _log_event_created(self, event_id, event_data):
         LOG.debug("Service Orchestrator, RPC Handler for configurator,"
-            "Created event, %s(event_name)s with "
-            "event data: %(event_data)s",
-            {'event_name': event_id, 'event_data': event_data})
+                  "Created event, %s(event_name)s with "
+                  "event data: %(event_data)s",
+                  {'event_name': event_id, 'event_data': event_data})
 
     def _create_event(self, event_id, event_data=None,
                       is_poll_event=False, original_event=None,
@@ -526,8 +526,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
 
     def _log_event_created(self, event_id, event_data):
         LOG.debug("Created event %s(event_name)s with event "
-            "data: %(event_data)s",
-            {'event_name': event_id, 'event_data': event_data})
+                  "data: %(event_data)s",
+                  {'event_name': event_id, 'event_data': event_data})
 
     # REVISIT(ashu): Merge this _create_event, and above one to have
     # single function.
@@ -1041,6 +1041,13 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                            original_event=event)
 
     def apply_user_config(self, event):
+        event_results = event.graph.get_leaf_node_results(event)
+        for c_event in event_results:
+            if event.id == "SEND_HEAT_CONFIG" and (
+                    event.result.upper() == "HANDLED"):
+                self._controller.event_complete(
+                    event, result="SUCCESS")
+            return
         nfp_context = event.data
         nfp_core_context.store_nfp_context(nfp_context)
         network_function = nfp_context['network_function']
@@ -1422,28 +1429,38 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         # Trigger RPC to notify the Create_Service caller with status
 
     def handle_config_applied(self, event):
-        event_data = event.data
-        network_function_id = event_data['network_function_id']
-        network_function_instance_id = event_data.get(
-            'network_function_instance_id')
-        if network_function_instance_id:
-            nfi = {
+        nfp_context = event.data['nfp_context']
+        base_mode = nfp_context['base_mode']
+        if base_mode:
+            network_function = {
                 'status': nfp_constants.ACTIVE,
             }
-            nfi = self.db_handler.update_network_function_instance(
-                self.db_session, network_function_instance_id, nfi)
+            self.db_handler.update_network_function(
+                self.db_session,
+                network_function_id,
+                network_function)
+            LOG.info(_LI("NSO: applying user config is successfull moving "
+                         "network function %(network_function_id)s to ACTIVE"),
+                     {'network_function_id':
+                      network_function_id})
+        else:
+            network_function_instance_id = event_data.get(
+                'network_function_instance_id')
+            if network_function_instance_id:
+                nfi = {
+                    'status': nfp_constants.ACTIVE,
+                }
+                nfi = self.db_handler.update_network_function_instance(
+                    self.db_session, network_function_instance_id, nfi)
 
-        network_function = {
-            'status': nfp_constants.ACTIVE,
-        }
-        self.db_handler.update_network_function(
-            self.db_session,
-            network_function_id,
-            network_function)
-        LOG.info(_LI("NSO: applying user config is successfull moving "
-                     "network function %(network_function_id)s to ACTIVE"),
-                 {'network_function_id':
-                  network_function_id})
+            event_desc = nfp_context['event_desc']
+            key = nfp_context['key']
+            id = nfp_context['id']
+
+            # Complete the original event here
+            event = self._controller.new_event(id=id, key=key,
+                                               desc_dict=event_desc)
+            self._controller.event_complete(event, result='HANDLED')
 
     def handle_update_user_config_failed(self, event):
         event_data = event.data
