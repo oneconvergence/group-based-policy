@@ -53,7 +53,6 @@ function configure_nfp_loadbalancer {
 
 function configure_nfp_firewall {
     echo "Configuring NFP Firewall plugin"
-    sudo cp -r /opt/stack/gbp/gbpservice/nfp/Automation-Scripts/oc_noop_firewall_driver /opt/stack/neutron-fwaas/neutron_fwaas/services/firewall/drivers/linux/.
     sudo sed -i "s/neutron_fwaas.services.firewall.fwaas_plugin.FirewallPlugin/gbpservice.nfp.service_plugins.firewall.nfp_fwaas_plugin.NFPFirewallPlugin/g" /etc/neutron/neutron.conf
 }
 

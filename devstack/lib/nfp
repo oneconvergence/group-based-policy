@@ -385,10 +385,10 @@ function copy_nfp_files_and_start_process {
         echo "Starting nfp config orchestrator  >>>> under screen named : nfp_config_orchestrator"
         run_process nfp_config_orchestrator "sudo /usr/bin/nfp --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file /opt/stack/logs/nfp_config_orchestrator.log"
     else
-        cd base_configurator/api
+        cd pecan/api
         sudo python setup.py develop
         echo "Starting nfp_base_configurator  >>>> under screen named : nfp_base_configurator"
-        run_process nfp_base_configurator "cd /opt/stack/gbp/gbpservice/nfp/base_configurator/api; sudo ip netns exec nfp-proxy pecan serve config.py"
+        run_process nfp_base_configurator "cd /opt/stack/gbp/gbpservice/nfp/pecan/api; sudo ip netns exec nfp-proxy pecan configurator_decider config.py --mode base"
     fi
     sleep 1
 
