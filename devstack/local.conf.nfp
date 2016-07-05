@@ -39,6 +39,9 @@ if [[ $NFP_DEVSTACK_MODE != base ]]; then
 
     VyosQcow2Image=
     Haproxy_LBaasV2_Qcow2Image=
+
+    # Make sure that your public interface is not attached to any bridge.
+    PUBLIC_INTERFACE=
 fi
 
 if [[ $NFP_DEVSTACK_MODE = enterprise ]]; then
