@@ -236,7 +236,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             # Run 'Manager' here to monitor for workers and
             # events.
             self._manager.manager_run()
-            eventlet.greenthread.sleep(0.01)
+            eventlet.greenthread.sleep(0.1)
 
     def _update_manager(self):
         childs = self.get_childrens()

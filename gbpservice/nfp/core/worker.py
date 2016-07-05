@@ -61,7 +61,7 @@ class NfpWorker(Service):
         while True:
             try:
                 event = None
-                if self.pipe.poll():
+                if self.pipe.poll(0.1):
                     event = self.controller.pipe_recv(self.pipe)
                 if event:
                     LOG.debug("%s - received event" %
