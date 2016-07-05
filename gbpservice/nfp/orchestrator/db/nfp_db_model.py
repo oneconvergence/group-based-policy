@@ -144,7 +144,8 @@ class NetworkFunctionDevice(BASE, model_base.HasId, model_base.HasTenant,
     interfaces_in_use = sa.Column(sa.Integer(), nullable=False)
 
 
-class NetworkFunctionDeviceInterface(BASE, HasId, HasTenant,):
+class NetworkFunctionDeviceInterface(BASE, model_base.HasId,
+        model_base.HasTenant,):
     """Represents the Network Function Device"""
     __tablename__ = 'nfp_network_function_device_interfaces'
 

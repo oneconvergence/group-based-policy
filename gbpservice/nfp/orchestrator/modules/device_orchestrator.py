@@ -29,6 +29,7 @@ from neutron import context as n_context
 from neutron.db import api as db_api
 
 import sys
+import time
 import traceback
 
 from gbpservice.nfp.core import log as nfp_logging
@@ -775,6 +776,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
     def _post_configure_device_graph(self, nfp_context):
         nf_id = nfp_context['network_function']['id']
+        service_vendor = nfp_context['service_details']['service_vendor']
         device_configured_event = self._controller.new_event(
             id='CONFIGURATION_COMPLETE',
             key=nf_id,
@@ -796,6 +798,14 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             key=nf_id,
             data=nfp_context,
             graph=True)
+
+        if service_vendor.lower() == 'asav':
+            binding_key = service_vendor.lower() + nf_id
+            device_configure_event.sequence = True
+            device_configure_event.binding_key = binding_key
+            user_config_event.sequence = True
+            user_config_event.binding_key = binding_key
+
         graph = nfp_event.EventGraph(device_configured_event)
         graph.add_node(device_configure_event, device_configured_event)
         graph.add_node(user_config_event, device_configured_event)
@@ -1061,6 +1071,10 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             get_create_network_function_device_config_info(
                 device))
         nfp_context['event_desc'] = event.desc.to_dict()
+        binding_key = None
+        if service_details['service_vendor'].lower() == 'asav':
+            binding_key = service_details['service_vendor'].lower() + (
+                str(network_function['id']))
         device.update({
             'id': network_function_device['id'],
             'mgmt_ip_address': management['port']['ip_address'],
@@ -1070,7 +1084,8 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             'nfp_context': {
                 'event_desc': nfp_context['event_desc'],
                 'id': event.id, 'key': event.key,
-                'network_function_device': network_function_device}})
+                'network_function_device': network_function_device,
+                'binding_key': binding_key}})
 
         if not config_params:
             self._create_event(event_id='DRIVER_ERROR',
@@ -1115,8 +1130,11 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         # CREATE_DEVICE_CONFIGURATION
         event_desc = nfp_context.pop('event_desc')
         key = nfp_context.pop('key')
+        binding_key = nfp_context.pop('binding_key')
         event = self._controller.new_event(id="CREATE_DEVICE_CONFIGURATION",
                                            key=key, desc_dict=event_desc)
+        if binding_key:
+            event.binding_key = binding_key
         self._controller.event_complete(event, result=result)
 
     # Delete path

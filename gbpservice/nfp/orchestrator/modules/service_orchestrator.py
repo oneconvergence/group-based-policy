@@ -1047,7 +1047,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                     c_event.result.upper() == "HANDLED"):
                 self._controller.event_complete(
                     event, result="SUCCESS")
-            return
+                return
         nfp_context = event.data
         nfp_core_context.store_nfp_context(nfp_context)
         network_function = nfp_context['network_function']
@@ -1352,6 +1352,11 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 id='APPLY_USER_CONFIG',
                 key=network_function['id'],
                 desc_dict=event_desc)
+            service_vendor = nfp_context['service_details']['service_vendor']
+            if service_vendor.lower() == 'asav':
+                binding_key = service_vendor.lower() + str(
+                    network_function['id'])
+                apply_config_event.binding_key = binding_key
             self._controller.event_complete(
                 apply_config_event, result="FAILED")
             return STOP_POLLING
@@ -1363,6 +1368,11 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 id='APPLY_USER_CONFIG',
                 key=network_function['id'],
                 desc_dict=event_desc)
+            service_vendor = nfp_context['service_details']['service_vendor']
+            if service_vendor.lower() == 'asav':
+                binding_key = service_vendor.lower() + str(
+                    network_function['id'])
+                apply_config_event.binding_key = binding_key
             self._controller.event_complete(
                 apply_config_event, result="SUCCESS")
 

@@ -72,6 +72,7 @@ class OrchestrationDriver(object):
         }
         self.setup_mode = self._get_setup_mode(config)
         self._advance_sharing_network_id = None
+        self.config = config
 
         # statistics available
         # - instances
@@ -974,25 +975,25 @@ class OrchestrationDriver(object):
                 elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     pass
             else:
-            executor = nfp_executor.TaskExecutor(jobs=10)
+                executor = nfp_executor.TaskExecutor(jobs=10)
 
-            for port in device_data['ports']:
-                if port['port_classification'] == nfp_constants.PROVIDER:
-                    service_type = device_data[
-                        'service_details']['service_type'].lower()
-                    if service_type.lower() in [
-                            nfp_constants.FIREWALL.lower(),
-                            nfp_constants.VPN.lower()]:
+                for port in device_data['ports']:
+                    if port['port_classification'] == nfp_constants.PROVIDER:
+                        service_type = device_data[
+                            'service_details']['service_type'].lower()
+                        if service_type.lower() in [
+                                nfp_constants.FIREWALL.lower(),
+                                nfp_constants.VPN.lower()]:
+                            executor.add_job(
+                                'SET_PROMISCUOS_MODE',
+                                network_handler.set_promiscuos_mode_fast,
+                                token, port['id'])
                         executor.add_job(
-                            'SET_PROMISCUOS_MODE',
-                            network_handler.set_promiscuos_mode_fast,
-                            token, port['id'])
-                    executor.add_job(
-                        'ATTACH_INTERFACE',
-                        self.compute_handler_nova.attach_interface,
-                        token, tenant_id, device_data['id'],
-                        port['id'])
-                    break
+                            'ATTACH_INTERFACE',
+                            self.compute_handler_nova.attach_interface,
+                            token, tenant_id, device_data['id'],
+                            port['id'])
+                        break
 
             for port in device_data['ports']:
                 if port['port_classification'] == nfp_constants.CONSUMER:
@@ -1174,13 +1175,13 @@ class OrchestrationDriver(object):
                 elif self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     pass
             else:
-            for port in device_data['ports']:
-                port_id = network_handler.get_port_id(token, port['id'])
-                self.compute_handler_nova.detach_interface(
-                    token,
-                    self._get_admin_tenant_id(token=token),
-                    device_data['id'],
-                    port_id)
+                for port in device_data['ports']:
+                    port_id = network_handler.get_port_id(token, port['id'])
+                    self.compute_handler_nova.detach_interface(
+                        token,
+                        self._get_admin_tenant_id(token=token),
+                        device_data['id'],
+                        port_id)
 
         except Exception as e:
             self._increment_stats_counter('interface_unplug_failures')
