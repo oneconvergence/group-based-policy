@@ -50,9 +50,8 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
     def configure_interfaces(self, context, kwargs):
         """ Configure interfaces for the service VM.
 
-        Calls static IP configuration function and implements
-        persistent rule addition in the service VM.
-        Issues REST call to service VM for configuration of interfaces.
+        Wait till auto commit job is finished and
+        configure visilbility settings of remote logging and custom report.
 
         :param context: neutron context
         :param kwargs: a dictionary of firewall rules and objects
@@ -65,72 +64,55 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         vm_mgmt_ip = kwargs.get('mgmt_ip')
         self._check_auto_commit_status(hostname=vm_mgmt_ip)
 
-        # apply staic ip to stitching interface
-        stitching_interface_index = kwargs.get('stitching_interface_index')
-        stitching_interface_name = "ethernet1/%d" % \
-                                   (stitching_interface_index-1)
-        stitching_ip = kwargs.get('stitching_ip')
-        stitching_ip = ("%s/24" % stitching_ip)
-        self._apply_static_ip(vm_mgmt_ip,
-                              stitching_interface_name,
-                              stitching_ip)
+        # configure remote logging
+        log_forward_ip_address = self.conf.log_forward_ip_address
 
-        # apply staic ip to provider interface
-        provider_interface_index = kwargs.get('provider_interface_index')
-        provider_interface_name = "ethernet1/%d" % (provider_interface_index-1)
-        provider_ip = kwargs.get('provider_ip')
-        self._apply_static_ip(vm_mgmt_ip, provider_interface_name, provider_ip)
+        if not log_forward_ip_address:
+            msg = ("Log forwarding IP address not configured "
+                   "for service at %s." % vm_mgmt_ip)
+            LOG.info(msg)
+        else:
+            try:
+                syslogName = const.SYSLOG_NAME
+                profileName = const.PROFILE_NAME
+                self._configure_log_forwarding(vm_mgmt_ip, syslogName,
+                                               log_forward_ip_address,
+                                               profileName)
+            except Exception as err:
+                msg = ("Failed to configure log forwarding for service at %s. "
+                       "Error: %s" % (vm_mgmt_ip, err))
+                LOG.error(msg)
+                return msg
+            else:
+                msg = ("Configured log forwarding for service at %s."
+                       % vm_mgmt_ip)
+                LOG.info(msg)
 
-        # commit
+        # configure custom report
+        reportName = const.REPORT_NAME
+        LOG.info("ADDING custom report '%s'..." % reportName)
         try:
-            resp = self.commit(hostname=vm_mgmt_ip)
-        except pan.xapi.PanXapiError as err:
-            self._print_exception('PanXapiError', err, const.COMMIT)
-            raise pan.xapi.PanXapiError(err)
-        except pan.config.PanConfigError as err:
-            self._print_exception('PanConfigError', err, const.COMMIT)
-            raise pan.config.PanConfigError(err)
-        except Exception as err:
-            self._print_exception('UnexpectedError', err, const.COMMIT, resp)
-            raise Exception(err)
-
-        if self.analyze_response("COMMITED the configuration to Service VM",
-                                 resp, const.COMMIT) == \
-                common_const.STATUS_ERROR:
-            return common_const.STATUS_ERROR
-
-        # wait till commit is finished
-        job_id = resp['response']['result']['job']
-        self._check_commit_status(vm_mgmt_ip, job_id)
-
-        return common_const.STATUS_SUCCESS
-
-    def _apply_static_ip(self, hostname, interface_name, interface_ip):
-        """ Configure static ip for a interface on service VM.
-
-        :param hostname: service VM's IP address
-        :param interface_name: the interface name to be configured
-        :param interface_ip: the static ip to be applied to interface
-
-        """
-        LOG.info("Applying static ip '%s' to interface '%s'" %
-                 (interface_ip, interface_name))
-        element = (const.INTERFACE_CONFIG_TEMPLATE %
-                   (interface_name, interface_ip))
-        try:
-            resp = self._edit_interface(hostname, interface_name, element)
+            resp = None
+            resp = self._add_custom_report(vm_mgmt_ip, reportName)
         except pan.xapi.PanXapiError as err:
             self._print_exception('PanXapiError', err,
-                                  const.APPLY_STATIC_IP)
+                                  const.ADD_SYSLOG)
             raise pan.xapi.PanXapiError(err)
         except pan.config.PanConfigError as err:
             self._print_exception('PanConfigError', err,
-                                  const.APPLY_STATIC_IP)
+                                  const.ADD_SYSLOG)
             raise pan.config.PanConfigError(err)
         except Exception as err:
             self._print_exception('UnexpectedError', err,
-                                  const.APPLY_STATIC_IP, resp)
+                                  const.ADD_SYSLOG, resp)
             raise Exception(err)
+
+        # commit
+        if self.commit_and_wait_till_finished(hostname=vm_mgmt_ip)\
+                == common_const.STATUS_ERROR:
+            return common_const.STATUS_ERROR
+
+        return common_const.STATUS_SUCCESS
 
     def configure_routes(self, context, kwargs):
         """ Configure routes for the service VM.
@@ -155,6 +137,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                         egress_interface=const.PBF_NEXT_HOP_IP,
                         next_hop_ip=gateway_ip)
         try:
+            resp = None
             resp = self._add_pbf(vm_mgmt_ip, element)
         except pan.xapi.PanXapiError as err:
             self._print_exception('PanXapiError', err,
@@ -175,26 +158,9 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             return common_const.STATUS_ERROR
 
         # commit
-        try:
-            resp = self.commit(hostname=vm_mgmt_ip)
-        except pan.xapi.PanXapiError as err:
-            self._print_exception('PanXapiError', err, const.COMMIT)
-            raise pan.xapi.PanXapiError(err)
-        except pan.config.PanConfigError as err:
-            self._print_exception('PanConfigError', err, const.COMMIT)
-            raise pan.config.PanConfigError(err)
-        except Exception as err:
-            self._print_exception('UnexpectedError', err, const.COMMIT, resp)
-            raise Exception(err)
-
-        if self.analyze_response("COMMITED the configuration to Service VM",
-                                 resp, const.COMMIT)\
+        if self.commit_and_wait_till_finished(hostname=vm_mgmt_ip)\
                 == common_const.STATUS_ERROR:
             return common_const.STATUS_ERROR
-
-        # wait till commit is finished
-        job_id = resp['response']['result']['job']
-        self._check_commit_status(vm_mgmt_ip, job_id)
 
         return common_const.STATUS_SUCCESS
 
@@ -214,6 +180,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         vm_mgmt_ip = kwargs.get('mgmt_ip')
         pbf_name = const.PBF_RULE_NAME + "_" + vm_mgmt_ip
         try:
+            resp = None
             resp = self._delete_pbf(vm_mgmt_ip, pbf_name)
         except pan.xapi.PanXapiError as err:
             self._print_exception('PanXapiError', err,
@@ -234,8 +201,21 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             return common_const.STATUS_ERROR
 
         # commit
+        if self.commit_and_wait_till_finished(hostname=vm_mgmt_ip)\
+                == common_const.STATUS_ERROR:
+            return common_const.STATUS_ERROR
+
+        return common_const.STATUS_SUCCESS
+
+    def commit_and_wait_till_finished(self, hostname):
+        """ Commit current configurations and wait till commit is finished
+
+        :param hostname: Service VM's IP address
+
+        """
         try:
-            resp = self.commit(hostname=vm_mgmt_ip)
+            resp = None
+            resp = self._commit(hostname)
         except pan.xapi.PanXapiError as err:
             self._print_exception('PanXapiError', err, const.COMMIT)
             raise pan.xapi.PanXapiError(err)
@@ -253,9 +233,156 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         # wait till commit is finished
         job_id = resp['response']['result']['job']
-        self._check_commit_status(vm_mgmt_ip, job_id)
+        self._check_commit_status(hostname, job_id)
 
-        return common_const.STATUS_SUCCESS
+    def _configure_log_forwarding(self, vm_mgmt_ip, syslogName,
+                                  serverIP, profileName):
+        """ Configure log forwarding to a remote log server
+
+        :param vm_mgmt_ip: service VM's IP address
+        :param syslogName: the name of the new syslog
+        :param serverIP: the IP address of the remote log server
+        :param profileName: the name of the new profile
+
+        """
+        # add syslog of remote IP and Port
+        LOG.info("ADDING syslog '%s'..." % syslogName)
+        try:
+            resp = None
+            resp = self._add_syslog(vm_mgmt_ip, syslogName, serverIP)
+        except pan.xapi.PanXapiError as err:
+            self._print_exception('PanXapiError', err,
+                                  const.ADD_SYSLOG)
+            raise pan.xapi.PanXapiError(err)
+        except pan.config.PanConfigError as err:
+            self._print_exception('PanConfigError', err,
+                                  const.ADD_SYSLOG)
+            raise pan.config.PanConfigError(err)
+        except Exception as err:
+            self._print_exception('UnexpectedError', err,
+                                  const.ADD_SYSLOG, resp)
+            raise Exception(err)
+
+        msg = "POSTED syslog '%s' to Service VM" % syslogName
+        if self.analyze_response(msg, resp, const.ADD_SYSLOG)\
+                == common_const.STATUS_ERROR:
+            raise Exception("Error in %s" % const.ADD_SYSLOG)
+
+        # add profile of what kinds of logs to send to which syslog
+        LOG.info("ADDING profile '%s'..." % profileName)
+        try:
+            resp = None
+            resp = self._add_profile(vm_mgmt_ip, profileName, syslogName)
+        except pan.xapi.PanXapiError as err:
+            self._print_exception('PanXapiError', err,
+                                  const.ADD_PROFILE)
+            raise pan.xapi.PanXapiError(err)
+        except pan.config.PanConfigError as err:
+            self._print_exception('PanConfigError', err,
+                                  const.ADD_PROFILE)
+            raise pan.config.PanConfigError(err)
+        except Exception as err:
+            self._print_exception('UnexpectedError', err,
+                                  const.ADD_PROFILE, resp)
+            raise Exception(err)
+
+        msg = "POSTED profile '%s' to Service VM" % profileName
+        if self.analyze_response(msg, resp, const.ADD_PROFILE)\
+                == common_const.STATUS_ERROR:
+            raise Exception("Error in %s" % const.ADD_PROFILE)
+
+        #  add config logs forwarding
+        LOG.info("ADDING config logs forwarding...")
+        try:
+            resp = None
+            resp = self._add_config_logs_forwarding(vm_mgmt_ip, syslogName)
+        except pan.xapi.PanXapiError as err:
+            self._print_exception('PanXapiError', err,
+                                  const.ADD_CONFIG_LOGS_FORWARDING)
+            raise pan.xapi.PanXapiError(err)
+        except pan.config.PanConfigError as err:
+            self._print_exception('PanConfigError', err,
+                                  const.ADD_CONFIG_LOGS_FORWARDING)
+            raise pan.config.PanConfigError(err)
+        except Exception as err:
+            self._print_exception('UnexpectedError', err,
+                                  const.ADD_CONFIG_LOGS_FORWARDING, resp)
+            raise Exception(err)
+
+        msg = "POSTED config logs forwarding '%s' to Service VM" % syslogName
+        if self.analyze_response(msg, resp, const.ADD_CONFIG_LOGS_FORWARDING)\
+                == common_const.STATUS_ERROR:
+            raise Exception("Error in %s" % const.ADD_CONFIG_LOGS_FORWARDING)
+
+        # commit
+        if self.commit_and_wait_till_finished(hostname=vm_mgmt_ip)\
+                == common_const.STATUS_ERROR:
+            raise Exception("Error in commit log forwarding settings")
+
+    def _add_custom_report(self, hostname, reportName):
+        """ Add a custom report on service VM.
+
+        :param hostname: service VM's IP address
+        :param reportName: the name of the new custom report
+
+        Returns: a dictionary of REST response
+
+        """
+        xapi = self.build_xapi(hostname)
+        xpath = const.REPORTS_URL
+        element = const.REPORT_TEMPLATE % (reportName, reportName)
+        xapi.set(xpath=xpath, element=element)
+        return self.xml_python(xapi)
+
+    def _add_syslog(self, hostname, syslogName, serverIP):
+        """ Add a syslog on service VM.
+
+        :param hostname: service VM's IP address
+        :param syslogName: the name of the new syslog
+        :param serverIP: the IP address of the remote syslog server
+
+        Returns: a dictionary of REST response
+
+        """
+        xapi = self.build_xapi(hostname)
+        xpath = const.SYSLOG_URL
+        element = const.SYSLOG_TEMPLATE % (syslogName, syslogName, serverIP)
+        xapi.set(xpath=xpath, element=element)
+        return self.xml_python(xapi)
+
+    def _add_profile(self, hostname, profileName, syslogName):
+        """ Add a profile on service VM.
+
+        :param hostname: service VM's IP address
+        :param profileName: the name of the new profile
+        :param syslogName: the name of the syslog to associate with
+
+        Returns: a dictionary of REST response
+
+        """
+        xapi = self.build_xapi(hostname)
+        xpath = const.PROFILE_URL
+        element = const.PROFILE_TEMPLATE % \
+            (profileName, syslogName,
+             syslogName, syslogName, syslogName, syslogName, syslogName,
+             syslogName, syslogName, syslogName)
+        xapi.set(xpath=xpath, element=element)
+        return self.xml_python(xapi)
+
+    def _add_config_logs_forwarding(self, hostname, syslogName):
+        """ Configure to forward config logs.
+
+        :param hostname: service VM's IP address
+        :param syslogName: the name of the syslog to associate with
+
+        Returns: a dictionary of REST response
+
+        """
+        xapi = self.build_xapi(hostname)
+        xpath = const.CONFIG_URL
+        element = const.CONFIG_TEMPLATE % (syslogName)
+        xapi.set(xpath=xpath, element=element)
+        return self.xml_python(xapi)
 
     def _check_auto_commit_status(self, hostname):
         """ Checking auto commit job status till it is finished.
@@ -274,6 +401,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         """
         LOG.info("Checking for commit job status...")
         status = "ACT"
+        response = None
         while status != "FIN":
             try:
                 time.sleep(5)
@@ -284,13 +412,16 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                 status = response['response']['result']['job']['status']
                 LOG.info("Commit status == %s" % status)
             except pan.xapi.PanXapiError as err:
-                self._print_exception('PanXapiError', err, const.COMMIT)
+                self._print_exception('PanXapiError', err,
+                                      const.COMMIT, response)
                 raise pan.xapi.PanXapiError(err)
             except pan.config.PanConfigError as err:
-                self._print_exception('PanConfigError', err, const.COMMIT)
+                self._print_exception('PanConfigError', err,
+                                      const.COMMIT, response)
                 raise pan.config.PanConfigError(err)
             except Exception as err:
-                self._print_exception('UnexpectedError', err, const.COMMIT)
+                self._print_exception('UnexpectedError', err,
+                                      const.COMMIT, response)
                 raise Exception(err)
 
     def _create_pbf_rule_element(self, pbf_name, from_interface,
@@ -311,35 +442,6 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                                               next_hop_ip)
         return string
 
-    def _edit_interface(self, hostname, interface_name, element):
-        """ Make REST call to edit interface attributes.
-
-        :param hostname: Service VM's IP address
-        :param interface_name: the name of this interface
-        :param element: the xml format string of this interface attributes
-
-        Returns: a dictionary of REST response
-
-        """
-        xapi = self.build_xapi(hostname)
-        xpath = const.INTERFACE_CONFIG_ENTRY_URL % interface_name
-        xapi.edit(xpath=xpath, element=element)
-        return self.xml_python(xapi)
-
-    def _show_interface(self, hostname, interface_name):
-        """ Make REST call to show interface attributes.
-
-        :param hostname: Service VM's IP address
-        :param interface_name: the name of this interface
-
-        Returns: a dictionary of REST response
-
-        """
-        xapi = self.build_xapi(hostname)
-        xpath = const.INTERFACE_CONFIG_ENTRY_URL % interface_name
-        xapi.show(xpath=xpath)
-        return self.xml_python(xapi)
-
     def _add_pbf(self, hostname, element):
         """ Make REST call to add a pbf rule
 
@@ -352,21 +454,6 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         xapi = self.build_xapi(hostname)
         xpath = const.PBF_RULES_URL
         xapi.set(xpath=xpath, element=element)
-        return self.xml_python(xapi)
-
-    def _edit_pbf(self, hostname, pbf_name, element):
-        """ Make REST call to edit a pbf rule
-
-        :param hostname: Service VM's IP address
-        :param pbf_name: the name of this pbf rule
-        :param element: the xml format string of the pbf's attributes
-
-        Returns: a dictionary of REST response
-
-        """
-        xapi = self.build_xapi(hostname)
-        xpath = const.PBF_RULE_ENTRY_URL % pbf_name
-        xapi.edit(xpath=xpath, element=element)
         return self.xml_python(xapi)
 
     def _delete_pbf(self, hostname, pbf_name):
@@ -383,21 +470,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         xapi.delete(xpath=xpath)
         return self.xml_python(xapi)
 
-    def _show_pbf(self, hostname, pbf_name):
-        """ Make REST call to show a pbf rule
-
-        :param hostname: Service VM's IP address
-        :param pbf_name: the name of this pbf rule
-
-        Returns: a dictionary of REST response
-
-        """
-        xapi = self.build_xapi(hostname)
-        xpath = const.PBF_RULE_ENTRY_URL % pbf_name
-        xapi.show(xpath=xpath)
-        return self.xml_python(xapi)
-
-    def commit(self, hostname):
+    def _commit(self, hostname):
         """ Make REST call to commit current configuration
 
         :param hostname: Service VM's IP address
@@ -419,6 +492,34 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                     }
         xapi.commit(**kwargs)
         return self.xml_python(xapi)
+
+    def _print_exception(self, exception_type, err,
+                         operation, response=None):
+        """ Print log messages for exception
+
+        :param exception_type: Name of the exception as a string
+        :param err: error string of this exception
+        :param operation: the operation that causing this exception
+        :param response: the dictionary of REST response from service VM
+
+        """
+
+        if exception_type == 'PanXapiError':
+            msg = ("PanXapiError occurred while %s: %s.\n Response: '%s'"
+                   % (operation, str(err).capitalize(), str(response)))
+            LOG.error(msg)
+        elif exception_type == 'PanConfigError':
+            msg = ("PanConfigError occurred while %s: %s.\n Response: '%s'"
+                   % (operation, str(err).capitalize(), str(response)))
+            LOG.error(msg)
+        elif exception_type == 'KeyError':
+            msg = ("KeyError occurred while %s: %s.\n Response: '%s'"
+                   % (operation, str(err).capitalize(), str(response)))
+            LOG.error(msg)
+        elif exception_type == 'UnexpectedError':
+            msg = ("Unexpected error occurred while %s: %s.\n Response: '%s'"
+                   % (operation, str(err).capitalize(), str(response)))
+            LOG.error(msg)
 
     def build_xapi(self, hostname):
         """ Build pan lib's xapi
@@ -449,42 +550,13 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         Return: a dictionary format REST response
 
         """
-        xpath = None
         if xapi.element_root is None:
             return None
 
         elem = xapi.element_root
         conf = pan.config.PanConfig(config=elem)
-        d = conf.python(xpath)
+        d = conf.python()
         return d
-
-    def _print_exception(self, exception_type, err,
-                         operation, response=None):
-        """ Abstract class for printing log messages
-
-        :param exception_type: Name of the exception as a string
-        :param err: error string of this exception
-        :param operation: the operation that causing this exception
-        :param response: the dictionary of REST response from service VM
-
-        """
-
-        if exception_type == 'PanXapiError':
-            msg = ("PanXapiError occurred while %s: %s.\n Response: '%s'"
-                   % (operation, str(err).capitalize(), str(response)))
-            LOG.error(msg)
-        elif exception_type == 'PanConfigError':
-            msg = ("PanConfigError occurred while %s: %s.\n Response: '%s'"
-                   % (operation, str(err).capitalize(), str(response)))
-            LOG.error(msg)
-        elif exception_type == 'KeyError':
-            msg = ("KeyError occurred while %s: %s.\n Response: '%s'"
-                   % (operation, str(err).capitalize(), str(response)))
-            LOG.error(msg)
-        elif exception_type == 'UnexpectedError':
-            msg = ("Unexpected error occurred while %s: %s.\n Response: '%s'"
-                   % (operation, str(err).capitalize(), str(response)))
-            LOG.error(msg)
 
     def analyze_response(self, msg, response, operation):
         """ Analyze the response from PaloAlto Firewall
@@ -623,6 +695,7 @@ class FwaasDriver(FwGenericConfigDriver):
                         application_member=application_name)
 
             try:
+                resp = None
                 resp = self._add_security_rule(vm_mgmt_ip, element)
             except pan.xapi.PanXapiError as err:
                 self._print_exception('PanXapiError', err,
@@ -643,20 +716,7 @@ class FwaasDriver(FwGenericConfigDriver):
                 return common_const.STATUS_ERROR
 
         # commit
-        try:
-            resp = self.commit(hostname=vm_mgmt_ip)
-        except pan.xapi.PanXapiError as err:
-            self._print_exception('PanXapiError', err, const.COMMIT)
-            raise pan.xapi.PanXapiError(err)
-        except pan.config.PanConfigError as err:
-            self._print_exception('PanConfigError', err, const.COMMIT)
-            raise pan.config.PanConfigError(err)
-        except Exception as err:
-            self._print_exception('UnexpectedError', err, const.COMMIT, resp)
-            raise Exception(err)
-
-        if self.analyze_response("COMMITED the configuration to Service VM",
-                                 resp, const.COMMIT)\
+        if self.commit_and_wait_till_finished(hostname=vm_mgmt_ip)\
                 == common_const.STATUS_ERROR:
             return common_const.STATUS_ERROR
 
@@ -699,6 +759,7 @@ class FwaasDriver(FwGenericConfigDriver):
             rule_name = curr_rule['name']
 
             try:
+                resp = None
                 resp = self._delete_security_rule(vm_mgmt_ip, rule_name)
             except pan.xapi.PanXapiError as err:
                 self._print_exception('PanXapiError', err,
@@ -725,6 +786,7 @@ class FwaasDriver(FwGenericConfigDriver):
                     ("firewall-%s-%s" %
                      (curr_rule['protocol'], curr_rule['destination_port']))
                 try:
+                    resp = None
                     resp = self._delete_security_service(vm_mgmt_ip,
                                                          service_name)
                 except pan.xapi.PanXapiError as err:
@@ -749,6 +811,7 @@ class FwaasDriver(FwGenericConfigDriver):
             else:
                 application_name = 'ping-' + curr_rule['protocol']
                 try:
+                    resp = None
                     resp = self._delete_security_application(
                         vm_mgmt_ip, application_name)
                 except pan.xapi.PanXapiError as err:
@@ -773,20 +836,7 @@ class FwaasDriver(FwGenericConfigDriver):
                     return common_const.STATUS_ERROR
 
         # commit
-        try:
-            resp = self.commit(hostname=vm_mgmt_ip)
-        except pan.xapi.PanXapiError as err:
-            self._print_exception('PanXapiError', err, const.COMMIT)
-            raise pan.xapi.PanXapiError(err)
-        except pan.config.PanConfigError as err:
-            self._print_exception('PanConfigError', err, const.COMMIT)
-            raise pan.config.PanConfigError(err)
-        except Exception as err:
-            self._print_exception('UnexpectedError', err, const.COMMIT, resp)
-            raise Exception(err)
-
-        if self.analyze_response("COMMITED the configuration to Service VM",
-                                 resp, const.COMMIT)\
+        if self.commit_and_wait_till_finished(hostname=vm_mgmt_ip)\
                 == common_const.STATUS_ERROR:
             return common_const.STATUS_ERROR
 
@@ -837,6 +887,7 @@ class FwaasDriver(FwGenericConfigDriver):
                                     service_name=service_name,
                                     protocol=protocol, port=port)
         try:
+            resp = None
             resp = self._add_security_service(vm_mgmt_ip, service_element)
         except pan.xapi.PanXapiError as err:
             self._print_exception('PanXapiError', err,
@@ -868,6 +919,7 @@ class FwaasDriver(FwGenericConfigDriver):
         application_element = self._create_application_element(
                                         application_name=application_name)
         try:
+            resp = None
             resp = self._add_security_application(vm_mgmt_ip,
                                                   application_element)
         except pan.xapi.PanXapiError as err:
@@ -988,21 +1040,6 @@ class FwaasDriver(FwGenericConfigDriver):
         xapi.set(xpath=xpath, element=element)
         return self.xml_python(xapi)
 
-    def _edit_security_rule(self, hostname, rule_name, element):
-        """ Make REST call to add a security rule
-
-        :param hostname: Service VM's IP address
-        :param rule_name: the name of the security rule to edit
-        :param element: the xml format string of the security rule's attributes
-
-        Returns: a dictionary of REST response
-
-        """
-        xapi = self.build_xapi(hostname)
-        xpath = const.SECURITY_RULE_ENTRY_URL % rule_name
-        xapi.edit(xpath=xpath, element=element)
-        return self.xml_python(xapi)
-
     def _delete_security_rule(self, hostname, rule_name):
         """ Make REST call to delete a security rule
 
@@ -1015,18 +1052,4 @@ class FwaasDriver(FwGenericConfigDriver):
         xapi = self.build_xapi(hostname)
         xpath = const.SECURITY_RULE_ENTRY_URL % rule_name
         xapi.delete(xpath=xpath)
-        return self.xml_python(xapi)
-
-    def _show_security_rule(self, hostname, rule_name):
-        """ Make REST call to show a security rule
-
-        :param hostname: Service VM's IP address
-        :param rule_name: the name of the security rule to show
-
-        Returns: a dictionary of REST response
-
-        """
-        xapi = self.build_xapi(hostname)
-        xpath = const.SECURITY_RULE_ENTRY_URL % rule_name
-        xapi.show(xpath=xpath)
         return self.xml_python(xapi)

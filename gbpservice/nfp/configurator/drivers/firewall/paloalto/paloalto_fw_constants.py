@@ -138,31 +138,122 @@ SECURITY_APPLICATION_TEMPALTE = (
                                     '</entry>'
                                 )
 
-INTERFACE_CONFIG_URL = "/config/devices/entry/network/interface/ethernet"
-INTERFACE_CONFIG_ENTRY_URL = \
-        "/config/devices/entry/network/interface/ethernet/entry[@name='%s']"
-INTERFACE_CONFIG_TEMPLATE = (
-                                '<entry name="%s">'
-                                '<layer3>'
-                                '<ipv6>'
-                                '<neighbor-discovery>'
-                                '<router-advertisement>'
-                                '<enable>no</enable>'
-                                '</router-advertisement>'
-                                '</neighbor-discovery>'
-                                '</ipv6>'
-                                '<ndp-proxy>'
-                                '<enabled>no</enabled>'
-                                '</ndp-proxy>'
-                                '<lldp>'
-                                '<enable>no</enable>'
-                                '</lldp>'
-                                '<ip>'
-                                '<entry name="%s"/>'
-                                '</ip>'
-                                '<interface-management-profile>'
-                                'enable_default_services'
-                                '</interface-management-profile>'
-                                '</layer3>'
-                                '</entry>'
-                            )
+LOG_SETTINGS_URL = "/config/shared/log-settings"
+
+ADD_SYSLOG = "Add syslog"
+ADD_PROFILE = "Add profile"
+ADD_CONFIG_LOGS_FORWARDING = "Add config logs forwarding"
+
+SYSLOG_NAME = "remote_syslog"
+SYSLOG_URL = "/config/shared/log-settings/syslog"
+SYSLOG_ENTRY_URL = "/config/shared/log-settings/syslog/entry[@name='%s']"
+SYSLOG_TEMPLATE = (
+                    '<entry name="%s">'
+                    '<server>'
+                    '<entry name="%s">'
+                    '<transport>UDP</transport>'
+                    '<port>514</port>'
+                    '<format>BSD</format>'
+                    '<server>%s</server>'
+                    '<facility>LOG_USER</facility>'
+                    '</entry>'
+                    '</server>'
+                    '</entry>'
+                   )
+
+PROFILE_NAME = "remote_log_profile"
+PROFILE_URL = "/config/shared/log-settings/profiles"
+PROFILE_ENTRY_URL = "/config/shared/log-settings/profiles/entry[@name='%s']"
+PROFILE_TEMPLATE = (
+                        '<entry name="%s">'
+                        '<traffic>'
+                        '<any>'
+                        '<send-to-panorama>no</send-to-panorama>'
+                        '<send-syslog>'
+                        '<using-syslog-setting>%s</using-syslog-setting>'
+                        '</send-syslog>'
+                        '</any>'
+                        '</traffic>'
+                        '<alarm>'
+                        '<medium>'
+                        '<send-to-panorama>no</send-to-panorama>'
+                        '<send-syslog>'
+                        '<using-syslog-setting>%s</using-syslog-setting>'
+                        '</send-syslog>'
+                        '</medium>'
+                        '<high>'
+                        '<send-to-panorama>no</send-to-panorama>'
+                        '<send-syslog>'
+                        '<using-syslog-setting>%s</using-syslog-setting>'
+                        '</send-syslog>'
+                        '</high>'
+                        '<critical>'
+                        '<send-to-panorama>no</send-to-panorama>'
+                        '<send-syslog>'
+                        '<using-syslog-setting>%s</using-syslog-setting>'
+                        '</send-syslog>'
+                        '</critical>'
+                        '<informational>'
+                        '<send-syslog>'
+                        '<using-syslog-setting>%s</using-syslog-setting>'
+                        '</send-syslog>'
+                        '</informational>'
+                        '<low>'
+                        '<send-syslog>'
+                        '<using-syslog-setting>%s</using-syslog-setting>'
+                        '</send-syslog>'
+                        '</low>'
+                        '</alarm>'
+                        '<wildfire>'
+                        '<benign>'
+                        '<send-syslog>'
+                        '<using-syslog-setting>%s</using-syslog-setting>'
+                        '</send-syslog>'
+                        '</benign>'
+                        '<grayware>'
+                        '<send-syslog>'
+                        '<using-syslog-setting>%s</using-syslog-setting>'
+                        '</send-syslog>'
+                        '</grayware>'
+                        '<malicious>'
+                        '<send-syslog>'
+                        '<using-syslog-setting>%s</using-syslog-setting>'
+                        '</send-syslog>'
+                        '</malicious>'
+                        '</wildfire>'
+                        '</entry>'
+                    )
+
+CONFIG_URL = "/config/shared/log-settings/config"
+CONFIG_TEMPLATE = (
+                    '<any>'
+                    '<send-syslog>'
+                    '<using-syslog-setting>%s</using-syslog-setting>'
+                    '</send-syslog>'
+                    '</any>'
+                  )
+
+REPORT_NAME = "ruleReport"
+REPORTS_URL = "/config/shared/reports"
+REPORTS_ENTRY_URL = "/config/shared/reports/entry[@name='%s']"
+REPORT_TEMPLATE = (
+                      '<entry name="%s">'
+                      '<type>'
+                      '<traffic>'
+                      '<aggregate-by>'
+                      '<member>from</member>'
+                      '<member>to</member>'
+                      '<member>rule</member>'
+                      '</aggregate-by>'
+                      '<values>'
+                      '<member>bytes</member>'
+                      '<member>packets</member>'
+                      '</values>'
+                      '</traffic>'
+                      '</type>'
+                      '<period>last-6-hrs</period>'
+                      '<topn>10</topn>'
+                      '<topm>10</topm>'
+                      '<caption>%s</caption>'
+                      '</entry>'
+                  )
