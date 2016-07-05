@@ -352,6 +352,7 @@ class OrchestrationDriver(object):
                 self._update_self_with_vendor_data(
                     vendor_data,
                     nfp_constants.SUPPORTS_HOTPLUG)
+
             else:
                 LOG.info(_LI("No vendor data specified in image, "
                              "proceeding with default values"))
@@ -359,6 +360,7 @@ class OrchestrationDriver(object):
             LOG.error(_LE("Error while getting metadata for image name: "
                           "%(image_name)s, proceeding with default values"),
                      {'image_name': image_name})
+        return vendor_data
 
     def _get_image_name(self, device_data):
         if device_data['service_details'].get('image_name'):
@@ -1019,24 +1021,24 @@ class OrchestrationDriver(object):
                             port['id'])
                         break
 
-            for port in device_data['ports']:
-                if port['port_classification'] == nfp_constants.CONSUMER:
-                    service_type = device_data[
-                        'service_details']['service_type'].lower()
-                    if service_type.lower() in [
-                            nfp_constants.FIREWALL.lower(),
-                            nfp_constants.VPN.lower()]:
+                for port in device_data['ports']:
+                    if port['port_classification'] == nfp_constants.CONSUMER:
+                        service_type = device_data[
+                            'service_details']['service_type'].lower()
+                        if service_type.lower() in [
+                                nfp_constants.FIREWALL.lower(),
+                                nfp_constants.VPN.lower()]:
+                            executor.add_job(
+                                'SET_PROMISCUOS_MODE',
+                                network_handler.set_promiscuos_mode_fast,
+                                token, port['id'])
                         executor.add_job(
-                            'SET_PROMISCUOS_MODE',
-                            network_handler.set_promiscuos_mode_fast,
-                            token, port['id'])
-                    executor.add_job(
-                        'ATTACH_INTERFACE',
-                        self.compute_handler_nova.attach_interface,
-                        token, tenant_id, device_data['id'],
-                        port['id'])
-                    break
-            executor.fire()
+                            'ATTACH_INTERFACE',
+                            self.compute_handler_nova.attach_interface,
+                            token, tenant_id, device_data['id'],
+                            port['id'])
+                        break
+                executor.fire()
 
         except Exception as e:
             self._increment_stats_counter('interface_plug_failures')

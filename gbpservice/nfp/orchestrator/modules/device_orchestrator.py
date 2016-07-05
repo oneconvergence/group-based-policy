@@ -666,6 +666,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                                    is_internal_event=True)
                 return None
 
+        nfp_context['vendor_data'] = driver_device_info['vendor_data']
         management = nfp_context['management']
         management['port'] = driver_device_info[
             'mgmt_neutron_port_info']['neutron_port']
