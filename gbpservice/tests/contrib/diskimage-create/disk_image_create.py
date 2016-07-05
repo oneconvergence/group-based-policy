@@ -154,10 +154,6 @@ def dib(nfp_branch_name):
         elif element == 'devuser':
             os.environ['DIB_DEV_USER_USERNAME'] = 'ubuntu'
             os.environ['DIB_DEV_USER_SHELL'] = '/bin/bash'
-            os.environ['SSH_RSS_KEY'] = (
-                "%s/output/%s" % (cur_dir, image_name))
-            os.environ['DIB_DEV_USER_AUTHORIZED_KEYS'] = (
-                "%s.pub" % os.environ['SSH_RSS_KEY'])
         elif element == 'nfp-reference-configurator':
             image_name = 'nfp_reference_service'
             service_dir = "%s/../nfp_service/" % cur_dir
