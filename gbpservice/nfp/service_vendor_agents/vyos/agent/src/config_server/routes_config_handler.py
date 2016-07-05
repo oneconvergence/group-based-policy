@@ -10,13 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import jsonutils
 import logging
 import netaddr
 import netifaces
 import subprocess
 import time
-
-from oslo_serialization import jsonutils
 
 from vyos_session import utils
 

@@ -11,6 +11,7 @@
 #    under the License.
 
 import ast
+import jsonutils
 import logging
 import netifaces
 import os
@@ -20,7 +21,6 @@ import time
 
 from os.path import abspath
 from os.path import dirname
-from oslo_serialization import jsonutils
 
 from edit_persistent_rule import EditPersistentRule
 from flask import Flask

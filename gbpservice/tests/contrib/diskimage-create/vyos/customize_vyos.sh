@@ -39,7 +39,8 @@ save
 # update the repo
 sudo apt-get -o Acquire::Check-Valid-Until=false update
 # install dependent packages
-sudo apt-get -y install python-netifaces python-flask python-netaddr
+sudo apt-get -y install python-pip python-netifaces python-flask python-netaddr
+sudo pip install ez_setup jsonutils
 
 # get oc-vyos package
 sudo apt-get -y --force-yes install vyos

@@ -12,11 +12,10 @@
 
 import ast
 import fw_constants
+import jsonutils
 import logging
 import netifaces
 import time
-
-from oslo_serialization import jsonutils
 
 from execformat.executor import session
 from netifaces import AF_LINK

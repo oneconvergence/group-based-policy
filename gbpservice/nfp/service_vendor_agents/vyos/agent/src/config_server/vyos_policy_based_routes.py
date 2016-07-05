@@ -11,13 +11,12 @@
 #    under the License.
 
 import copy
+import jsonutils
 import logging
 import netaddr
 import netifaces
 import subprocess
 import time
-
-from oslo_serialization import jsonutils
 
 from operations import configOpts
 from vyos_session import utils
