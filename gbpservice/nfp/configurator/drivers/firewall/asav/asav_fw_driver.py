@@ -237,6 +237,42 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         return 'interface-' + cidr.replace('/', '_')
 
+    def _log_forwarding(self, mgmt_ip_address):
+
+        configuration_data = {
+            "protocol": "UDP",
+            "ip": {
+                "kind": "IPv4Address",
+            },
+            "secureEnabled": False,
+            "interface": {
+                "kind": "objectRef#Interface",
+                "name": "management"
+            },
+            "emblemEnabled": False
+        }
+
+        configuration_data['ip']['value'] = self.conf.log_forward_ip_address
+        configuration_data['port'] = self.conf.log_forward_port
+
+        url = const.REQUEST_URL % (mgmt_ip_address,
+                                   "/api/logging/syslogserver")
+
+        status = self.rest_api.post(url, configuration_data, self.auth)
+        if not status:
+            return False
+
+        url = const.REQUEST_URL % (mgmt_ip_address, "/api/cli")
+
+        enable_trap_data = {
+            "commands": [
+                "logging trap informational"
+            ]
+        }
+        status = self.rest_api.post(url, enable_trap_data, self.auth)
+
+        return status
+
     def configure_interfaces(self, context, resource_data):
         """ Configures interfaces for the service VM.
 
@@ -275,6 +311,14 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             msg = ("Failed to configure interfaces. Error: %r." % err)
             LOG.error(msg)
             raise Exception(msg)
+
+        try:
+            status = self._log_forwarding(mgmt_ip)
+        except Exception:
+            msg = ("Configuration of log forwarding has failed. Reason: %r" %
+                   status.json())
+            LOG.error(msg)
+            return status.json()
 
         commands = list()
         try:
