@@ -22,8 +22,8 @@ function prepare_nfp_image_builder {
 
 function configure_vis_ip_addr_in_docker {
     
-    echo "Visibility VM IP address is: $IpAddr"
-    sed -i "s/VIS_VM_IP_ADDRESS/"$IpAddr"/" $NFPSERVICE_DIR/gbpservice/nfp/configurator/Dockerfile
+    echo "Visibility VM IP address is: $visibility_ip"
+    sed -i "s/VIS_VM_IP_ADDRESS/"$visibility_ip"/" $NFPSERVICE_DIR/gbpservice/nfp/configurator/Dockerfile
 
 }
 
@@ -51,8 +51,20 @@ function create_nfp_image {
 
         if [[ $DEVSTACK_MODE = enterprise ]]; then
 
+            ConfiguratorQcow2ImageName=configurator
+            ConfiguratorInstanceName="configuratorVM_instance"
+            create_port_for_vm $ConfiguratorQcow2ImageName
+            
+            if [[ $ConfiguratorQcow2Image = build ]]; then
+                echo "Building Image: $ConfiguratorQcow2ImageName"
+                sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $TOP_DIR/local.conf
+                ConfiguratorQcow2Image=$(cat /tmp/image_path)
+            fi
+            echo "Uploading Image: $ConfiguratorQcow2ImageName"
+            glance image-create --name $ConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $ConfiguratorQcow2Image
+
             VisibilityQcow2ImageName=visibility
-            InstanceName="VisibilityVM_instance"
+            VisibilityInstanceName="VisibilityVM_instance"
             create_port_for_vm $VisibilityQcow2ImageName
 
             if [[ $VisibilityQcow2Image = build ]]; then
@@ -337,6 +349,7 @@ function copy_nfp_files_and_start_process {
         CONFIGURATOR_PORT=8080
     else
         CONFIGURATOR_PORT=8070
+        IpAddr=$configurator_ip
     fi
 
     echo "Configuring proxy.ini .... with rest_server_address as $IpAddr"
@@ -419,29 +432,23 @@ function configure_configurator_user_data {
 function configure_visibility_user_data {
  
     CUR_DIR=$PWD
+    visibility_vm_ip=$1
+
     sudo rm -rf /opt/visibility_user_data
     sudo cp -r $DEST/gbp/devstack/exercises/nfp_service/user-data/visibility_user_data /opt/.
     cd /opt
+
     sudo rm -rf my.key my.key.pub
-    visibility_vm_ip=$1
     sudo ssh-keygen -t rsa -N "" -f my.key
     value=`sudo cat my.key.pub`
     sudo echo  $value
-    sudo sed -i "8 i\      -\ $value" visibility_user_data
-    sudo sed -i '9d' visibility_user_data
+    sudo sed -i "s|<SSH PUBLIC KEY>|${value}|" visibility_user_data
+
     sudo sed -i "s/visibility_vm_ip=*.*/visibility_vm_ip=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/sc_active_ip=*.*/sc_active_ip=$HOST_IP/g" visibility_user_data
-    sudo sed -i "s/sc_standby_ip=*.*/sc_standby_ip=$HOST_IP/g" visibility_user_data
-    sudo sed -i "s/service_controller_vip=*.*/service_controller_vip=$HOST_IP:8080/g" visibility_user_data
-    sudo sed -i "s/db_user=*.*/db_user=root/g" visibility_user_data
-    sudo sed -i "s/db_password=*.*/db_password=$MYSQL_PASSWORD/g" visibility_user_data
-    sudo sed -i "s/db_server_ip=*.*/db_server_ip=$HOST_IP/g" visibility_user_data
+    sudo sed -i "s/os_controller_ip=*.*/os_controller_ip=$HOST_IP/g" visibility_user_data
     sudo sed -i "s/statsd_host=*.*/statsd_host=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/statsd_port=*.*/statsd_port=8125/g" visibility_user_data
-    sudo sed -i "s/rsyslog_host=*.*/rsyslog_host=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/rabbit_host=*.*/rabbit_host=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/rabbit_port=*.*/rabbit_port=5672/g" visibility_user_data
-    sudo sed -i "s/rsyslog_host=*.*/rsyslog_host=$visibility_vm_ip/g" visibility_user_data
+    sudo sed -i "s/rabbit_host=*.*/rabbit_host=$configurator_ip/g" visibility_user_data
+
     cd $CUR_DIR
 }
 
@@ -463,17 +470,17 @@ function attach_security_groups {
 
 function launch_configuratorVM {
 
-    echo "Collecting ImageId : for $image_name"
-    ImageId=`glance image-list|grep $image_name |awk '{print $2}'`
+    echo "Collecting ImageId : for $configurator_image_name"
+    ImageId=`glance image-list|grep $configurator_image_name |awk '{print $2}'`
     if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
         echo $ImageId
     else
-        echo "No image found with name $image_name ..."
+        echo "No image found with name $configurator_image_name ..."
         exit
     fi
 
     configure_configurator_user_data
-    nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$PortId $InstanceName
+    nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$configurator_port_id $ConfiguratorInstanceName
 
     sleep 10
 
@@ -481,12 +488,16 @@ function launch_configuratorVM {
 
 
 function create_port_for_vm {
-    
-    image_name=$1
+
+    if [[ $1 = configurator ]]; then
+        instance_name=$ConfiguratorInstanceName
+    else
+        instance_name=$VisibilityInstanceName
+    fi
 
     GROUP="svc_management_ptg"
     echo "GroupName: $GROUP"
-    PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
+    PortId=$(gbp policy-target-create --policy-target-group $GROUP $instance_name | grep port_id  | awk '{print $4}')
 
     echo "Get IpAddr with port: $PortId"
     IpAddr_extractor=`neutron port-list --format value|grep $PortId|awk '{print $7}'`
@@ -494,6 +505,16 @@ function create_port_for_vm {
     IpAddr=${IpAddr_purge_last//\"/}
     echo "Collecting IpAddr : for $PortId"
     echo $IpAddr
+
+    if [[ $1 = configurator ]]; then
+        configurator_image_name=$1
+        configurator_port_id=$PortId
+        configurator_ip=$IpAddr
+    else
+        visibility_image_name=$1
+        visibility_port_id=$PortId
+        visibility_ip=$IpAddr
+    fi
 }
 
 
@@ -515,20 +536,20 @@ function launch_visibilityVM {
     echo "Collecting IpAddr : for $ExtPortId"
     echo $IpAddr2
     
-    configure_visibility_user_data $IpAddr
+    configure_visibility_user_data $visibility_ip
 
-    echo "Collecting ImageId : for $image_name"
-    ImageId=`glance image-list|grep $image_name |awk '{print $2}'`
+    echo "Collecting ImageId : for $visibility_image_name"
+    ImageId=`glance image-list|grep $visibility_image_name |awk '{print $2}'`
     if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
         echo $ImageId
     else
-        echo "No image found with name $image_name ..."
+        echo "No image found with name $visibility_image_name ..."
         exit
     fi
 
     attach_security_groups
     echo "Launching Visibility image"
-    nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId --nic port-id=$ExtPortId $InstanceName 
+    nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$visibility_port_id --nic port-id=$ExtPortId $VisibilityInstanceName 
 
     sleep 10
     nova add-secgroup $InstanceName $SecGroup

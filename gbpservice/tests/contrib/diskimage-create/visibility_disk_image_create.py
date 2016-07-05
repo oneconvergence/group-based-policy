@@ -210,7 +210,7 @@ def dib(nfp_branch_name):
             image_name = 'visibility'
             # create a docker image
             create_visibility_docker()
-            create_configurator_docker(nfp_branch_name)
+            # create_configurator_docker(nfp_branch_name)
             # set environment variable, needed by 'extra-data.d'
             p1 = subprocess.Popen(['grep', 'DOCKER_IMAGES_URL', '/home/stack/devstack/local.conf'], stdout=subprocess.PIPE)
             p2 = subprocess.Popen(['cut', '-d', '=', '-f', '2'], stdin=p1.stdout, stdout=subprocess.PIPE)
@@ -272,7 +272,6 @@ if __name__ == "__main__":
     # parse args from json file
     parse_json(sys.argv[1])
     elements = conf['dib']['elements']
-
     elem = 'haproxy'
     if elem in elements:
         if(update_haproxy_repo()):
