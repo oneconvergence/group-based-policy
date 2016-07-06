@@ -13,7 +13,7 @@
 import ast
 import copy
 
-from neutron._i18n import _LI
+from neutron.i18n import _LI
 from neutron_lbaas.drivers import driver_base as n_driver_base
 
 from gbpservice.nfp.common import exceptions

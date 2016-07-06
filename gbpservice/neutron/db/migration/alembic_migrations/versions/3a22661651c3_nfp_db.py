@@ -13,15 +13,14 @@
 #    under the License.
 #
 
-""" nfp_db
-
-Revision ID: 54ee8e8d205a
+"""nfp_db
+Revision ID: 3a22661651c3
 Revises: 31b399f08b1c
+Create Date: 2016-06-16 16:37:13.310789
 """
 
-
 # revision identifiers, used by Alembic.
-revision = '54ee8e8d205a'
+revision = '3a22661651c3'
 down_revision = '31b399f08b1c'
 
 
