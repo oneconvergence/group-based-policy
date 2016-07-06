@@ -589,12 +589,8 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         consumer = nfp_context['consumer']
         provider = nfp_context['provider']
-        ports = []
 
-        if consumer['port_model'] == nfp_constants.GBP_PORT:
-            ports = self._make_ports_dict(consumer, provider, 'pt')
-        else:
-            ports = self._make_ports_dict(consumer, provider, 'port')
+        ports = self._make_ports_dict(consumer, provider, 'pt')
 
         device_data['management_network_info'] = management_network_info
 
