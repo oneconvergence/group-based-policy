@@ -286,8 +286,28 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         """
 
+        mgmt_ip = resource_data['mgmt_ip']
+
+        starttime = 0
+        while starttime < TIMEOUT:
+            try:
+                result = self._log_forwarding(mgmt_ip)
+
+                if result is not common_const.STATUS_SUCCESS:
+                    msg = ("Configuration of log forwarding has failed."
+                           "Reason: %r" % result)
+                    LOG.error(msg)
+                else:
+                    msg = ("Log forwarding Configured successfully.")
+                    LOG.info(msg)
+                    break
+            except Exception:
+                msg = ("Log forwarding configurations are missing")
+                LOG.error(msg)
+            time.sleep(1)
+            starttime += 1
+
         try:
-            mgmt_ip = resource_data['mgmt_ip']
             provider_ip = resource_data.get('provider_ip')
             provider_cidr = resource_data.get('provider_cidr')
             provider_mac = resource_data.get('provider_mac')
@@ -313,25 +333,6 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             msg = ("Failed to configure interfaces. Error: %r." % err)
             LOG.error(msg)
             raise Exception(msg)
-
-        starttime = 0
-        while starttime < TIMEOUT:
-            try:
-                result = self._log_forwarding(mgmt_ip)
-
-                if result is not common_const.STATUS_SUCCESS:
-                    msg = ("Configuration of log forwarding has failed."
-                           "Reason: %r" % result)
-                    LOG.error(msg)
-                else:
-                    msg = ("Log forwarding Configured successfully.")
-                    LOG.info(msg)
-                    break
-            except Exception:
-                msg = ("Log forwarding configurations are missing")
-                LOG.error(msg)
-            time.sleep(1)
-            starttime += 1
 
         commands = list()
         try:
