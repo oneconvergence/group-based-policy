@@ -3,12 +3,13 @@ from neutron.api.v2 import attributes as attr
 from neutron import context as neutron_context
 from neutron.common import constants as l3_constants
 from neutron import manager
-#from neutron.common import common as n_topics
+from neutron.common import topics as n_topics
 from neutron.common import exceptions as n_exc
 from neutron.db import models_v2
 from neutron.db import l3_db
 from neutron.db.l3_db import (
-        RouterPort, EXTERNAL_GW_INFO, DEVICE_OWNER_ROUTER_INTF)
+        RouterPort, EXTERNAL_GW_INFO, DEVICE_OWNER_ROUTER_INTF, DEVICE_OWNER_ROUTER_GW)
+from neutron.extensions import l3
 from neutron.plugins.common import constants as n_const
 import netaddr
 from oslo_config import cfg
@@ -29,8 +30,8 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
         # Monkey patch L3 agent topic
         # L3 agent was where reference firewall agent runs
         # patch that topic to the NFP firewall agent's topic name
-        ref_fw_plugin.f_const.L3_AGENT = topics.FW_NFP_CONFIGAGENT_TOPIC
-        #n_topics.L3_AGENT = topics.FW_NFP_CONFIGAGENT_TOPIC
+        #ref_fw_plugin.f_const.L3_AGENT = topics.FW_NFP_CONFIGAGENT_TOPIC
+        n_topics.L3_AGENT = topics.FW_NFP_CONFIGAGENT_TOPIC
 
         # Ensure neutron fwaas extensions are loaded
         ext_path = neutron_fwaas.extensions.__path__[0]
@@ -76,6 +77,29 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
         """
         return fw
 
+# Monkey patching the create_firewall db method
+def create_firewall(self, context, firewall, status=None):
+    fw = firewall['firewall']
+    tenant_id = fw['tenant_id']
+    # distributed routers may required a more complex state machine;
+    # the introduction of a new 'CREATED' state allows this, whilst
+    # keeping a backward compatible behavior of the logical resource.
+    if not status:
+        status = n_const.PENDING_CREATE
+    with context.session.begin(subtransactions=True):
+        self._validate_fw_parameters(context, fw, tenant_id)
+        firewall_db = n_firewall.Firewall(
+                id=uuidutils.generate_uuid(),
+                tenant_id=tenant_id,
+                name=fw['name'],
+                description=fw['description'],
+                firewall_policy_id=fw['firewall_policy_id'],
+                admin_state_up=fw['admin_state_up'],
+                status=status)
+        context.session.add(firewall_db)
+    return self._make_firewall_dict(firewall_db)
+
+n_firewall.Firewall_db_mixin.create_firewall = create_firewall
 
 # Monkey patching l3_db's _get_router_for_floatingip method to associate
 # floatingip if corresponding routes is present.
@@ -203,34 +227,30 @@ def _get_router_for_floatingip(self, context, internal_port,
                                internal_subnet_id,
                                external_network_id):
     subnet = self._core_plugin.get_subnet(context, internal_subnet_id)
+
     if not subnet['gateway_ip']:
         msg = (_('Cannot add floating IP to port on subnet %s '
                  'which has no gateway_ip') % internal_subnet_id)
         raise n_exc.BadRequest(resource='floatingip', msg=msg)
 
-    # Find routers(with router_id and interface address) that
-    # connect given internal subnet and the external network.
-    # Among them, if the router's interface address matches
-    # with subnet's gateway-ip, return that router.
-    # Otherwise return the first router.
-    gw_port = orm.aliased(models_v2.Port, name="gw_port")
-    routerport_qry = context.session.query(
-        RouterPort.router_id, models_v2.IPAllocation.ip_address).join(
-        models_v2.Port, models_v2.IPAllocation).filter(
-        models_v2.Port.network_id == internal_port['network_id'],
-        RouterPort.port_type.in_(l3_constants.ROUTER_INTERFACE_OWNERS),
-        models_v2.IPAllocation.subnet_id == internal_subnet_id
-    ).join(gw_port, gw_port.device_id == RouterPort.router_id).filter(
-        gw_port.network_id == external_network_id).distinct()
+    router_intf_ports = self._get_interface_ports_for_network(
+        context, internal_port['network_id'])
 
-    first_router_id = None
-    for router_id, interface_ip in routerport_qry:
-        if interface_ip == subnet['gateway_ip']:
+    # This joins on port_id so is not a cross-join
+    routerport_qry = router_intf_ports.join(models_v2.IPAllocation)
+    routerport_qry = routerport_qry.filter(
+        models_v2.IPAllocation.subnet_id == internal_subnet_id
+    )
+
+    for router_port in routerport_qry:
+        router_id = router_port.router.id
+        router_gw_qry = context.session.query(models_v2.Port)
+        has_gw_port = router_gw_qry.filter_by(
+            network_id=external_network_id,
+            device_id=router_id,
+            device_owner=DEVICE_OWNER_ROUTER_GW).count()
+        if has_gw_port:
             return router_id
-        if not first_router_id:
-            first_router_id = router_id
-    if first_router_id:
-        return first_router_id
 
     router_ids = self._find_routers_via_routes_for_floatingip(
         context,
@@ -246,10 +266,8 @@ def _get_router_for_floatingip(self, context, internal_port,
         port_id=internal_port['id'])
 
 
-l3_db.L3_NAT_dbonly_mixin._get_router_for_floatingip = (
-        _get_router_for_floatingip)
-l3_db.L3_NAT_dbonly_mixin._find_routers_via_routes_for_floatingip = (
-        _find_routers_via_routes_for_floatingip)
+l3_db.L3_NAT_dbonly_mixin._get_router_for_floatingip = _get_router_for_floatingip
+l3_db.L3_NAT_dbonly_mixin._find_routers_via_routes_for_floatingip = _find_routers_via_routes_for_floatingip
 l3_db.L3_NAT_dbonly_mixin._find_net_for_nexthop = _find_net_for_nexthop
-l3_db.L3_NAT_dbonly_mixin._is_net_reachable_from_net = (
-        _is_net_reachable_from_net)
+l3_db.L3_NAT_dbonly_mixin._is_net_reachable_from_net = _is_net_reachable_from_net
+

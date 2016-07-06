@@ -12,7 +12,7 @@
 
 from keystoneclient import exceptions as k_exceptions
 from keystoneclient.v2_0 import client as keyclient
-from neutron._i18n import _LE
+from neutron.i18n import _LE
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import excutils

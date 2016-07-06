@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron._i18n import _LW
+from neutron.i18n import _LW
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.ml2 import driver_api as api

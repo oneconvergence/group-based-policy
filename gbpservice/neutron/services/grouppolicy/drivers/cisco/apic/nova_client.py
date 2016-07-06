@@ -11,7 +11,7 @@
 #    under the License.
 
 from keystoneauth1 import loading as ks_loading
-from neutron._i18n import _LW
+from neutron.i18n import _LW
 from neutron.notifiers import nova as n_nova
 from novaclient import client as nclient
 from novaclient import exceptions as nova_exceptions

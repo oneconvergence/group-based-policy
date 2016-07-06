@@ -20,8 +20,8 @@ from eventlet import greenpool
 
 from keystoneclient import exceptions as k_exceptions
 from keystoneclient.v2_0 import client as keyclient
-from neutron._i18n import _LE
-from neutron._i18n import _LI
+from neutron.i18n import _LE
+from neutron.i18n import _LI
 from neutron.common import exceptions as n_exc
 from neutron.common import rpc as n_rpc
 from neutron.db import model_base

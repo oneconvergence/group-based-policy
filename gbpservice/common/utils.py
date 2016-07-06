@@ -12,8 +12,8 @@
 
 import contextlib
 
-from neutron._i18n import _
-from neutron._i18n import _LE
+from neutron.i18n import _
+from neutron.i18n import _LE
 from neutron import context as n_ctx
 from oslo_config import cfg
 from oslo_log import log as logging
