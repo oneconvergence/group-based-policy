@@ -335,6 +335,7 @@ class OrchestrationDriver(object):
 
     def _update_vendor_data_fast(self, token, admin_tenant_id,
                                image_name, device_data):
+        vendor_data = None
         try:
             vendor_data = self._get_vendor_data_fast(
                 token, admin_tenant_id, image_name, device_data)
@@ -350,6 +351,7 @@ class OrchestrationDriver(object):
                 self._update_self_with_vendor_data(
                     vendor_data,
                     nfp_constants.SUPPORTS_HOTPLUG)
+
             else:
                 LOG.info(_LI("No vendor data specified in image, "
                              "proceeding with default values"))
@@ -357,6 +359,7 @@ class OrchestrationDriver(object):
             LOG.error(_LE("Error while getting metadata for image name: "
                           "%(image_name)s, proceeding with default values"),
                      {'image_name': image_name})
+        return vendor_data
 
     def _get_image_name(self, device_data):
         if device_data['service_details'].get('image_name'):
@@ -601,10 +604,12 @@ class OrchestrationDriver(object):
         executor = nfp_executor.TaskExecutor(jobs=3)
 
         image_id_result = {}
+        vendor_data_result = {}
 
         executor.add_job('UPDATE_VENDOR_DATA',
                          self._update_vendor_data_fast,
-                         token, admin_tenant_id, image_name, device_data)
+                         token, admin_tenant_id, image_name, device_data,
+                         result_store=vendor_data_result)
         executor.add_job('GET_INTERFACES_FOR_DEVICE_CREATE',
                          self._get_interfaces_for_device_create,
                          token, admin_tenant_id, network_handler, device_data)
@@ -633,6 +638,10 @@ class OrchestrationDriver(object):
             self._decrement_stats_counter('management_interfaces',
                                           by=len(interfaces))
             return None
+
+        vendor_data = vendor_data_result.get('result', None)
+        if not vendor_data:
+            LOG.warning(_LE('Failed to get vendor data for device creation.'))
 
         if device_data['service_details'].get('flavor'):
             flavor = device_data['service_details']['flavor']
@@ -756,6 +765,7 @@ class OrchestrationDriver(object):
         mgmt_ip_address = mgmt_neutron_port_info['ip_address']
         return {'id': instance_id,
                 'name': instance_name,
+                'vendor_data': vendor_data,
                 'mgmt_ip_address': mgmt_ip_address,
                 'mgmt_port_id': interfaces[0],
                 'mgmt_neutron_port_info': mgmt_neutron_port_info,
@@ -940,6 +950,21 @@ class OrchestrationDriver(object):
 
         token = device_data['token']
         tenant_id = device_data['tenant_id']
+        vendor_data = device_data['vendor_data']
+
+        if vendor_data:
+            self._update_self_with_vendor_data(
+                vendor_data,
+                nfp_constants.MAXIMUM_INTERFACES)
+            self._update_self_with_vendor_data(
+                vendor_data,
+                nfp_constants.SUPPORTS_SHARING)
+            self._update_self_with_vendor_data(
+                vendor_data,
+                nfp_constants.SUPPORTS_HOTPLUG)
+        else:
+            LOG.info(_LI("No vendor data specified in image, "
+                         "proceeding with default values"))
 
         update_ifaces = []
         try:
@@ -995,24 +1020,24 @@ class OrchestrationDriver(object):
                             port['id'])
                         break
 
-            for port in device_data['ports']:
-                if port['port_classification'] == nfp_constants.CONSUMER:
-                    service_type = device_data[
-                        'service_details']['service_type'].lower()
-                    if service_type.lower() in [
-                            nfp_constants.FIREWALL.lower(),
-                            nfp_constants.VPN.lower()]:
+                for port in device_data['ports']:
+                    if port['port_classification'] == nfp_constants.CONSUMER:
+                        service_type = device_data[
+                            'service_details']['service_type'].lower()
+                        if service_type.lower() in [
+                                nfp_constants.FIREWALL.lower(),
+                                nfp_constants.VPN.lower()]:
+                            executor.add_job(
+                                'SET_PROMISCUOS_MODE',
+                                network_handler.set_promiscuos_mode_fast,
+                                token, port['id'])
                         executor.add_job(
-                            'SET_PROMISCUOS_MODE',
-                            network_handler.set_promiscuos_mode_fast,
-                            token, port['id'])
-                    executor.add_job(
-                        'ATTACH_INTERFACE',
-                        self.compute_handler_nova.attach_interface,
-                        token, tenant_id, device_data['id'],
-                        port['id'])
-                    break
-            executor.fire()
+                            'ATTACH_INTERFACE',
+                            self.compute_handler_nova.attach_interface,
+                            token, tenant_id, device_data['id'],
+                            port['id'])
+                        break
+                executor.fire()
 
         except Exception as e:
             self._increment_stats_counter('interface_plug_failures')
