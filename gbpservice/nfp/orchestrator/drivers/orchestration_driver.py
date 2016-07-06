@@ -326,7 +326,6 @@ class OrchestrationDriver(object):
                     vendor_data,
                     nfp_constants.SUPPORTS_HOTPLUG)
             else:
-
                 LOG.info(_LI("No vendor data specified in image, "
                              "proceeding with default values"))
         except Exception:
@@ -642,7 +641,7 @@ class OrchestrationDriver(object):
 
         vendor_data = vendor_data_result.get('result', None)
         if not vendor_data:
-            LOG.exception(_LE('Failed to get vendor data for device creation.'))
+            LOG.warning(_LE('Failed to get vendor data for device creation.'))
 
         if device_data['service_details'].get('flavor'):
             flavor = device_data['service_details']['flavor']

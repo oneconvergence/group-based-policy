@@ -558,7 +558,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         t_ports = []
         for ptg in [consumer, provider]:
-            if ptg[port_type]:
+            if port_type in ptg.keys():
                 t_ports.append({
                                 'id': ptg[port_type].get('id'),
                                 'port_classification': ptg.get(
@@ -591,7 +591,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         provider = nfp_context['provider']
         ports = []
 
-        if consumer['port_model'] == 'gbp_policy_target':
+        if consumer['port_model'] == nfp_constants.GBP_PORT:
             ports = self._make_ports_dict(consumer, provider, 'pt')
         else:
             ports = self._make_ports_dict(consumer, provider, 'port')
