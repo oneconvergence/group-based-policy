@@ -19,9 +19,9 @@ from apic_ml2.neutron.plugins.ml2.drivers.cisco.apic import apic_model
 from apic_ml2.neutron.plugins.ml2.drivers.cisco.apic import config  # noqa
 from apicapi import apic_manager
 from keystoneclient.v2_0 import client as keyclient
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from neutron._i18n import _LW
+from neutron.i18n import _LE
+from neutron.i18n import _LI
+from neutron.i18n import _LW
 from neutron.agent.linux import dhcp
 from neutron.api.v2 import attributes
 from neutron.common import constants as n_constants

@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron._i18n import _LE
+from neutron.i18n import _LE
 from neutron.api.v2 import attributes as nattr
 from neutron import manager as n_manager
 from neutron.plugins.common import constants as pconst
