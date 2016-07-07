@@ -287,7 +287,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         """
 
         mgmt_ip = resource_data['mgmt_ip']
-
+        import time;time.sleep(15)
         starttime = 0
         while starttime < TIMEOUT:
             try:
