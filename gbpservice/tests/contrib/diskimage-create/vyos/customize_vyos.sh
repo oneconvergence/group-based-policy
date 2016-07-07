@@ -41,7 +41,7 @@ sudo apt-get -o Acquire::Check-Valid-Until=false update
 # install dependent packages
 sudo apt-get -y install python-netifaces python-flask python-netaddr
 
-# get oc-vyos package
+# get vyos package
 sudo apt-get -y --force-yes install vyos
 
 set system task-scheduler task health-monitor executable path '/usr/share/vyos/config_server/interface_monitor.sh'
