@@ -12,7 +12,7 @@
 
 import ast
 import fw_constants
-import jsonutils
+import json as jsonutils
 import logging
 import netifaces
 import time

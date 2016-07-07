@@ -11,7 +11,7 @@
 #    under the License.
 
 import copy
-import jsonutils
+import json as jsonutils
 import logging
 import netaddr
 import netifaces

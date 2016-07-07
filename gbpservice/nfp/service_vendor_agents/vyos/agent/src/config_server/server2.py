@@ -11,7 +11,7 @@
 #    under the License.
 
 import ast
-import jsonutils
+import json as jsonutils
 import logging
 import netifaces
 import os
