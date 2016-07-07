@@ -969,7 +969,7 @@ class OrchestrationDriver(object):
 
         update_ifaces = []
         try:
-            if not self.supports_hotplug:
+            if vendor_data.get('supports_hotplug') == False:
                 # configure interfaces instead of hotplug
                 if self.setup_mode.get(nfp_constants.APIC_MODE):
                     required_ports = len(device_data['ports'])
@@ -1172,7 +1172,7 @@ class OrchestrationDriver(object):
 
         update_ifaces = []
         try:
-            if not self.supports_hotplug:
+            if vendor_data.get('supports_hotplug') == False:
                 if self.setup_mode.get(nfp_constants.APIC_MODE):
                     data_port_ids = []
                     for port in device_data['ports']:
