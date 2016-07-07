@@ -642,6 +642,7 @@ class OrchestrationDriver(object):
         vendor_data = vendor_data_result.get('result', None)
         if not vendor_data:
             LOG.warning(_LE('Failed to get vendor data for device creation.'))
+            vendor_data = {}
 
         if device_data['service_details'].get('flavor'):
             flavor = device_data['service_details']['flavor']
@@ -657,7 +658,7 @@ class OrchestrationDriver(object):
             for interface in interfaces:
                 interfaces_to_attach.append({'port': interface['port_id']})
 
-            if not self.supports_hotplug:
+            if vendor_data.get('supports_hotplug') == False:
                 if self.setup_mode.get(nfp_constants.NEUTRON_MODE):
                     # TODO(ashu): get neutron mode from conf
                     for port in device_data['ports']:
