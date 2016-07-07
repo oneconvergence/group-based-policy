@@ -93,7 +93,7 @@ function create_nfp_image {
         else
 
             ConfiguratorQcow2ImageName=configurator
-            InstanceName="configuratorVM_instance"
+            ConfiguratorInstanceName="configuratorVM_instance"
             create_port_for_vm $ConfiguratorQcow2ImageName
             
             if [[ $ConfiguratorQcow2Image = build ]]; then
@@ -463,8 +463,9 @@ function attach_security_groups {
     nova secgroup-add-rule $SecGroup udp 1 65535  120.0.0.0/24
     nova secgroup-add-rule $SecGroup icmp -1 -1   120.0.0.0/24
     nova secgroup-add-rule $SecGroup tcp 1 65535  120.0.0.0/24
-    nova secgroup-add-rule $SecGroup tcp 80 80  188.0.0.0/24
-    nova secgroup-add-rule $SecGroup udp  514 514  188.0.0.0/24
+    nova secgroup-add-rule $SecGroup tcp 80 80  0.0.0.0/0
+    nova secgroup-add-rule $SecGroup udp  514 514  0.0.0.0/0
+    nova secgroup-add-rule $SecGroup tcp  443 443  0.0.0.0/0
 }
 
 
@@ -552,5 +553,5 @@ function launch_visibilityVM {
     nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$visibility_port_id --nic port-id=$ExtPortId $VisibilityInstanceName 
 
     sleep 10
-    nova add-secgroup $InstanceName $SecGroup
+    nova add-secgroup $VisibilityInstanceName $SecGroup
 }
