@@ -558,7 +558,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         t_ports = []
         for ptg in [consumer, provider]:
-            if port_type in ptg.keys():
+            if (port_type in ptg.keys()) and ptg[port_type]:
                 t_ports.append({
                                 'id': ptg[port_type].get('id'),
                                 'port_classification': ptg.get(
