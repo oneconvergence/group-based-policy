@@ -1177,6 +1177,21 @@ class OrchestrationDriver(object):
         if not vendor_data:
             LOG.warn(_LE('Failed to get vendor data for device deletion.'))
 
+        executor = nfp_executor.TaskExecutor(jobs=1)
+        vendor_data_result = {}
+        tenant_id = device_data.get('tenant_id')
+
+        executor.add_job('UPDATE_VENDOR_DATA',
+                         self._update_vendor_data_fast,
+                         token, tenant_id, image_name, device_data,
+                         result_store=vendor_data_result)
+        executor.fire()
+
+        vendor_data = vendor_data_result.get('result', None)
+        if not vendor_data:
+            LOG.warn(_LE('Failed to get vendor data for device deletion.'))
+            vendor_data = {}
+
         update_ifaces = []
         supports_hotplug = True
         if vendor_data:
