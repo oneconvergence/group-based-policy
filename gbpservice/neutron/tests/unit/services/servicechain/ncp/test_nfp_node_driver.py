@@ -11,6 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import mock
+from neutron.db import api as db_api
+from neutron.db import model_base
+from neutron.plugins.common import constants
+from oslo_serialization import jsonutils
+import webob
+
+
 from gbpservice.neutron.services.servicechain.plugins.ncp import (
     plugin as ncp_plugin)
 from gbpservice.neutron.services.servicechain.plugins.ncp import config  # noqa
@@ -23,12 +31,6 @@ from gbpservice.neutron.tests.unit.services.servicechain import (
     test_servicechain_plugin as test_base)
 from gbpservice.neutron.tests.unit.services.servicechain.ncp import (
     test_ncp_plugin as test_ncp_plugin)
-import mock
-from neutron.db import api as db_api
-from neutron.db import model_base
-from neutron.plugins.common import constants
-from oslo_serialization import jsonutils
-import webob
 
 SERVICE_DELETE_TIMEOUT = 15
 SVC_MANAGEMENT_PTG = 'foo'
@@ -288,13 +290,13 @@ class TestServiceChainInstance(NFPNodeDriverTestCase):
                         network_function=mock.ANY)
                 get_nf.assert_called_with(mock.ANY, mock.ANY)
 
-    def _test_node_update(self):
+    def test_node_update(self):
         with mock.patch.object(nfp_node_driver.NFPClientApi,
                                "create_network_function") as create_nf:
             with mock.patch.object(nfp_node_driver.NFPClientApi,
                                "get_network_function") as get_nf:
                 with mock.patch.object(nfp_node_driver.NFPClientApi,
-                               "update_service_config") as update_svc_config:
+                               "update_network_function") as update_nf:
                     create_nf.return_value = {
                         'id': '126231632163'
                     }
@@ -319,12 +321,14 @@ class TestServiceChainInstance(NFPNodeDriverTestCase):
                     self.update_servicechain_node(
                                 node['id'],
                                 name='newname',
+                                config='{}',
                                 expected_res_status=200)
                     create_nf.assert_called_once_with(
                         mock.ANY,
                         network_function=mock.ANY)
-                    get_nf.assert_called_once_with(mock.ANY, mock.ANY)
-                    update_svc_config.assert_called_once_with()
+                    get_nf.assert_called_with(mock.ANY, mock.ANY)
+                    update_nf.assert_called_with(context=mock.ANY,
+                            network_function_id=mock.ANY, config=mock.ANY)
 
     def test_node_delete(self):
         with mock.patch.object(nfp_node_driver.NFPClientApi,
@@ -353,10 +357,18 @@ class TestServiceChainInstance(NFPNodeDriverTestCase):
                 spec = self.create_servicechain_spec(
                     nodes=[node_id],
                     expected_res_status=201)['servicechain_spec']
-                prs = self._create_redirect_prs(spec['id'])['policy_rule_set']
-                provider = self.create_policy_target_group(
-                    provided_policy_rule_sets={prs['id']: ''})[
-                    'policy_target_group']
+
+                provider = self.create_policy_target_group()[
+                            'policy_target_group']
+                classifier = self.create_policy_classifier()[
+                            'policy_classifier']
+                servicechain_instance = self.create_servicechain_instance(
+                            provider_ptg_id=provider['id'],
+                            classifier_id=classifier['id'],
+                            servicechain_specs=[spec['id']])[
+                            'servicechain_instance']
+
+
                 create_nf.assert_called_once_with(
                         mock.ANY,
                         network_function=mock.ANY)
@@ -365,6 +377,7 @@ class TestServiceChainInstance(NFPNodeDriverTestCase):
             with mock.patch.object(nfp_node_driver.NFPClientApi,
                                "delete_network_function") as delete_nf:
                 get_nf.return_value = None
+                self.delete_servicechain_instance(servicechain_instance['id'])
                 self.delete_policy_target_group(
                               provider['id'], expected_res_status=204)
                 expected_plugin_context = mock.ANY
@@ -643,7 +656,7 @@ class TestServiceChainInstance(NFPNodeDriverTestCase):
                     ptg_added.assert_called_once_with(mock.ANY,
                         mock.ANY, mock.ANY)
 
-    def _test_update_node_consumer_ptg_removed(self):
+    def test_update_node_consumer_ptg_removed(self):
         with mock.patch.object(nfp_node_driver.NFPClientApi,
                                "create_network_function") as create_nf:
             with mock.patch.object(nfp_node_driver.NFPClientApi,
@@ -684,13 +697,11 @@ class TestServiceChainInstance(NFPNodeDriverTestCase):
                 create_nf.assert_called_once_with(
                         mock.ANY,
                         network_function=mock.ANY)
-                get_nf.assert_called_once_with(mock.ANY, mock.ANY)
-
-        with mock.patch.object(nfp_node_driver.NFPClientApi,
-            "consumer_ptg_removed_notification") as ptg_removed:
-            self.delete_policy_target_group(
-                    consumer['id'], expected_res_status=204)
-            ptg_removed.assert_called_once_with(mock.ANY, mock.ANY, mock.ANY)
+                with mock.patch.object(nfp_node_driver.NFPClientApi,
+                    "consumer_ptg_removed_notification") as ptg_removed:
+                    self.delete_policy_target_group(
+                            consumer['id'], expected_res_status=204)
+                    ptg_removed.assert_called_once_with(mock.ANY, mock.ANY, mock.ANY)
 
     def test_policy_target_add_remove(self):
         prof = self._create_service_profile(
