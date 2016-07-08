@@ -331,10 +331,10 @@ class OrchestrationDriver(object):
         except Exception:
             LOG.error(_LE("Error while getting metadata for image name:"
                           "%(image_name)s, proceeding with default values"),
-                     {'image_name': image_name})
+                      {'image_name': image_name})
 
     def _update_vendor_data_fast(self, token, admin_tenant_id,
-                               image_name, device_data):
+                                 image_name, device_data):
         vendor_data = None
         try:
             vendor_data = self._get_vendor_data_fast(
@@ -641,7 +641,7 @@ class OrchestrationDriver(object):
 
         vendor_data = vendor_data_result.get('result', None)
         if not vendor_data:
-            LOG.warning(_LE('Failed to get vendor data for device creation.'))
+            LOG.warn(_LE('Failed to get vendor data for device creation.'))
             vendor_data = {}
 
         if device_data['service_details'].get('flavor'):
@@ -1169,6 +1169,21 @@ class OrchestrationDriver(object):
         token = self._get_token(device_data.get('token'))
         if not token:
             return None
+
+        executor = nfp_executor.TaskExecutor(jobs=1)
+        vendor_data_result = {}
+        tenant_id = device_data.get('tenant_id')
+
+        executor.add_job('UPDATE_VENDOR_DATA',
+                         self._update_vendor_data_fast,
+                         token, tenant_id, image_name, device_data,
+                         result_store=vendor_data_result)
+        executor.fire()
+
+        vendor_data = vendor_data_result.get('result', None)
+        if not vendor_data:
+            LOG.warn(_LE('Failed to get vendor data for device deletion.'))
+            vendor_data = {}
 
         update_ifaces = []
         try:
