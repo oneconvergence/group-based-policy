@@ -17,6 +17,30 @@ function prepare_nfp_image_builder {
     fi
 }
 
+function create_port_for_vm {
+    if [[ $1 = configurator ]]; then
+        instance_name=$ConfiguratorInstanceName
+    else
+        instance_name=$VisibilityInstanceName
+    fi
+    GROUP="svc_management_ptg"
+    PortId=$(gbp policy-target-create --policy-target-group $GROUP $instance_name | grep port_id | awk '{print $4}')
+    IpAddr_extractor=`neutron port-list --format value | grep $PortId | awk '{print $7}'`
+    IpAddr_purge_last=${IpAddr_extractor::-1}
+    IpAddr=${IpAddr_purge_last//\"/}
+    echo "IpAddr of port($PortId): $IpAddr"
+
+    if [[ $1 = configurator ]]; then
+        configurator_image_name=$1
+        configurator_port_id=$PortId
+        configurator_ip=$IpAddr
+    else
+        visibility_image_name=$1
+        visibility_port_id=$PortId
+        visibility_ip=$IpAddr
+    fi
+}
+
 function configure_vis_ip_addr_in_docker {
     echo "Visibility VM IP address is: $visibility_ip"
     sed -i "s/VIS_VM_IP_ADDRESS/"$visibility_ip"/" $NFPSERVICE_DIR/gbpservice/nfp/configurator/Dockerfile
@@ -330,6 +354,21 @@ function configure_configurator_user_data {
     cd $CUR_DIR
 }
 
+function launch_configuratorVM {
+    echo "Collecting ImageId : for $configurator_image_name"
+    ImageId=`glance image-list | grep $configurator_image_name | awk '{print $2}'`
+    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
+        echo $ImageId
+    else
+        echo "No image found with name $configurator_image_name ..."
+        exit
+    fi
+
+    configure_configurator_user_data
+    nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$configurator_port_id $ConfiguratorInstanceName
+    sleep 10
+}
+
 function copy_nfp_files_and_start_process {
     cd /opt/stack/gbp/gbpservice/nfp
     sudo cp -r  bin/nfp /usr/bin/
@@ -440,44 +479,6 @@ function attach_security_groups {
     nova secgroup-add-rule $SecGroup tcp 80 80  0.0.0.0/0
     nova secgroup-add-rule $SecGroup udp  514 514  0.0.0.0/0
     nova secgroup-add-rule $SecGroup tcp  443 443  0.0.0.0/0
-}
-
-function launch_configuratorVM {
-    echo "Collecting ImageId : for $configurator_image_name"
-    ImageId=`glance image-list | grep $configurator_image_name | awk '{print $2}'`
-    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
-        echo $ImageId
-    else
-        echo "No image found with name $configurator_image_name ..."
-        exit
-    fi
-    configure_configurator_user_data
-    nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$configurator_port_id $ConfiguratorInstanceName
-    sleep 10
-}
-
-function create_port_for_vm {
-    if [[ $1 = configurator ]]; then
-        instance_name=$ConfiguratorInstanceName
-    else
-        instance_name=$VisibilityInstanceName
-    fi
-    GROUP="svc_management_ptg"
-    PortId=$(gbp policy-target-create --policy-target-group $GROUP $instance_name | grep port_id | awk '{print $4}')
-    IpAddr_extractor=`neutron port-list --format value | grep $PortId | awk '{print $7}'`
-    IpAddr_purge_last=${IpAddr_extractor::-1}
-    IpAddr=${IpAddr_purge_last//\"/}
-    echo "IpAddr of port($PortId): $IpAddr"
-
-    if [[ $1 = configurator ]]; then
-        configurator_image_name=$1
-        configurator_port_id=$PortId
-        configurator_ip=$IpAddr
-    else
-        visibility_image_name=$1
-        visibility_port_id=$PortId
-        visibility_ip=$IpAddr
-    fi
 }
 
 function launch_visibilityVM {
