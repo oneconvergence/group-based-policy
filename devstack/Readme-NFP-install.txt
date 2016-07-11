@@ -17,7 +17,7 @@ Fresh Installation Steps:
 
     * Advanced Mode Configuration:
         # To trigger advanced mode installation
-            Example: [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=advanced
+            Example: [[ $ENABLE_NFP = True ]] && NFP_DEVSTACK_MODE=advanced
         # VyOS image path 
            * Available only at 192.168.100.135:/home/stack/service_images/vyos.qcow2
             Example: VyosQcow2Image=/home/stack/images/vyos.qcow2
@@ -26,7 +26,7 @@ Fresh Installation Steps:
 
     * Enterprise Mode Configuration:
          # Devstack installation in enterprise mode
-             Example: [[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=enterprise
+             Example: [[ $ENABLE_NFP = True ]] && NFP_DEVSTACK_MODE=enterprise
          # VyOS image path
             * Available only at 192.168.100.135:/home/stack/service_images/vyos.qcow2
              Example: VyosQcow2Image=/home/stack/images/vyos.qcow2
@@ -37,7 +37,6 @@ Fresh Installation Steps:
              EXT_NET_ALLOCATION_POOL_START=
              EXT_NET_ALLOCATION_POOL_END=
              EXT_NET_CIDR=
-             EXT_NET_MASK=
          # Visibility GIT Repository Credentials
              GIT_ACCESS_USERNAME=
              GIT_ACCESS_PASSWORD=
