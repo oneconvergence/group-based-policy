@@ -537,7 +537,7 @@ class HeatDriver(object):
             subnets = consumer['subnets']
 
             # Skip the stitching PTG
-            if ptg['proxied_group_id']:
+            if ptg.get('proxied_group_id'):
                 continue
 
             fw_template_properties.update({'name': ptg['id'][:3]})

@@ -22,7 +22,7 @@ from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core.rpc import RpcAgent
 from gbpservice.nfp.lib import transport
 from gbpservice.nfp.orchestrator.config_drivers import heat_driver
-from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
+from gbpservice.nfp.orchestrator.db import nfp_db_NSD as nfp_db
 from gbpservice.nfp.orchestrator.openstack import openstack_driver
 
 import sys
@@ -46,6 +46,10 @@ def nfp_module_init(controller, config):
 
 
 class ServiceOrchestratorNSD(ServiceOrchestrator):
+
+    def __init__(self, controller, config):
+        super(ServiceOrchestratorNSD, self).__init__(controller, config)
+        self.db_handler = nfp_db.NFPDbBaseNSD()
 
     def _get_network_function_instance_for_multi_service_sharing(self,
                                                                  port_info):

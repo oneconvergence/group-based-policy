@@ -1,5 +1,10 @@
-from gbpservice.nfp.orchestrator.db import NFPDbBase
+from gbpservice.nfp.orchestrator.db.nfp_db import NFPDbBase
 
+from gbpservice.nfp.orchestrator.db import common_db_mixin
+from gbpservice.nfp.orchestrator.db import nfp_db_model
+
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
 
 
 class NFPDbBaseNSD(NFPDbBase):

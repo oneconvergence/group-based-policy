@@ -504,8 +504,8 @@ def load_nfp_modules(conf, controller):
         try:
             files = os.listdir(modules_dir)
             pyfiles = set([f for f in files if f.endswith(".py")])
-            for pyfile in pyfies:
-                module_name = pyfile.strip('.py')[0]
+            for pyfile in pyfiles:
+                module_name = pyfile.strip('.py')
                 nsd_module_name = module_name + '_NSD.py'
                 if nsd_module_name in pyfiles:
                     continue

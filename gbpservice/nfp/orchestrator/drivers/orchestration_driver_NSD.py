@@ -1,10 +1,37 @@
+from gbpservice.nfp.orchestrator.drivers.orchestration_driver import (
+        OrchestrationDriver, _set_network_handler)
+
+from collections import defaultdict
+from neutron._i18n import _LE
+from neutron._i18n import _LI
+
+from gbpservice.nfp.common import constants as nfp_constants
+from gbpservice.nfp.common import exceptions
+from gbpservice.nfp.orchestrator.coal.networking import (
+    nfp_gbp_network_driver
+)
+from gbpservice.nfp.orchestrator.coal.networking import (
+    nfp_neutron_network_driver
+)
+from gbpservice.nfp.orchestrator.openstack import openstack_driver
+
+import ast
+import operator
+
+from gbpservice.nfp.core import log as nfp_logging
+
+from gbpservice.nfp.core import executor as nfp_executor
+
+LOG = nfp_logging.getLogger(__name__)
+
+
 
 PROXY_PORT_PREFIX = "opflex_proxy:"
 ADVANCE_SHARING_PTG_NAME = "Advance_Sharing_PTG"
 
 
 
-class OrchestrationDriverNSD(object):
+class OrchestrationDriverNSD(OrchestrationDriver):
     """Generic Driver class for orchestration of virtual appliances
 
     Launches the VM with all the management and data ports and a new VM
@@ -13,19 +40,13 @@ class OrchestrationDriverNSD(object):
 
     def __init__(self, config, supports_device_sharing=True,
                  supports_hotplug=True, max_interfaces=10):
+        super(OrchestrationDriverNSD, self).__init__(config,
+                supports_device_sharing,supports_hotplug, max_interfaces)
         self.service_vendor = 'general'
         self.supports_device_sharing = supports_device_sharing
         self.supports_hotplug = supports_hotplug
         self.maximum_interfaces = max_interfaces
 
-        self.identity_handler = openstack_driver.KeystoneClient(config)
-        self.compute_handler_nova = openstack_driver.NovaClient(config)
-        self.network_handlers = {
-            nfp_constants.GBP_MODE:
-                nfp_gbp_network_driver.NFPGBPNetworkDriver(config),
-            nfp_constants.NEUTRON_MODE:
-                nfp_neutron_network_driver.NFPNeutronNetworkDriver(config)
-        }
         self.setup_mode = self._get_setup_mode(config)
         self._advance_sharing_network_id = None
 
