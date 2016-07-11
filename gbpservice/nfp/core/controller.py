@@ -503,7 +503,12 @@ def load_nfp_modules(conf, controller):
         modules_dir = base_module.__path__[0]
         try:
             files = os.listdir(modules_dir)
-            for pyfile in set([f for f in files if f.endswith(".py")]):
+            pyfiles = set([f for f in files if f.endswith(".py")])
+            for pyfile in pyfies:
+                module_name = pyfile.strip('.py')[0]
+                nsd_module_name = module_name + '_NSD.py'
+                if nsd_module_name in pyfiles:
+                    continue
                 try:
                     pymodule = __import__(conf.nfp_modules_path,
                                           globals(), locals(),
