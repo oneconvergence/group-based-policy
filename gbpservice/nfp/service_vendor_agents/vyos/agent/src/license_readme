@@ -10,5 +10,5 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-/sbin/route del default dev $IFACE
-echo 1 > /proc/sys/net/ipv4/conf/$IFACE/arp_ignore
+configsession.py and utils.py are open source files and originally taken from
+"https://github.com/abessifi/pyatta".

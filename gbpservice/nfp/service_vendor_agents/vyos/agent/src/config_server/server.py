@@ -20,7 +20,7 @@ logger = logging.getlogger(__name__)
 init_logger(logger)
 
 
-class VyOSServer(object):
+class VyosServer(object):
 
     def __init__(self):
         pass
@@ -35,7 +35,7 @@ def handler(signum, frame):
 
 
 def main(argv):
-    vyos_server = VyOSServer()
+    vyos_server = VyosServer()
     host = ''
     port = 0
     if len(argv) != 5:

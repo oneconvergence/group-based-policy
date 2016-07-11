@@ -16,7 +16,7 @@ import time
 
 from execformat.executor import session
 from netifaces import AF_LINK
-from operations import configOpts
+from operations import ConfigOpts
 from vyos_session.utils import init_logger
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ COMMAND = "interfaces ethernet %s address %s/%s"
 """
 
 
-class StaticIp(configOpts):
+class StaticIp(ConfigOpts):
 
     def __init__(self):
         self.hotplug_timeout = 25

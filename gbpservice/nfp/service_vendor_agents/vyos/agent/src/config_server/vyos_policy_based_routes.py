@@ -18,7 +18,7 @@ import netifaces
 import subprocess
 import time
 
-from operations import configOpts
+from operations import ConfigOpts
 from vyos_session import utils
 
 ROUTING_TABLE_BASE = 10
@@ -46,7 +46,7 @@ VYOS_PBR_COMMANDS = {
         'show interfaces ethernet %s policy route']}
 
 
-class RoutesConfigHandler(configOpts):
+class RoutesConfigHandler(ConfigOpts):
 
     def __init__(self):
         super(RoutesConfigHandler, self).__init__()

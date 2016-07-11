@@ -15,8 +15,8 @@ import subprocess
 
 from vyos_session import utils
 
-OP_SUCCESS = True
-OP_FAILED = False
+SUCCESS = True
+FAILED = False
 
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
@@ -50,7 +50,7 @@ class APIHandler(object):
 
         try:
             self.run_command(command)
-            return OP_SUCCESS
+            return SUCCESS
         except Exception as ex:
             logger.error("Error while configuring rsyslog as client. %s" % ex)
-            return OP_FAILED
+            return FAILED

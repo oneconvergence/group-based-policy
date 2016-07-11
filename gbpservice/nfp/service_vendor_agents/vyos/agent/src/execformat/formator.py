@@ -27,7 +27,7 @@ class ServiceError(Exception):
     pass
 
 
-class showConfig(object):
+class ShowConfig(object):
 
     def formator(self, options):
         args = ['show']

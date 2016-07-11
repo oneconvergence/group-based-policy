@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 utils.init_logger(logger)
 
 
-class configOpts(object):
+class ConfigOpts(object):
 
     def __init__(self):
         pass

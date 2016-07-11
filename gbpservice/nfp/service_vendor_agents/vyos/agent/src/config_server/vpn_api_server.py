@@ -22,11 +22,11 @@ import time
 from execformat.executor import session
 from netaddr import IPAddress
 from netaddr import IPNetwork
-from operations import configOpts
+from operations import ConfigOpts
 from vyos_session import utils
 
-OP_SUCCESS = True
-OP_FAILED = False
+SUCCESS = True
+FAILED = False
 
 OP_COMMAND_SCRIPT = "/usr/share/vyos/vpn_op_commands.pl"
 
@@ -96,7 +96,7 @@ class NoInterfaceOnCidr(Exception):
         self.message = _("No interface in the network '%(cidr)s'") % kwargs
 
 
-class VPNHandler(configOpts):
+class VPNHandler(ConfigOpts):
 
     def __init__(self):
         super(VPNHandler, self).__init__()
@@ -112,7 +112,7 @@ class VPNHandler(configOpts):
         session.save()
         time.sleep(2)
         session.teardown_config_session()
-        return OP_SUCCESS
+        return SUCCESS
 
     def create_ipsec_site_tunnel(self, tunnel):
         session.setup_config_session()
@@ -121,7 +121,7 @@ class VPNHandler(configOpts):
         session.save()
         time.sleep(2)
         session.teardown_config_session()
-        return OP_SUCCESS
+        return SUCCESS
 
     def _ipsec_get_tunnel_idx(self, tunnel):
         command = 'perl'
@@ -159,10 +159,10 @@ class VPNHandler(configOpts):
             session.save()
             time.sleep(2)
             session.teardown_config_session()
-            return OP_SUCCESS
+            return SUCCESS
         except Exception as ex:
             logger.error("Error in deleting ipsec site tunnel. %s" % ex)
-            return OP_FAILED
+            return FAILED
 
     def delete_ipsec_site_conn(self, peer_address):
         try:
@@ -172,10 +172,10 @@ class VPNHandler(configOpts):
             session.save()
             time.sleep(2)
             session.teardown_config_session()
-            return OP_SUCCESS
+            return SUCCESS
         except Exception as ex:
             logger.error("Error in deleting ipsec site connection. %s" % ex)
-            return OP_FAILED
+            return FAILED
 
     def create_ssl_vpn_conn(self, ctx):
         session.setup_config_session()
@@ -184,7 +184,7 @@ class VPNHandler(configOpts):
         session.save()
         time.sleep(2)
         session.teardown_config_session()
-        return OP_SUCCESS
+        return SUCCESS
 
     def ssl_vpn_push_route(self, route):
         session.setup_config_session()
@@ -193,7 +193,7 @@ class VPNHandler(configOpts):
         session.save()
         time.sleep(2)
         session.teardown_config_session()
-        return OP_SUCCESS
+        return SUCCESS
 
     def delete_ssl_vpn_conn(self, tunnel):
         session.setup_config_session()
@@ -202,7 +202,7 @@ class VPNHandler(configOpts):
         session.save()
         time.sleep(2)
         session.teardown_config_session()
-        return OP_SUCCESS
+        return SUCCESS
 
     def delete_ssl_vpn_route(self, route):
         session.setup_config_session()
@@ -211,10 +211,10 @@ class VPNHandler(configOpts):
         session.save()
         time.sleep(2)
         session.teardown_config_session()
-        return OP_SUCCESS
+        return SUCCESS
 
     def get_ssl_vpn_conn_state(self, peer_address):
-        return OP_SUCCESS, 'UP'
+        return SUCCESS, 'UP'
 
     def get_ipsec_site_tunnel_state(self, tunnel):
         tunidx = self._ipsec_get_tunnel_idx(tunnel)
@@ -230,7 +230,7 @@ class VPNHandler(configOpts):
         out, err = proc.communicate()
         state = out.split('=')[1]
         state = state[:-1]
-        return OP_SUCCESS, state
+        return SUCCESS, state
 
     def _delete_ipsec_site_tunnel(self, tunnel):
         tunidx = self._ipsec_get_tunnel_idx(tunnel)
@@ -387,7 +387,7 @@ class VPNHandler(configOpts):
         # Note: The issue is inconsistent, but not seen anymore with this
         # new approach of setting configuration
         utils._alternate_set_and_commit(route_cmd)
-        return OP_SUCCESS
+        return SUCCESS
 
     def _get_all_ifs(self):
         max_possible = 128  # arbitrary. raise if needed.

@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-actions = ["drop", "reject", "accept", "inspect"]
-state = ["established", "invalid", "related"]
-availability = ["enable", "disable"]
-intercloud = False
+ACTIONS = ["drop", "reject", "accept", "inspect"]
+STATE = ["established", "invalid", "related"]
+AVAILABILITY = ["enable", "disable"]

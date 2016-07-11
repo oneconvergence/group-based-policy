@@ -11,7 +11,6 @@
 #    under the License.
 
 import ast
-import fw_constants
 import json as jsonutils
 import logging
 import netifaces
@@ -19,10 +18,10 @@ import time
 
 from execformat.executor import session
 from netifaces import AF_LINK
-from operations import configOpts
+from operations import ConfigOpts
 from vyos_session import utils
 
-FWN = 'firewall name'
+FW_NAME = 'firewall name'
 rule = 'rule'
 firewall_rules = {
     'protocol': '%s protocol %s',
@@ -37,8 +36,12 @@ firewall_action = {'allow': 'accept', 'deny': 'drop'}
 logger = logging.getLogger(__name__)
 utils.init_logger(logger)
 
+''' Firewall module of VyOS agent.
 
-class VyosFWConfigClass(configOpts):
+'''
+
+
+class VyosFWConfigClass(ConfigOpts):
 
     def __init__(self):
         super(VyosFWConfigClass, self).__init__()
@@ -122,10 +125,10 @@ class VyosFWConfigClass(configOpts):
 
     def add_common_rule(self):
         self.fw_identifier = ('fw' + '_' + self.provider_ptg_interfaces[0])
-        default_action = (FWN + ' ' + self.fw_identifier +
+        default_action = (FW_NAME + ' ' + self.fw_identifier +
                           ' default-action drop'
                           )
-        common_fw_rule_prefix = (FWN + ' ' + self.fw_identifier + ' ' +
+        common_fw_rule_prefix = (FW_NAME + ' ' + self.fw_identifier + ' ' +
                                  rule + ' 10')
         accept_action = (common_fw_rule_prefix + ' action accept')
         established_action = (common_fw_rule_prefix +
@@ -142,7 +145,7 @@ class VyosFWConfigClass(configOpts):
         position = str(int(fw_rule.get('position', '100')) + 10)
         if position < 1:
             position *= 10
-        common_fw_rule_prefix = (FWN + ' ' + self.fw_identifier + ' ' +
+        common_fw_rule_prefix = (FW_NAME + ' ' + self.fw_identifier + ' ' +
                                  rule + ' ' + position)
         self.rules.append(common_fw_rule_prefix)
         self.rules.append(''.join([common_fw_rule_prefix, ' action %s' %
@@ -164,20 +167,13 @@ class VyosFWConfigClass(configOpts):
             raise Exception(err)
 
     def configure_interfaces(self):
-        if fw_constants.intercloud:
-            # TODO(Vikash) Its not always the bridge will have same name every
-            #  time. Its only for intercloud
-            interface_conf = ("interfaces bridge br0 firewall in name " +
-                              self.fw_identifier)
+        # It would be always 1 for now.
+        for interface in self.provider_ptg_interfaces:
+            if interface.lower() == 'lo':
+                continue
+            interface_conf = ('interfaces ethernet ' + interface + ' ' +
+                              'firewall out name ' + self.fw_identifier)
             self.rules += [interface_conf]
-        else:
-            # It would be always 1 for now.
-            for interface in self.provider_ptg_interfaces:
-                if interface.lower() == 'lo':
-                    continue
-                interface_conf = ('interfaces ethernet ' + interface + ' ' +
-                                  'firewall out name ' + self.fw_identifier)
-                self.rules += [interface_conf]
 
     def reset_firewall(self, firewall):
         fw_data = jsonutils.loads(firewall)
@@ -198,29 +194,19 @@ class VyosFWConfigClass(configOpts):
 
         session.setup_config_session()
 
-        if fw_constants.intercloud:
-            bridge_rule = ("interfaces bridge br0 firewall in name " +
-                           self.fw_identifier)
-            try:
-                self.delete(bridge_rule.split())
-            except Exception as err:
-                msg = (" Rule deletion on bridge failed - %s " % str(
-                    err))
-                logger.error(msg)
-                raise Exception(msg, 400, dict(delete_success=False))
-        else:
-            del_interface_rule = (
-                'interfaces ethernet ' + self.provider_ptg_interfaces[0] +
-                ' ' + 'firewall')
-            try:
-                self.delete(del_interface_rule.split())
-            except Exception as err:
-                session.discard()
-                session.teardown_config_session()
-                msg = ("Rule deletion on interface %s failed. ERROR: %s " %
-                       (self.provider_ptg_interfaces[0], str(err)))
-                logger.error(msg)
-                raise Exception(msg, 400, dict(delete_success=False))
+        del_interface_rule = (
+            'interfaces ethernet ' + self.provider_ptg_interfaces[0] +
+            ' ' + 'firewall')
+        try:
+            self.delete(del_interface_rule.split())
+        except Exception as err:
+            session.discard()
+            session.teardown_config_session()
+            msg = ("Rule deletion on interface %s failed. ERROR: %s " %
+                   (self.provider_ptg_interfaces[0], str(err)))
+            logger.error(msg)
+            raise Exception(msg, 400, dict(delete_success=False))
+
         try:
             session.commit()
         except Exception as err:
@@ -234,7 +220,7 @@ class VyosFWConfigClass(configOpts):
         # sleep for 2 sec. Got removed in last merge.
         time.sleep(2)
         self.fw_identifier = ('fw' + '_' + self.provider_ptg_interfaces[0])
-        del_firewall = FWN + ' ' + self.fw_identifier
+        del_firewall = FW_NAME + ' ' + self.fw_identifier
         try:
             self.delete(del_firewall.split())
         except Exception as err:
@@ -322,7 +308,7 @@ class VyosFWConfigClass(configOpts):
             'interfaces ethernet ' + self.provider_ptg_interfaces[0] +
             ' ' + 'firewall')
         self.fw_identifier = ('fw' + '_' + self.provider_ptg_interfaces[0])
-        del_firewall = FWN + ' ' + self.fw_identifier
+        del_firewall = FW_NAME + ' ' + self.fw_identifier
         try:
             self.delete(del_interface_rule.split())
             # delete firewall
