@@ -224,17 +224,8 @@ class DeviceOrchestratorNSD(DeviceOrchestrator):
         orchestration_driver = self._get_orchestration_driver(
             service_details['service_vendor'])
 
-        ports = []
-        if consumer['port']:
-            ports.append(
-                {'id': consumer['port']['id'],
-                 'port_classification': consumer['port_classification'],
-                 'port_model': consumer['port_model']})
-        if provider['port']:
-            ports.append(
-                {'id': provider['port']['id'],
-                 'port_classification': provider['port_classification'],
-                 'port_model': provider['port_model']})
+        ports = self._make_ports_dict(consumer, provider, 'port')
+
         device = {
             'id': network_function_device['id'],
             'ports': ports,
@@ -242,7 +233,8 @@ class DeviceOrchestratorNSD(DeviceOrchestrator):
             'token': token,
             'tenant_id': tenant_id,
             'interfaces_in_use': network_function_device['interfaces_in_use'],
-            'status': network_function_device['status']}
+            'status': network_function_device['status'],
+            'vendor_data': nfp_context['vendor_data']}
 
         _ifaces_plugged_in, advance_sharing_ifaces = (
             orchestration_driver.plug_network_function_device_interfaces(
@@ -253,8 +245,8 @@ class DeviceOrchestratorNSD(DeviceOrchestrator):
                     device,
                     advance_sharing_ifaces)
             self._increment_device_interface_count(device)
-            # [REVISIT(mak)] - Check how incremented ref count can be
-            # updated in DB
+            # REVISIT(mak) - Check how incremented ref count can be updated in
+            # DB
             self._controller.event_complete(event, result="SUCCESS")
         else:
             self._create_event(event_id="PLUG_INTERFACE_FAILED",
