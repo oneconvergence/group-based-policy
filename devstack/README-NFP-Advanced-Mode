@@ -8,14 +8,14 @@ Fresh Installation Steps:
 (2) Get local.conf.nfp from NFP devstack patch and copy to devstack directory
     as local.conf
     # cd devstack/
-    # wget -O local.conf.zip https://review.openstack.org/cat/334998,4,devstack/local.conf.nfp
+    # wget -O local.conf.zip https://review.openstack.org/cat/335405,27,devstack/local.conf.nfp
     # unzip local.conf.zip
     # mv local.conf*.nfp local.conf
     # rm local.conf.zip
 
 (3) Configure local.conf
     # Modify NFP_DEVSTACK_MODE to 'advanced'
-    # Modify the GBPSERVICE_BRANCH to point to the top patch in devstack changeset refs/changes/98/334998
+    # Modify the GBPSERVICE_BRANCH to point to the top patch in devstack changeset refs/changes/05/335405
     # Configure following external network details,
       EXT_NET_GATEWAY=
       EXT_NET_ALLOCATION_POOL_START=
