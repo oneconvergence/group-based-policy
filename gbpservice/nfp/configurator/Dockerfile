@@ -47,8 +47,14 @@ RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neut
 RUN cp -r  /neutron_lib/neutron_lib /usr/local/lib/python2.7/dist-packages/
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron.git neutron
 RUN cp -r /neutron/neutron /usr/local/lib/python2.7/dist-packages/
-RUN git clone https://github.com/openstack/group-based-policy.git group-based-policy
-RUN cd /group-based-policy && git fetch https://git.openstack.org/openstack/group-based-policy GIT-BRANCH-NAME && git checkout FETCH_HEAD
+
+# Openstack Repo
+#RUN git clone https://github.com/openstack/group-based-policy.git group-based-policy
+#RUN cd /group-based-policy && git fetch https://git.openstack.org/openstack/group-based-policy GIT-BRANCH-NAME && git checkout FETCH_HEAD
+
+# Oneconvergence Repo
+RUN git clone -b GIT-BRANCH-NAME --single-branch https://github.com/oneconvergence/group-based-policy.git group-based-policy
+
 RUN cp -r /group-based-policy/gbpservice /usr/local/lib/python2.7/dist-packages/
 RUN cp /group-based-policy/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
