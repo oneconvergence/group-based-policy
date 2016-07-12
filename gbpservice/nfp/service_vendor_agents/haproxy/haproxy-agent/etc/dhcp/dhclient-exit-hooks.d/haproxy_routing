@@ -35,7 +35,7 @@ for i in $all_interfaces; do
                 else
                         break
                 fi
-        ((interface_ip_configure_time-=5))
+                ((interface_ip_configure_time-=5))
         done
         if [[ -z $ip_addr ]]; then
                 echo "Hotplugged interface $i doesn't have an IP address. Hence, EXITING!!!" >&2
