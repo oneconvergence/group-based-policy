@@ -48,17 +48,40 @@ function nfp_configure_neutron {
 
 function configure_nfp_loadbalancer {
     echo "Configuring NFP Loadbalancer plugin driver"
-    sudo sed -i "s/service_provider\ *=\ *LOADBALANCER:Haproxy:neutron_lbaas.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver:default/service_provider\ =\ LOADBALANCER:Haproxy:neutron_lbaas.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver\nservice_provider\ =\ LOADBALANCER:loadbalancer:gbpservice.nfp.service_plugins.loadbalancer.drivers.nfp_lbaas_plugin_driver.HaproxyOnVMPluginDriver:default/g" /etc/neutron/neutron_lbaas.conf
+    sudo\
+     sed\
+     -i\
+     '/^service_provider.*HaproxyOnHostPluginDriver:default/'\
+    's'/\
+    ':default'/\
+    '\n'\
+    'service_provider = LOADBALANCER:loadbalancer:gbpservice.nfp.service_plugins.loadbalancer.drivers.nfp_lbaas_plugin_driver.HaproxyOnVMPluginDriver:default'/\
+     /etc/neutron/neutron_lbaas.conf
 }
 
 function configure_nfp_firewall {
     echo "Configuring NFP Firewall plugin"
-    sudo sed -i "s/neutron_fwaas.services.firewall.fwaas_plugin.FirewallPlugin/gbpservice.nfp.service_plugins.firewall.nfp_fwaas_plugin.NFPFirewallPlugin/g" /etc/neutron/neutron.conf
+    sudo\
+     sed\
+     -i\
+     '/^service_plugins/'\
+    's'/\
+    'neutron_fwaas.services.firewall.fwaas_plugin.FirewallPlugin'/\
+    'gbpservice.nfp.service_plugins.firewall.nfp_fwaas_plugin.NFPFirewallPlugin'/\
+     /etc/neutron/neutron.conf
 }
 
 function configure_nfp_vpn {
     echo "Configuring NFP VPN plugin driver"
-    sudo sed -i "s/service_provider\ *=\ *VPN:openswan:neutron_vpnaas.services.vpn.service_drivers.ipsec.IPsecVPNDriver:default/service_provider\ =\ VPN:openswan:neutron_vpnaas.services.vpn.service_drivers.ipsec.IPsecVPNDriver\nservice_provider\ =\ VPN:vpn:gbpservice.nfp.service_plugins.vpn.drivers.nfp_vpnaas_driver.NFPIPsecVPNDriver:default/g" /etc/neutron/neutron_vpnaas.conf
+    sudo\
+     sed\
+     -i\
+     '/^service_provider.*IPsecVPNDriver:default/'\
+    's'/\
+    ':default'/\
+    '\n'\
+    'service_provider = VPN:vpn:gbpservice.nfp.service_plugins.vpn.drivers.nfp_vpnaas_driver.NFPIPsecVPNDriver:default'/\
+     /etc/neutron/neutron_vpnaas.conf
 }
 
 # Process contract
