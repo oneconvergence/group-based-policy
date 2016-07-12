@@ -1353,7 +1353,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 key=network_function['id'],
                 desc_dict=event_desc)
             service_vendor = nfp_context['service_details']['service_vendor']
-            if service_vendor.lower() == 'asav':
+            if service_vendor.lower() in (
+                            nfp_constants.SERIALIZE_EVENTS_FOR_VENDORS):
                 binding_key = service_vendor.lower() + str(
                     network_function['id'])
                 apply_config_event.binding_key = binding_key
@@ -1369,7 +1370,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 key=network_function['id'],
                 desc_dict=event_desc)
             service_vendor = nfp_context['service_details']['service_vendor']
-            if service_vendor.lower() == 'asav':
+            if service_vendor.lower() in (
+                            nfp_constants.SERIALIZE_EVENTS_FOR_VENDORS):
                 binding_key = service_vendor.lower() + str(
                     network_function['id'])
                 apply_config_event.binding_key = binding_key

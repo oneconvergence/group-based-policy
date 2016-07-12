@@ -805,7 +805,8 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             data=nfp_context,
             graph=True)
 
-        if service_vendor.lower() == 'asav':
+        if service_vendor.lower() in (
+                            nfp_constants.SERIALIZE_EVENTS_FOR_VENDORS):
             binding_key = service_vendor.lower() + nf_id
             device_configure_event.sequence = True
             device_configure_event.binding_key = binding_key
@@ -1070,7 +1071,9 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                 device))
         nfp_context['event_desc'] = event.desc.to_dict()
         binding_key = None
-        if service_details['service_vendor'].lower() == 'asav':
+        if service_details['service_vendor'].lower() in (
+                            nfp_constants.SERIALIZE_EVENTS_FOR_VENDORS):
+
             binding_key = service_details['service_vendor'].lower() + (
                 str(network_function['id']))
         device.update({
