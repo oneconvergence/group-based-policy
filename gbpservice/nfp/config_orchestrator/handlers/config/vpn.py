@@ -83,10 +83,9 @@ class VpnAgent(vpn_db.VPNPluginDb, vpn_db.VPNPluginRpcDbMixin):
                                                resource_data[
                                                    'description'])
             core_db = self._get_core_context(context)
-            filtered_core_db = self.\
-                _filter_core_data(core_db,
-                                  vpn_ctx_db[
-                                      'vpnservices'])
+            filtered_core_db = self._filter_core_data(core_db,
+                                                      vpn_ctx_db[
+                                                          'vpnservices'])
             vpn_ctx_db.update(filtered_core_db)
             return vpn_ctx_db
         elif resource.lower() == 'vpn_service':
