@@ -88,10 +88,12 @@ class OrchestrationDriver(object):
         self.stats = {}
 
     def _get_setup_mode(self, config):
-        if nfp_constants.APIC_CONFIG_SECTION in config.list_all_sections():
-            return {nfp_constants.APIC_MODE: True}
-        else:
-            return {nfp_constants.NEUTRON_MODE: True}
+        # REVISIT(TODO): Removing sharing for cisco live demo
+        return {nfp_constants.NEUTRON_MODE: True}
+        # if nfp_constants.APIC_CONFIG_SECTION in config.list_all_sections():
+        #     return {nfp_constants.APIC_MODE: True}
+        # else:
+        #     return {nfp_constants.NEUTRON_MODE: True}
 
     def _get_admin_tenant_id(self, token=None):
         try:
