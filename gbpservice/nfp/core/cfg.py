@@ -13,8 +13,6 @@
 
 from oslo_config import cfg as oslo_config
 
-# from gbpservice.nfp.core import version
-
 NFP_OPTS = [
     oslo_config.IntOpt(
         'workers',
@@ -58,6 +56,8 @@ def init(args, **kwargs):
     """Initialize the configuration. """
     oslo_config.CONF.register_opts(NFP_OPTS)
     oslo_config.CONF.register_opts(es_openstack_opts, "keystone_authtoken")
+    oslo_config.CONF.set_override('use_syslog', 'True')
+    oslo_config.CONF.set_override('syslog_log_facility', 'local1')
     oslo_config.CONF(args=args, project='nfp',
                      version='%%(prog)s %s' % ('version'),
                      #version.version_info.release_string()),

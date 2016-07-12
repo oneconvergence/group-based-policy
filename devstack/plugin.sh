@@ -108,7 +108,7 @@ if is_service_enabled group-policy; then
             create_nfp_gbp_resources
             create_nfp_image
             [[ $DEVSTACK_MODE = advanced ]] && launch_configuratorVM
-            [[ $DEVSTACK_MODE = enterprise ]] && launch_visibilityVM && nfp_logs_forword
+            [[ $DEVSTACK_MODE = enterprise ]] && launch_configuratorVM && launch_visibilityVM && nfp_logs_forword
             copy_nfp_files_and_start_process
         fi
     fi

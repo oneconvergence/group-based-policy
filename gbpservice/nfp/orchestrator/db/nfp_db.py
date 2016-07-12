@@ -1,5 +1,3 @@
-# Copyright (c) 2016 OpenStack Foundation.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -306,7 +304,7 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
 
     def update_network_function_device(self, session,
                                        network_function_device_id,
-                                       updated_network_function_device):
+                                      updated_network_function_device):
         with session.begin(subtransactions=True):
             network_function_device_db = self._get_network_function_device(
                 session, network_function_device_id)
@@ -327,8 +325,8 @@ class NFPDbBase(common_db_mixin.CommonDbMixin):
                     session,
                     network_function_device_db,
                     updated_network_function_device)
-            mgmt_port_id = updated_network_function_device.pop(
-                'mgmt_port_id', None)
+            mgmt_port_id = (
+                updated_network_function_device.pop('mgmt_port_id', None))
             if mgmt_port_id:
                 updated_network_function_device[
                     'mgmt_port_id'] = mgmt_port_id['id']

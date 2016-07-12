@@ -14,18 +14,23 @@ import threading
 
 nfp_context_store = threading.local()
 
+
 class NfpContext(object):
+
     def __init__(self, context):
         self.context = context
 
     def get_context(self):
         return self.context
 
+
 def store_nfp_context(context):
     nfp_context_store.context = NfpContext(context)
 
+
 def clear_nfp_context():
     nfp_context_store.context = None
+
 
 def get_nfp_context():
     context = getattr(nfp_context_store, 'context', None)

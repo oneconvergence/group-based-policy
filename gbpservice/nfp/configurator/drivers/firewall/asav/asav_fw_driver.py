@@ -15,6 +15,7 @@ import ast
 import ipaddr
 import iptools
 import requests
+import time
 
 from oslo_config import cfg
 from oslo_serialization import jsonutils
@@ -29,6 +30,8 @@ from gbpservice.nfp.configurator.lib import fw_constants as fw_const
 from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
+
+TIMEOUT = 20
 
 asav_auth_opts = [
     cfg.StrOpt(
@@ -117,7 +120,7 @@ class RestApi(object):
             msg = ("Successfully issued a POST call. However, the result "
                    "of the POST API is negative. URL: %r. Response code: %s."
                    "Result: %r." % (url, resp.status_code, result))
-            LOG.error(msg)
+            LOG.warn(msg)
             return msg
         msg = ("Successfully issued a POST call and the result of "
                "the API operation is positive. URL: %r. Result: %r. "
@@ -237,6 +240,41 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         return 'interface-' + cidr.replace('/', '_')
 
+    def _log_forwarding(self, mgmt_ip):
+
+        configuration_data = {
+            "protocol": "UDP",
+            "ip": {
+                "kind": "IPv4Address",
+            },
+            "secureEnabled": False,
+            "interface": {
+                "kind": "objectRef#Interface",
+                "name": "management"
+            },
+            "emblemEnabled": False
+        }
+
+        configuration_data['ip']['value'] = self.conf.log_forward_ip_address
+        configuration_data['port'] = self.conf.log_forward_port
+
+        url = const.REQUEST_URL % (mgmt_ip, "/api/logging/syslogserver")
+
+        result = self.rest_api.post(url, configuration_data, self.auth)
+        if not result:
+            return False
+        else:
+            url = const.REQUEST_URL % (mgmt_ip, "/api/cli")
+
+            enable_trap_data = {
+                "commands": [
+                    "logging trap informational"
+                ]
+            }
+            result = self.rest_api.post(url, enable_trap_data, self.auth)
+
+            return result
+
     def configure_interfaces(self, context, resource_data):
         """ Configures interfaces for the service VM.
 
@@ -248,8 +286,28 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
 
         """
 
+        mgmt_ip = resource_data['mgmt_ip']
+
+        starttime = 0
+        while starttime < TIMEOUT:
+            try:
+                result = self._log_forwarding(mgmt_ip)
+
+                if result is not common_const.STATUS_SUCCESS:
+                    msg = ("Configuration of log forwarding has failed."
+                           "Reason: %r" % result)
+                    LOG.error(msg)
+                else:
+                    msg = ("Log forwarding Configured successfully.")
+                    LOG.info(msg)
+                    break
+            except Exception:
+                msg = ("Log forwarding configurations are missing")
+                LOG.error(msg)
+            time.sleep(2)
+            starttime += 2
+
         try:
-            mgmt_ip = resource_data['mgmt_ip']
             provider_ip = resource_data.get('provider_ip')
             provider_cidr = resource_data.get('provider_cidr')
             provider_mac = resource_data.get('provider_mac')
