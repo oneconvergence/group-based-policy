@@ -534,7 +534,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
     def _create_event(self, event_id, event_data=None,
                       key=None, binding_key=None, serialize=False,
                       is_poll_event=False, original_event=None,
-                      is_internal_event=False):
+                      is_internal_event=False, max_times=20):
         if not is_internal_event:
             if is_poll_event:
                 ev = self._controller.new_event(
@@ -543,7 +543,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                     binding_key=original_event.binding_key,
                     key=original_event.desc.uuid)
                 LOG.debug("poll event started for %s" % (ev.id))
-                self._controller.poll_event(ev, max_times=20)
+                self._controller.poll_event(ev, max_times=max_times)
             else:
                 if original_event:
                     ev = self._controller.new_event(
@@ -852,7 +852,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             return
         self._create_event('DELETE_USER_CONFIG_IN_PROGRESS',
                            event_data=request_data,
-                           is_poll_event=True, original_event=event)
+                           is_poll_event=True, original_event=event,
+                           max_times=30)
 
     def _get_network_function_instance_for_multi_service_sharing(self,
                                                                  port_info):
@@ -2043,7 +2044,6 @@ class NSOConfiguratorRpcApi(object):
                                                config_params,
                                                'DELETE')
         nfp_logging.clear_logging_context()
-
     def update_network_function_user_config(self, user_config_data,
                                             service_config, config_tag):
         config_params = self.create_request_structure(user_config_data,
@@ -2128,3 +2128,4 @@ class NSOConfiguratorRpcApi(object):
                                                config_params,
                                                'DELETE')
         nfp_logging.clear_logging_context()
+
