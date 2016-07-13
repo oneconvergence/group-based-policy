@@ -55,7 +55,6 @@ class RestApi(object):
         """
 
         try:
-            data = jsonutils.dumps(data)
             resp = self.request_type_to_api_map(url,
                                                 data, request_type.upper())
         except requests.exceptions.ConnectionError as err:
@@ -74,7 +73,8 @@ class RestApi(object):
             msg = ("Unable to parse response, invalid JSON. URL: "
                    "%r. %r" % (url, str(err).capitalize()))
             return msg
-        if resp.status_code not in common_const.SUCCESS_CODES:
+        if resp.status_code not in common_const.SUCCESS_CODES or (
+                                            result.get('status') is False):
             return result
         return common_const.STATUS_SUCCESS
 
@@ -428,8 +428,8 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             LOG.info(msg)
             return resp
 
-        err_msg += (("Status code: %r, Response Content: %r" %
-                     (resp['status'], resp))
+        err_msg += (("Status code: %r, Reason: %r" %
+                     (resp['status'], resp['reason']))
                     if type(resp) is dict
                     else ("Reason: " + resp))
         LOG.error(err_msg)
@@ -523,8 +523,8 @@ class FwaasDriver(FwGenericConfigDriver):
             LOG.info(msg)
             return common_const.STATUS_ACTIVE
 
-        err_msg += (("Status code: %r, Response Content: %r" %
-                     (resp['status'], resp))
+        err_msg += (("Reason: %r, Response Content: %r" %
+                     (resp.pop('message'), resp))
                     if type(resp) is dict
                     else ("Reason: " + resp))
         LOG.error(err_msg)
@@ -565,8 +565,8 @@ class FwaasDriver(FwGenericConfigDriver):
             LOG.info(msg)
             return common_const.STATUS_ACTIVE
 
-        err_msg += (("Status code: %r, Response Content: %r" %
-                     (resp['status'], resp))
+        err_msg += (("Reason: %r, Response Content: %r" %
+                     (resp.pop('message'), resp))
                     if type(resp) is dict
                     else ("Reason: " + resp))
         LOG.error(err_msg)
@@ -608,7 +608,7 @@ class FwaasDriver(FwGenericConfigDriver):
             return common_const.STATUS_DELETED
 
         if type(resp) is dict:
-            if not resp['delete_success'] and (
+            if not resp.get('delete_success') and (
                             resp.get('message') == const.INTERFACE_NOT_FOUND):
                 err_msg += ("Firewall was not deleted as interface was not "
                             "available in the firewall. It might have got "
@@ -618,8 +618,8 @@ class FwaasDriver(FwGenericConfigDriver):
                 LOG.error(err_msg)
                 return common_const.STATUS_SUCCESS
             else:
-                err_msg += ("Status code: %r, Response Content: %r" %
-                            (resp['status'], resp))
+                err_msg += ("Reason: %r, Response Content: %r" %
+                            (resp.pop('reason'), resp))
         else:
             err_msg += ("Reason: " + resp)
         LOG.error(err_msg)
