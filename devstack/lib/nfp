@@ -172,7 +172,7 @@ function create_nfp_image {
     if [[ $NFP_DEVSTACK_MODE = base ]]; then
         RefConfiguratorQcow2ImageName=reference_configurator_image
         echo "Building Image: $RefConfiguratorQcow2ImageName"
-        sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/ref_configurator_conf.json
+        sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/ref_configurator_conf.json
         RefConfiguratorQcow2Image=$(cat /tmp/image_path)
         echo "Uploading Image: $RefConfiguratorQcow2ImageName"
         glance image-create --name $RefConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $RefConfiguratorQcow2Image
@@ -184,7 +184,7 @@ function create_nfp_image {
             create_port_for_vm $ConfiguratorQcow2ImageName
             if [[ $ConfiguratorQcow2Image = build ]]; then
                 echo "Building Image: $ConfiguratorQcow2ImageName"
-                sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $GBPSERVICE_BRANCH
+                sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/configurator_conf.json $GBPSERVICE_BRANCH
                 ConfiguratorQcow2Image=$(cat /tmp/image_path)
             fi
             echo "Uploading Image: $ConfiguratorQcow2ImageName"
@@ -201,7 +201,7 @@ function create_nfp_image {
                 sudo rm -rf visibility
                 sudo git clone https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git -b $VISIBILITY_GIT_BRANCH
                 echo "Building Image: $VisibilityQcow2ImageName"
-                sudo python $DISK_IMAGE_DIR/diskimage-create/visibility_disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/visibility_conf.json $GBPSERVICE_BRANCH $DEVSTACK_DIR/local.conf
+                sudo python $DISKIMAGE_CREATE_DIR/visibility_disk_image_create.py $DISKIMAGE_CREATE_DIR/visibility_conf.json $GBPSERVICE_BRANCH $DEVSTACK_DIR/local.conf
                 VisibilityQcow2Image=$(cat /tmp/image_path)
             fi
             echo "Uploading Image: $VisibilityQcow2ImageName"
@@ -220,7 +220,7 @@ function create_nfp_image {
             create_port_for_vm $ConfiguratorQcow2ImageName
             if [[ $ConfiguratorQcow2Image = build ]]; then
                 echo "Building Image: $ConfiguratorQcow2ImageName"
-                sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $GBPSERVICE_BRANCH
+                sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/configurator_conf.json $GBPSERVICE_BRANCH
                 ConfiguratorQcow2Image=$(cat /tmp/image_path)
             fi
             echo "Uploading Image: $ConfiguratorQcow2ImageName"
@@ -230,7 +230,7 @@ function create_nfp_image {
         VyosQcow2ImageName=vyos
         if [[ $VyosQcow2Image = build ]]; then
             echo "Building Image: $VyosQcow2ImageName"
-            sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/vyos_conf.json
+            sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/vyos_conf.json
             VyosQcow2Image=$(cat /tmp/image_path)
         fi
         echo "Uploading Image: $VyosQcow2ImageName"
@@ -239,7 +239,7 @@ function create_nfp_image {
         HaproxyQcow2ImageName=haproxy
         if [[ $HaproxyQcow2Image = build ]]; then
             echo "Building Image: $HaproxyQcow2ImageName"
-            sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/haproxy_conf.json
+            sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/haproxy_conf.json
             HaproxyQcow2Image=$(cat /tmp/image_path)
         fi
         echo "Uploading Image: $HaproxyQcow2ImageName"
