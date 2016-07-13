@@ -11,7 +11,6 @@
 #    under the License.
 
 import commands
-# import datetime
 import os
 from oslo_serialization import jsonutils
 import subprocess
@@ -186,8 +185,6 @@ def dib(nfp_branch_name):
 
     dib_args.append('--image-size')
     dib_args.append(str(dib['image_size_in_GB']))
-    # timestamp = datetime.datetime.now().strftime('%I%M%p-%d-%m-%Y')
-    # image_name = "%s_%s" % (image_name, timestamp)
     dib_args.append('-o')
     dib_args.append(str(image_name))
 

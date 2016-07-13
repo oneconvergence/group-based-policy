@@ -74,20 +74,11 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                 'firewall_policies': firewall_policies,
                 'firewall_rules': firewall_rules}
 
-    def _get_core_context(self, context, filters):
-        return common.get_core_context(context,
-                                       filters,
-                                       self._conf.host)
-
     def _context(self, **kwargs):
         context = kwargs.get('context')
         if context.is_admin:
             kwargs['tenant_id'] = context.tenant_id
         db = self._get_firewall_context(**kwargs)
-        # Commenting below as ports, subnets and routers data not need
-        # by firewall with present configurator
-
-        # db.update(self._get_core_context(context, filters))
         return db
 
     def _prepare_resource_context_dicts(self, **kwargs):
@@ -114,8 +105,8 @@ class FwAgent(firewall_db.Firewall_db_mixin):
                   'description': str(description),
                   'tenant_id': firewall['tenant_id']}
 
-        ctx_dict, rsrc_ctx_dict = self.\
-            _prepare_resource_context_dicts(**kwargs)
+        ctx_dict, rsrc_ctx_dict = self._prepare_resource_context_dicts(
+            **kwargs)
         nfp_context = {'network_function_id': nf['id'],
                        'neutron_context': ctx_dict,
                        'fw_mac': fw_mac,

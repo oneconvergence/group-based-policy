@@ -18,6 +18,8 @@ from gbpservice.nfp.config_orchestrator.handlers.config import vpn
 from gbpservice.nfp.config_orchestrator.handlers.notification import (
     handler as notif_handler)
 
+from gbpservice.nfp.config_orchestrator.common import common
+from gbpservice.nfp.lib import transport
 import mock
 from neutron import context as ctx
 import unittest
@@ -71,10 +73,9 @@ class GeneralConfigStructure(object):
             header_data = request_data['info']
             if all(key in header_data for key in ["context", "service_type",
                                                   "service_vendor"]):
-                if not self.\
-                        _check_resource_header_data(rsrc_name,
-                                                    header_data["context"],
-                                                    resource):
+                if not self._check_resource_header_data(rsrc_name,
+                                                        header_data["context"],
+                                                        resource):
                     return False
                 data = request_data['config']
                 for ele in data:
@@ -141,8 +142,7 @@ class GeneralConfigStructure(object):
                 if context['service_info']:
                     data = context['service_info']
                     if all(k in data for k in ["pools", "vips", "members",
-                                               "health_monitors",
-                                               "subnets", "ports"]):
+                                               "health_monitors"]):
                         return True
             except AttributeError:
                 return False
@@ -210,37 +210,45 @@ class FirewallTestCase(unittest.TestCase):
         g_cnfg = GeneralConfigStructure()
         self.assertTrue(g_cnfg._check_general_structure(body, 'firewall'))
 
-    def _call_to_get_network_function_desc(self, context, method, **kwargs):
+    def _call_to_get_network_function_desc(self):
         data = call_network_function_info()
         data['network_function']['description'] = "\n" + str(
             {'provider_ptg_info': [str(uuid.uuid4())],
              'service_vendor': 'xyz'})
-        return data
+        return data['network_function']
 
     def test_create_firewall(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_fw_api) as gfw,\
-                mock.patch(self.import_fwp_api) as gfwp,\
-                mock.patch(self.import_fwr_api) as gfwr,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_fw_api) as gfw, mock.patch(
+                self.import_fwp_api) as gfwp, mock.patch(
+                self.import_fwr_api) as gfwr, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gfw.return_value = []
             gfwp.return_value = []
             gfwr.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
+
             mock_call.side_effect = self._call_to_get_network_function_desc
             mock_send.side_effect = self._cast_firewall
             self.fw_handler.create_firewall(self.context, self.fw, self.host)
 
     def test_delete_firewall(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_fw_api) as gfw,\
-                mock.patch(self.import_fwp_api) as gfwp,\
-                mock.patch(self.import_fwr_api) as gfwr,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_fw_api) as gfw, mock.patch(
+                self.import_fwp_api) as gfwp, mock.patch(
+                self.import_fwr_api) as gfwr, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gfw.return_value = []
             gfwp.return_value = []
             gfwr.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
+
             mock_call.side_effect = self._call_to_get_network_function_desc
             mock_send.side_effect = self._cast_firewall
             self.fw_handler.delete_firewall(self.context, self.fw, self.host)
@@ -275,12 +283,18 @@ class LoadBalanceTestCase(unittest.TestCase):
         except Exception:
             self.assertTrue(False)
 
+    def _call_to_get_network_function_desc(self):
+        data = call_network_function_info()
+        data['network_function']['description'] = ("\n" + str(
+                {'service_vendor': 'xyz'}))
+        return data['network_function']
+
     def _call_data(self, context, method, **kwargs):
         if method.lower() == "get_network_function_details":
             data = call_network_function_info()
             data['network_function']['description'] = "\n" + str(
                 {'service_vendor': 'xyz'})
-            return data
+            return data['network_function']
 
         return []
 
@@ -301,16 +315,19 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_create_vip(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             vip = self._loadbalancer_data('vip')
@@ -318,16 +335,19 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_update_vip(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             old_vip = self._loadbalancer_data('vip')
@@ -336,16 +356,19 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_delete_vip(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             vip = self._loadbalancer_data('vip')
@@ -353,16 +376,19 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_create_pool(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             pool = self._loadbalancer_data('pool')
@@ -371,16 +397,19 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_update_pool(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             old_pool = self._loadbalancer_data('pool')
@@ -389,16 +418,19 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_delete_pool(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             pool = self._loadbalancer_data('pool')
@@ -406,17 +438,20 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_create_member(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(self._get_pool) as mock_pool,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                self._get_pool) as mock_pool, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
@@ -426,17 +461,20 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_update_member(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(self._get_pool) as mock_pool,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                self._get_pool) as mock_pool, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
@@ -449,17 +487,20 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_delete_member(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(self._get_pool) as mock_pool,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                self._get_pool) as mock_pool, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
@@ -469,13 +510,13 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_create_pool_health_monitor(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(self._get_pool) as mock_pool,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                self._get_pool) as mock_pool, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
@@ -483,6 +524,9 @@ class LoadBalanceTestCase(unittest.TestCase):
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             hm = self._loadbalancer_data('health_monitor')
             pool_id = str(uuid.uuid4())
             self.lb_handler.create_pool_health_monitor(
@@ -490,17 +534,20 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_update_pool_health_monitor(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(self._get_pool) as mock_pool,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                self._get_pool) as mock_pool, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
@@ -512,17 +559,21 @@ class LoadBalanceTestCase(unittest.TestCase):
 
     def test_delete_pool_health_monitor(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gp_api) as gp,\
-                mock.patch(self.import_gv_api) as gv,\
-                mock.patch(self.import_gm_api) as gm,\
-                mock.patch(self.import_ghm_api) as ghm,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(self._get_pool) as mock_pool,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gp_api) as gp, mock.patch(
+                self.import_gv_api) as gv, mock.patch(
+                self.import_gm_api) as gm, mock.patch(
+                self.import_ghm_api) as ghm, mock.patch(
+                self._call) as mock_call, mock.patch(
+                self._get_pool) as mock_pool, mock.patch(
+                import_send) as mock_send:
             gp.return_value = []
             gv.return_value = []
             gm.return_value = []
             ghm.return_value = []
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
+
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_loadbalancer
             mock_pool.side_effect = self._get_mocked_pool
@@ -560,10 +611,10 @@ class VPNTestCase(unittest.TestCase):
     def _call_data(self, context, method, **kwargs):
         if method.lower() == "get_network_function_details":
             data = call_network_function_info()
-            data['network_function']['description'] = "\n" +\
+            data['network_function']['description'] = ("\n" +
                 ("ipsec_site_connection_id=%s;service_vendor=xyz" % (
-                    str(uuid.uuid4())))
-            return data
+                    str(uuid.uuid4()))))
+            return data['network_function']
 
         return []
 
@@ -586,18 +637,36 @@ class VPNTestCase(unittest.TestCase):
                 'rsrc_id': str(uuid.uuid4())
                 }
 
+    def _call_to_get_network_function_desc(self):
+        data = call_network_function_info()
+        data['network_function']['description'] = ("\n" +
+            ("ipsec_site_connection_id=%s;service_vendor=xyz" % (
+                str(uuid.uuid4()))))
+        return data['network_function']
+
+    def _get_networks(self):
+        return []
+
+    def _get_routers(self):
+        return []
+
     def test_update_vpnservice_for_vpnservice(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gvs_api) as gvs,\
-                mock.patch(self.import_gikp_api) as gikp,\
-                mock.patch(self.import_gipsp_api) as gipsp,\
-                mock.patch(self.import_gisc_api) as gisc,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gvs_api) as gvs, mock.patch(
+                self.import_gikp_api) as gikp, mock.patch(
+                self.import_gipsp_api) as gipsp, mock.patch(
+                self.import_gisc_api) as gisc, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gvs.return_value = []
             gikp.return_value = []
             gipsp.return_value = []
             gisc.return_value = []
+
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
+
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_vpn
             rsrc_type = 'vpn_service'
@@ -607,16 +676,26 @@ class VPNTestCase(unittest.TestCase):
 
     def test_update_vpnservice_for_ipsec_site_connection(self):
         import_send = self.import_lib + '.send_request_to_configurator'
-        with mock.patch(self.import_gvs_api) as gvs,\
-                mock.patch(self.import_gikp_api) as gikp,\
-                mock.patch(self.import_gipsp_api) as gipsp,\
-                mock.patch(self.import_gisc_api) as gisc,\
-                mock.patch(self._call) as mock_call,\
-                mock.patch(import_send) as mock_send:
+        with mock.patch(self.import_gvs_api) as gvs, mock.patch(
+                self.import_gikp_api) as gikp, mock.patch(
+                self.import_gipsp_api) as gipsp, mock.patch(
+                self.import_gisc_api) as gisc, mock.patch(
+                self._call) as mock_call, mock.patch(
+                import_send) as mock_send:
             gvs.return_value = []
             gikp.return_value = []
             gipsp.return_value = []
             gisc.return_value = []
+
+            network_function_desc = self._call_to_get_network_function_desc()
+            common.get_network_function_details = mock.MagicMock(
+                return_value=network_function_desc)
+
+            networks = self._get_networks()
+            routers = self._get_routers()
+            common.get_networks = mock.MagicMock(return_value=networks)
+            common.get_routers = mock.MagicMock(return_value=routers)
+
             mock_call.side_effect = self._call_data
             mock_send.side_effect = self._cast_vpn
             rsrc_type = 'ipsec_site_connection'
@@ -625,7 +704,7 @@ class VPNTestCase(unittest.TestCase):
             self.vpn_handler.vpnservice_updated(self.context, **kwargs)
 
 
-class NotificationHandlerTestCase(unittest.TestCase):
+class FirewallNotifierTestCase(unittest.TestCase):
 
     class Controller(object):
 
@@ -640,25 +719,147 @@ class NotificationHandlerTestCase(unittest.TestCase):
         self.n_handler = notif_handler.NaasNotificationHandler(
             self.conf, self.Controller())
         self.context = TestContext().get_context()
-        self.n_fw = ("gbpservice.nfp.config_orchestrator.handlers"
-                     ".notification.handler.FirewallNotifier")
 
-    def _fw_nh_api(self, context, notification_data):
-        return
+    def _get_rpc_client(self):
+        class Context(object):
+            def cast(self, context, method, host='', firewall_id='', body=''):
+                return {}
 
-    def test_network_function_notification(self):
-        notification_data = \
-            {'info':
-                {'service_type': 'firewall'},
-             'notification': [
-                    {'data':
-                     {'notification_type': 'set_firewall_status'}
-                     }]
-             }
-        with mock.patch(self.n_fw + '.set_firewall_status') as mock_fw:
-            mock_fw.side_effect = self._fw_nh_api
-            self.n_handler.handle_notification(self.context,
-                                               notification_data)
+        class RCPClient(object):
+            def __init__(self):
+                self.cctxt = Context()
+
+        return RCPClient()
+
+    def get_notification_data(self):
+        return {'info': {'service_type': 'firewall',
+                         'context': {'logging_context': {}}},
+                'notification': [{'data': {'firewall_id': '123',
+                                           'status': 'set_firewall_status',
+                                           'notification_type':
+                                                     'set_firewall_status',
+                                           'host': 'localhost'}
+                                  }]
+                }
+
+    def test_set_firewall_status(self):
+        notification_data = self.get_notification_data()
+        rpc_client = self._get_rpc_client()
+        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        self.n_handler.handle_notification(self.context,
+                                           notification_data)
+
+    def test_set_firewall_deleted(self):
+        notification_data = self.get_notification_data()
+        notification_data['notification'][0]['data'][
+                          'notification_type'] = 'firewall_deleted'
+        rpc_client = self._get_rpc_client()
+        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        self.n_handler.handle_notification(self.context,
+                                           notification_data)
+
+
+class LoadbalancerNotifierTestCase(unittest.TestCase):
+
+    class Controller(object):
+
+        def new_event(self, **kwargs):
+            return
+
+        def post_event(self, event):
+            return
+
+    def setUp(self):
+        self.conf = Conf()
+        self.n_handler = notif_handler.NaasNotificationHandler(
+            self.conf, self.Controller())
+        self.context = TestContext().get_context()
+
+    def _get_rpc_client(self):
+        class Context(object):
+            def cast(self, context, method, host='', pool_id='',
+                     stats ='', body=''):
+                return {}
+
+        class RCPClient(object):
+            def __init__(self):
+                self.cctxt = Context()
+
+        return RCPClient()
+
+    def get_notification_data(self):
+        return {'info': {'service_type': 'loadbalancer',
+                         'context': {'logging_context': {}}},
+                'notification': [{'data': {'obj_type': 'lb',
+                                           'obj_id': '123',
+                                           'status': 'set_firewall_status',
+                                           'notification_type':
+                                                     'update_status',
+                                           'host': 'localhost'}
+                                  }]
+                }
+
+    def test_update_status(self):
+        notification_data = self.get_notification_data()
+        rpc_client = self._get_rpc_client()
+        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        self.n_handler.handle_notification(self.context,
+                                           notification_data)
+
+    def test_update_pool_stats(self):
+        notification_data = self.get_notification_data()
+        notification_data['notification'][0]['data'][
+                          'notification_type'] = 'update_pool_stats'
+        rpc_client = self._get_rpc_client()
+        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        self.n_handler.handle_notification(self.context,
+                                           notification_data)
+
+
+class VpnNotifierTestCase(unittest.TestCase):
+
+    class Controller(object):
+
+        def new_event(self, **kwargs):
+            return
+
+        def post_event(self, event):
+            return
+
+    def setUp(self):
+        self.conf = Conf()
+        self.n_handler = notif_handler.NaasNotificationHandler(
+            self.conf, self.Controller())
+        self.context = TestContext().get_context()
+
+    def _get_rpc_client(self):
+        class Context(object):
+            def cast(self, context, method, host='', status='', body=''):
+                return {}
+
+        class RCPClient(object):
+            def __init__(self):
+                self.cctxt = Context()
+
+        return RCPClient()
+
+    def get_notification_data(self):
+        return {'info': {'service_type': 'vpn',
+                         'context': {'logging_context': {}}},
+                'notification': [{'data': {'firewall_id': '123',
+                                           'status': 'set_firewall_status',
+                                           'notification_type':
+                                                     'update_status',
+                                           'host': 'localhost'}
+                                  }]
+                }
+
+    def test_update_status(self):
+        notification_data = self.get_notification_data()
+        rpc_client = self._get_rpc_client()
+        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        self.n_handler.handle_notification(self.context,
+                                           notification_data)
 
 
 if __name__ == '__main__':
