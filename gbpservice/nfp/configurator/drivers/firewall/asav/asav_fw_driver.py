@@ -31,7 +31,7 @@ from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
-TIMEOUT = 20
+TIMEOUT = 40
 
 asav_auth_opts = [
     cfg.StrOpt(
@@ -854,11 +854,12 @@ class FwaasDriver(FwGenericConfigDriver):
                 msg = ("Failed to configure ASAv Firewall. Reason: %r" %
                        result)
                 LOG.error(msg)
+                return result
             else:
                 self.save_config(mgmt_ip, firewall['id'])
                 msg = ("Configured ASAv Firewall.")
                 LOG.info(msg)
-            return result
+                return common_const.STATUS_ACTIVE
         except Exception as err:
             msg = ("Failed to configure firewall. Error: %r" % err)
             LOG.error(msg)
