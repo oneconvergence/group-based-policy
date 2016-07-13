@@ -208,11 +208,10 @@ if __name__ == "__main__":
 
     if len(sys.argv) < 2:
         print("ERROR: Invalid Usage")
-        print("Usage:\n\t%s <json config file> [local.conf file]"
+        print("Usage:\n\t%s <json config file> NFP_BRANCH_NAME"
               % sys.argv[0])
         print("\twhere: <json config file> contains all the configuration")
-        print("\tand <local.conf file> is the optional configuration file"
-              " from the devstack directory.")
+        print("\tand NFP_BRANCH_NAME is optional argument.")
         exit()
 
     # save PWD
@@ -230,12 +229,10 @@ if __name__ == "__main__":
         if(update_haproxy_repo()):
             exit()
 
-    nfp_branch_name = (get_nfp_branch_name_for_docker(sys.argv[2])
-                       if len(sys.argv) == 3
-                       else None)
+    nfp_branch_name = sys.argv[2] if len(sys.argv) == 3 else None
 
     if 'configurator' in elements and nfp_branch_name is None:
-        print("ERROR: You have to pass local.conf from devstack directory.")
+        print("ERROR: You have to pass NFP_BRANCH_NAME.")
         exit()
 
     # run Disk Image Builder to create VM image
