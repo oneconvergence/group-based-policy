@@ -41,10 +41,10 @@ utils.init_logger(logger)
 '''
 
 
-class VyosFWConfigClass(ConfigOpts):
+class VyosFWConfig(ConfigOpts):
 
     def __init__(self):
-        super(VyosFWConfigClass, self).__init__()
+        super(VyosFWConfig, self).__init__()
         self.fw_identifier = 'fw'
         self.provider_ptg_interfaces = list()
         self.rules = list()
@@ -326,9 +326,9 @@ class VyosFWConfigClass(ConfigOpts):
         self.set(command.split())
         try:
             session.commit()
-        except Exception:
-            logger.error("Failed to update sshd listen-address to %s" %
-                         mgmt_ip)
+        except Exception as err:
+            logger.error("Failed to update sshd listen-address "
+                         "to %s. Reason: %r" % (mgmt_ip, err))
             session.discard()
             session.teardown_config_session()
             return

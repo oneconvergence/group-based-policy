@@ -19,7 +19,7 @@
 4) copy pbr_init and pbr to /usr/share/vyos-pbr
 
 
-vyos agent (server2.py) adds route to the controller node received from pushed
+vyos agent (server.py) adds route to the controller node received from pushed
 configuration, and also writes a route in the
 /usr/share/vyos-pbr/controller_route file. This is to make the added route
 persistent even if the instance is rebooted. 

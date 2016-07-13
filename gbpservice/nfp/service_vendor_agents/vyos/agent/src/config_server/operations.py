@@ -31,11 +31,11 @@ class ConfigOpts(object):
     def __init__(self):
         pass
 
-    def set_1(self, args):
+    def set_full(self, args):
         exe = execUtils(list(args))
         exe.execmd()
 
-    def delete_1(self, args):
+    def delete_full(self, args):
         exe = execUtils(list(args))
         exe.execmd()
 

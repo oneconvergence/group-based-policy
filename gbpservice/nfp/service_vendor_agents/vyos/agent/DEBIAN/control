@@ -5,4 +5,4 @@ Architecture: all
 Maintainer: One Convergence
 Section: devel
 Priority: optional
-Description: vyos package
+Description: Vyos package that supports Firewall and VPN

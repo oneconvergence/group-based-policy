@@ -22,8 +22,54 @@ from gbpservice.nfp.configurator.drivers.firewall.vyos import (
                                                 vyos_fw_constants as const)
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import fw_constants as fw_const
+from nntplib import resp
 
 LOG = nfp_logging.getLogger(__name__)
+
+
+""" REST API wrapper class that provides POST method to
+communicate with the Service VM.
+
+"""
+
+
+class RestApi(object):
+
+    def __init__(self, timeout):
+        self.timeout = timeout
+
+    def post(self, url, data):
+        """ Invokes REST POST call to the Service VM.
+
+        :param url: URL to connect.
+        :param data: data to be sent.
+
+        Returns: SUCCESS/Error message
+
+        """
+
+        try:
+            data = jsonutils.dumps(data)
+            resp = requests.post(url, data, timeout=self.timeout)
+        except requests.exceptions.ConnectionError as err:
+            msg = ("Failed to establish connection to the service at URL: %r. "
+                   "ERROR: %r" % (url, str(err).capitalize()))
+            return msg
+        except Exception as err:
+            msg = ("Failed to issue POST call "
+                   "to service. URL: %r, Data: %r. Error: %r" %
+                   (url, data, str(err).capitalize()))
+            return msg
+
+        try:
+            result = resp.json()
+        except ValueError as err:
+            msg = ("Unable to parse response, invalid JSON. URL: "
+                   "%r. %r" % (url, str(err).capitalize()))
+            return msg
+        if resp.status_code not in common_const.SUCCESS_CODES:
+            return result
+        return common_const.STATUS_SUCCESS
 
 
 """ Firewall generic configuration driver for handling device
@@ -75,38 +121,27 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         msg = ("Initiating POST request to add static IPs for primary "
                "service at: %r" % mgmt_ip)
         LOG.info(msg)
-        try:
-            resp = requests.post(url, data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to primary service at: "
-                   "%r. ERROR: %r" %
-                   (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-        except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened while adding "
-                   "static IPs for primary service at: %r. "
-                   "ERROR: %r" %
-                   (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
 
+        err_msg = ("Static IP POST request to the VyOS firewall "
+                   "service at %s failed. " % url)
         try:
-            result = resp.json()
-        except ValueError as err:
-            msg = ("Unable to parse response, invalid JSON. URL: "
-                   "%r. %r" % (url, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-        if not result['status']:
-            msg = ("Error adding static IPs. URL: %r. Reason: %s." %
-                   (url, result['reason']))
-            LOG.error(msg)
-            return msg
+            resp = self.rest_api.post(url, data)
+        except Exception as err:
+            err_msg += ("Reason: %r" % str(err).capitalize())
+            LOG.error(err_msg)
+            return err_msg
 
-        msg = ("Static IPs successfully added.")
-        LOG.info(msg)
-        return common_const.STATUS_SUCCESS
+        if resp is common_const.STATUS_SUCCESS:
+            msg = ("Static IPs successfully added for service at %r." % url)
+            LOG.info(msg)
+            return resp
+
+        err_msg += (("Status code: %r, Reason: %r" %
+                     (resp['status'], resp['reason']))
+                    if type(resp) is dict
+                    else ("Reason: " + resp))
+        LOG.error(err_msg)
+        return err_msg
 
     def configure_interfaces(self, context, resource_data):
         """ Configure interfaces for the service VM.
@@ -141,10 +176,6 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                        "Error: %s" % (mgmt_ip, err))
                 LOG.error(msg)
                 return result_log_forward
-            else:
-                msg = ("Configured log forwarding for service at %s. "
-                       "Result: %s" % (mgmt_ip, result_log_forward))
-                LOG.info(msg)
 
         try:
             result_static_ips = self._configure_static_ips(resource_data)
@@ -155,9 +186,6 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         else:
             if result_static_ips != common_const.STATUS_SUCCESS:
                 return result_static_ips
-            else:
-                msg = ("Added static IPs. Result: %s" % result_static_ips)
-                LOG.info(msg)
 
         rule_info = dict(
             provider_mac=resource_data['provider_mac'],
@@ -169,36 +197,27 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         msg = ("Initiating POST request to add persistent rule to primary "
                "service at: %r" % mgmt_ip)
         LOG.info(msg)
-        try:
-            resp = requests.post(url, data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to primary service at: "
-                   "%r. ERROR: %r" %
-                   (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-        except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened  while adding "
-                   "persistent rule of primary service at: %r. ERROR: %r" %
-                   (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
 
+        err_msg = ("Add persistent rule POST request to the VyOS firewall "
+                   "service at %s failed. " % url)
         try:
-            result = resp.json()
-        except ValueError as err:
-            msg = ("Unable to parse response, invalid JSON. URL: "
-                   "%r. %r" % (url, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-        if not result['status']:
-            msg = ("Error adding persistent rule. URL: %r" % url)
-            LOG.error(msg)
-            return msg
+            resp = self.rest_api.post(url, data)
+        except Exception as err:
+            err_msg += ("Reason: %r" % str(err).capitalize())
+            LOG.error(err_msg)
+            return err_msg
 
-        msg = ("Persistent rule successfully added.")
-        LOG.info(msg)
-        return common_const.STATUS_SUCCESS
+        if resp is common_const.STATUS_SUCCESS:
+            msg = ("Persistent rule successfully added for "
+                   "service at %r." % url)
+            LOG.info(msg)
+            return resp
+
+        err_msg += (("Status code: %r" % resp['status'])
+                    if type(resp) is dict
+                    else ("Reason: " + resp))
+        LOG.error(err_msg)
+        return err_msg
 
     def _clear_static_ips(self, resource_data):
         """ Clear static IPs for provider and stitching
@@ -230,6 +249,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         msg = ("Initiating POST request to remove static IPs for primary "
                "service at: %r" % mgmt_ip)
         LOG.info(msg)
+
         try:
             resp = requests.delete(url, data=data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:
@@ -351,12 +371,8 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         source_cidrs = resource_data.get('source_cidrs')
         gateway_ip = resource_data.get('gateway_ip')
 
-        # REVISIT(VK): This was all along bad way, don't know why at all it
-        # was done like this.
-
         url = const.request_url % (mgmt_ip, self.port,
                                    'add-source-route')
-        active_configured = False
         route_info = []
         for source_cidr in source_cidrs:
             route_info.append({'source_cidr': source_cidr,
@@ -365,42 +381,27 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         msg = ("Initiating POST request to configure route of "
                "primary service at: %r" % mgmt_ip)
         LOG.info(msg)
+
+        err_msg = ("Configure routes POST request to the VyOS firewall "
+                   "service at %s failed. " % url)
         try:
-            resp = requests.post(url, data=data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to service at: "
-                   "%r. ERROR: %r" % (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-        except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened  while configuring "
-                   "route of service at: %r ERROR: %r" %
-                   (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
+            resp = self.rest_api.post(url, data)
+        except Exception as err:
+            err_msg += ("Reason: %r" % str(err).capitalize())
+            LOG.error(err_msg)
+            return err_msg
 
-        if resp.status_code in common_const.SUCCESS_CODES:
-            message = jsonutils.loads(resp.text)
-            if message.get("status", False):
-                msg = ("Route configured successfully for VYOS"
-                       " service at: %r" % mgmt_ip)
-                LOG.info(msg)
-                active_configured = True
-            else:
-                msg = ("Configure source route failed on service with"
-                       " status %s %s"
-                       % (resp.status_code, message.get("reason", None)))
-                LOG.error(msg)
-                return msg
+        if resp is common_const.STATUS_SUCCESS:
+            msg = ("Configured routes successfully for service at %r." % url)
+            LOG.info(msg)
+            return resp
 
-        msg = ("Route configuration status : %r "
-               % (active_configured))
-        LOG.info(msg)
-        if active_configured:
-            return common_const.STATUS_SUCCESS
-        else:
-            return ("Failed to configure source route. Response code: %s."
-                    "Response Content: %r" % (resp.status_code, resp.content))
+        err_msg += (("Status code: %r, Reason: %r" %
+                     (resp['status'], resp['reason']))
+                    if type(resp) is dict
+                    else ("Reason: " + resp))
+        LOG.error(err_msg)
+        return err_msg
 
     def clear_routes(self, context, resource_data):
         """ Clear routes for the service VM.
@@ -473,6 +474,7 @@ class FwaasDriver(FwGenericConfigDriver):
     def __init__(self, conf):
         self.conf = conf
         self.timeout = const.REST_TIMEOUT
+        self.rest_api = RestApi(self.timeout)
         self.host = self.conf.host
         self.port = const.CONFIGURATION_SERVER_PORT
         super(FwaasDriver, self).__init__()
@@ -503,44 +505,6 @@ class FwaasDriver(FwGenericConfigDriver):
         LOG.debug(msg)
         return description['vm_management_ip']
 
-    def _print_exception(self, exception_type, err,
-                         url, operation, response=None):
-        """ Abstract class for printing log messages
-
-        :param exception_type: Name of the exception as a string
-        :param err: Either error of type Exception or error code
-        :param url: Service url
-        :param operation: Create, update or delete
-        :param response: Response content from Service VM
-
-        """
-
-        if exception_type == 'ConnectionError':
-            msg = ("Error occurred while connecting to firewall "
-                   "service at URL: %r. Firewall not %sd. %s. "
-                   % (url, operation, str(err).capitalize()))
-            LOG.error(msg)
-        elif exception_type == 'RequestException':
-            msg = ("Unexpected error occurred while connecting to "
-                   "firewall service at URL: %r. Firewall not %sd. %s"
-                   % (url, operation, str(err).capitalize()))
-            LOG.error(msg)
-        elif exception_type == 'ValueError':
-            msg = ("Unable to parse the response. Invalid "
-                   "JSON from URL: %r. Firewall not %sd. %s. %r"
-                   % (url, operation, str(err).capitalize(), response))
-            LOG.error(msg)
-        elif exception_type == 'UnexpectedError':
-            msg = ("Unexpected error occurred while connecting to service "
-                   "at URL: %r. Firewall not %sd. %s. %r"
-                   % (url, operation, str(err).capitalize(), response))
-            LOG.error(msg)
-        elif exception_type == 'Failure':
-            msg = ("Firewall not %sd. URL: %r. Response "
-                   "code from server: %r. %r"
-                   % (operation, url, err, response))
-            LOG.error(msg)
-
     def create_firewall(self, context, firewall, host):
         """ Implements firewall creation
 
@@ -565,42 +529,27 @@ class FwaasDriver(FwGenericConfigDriver):
                " %r. URL: %s" % (firewall['id'], firewall['tenant_id'], url))
         LOG.info(msg)
         data = jsonutils.dumps(firewall)
-        try:
-            resp = requests.post(url, data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError as err:
-            self._print_exception('ConnectionError', err, url, 'create')
-            raise requests.exceptions.ConnectionError(err)
-        except requests.exceptions.RequestException as err:
-            self._print_exception('RequestException', err, url, 'create')
-            raise requests.exceptions.RequestException(err)
 
-        msg = ("POSTed the configuration to Service VM")
-        LOG.debug(msg)
-        if resp.status_code in common_const.SUCCESS_CODES:
-            try:
-                resp_payload = resp.json()
-                if resp_payload['config_success']:
-                    msg = ("Configured Firewall successfully. URL: %s"
-                           % url)
-                    LOG.info(msg)
-                    return common_const.STATUS_ACTIVE
-                else:
-                    self._print_exception('Failure',
-                                          resp.status_code, url,
-                                          'create', resp.content)
-                    return common_const.STATUS_ERROR
-            except ValueError as err:
-                self._print_exception('ValueError', err, url,
-                                      'create', resp.content)
-                return common_const.STATUS_ERROR
-            except Exception as err:
-                self._print_exception('UnexpectedError', err, url,
-                                      'create', resp.content)
-                return common_const.STATUS_ERROR
-        else:
-            self._print_exception('Failure', resp.status_code, url,
-                                  'create', resp.content)
+        err_msg = ("Configure firewall POST request to the VyOS "
+                   "service at %s failed. " % url)
+        try:
+            resp = self.rest_api.post(url, data)
+        except Exception as err:
+            err_msg += ("Reason: %r" % str(err).capitalize())
+            LOG.error(err_msg)
             return common_const.STATUS_ERROR
+
+        if resp is common_const.STATUS_SUCCESS:
+            msg = ("Configured firewall successfully for service at %r." % url)
+            LOG.info(msg)
+            return common_const.STATUS_ACTIVE
+
+        err_msg += (("Status code: %r, Response Content: %r" %
+                     (resp['status'], resp))
+                    if type(resp) is dict
+                    else ("Reason: " + resp))
+        LOG.error(err_msg)
+        return common_const.STATUS_ERROR
 
     def update_firewall(self, context, firewall, host):
         """ Implements firewall updation
@@ -622,19 +571,27 @@ class FwaasDriver(FwGenericConfigDriver):
         msg = ("Initiating UPDATE request. URL: %s" % url)
         LOG.info(msg)
         data = jsonutils.dumps(firewall)
+
+        err_msg = ("Update firewall POST request to the VyOS "
+                   "service at %s failed. " % url)
         try:
-            resp = requests.put(url, data=data, timeout=self.timeout)
+            resp = self.rest_api.post(url, data)
         except Exception as err:
-            self._print_exception('UnexpectedError', err, url, 'update')
-            raise Exception(err)
-        if resp.status_code == 200:
-            msg = ("Successful UPDATE request. URL: %s" % url)
+            err_msg += ("Reason: %r" % str(err).capitalize())
+            LOG.error(err_msg)
+            return common_const.STATUS_ERROR
+
+        if resp is common_const.STATUS_SUCCESS:
+            msg = ("Updated firewall successfully for service at %r." % url)
             LOG.info(msg)
             return common_const.STATUS_ACTIVE
-        else:
-            self._print_exception('Failure', resp.status_code, url,
-                                  'create', resp.content)
-            return common_const.STATUS_ERROR
+
+        err_msg += (("Status code: %r, Response Content: %r" %
+                     (resp['status'], resp))
+                    if type(resp) is dict
+                    else ("Reason: " + resp))
+        LOG.error(err_msg)
+        return common_const.STATUS_ERROR
 
     def delete_firewall(self, context, firewall, host):
         """ Implements firewall deletion
@@ -656,47 +613,35 @@ class FwaasDriver(FwGenericConfigDriver):
         msg = ("Initiating DELETE request. URL: %s" % url)
         LOG.info(msg)
         data = jsonutils.dumps(firewall)
-        try:
-            resp = requests.delete(url, data=data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError as err:
-            self._print_exception('ConnectionError', err, url, 'delete')
-            raise requests.exceptions.ConnectionError(err)
-        except requests.exceptions.RequestException as err:
-            self._print_exception('RequestException', err, url, 'delete')
-            raise requests.exceptions.RequestException(err)
 
-        if resp.status_code in common_const.SUCCESS_CODES:
-            # For now agent only check for ERROR.
-            try:
-                resp_payload = resp.json()
-                if resp_payload['delete_success']:
-                    msg = ("Deleted Firewall successfully.")
-                    LOG.info(msg)
-                    return common_const.STATUS_DELETED
-                elif not resp_payload['delete_success'] and \
-                        resp_payload.get('message', '') == (
-                                            const.INTERFACE_NOT_FOUND):
-                    # VK: This is a special case.
-                    msg = ("Firewall not deleted, as interface is not "
-                           "available in firewall. Possibly got detached. "
-                           " So marking this delete as success. URL: %r"
-                           "Response Content: %r" % (url, resp.content))
-                    LOG.error(msg)
-                    return common_const.STATUS_SUCCESS
-                else:
-                    self._print_exception('Failure',
-                                          resp.status_code, url,
-                                          'delete', resp.content)
-                    return common_const.STATUS_ERROR
-            except ValueError as err:
-                self._print_exception('ValueError', err, url,
-                                      'delete', resp.content)
-                return common_const.STATUS_ERROR
-            except Exception as err:
-                self._print_exception('UnexpectedError', err, url,
-                                      'delete', resp.content)
-                return common_const.STATUS_ERROR
-        else:
-            self._print_exception('Failure', resp.status_code, url,
-                                  'create', resp.content)
+        err_msg = ("Delete firewall POST request to the VyOS "
+                   "service at %s failed. " % url)
+        try:
+            resp = self.rest_api.post(url, data)
+        except Exception as err:
+            err_msg += ("Reason: %r" % str(err).capitalize())
+            LOG.error(err_msg)
             return common_const.STATUS_ERROR
+
+        if resp is common_const.STATUS_SUCCESS:
+            msg = ("Deleted firewall successfully for service at %r." % url)
+            LOG.info(msg)
+            return common_const.STATUS_DELETED
+
+        if type(resp) is dict:
+            if not resp['delete_success'] and (
+                            resp.get('message') == const.INTERFACE_NOT_FOUND):
+                err_msg += ("Firewall was not deleted as interface was not "
+                            "available in the firewall. It might have got "
+                            "detached. So marking this delete as SUCCESS. "
+                            "URL: %r, Response Content: %r" %
+                            (url, resp.content))
+                LOG.error(err_msg)
+                return common_const.STATUS_SUCCESS
+            else:
+                err_msg += ("Status code: %r, Response Content: %r" %
+                            (resp['status'], resp))
+        else:
+            err_msg += ("Reason: " + resp)
+        LOG.error(err_msg)
+        return common_const.STATUS_ERROR

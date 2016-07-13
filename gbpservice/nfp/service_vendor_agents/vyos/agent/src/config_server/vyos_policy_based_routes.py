@@ -184,7 +184,8 @@ class RoutesConfigHandler(ConfigOpts):
                 raise Exception(message)
         return jsonutils.dumps(dict(status=True))
 
-    # FIXME: When invoked on delete path we have to propagate the error
+    # REVISIT(Vikash): When invoked on delete path we have
+    # to propagate the error
     def _delete_policy_route(self, source_cidr, source_interface):
         try:
             interface_number_string = source_interface.split("eth", 1)[1]

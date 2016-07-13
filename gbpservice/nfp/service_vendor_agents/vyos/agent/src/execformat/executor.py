@@ -109,7 +109,6 @@ class execUtils(object):
                 raise SessionNotExists('Configure session do not exists')
 
             if not nonsession:
-                # result = (stdout, stderr, errcode)
                 result = _runner(' '.join(self.args))
             else:
                 result = _op_command()
@@ -136,29 +135,9 @@ class execUtils(object):
         logger.info('config path: "%s"' % config_path)
         cmd = '{0} exists {1}'.format(VYOS_SHELL_API, config_path)
         logger.debug('exec command: "%s"' % cmd)
-        result = _runner(cmd)  # result = (stdout, stderr, errcode)
+        result = _runner(cmd)
         logger.debug('command return code: %s' % result[2])
         if result[2]:
-            logger.error('Configuration path is not correct')
-            raise ConfigPathNotCorrect('Configuration path is not correct')
-        logger.info('Configuration path is correct')
-        return True
-
-    def check_cmd_args(self):
-        """
-        Check that config path is correct before performing execmd()
-        """
-        logger.info('Check specified configuration path existance')
-        config_path = ' '.join(self.args[1:])
-        logger.info('config path: "%s"' % config_path)
-        cmd = '{0} exists {1}'.format(VYOS_SHELL_API, config_path)
-        logger.debug('exec command: "%s"' % cmd)
-        proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        out, err = proc.communicate()
-        errcode = proc.returncode
-        logger.debug('command return code: %s' % errcode)
-        if errcode:
             logger.error('Configuration path is not correct')
             raise ConfigPathNotCorrect('Configuration path is not correct')
         logger.info('Configuration path is correct')

@@ -264,7 +264,7 @@ class VPNHandler(ConfigOpts):
     def _set_commands(self, cmds):
         for cmd in cmds:
             logger.debug(cmd)
-            self.set_1(cmd.split(' '))
+            self.set_full(cmd.split(' '))
 
     def _create_ike_group(self, ike, dpd):
         cmds = copy.deepcopy(IPSEC_SITE2SITE_COMMANDS)
