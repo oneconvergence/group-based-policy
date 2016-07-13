@@ -29,15 +29,6 @@ def parse_json(j_file):
     return
 
 
-def get_nfp_branch_name_for_docker(file_path):
-    data = file(file_path)
-
-    for line in data:
-        if 'GBPSERVICE_BRANCH' in line:
-            data.close()
-            return line.split('=')[1].rstrip()
-
-
 def set_nfp_git_branch(nfp_branch_name, configurator_dir):
     Dockerfile_path = configurator_dir + '/Dockerfile'
     cmd = "sudo sed -i \"s/GIT-BRANCH-NAME/%s/g\" %s" % (
@@ -208,10 +199,10 @@ if __name__ == "__main__":
 
     if len(sys.argv) < 2:
         print("ERROR: Invalid Usage")
-        print("Usage:\n\t%s <json config file> NFP_BRANCH_NAME"
+        print("Usage:\n\t%s <json config file> [NFP_BRANCH_NAME]"
               % sys.argv[0])
         print("\twhere: <json config file> contains all the configuration")
-        print("\tand NFP_BRANCH_NAME is optional argument.")
+        print("\tand NFP_BRANCH_NAME is the string, and is optional.")
         exit()
 
     # save PWD
