@@ -22,7 +22,6 @@ from gbpservice.nfp.configurator.drivers.firewall.vyos import (
                                                 vyos_fw_constants as const)
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import fw_constants as fw_const
-from nntplib import resp
 
 LOG = nfp_logging.getLogger(__name__)
 

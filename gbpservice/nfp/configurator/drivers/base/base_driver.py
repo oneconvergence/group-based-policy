@@ -120,37 +120,25 @@ class BaseDriver(object):
         msg = ("Initiating POST request to configure log forwarding "
                "for service at: %r" % mgmt_ip)
         LOG.info(msg)
-        try:
-            resp = requests.post(url, data, timeout=self.timeout)
-        except requests.exceptions.ConnectionError as err:
-            msg = ("Failed to establish connection to service at: "
-                   "%r for configuring log forwarding. ERROR: %r" %
-                   (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-        except requests.exceptions.RequestException as err:
-            msg = ("Unexpected ERROR happened while configuring "
-                   "log forwarding for service at: %r. "
-                   "ERROR: %r" %
-                   (mgmt_ip, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
 
+        err_msg = ("Log forward POST request to the "
+                   "service at %s failed. " % url)
         try:
-            result = resp.json()
-        except ValueError as err:
-            msg = ("Unable to parse response of configure log forward API, "
-                   "invalid JSON. URL: %r. %r" % (url, str(err).capitalize()))
-            LOG.error(msg)
-            return msg
-        if not result['status']:
-            msg = ("Error configuring log forwarding for service "
-                   "at %s. URL: %r. Reason: %s." %
-                   (mgmt_ip, url, result['reason']))
-            LOG.error(msg)
-            return msg
+            resp = self.rest_api.fire(url, data, const.POST)
+        except Exception as err:
+            err_msg += ("Reason: %r" % str(err).capitalize())
+            LOG.error(err_msg)
+            return err_msg
 
-        msg = ("Successfully configured log forwarding for "
-               "service at %s." % mgmt_ip)
-        LOG.info(msg)
-        return const.SUCCESS
+        if resp is const.STATUS_SUCCESS:
+            msg = ("Log forwarding successfully configured "
+                   "for service at %r." % url)
+            LOG.info(msg)
+            return resp
+
+        err_msg += (("Status code: %r, Reason: %r" %
+                     (resp['status'], resp['reason']))
+                    if type(resp) is dict
+                    else ("Reason: " + resp))
+        LOG.error(err_msg)
+        return err_msg
