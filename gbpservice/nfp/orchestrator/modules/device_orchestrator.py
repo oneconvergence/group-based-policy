@@ -56,8 +56,12 @@ def events_init(controller, config, device_orchestrator):
               'CONFIGURE_DEVICE', 'CREATE_DEVICE_CONFIGURATION',
               'CONFIGURATION_COMPLETE',
               'DEVICE_CONFIGURED', "DELETE_CONFIGURATION",
+              "DELETE_CONFIGURATION_FAST",
               'DELETE_NETWORK_FUNCTION_DEVICE',
-              'DELETE_CONFIGURATION_COMPLETED', 'DEVICE_BEING_DELETED',
+              'DELETE_NETWORK_FUNCTION_DEVICE_FAST',
+              'DELETE_CONFIGURATION_COMPLETED',
+              'DELETE_CONFIGURATION_COMPLETED_FAST',
+              'DEVICE_BEING_DELETED',
               'DEVICE_NOT_REACHABLE',
               'DEVICE_CONFIGURATION_FAILED', 'PERFORM_HEALTH_CHECK',
               'PLUG_INTERFACES']
@@ -168,7 +172,8 @@ class RpcHandler(object):
         request_info['network_function_device_id'] = nfd_id
         event_data = request_info
         event_data['id'] = request_info['network_function_device_id']
-
+        if event_id == "DELETE_CONFIGURATION_COMPLETED":
+            return
         self._create_event(event_id=event_id,
                            event_data=event_data)
         nfp_logging.clear_logging_context()
@@ -256,9 +261,13 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
             "DELETE_NETWORK_FUNCTION_DEVICE": (
                 self.delete_network_function_device),
+            "DELETE_NETWORK_FUNCTION_DEVICE_FAST": (
+                self.delete_network_function_device_fast),
             "DELETE_CONFIGURATION_COMPLETED": self.unplug_interfaces,
+            "DELETE_CONFIGURATION_COMPLETED_FAST": self.unplug_interfaces_fast,
             "DELETE_DEVICE": self.delete_device,
             "DELETE_CONFIGURATION": self.delete_device_configuration,
+            "DELETE_CONFIGURATION_FAST": self.delete_device_configuration_fast,
             "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
             "PLUG_INTERFACE_FAILED": self.handle_plug_interface_failed,
             "DEVICE_CONFIGURATION_FAILED": self.handle_device_config_failed,
@@ -925,6 +934,53 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             self._get_advance_sharing_interfaces(device['id']))
         return device
 
+    def _prepare_device_data_fast(self, device_info):
+        network_function_id = device_info['network_function_id']
+        network_function_device_id = device_info['network_function_device_id']
+        network_function_instance_id = (
+            device_info['network_function_instance_id'])
+        '''
+        network_function = self._get_nsf_db_resource(
+            'network_function',
+            network_function_id)
+        network_function_device = self._get_nsf_db_resource(
+            'network_function_device',
+            network_function_device_id)
+        network_function_instance = self._get_nsf_db_resource(
+            'network_function_instance',
+            network_function_instance_id)
+        '''
+        network_function_details = device_info['network_function_details']
+        network_function = network_function_details['network_function']
+        network_function_device = network_function_details['network_function_device']
+        network_function_instance = network_function_details['network_function_instance']
+        admin_token = self.keystoneclient.get_admin_token()
+        service_profile = self.gbpclient.get_service_profile(
+            admin_token, network_function['service_profile_id'])
+        service_details = transport.parse_service_flavor_string(
+            service_profile['service_flavor'])
+
+        device_info.update({
+            'network_function_instance': network_function_instance})
+        device_info.update({'id': network_function_device_id})
+        service_details.update({'service_type': self._get_service_type(
+            network_function['service_profile_id'])})
+        device_info.update({'service_details': service_details})
+
+        device = self._get_device_data(device_info)
+        device = self._update_device_data(device, network_function_device)
+
+        mgmt_port_id = network_function_device.pop('mgmt_port_id')
+        mgmt_port_id = self._get_port(mgmt_port_id)
+        device['mgmt_port_id'] = mgmt_port_id
+        device['network_function_id'] = network_function_id
+
+        device['advance_sharing_interfaces'] = (
+            self._get_advance_sharing_interfaces(device['id']))
+        device['network_function_device_id'] = (
+            device_info['network_function_device_id'])
+        return device
+
     def health_monitor_complete(self, event, result='SUCCESS'):
         nfp_context = event.data['nfp_context']
         # device = nfp_context['network_function_device']
@@ -1151,6 +1207,23 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                            event_data=device,
                            is_internal_event=True)
 
+    def delete_network_function_device_fast(self, event):
+        network_function_details = event.data[
+            'network_function_details']
+        delete_nfd_request = event.data
+        network_function_instance = (
+            network_function_details['network_function_instance'])
+        delete_nfd_request['network_function_instance_id'] = (
+            network_function_instance['id'])
+        device = self._prepare_device_data_fast(delete_nfd_request)
+        LOG.info(_LI("Device Orchestrator received delete network service "
+                     "device request for device %(device)s"),
+                 {'device': delete_nfd_request})
+
+        self._create_event(event_id='DELETE_CONFIGURATION_FAST',
+                           event_data=device,
+                           is_internal_event=True)
+
     def delete_device_configuration(self, event):
         device = event.data
         orchestration_driver = self._get_orchestration_driver(
@@ -1167,7 +1240,49 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         self.configurator_rpc.delete_network_function_device_config(
             device, config_params)
 
+    def delete_device_configuration_fast(self, event):
+        device = event.data
+        orchestration_driver = self._get_orchestration_driver(
+            device['service_details']['service_vendor'])
+        config_params = (
+            orchestration_driver.get_network_function_device_config_info(
+                device))
+        if not config_params:
+            self._create_event(event_id='DRIVER_ERROR',
+                               event_data=device,
+                               is_internal_event=True)
+            return None
+        self._create_event(event_id='DELETE_CONFIGURATION_COMPLETED_FAST',
+                           event_data=device)
+        # Sends RPC call to configurator to delete generic config API
+        self.configurator_rpc.delete_network_function_device_config(
+            device, config_params)
+
     def unplug_interfaces(self, event):
+        device_info = event.data
+        device = self._prepare_device_data(device_info)
+        orchestration_driver = self._get_orchestration_driver(
+            device['service_details']['service_vendor'])
+
+        is_interface_unplugged, advance_sharing_ifaces = (
+            orchestration_driver.unplug_network_function_device_interfaces(
+                device))
+        if is_interface_unplugged:
+            if advance_sharing_ifaces:
+                self._update_advance_sharing_interfaces(
+                    device,
+                    advance_sharing_ifaces)
+            mgmt_port_id = device['mgmt_port_id']
+            self._decrement_device_interface_count(device)
+            device['mgmt_port_id'] = mgmt_port_id
+        else:
+            # Ignore unplug error
+            pass
+        self._create_event(event_id='DELETE_DEVICE',
+                           event_data=device,
+                           is_internal_event=True)
+
+    def unplug_interfaces_fast(self, event):
         device_info = event.data
         device = self._prepare_device_data(device_info)
         orchestration_driver = self._get_orchestration_driver(

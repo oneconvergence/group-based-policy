@@ -460,8 +460,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         except Exception:
             LOG.exception(_LE("Delete Network service Failed"))
 
-        self._wait_for_network_function_delete_completion(
-            context, network_function_id)
+        # self._wait_for_network_function_delete_completion(
+        #     context, network_function_id)
         self._delete_node_instance_network_function_map(
             context.plugin_session,
             context.current_node['id'],
