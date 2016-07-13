@@ -12,4 +12,6 @@
 
 vyos (2.0) INITIAL RELEASE; urgency=low
 
-  * Initial release. (Closes: #XXXXXX)
+  * Supports firewall and VPN
+    
+  -- One Convergence <oc_tech@oneconvergence.com>  Wed, 13 Jul 2016 05:20:46 +0530
