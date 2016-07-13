@@ -21,12 +21,19 @@ ENABLE_NFP=True
 [[ $NFP_DEVSTACK_MODE != base ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
 [[ $NFP_DEVSTACK_MODE != base ]] && enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
 
-if [[ $NFP_DEVSTACK_MODE != base ]]; then
+if [[ $NFP_DEVSTACK_MODE = base ]]; then
+    GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
+    GBPSERVICE_BRANCH=master
+else if [[ $NFP_DEVSTACK_MODE = advanced ]]; then
+    # Openstack repo
+    #GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
+    #GBPSERVICE_BRANCH=refs/changes/05/335405/27
+    # Oneconvergence repo
     GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
     GBPSERVICE_BRANCH=mitaka_21st_march_base
 else
-    GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
-    GBPSERVICE_BRANCH=master
+    GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
+    GBPSERVICE_BRANCH=mitaka_21st_march_base
 fi
 enable_plugin gbp $GBPSERVICE_REPO $GBPSERVICE_BRANCH
 
