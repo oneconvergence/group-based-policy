@@ -31,7 +31,7 @@ from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
-TIMEOUT = 5
+TIMEOUT = 40
 
 asav_auth_opts = [
     cfg.StrOpt(
@@ -120,7 +120,7 @@ class RestApi(object):
             msg = ("Successfully issued a POST call. However, the result "
                    "of the POST API is negative. URL: %r. Response code: %s."
                    "Result: %r." % (url, resp.status_code, result))
-            LOG.error(msg)
+            LOG.warn(msg)
             return msg
         msg = ("Successfully issued a POST call and the result of "
                "the API operation is positive. URL: %r. Result: %r. "
@@ -287,7 +287,7 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         """
 
         mgmt_ip = resource_data['mgmt_ip']
-        import time;time.sleep(15)
+
         starttime = 0
         while starttime < TIMEOUT:
             try:
@@ -304,8 +304,8 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             except Exception:
                 msg = ("Log forwarding configurations are missing")
                 LOG.error(msg)
-            time.sleep(1)
-            starttime += 1
+            time.sleep(2)
+            starttime += 2
 
         try:
             provider_ip = resource_data.get('provider_ip')
@@ -854,11 +854,12 @@ class FwaasDriver(FwGenericConfigDriver):
                 msg = ("Failed to configure ASAv Firewall. Reason: %r" %
                        result)
                 LOG.error(msg)
+                return result
             else:
                 self.save_config(mgmt_ip, firewall['id'])
                 msg = ("Configured ASAv Firewall.")
                 LOG.info(msg)
-            return result
+                return common_const.STATUS_ACTIVE
         except Exception as err:
             msg = ("Failed to configure firewall. Error: %r" % err)
             LOG.error(msg)
