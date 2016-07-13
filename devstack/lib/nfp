@@ -184,7 +184,7 @@ function create_nfp_image {
             create_port_for_vm $ConfiguratorQcow2ImageName
             if [[ $ConfiguratorQcow2Image = build ]]; then
                 echo "Building Image: $ConfiguratorQcow2ImageName"
-                sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $DEVSTACK_DIR/local.conf
+                sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $GBPSERVICE_BRANCH
                 ConfiguratorQcow2Image=$(cat /tmp/image_path)
             fi
             echo "Uploading Image: $ConfiguratorQcow2ImageName"
@@ -201,7 +201,7 @@ function create_nfp_image {
                 sudo rm -rf visibility
                 sudo git clone https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git -b $VISIBILITY_GIT_BRANCH
                 echo "Building Image: $VisibilityQcow2ImageName"
-                sudo python $DISK_IMAGE_DIR/diskimage-create/visibility_disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/visibility_conf.json $DEVSTACK_DIR/local.conf
+                sudo python $DISK_IMAGE_DIR/diskimage-create/visibility_disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/visibility_conf.json $GBPSERVICE_BRANCH $DEVSTACK_DIR/local.conf
                 VisibilityQcow2Image=$(cat /tmp/image_path)
             fi
             echo "Uploading Image: $VisibilityQcow2ImageName"
@@ -220,7 +220,7 @@ function create_nfp_image {
             create_port_for_vm $ConfiguratorQcow2ImageName
             if [[ $ConfiguratorQcow2Image = build ]]; then
                 echo "Building Image: $ConfiguratorQcow2ImageName"
-                sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $DEVSTACK_DIR/local.conf
+                sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $GBPSERVICE_BRANCH
                 ConfiguratorQcow2Image=$(cat /tmp/image_path)
             fi
             echo "Uploading Image: $ConfiguratorQcow2ImageName"
