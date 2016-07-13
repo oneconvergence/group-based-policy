@@ -18,7 +18,7 @@ Fresh Installation Steps:
     * Advanced Mode Configuration:
         # Devstack installation in enterprise mode
             Example: [[ $ENABLE_NFP = True ]] && NFP_DEVSTACK_MODE=advanced
-        # Change the value of GBPSERVICE_BRANCH to use different patch
+        # Change the value of GBPSERVICE_BRANCH to use different branch(in OC repo)/patch(in Openstack repo)
         # External network details
              EXT_NET_GATEWAY=
              EXT_NET_ALLOCATION_POOL_START=
