@@ -36,6 +36,8 @@ HAPROXY_LBAASV2 = 'haproxy_lbaasv2'
 CREATE = 'create'
 UPDATE = 'update'
 DELETE = 'delete'
+POST = 'POST'
+PUT = 'put'
 UNHANDLED = "UNHANDLED"
 
 SUCCESS_CODES = [200, 201, 202, 203, 204]

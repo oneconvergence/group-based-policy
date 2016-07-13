@@ -289,7 +289,7 @@ class FWaasEventHandler(nfp_api.NfpEventHandler):
                     agent_info, firewall['id'], firewall)
 
             except Exception as err:
-                # TODO(VIKASH) Is it correct to raise ? As the subsequent
+                # REVISIT(VIKASH) Is it correct to raise ? As the subsequent
                 # attempt to clean will only re-raise the last one.And it
                 # can go on and on and may not be ever recovered.
                 self.plugin_rpc.set_firewall_status(
