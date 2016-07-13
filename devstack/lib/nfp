@@ -1,32 +1,50 @@
 #!/bin/bash
 
-NFPSERVICE_DIR=$DEST/gbp
 TOP_DIR=$PWD
-DISK_IMAGE_DIR=$DEST/gbp/gbpservice/tests/contrib
 
+NFPSERVICE_DIR=$DEST/gbp
+DISK_IMAGE_DIR=$DEST/gbp/gbpservice/tests/contrib
 NEUTRON_CONF_DIR=/etc/neutron
 NEUTRON_CONF=$NEUTRON_CONF_DIR/neutron.conf
-
 NFP_CONF_DIR=/etc/nfp
-echo "TOP-DIR-NFP : $PWD"
 
 function prepare_nfp_image_builder {
     sudo -H -E pip install -r $DISK_IMAGE_DIR/diskimage-create/requirements.txt
     sudo apt-get install -y --force-yes qemu-utils
     sudo apt-get install -y --force-yes dpkg-dev
-    if [[ $DEVSTACK_MODE != base ]]; then
+    if [[ $NFP_DEVSTACK_MODE != base ]]; then
         sudo wget -qO- https://get.docker.com/ | bash
     fi
 }
 
+function create_port_for_vm {
+    if [[ $1 = configurator ]]; then
+        instance_name=$ConfiguratorInstanceName
+    else
+        instance_name=$VisibilityInstanceName
+    fi
+    GROUP="svc_management_ptg"
+    PortId=$(gbp policy-target-create --policy-target-group $GROUP $instance_name | grep port_id | awk '{print $4}')
+    IpAddr_extractor=`neutron port-list --format value | grep $PortId | awk '{print $7}'`
+    IpAddr_purge_last=${IpAddr_extractor::-1}
+    IpAddr=${IpAddr_purge_last//\"/}
+    echo "IpAddr of port($PortId): $IpAddr"
 
-function configure_vis_ip_addr_in_docker {
-    
-    echo "Visibility VM IP address is: $IpAddr"
-    sed -i "s/VIS_VM_IP_ADDRESS/"$IpAddr"/" $NFPSERVICE_DIR/gbpservice/nfp/configurator/Dockerfile
-
+    if [[ $1 = configurator ]]; then
+        configurator_image_name=$1
+        configurator_port_id=$PortId
+        configurator_ip=$IpAddr
+    else
+        visibility_image_name=$1
+        visibility_port_id=$PortId
+        visibility_ip=$IpAddr
+    fi
 }
 
+function configure_vis_ip_addr_in_docker {
+    echo "Visibility VM IP address is: $visibility_ip"
+    sed -i "s/VIS_VM_IP_ADDRESS/"$visibility_ip"/" $NFPSERVICE_DIR/gbpservice/nfp/configurator/Dockerfile
+}
 
 function create_nfp_image {
     source $TOP_DIR/openrc neutron service
@@ -37,7 +55,7 @@ function create_nfp_image {
     sudo cp /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-enabled/
     sudo service apache2 restart
 
-    if [[ $DEVSTACK_MODE = base ]]; then
+    if [[ $NFP_DEVSTACK_MODE = base ]]; then
 
         RefConfiguratorQcow2ImageName=reference_configurator_image
         echo "Building Image: $RefConfiguratorQcow2ImageName"
@@ -49,10 +67,22 @@ function create_nfp_image {
 
     else
 
-        if [[ $DEVSTACK_MODE = enterprise ]]; then
+        if [[ $NFP_DEVSTACK_MODE = enterprise ]]; then
+
+            ConfiguratorQcow2ImageName=configurator
+            ConfiguratorInstanceName="configuratorVM_instance"
+            create_port_for_vm $ConfiguratorQcow2ImageName
+            
+            if [[ $ConfiguratorQcow2Image = build ]]; then
+                echo "Building Image: $ConfiguratorQcow2ImageName"
+                sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $TOP_DIR/local.conf
+                ConfiguratorQcow2Image=$(cat /tmp/image_path)
+            fi
+            echo "Uploading Image: $ConfiguratorQcow2ImageName"
+            glance image-create --name $ConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $ConfiguratorQcow2Image
 
             VisibilityQcow2ImageName=visibility
-            InstanceName="VisibilityVM_instance"
+            VisibilityInstanceName="VisibilityVM_instance"
             create_port_for_vm $VisibilityQcow2ImageName
 
             if [[ $VisibilityQcow2Image = build ]]; then
@@ -81,9 +111,8 @@ function create_nfp_image {
         else
 
             ConfiguratorQcow2ImageName=configurator
-            InstanceName="configuratorVM_instance"
+            ConfiguratorInstanceName="configuratorVM_instance"
             create_port_for_vm $ConfiguratorQcow2ImageName
-            
             if [[ $ConfiguratorQcow2Image = build ]]; then
                 echo "Building Image: $ConfiguratorQcow2ImageName"
                 sudo python $DISK_IMAGE_DIR/diskimage-create/disk_image_create.py $DISK_IMAGE_DIR/diskimage-create/configurator_conf.json $TOP_DIR/local.conf
@@ -142,7 +171,6 @@ function install_nfpgbpservice {
 
 function assign_user_role_credential {
     source $TOP_DIR/openrc admin admin
-    #set -x
     serviceTenantID=`keystone tenant-list | grep "service" | awk '{print $2}'`
     serviceRoleID=`keystone role-list | grep "service" | awk '{print $2}'`
     adminRoleID=`keystone role-list | grep "admin" | awk '{print $2}'`
@@ -152,6 +180,7 @@ function assign_user_role_credential {
 
 function namespace_delete {
     source $1/openrc neutron service
+
     #Deletion namespace
     NFP_P=`sudo ip netns | grep "nfp-proxy"`
     if [ ${#NFP_P} -ne 0 ]; then
@@ -177,7 +206,6 @@ function namespace_delete {
 }
 
 function namespace_create {
-
     SERVICE_MGMT_NET="l2p_svc_management_ptg"
     cidr="/24"
     echo "Creating new namespace nfp-proxy...."
@@ -234,27 +262,24 @@ function namespace_create {
     #get tag_id  form port in ovs-bridge
     tag_id=`sudo ovs-vsctl list port $port | grep "tag" | tail -n 1 | awk '{print $3}'`
 
-    sudo ovs-vsctl set port pt1 tag=$tag_id     
+    sudo ovs-vsctl set port pt1 tag=$tag_id
 
-    #up the both ports 
+    #up the both ports
     sudo ip netns exec nfp-proxy ip link set pt0 up
     sudo ip netns exec nfp-proxy ip link set lo up
     sudo ip link set pt1 up
 
     PING=`sudo ip netns exec nfp-proxy ping $2 -q -c 2 > /dev/null`
-    if [ ${#PING} -eq 0 ]
-    then
+    if [ ${#PING} -eq 0 ]; then
         echo "nfp-proxy namespcace creation success and reaching to $2"
     else
-        echo "Fails reaching to $2" 
+        echo "Fails reaching to $2"
     fi
 
     sudo ip netns exec nfp-proxy /usr/bin/nfp_proxy --config-file=/etc/nfp_proxy.ini
 }
 
-
 function create_ext_net {
-
     source $TOP_DIR/stackrc
     EXT_NET_NAME=ext-net
     EXT_NET_SUBNET_NAME=ext-net-subnet
@@ -262,56 +287,53 @@ function create_ext_net {
     EXT_NET_ALLOCATION_POOL_START=$EXT_NET_ALLOCATION_POOL_START
     EXT_NET_ALLOCATION_POOL_END=$EXT_NET_ALLOCATION_POOL_END
     EXT_NET_CIDR=$EXT_NET_CIDR
-    EXT_NET_MASK=$EXT_NET_MASK
+
     source $TOP_DIR/openrc neutron service
     unset OS_USER_DOMAIN_ID
     unset OS_PROJECT_DOMAIN_ID
-
     neutron net-create --router:external=true --shared $EXT_NET_NAME
-    neutron subnet-create --ip_version 4 --gateway $EXT_NET_GATEWAY --name $EXT_NET_SUBNET_NAME --allocation-pool start=$EXT_NET_ALLOCATION_POOL_START,end=$EXT_NET_ALLOCATION_POOL_END $EXT_NET_NAME $EXT_NET_CIDR/$EXT_NET_MASK
+    neutron subnet-create --ip_version 4 --gateway $EXT_NET_GATEWAY --name $EXT_NET_SUBNET_NAME --allocation-pool start=$EXT_NET_ALLOCATION_POOL_START,end=$EXT_NET_ALLOCATION_POOL_END $EXT_NET_NAME $EXT_NET_CIDR
 }
 
-
 function create_ep_and_nsp {
-    
     subnet_id=`neutron net-list | grep "$EXT_NET_NAME" | awk '{print $6}'`
-    gbp external-segment-create --ip-version 4 --cidr $EXT_NET_CIDR/$EXT_NET_MASK --external-route destination=0.0.0.0/0,nexthop= --shared True --subnet_id=$subnet_id default
-    gbp nat-pool-create --ip-version 4 --ip-pool $EXT_NET_CIDR/$EXT_NET_MASK --external-segment default --shared True default 
-    
-    gbp ep-create --external-segments default ext_connect    
+
+    gbp external-segment-create --ip-version 4 --cidr $EXT_NET_CIDR --external-route destination=0.0.0.0/0,nexthop= --shared True --subnet_id=$subnet_id default
+    gbp nat-pool-create --ip-version 4 --ip-pool $EXT_NET_CIDR --external-segment default --shared True default
+    gbp ep-create --external-segments default ext_connect
     gbp nsp-create --network-service-params type=ip_pool,name=vip_ip,value=nat_pool svc_mgmt_fip_policy
 }
 
-
 function create_advance_sharing_ptg {
-
-        gbp l3policy-create --ip-version 4 --ip-pool 121.0.0.0/20 --proxy-ip-pool=192.167.0.0/24 --subnet-prefix-length 20 advanced_services_sharing_l3p
-        gbp l2policy-create --l3-policy advanced_services_sharing_l3p advance_sharing_l2p
-        gbp group-create --l2-policy advance_sharing_l2p Advance_Sharing_PTG
+    gbp l3policy-create --ip-version 4 --ip-pool 121.0.0.0/20 --proxy-ip-pool=192.167.0.0/24 --subnet-prefix-length 20 advanced_services_sharing_l3p
+    gbp l2policy-create --l3-policy advanced_services_sharing_l3p advance_sharing_l2p
+    gbp group-create --l2-policy advance_sharing_l2p Advance_Sharing_PTG
 }
 
-
 function create_nfp_gbp_resources {
-   
     source $TOP_DIR/openrc neutron service
 
-    if [[ $DEVSTACK_MODE = base ]]; then
-        IMAGE_NAME_FLAT="reference_configurator_image"
+    if [[ $NFP_DEVSTACK_MODE = base ]]; then
+
+        IMAGE_NAME="reference_configurator_image"
         FLAVOR=m1.nfp-tiny
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=None --vendor NFP base_mode_lb
-        gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME_FLAT,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
+        gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=nfp,device_type=nova,image_name=$IMAGE_NAME,flavor=$FLAVOR --vendor NFP base_mode_fw_vm
+
     else
+
         gbp service-profile-create --servicetype LOADBALANCER --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy,device_type=nova --vendor NFP lb_profile
-        gbp service-profile-create --shared True --vendor NFP --servicetype LOADBALANCERV2 --service-flavor service_vendor=haproxy_lbaasv2,device_type=nova,flavor=m1.small --insertion-mode l3 lbv2_profile
+        gbp service-profile-create --servicetype LOADBALANCERV2 --insertion-mode l3 --shared True --service-flavor service_vendor=haproxy_lbaasv2,device_type=nova,flavor=m1.small --vendor NFP lbv2_profile
         gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vyos_fw_profile
         gbp service-profile-create --servicetype VPN --insertion-mode l3 --shared True --service-flavor service_vendor=vyos,device_type=nova --vendor NFP vpn_profile
 
-        if [[ $DEVSTACK_MODE = enterprise ]]; then
+        if [[ $NFP_DEVSTACK_MODE = enterprise ]]; then
             gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_fw_profile
         fi  
         create_ext_net
         create_ep_and_nsp
         create_advance_sharing_ptg
+
     fi
 
     gbp l3policy-create --ip-version 4 --proxy-ip-pool=192.169.0.0/24 --ip-pool 120.0.0.0/24 --subnet-prefix-length 24 service_management
@@ -321,25 +343,52 @@ function create_nfp_gbp_resources {
     neutron router-gateway-clear l3p_service_management
 }
 
+function configure_configurator_user_data {
+    CUR_DIR=$PWD
+    sudo rm -rf /opt/configurator_user_data
+    sudo cp -r $DEST/gbp/devstack/exercises/nfp_service/user-data/configurator_user_data /opt/.
+    cd /opt
+    sudo rm -rf my.key my.key.pub
+    sudo ssh-keygen -t rsa -N "" -f my.key
+    value=`sudo cat my.key.pub`
+    sudo echo  $value
+    sudo sed -i "8 i\      -\ $value" configurator_user_data
+    sudo sed -i '9d' configurator_user_data
+    cd $CUR_DIR
+}
+
+function launch_configuratorVM {
+    echo "Collecting ImageId : for $configurator_image_name"
+    ImageId=`glance image-list | grep $configurator_image_name | awk '{print $2}'`
+    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
+        echo $ImageId
+    else
+        echo "No image found with name $configurator_image_name ..."
+        exit
+    fi
+
+    configure_configurator_user_data
+    nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$configurator_port_id $ConfiguratorInstanceName
+    sleep 10
+}
 
 function copy_nfp_files_and_start_process {
-
     cd /opt/stack/gbp/gbpservice/nfp
     sudo cp -r  bin/nfp /usr/bin/
     sudo chmod +x /usr/bin/nfp
     sudo rm -rf /etc/nfp_*
-    sudo cp -r  bin/nfp_orch_agent.ini /etc/
+    sudo cp -r  bin/nfp_orchestrator.ini /etc/
     sudo cp -r  bin/nfp_proxy_agent.ini /etc/
-    [[ $DEVSTACK_MODE != base ]] && sudo cp -r  bin/nfp_config_orch.ini /etc/
-    sudo cp -r  bin/proxy.ini /etc/nfp_proxy.ini
+    [[ $NFP_DEVSTACK_MODE != base ]] && sudo cp -r bin/nfp_config_orch.ini /etc/
+    sudo cp -r  bin/nfp_proxy.ini /etc/nfp_proxy.ini
     sudo cp -r  bin/nfp_proxy /usr/bin/
 
-
-    if [[ $DEVSTACK_MODE = base ]]; then
+    if [[ $NFP_DEVSTACK_MODE = base ]]; then
         IpAddr=127.0.0.1
         CONFIGURATOR_PORT=8080
     else
         CONFIGURATOR_PORT=8070
+        IpAddr=$configurator_ip
     fi
 
     echo "Configuring proxy.ini .... with rest_server_address as $IpAddr"
@@ -349,39 +398,36 @@ function copy_nfp_files_and_start_process {
     sed -i 's#source.*#source '$TOP_DIR'/openrc demo demo#g' /opt/stack/gbp/devstack/exercises/nfp_service/*.sh
     source $TOP_DIR/functions-common
 
-    echo "Starting orchestrator  >>>> under screen named : orchestrator"
-    run_process orchestrator "sudo /usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orch_agent.ini --log-file /opt/stack/logs/nfp_orchestrator.log"
+    echo "Starting orchestrator  >>>> under screen named : nfp_orchestrator"
+    run_process nfp_orchestrator "sudo /usr/bin/nfp --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orchestrator.ini --log-file /opt/stack/logs/nfp_orchestrator.log"
     sleep 4
 
-    echo "Starting proxy_agent  >>>> under screen named : proxy_agent"
-    run_process proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
+    echo "Starting proxy_agent  >>>> under screen named : nfp_proxy_agent"
+    run_process nfp_proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
     sleep 4
 
-    echo "Starting proxy server under Namespace : nfp-proxy namespace >>>> under screen named : proxy"
-    run_process proxy "source $NFPSERVICE_DIR/devstack/lib/nfp;namespace_delete $TOP_DIR;namespace_create $TOP_DIR $IpAddr"
+    echo "Starting proxy server under Namespace : nfp-proxy namespace >>>> under screen named : nfp_proxy"
+    run_process nfp_proxy "source $NFPSERVICE_DIR/devstack/lib/nfp; namespace_delete $TOP_DIR; namespace_create $TOP_DIR $IpAddr"
     sleep 10
 
-    if [[ $DEVSTACK_MODE != base ]]; then
-        echo "Starting config_orch  >>>> under screen named : config_orch"
-        run_process config_orch "sudo /usr/bin/nfp  --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file /opt/stack/logs/nfp_config_orch.log"
+    if [[ $NFP_DEVSTACK_MODE != base ]]; then
+        echo "Starting nfp config orchestrator  >>>> under screen named : nfp_config_orchestrator"
+        run_process nfp_config_orchestrator "sudo /usr/bin/nfp --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file /opt/stack/logs/nfp_config_orchestrator.log"
     else
-        cd base_configurator/api
+        cd pecan/api
         sudo python setup.py develop
-        echo "Starting base_configurator  >>>> under screen named : base_configurator"
-        run_process base_configurator "cd /opt/stack/gbp/gbpservice/nfp/base_configurator/api;sudo ip netns exec nfp-proxy pecan serve config.py"
+        echo "Starting nfp_base_configurator  >>>> under screen named : nfp_base_configurator"
+        run_process nfp_base_configurator "cd /opt/stack/gbp/gbpservice/nfp/pecan/api; sudo ip netns exec nfp-proxy pecan configurator_decider config.py --mode base"
     fi
     sleep 1
 
     echo "Running gbp-db-manage"
-
     source $TOP_DIR/openrc neutron service
-
     gbp-db-manage --config-file /etc/neutron/neutron.conf upgrade head
     sleep 2
+
     echo "NFP configuration done...!! "
-
 }
-
 
 function nfp_logs_forword {
     VISIBILITY_CONF="/etc/rsyslog.d/visibility.conf"
@@ -399,58 +445,32 @@ function nfp_logs_forword {
     sudo service rsyslog restart
     if [ $? -ne 0 ]; then
         echo "ERROR: Failed to restart rsyslog"
-    fi 
-
+    fi
 }
 
-
-function configure_configurator_user_data {
-
+function configure_visibility_user_data { 
     CUR_DIR=$PWD
-    sudo rm -rf /opt/configurator_user_data
-    sudo cp -r $DEST/gbp/devstack/exercises/nfp_service/user-data/configurator_user_data /opt/.
-    cd /opt
-    sudo rm -rf my.key my.key.pub
-    sudo ssh-keygen -t rsa -N "" -f my.key
-    value=`sudo cat my.key.pub`
-    sudo echo  $value
-    sudo sed -i "8 i\      -\ $value" configurator_user_data
-    sudo sed -i '9d' configurator_user_data
-    cd $CUR_DIR
-}
+    visibility_vm_ip=$1
 
-function configure_visibility_user_data {
- 
-    CUR_DIR=$PWD
     sudo rm -rf /opt/visibility_user_data
     sudo cp -r $DEST/gbp/devstack/exercises/nfp_service/user-data/visibility_user_data /opt/.
     cd /opt
+
     sudo rm -rf my.key my.key.pub
-    visibility_vm_ip=$1
     sudo ssh-keygen -t rsa -N "" -f my.key
     value=`sudo cat my.key.pub`
     sudo echo  $value
-    sudo sed -i "8 i\      -\ $value" visibility_user_data
-    sudo sed -i '9d' visibility_user_data
+    sudo sed -i "s|<SSH PUBLIC KEY>|${value}|" visibility_user_data
+
     sudo sed -i "s/visibility_vm_ip=*.*/visibility_vm_ip=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/sc_active_ip=*.*/sc_active_ip=$HOST_IP/g" visibility_user_data
-    sudo sed -i "s/sc_standby_ip=*.*/sc_standby_ip=$HOST_IP/g" visibility_user_data
-    sudo sed -i "s/service_controller_vip=*.*/service_controller_vip=$HOST_IP:8080/g" visibility_user_data
-    sudo sed -i "s/db_user=*.*/db_user=root/g" visibility_user_data
-    sudo sed -i "s/db_password=*.*/db_password=$MYSQL_PASSWORD/g" visibility_user_data
-    sudo sed -i "s/db_server_ip=*.*/db_server_ip=$HOST_IP/g" visibility_user_data
+    sudo sed -i "s/os_controller_ip=*.*/os_controller_ip=$HOST_IP/g" visibility_user_data
     sudo sed -i "s/statsd_host=*.*/statsd_host=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/statsd_port=*.*/statsd_port=8125/g" visibility_user_data
-    sudo sed -i "s/rsyslog_host=*.*/rsyslog_host=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/rabbit_host=*.*/rabbit_host=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/rabbit_port=*.*/rabbit_port=5672/g" visibility_user_data
-    sudo sed -i "s/rsyslog_host=*.*/rsyslog_host=$visibility_vm_ip/g" visibility_user_data
+    sudo sed -i "s/rabbit_host=*.*/rabbit_host=$configurator_ip/g" visibility_user_data
+
     cd $CUR_DIR
 }
 
-
 function attach_security_groups {
-
     unset OS_USER_DOMAIN_ID
     unset OS_PROJECT_DOMAIN_ID
 
@@ -459,49 +479,12 @@ function attach_security_groups {
     nova secgroup-add-rule $SecGroup udp 1 65535  120.0.0.0/24
     nova secgroup-add-rule $SecGroup icmp -1 -1   120.0.0.0/24
     nova secgroup-add-rule $SecGroup tcp 1 65535  120.0.0.0/24
-    nova secgroup-add-rule $SecGroup tcp 80 80  188.0.0.0/24
-    nova secgroup-add-rule $SecGroup udp  514 514  188.0.0.0/24
+    nova secgroup-add-rule $SecGroup tcp 80 80  0.0.0.0/0
+    nova secgroup-add-rule $SecGroup udp  514 514  0.0.0.0/0
+    nova secgroup-add-rule $SecGroup tcp  443 443  0.0.0.0/0
 }
-
-
-function launch_configuratorVM {
-
-    echo "Collecting ImageId : for $image_name"
-    ImageId=`glance image-list|grep $image_name |awk '{print $2}'`
-    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
-        echo $ImageId
-    else
-        echo "No image found with name $image_name ..."
-        exit
-    fi
-
-    configure_configurator_user_data
-    nova boot --flavor m1.medium --user-data /opt/configurator_user_data --image $ImageId --nic port-id=$PortId $InstanceName
-
-    sleep 10
-
-}
-
-
-function create_port_for_vm {
-    
-    image_name=$1
-
-    GROUP="svc_management_ptg"
-    echo "GroupName: $GROUP"
-    PortId=$(gbp policy-target-create --policy-target-group $GROUP $InstanceName | grep port_id  | awk '{print $4}')
-
-    echo "Get IpAddr with port: $PortId"
-    IpAddr_extractor=`neutron port-list --format value|grep $PortId|awk '{print $7}'`
-    IpAddr_purge_last=${IpAddr_extractor::-1}
-    IpAddr=${IpAddr_purge_last//\"/}
-    echo "Collecting IpAddr : for $PortId"
-    echo $IpAddr
-}
-
 
 function launch_visibilityVM {
- 
     neutron net-create visibility-network
     neutron subnet-create visibility-network  188.0.0.0/24 --name visibility-subnet
     neutron router-create visibility-router
@@ -518,21 +501,21 @@ function launch_visibilityVM {
     echo "Collecting IpAddr : for $ExtPortId"
     echo $IpAddr2
     
-    configure_visibility_user_data $IpAddr
+    configure_visibility_user_data $visibility_ip
 
-    echo "Collecting ImageId : for $image_name"
-    ImageId=`glance image-list|grep $image_name |awk '{print $2}'`
+    echo "Collecting ImageId : for $visibility_image_name"
+    ImageId=`glance image-list|grep $visibility_image_name |awk '{print $2}'`
     if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
         echo $ImageId
     else
-        echo "No image found with name $image_name ..."
+        echo "No image found with name $visibility_image_name ..."
         exit
     fi
 
     attach_security_groups
     echo "Launching Visibility image"
-    nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$PortId --nic port-id=$ExtPortId $InstanceName 
+    nova boot --image  $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data  --nic port-id=$visibility_port_id --nic port-id=$ExtPortId $VisibilityInstanceName 
 
     sleep 10
-    nova add-secgroup $InstanceName $SecGroup
+    nova add-secgroup $VisibilityInstanceName $SecGroup
 }

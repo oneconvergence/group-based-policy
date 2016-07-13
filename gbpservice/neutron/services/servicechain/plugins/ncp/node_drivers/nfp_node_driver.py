@@ -390,12 +390,16 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             raise e
 
     def create(self, context):
-        context._plugin_context = self._get_resource_owner_context(
-            context._plugin_context)
-        network_function_id = self._create_network_function(context)
-        self._set_node_instance_network_function_map(
-            context.plugin_session, context.current_node['id'],
-            context.instance['id'], network_function_id)
+        try:
+            context._plugin_context = self._get_resource_owner_context(
+                context._plugin_context)
+            network_function_id = self._create_network_function(context)
+            self._set_node_instance_network_function_map(
+                context.plugin_session, context.current_node['id'],
+                context.instance['id'], network_function_id)
+        except Exception as e:
+            self.sc_node_count -= 1
+            raise e
 
         # Check for NF status in a separate thread
         LOG.debug("Spawning thread for nf ACTIVE poll")
@@ -626,6 +630,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 LOG.error(_LE('Multiple tenants matches found for %s'), tenant)
 
     def _get_resource_owner_context(self, plugin_context):
+        # REVISIT(AKASH) Need to revisit as this api is not needed
+        # with present scenarios
+        '''
         if cfg.CONF.nfp_node_driver.is_service_admin_owned:
             resource_owner_context = plugin_context.elevated()
             resource_owner_context.tenant_id = self.resource_owner_tenant_id
@@ -636,7 +643,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 self.resource_owner_tenant_id)
             return resource_owner_context
         else:
-            return plugin_context
+        '''
+        return plugin_context
 
     def _update(self, context, network_function_id):
         if (context.original_node['config'] != context.current_node['config']):
@@ -758,7 +766,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         for spec in current_specs:
             node_list.extend(spec['nodes'])
 
-        self.sc_node_count = len(node_list)
         for node_id in node_list:
             node_info = context.sc_plugin.get_servicechain_node(
                 context.plugin_context, node_id)
@@ -784,6 +791,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         if service_type_list_in_chain not in allowed_chain_combinations:
             raise InvalidNodeOrderInChain(
                     node_order=allowed_chain_combinations)
+
+        self.sc_node_count = len(node_list)
 
     def _get_consumers_for_provider(self, context, provider):
         '''
@@ -896,7 +905,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             'subnet': None,
             'port_model': nfp_constants.GBP_NETWORK,
             'port_classification': nfp_constants.MANAGEMENT}
-
         nfp_create_nf_data = {
             'resource_owner_context': context._plugin_context.to_dict(),
             'service_chain_instance': sc_instance,
@@ -911,7 +919,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             'tenant_id': context.provider['tenant_id'],
             'consuming_ptgs_details': consuming_ptgs_details,
             'consuming_eps_details': consuming_eps_details}
-
         return self.nfp_notifier.create_network_function(
             context.plugin_context, network_function=nfp_create_nf_data)['id']
 

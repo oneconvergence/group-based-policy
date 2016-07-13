@@ -10,30 +10,29 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import threading
+import pdb
+import sys
 
-nfp_context_store = threading.local()
+"""For debugging inside a child process.
 
-
-class NfpContext(object):
-
-    def __init__(self, context):
-        self.context = context
-
-    def get_context(self):
-        return self.context
+    import pdb;pdb.set_trace() does not work
+    with python multiprocessing.
+    Instead use below pdb class to debug inside
+    a worker process / child process.
+"""
 
 
-def store_nfp_context(context):
-    nfp_context_store.context = NfpContext(context)
+class ForkedPdb(pdb.Pdb):
 
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
 
-def clear_nfp_context():
-    nfp_context_store.context = None
+    """
 
-
-def get_nfp_context():
-    context = getattr(nfp_context_store, 'context', None)
-    if context:
-        return context.get_context()
-    return {}
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = file('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin

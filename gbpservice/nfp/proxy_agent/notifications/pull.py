@@ -10,10 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core import module as nfp_api
-import gbpservice.nfp.lib.transport as transport
-from gbpservice.nfp.proxy_agent.lib import topics as a_topics
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import module as nfp_api
+from gbpservice.nfp.lib import transport as transport
+from gbpservice.nfp.proxy_agent.lib import topics as a_topics
 
 from neutron import context as n_context
 
@@ -64,25 +64,29 @@ class PullNotification(nfp_api.NfpEventHandler):
         notifications = transport.get_response_from_configurator(self._conf)
 
         if not isinstance(notifications, list):
-            LOG.error("Notfications not list, %s" % (notifications))
+            message = "Notfications not list, %s" % (notifications)
+            LOG.error(message)
 
         else:
             for notification in notifications:
                 if not notification:
-                    LOG.info("Receiver Response: Empty")
+                    message = "Receiver Response: Empty"
+                    LOG.info(message)
                     continue
                 try:
                     self._method_handler(notification)
                 except AttributeError:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
-                    LOG.error(
-                        "AttributeError while handling message %s : %s " % (
-                            notification, traceback.format_exception(
-                                exc_type, exc_value, exc_traceback)))
+                    message = ("AttributeError while handling"
+                        "message %s : %s " % (notification,
+                        traceback.format_exception(
+                            exc_type, exc_value, exc_traceback)))
+                    LOG.error(message)
 
                 except Exception as e:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
-                    LOG.error("Generic exception (%s) \
-                       while handling message (%s) : %s" % (
-                        e, notification, traceback.format_exception(
-                            exc_type, exc_value, exc_traceback)))
+                    message = ("Generic exception (%s)"
+                        "while handling message (%s) : %s" % (
+                            e, notification, traceback.format_exception(
+                                exc_type, exc_value, exc_traceback)))
+                    LOG.error(message)

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
 # a copy of the License at
@@ -15,33 +13,31 @@
 import copy
 import time
 
-from gbpservice.neutron.services.grouppolicy.common import constants as gconst
-from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
-from gbpservice.nfp.common import constants as nfp_constants
-from gbpservice.nfp.lib import transport
-from gbpservice.nfp.orchestrator.config_drivers.heat_client\
-    import HeatClient
-from gbpservice.nfp.orchestrator.db import api as nfp_db_api
-from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
-from gbpservice.nfp.orchestrator.openstack.openstack_driver\
-    import GBPClient
-from gbpservice.nfp.orchestrator.openstack.openstack_driver\
-    import KeystoneClient
-from gbpservice.nfp.orchestrator.openstack.openstack_driver\
-    import NeutronClient
-
 from heatclient import exc as heat_exc
 from keystoneclient import exceptions as k_exceptions
 from neutron._i18n import _LE
 from neutron._i18n import _LI
 from neutron._i18n import _LW
+from neutron.db import api as db_api
 from neutron.plugins.common import constants as pconst
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
 import yaml
 
+from gbpservice.neutron.services.grouppolicy.common import constants as gconst
+from gbpservice.neutron.services.servicechain.plugins.ncp import plumber_base
+from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.lib import transport
+from gbpservice.nfp.orchestrator.config_drivers.heat_client import HeatClient
+from gbpservice.nfp.orchestrator.db import nfp_db as nfp_db
+from gbpservice.nfp.orchestrator.openstack.openstack_driver import (
+        KeystoneClient)
+from gbpservice.nfp.orchestrator.openstack.openstack_driver import (
+        NeutronClient)
+from gbpservice.nfp.orchestrator.openstack.openstack_driver import GBPClient
+
 
 HEAT_DRIVER_OPTS = [
     cfg.StrOpt('svc_management_ptg_name',
@@ -95,55 +91,44 @@ class HeatDriver(object):
         self.keystoneclient = KeystoneClient(config)
         self.gbp_client = GBPClient(config)
         self.neutron_client = NeutronClient(config)
-        # self.resource_owner_tenant_id = None
 
-        keystone_conf = cfg.CONF.keystone_authtoken
-        keystone_version = keystone_conf.auth_version
+        self.keystone_conf = config.keystone_authtoken
+        keystone_version = self.keystone_conf.auth_version
         self.v2client = self.keystoneclient._get_v2_keystone_admin_client()
         self.admin_id = self.v2client.users.find(
-            name=keystone_conf.admin_user).id
+            name=self.keystone_conf.admin_user).id
         self.admin_role = self._get_role_by_name(
             self.v2client, "admin", keystone_version)
         self.heat_role = self._get_role_by_name(
             self.v2client, "heat_stack_owner", keystone_version)
 
-    '''
-    @property
-    def resource_owner_tenant_id(self):
-        if self.resource_owner_tenant_id:
-            return self.resource_owner_tenant_id
-
-        if cfg.CONF.heat_driver.is_service_admin_owned:
-            self.resource_owner_tenant_id = self._resource_owner_tenant_id()
-        else:
-            self.resource_owner_tenant_id = None
-        return self.resource_owner_tenant_id
-    '''
-
     def _resource_owner_tenant_id(self):
-        user, pwd, tenant_name, auth_url =\
-            self.keystoneclient.get_keystone_creds()
         auth_token = self.keystoneclient.get_scoped_keystone_token(
-            user, pwd, tenant_name)
+            self.keystone_conf.admin_user,
+            self.keystone_conf.admin_password,
+            self.keystone_conf.admin_tenant_name)
         try:
             tenant_id = self.keystoneclient.get_tenant_id(
-                auth_token, tenant_name)
+                auth_token, self.keystone_conf.admin_tenant_name)
             return tenant_id
         except k_exceptions.NotFound:
             with excutils.save_and_reraise_exception(reraise=True):
-                LOG.error(_LE('No tenant with name %s exists.'), tenant_name)
+                LOG.error(_LE('No tenant with name %s exists.'),
+                          self.keystone_conf.admin_tenant_name)
         except k_exceptions.NoUniqueMatch:
             with excutils.save_and_reraise_exception(reraise=True):
                 LOG.error(
-                    _LE('Multiple tenants matches found for %s'), tenant_name)
+                    _LE('Multiple tenants matches found for %s'),
+                    self.keystone_conf.admin_tenant_name)
 
     def _get_resource_owner_context(self):
         if cfg.CONF.heat_driver.is_service_admin_owned:
             tenant_id = self._resource_owner_tenant_id()
-            user, pwd, tenant_name, auth_url =\
-                self.keystoneclient.get_keystone_creds()
             auth_token = self.keystoneclient.get_scoped_keystone_token(
-                user, pwd, tenant_name, tenant_id)
+                self.keystone_conf.admin_user,
+                self.keystone_conf.admin_password,
+                self.keystone_conf.admin_tenant_name,
+                tenant_id)
         return auth_token, tenant_id
 
     def _get_role_by_name(self, keystone_client, name, keystone_version):
@@ -166,7 +151,7 @@ class HeatDriver(object):
                 allocated_role_names.append(role.name)
         return allocated_role_names
 
-    def _assign_admin_user_to_project_v2(self, project_id):
+    def _assign_admin_user_to_project_v2_keystone(self, project_id):
         allocated_role_names = self.get_allocated_roles(
             self.v2client, self.admin_id, project_id)
         if self.admin_role:
@@ -180,14 +165,14 @@ class HeatDriver(object):
                                                   tenant=project_id)
 
     def _assign_admin_user_to_project(self, project_id):
-        keystone_conf = cfg.CONF.keystone_authtoken
-        keystone_version = keystone_conf.auth_version
+        keystone_version = self.keystone_conf.auth_version
 
         if keystone_version == 'v2.0':
-            return self._assign_admin_user_to_project_v2(project_id)
+            return self._assign_admin_user_to_project_v2_keystone(project_id)
         else:
             v3client = self.keystoneclient._get_v3_keystone_admin_client()
-            admin_id = v3client.users.find(name=keystone_conf.admin_user).id
+            admin_id = v3client.users.find(
+                name=self.keystone_conf.admin_user).id
             admin_role = self._get_role_by_name(v3client, "admin",
                                                 keystone_version)
             if admin_role:
@@ -207,28 +192,29 @@ class HeatDriver(object):
             return self.keystoneclient.get_scoped_keystone_token(
                 user, pwd, tenant_name)
 
-    def _get_heat_client_v1(self, tenant_id, assign_admin=False):
+    def _get_heat_client(self, tenant_id, assign_admin=False):
+        # REVISIT(Akash) Need to discuss use cases why it is needed,
+        # since user can do it from ui also. hence, commenting it for now
+        '''
         if assign_admin:
             try:
                 self._assign_admin_user_to_project(tenant_id)
             except Exception:
                 LOG.exception(_LE("Failed to assign admin user to project"))
                 return None
-
-        user, password, tenant, auth_url =\
-            self.keystoneclient.get_keystone_creds()
-
-        auth_token = self.keystone(user, password, tenant, tenant_id=tenant_id)
+        '''
+        logging_context = nfp_logging.get_logging_context()
+        auth_token = logging_context['auth_token']
 
         timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
         if timeout_seconds:
             timeout_mins = timeout_mins + 1
         try:
             heat_client = HeatClient(
-                user,
+                self.keystone_conf.admin_user,
                 tenant_id,
                 cfg.CONF.heat_driver.heat_uri,
-                password,
+                self.keystone_conf.admin_password,
                 auth_token=auth_token,
                 timeout_mins=timeout_mins)
         except Exception:
@@ -237,52 +223,19 @@ class HeatDriver(object):
 
         return heat_client
 
-    def _get_heat_client(self, resource_owner_tenant_id, tenant_id=None):
-        user_tenant_id = tenant_id or resource_owner_tenant_id
-        try:
-            self._assign_admin_user_to_project(user_tenant_id)
-        except Exception:
-            LOG.exception(_LE("Failed to assign admin user to project"))
-            return None
-
-        user, password, tenant, auth_url =\
-            self.keystoneclient.get_keystone_creds()
-        admin_token = self.keystone(
-            user, password, tenant, tenant_id=user_tenant_id)
-
-        timeout_mins, timeout_seconds = divmod(STACK_ACTION_WAIT_TIME, 60)
-        if timeout_seconds:
-            timeout_mins = timeout_mins + 1
-        try:
-            heat_client = HeatClient(
-                user,
-                user_tenant_id,
-                cfg.CONF.heat_driver.heat_uri,
-                password,
-                auth_token=admin_token,
-                timeout_mins=timeout_mins)
-        except Exception:
-            LOG.exception(_LE("Failed to create heatclient object"))
-            return None
-
-        return heat_client
-
     def _get_tenant_context(self, tenant_id):
-        user, password, tenant, auth_url =\
-            self.keystoneclient.get_keystone_creds()
-
-        auth_token = self.keystone(user, password,
-                                   tenant, tenant_id=tenant_id)
+        auth_token = self.keystone(
+            self.keystone_conf.admin_user,
+            self.keystone_conf.admin_password,
+            self.keystone_conf.admin_tenant_name,
+            tenant_id=tenant_id)
         return auth_token, tenant_id
 
     def loadbalancer_post_stack_create(self, network_function_details):
         db_handler = nfp_db.NFPDbBase()
-        db_session = nfp_db_api.get_session()
+        db_session = db_api.get_session()
         service_details = self.get_service_details(network_function_details)
         service_profile = service_details['service_profile']
-        # provider = service_details['policy_target_group']
-        # provider = service_details['provider_ptg']
-        # provider_tenant_id = provider['tenant_id']
         if service_profile['service_type'] in [pconst.LOADBALANCER,
                                                pconst.LOADBALANCERV2]:
             network_function_instance = network_function_details.get(
@@ -292,13 +245,6 @@ class HeatDriver(object):
                     port_info = db_handler.get_port_info(db_session, port)
                     if port_info['port_model'] != nfp_constants.GBP_PORT:
                         return
-            # _, provider_tenant_id = self._get_tenant_context(
-            #     provider_tenant_id)
-            # TODO(yogesh): Need to revisit this. Due to this pt, provider
-            # group is not getting, deleted, throwing error ptg in use.
-            # We need to manually delete pt first to delete group.
-            # self._create_policy_target_for_vip(auth_token,
-            #                                    provider_tenant_id, provider)
 
     def _create_policy_target_for_vip(self, auth_token,
                                       provider_tenant_id, provider):
@@ -421,7 +367,6 @@ class HeatDriver(object):
 
     def _modify_lbv2_resources_name(self, stack_template, provider_ptg,
                                     is_template_aws_version):
-        # TODO(jiahao): Don't know why we have to change resources name
         pass
 
     def _generate_lbaasv2_pool_members(self, auth_token, stack_template,
@@ -531,13 +476,12 @@ class HeatDriver(object):
     def _create_firewall_template(self, auth_token,
                                   service_details, stack_template):
 
-        provider = service_details['provider_ptg']
-
         consuming_ptgs_details = service_details['consuming_ptgs_details']
         consumer_eps = service_details['consuming_external_policies']
 
-        if (not consuming_ptgs_details) and (not consumer_eps):
-            return None
+        # Handle a case where a chain is provided first and then consumed
+        # if (not consuming_ptgs_details) and (not consumer_eps):
+        #    return None
 
         is_template_aws_version = stack_template.get(
             'AWSTemplateFormatVersion', False)
@@ -846,9 +790,9 @@ class HeatDriver(object):
                                               service_vendor)))
 
             lb_loadbalancer_key = self._get_heat_resource_key(
-                    stack_template[resources_key],
-                    is_template_aws_version,
-                    'OS::Neutron::LBaaS::LoadBalancer')
+                stack_template[resources_key],
+                is_template_aws_version,
+                'OS::Neutron::LBaaS::LoadBalancer')
             stack_template[resources_key][lb_loadbalancer_key][
                 properties_key]['description'] = str(common_desc)
 
@@ -896,7 +840,7 @@ class HeatDriver(object):
                             provider_port, update=False, mgmt_ip=None,
                             consumer=None):
         nf_desc = None
-        common_desc = {'network_function_id':str(network_function['id'])}
+        common_desc = {'network_function_id': str(network_function['id'])}
         provider_cidr = provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token, filters={'id': provider['subnets']})
@@ -911,11 +855,9 @@ class HeatDriver(object):
         service_type = service_profile['service_type']
         service_details = transport.parse_service_flavor_string(
             service_profile['service_flavor'])
-        service_vendor = service_details['service_vendor']
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
 
-        # stack_template = service_chain_node.get('config')
         _, stack_template_str = self.parse_template_config_string(
             service_chain_node.get('config'))
         try:
@@ -925,7 +867,7 @@ class HeatDriver(object):
         except Exception:
             LOG.error(_LE(
                 "Unable to load stack template for service chain "
-                "node:  %(node_id)s") % {'node_id': service_chain_node})
+                "node:  %(node_id)s"), {'node_id': service_chain_node})
             return None, None
         config_param_values = service_chain_instance.get(
             'config_param_values', '{}')
@@ -996,9 +938,9 @@ class HeatDriver(object):
                                               service_vendor)))
 
             lb_loadbalancer_key = self._get_heat_resource_key(
-                    stack_template[resources_key],
-                    is_template_aws_version,
-                    'OS::Neutron::LBaaS::LoadBalancer')
+                stack_template[resources_key],
+                is_template_aws_version,
+                'OS::Neutron::LBaaS::LoadBalancer')
             stack_template[resources_key][lb_loadbalancer_key][
                 properties_key]['description'] = str(common_desc)
 
@@ -1026,12 +968,6 @@ class HeatDriver(object):
 
                 nf_desc = str(firewall_desc)
         elif service_type == pconst.VPN:
-            # rvpn_l3_policy = self._get_rvpn_l3_policy(auth_token,
-            #    provider, update)
-            # if rvpn_l3_policy is None:
-            #    return None, None
-            # config_param_values['ClientAddressPoolCidr'] = rvpn_l3_policy[
-            #    'ip_pool']
             config_param_values['Subnet'] = (
                 consumer_port['fixed_ips'][0]['subnet_id']
                 if consumer_port else None)
@@ -1164,7 +1100,7 @@ class HeatDriver(object):
 
     def get_service_details(self, network_function_details):
         db_handler = nfp_db.NFPDbBase()
-        db_session = nfp_db_api.get_session()
+        db_session = db_api.get_session()
         network_function = network_function_details['network_function']
         network_function_instance = network_function_details.get(
             'network_function_instance')
@@ -1224,19 +1160,19 @@ class HeatDriver(object):
                     consumer_port = self.neutron_client.get_port(
                         admin_token, port_id)['port']
                     if policy_target:
-                        consumer_policy_target_group =\
+                        consumer_policy_target_group = (
                             self.gbp_client.get_policy_target_group(
                                 admin_token,
-                                policy_target['policy_target_group_id'])
+                                policy_target['policy_target_group_id']))
                 elif port_classification == nfp_constants.PROVIDER:
                     LOG.info(_LI("provider info: %s") % (port_id))
                     provider_port = self.neutron_client.get_port(
                         admin_token, port_id)['port']
                     if policy_target:
-                        provider_policy_target_group =\
+                        provider_policy_target_group = (
                             self.gbp_client.get_policy_target_group(
                                 admin_token,
-                                policy_target['policy_target_group_id'])
+                                policy_target['policy_target_group_id']))
 
         service_details = {
             'service_profile': service_profile,
@@ -1347,10 +1283,9 @@ class HeatDriver(object):
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
-        auth_token, resource_owner_tenant_id =\
-            self._get_resource_owner_context()
-        heatclient = self._get_heat_client(resource_owner_tenant_id,
-                                           tenant_id=tenant_id)
+        _, resource_owner_tenant_id = (
+            self._get_resource_owner_context())
+        heatclient = self._get_heat_client(tenant_id)
         if not heatclient:
             return failure_status
         try:
@@ -1387,7 +1322,7 @@ class HeatDriver(object):
         provider_tenant_id = nfp_context['tenant_id']
         stack_id = nfp_context['heat_stack_id']
 
-        heatclient = self._get_heat_client_v1(provider_tenant_id)
+        heatclient = self._get_heat_client(provider_tenant_id)
         if not heatclient:
             return failure_status
         try:
@@ -1419,10 +1354,9 @@ class HeatDriver(object):
         success_status = "COMPLETED"
         failure_status = "ERROR"
         intermediate_status = "IN_PROGRESS"
-        auth_token, resource_owner_tenant_id =\
-            self._get_resource_owner_context()
-        heatclient = self._get_heat_client(resource_owner_tenant_id,
-                                           tenant_id=tenant_id)
+        _, resource_owner_tenant_id = (
+            self._get_resource_owner_context())
+        heatclient = self._get_heat_client(tenant_id)
         if not heatclient:
             return failure_status
         try:
@@ -1450,12 +1384,12 @@ class HeatDriver(object):
 
     def get_service_details_from_nfp_context(self, nfp_context):
         network_function = nfp_context['network_function']
-        network_function_instance = nfp_context['network_function_instance']
+        # network_function_instance = nfp_context['network_function_instance']
         service_details = nfp_context['service_details']
         mgmt_ip = nfp_context['management']['port']['ip_address']
         heat_stack_id = network_function['heat_stack_id']
-        service_id = network_function['service_id']
-        service_chain_id = network_function['service_chain_id']
+        # service_id = network_function['service_id']
+        # service_chain_id = network_function['service_chain_id']
         servicechain_instance = nfp_context['service_chain_instance']
         servicechain_node = nfp_context['service_chain_node']
 
@@ -1494,7 +1428,6 @@ class HeatDriver(object):
         service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
-        provider = service_details['policy_target_group']
         provider = service_details['provider_ptg']
         consumer = service_details['consumer_ptg']
         consumer_port = service_details['consumer_port']
@@ -1504,11 +1437,10 @@ class HeatDriver(object):
         service_details = transport.parse_service_flavor_string(
             service_profile['service_flavor'])
 
-        auth_token, resource_owner_tenant_id =\
-            self._get_resource_owner_context()
+        auth_token, resource_owner_tenant_id = (
+            self._get_resource_owner_context())
         provider_tenant_id = provider['tenant_id']
-        heatclient = self._get_heat_client(resource_owner_tenant_id,
-                                           tenant_id=provider_tenant_id)
+        heatclient = self._get_heat_client(provider_tenant_id)
         if not heatclient:
             return None
         stack_name = ("stack_" + service_chain_instance['name'] +
@@ -1550,7 +1482,7 @@ class HeatDriver(object):
             nfp_context)
 
         network_function = nfp_context['network_function']
-        service_profile = service_details['service_profile']
+        # service_profile = service_details['service_profile']
         service_chain_node = service_details['servicechain_node']
         service_chain_instance = service_details['servicechain_instance']
         provider = service_details['provider_ptg']
@@ -1561,8 +1493,8 @@ class HeatDriver(object):
 
         auth_token = nfp_context['resource_owner_context']['admin_token']
         provider_tenant_id = nfp_context['tenant_id']
-        heatclient = self._get_heat_client_v1(provider_tenant_id,
-                                              assign_admin=True)
+        heatclient = self._get_heat_client(provider_tenant_id,
+                                           assign_admin=True)
         if not heatclient:
             return None
 
@@ -1605,12 +1537,11 @@ class HeatDriver(object):
         return stack_id
 
     def delete_config(self, stack_id, tenant_id):
-        auth_token, resource_owner_tenant_id =\
-            self._get_resource_owner_context()
+        _, resource_owner_tenant_id = (
+            self._get_resource_owner_context())
 
         try:
-            heatclient = self._get_heat_client(resource_owner_tenant_id,
-                                               tenant_id=tenant_id)
+            heatclient = self._get_heat_client(tenant_id)
             if not heatclient:
                 return None
             heatclient.delete(stack_id)
@@ -1641,8 +1572,7 @@ class HeatDriver(object):
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
         provider_tenant_id = provider['tenant_id']
-        heatclient = self._get_heat_client(resource_owner_tenant_id,
-                                           tenant_id=provider_tenant_id)
+        heatclient = self._get_heat_client(provider_tenant_id)
         if not heatclient:
             return None
 
@@ -1726,8 +1656,8 @@ class HeatDriver(object):
         provider_port = service_details['provider_port']
         mgmt_ip = service_details['mgmt_ip']
 
-        auth_token, resource_owner_tenant_id =\
-            self._get_resource_owner_context()
+        auth_token, resource_owner_tenant_id = (
+            self._get_resource_owner_context())
         stack_id = self._update(auth_token, resource_owner_tenant_id,
                                 service_profile, service_chain_node,
                                 service_chain_instance, provider,
@@ -1756,8 +1686,8 @@ class HeatDriver(object):
                                                pconst.LOADBALANCERV2]:
             if self._is_service_target(policy_target):
                 return
-            auth_token, resource_owner_tenant_id =\
-                self._get_resource_owner_context()
+            auth_token, resource_owner_tenant_id = (
+                self._get_resource_owner_context())
             try:
                 stack_id = self._update(auth_token, resource_owner_tenant_id,
                                         service_profile, service_chain_node,
@@ -1790,8 +1720,8 @@ class HeatDriver(object):
         stack_id = service_details['heat_stack_id']
 
         if service_profile['service_type'] == pconst.FIREWALL:
-            auth_token, resource_owner_tenant_id =\
-                self._get_resource_owner_context()
+            auth_token, resource_owner_tenant_id = (
+                self._get_resource_owner_context())
             try:
                 stack_id = self._update(auth_token, resource_owner_tenant_id,
                                         service_profile, service_chain_node,

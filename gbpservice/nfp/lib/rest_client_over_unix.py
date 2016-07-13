@@ -11,17 +11,16 @@
 #    under the License.
 
 import exceptions
-import zlib
-
-from gbpservice.nfp.core import common as nfp_common
-from gbpservice.nfp.core import log as nfp_logging
 import httplib
 import httplib2
-
-from oslo_serialization import jsonutils
+import zlib
 
 import six.moves.urllib.parse as urlparse
 import socket
+
+from oslo_serialization import jsonutils
+
+from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -39,7 +38,7 @@ class UnixHTTPConnection(httplib.HTTPConnection):
                  proxy_info=None):
         httplib.HTTPConnection.__init__(self, host, port, strict)
         self.timeout = timeout
-        self.socket_path = '/tmp/uds_socket'
+        self.socket_path = '/var/run/uds_socket'
 
     def connect(self):
         """Method used to connect socket server."""
@@ -96,9 +95,11 @@ class UnixRestClient(object):
                                                headers=headers, body=body)
             if content != '':
                 content = zlib.decompress(content)
-            LOG.info("%s:%s" % (resp, content))
+            message = "%s:%s" % (resp, content)
+            LOG.info(message)
         except RestClientException as rce:
-            LOG.error("ERROR : %s" % (rce))
+            message = "ERROR : %s" % (rce)
+            LOG.error(message)
             raise rce
 
         success_code = [200, 201, 202, 204]
@@ -149,8 +150,8 @@ def put(path, body):
     Return:Http Response
     """
     headers = {'content-type': 'application/octet-stream'}
-    return UnixRestClient().\
-        send_request(path, 'PUT', headers=headers, body=body)
+    return UnixRestClient().send_request(
+        path, 'PUT', headers=headers, body=body)
 
 
 def post(path, body, delete=False):
@@ -165,5 +166,5 @@ def post(path, body, delete=False):
         headers.update({'method-type': 'DELETE'})
     else:
         headers.update({'method-type': 'CREATE'})
-    return UnixRestClient().\
-        send_request(path, 'POST', headers=headers, body=body)
+    return UnixRestClient().send_request(
+        path, 'POST', headers=headers, body=body)

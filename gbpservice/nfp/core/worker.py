@@ -35,7 +35,7 @@ identify = nfp_common.identify
 class NfpWorker(Service):
 
     def __init__(self, conf, threads=10):
-        # REVISIT(MAK): Can threads be configured ?
+        # REVISIT(mak): Should #threads be a conf ?
         Service.__init__(self, threads=threads)
         # Parent end of duplex pipe
         self.parent_pipe = None
@@ -61,15 +61,17 @@ class NfpWorker(Service):
         while True:
             try:
                 event = None
-                if self.pipe.poll():
+                if self.pipe.poll(0.1):
                     event = self.controller.pipe_recv(self.pipe)
                 if event:
-                    LOG.debug("%s - received event" %
-                        (self._log_meta(event)))
+                    message = "%s - received event" % (
+                        self._log_meta(event))
+                    LOG.debug(message)
                     self.controller.decompress(event)
                     self._process_event(event)
             except Exception as e:
-                LOG.error("Exception - %s" % (e))
+                message = "Exception - %s" % (e)
+                LOG.error(message)
             # Yeild cpu
             time.sleep(0)
 
@@ -120,16 +122,16 @@ class NfpWorker(Service):
     def _repoll(self, ret, event, eh):
         status = self._build_poll_status(ret, event)
         if status['poll']:
-            LOG.debug("(event - %s) - "
-                "repolling event - pending times - %d" %(
-                event.identify(), 
-                event.desc.poll_desc.max_times))
+            message = ("(event - %s) - repolling event -"
+                       "pending times - %d") % (
+                event.identify(), event.desc.poll_desc.max_times)
+            LOG.debug(message)
             if event.desc.poll_desc.max_times:
                 self.controller.pipe_send(self.pipe, status['event'])
             else:
-                LOG.debug("(event - %s) - "
-                    "max timed out, calling event_cancelled" %(
-                    event.identify()))
+                message = ("(event - %s) - max timed out,"
+                           "calling event_cancelled") % (event.identify())
+                LOG.debug(message)
                 eh.event_cancelled(event, 'MAX_TIMED_OUT')
 
     def _handle_poll_event(self, event):
@@ -143,13 +145,24 @@ class NfpWorker(Service):
             ret = poll_handler(event_handler, event)
         self._repoll(ret, event, event_handler)
 
-    def dispatch(self, handler, *args):
+    def log_dispatch(self, handler, event, *args):
+        try:
+            nfp_logging.store_logging_context(**(event.context))
+            handler(event, *args)
+            nfp_logging.clear_logging_context()
+        except Exception as e:
+            message = "%r" % e
+            LOG.error(message)
+            handler(event, *args)
+
+    def dispatch(self, handler, event, *args):
         if self._threads:
-            th = self.tg.add_thread(handler, *args)
-            LOG.debug("%s - (handler - %s) - "
-                "dispatched to thread %d" %
-                (self._log_meta(), identify(handler), th.ident))
+            th = self.tg.add_thread(self.log_dispatch, handler, event, *args)
+            message = "%s - (handler - %s) - dispatched to thread %d" % (
+                self._log_meta(), identify(handler), th.ident)
+            LOG.debug(message)
         else:
-            handler(*args)
-            LOG.debug("%s - (handler - %s) - invoked" %
-                (self._log_meta(), identify(handler)))
+            handler(event, *args)
+            message = "%s - (handler - %s) - invoked" % (
+                self._log_meta(), identify(handler))
+            LOG.debug(message)

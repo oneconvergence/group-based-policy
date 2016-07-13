@@ -10,12 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import zlib
+
 import exceptions
 
 from gbpservice.nfp.common import constants as nfp_constants
-from gbpservice.nfp.lib import RestClientOverUnix as unix_rc
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.lib import rest_client_over_unix as unix_rc
 
 from neutron.common import rpc as n_rpc
 from neutron import context as n_context
@@ -120,7 +120,6 @@ class RestApi(object):
             self.rest_server_address,
             self.rest_server_port, path)
         data = jsonutils.dumps(body)
-        data = zlib.compress(data)
         try:
             # Method-Type needs to be added here,as DELETE/CREATE
             # both case are handled by post as delete also needs
@@ -277,15 +276,15 @@ def get_response_from_configurator(conf):
             rpc_cbs_data = jsonutils.loads(resp.content)
             return rpc_cbs_data
         except RestClientException as rce:
-            LOG.error(
-                "get_notification -> GET request failed. Reason : %s" % (
-                    rce))
+            message = ("get_notification ->"
+                       "GET request failed. Reason : %s" % (rce))
+            LOG.error(message)
             return "get_notification -> GET request failed. Reason : %s" % (
                 rce)
         except Exception as e:
-            LOG.error(
-                "get_notification -> GET request failed. Reason : %s" % (
-                    e))
+            message = ("get_notification ->"
+                       "GET request failed. Reason : %s" % (e))
+            LOG.error(message)
             return "get_notification -> GET request failed. Reason : %s" % (
                 e)
 
@@ -294,19 +293,22 @@ def get_response_from_configurator(conf):
             resp, content = unix_rc.get('get_notifications')
             content = jsonutils.loads(content)
             if content:
-                LOG.info("get_notification -> GET response: (%s)" %
-                    (content))
+                message = ("get_notification ->"
+                           "GET response: (%s)" % (content))
+                LOG.info(message)
             return content
         except unix_rc.RestClientException as rce:
-            LOG.error(
-                "get_notification -> GET request failed. Reason : %s" % (
-                    rce))
+            message = ("get_notification ->"
+                       "GET request failed. Reason : %s" % (
+                           rce))
+            LOG.error(message)
             return "get_notification -> GET request failed. Reason : %s" % (
                 rce)
         except Exception as e:
-            LOG.error(
-                "get_notification -> GET request failed. Reason : %s" % (
-                    e))
+            message = ("get_notification ->"
+                       "GET request failed. Reason : %s" % (
+                           e))
+            LOG.error(message)
             return "get_notification -> GET request failed. Reason : %s" % (
                 e)
 
@@ -320,7 +322,8 @@ def get_response_from_configurator(conf):
                                                 'get_notifications')
             return rpc_cbs_data
         except Exception as e:
-            LOG.error("Exception while processing %s" % e)
+            message = "Exception while processing %s" % e
+            LOG.error(message)
             return "get_notification -> GET request failed. Reason : %s" % (
                 e)
 

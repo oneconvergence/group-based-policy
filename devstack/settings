@@ -1,7 +1,7 @@
 # Make sure the plugin name in local.conf is "gbp", as in: enable_plugin gbp <remote> <branch>
 source $DEST/gbp/devstack/lib/gbp
 ENABLE_NFP=${ENABLE_NFP:-False}
-[[ $ENABLE_NFP = True ]] && DEVSTACK_MODE=${DEVSTACK_MODE:-base}
+[[ $ENABLE_NFP = True ]] && NFP_DEVSTACK_MODE=${NFP_DEVSTACK_MODE:-base}
 [[ $ENABLE_NFP = True ]] && source $DEST/gbp/devstack/lib/nfp
 # VM locations
 ConfiguratorQcow2Image=${ConfiguratorQcow2Image:-build}
@@ -35,19 +35,21 @@ enable_service q-agt
 enable_service q-dhcp
 enable_service q-l3
 enable_service q-fwaas
-[[ $DEVSTACK_MODE != base ]] && enable_service neutron-vpnaas
+[[ $NFP_DEVSTACK_MODE != base ]] && enable_service neutron-vpnaas
 enable_service q-lbaas
 enable_service q-meta
 enable_service neutron
 enable_service group-policy
 disable_service tempest
 ENABLED_SERVICES+=,heat,h-api,h-api-cfn,h-api-cw,h-eng
-# NFP services
-enable_service orchestrator
-enable_service proxy
-enable_service proxy_agent
-[[ $DEVSTACK_MODE = base ]] && enable_service base_configurator
-[[ $DEVSTACK_MODE != base ]] && enable_service config_orch
+if [[ $ENABLE_NFP = True ]]; then
+    # NFP services
+    enable_service nfp_orchestrator
+    enable_service nfp_proxy
+    enable_service nfp_proxy_agent
+    [[ $NFP_DEVSTACK_MODE = base ]] && enable_service nfp_base_configurator
+    [[ $NFP_DEVSTACK_MODE != base ]] && enable_service nfp_config_orchestrator
+fi
 
 OVS_PHYSICAL_BRIDGE=br-ex
 

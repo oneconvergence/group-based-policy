@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
 # a copy of the License at
@@ -37,8 +35,8 @@ class HeatClient(object):
         self.stacks = self.client.stacks
 
         self.timeout_mins = timeout_mins
-        # The base class is a old style class. We have to change when it is
-        # updated
+        # REVISIT(ashu): The base class is a old style class. We have to
+        # change when it is updated
         #gbp_heat_api_client.HeatClient.__init__(
         #    self, context, heat_uri, password, auth_token)
 

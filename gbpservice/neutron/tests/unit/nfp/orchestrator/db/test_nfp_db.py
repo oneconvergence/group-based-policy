@@ -183,7 +183,7 @@ class NFPDBTestCase(SqlTestCase):
                           self.session, network_function['id'])
 
     def create_network_function_instance(self, attributes=None,
-                                        create_nfd=True):
+                                         create_nfd=True):
         if attributes is None:
             nfd = (self.create_network_function_device()['id']
                    if create_nfd else None)
@@ -389,6 +389,10 @@ class NFPDBTestCase(SqlTestCase):
         network_function_device = self.nfp_db.create_network_function_device(
             self.session, attrs)
         for key in attrs:
+            if key == 'mgmt_port_id':
+                self.assertEqual(attrs[key]['id'],
+                                 network_function_device[key])
+                continue
             self.assertEqual(attrs[key], network_function_device[key])
         self.assertIsNotNone(network_function_device['id'])
 
@@ -446,6 +450,10 @@ class NFPDBTestCase(SqlTestCase):
         db_network_function_device = self.nfp_db.get_network_function_device(
             self.session, network_function_device['id'])
         for key in attrs:
+            if key == 'mgmt_port_id':
+                self.assertEqual(attrs[key]['id'],
+                                 network_function_device[key])
+                continue
             self.assertEqual(attrs[key], db_network_function_device[key])
 
     def test_list_network_function_device(self):
@@ -495,6 +503,11 @@ class NFPDBTestCase(SqlTestCase):
         network_function_device = self.nfp_db.create_network_function_device(
             self.session, attrs)
         for key in attrs:
+            if key == 'mgmt_port_id':
+                self.assertEqual(attrs[key]['id'],
+                                 network_function_device[key])
+                continue
+
             self.assertEqual(attrs[key], network_function_device[key])
         self.assertIsNotNone(network_function_device['id'])
 
@@ -509,6 +522,10 @@ class NFPDBTestCase(SqlTestCase):
         self.assertEqual('new_name', updated_nfd['name'])
         del updated_nfd['name']
         for key in attrs:
+            if key == 'mgmt_port_id':
+                self.assertEqual(attrs[key]['id'],
+                                 network_function_device[key])
+                continue
             if key != 'name':
                 self.assertEqual(attrs[key], updated_nfd[key])
 
@@ -561,7 +578,7 @@ class NFPDBTestCase(SqlTestCase):
                 'network_function_device_id': network_function_device['id']
             }
             return self.nfp_db.create_network_function_device_interface(
-                    self.session, attributes)
+                self.session, attributes)
 
     def test_create_network_function_device_interface(self):
         network_function_device = self.create_network_function_device()
@@ -578,7 +595,7 @@ class NFPDBTestCase(SqlTestCase):
             'network_function_device_id': network_function_device['id']
         }
         nfd_interface = self.nfp_db.create_network_function_device_interface(
-                                        self.session, attrs)
+            self.session, attrs)
         for key in attrs:
             self.assertEqual(attrs[key], nfd_interface[key])
         self.assertIsNotNone(nfd_interface['id'])
@@ -614,7 +631,7 @@ class NFPDBTestCase(SqlTestCase):
             'network_function_device_id': network_function_device['id']
         }
         nfd_interface = self.nfp_db.create_network_function_device_interface(
-                                        self.session, attrs)
+            self.session, attrs)
         for key in attrs:
             self.assertEqual(attrs[key], nfd_interface[key])
         self.assertIsNotNone(nfd_interface['id'])
@@ -624,10 +641,10 @@ class NFPDBTestCase(SqlTestCase):
             'interface_position': 5
         }
         updated_nfd_interface = (
-                self.nfp_db.update_network_function_device_interface(
-                    self.session,
-                    nfd_interface['id'],
-                    updated_nfd_interface))
+            self.nfp_db.update_network_function_device_interface(
+                self.session,
+                nfd_interface['id'],
+                updated_nfd_interface))
         self.assertEqual(5, updated_nfd_interface['interface_position'])
         del updated_nfd_interface['interface_position']
         for key in attrs:
@@ -642,10 +659,10 @@ class NFPDBTestCase(SqlTestCase):
             'port_role': nfp_constants.ACTIVE_PORT,
         }
         updated_nfd_interface = (
-                self.nfp_db.update_network_function_device_interface(
-                    self.session,
-                    nfd_interface['id'],
-                    updated_nfd_interface))
+            self.nfp_db.update_network_function_device_interface(
+                self.session,
+                nfd_interface['id'],
+                updated_nfd_interface))
         self.assertEqual(updated_nfd_interface['plugged_in_port_id'],
                          'plugged_in_port_id')
         del updated_nfd_interface['plugged_in_port_id']
@@ -677,14 +694,14 @@ class NFPDBTestCase(SqlTestCase):
     def test_list_network_function_device_interface(self):
         self.create_network_function_device_interface()
         network_function_device_interfaces = (
-                self.nfp_db.get_network_function_device_interfaces(
-                    self.session))
+            self.nfp_db.get_network_function_device_interfaces(
+                self.session))
         self.assertEqual(1, len(network_function_device_interfaces))
 
     def test_list_network_function_device_interfaces_with_filters(self):
         nfd_interface = self.create_network_function_device_interface()
         filters = {'network_function_device_id':
-                [nfd_interface['network_function_device_id']]}
+                   [nfd_interface['network_function_device_id']]}
         nfd_interfaces = self.nfp_db.get_network_function_device_interfaces(
             self.session, filters=filters)
         self.assertEqual(1, len(nfd_interfaces))

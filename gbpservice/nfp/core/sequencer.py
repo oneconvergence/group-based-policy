@@ -12,7 +12,6 @@
 
 import collections
 
-from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
@@ -67,8 +66,8 @@ class EventSequencer(object):
 
         def is_scheduled(self, event):
             if self._scheduled:
-                return self._scheduled.desc.uuid == event.desc.uuid and \
-                    self._scheduled.id == event.id
+                return self._scheduled.desc.uuid == event.desc.uuid and (
+                    self._scheduled.id == event.id)
             return True
 
         def release(self):
@@ -85,8 +84,8 @@ class EventSequencer(object):
         except KeyError:
             self._sequencer[key] = self.Sequencer()
             self._sequencer[key].sequence(event)
-        LOG.error("Sequenced event - %s" %
-            (event.identify()))
+        message = "Sequenced event - %s" % (event.identify())
+        LOG.error(message)
 
     def run(self):
         events = []
@@ -96,23 +95,28 @@ class EventSequencer(object):
             try:
                 event = sequencer.run()
                 if event:
-                    LOG.error("Desequence event - %s" %
-                        (event.identify()))
+                    message = "Desequence event - %s" % (
+                        event.identify())
+                    LOG.error(message)
                     event.sequence = False
                     events.append(event)
             except SequencerBusy as exc:
                 pass
             except SequencerEmpty as exc:
                 exc = exc
-                LOG.debug("Sequencer empty")
+                message = "Sequencer empty"
+                LOG.debug(message)
                 del self._sequencer[key]
         return events
 
     def release(self, key, event):
         try:
-            LOG.debug("(event - %s) checking to release" %(event.identify()))
+            message = "(event - %s) checking to release" % (event.identify())
+            LOG.debug(message)
             if self._sequencer[key].is_scheduled(event):
-                LOG.debug("(event - %s) Releasing sequencer" %(event.identify()))
+                message = "(event - %s) Releasing sequencer" % (
+                    event.identify())
+                LOG.debug(message)
                 self._sequencer[key].release()
         except KeyError:
             return

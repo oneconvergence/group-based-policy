@@ -123,7 +123,7 @@ class LBaaSv2RpcManager(agent_base.AgentBaseRPCManager):
 
         ev = self.sc.new_event(id=event_id, data=data)
         ev.key = key
-        ev.serialize = serialize
+        ev.sequence = serialize
         ev.binding_key = binding_key
         self.sc.post_event(ev)
 

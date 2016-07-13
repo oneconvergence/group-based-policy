@@ -44,8 +44,9 @@ class NFPGBPNetworkDriver(neutron_nd.NFPNeutronNetworkDriver):
 
     def get_neutron_port_details(self, token, port_id):
         #self.network_handler = openstack_driver.NeutronClient(self.config)
-        port_details = super(NFPGBPNetworkDriver, self).get_port_and_subnet_details(
-                                                            token, port_id)
+        port_details = (
+            super(NFPGBPNetworkDriver, self).get_port_and_subnet_details(
+                token, port_id))
         #self.network_handler = openstack_driver.GBPClient(self.config)
         return port_details
 
@@ -67,7 +68,7 @@ class NFPGBPNetworkDriver(neutron_nd.NFPNeutronNetworkDriver):
         super(NFPGBPNetworkDriver, self).set_promiscuos_mode(token, port_id)
         #self.network_handler = openstack_driver.GBPClient(self.config)
 
-    def set_promiscuos_mode_v1(self, token, port_id):
+    def set_promiscuos_mode_fast(self, token, port_id):
         #self.network_handler = openstack_driver.NeutronClient(self.config)
         super(NFPGBPNetworkDriver, self).set_promiscuos_mode(token, port_id)
         #self.network_handler = openstack_driver.GBPClient(self.config)

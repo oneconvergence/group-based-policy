@@ -66,12 +66,15 @@ class WrappedLogger(logging.Logger):
             break
         return rv
 
-    def makeRecord(self, name, level, fn, lno, msg, args, exc_info, func=None, extra=None):
+    def makeRecord(self, name, level, fn,
+                   lno, msg, args, exc_info, func=None, extra=None):
         context = getattr(logging_context_store, 'context', None)
         if context:
             _prefix = context.emit()
-            msg = "%s-%s" %(_prefix, msg)
-        return super(WrappedLogger, self).makeRecord(name, level, fn, lno, msg, args, exc_info, func=func, extra=extra)
+            msg = "%s-%s" % (_prefix, msg)
+        return super(WrappedLogger, self).makeRecord(
+            name, level, fn, lno, msg,
+            args, exc_info, func=func, extra=extra)
 
 
 logging.setLoggerClass(WrappedLogger)
@@ -82,12 +85,16 @@ class NfpLogContext(object):
 
     def __init__(self, **kwargs):
         self.meta_id = kwargs.get('meta_id', '')
+        self.auth_token = kwargs.get('auth_token', '')
 
     def emit(self):
         return "[LogMetaID:%s]" % (self.meta_id)
 
     def to_dict(self):
-        return {'meta_id': self.meta_id}
+        return {
+            'meta_id': self.meta_id,
+            'auth_token': self.auth_token}
+
 
 def getLogger(name):
     return oslo_logging.getLogger(name)
@@ -96,6 +103,7 @@ def getLogger(name):
 def store_logging_context(**kwargs):
     context = NfpLogContext(**kwargs)
     logging_context_store.context = context
+
 
 def clear_logging_context(**kwargs):
     logging_context_store.context = None

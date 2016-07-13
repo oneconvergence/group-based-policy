@@ -47,15 +47,6 @@ class OpenstackApi(object):
 class KeystoneClient(OpenstackApi):
     """ Keystone Client Apis for orchestrator. """
 
-    def get_keystone_creds(self):
-        keystone_conf = self.config.keystone_authtoken
-        user = keystone_conf.admin_user
-        pw = keystone_conf.admin_password
-        tenant = keystone_conf.admin_tenant_name
-        auth_url = self.identity_service
-
-        return user, pw, tenant, auth_url
-
     def get_admin_token(self):
         try:
             admin_token = self.get_scoped_keystone_token(
@@ -106,8 +97,9 @@ class KeystoneClient(OpenstackApi):
 
     def get_admin_tenant_id(self, token):
         if not self.admin_tenant_id:
-            _,_,name,_ = self.get_keystone_creds()
-            self.admin_tenant_id = self.get_tenant_id(token, name)
+            self.admin_tenant_id = self.get_tenant_id(
+                token,
+                self.config.keystone_authtoken.admin_tenant_name)
 
         return self.admin_tenant_id
 
