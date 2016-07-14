@@ -353,7 +353,10 @@ function create_nfp_image {
         VyosQcow2ImageName=vyos
         if [[ $VyosQcow2Image = build ]]; then
             echo "Building Image: $VyosQcow2ImageName"
-            sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/vyos_conf.json
+            cur_dir=$PWD
+            cd $DISK_IMAGE_DIR/diskimage-create/vyos/
+            sudo python vyos_image_create.py vyos_conf.json
+            cd $cur_dir
             VyosQcow2Image=$(cat /tmp/image_path)
         fi
         echo "Uploading Image: $VyosQcow2ImageName"
