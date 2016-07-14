@@ -16,28 +16,24 @@ SERVICE_TOKEN=admin
 
 # NFP Service
 ENABLE_NFP=True
-# Edit NFP_DEVSTACK_MODE with either 'base' or 'advanced' or 'enterprise'
+# Edit NFP_DEVSTACK_MODE with either 'base' or 'advanced'
 [[ $ENABLE_NFP = True ]] && NFP_DEVSTACK_MODE=base
-[[ $NFP_DEVSTACK_MODE != base ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
-[[ $NFP_DEVSTACK_MODE != base ]] && enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
-
+[[ $NFP_DEVSTACK_MODE = advanced ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
+[[ $NFP_DEVSTACK_MODE = advanced ]] && enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
 if [[ $NFP_DEVSTACK_MODE = base ]]; then
     GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
     GBPSERVICE_BRANCH=master
-elif [[ $NFP_DEVSTACK_MODE = advanced ]]; then
+else
     # Openstack repo
     #GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
     #GBPSERVICE_BRANCH=refs/changes/05/335405/27
     # Oneconvergence repo
     GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
     GBPSERVICE_BRANCH=mitaka_21st_march_base
-else
-    GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
-    GBPSERVICE_BRANCH=mitaka_21st_march_base
 fi
 enable_plugin gbp $GBPSERVICE_REPO $GBPSERVICE_BRANCH
 
-if [[ $NFP_DEVSTACK_MODE != base ]]; then
+if [[ $NFP_DEVSTACK_MODE = advanced ]]; then
     # External Network
     EXT_NET_GATEWAY=
     EXT_NET_ALLOCATION_POOL_START=
@@ -50,18 +46,3 @@ if [[ $NFP_DEVSTACK_MODE != base ]]; then
     # Make sure that your public interface is not attached to any bridge.
     PUBLIC_INTERFACE=
 fi
-
-if [[ $NFP_DEVSTACK_MODE = enterprise ]]; then
-    # Visibility GIT path
-    # Default visibility repo https://github.com/oneconvergence/visibility.git
-    VISIBILITY_GIT_BRANCH=master
-    GIT_ACCESS_USERNAME=
-    GIT_ACCESS_PASSWORD=
-
-    # Configure docker images local repository
-    DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
-    
-    AsavQcow2Image=
-    PaloAltoQcow2Image=
-fi
-

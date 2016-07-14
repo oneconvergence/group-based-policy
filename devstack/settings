@@ -5,7 +5,6 @@ ENABLE_NFP=${ENABLE_NFP:-False}
 [[ $ENABLE_NFP = True ]] && source $DEST/gbp/devstack/lib/nfp
 # VM locations
 ConfiguratorQcow2Image=${ConfiguratorQcow2Image:-build}
-VisibilityQcow2Image=${VisibilityQcow2Image:-build}
 VyosQcow2Image=${VyosQcow2Image:-build}
 HaproxyQcow2Image=${HaproxyQcow2Image:-build}
 
@@ -35,7 +34,7 @@ enable_service q-agt
 enable_service q-dhcp
 enable_service q-l3
 enable_service q-fwaas
-[[ $NFP_DEVSTACK_MODE != base ]] && enable_service neutron-vpnaas
+[[ $ENABLE_NFP = True ]] && [[ $NFP_DEVSTACK_MODE = advanced ]] && enable_service neutron-vpnaas
 enable_service q-lbaas
 enable_service q-meta
 enable_service neutron
