@@ -16,15 +16,15 @@ from gbpservice.nfp.core import module as nfp_api
 
 LOG = nfp_logging.getLogger(__name__)
 
-"""Implements base class for all service agents.
-
-Common methods for service agents are implemented in this class. Configurator
-module invokes these methods through the service agent's child class instance.
-
-"""
-
 
 class AgentBaseRPCManager(object):
+    """Implements base class for all service agents.
+
+    Common methods for service agents are implemented in this class.
+    Configurator module invokes these methods through the service
+    agent's child class instance.
+
+    """
 
     def __init__(self, sc, conf):
         self.sc = sc
@@ -109,6 +109,11 @@ class AgentBaseRPCManager(object):
 
 
 class AgentBaseNotification(object):
+    """Enqueues notification event into notification queue
+
+    Responses from the REST calls made to the VM are fed to under the
+    cloud components using this notification handle.
+    """
 
     def __init__(self, sc):
         self.sc = sc
@@ -130,6 +135,9 @@ class AgentBaseNotification(object):
 
 
 class AgentBaseEventHandler(nfp_api.NfpEventHandler):
+    """ Super class for all agents to handle batch events.
+
+    """
 
     def __init__(self, sc, drivers, rpcmgr):
         self.sc = sc

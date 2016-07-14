@@ -15,50 +15,50 @@ from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
-"""Implements supporting methods for configurator module.
-
-Provides methods that take configurator API request data and helps
-configurator to de-multiplex the API calls to different service agents
-and drivers.
-
-Format of request data for network device configuration API:
-request_data {
-    info {
-        version: <v1/v2/v3>
-    }
-    config [
-        {
-            'resource': <healthmonitor/routes/interfaces>,
-            'kwargs': <resource parameters>
-        },
-        {
-        'resource': <healthmonitor/routes/interfaces>,
-        'kwargs': <resource parameters>
-        }, ...
-    ]
-}
-Format of request data for network service configuration API:
-request_data {
-    info {
-        version: <v1/v2/v3>
-        type: <firewall/vpn/loadbalancer>
-    }
-    config [
-        {
-            'resource': <healthmonitor/routes/interfaces>,
-            'kwargs': <resource parameters>
-        },
-        {
-        'resource': <healthmonitor/routes/interfaces>,
-        'kwargs': <resource parameters>
-        }, ...
-    ]
-}
-
-"""
-
 
 class ServiceAgentDemuxer(object):
+    """Implements supporting methods for configurator module.
+
+    Provides methods that take configurator API request data and helps
+    configurator to de-multiplex the API calls to different service agents
+    and drivers.
+
+    Format of request data for network device configuration API:
+    request_data {
+        info {
+            version: <v1/v2/v3>
+        }
+        config [
+            {
+                'resource': <healthmonitor/routes/interfaces>,
+                'kwargs': <resource parameters>
+            },
+            {
+            'resource': <healthmonitor/routes/interfaces>,
+            'kwargs': <resource parameters>
+            }, ...
+        ]
+    }
+    Format of request data for network service configuration API:
+    request_data {
+        info {
+            version: <v1/v2/v3>
+            type: <firewall/vpn/loadbalancer>
+        }
+        config [
+            {
+                'resource': <healthmonitor/routes/interfaces>,
+                'kwargs': <resource parameters>
+            },
+            {
+            'resource': <healthmonitor/routes/interfaces>,
+            'kwargs': <resource parameters>
+            }, ...
+        ]
+    }
+
+    """
+
     def __init__(self):
         pass
 

@@ -26,13 +26,13 @@ from gbpservice.nfp.configurator.lib import fw_constants as fw_const
 LOG = nfp_logging.getLogger(__name__)
 
 
-""" REST API wrapper class that provides POST method to
-communicate with the Service VM.
-
-"""
-
-
 class RestApi(object):
+    """ Issues REST calls to the Service VMs
+
+    REST API wrapper class that provides POST method to
+    communicate with the Service VM.
+
+    """
 
     def __init__(self, timeout):
         self.timeout = timeout
@@ -49,6 +49,7 @@ class RestApi(object):
 
         :param url: URL to connect.
         :param data: data to be sent.
+        :param request_type: POST/PUT/DELETE
 
         Returns: SUCCESS/Error message
 
@@ -79,16 +80,11 @@ class RestApi(object):
         return common_const.STATUS_SUCCESS
 
 
-""" Firewall generic configuration driver for handling device
-configuration requests.
-
-"""
-
-
 class FwGenericConfigDriver(base_driver.BaseDriver):
-    """
-    Driver class for implementing firewall configuration
-    requests from Orchestrator.
+    """ Implements device configuration requests.
+
+    Firewall generic configuration driver for handling device
+    configuration requests from Orchestrator.
     """
 
     def __init__(self):
@@ -436,17 +432,16 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
         return err_msg
 
 
-""" Firewall as a service driver for handling firewall
-service configuration requests.
-
-We initialize service type in this class because agent loads
-class object only for those driver classes that have service type
-initialized. Also, only this driver class is exposed to the agent.
-
-"""
-
-
 class FwaasDriver(FwGenericConfigDriver):
+    """ Firewall as a service driver for handling firewall
+    service configuration requests.
+
+    We initialize service type in this class because agent loads
+    class object only for those driver classes that have service type
+    initialized. Also, only this driver class is exposed to the agent.
+
+    """
+
     service_type = fw_const.SERVICE_TYPE
     service_vendor = const.VYOS
 

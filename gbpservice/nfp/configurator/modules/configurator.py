@@ -22,22 +22,21 @@ from gbpservice.nfp.core import rpc
 
 LOG = nfp_logging.getLogger(__name__)
 
-"""Implements procedure calls invoked by an REST server.
-
-Implements following RPC methods.
-  - create_network_function_device_config
-  - delete_network_function_device_config
-  - update_network_function_device_config
-  - create_network_function_config
-  - delete_network_function_config
-  - update_network_function_config
-  - get_notifications
-Also implements local methods for supporting RPC methods
-
-"""
-
 
 class ConfiguratorRpcManager(object):
+    """Implements procedure calls invoked by an REST server.
+
+    Implements following RPC methods.
+      - create_network_function_device_config
+      - delete_network_function_device_config
+      - update_network_function_device_config
+      - create_network_function_config
+      - delete_network_function_config
+      - update_network_function_config
+      - get_notifications
+    Also implements local methods for supporting RPC methods
+
+    """
 
     def __init__(self, sc, cm, conf, demuxer):
         self.sc = sc
@@ -312,16 +311,15 @@ class ConfiguratorRpcManager(object):
             LOG.info(msg)
         return notifications
 
-"""Implements configurator module APIs.
-
-    Implements methods which are either invoked by registered service agents
-    or by the configurator global methods. The methods invoked by configurator
-    global methods interface with service agents.
-
-"""
-
 
 class ConfiguratorModule(object):
+    """Implements configurator module APIs.
+
+    Implements methods which are either invoked by registered service
+    agents or by the configurator global methods. The methods invoked
+    by configurator global methods interface with service agents.
+
+    """
 
     def __init__(self, sc):
         self.sa_instances = {}

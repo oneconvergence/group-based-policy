@@ -17,12 +17,13 @@ import sys
 
 LOG = nfp_logging.getLogger(__name__)
 
-"""Utility class which provides common library functions for configurator.
-   New common library functions, if needed, should be added in this class.
-"""
-
 
 class ConfiguratorUtils(object):
+    """Utility class which provides common library functions for configurator.
+
+       New common library functions, if needed, should be added in this class.
+    """
+
     def __init__(self):
         pass
 

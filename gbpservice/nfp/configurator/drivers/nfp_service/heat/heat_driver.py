@@ -18,17 +18,17 @@ from gbpservice.nfp.configurator.lib import nfp_service_constants as const
 
 LOG = nfp_logging.getLogger(__name__)
 
-""" Heat as a driver for handling config script
-heat configuration requests.
-
-We initialize service type in this class because agent loads
-class object only for those driver classes that have service type
-initialized. Also, only this driver class is exposed to the agent.
-
-"""
-
 
 class HeatDriver(base_driver.BaseDriver):
+    """ Heat as a driver for handling config script
+        heat configuration requests.
+
+    We initialize service type in this class because agent loads
+    class object only for those driver classes that have service type
+    initialized. Also, only this driver class is exposed to the agent.
+
+    """
+
     service_type = const.SERVICE_TYPE
     resource_type = const.HEAT_RESOURCE
 
