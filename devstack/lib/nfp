@@ -90,10 +90,6 @@ function create_ext_net {
     EXT_NET_ALLOCATION_POOL_END=$EXT_NET_ALLOCATION_POOL_END
     EXT_NET_CIDR=$EXT_NET_CIDR
 
-    source $DEVSTACK_DIR/openrc neutron service
-    unset OS_USER_DOMAIN_ID
-    unset OS_PROJECT_DOMAIN_ID
-
     neutron net-create\
  --router:external=true\
  --shared\
@@ -157,6 +153,8 @@ function create_advance_sharing_ptg {
 # create_nfp_gbp_resources() - Create various GBP resources
 function create_nfp_gbp_resources {
     source $DEVSTACK_DIR/openrc neutron service
+    unset OS_USER_DOMAIN_ID
+    unset OS_PROJECT_DOMAIN_ID
 
     if [[ $NFP_DEVSTACK_MODE = base ]]; then
 
