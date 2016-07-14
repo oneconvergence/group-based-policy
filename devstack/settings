@@ -46,7 +46,8 @@ if [[ $ENABLE_NFP = True ]]; then
     enable_service nfp_orchestrator
     enable_service nfp_proxy
     enable_service nfp_proxy_agent
-    [[ $NFP_DEVSTACK_MODE = base ]] && enable_service nfp_base_configurator || enable_service nfp_config_orchestrator
+    [[ $NFP_DEVSTACK_MODE = base ]] && enable_service nfp_base_configurator
+    [[ $NFP_DEVSTACK_MODE != base ]] && enable_service nfp_config_orchestrator
 fi
 
 OVS_PHYSICAL_BRIDGE=br-ex
