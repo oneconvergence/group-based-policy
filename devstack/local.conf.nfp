@@ -16,37 +16,39 @@ SERVICE_TOKEN=admin
 
 # NFP Service
 ENABLE_NFP=True
+GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
+GBPSERVICE_BRANCH=master
 # Edit NFP_DEVSTACK_MODE with either 'base' or 'advanced'
-[[ $ENABLE_NFP = True ]] && NFP_DEVSTACK_MODE=base
-if [[ $NFP_DEVSTACK_MODE = base ]]; then
-    GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
-    GBPSERVICE_BRANCH=master
-else
-    # External Network
-    EXT_NET_GATEWAY=
-    EXT_NET_ALLOCATION_POOL_START=
-    EXT_NET_ALLOCATION_POOL_END=
-    EXT_NET_CIDR=
+if [[ $ENABLE_NFP = True ]]; then
+    NFP_DEVSTACK_MODE=base
 
-    # Following image path options are optional
-    # Configure them to use the custom images
-    # Leave them empty, so that they will be built during the installation
-    ConfiguratorQcow2Image=
-    VyosQcow2Image=
-    HaproxyQcow2Image=
-
-    # Make sure that your public interface is not attached to any bridge.
-    PUBLIC_INTERFACE=
-
-    enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
-    enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
-
-    # Openstack repo
-    #GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
-    #GBPSERVICE_BRANCH=refs/changes/05/335405/27
-    # Oneconvergence repo
-    GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
-    GBPSERVICE_BRANCH=mitaka_21st_march_base
+    if [[ $NFP_DEVSTACK_MODE = advanced ]]; then
+        # External Network
+        EXT_NET_GATEWAY=
+        EXT_NET_ALLOCATION_POOL_START=
+        EXT_NET_ALLOCATION_POOL_END=
+        EXT_NET_CIDR=
+    
+        # Following image path options are optional
+        # Configure them to use the custom images
+        # Leave them empty, so that they will be built during the installation
+        ConfiguratorQcow2Image=
+        VyosQcow2Image=
+        HaproxyQcow2Image=
+    
+        # Make sure that your public interface is not attached to any bridge.
+        PUBLIC_INTERFACE=
+    
+        enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
+        enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
+    
+        # Openstack repo
+        #GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
+        #GBPSERVICE_BRANCH=refs/changes/05/335405/27
+        # Oneconvergence repo
+        GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
+        GBPSERVICE_BRANCH=mitaka_21st_march_base
+    fi
 fi
 enable_plugin gbp $GBPSERVICE_REPO $GBPSERVICE_BRANCH
 
