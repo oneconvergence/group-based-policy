@@ -269,7 +269,7 @@ function create_nfp_image {
         RefConfiguratorQcow2ImageName=reference_configurator_image
         echo "Building Image: $RefConfiguratorQcow2ImageName"
         sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/ref_configurator_conf.json
-        RefConfiguratorQcow2Image=$(cat /tmp/image_path)
+        RefConfiguratorQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         echo "Uploading Image: $RefConfiguratorQcow2ImageName"
         glance image-create --name $RefConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $RefConfiguratorQcow2Image
         openstack --os-cloud=devstack-admin flavor create --ram 512 --disk 3 --vcpus 1 m1.nfp-tiny
@@ -280,7 +280,7 @@ function create_nfp_image {
         if [[ $ConfiguratorQcow2Image = build ]]; then
             echo "Building Image: $ConfiguratorQcow2ImageName"
             sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/configurator_conf.json $GBPSERVICE_BRANCH
-            ConfiguratorQcow2Image=$(cat /tmp/image_path)
+            ConfiguratorQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         fi
         echo "Uploading Image: $ConfiguratorQcow2ImageName"
         glance image-create --name $ConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $ConfiguratorQcow2Image
@@ -292,7 +292,7 @@ function create_nfp_image {
             cd $DISK_IMAGE_DIR/diskimage-create/vyos/
             sudo python vyos_image_create.py vyos_conf.json
             cd $cur_dir
-            VyosQcow2Image=$(cat /tmp/image_path)
+            VyosQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         fi
         echo "Uploading Image: $VyosQcow2ImageName"
         glance image-create --name $VyosQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VyosQcow2Image
@@ -301,13 +301,10 @@ function create_nfp_image {
         if [[ $HaproxyQcow2Image = build ]]; then
             echo "Building Image: $HaproxyQcow2ImageName"
             sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/haproxy_conf.json
-            HaproxyQcow2Image=$(cat /tmp/image_path)
+            HaproxyQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         fi
         echo "Uploading Image: $HaproxyQcow2ImageName"
         glance image-create --name $HaproxyQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $HaproxyQcow2Image
-        Haproxy_LBaasV2_Qcow2Image_Name=haproxy_lbaasv2
-        echo "Uploading Image: $Haproxy_LBaasV2_Qcow2Image_Name"
-        glance image-create --name $Haproxy_LBaasV2_Qcow2Image_Name --disk-format qcow2 --container-format bare --visibility public --file $Haproxy_LBaasV2_Qcow2Image
     fi
 
     # restore the apache2 setting that we did above
