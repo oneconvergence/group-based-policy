@@ -954,17 +954,19 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         network_function = network_function_details['network_function']
         network_function_device = network_function_details['network_function_device']
         network_function_instance = network_function_details['network_function_instance']
-        admin_token = self.keystoneclient.get_admin_token()
-        service_profile = self.gbpclient.get_service_profile(
-            admin_token, network_function['service_profile_id'])
-        service_details = transport.parse_service_flavor_string(
-            service_profile['service_flavor'])
+        # admin_token = self.keystoneclient.get_admin_token()
+        # service_profile = self.gbpclient.get_service_profile(
+        #    admin_token, network_function['service_profile_id'])
+        # service_details = transport.parse_service_flavor_string(
+        #    service_profile['service_flavor'])
+        admin_token = network_function_details['admin_token']
+        service_profile = network_function_details['service_profile']
+        service_details = network_function_details['service_details']
 
         device_info.update({
             'network_function_instance': network_function_instance})
         device_info.update({'id': network_function_device_id})
-        service_details.update({'service_type': self._get_service_type(
-            network_function['service_profile_id'])})
+        service_details.update({'service_type': service_profile['service_type']})
         device_info.update({'service_details': service_details})
 
         device = self._get_device_data(device_info)
@@ -979,6 +981,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             self._get_advance_sharing_interfaces(device['id']))
         device['network_function_device_id'] = (
             device_info['network_function_device_id'])
+        device['admin_token'] = admin_token
         return device
 
     def health_monitor_complete(self, event, result='SUCCESS'):
@@ -1284,7 +1287,8 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
     def unplug_interfaces_fast(self, event):
         device_info = event.data
-        device = self._prepare_device_data(device_info)
+        # device = self._prepare_device_data_fast(device_info)
+        device = device_info
         orchestration_driver = self._get_orchestration_driver(
             device['service_details']['service_vendor'])
 

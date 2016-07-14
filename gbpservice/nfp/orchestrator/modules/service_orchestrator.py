@@ -593,6 +593,19 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                              else False)
         return base_mode_support
 
+    def _get_base_mode_support_fast(self, service_profile_id):
+        admin_token = self.keystoneclient.get_admin_token()
+        service_profile = self.gbpclient.get_service_profile(
+            admin_token, service_profile_id)
+        service_details = transport.parse_service_flavor_string(
+            service_profile['service_flavor'])
+        resource_data = {'admin_token': admin_token,
+                        'service_profile': service_profile,
+                        'service_details': service_details}
+        base_mode_support = (True if service_details['device_type'] == 'None'
+                             else False)
+        return base_mode_support, resource_data
+
     def _get_service_type(self, service_profile_id):
         admin_token = self.keystoneclient.get_admin_token()
         service_profile = self.gbpclient.get_service_profile(
@@ -812,7 +825,11 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         network_function_info = self.db_handler.get_network_function(
             self.db_session, network_function_id)
         service_profile_id = network_function_info['service_profile_id']
-        base_mode_support = self._get_base_mode_support(service_profile_id)
+        base_mode_support, resource_data = self._get_base_mode_support_fast(service_profile_id)
+        network_function_details = self.get_network_function_details(
+            network_function_id)
+        network_function_details.update(resource_data)
+        network_function_details.update({'base_mode_support': base_mode_support})
         if (not base_mode_support and
                 not network_function_info['network_function_instances']):
             self.db_handler.delete_network_function(
@@ -829,8 +846,6 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             # service_config = network_function_info['service_config']
             # self.delete_network_function_user_config(network_function_id,
             #                                          service_config)
-            network_function_details = self.get_network_function_details(
-                network_function_id)
             # Generate DELETE USER CONFIG EVENT
             self._create_event(event_id='DELETE_USER_CONFIG_FAST',
                                 event_data=network_function_details)
@@ -913,7 +928,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                                event_data=event_data, is_internal_event=True)
             return
 
-        heat_stack_id = self.config_driver.delete_config(
+        heat_stack_id = self.config_driver.delete_config_fast(
             network_function_info['heat_stack_id'],
             network_function_info['tenant_id'])
         request_data = {
@@ -1555,7 +1570,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             'network_function_id': request_data['network_function_id']
         }
         try:
-            config_status = self.config_driver.is_config_delete_complete(
+            config_status = self.config_driver.is_config_delete_complete_fast(
                 request_data['heat_stack_id'], request_data['tenant_id'])
         except Exception as err:
             # FIXME: May be we need a count before removing the poll event
@@ -1667,8 +1682,9 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         #    self.db_session,
         #    request_data['network_function_id'])
         network_function = network_function_details['network_function']
-        service_profile_id = network_function['service_profile_id']
-        base_mode_support = self._get_base_mode_support(service_profile_id)
+        # service_profile_id = network_function['service_profile_id']
+        # base_mode_support = self._get_base_mode_support_fast(service_profile_id)
+        base_mode_support = network_function_details['base_mode_support']
         if base_mode_support:
             self.db_handler.delete_network_function(
                 self.db_session, network_function['id'])

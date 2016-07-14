@@ -1382,6 +1382,38 @@ class HeatDriver(object):
                           {'stack': stack_id})
             return failure_status
 
+    def is_config_delete_complete_fast(self, stack_id, tenant_id):
+        success_status = "COMPLETED"
+        failure_status = "ERROR"
+        intermediate_status = "IN_PROGRESS"
+        # _, resource_owner_tenant_id = (
+        #     self._get_resource_owner_context())
+        heatclient = self._get_heat_client(tenant_id)
+        if not heatclient:
+            return failure_status
+        try:
+            stack = heatclient.get(stack_id)
+            if stack.stack_status == 'DELETE_FAILED':
+                return failure_status
+            elif stack.stack_status == 'CREATE_COMPLETE':
+                return failure_status
+            elif stack.stack_status == 'DELETE_COMPLETE':
+                LOG.info(_LI("Stack %(stack)s is deleted"),
+                         {'stack': stack_id})
+                return success_status
+            elif stack.stack_status == 'CREATE_FAILED':
+                return failure_status
+            elif stack.stack_status == 'UPDATE_FAILED':
+                return failure_status
+            elif stack.stack_status not in [
+                    'UPDATE_IN_PROGRESS', 'CREATE_IN_PROGRESS',
+                    'DELETE_IN_PROGRESS']:
+                return intermediate_status
+        except Exception:
+            LOG.exception(_LE("Retrieving the stack %(stack)s failed."),
+                          {'stack': stack_id})
+            return failure_status
+
     def get_service_details_from_nfp_context(self, nfp_context):
         network_function = nfp_context['network_function']
         # network_function_instance = nfp_context['network_function_instance']
@@ -1539,6 +1571,23 @@ class HeatDriver(object):
     def delete_config(self, stack_id, tenant_id):
         _, resource_owner_tenant_id = (
             self._get_resource_owner_context())
+
+        try:
+            heatclient = self._get_heat_client(tenant_id)
+            if not heatclient:
+                return None
+            heatclient.delete(stack_id)
+        except Exception as err:
+            # Log the error and continue with VM delete in case of *aas
+            # cleanup failure
+            LOG.exception(_LE("Cleaning up the service chain stack failed "
+                              "with Error: %(error)s"), {'error': err})
+            return None
+        return stack_id
+
+    def delete_config_fast(self, stack_id, tenant_id):
+        # _, resource_owner_tenant_id = (
+        #     self._get_resource_owner_context())
 
         try:
             heatclient = self._get_heat_client(tenant_id)

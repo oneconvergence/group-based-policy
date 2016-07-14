@@ -822,7 +822,11 @@ class OrchestrationDriver(object):
         if image_name:
             self._update_vendor_data(device_data,
                                      device_data.get('token'))
-        token = self._get_token(device_data.get('token'))
+        if not 'admin_token' in device_data:
+           token = self._get_token(device_data.get('token'))
+        else:
+            token = device_data['admin_token']
+
         if not token:
             return None
 
@@ -1168,7 +1172,11 @@ class OrchestrationDriver(object):
             self._update_vendor_data(device_data,
                                      device_data.get('token'))
 
-        token = self._get_token(device_data.get('token'))
+        if not 'admin_token' in device_data:
+            token = self._get_token(device_data.get('token'))
+        else:
+            token = device_data['admin_token']
+
         if not token:
             return None
 
@@ -1325,8 +1333,11 @@ class OrchestrationDriver(object):
                             'port_model'])
         ):
             raise exceptions.IncompleteData()
+        if not 'admin_token' in device_data:
+            token = self._get_token(device_data.get('token'))
+        else:
+            token = device_data['admin_token']
 
-        token = self._get_token(device_data.get('token'))
         if not token:
             return None
 
