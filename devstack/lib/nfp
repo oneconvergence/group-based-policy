@@ -132,24 +132,6 @@ function create_ep_and_nsp {
  svc_mgmt_fip_policy
 }
 
-# create_advance_sharing_ptg() - Create a Policy target group
-function create_advance_sharing_ptg {
-    gbp l3policy-create\
- --ip-version 4\
- --ip-pool 121.0.0.0/20\
- --proxy-ip-pool=192.167.0.0/24\
- --subnet-prefix-length 20\
- advanced_services_sharing_l3p
-
-    gbp l2policy-create\
- --l3-policy advanced_services_sharing_l3p\
- advance_sharing_l2p
-
-    gbp group-create\
- --l2-policy advance_sharing_l2p\
- Advance_Sharing_PTG
-}
-
 # create_nfp_gbp_resources() - Create various GBP resources
 function create_nfp_gbp_resources {
     source $DEVSTACK_DIR/openrc neutron service
@@ -213,7 +195,6 @@ function create_nfp_gbp_resources {
 
         create_ext_net
         create_ep_and_nsp
-        create_advance_sharing_ptg
 
     fi
 
@@ -231,7 +212,8 @@ function create_nfp_gbp_resources {
     gbp group-create\
  svc_management_ptg\
  --service_management True\
- --l2-policy svc_management_ptg
+ --l2-policy\
+ svc_management_ptg
 
     neutron router-gateway-clear\
  l3p_service_management
