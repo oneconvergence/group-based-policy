@@ -10,15 +10,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core.rpc import RpcAgent
-import gbpservice.nfp.lib.transport as transport
-from gbpservice.nfp.proxy_agent.lib import topics
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.lib import transport
-from neutron import context as n_context
+from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.lib import transport as transport
+from gbpservice.nfp.proxy_agent.lib import topics
 
+
+from neutron import context as n_context
 from oslo_log import helpers as log_helpers
 import oslo_messaging as messaging
+
 import time
 
 LOG = nfp_logging.getLogger(__name__)
@@ -163,13 +164,19 @@ class RpcHandler(object):
         """Method of rpc handler for create_service.
         Return: Http Response.
         """
-        body_info = body.get('info')
-        body_context = body_info.get('context')
-        logging_context = body_context.get('logging_context', {})
-        nfp_logging.store_logging_context(**logging_context)
+        if 'eventid' in body and body['eventid'] == 'NFP_UP_TIME':
+            transport.send_request_to_configurator(self._conf,
+                                                   context, body,
+                                                   "CREATE",
+                                                   network_function_event=True)
+        else:
+            body_info = body.get('info')
+            body_context = body_info.get('context')
+            logging_context = body_context.get('logging_context', {})
+            nfp_logging.store_logging_context(**logging_context)
 
-        transport.send_request_to_configurator(self._conf,
-                                               context, body,
-                                               "CREATE",
-                                               network_function_event=True)
-        nfp_logging.clear_logging_context()
+            transport.send_request_to_configurator(self._conf,
+                                                   context, body,
+                                                   "CREATE",
+                                                   network_function_event=True)
+            nfp_logging.clear_logging_context()

@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from abc import ABCMeta
 from abc import abstractmethod
 import six
 
@@ -57,7 +56,7 @@ of this class.
 
 @six.add_metaclass(_Meta)
 class NfpEventHandler(object):
-    __metaclass__ = ABCMeta
+    # __metaclass__ = ABCMeta
 
     def __init__(self):
         super(NfpEventHandler, self).__init__()

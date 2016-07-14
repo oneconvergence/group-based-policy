@@ -24,7 +24,6 @@ import sys
 import time
 
 
-
 oslo_logging.register_options(cfg.CONF)
 
 LOG = nfp_logging.getLogger(__name__)
@@ -57,8 +56,6 @@ class Configuration(object):
 
         self.thread_pool_size = config.getint('OPTIONS', 'thread_pool_size')
         self.unix_bind_path = config.get('OPTIONS', 'unix_bind_path')
-        self.rest_server_address = config.get('OPTIONS', 'rest_server_address')
-        self.rest_server_port = config.getint('OPTIONS', 'rest_server_port')
         self.max_connections = config.getint('OPTIONS', 'max_connections')
         self.worker_threads = config.getint('OPTIONS', 'worker_threads')
         self.connect_max_wait_timeout = config.getfloat(
@@ -67,6 +64,11 @@ class Configuration(object):
             'OPTIONS', 'idle_max_wait_timeout')
         self.idle_min_wait_timeout = config.getfloat(
             'OPTIONS', 'idle_min_wait_timeout')
+        self.rest_server_address = config.get(
+            'NFP_CONTROLLER', 'rest_server_address')
+        self.rest_server_port = config.getint(
+            'NFP_CONTROLLER', 'rest_server_port')
+
 
 """
 Class to create Unix Listener
@@ -90,7 +92,8 @@ class UnixServer(object):
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         # Bind the socket to the port
-        LOG.info('starting up on %s' % self.bind_path)
+        message = 'starting up on %s' % self.bind_path
+        LOG.info(message)
         self.socket.bind(self.bind_path)
         self.socket.listen(self.max_connections)
 
@@ -117,12 +120,14 @@ class TcpClient(object):
 
     def connect(self):
         sock = socket.socket()
-        LOG.info('connecting to %s port %s' % self.server)
+        message = 'connecting to %s port %s' % self.server
+        LOG.info(message)
         sock.settimeout(self.conf.connect_max_wait_timeout)
         try:
             sock.connect(self.server)
         except socket.error as exc:
-            LOG.error("Caught exception socket.error : %s" % exc)
+            message = "Caught exception socket.error : %s" % exc
+            LOG.error(message)
             return sock, False
         return sock, True
 
@@ -192,13 +197,15 @@ class Connection(object):
         self._socket.setblocking(0)
 
     def close(self):
-        LOG.debug("Closing Socket - %d" % (self.identify()))
+        message = "Closing Socket - %d" % (self.identify())
+        LOG.debug(message)
         try:
             self._socket.shutdown(socket.SHUT_RDWR)
             self._socket.close()
         except Exception as exc:
-            LOG.error("%s - exception while closing - %s" %
-                (self.identify(), str(exc)))
+            message = "%s - exception while closing - %s" % (
+                self.identify(), str(exc))
+            LOG.error(message)
 
     def identify(self):
         return self.socket_id
@@ -216,8 +223,9 @@ class ProxyConnection(object):
     def __init__(self, conf, unix_socket, tcp_socket):
         self._unix_conn = Connection(conf, unix_socket, type='unix')
         self._tcp_conn = Connection(conf, tcp_socket, type='tcp')
-        LOG.debug("New Proxy - Unix - %d, TCP - %d" % (
-            self._unix_conn.identify(), self._tcp_conn.identify()))
+        message = "New Proxy - Unix - %d, TCP - %d" % (
+            self._unix_conn.identify(), self._tcp_conn.identify())
+        LOG.debug(message)
 
     def close(self):
         self._unix_conn.close()
@@ -234,7 +242,8 @@ class ProxyConnection(object):
             self._proxy(self._tcp_conn, self._unix_conn)
             return True
         except Exception as exc:
-            LOG.debug("%s" % (exc))
+            message = "%s" % (exc)
+            LOG.debug(message)
             self._unix_conn.close()
             self._tcp_conn.close()
             return False
@@ -302,7 +311,8 @@ class Proxy(object):
 
         tcpsocket, connected = self.client.connect()
         if not connected:
-            LOG.error("Proxy -> Could not connect with tcp server")
+            message = "Proxy -> Could not connect with tcp server"
+            LOG.error(message)
             unixsocket.close()
             tcpsocket.close()
         else:

@@ -131,8 +131,8 @@ class LbAgent(loadbalancer_db.LoadBalancerPluginDb):
                 'pool_id': pool_id,
                 'context': context,
                 'description': str(description)}
-        ctx_dict, rsrc_ctx_dict = self.\
-            _prepare_resource_context_dicts(**args)
+        ctx_dict, rsrc_ctx_dict = self._prepare_resource_context_dicts(
+            **args)
 
         nfp_context.update({'neutron_context': ctx_dict,
                             'requester': 'nas_service',
