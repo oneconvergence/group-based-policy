@@ -1,0 +1,26 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+1) Add the following line in /etc/rc.local file as give in sample rc.local file
+    sudo bash /usr/share/vyos-pbr/pbr_init & 
+2) Modify the interfaces file to looks like given sample interfaces file
+
+3) mkdir -p /usr/share/vyos-pbr
+
+4) copy pbr_init and pbr to /usr/share/vyos-pbr
+
+
+vyos agent (server.py) adds route to the controller node received from pushed
+configuration, and also writes a route in the
+/usr/share/vyos-pbr/controller_route file. This is to make the added route
+persistent even if the instance is rebooted. 
+controller_route is called from pbr_init file.

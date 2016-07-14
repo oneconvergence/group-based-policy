@@ -1,0 +1,8 @@
+Package: vyos
+Source: vyos
+Version: 2.0
+Architecture: all
+Maintainer: One Convergence
+Section: devel
+Priority: optional
+Description: Vyos package that supports Firewall and VPN
