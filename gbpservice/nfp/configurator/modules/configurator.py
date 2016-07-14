@@ -11,7 +11,6 @@
 #    under the License.
 
 from oslo_log import helpers as log_helpers
-from gbpservice.nfp.core import log as nfp_logging
 
 from gbpservice.nfp.configurator.lib import config_opts
 from gbpservice.nfp.configurator.lib import constants as const
@@ -21,15 +20,7 @@ from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import rpc
 
-from neutron.common import rpc as n_rpc
-from neutron import context as n_context
-import oslo_messaging
-import time
-
 LOG = nfp_logging.getLogger(__name__)
-
-AGENTS_PKG = 'gbpservice.nfp.configurator.agents'
-CONFIGURATOR_RPC_TOPIC = 'configurator'
 
 """Implements procedure calls invoked by an REST server.
 
@@ -421,7 +412,7 @@ def init_rpc(sc, cm, conf, demuxer):
     # Initializes RPC client
     rpc_mgr = ConfiguratorRpcManager(sc, cm, conf, demuxer)
     configurator_agent = rpc.RpcAgent(sc,
-                                      topic=CONFIGURATOR_RPC_TOPIC,
+                                      topic=const.CONFIGURATOR_RPC_TOPIC,
                                       manager=rpc_mgr)
 
     # Registers RPC client object with core service controller
@@ -439,7 +430,7 @@ def get_configurator_module_instance(sc):
     conf_utils = utils.ConfiguratorUtils()
 
     # Loads all the service agents under AGENT_PKG module path
-    cm.imported_sas = conf_utils.load_agents(AGENTS_PKG)
+    cm.imported_sas = conf_utils.load_agents(const.AGENTS_PKG)
     msg = ("Configurator loaded service agents from %s location."
            % (cm.imported_sas))
     LOG.info(msg)
@@ -495,12 +486,12 @@ def nfp_module_init(sc, conf):
         init_rpc(sc, cm, conf, demuxer_instance)
     except Exception as err:
         msg = ("Failed to initialize configurator RPC with topic %s. %s."
-               % (CONFIGURATOR_RPC_TOPIC, str(err).capitalize()))
+               % (const.CONFIGURATOR_RPC_TOPIC, str(err).capitalize()))
         LOG.error(msg)
         raise Exception(err)
     else:
         msg = ("Initialized configurator RPC with topic %s."
-               % CONFIGURATOR_RPC_TOPIC)
+               % const.CONFIGURATOR_RPC_TOPIC)
         LOG.debug(msg)
 
 
@@ -520,24 +511,6 @@ def nfp_module_post_init(sc, conf):
     try:
         cm = get_configurator_module_instance(sc)
         cm.init_service_agents_complete(sc, conf)
-
-        #TODO(Rahul):Need to generalize the following code in library.
-        context = n_context.Context('configurator', 'configrator')
-        uptime = time.strftime("%c")
-        request_data = {'eventdata': {'uptime': uptime,
-                                      'module': 'configurator'},
-                        'eventid': 'NFP_UP_TIME',
-                        'eventtype': 'NFP_CONTROLLER'}
-        API_VERSION = '1.0'
-        target = oslo_messaging.Target(
-                        topic='visibility',
-                        version=API_VERSION)
-        client = n_rpc.get_client(target)
-        cctxt = client.prepare(version=API_VERSION,
-                               topic='visibility')
-        cctxt.cast(context,
-                   'network_function_event', request_data=request_data)
-
     except Exception as err:
         msg = ("Failed to trigger initialization complete for configurator"
                " agent modules. %s." % (str(err).capitalize()))

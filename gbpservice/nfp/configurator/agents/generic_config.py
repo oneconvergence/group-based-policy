@@ -18,8 +18,8 @@ from gbpservice.nfp.configurator.lib import (
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
-from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import module as nfp_api
 
 LOG = nfp_logging.getLogger(__name__)
 

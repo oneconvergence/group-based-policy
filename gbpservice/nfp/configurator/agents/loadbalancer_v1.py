@@ -11,15 +11,15 @@
 #    under the License.
 import os
 
+from neutron import context
+
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import lb_constants
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
-from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core import log as nfp_logging
-
-from neutron import context
+from gbpservice.nfp.core import module as nfp_api
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -649,7 +649,7 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         self.sc.poll_event(ev)
 
     @nfp_api.poll_event_desc(event=lb_constants.EVENT_COLLECT_STATS,
-                              spacing=60)
+                             spacing=60)
     def collect_stats(self, ev):
         for pool_id, driver_name in LBaaSEventHandler.instance_mapping.items():
             driver_id = lb_constants.SERVICE_TYPE + driver_name

@@ -10,9 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import module as nfp_api
 
 LOG = nfp_logging.getLogger(__name__)
 
