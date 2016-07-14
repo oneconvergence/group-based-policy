@@ -29,13 +29,13 @@ from gbpservice.nfp.core import cfg as nfp_cfg
 from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import launcher as nfp_launcher
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import manager as nfp_manager
 from gbpservice.nfp.core import poll as nfp_poll
 from gbpservice.nfp.core import rpc as nfp_rpc
 from gbpservice.nfp.core import worker as nfp_worker
-from gbpservice.nfp.core import log as nfp_logging
 
-# REVISIT (MAK): Unused, but needed for orchestrator,
+# REVISIT (mak): Unused, but needed for orchestrator,
 # remove from here and add in orchestrator
 from neutron.common import config
 
@@ -43,6 +43,9 @@ LOG = nfp_logging.getLogger(__name__)
 PIPE = multiprocessing.Pipe
 PROCESS = multiprocessing.Process
 identify = nfp_common.identify
+
+# REVISIT (mak): fix to pass compliance check
+config = config
 
 """Implements NFP service.
 
@@ -71,8 +74,7 @@ class NfpService(object):
 
     def register_events(self, event_descs):
         """Register event handlers with core. """
-        # REVISIT (MAK): Can the name be changed
-        # to register_event_handlers() ?
+        # REVISIT (mak): change name to register_event_handlers() ?
         for event_desc in event_descs:
             self._event_handlers.register(event_desc.id, event_desc.handler)
 
@@ -90,10 +92,13 @@ class NfpService(object):
         event = None
         try:
             event = nfp_event.Event(**kwargs)
+            # Get the logging context stored in thread
             logging_context = nfp_logging.get_logging_context()
+            # Log metadata for event handling code
             event.context = logging_context
         except AssertionError as aerr:
-            LOG.exception("%s" % (aerr))
+            message = "%s" % (aerr)
+            LOG.exception(message)
         return event
 
     def post_event_graph(self, event):
@@ -104,7 +109,7 @@ class NfpService(object):
         """
         event.desc.type = nfp_event.EVENT_GRAPH
         event.desc.flag = ''
-        event.desc.pid  = os.getpid()
+        event.desc.pid = os.getpid()
         return event
 
     def post_event(self, event):
@@ -120,7 +125,7 @@ class NfpService(object):
         event.desc.pid = os.getpid()
         return event
 
-    # REVISIT (MAK): spacing=0, caller must explicitly specify
+    # REVISIT (mak): spacing=0, caller must explicitly specify
     def poll_event(self, event, spacing=2, max_times=sys.maxint):
         """To poll for an event.
 
@@ -199,6 +204,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         self.PROCESS_TYPE = "distributor"
 
     def compress(self, event):
+        # REVISIT (mak) : zip only if length is > than threshold (1k maybe)
         if event.data and not event.zipped:
             event.zipped = True
             event.data = zlib.compress(str({'cdata': event.data}))
@@ -211,14 +217,15 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
                 event.data = data['cdata']
                 event.zipped = False
             except Exception as e:
-                LOG.error(
-                    "Failed to decompress event data, Reason: %s" % (
-                        e))
+                message = "Failed to decompress event data, Reason: %s" % (
+                    e)
+                LOG.error(message)
                 raise e
 
     def pipe_recv(self, pipe):
         event = pipe.recv()
-        if event: self.decompress(event)
+        if event:
+            self.decompress(event)
         return event
 
     def pipe_send(self, pipe, event):
@@ -269,9 +276,10 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         # event to module.
         proc = self._fork(args=(wrap.service, parent_pipe, child_pipe, self))
 
-        LOG.info("Forked a new child: %d"
-                 "Parent Pipe: % s, Child Pipe: % s" % (
-                     proc.pid, str(parent_pipe), str(child_pipe)))
+        message = ("Forked a new child: %d"
+                   "Parent Pipe: % s, Child Pipe: % s") % (
+                    proc.pid, str(parent_pipe), str(child_pipe))
+        LOG.info(message)
 
         try:
             wrap.child_pipe_map[proc.pid] = parent_pipe
@@ -351,16 +359,19 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             self.post_event(node)
 
         event = super(NfpController, self).post_event_graph(event)
-        LOG.debug("(event - %s) - New event" % (event.identify()))
+        message = "(event - %s) - New event" % (event.identify())
+        LOG.debug(message)
         if self.PROCESS_TYPE == "worker":
             # Event posted in worker context, send it to parent process
-            LOG.debug("(event - %s) - new event in worker"
-                      "posting to distributor process" % (event.identify()))
+            message = ("(event - %s) - new event in worker"
+                       "posting to distributor process") % (event.identify())
+            LOG.debug(message)
             # Send it to the distributor process
             self.pipe_send(self._pipe, event)
         else:
-            LOG.debug("(event - %s) - new event in distributor"
-                      "processing event" % (event.identify()))
+            message = ("(event - %s) - new event in distributor"
+                       "processing event") % (event.identify())
+            LOG.debug(message)
             self._manager.process_events([event])
 
     def post_event(self, event):
@@ -377,16 +388,20 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             Returns: None
         """
         event = super(NfpController, self).post_event(event)
-        LOG.debug("(event - %s) - New event" % (event.identify()))
+        message = "(event - %s) - New event" % (event.identify())
+        LOG.debug(message)
         if self.PROCESS_TYPE == "worker":
             # Event posted in worker context, send it to parent process
-            LOG.debug("(event - %s) - new event in worker"
-                      "posting to distributor process" % (event.identify()))
+            message = ("(event - %s) - new event in worker"
+                       "posting to distributor process") % (event.identify())
+
+            LOG.debug(message)
             # Send it to the distributor process
             self.pipe_send(self._pipe, event)
         else:
-            LOG.debug("(event - %s) - new event in distributor"
-                      "processing event" % (event.identify()))
+            message = ("(event - %s) - new event in distributor"
+                       "processing event") % (event.identify())
+            LOG.debug(message)
             self._manager.process_events([event])
 
     def poll_event(self, event, spacing=2, max_times=sys.maxint):
@@ -406,8 +421,9 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
         """
         # Poll event can only be posted by worker not by listener process
         if self.PROCESS_TYPE != "worker":
-            LOG.debug(
-                "(event - %s) - poll event in distributor")
+            message = "(event - %s) - poll event in distributor" % (
+                event.identify())
+            LOG.debug(message)
             # 'Service' class to construct the poll event descriptor
             event = super(NfpController, self).poll_event(
                 event, spacing=spacing, max_times=max_times)
@@ -439,10 +455,12 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             Executor: worker-process
         """
         if self.PROCESS_TYPE == "distributor":
-            LOG.error("(event - %s) - distributor cannot stash" % (
-                event.identify()))
+            message = "(event - %s) - distributor cannot stash" % (
+                event.identify())
+            LOG.error(message)
         else:
-            LOG.debug("(event - %s) - stashed" % (event.identify()))
+            message = "(event - %s) - stashed" % (event.identify())
+            LOG.debug(message)
             self._stashq.put(event)
 
     def get_stashed_events(self):
@@ -485,7 +503,8 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
 
             Returns: None
         """
-        LOG.debug("(event - %s) complete" % (event.identify()))
+        message = "(event - %s) complete" % (event.identify())
+        LOG.debug(message)
         event = super(NfpController, self).event_complete(event, result=result)
         if self.PROCESS_TYPE == "distributor":
             self._manager.process_events([event])
@@ -512,26 +531,26 @@ def load_nfp_modules(conf, controller):
                     try:
                         pymodule.nfp_module_init(controller, conf)
                         pymodules += [pymodule]
-                        LOG.debug("(module - %s) - Initialized" %
-                                  (identify(pymodule)))
+                        message = "(module - %s) - Initialized" % (
+                            identify(pymodule))
+                        LOG.debug(message)
                     except AttributeError as e:
-                        import sys
-                        import traceback
                         exc_type, exc_value, exc_traceback = sys.exc_info()
-                        print traceback.format_exception(exc_type, exc_value,
-                                                         exc_traceback)
-                        LOG.warn("(module - %s) - "
-                                  "does not implement"
-                                  "nfp_module_init()" % (identify(pymodule)))
+                        message = "Traceback: %s" % (exc_traceback)
+                        LOG.error(message)
+                        message = ("(module - %s) - does not implement"
+                                   "nfp_module_init()") % (identify(pymodule))
+                        LOG.warn(message)
                 except ImportError:
-                    LOG.error(
-                        "Failed to import module %s" % (pyfile))
+                    message = "Failed to import module %s" % (pyfile)
+                    LOG.error(message)
         except OSError:
-            LOG.error(
-                "Failed to read files from %s" % (modules_dir))
+            message = "Failed to read files from %s" % (modules_dir)
+            LOG.error(message)
     except ImportError:
-        LOG.error(
-            "Failed to import module from path %s" % (conf.nfp_modules_path))
+        message = "Failed to import module from path %s" % (
+            conf.nfp_modules_path)
+        LOG.error(message)
 
     return pymodules
 
@@ -548,9 +567,9 @@ def nfp_modules_post_init(conf, nfp_modules, nfp_controller):
         try:
             module.nfp_module_post_init(nfp_controller, conf)
         except AttributeError:
-            LOG.debug("(module - %s) - "
-                      "does not implement"
-                      "nfp_module_post_init(), ignoring" % (identify(module)))
+            message = ("(module - %s) - does not implement"
+                       "nfp_module_post_init(), ignoring") % (identify(module))
+            LOG.debug(message)
 
 
 def main():
@@ -563,14 +582,5 @@ def main():
     controller_init(conf, nfp_controller)
     # post_init of each module
     nfp_modules_post_init(conf, nfp_modules, nfp_controller)
-    # eventlet.spawn_n(self_test_task, nfp_modules, nfp_controller, conf)
     # Wait for every exec context to complete
     nfp_controller.wait()
-
-
-def self_test_task(modules, controller, conf):
-    while True:
-        for module in modules:
-            module.module_test(controller, conf)
-        eventlet.greenthread.sleep(10)
-        return

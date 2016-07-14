@@ -15,7 +15,6 @@ import time
 
 from oslo_service import service as oslo_service
 
-from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
@@ -27,7 +26,7 @@ ProcessLauncher = oslo_service.ProcessLauncher
     launch childrens with python multiprocessing
     as oppose to os.fork(), coz, communication
     is needed from parent->child not just the
-    paralell execution.
+    parallel execution.
 """
 
 
@@ -59,7 +58,6 @@ class NfpLauncher(ProcessLauncher):
             # start up quickly but ensure we don't fork off children that
             # die instantly too quickly.
             if time.time() - wrap.forktimes[0] < wrap.workers:
-                # LOG.info(_LI('Forking too fast, sleeping'))
                 time.sleep(1)
 
             wrap.forktimes.pop(0)
@@ -68,7 +66,8 @@ class NfpLauncher(ProcessLauncher):
 
         pid = self.fork_child(wrap)
 
-        LOG.debug("Started Child Process %d" % (pid))
+        message = "Started Child Process %d" % (pid)
+        LOG.debug(message)
 
         wrap.children.add(pid)
         self.children[pid] = wrap
@@ -84,7 +83,7 @@ class NfpLauncher(ProcessLauncher):
                 self._child_process_handle_signal()
                 status, signo = self._child_wait_for_exit_or_signal(
                     self.launcher)
-                if not _is_sighup_and_daemon(signo):
+                if not oslo_service._is_sighup_and_daemon(signo):
                     self.launcher.wait()
                     break
                 self.launcher.restart()

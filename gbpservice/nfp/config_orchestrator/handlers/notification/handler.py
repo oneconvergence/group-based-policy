@@ -164,11 +164,11 @@ class LoadbalancerNotifier(object):
         host = resource_data['host']
 
         msg = ("NCO received LB's update_pool_stats API, making an "
-               "update_pool_stats RPC call to plugin for updating"
+               "update_pool_stats RPC cast to plugin for updating"
                "pool: %s stats" % (pool_id))
         LOG.info(msg)
 
-        # RPC call to plugin to update stats of pool
+        # RPC cast to plugin to update stats of pool
         rpcClient = transport.RPCClient(a_topics.LB_NFP_PLUGIN_TOPIC)
         rpcClient.cctxt = rpcClient.client.prepare(
             version=const.LOADBALANCER_RPC_API_VERSION)
@@ -257,7 +257,7 @@ class VpnNotifier(object):
 
         status = resource_data['status']
         msg = ("NCO received VPN's update_status API,"
-               "making an update_status RPC call to plugin for object"
+               "making an update_status RPC cast to plugin for object"
                "with status %s" % (status))
         LOG.info(msg)
         rpcClient = transport.RPCClient(a_topics.VPN_NFP_PLUGIN_TOPIC)

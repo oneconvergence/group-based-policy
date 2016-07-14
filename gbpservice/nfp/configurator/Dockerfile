@@ -43,19 +43,25 @@ RUN cur_dir=$PWD
 RUN cd /pan-python && sudo ./setup.py install
 RUN cd $cur_dir
 
-
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lib.git neutron_lib
 RUN cp -r  /neutron_lib/neutron_lib /usr/local/lib/python2.7/dist-packages/
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron.git neutron
 RUN cp -r /neutron/neutron /usr/local/lib/python2.7/dist-packages/
-RUN git clone -b mitaka_21st_march_base --single-branch https://github.com/oneconvergence/group-based-policy.git mitaka_21st_march_base
-RUN cp -r /mitaka_21st_march_base/gbpservice /usr/local/lib/python2.7/dist-packages/
-RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp /usr/bin/
+
+# Openstack Repo
+#RUN git clone https://github.com/openstack/group-based-policy.git group-based-policy
+#RUN cd /group-based-policy && git fetch https://git.openstack.org/openstack/group-based-policy GIT-BRANCH-NAME && git checkout FETCH_HEAD
+
+# Oneconvergence Repo
+RUN git clone -b GIT-BRANCH-NAME --single-branch https://github.com/oneconvergence/group-based-policy.git group-based-policy
+
+RUN cp -r /group-based-policy/gbpservice /usr/local/lib/python2.7/dist-packages/
+RUN cp /group-based-policy/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
-RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/nfp_configurator.ini /etc/
+RUN cp /group-based-policy/gbpservice/nfp/bin/nfp_configurator.ini /etc/
 RUN sed -i "s/log_forward_ip_address=*.*/log_forward_ip_address=VIS_VM_IP_ADDRESS/" /etc/nfp_configurator.ini
-RUN cp /mitaka_21st_march_base/gbpservice/nfp/bin/policy.json /etc/
-RUN cp -r /mitaka_21st_march_base/gbpservice/nfp/configurator/config /etc/nfp_config
+RUN cp /group-based-policy/gbpservice/nfp/bin/policy.json /etc/
+RUN cp -r /group-based-policy/gbpservice/nfp/configurator/config /etc/nfp_config
 RUN mkdir -p /var/log/nfp
 RUN touch /var/log/nfp/nfp_configurator.log
 RUN touch /var/log/nfp/nfp_pecan.log

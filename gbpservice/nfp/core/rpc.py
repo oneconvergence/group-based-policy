@@ -20,7 +20,6 @@ from neutron.common import rpc as n_rpc
 
 from neutron import context as n_context
 
-from gbpservice.nfp.core import common as nfp_common
 from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
@@ -55,7 +54,7 @@ class RpcAgent(n_rpc.Service):
     def report_state(self):
         if hasattr(self, '_report_state'):
             LOG.debug("Agent (%s) reporting state" %
-                (self.identify()))
+                      (self.identify()))
             self._report_state.report()
 
     def identify(self):
@@ -82,18 +81,18 @@ class ReportState(object):
     def report(self):
         try:
             LOG.debug("Reporting state with data (%s)" %
-                (self._data))
+                      (self._data))
             self._state_rpc.report_state(self._n_context, self._data)
             self._data.pop('start_flag', None)
         except AttributeError:
             # This means the server does not support report_state
-            LOG.warn(
-                "Neutron server does not support state report."
-                "Agent State reporting will be "
-                "disabled.")
+            message = "Neutron server does not support state report."
+            "Agent State reporting will be disabled"
+            LOG.info(message)
             return
         except Exception:
-            LOG.exception("Stopped reporting agent state!")
+            message = "Stopped reporting agent state!"
+            LOG.exception(message)
 
 """Periodic task to report neutron *aaS agent state.
 
@@ -111,7 +110,7 @@ class ReportStateTask(oslo_periodic_task.PeriodicTasks):
         pulse = oslo_looping_call.FixedIntervalLoopingCall(
             self.run_periodic_tasks, None, None)
         pulse.start(
-            interval=1, initial_delay=None)
+            interval=5, initial_delay=None)
 
     @oslo_periodic_task.periodic_task(spacing=10)
     def report_state(self, context):

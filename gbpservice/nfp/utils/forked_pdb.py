@@ -10,29 +10,29 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import pdb
+import sys
 
-class NFPNetworkDriverBase(object):
-    """ NFP Network Driver Base class
+"""For debugging inside a child process.
 
-    Handles ports, operations on them
+    import pdb;pdb.set_trace() does not work
+    with python multiprocessing.
+    Instead use below pdb class to debug inside
+    a worker process / child process.
+"""
+
+
+class ForkedPdb(pdb.Pdb):
+
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
+
     """
-    def __init__(self):
-        pass
 
-    def setup_traffic_steering(self):
-        pass
-
-    def create_port(self, token, admin_id, net_id, name=None):
-        pass
-
-    def delete_port(self, token, port_id):
-        pass
-
-    def get_port_id(self, token, port_id):
-        pass
-
-    def get_port_details(self, token, port_id):
-        pass
-
-    def set_promiscuos_mode(self, token, port_id):
-        pass
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = file('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
