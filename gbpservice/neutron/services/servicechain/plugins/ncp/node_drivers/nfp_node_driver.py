@@ -242,6 +242,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         self.thread_pool = greenpool.GreenPool(10)
         self.active_threads = []
         self.sc_node_count = 0
+        self.delete_active_threads = []
+        self.sc_delete_count = 0
 
     @property
     def name(self):
@@ -441,7 +443,17 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         self._wait_for_network_function_operation_completion(
             context, network_function_id, operation='update')
 
+    def _get_sc_delete_count(self, context):
+        if self.sc_delete_count:
+            return
+        current_specs = context.relevant_specs
+        node_list = []
+        for spec in current_specs:
+            node_list.extend(spec['nodes'])
+        self.sc_delete_count = len(node_list)
+        
     def delete(self, context):
+        self._get_sc_delete_count(context)
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
         network_function_map = self._get_node_instance_network_function_map(
@@ -460,12 +472,27 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         except Exception:
             LOG.exception(_LE("Delete Network service Failed"))
 
-        # self._wait_for_network_function_delete_completion(
-        #     context, network_function_id)
-        self._delete_node_instance_network_function_map(
-            context.plugin_session,
-            context.current_node['id'],
-            context.instance['id'])
+        # Check for NF status in a separate thread
+        LOG.debug("Spawning thread for nf ACTIVE poll")
+
+        gth = self.thread_pool.spawn(
+            self._wait_for_network_function_delete_completion,
+            context, network_function_id)
+
+        self.delete_active_threads.append(gth)
+
+        LOG.debug("Active Threads count (%d), sc_delete_count (%d)" %(
+            len(self.delete_active_threads), self.sc_delete_count))
+
+        self.sc_delete_count -= 1
+
+        # At last wait for the threads to complete, success/failure/timeout
+        if self.sc_delete_count == 0:
+            self.thread_pool.waitall()
+            # Get the results
+            for gth in self.delete_active_threads:
+                result = self._wait(gth)
+            self.delete_active_threads = []
 
     def update_policy_target_added(self, context, policy_target):
         if context.current_profile['service_type'] in [pconst.LOADBALANCER,
@@ -564,6 +591,11 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                           "failed"),
                       {'network_function': network_function_id})
             raise NodeInstanceDeleteFailed()
+
+        self._delete_node_instance_network_function_map(
+            context.plugin_session,
+            context.current_node['id'],
+            context.instance['id'])
 
     def _wait_for_network_function_operation_completion(self, context,
                                                         network_function_id,
