@@ -310,7 +310,7 @@ class OrchestrationDriver(object):
                      {'attr': attr, 'default': attr_value})
 
     def _update_vendor_data(self, device_data, token=None):
-        vendor_data = None
+        vendor_data = {}
         try:
             image_name = self._get_image_name(device_data)
             vendor_data = self._get_vendor_data(device_data, image_name)
@@ -353,7 +353,6 @@ class OrchestrationDriver(object):
                 self._update_self_with_vendor_data(
                     vendor_data,
                     nfp_constants.SUPPORTS_HOTPLUG)
-
             else:
                 LOG.info(_LI("No vendor data specified in image, "
                              "proceeding with default values"))
