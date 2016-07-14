@@ -10,12 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-""" Implements fake objects for assertion.
-
-"""
-
 
 class FakeObjects(object):
+    """ Implements fake objects for assertion.
+
+    """
+
     sc = 'sc'
     empty_dict = {}
     context = 'APIcontext'
@@ -300,13 +300,13 @@ class FakeObjects(object):
                     }
         return firewall
 
-""" Implements a fake event class for firewall for
-    process framework to use
-
-"""
-
 
 class FakeEventFirewall(object):
+    """ Implements a fake event class for firewall for
+        process framework to use
+
+    """
+
     def __init__(self):
         fo = FakeObjects()
         kwargs = fo._fake_resource_data()
@@ -323,13 +323,13 @@ class FakeEventFirewall(object):
                     'resource_data': kwargs}
         self.id = 'dummy'
 
-""" Implements a fake event class for generic config for
-    process framework to use
-
-"""
-
 
 class FakeEventGenericConfig(object):
+    """ Implements a fake event class for generic config for
+        process framework to use
+
+    """
+
     def __init__(self):
         fo = FakeObjects()
         kwargs = fo._fake_resource_data()
