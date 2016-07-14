@@ -21,48 +21,23 @@ from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
-DRIVER_NAME = 'loadbalancer'
-PROTOCOL_MAP = {
-    lb_constants.PROTOCOL_TCP: 'tcp',
-    lb_constants.PROTOCOL_HTTP: 'http',
-    lb_constants.PROTOCOL_HTTPS: 'https',
-}
-BALANCE_MAP = {
-    lb_constants.LB_METHOD_ROUND_ROBIN: 'roundrobin',
-    lb_constants.LB_METHOD_LEAST_CONNECTIONS: 'leastconn',
-    lb_constants.LB_METHOD_SOURCE_IP: 'source'
-}
-REQUEST_RETRIES = 0
-REQUEST_TIMEOUT = 120
-
-
-""" Loadbalancer generic configuration driver for handling device
-configuration requests.
-
-"""
-
 
 class LbGenericConfigDriver(object):
+    """ Loadbalancer generic configuration driver class for handling device
+        configuration requests.
     """
-    Driver class for implementing loadbalancer configuration
-    requests from Orchestrator.
-    """
-
     def __init__(self):
         pass
 
     def configure_interfaces(self, context, resource_data):
         """ Configure interfaces for the service VM.
 
-        Calls static IP configuration function and implements
-        persistent rule addition in the service VM.
-        Issues REST call to service VM for configuration of interfaces.
-
+        Internally it configures log forwarding in service vm
         :param context: neutron context
-        :param resource_data: a dictionary of loadbalancer objects
-        send by neutron plugin
+        :param resource_data: resource data containing service vm
+                              related details
 
-        Returns: SUCCESS/Failure message with reason.
+        Returns: SUCCESS/FAILED with reason.
 
         """
 
@@ -97,6 +72,11 @@ class LbGenericConfigDriver(object):
 
 
 class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
+    """Main driver which gets registered with LB agent and Generic Config agent
+       in configurator and these agents pass all *aaS neutron and generic
+       config requests to this class.
+    """
+
     service_type = 'loadbalancer'
     service_vendor = 'haproxy'
     pool_to_device = {}
@@ -111,7 +91,8 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
     def _get_rest_client(self, ip_addr):
         client = haproxy_rest_client.HttpRequests(
                             ip_addr, self.port,
-                            REQUEST_RETRIES, REQUEST_TIMEOUT)
+                            lb_constants.REQUEST_RETRIES,
+                            lb_constants.REQUEST_TIMEOUT)
         return client
 
     def _get_device_for_pool(self, pool_id, context):
@@ -155,7 +136,6 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
         return retval
 
     def _prepare_haproxy_frontend(self, vip):
-        # Prepare the frontend request body
         vip_ip = vip['address']
         vip_port_number = vip['protocol_port']
         protocol = vip['protocol']
@@ -163,7 +143,7 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
         frontend = {
             'option': {},
             'bind': '%s:%d' % (vip_ip, vip_port_number),
-            'mode': PROTOCOL_MAP[protocol],
+            'mode': lb_constants.PROTOCOL_MAP[protocol],
             'default_backend': "bck:%s" % vip['pool_id']
         }
         if vip['connection_limit'] >= 0:
@@ -193,8 +173,9 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
         server_addon = ''
 
         backend = {
-            'mode': '%s' % PROTOCOL_MAP[protocol],
-            'balance': '%s' % BALANCE_MAP.get(lb_method, 'roundrobin'),
+            'mode': '%s' % lb_constants.PROTOCOL_MAP[protocol],
+            'balance': '%s' % lb_constants.BALANCE_MAP.get(
+                                                    lb_method, 'roundrobin'),
             'option': {},
             'timeout': {},
             'server': {}
@@ -391,115 +372,79 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
         return backend
 
     def _create_vip(self, vip, device_addr):
-        # create REST client object
         try:
             client = self._get_rest_client(device_addr)
-
-            # Prepare the frontend request body
             frontend = self._prepare_haproxy_frontend(vip)
-
             body = {"frnt:%s" % vip['id']: frontend}
-
-            # Send REST API request to Haproxy agent on VM
             client.create_resource("frontend", body)
         except Exception as e:
             raise e
 
     def _delete_vip(self, vip, device_addr):
-        # create REST client object
         try:
             client = self._get_rest_client(device_addr)
-
-            # Send REST API request to Haproxy agent on VM
             client.delete_resource("frontend/frnt:%s" % vip['id'])
         except Exception as e:
             raise e
 
     def _create_pool(self, pool, device_addr, context):
-        # create REST client object
         try:
             client = self._get_rest_client(device_addr)
-
-            # Prepare the backend request body
             backend = self._prepare_haproxy_backend(pool, context)
             body = {'bck:%s' % pool['id']: backend}
-
-            # Send REST API request to Haproxy agent on VM
             client.create_resource("backend", body)
         except Exception as e:
             raise e
 
     def _delete_pool(self, pool, device_addr):
-        # create REST client object
         try:
             client = self._get_rest_client(device_addr)
-
-            # Send REST API request to Haproxy agent on VM
             client.delete_resource("backend/bck:%s" % pool['id'])
         except Exception as e:
             raise e
 
     def _create_member(self, member, device_addr, context):
-        # create REST client object
         try:
             client = self._get_rest_client(device_addr)
-
-            # get backend
             backend = client.get_resource("backend/bck:%s"
                                           % member['pool_id'])
-
             backend = self._prepare_haproxy_backend_with_member(
                                                     member, backend, context)
-
-            # Send REST API request to Haproxy agent on VM
             client.update_resource("backend/bck:%s" % member['pool_id'],
                                    backend)
         except Exception as e:
             raise e
 
     def _delete_member(self, member, device_addr):
-        # create REST client object
         try:
             client = self._get_rest_client(device_addr)
-
-            # get backend
             backend = client.get_resource("backend/bck:%s"
                                           % member['pool_id'])
 
             # update backend with the server deleted from that
             del backend['server']['srvr:%s' % member['id']]
-
-            # Send REST API request to Haproxy agent on VM
             client.update_resource("backend/bck:%s" % member['pool_id'],
                                    backend)
         except Exception as e:
             raise e
 
     def _create_pool_health_monitor(self, hm, pool_id, device_addr):
-        # create REST client object
         try:
             client = self._get_rest_client(device_addr)
-
             backend = client.get_resource("backend/bck:%s" % pool_id)
-
-            # server addon options
             backend = self._prepare_backend_adding_health_monitor_to_pool(
                                                                     hm,
                                                                     pool_id,
                                                                     backend)
-
             client.update_resource("backend/bck:%s" % pool_id, backend)
         except Exception as e:
             raise e
 
     def _delete_pool_health_monitor(self, hm, pool_id,
                                     device_addr, context):
-        # create REST client object
         try:
             client = self._get_rest_client(device_addr)
-
             backend = client.get_resource("backend/bck:%s" % pool_id)
-
             backend = self._prepare_backend_deleting_health_monitor_from_pool(
                                                                     hm,
                                                                     pool_id,
@@ -509,11 +454,9 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
         except Exception as e:
             raise e
 
-    @classmethod
-    def get_name(self):
-        return DRIVER_NAME
-
     def deploy_instance(self, logical_config):
+        """ REVISIT (pritam): Not used now but will be used when
+            agent_updated() call is supported in LB agent """
         # do actual deploy only if vip and pool are configured and active
         if (not logical_config or
                 'vip' not in logical_config or
@@ -544,6 +487,8 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             raise e
 
     def undeploy_instance(self, pool_id, context):
+        """ REVISIT (pritam): Not used now but will be used when
+            agent_updated() call is supported in LB agent """
         try:
             device_addr = self._get_device_for_pool(pool_id, context)
             logical_device = self.plugin_rpc.get_logical_device(pool_id,
@@ -558,6 +503,7 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             raise e
 
     def remove_orphans(self, pol_ids):
+        """ REVISIT (pritam): Unused"""
         raise NotImplementedError
 
     def get_stats(self, pool_id):
@@ -589,7 +535,7 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
         return stats
 
     def create_vip(self, vip, context):
-        msg = (" create vip [vip=%s ]" % (vip))
+        msg = ("Handling create vip [vip=%s]" % (vip))
         LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(vip['pool_id'], context)
@@ -614,7 +560,7 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             LOG.info(msg)
 
     def update_vip(self, old_vip, vip, context):
-        msg = (" update vip [old_vip=%s, vip=%s ]" % (old_vip, vip))
+        msg = ("Handling update vip [old_vip=%s, vip=%s]" % (old_vip, vip))
         LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(old_vip['pool_id'],
@@ -644,13 +590,8 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
                 self._create_vip(vip, device_addr)
                 return
 
-            # create REST client object
             client = self._get_rest_client(device_addr)
-
-            # Prepare the frontend request body
             body = self._prepare_haproxy_frontend(vip)
-
-            # Send REST API request to Haproxy agent on VM
             client.update_resource("frontend/frnt:%s" % vip['id'], body)
         except Exception as e:
             msg = ("Failed to update vip %s. %s"
@@ -662,17 +603,13 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             LOG.info(msg)
 
     def delete_vip(self, vip, context):
-        msg = (" delete vip [vip=%s ]" % (vip))
+        msg = ("Handling delete vip [vip=%s]" % (vip))
         LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(vip['pool_id'], context)
             logical_device = self.plugin_rpc.get_logical_device(vip['pool_id'],
                                                                 context)
-
-            # Delete vip from VM
             self._delete_vip(vip, device_addr)
-
-            # Delete pool from VM
             pool = logical_device['pool']
             self._delete_pool(pool, device_addr)
         except Exception as e:
@@ -686,24 +623,20 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
 
     def create_pool(self, pool, context):
         # nothing to do here because a pool needs a vip to be useful
-        msg = ("create pool [pool=%s]" % (pool))
+        msg = ("Handled create pool [pool=%s]" % (pool))
         LOG.info(msg)
-        pass
 
     def update_pool(self, old_pool, pool, context):
-        msg = ("update pool [old_pool=%s, pool=%s]" % (old_pool, pool))
+        msg = ("Handling update pool [old_pool=%s, pool=%s]"
+               % (old_pool, pool))
         LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(pool['id'], context)
             if (pool['vip_id'] and
                     device_addr is not None):
-                # create REST client object
                 client = self._get_rest_client(device_addr)
-                # Prepare the backend request body for create request
                 backend = self._prepare_haproxy_backend(pool, context)
                 body = backend
-
-                # Send REST API request to Haproxy agent on VM
                 client.update_resource("backend/bck:%s" % pool['id'], body)
         except Exception as e:
             msg = ("Failed to update pool from %s to %s. %s"
@@ -716,11 +649,11 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             LOG.info(msg)
 
     def delete_pool(self, pool, context):
-        # if pool is not known, do nothing
-        msg = ("delete pool [pool=%s]" % (pool))
+        msg = ("Handling delete pool [pool=%s]" % (pool))
         LOG.info(msg)
         try:
             device = HaproxyOnVmDriver.pool_to_device.get(pool['id'], None)
+            # if pool is not known, do nothing
             if device is None:
                 return
 
@@ -738,7 +671,7 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             LOG.info(msg)
 
     def create_member(self, member, context):
-        msg = (" create member [member=%s] " % (member))
+        msg = ("Handling create member [member=%s] " % (member))
         LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(member['pool_id'], context)
@@ -754,8 +687,8 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             LOG.info(msg)
 
     def update_member(self, old_member, member, context):
-        msg = (" update member [old_member=%s, member=%s] " % (old_member,
-                                                               member))
+        msg = ("Handling update member [old_member=%s, member=%s] "
+               % (old_member, member))
         LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(old_member['pool_id'],
@@ -763,7 +696,6 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             if device_addr is not None:
                 self._delete_member(old_member, device_addr)
 
-            # create the member (new)
             device_addr = self._get_device_for_pool(member['pool_id'], context)
             if device_addr is not None:
                 self._create_member(member, device_addr, context)
@@ -777,7 +709,7 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             LOG.info(msg)
 
     def delete_member(self, member, context):
-        msg = (" delete member [member=%s] " % (member))
+        msg = ("Handling delete member [member=%s] " % (member))
         LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(member['pool_id'],
@@ -794,8 +726,7 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             LOG.info(msg)
 
     def create_pool_health_monitor(self, health_monitor, pool_id, context):
-        # create the health_monitor
-        msg = ("create pool health monitor [hm=%s, pool_id=%s]"
+        msg = ("Handling create pool health monitor [hm=%s, pool_id=%s]"
                % (health_monitor, pool_id))
         LOG.info(msg)
         try:
@@ -816,15 +747,13 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
 
     def update_pool_health_monitor(self, old_health_monitor, health_monitor,
                                    pool_id, context):
-        msg = ("update pool health monitor [old_hm=%s, hm=%s, pool_id=%s]"
-               % (old_health_monitor, health_monitor, pool_id))
+        msg = ("Handling update pool health monitor [old_hm=%s, hm=%s,"
+               "pool_id=%s]" % (old_health_monitor, health_monitor, pool_id))
         LOG.info(msg)
         try:
             device_addr = self._get_device_for_pool(pool_id, context)
             if device_addr is not None:
-                # create REST client object
                 client = self._get_rest_client(device_addr)
-
                 backend = client.get_resource("backend/bck:%s" % pool_id)
 
                 # update backend deleting the health monitor from it
@@ -849,7 +778,7 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             LOG.info(msg)
 
     def delete_pool_health_monitor(self, health_monitor, pool_id, context):
-        msg = ("delete pool health monitor [hm=%s, pool_id=%s]"
+        msg = ("Handling delete pool health monitor [hm=%s, pool_id=%s]"
                % (health_monitor, pool_id))
         LOG.info(msg)
         try:
