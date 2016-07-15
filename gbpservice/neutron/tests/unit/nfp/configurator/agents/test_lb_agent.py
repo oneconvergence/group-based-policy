@@ -16,8 +16,6 @@ import unittest
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
     lb_test_data as test_data)
 from gbpservice.nfp.configurator.agents import loadbalancer_v1 as lb
-from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
-    haproxy_lb_driver as lb_driver)
 from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.configurator.lib import demuxer
 from gbpservice.nfp.configurator.modules import configurator
@@ -399,7 +397,7 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
         super(LBaasEventHandlerTestCase, self).__init__(*args, **kwargs)
         self.fo = test_data.FakeObjects()
         self.ev = test_data.FakeEvent()
-        self.drivers = {'loadbalancer': lb_driver.HaproxyOnVmDriver()}
+        self.drivers = {'loadbalancer': mock.Mock()}
 
     def _get_lb_handler_objects(self, sc, drivers, rpcmgr):
         """ Retrieves EventHandler object of loadbalancer agent.
@@ -427,7 +425,7 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
         """
 
         agent = self._get_lb_handler_objects(sc, self.drivers, rpcmgr)
-        driver = lb_driver.HaproxyOnVmDriver()
+        driver = self.drivers['loadbalancer']
 
         with mock.patch.object(agent, '_get_driver', return_value=driver), \
             mock.patch.object(
@@ -437,8 +435,7 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
             mock.patch.object(
                 driver, 'update_vip') as mock_update_vip,\
             mock.patch.object(
-                self.drivers['loadbalancer'], 'create_pool') as (
-                    mock_create_pool),\
+                driver, 'create_pool') as mock_create_pool,\
             mock.patch.object(
                 driver, 'delete_pool') as mock_delete_pool,\
             mock.patch.object(
