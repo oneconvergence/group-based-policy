@@ -13,8 +13,8 @@
 import requests
 import unittest
 
-from gbpservice.neutron.tests.unit.nfp.configurator.test_data import \
-    vpn_test_data
+from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
+    vpn_test_data)
 from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
@@ -29,15 +29,13 @@ bdobj.register_agent_object_with_driver(
     'agent',
     vpn.VpnaasRpcSender(vpn_test_data.VPNTestData().sc))
 
-""" Implements test cases for driver methods
-of vpn.
-
-
-"""
-
 
 class VpnaasIpsecDriverTestCase(unittest.TestCase):
+    '''
+    Implements test cases for driver methods
+    of vpn.
 
+    '''
     def __init__(self, *args, **kwargs):
         super(VpnaasIpsecDriverTestCase, self).__init__(*args, **kwargs)
         self.conf = 'conf'
@@ -94,6 +92,9 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
                 context,
                 self.dict_objects.ipsec_vpnsvc_status)
 
+    def _dict_to_query_str(self, args):
+        return '&'.join([str(k) + '=' + str(v) for k, v in args.iteritems()])
+
     def test_delete_ipsec_site_conn(self):
         '''
         Implements method to test the vpn driver's create ipsec site conn
@@ -114,10 +115,14 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
             tokens = svc_desc.split(';')
             cidr = tokens[1].split('=')[1]
 
-            url = "?local_cidr=" + cidr + "&peer_address=" + (
-                  resource['peer_address'] + (
-                      "&peer_cidrs=[u\'" + resource['peer_cidrs'][0] + "\']"))
-            url = self.dict_objects.url_delete_ipsec_tunnel + url
+            tunnel = {}
+            tunnel['peer_address'] = resource['peer_address']
+            tunnel['local_cidr'] = cidr
+            tunnel['peer_cidrs'] = resource['peer_cidrs']
+
+            url = (self.dict_objects.url_delete_ipsec_tunnel + '?' +
+                   self._dict_to_query_str(tunnel))
+
             mock_delete.assert_called_with(
                 url.encode('ascii', 'ignore'),
                 timeout=self.dict_objects.timeout,
@@ -138,14 +143,13 @@ class VpnaasIpsecDriverTestCase(unittest.TestCase):
             state = self.driver.check_status(self.context, svc_context)
             self.assertEqual(state, None)
 
-""" Implements test cases for driver methods
-of generic config.
-
-"""
-
 
 class VpnGenericConfigDriverTestCase(unittest.TestCase):
+    '''
+    Implements test cases for driver methods
+    of generic config.
 
+    '''
     def __init__(self, *args, **kwargs):
         super(VpnGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
         self.conf = 'conf'
@@ -165,12 +169,13 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
         self.resp = mock.Mock(status_code=200)
 
     def test_configure_interfaces(self):
-        """ Implements test case for configure interfaces method
+        '''
+        Implements test case for configure interfaces method
         of generic config driver.
 
         Returns: none
 
-        """
+        '''
 
         with mock.patch.object(
                 requests, 'post', return_value=self.resp) as mock_post, \
@@ -187,12 +192,13 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
                 timeout=self.dict_objects.timeout)
 
     def test_clear_interfaces(self):
-        """ Implements test case for clear interfaces method
+        '''
+        Implements test case for clear interfaces method
         of generic config driver.
 
         Returns: none
 
-        """
+        '''
 
         self.resp = mock.Mock(status_code=200)
         with mock.patch.object(
@@ -209,12 +215,13 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
                 timeout=self.dict_objects.timeout)
 
     def test_configure_source_routes(self):
-        """ Implements test case for configure routes method
+        '''
+        Implements test case for configure routes method
         of generic config driver.
 
         Returns: none
 
-        """
+        '''
 
         with mock.patch.object(
                 requests, 'post', return_value=self.resp) as mock_post, \
@@ -230,12 +237,13 @@ class VpnGenericConfigDriverTestCase(unittest.TestCase):
                 timeout=self.dict_objects.timeout)
 
     def test_delete_source_routes(self):
-        """ Implements test case for clear routes method
+        '''
+        Implements test case for clear routes method
         of generic config driver.
 
         Returns: none
 
-        """
+        '''
 
         with mock.patch.object(requests, 'post', return_value=self.resp), \
             mock.patch.object(
@@ -294,7 +302,6 @@ class VPNSvcValidatorTestCase(unittest.TestCase):
 
 
 class RestApiTestCase(unittest.TestCase):
-
     '''
     Class which implements the testcases to test the vpn RestApi calls.
     '''

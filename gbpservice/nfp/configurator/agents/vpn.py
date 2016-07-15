@@ -13,17 +13,16 @@
 
 import os
 
+import oslo_messaging as messaging
+
 from gbpservice.nfp.configurator.agents import agent_base
 from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
-from gbpservice.nfp.core import controller as main
 from gbpservice.nfp.core.event import Event
-from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core import log as nfp_logging
-
-import oslo_messaging as messaging
+from gbpservice.nfp.core import module as nfp_api
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -317,9 +316,9 @@ def events_init(sc, drivers):
     """
     evs = [
         Event(id='VPNSERVICE_UPDATED',
-                   handler=VPNaasEventHandler(sc, drivers)),
+              handler=VPNaasEventHandler(sc, drivers)),
         Event(id='VPN_SYNC',
-                   handler=VPNaasEventHandler(sc, drivers))]
+              handler=VPNaasEventHandler(sc, drivers))]
 
     sc.register_events(evs)
 

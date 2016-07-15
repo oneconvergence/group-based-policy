@@ -37,8 +37,8 @@ class InvalidRsrcType(Exception):
 
 
 class ResourceErrorState(Exception):
-    message = "Resource '%(name)s' : '%(id)s' \
-        went to error state, %(message)"
+    message = ("Resource '%(name)s' : '%(id)s' "
+               "went to error state, %(message)")
 
 
 class RestApi(object):
@@ -589,10 +589,6 @@ class VpnGenericConfigDriver(object):
         source_cidrs = resource_data.get('source_cidrs')
         gateway_ip = resource_data.get('gateway_ip')
 
-        # REVISIT(VK): This was all along bad way, don't know why at all it
-        # was done like this.
-
-        # adding stitching gateway route
         stitching_url = const.request_url % (mgmt_ip,
                                              const.CONFIGURATION_SERVER_PORT,
                                              'add-stitching-route')
@@ -686,8 +682,6 @@ class VpnGenericConfigDriver(object):
             LOG.error(msg)
             return msg
 
-        # REVISIT(VK): This was all along bad way, don't know why at all it
-        # was done like this.
         active_configured = False
         url = const.request_url % (mgmt_ip, const.CONFIGURATION_SERVER_PORT,
                                    'delete-source-route')
@@ -820,11 +814,8 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         return tunnel_local_cidr
 
     def _get_ipsec_tunnel_local_cidr(self, svc_context):
-        # Provider PTG is local cidr for the tunnel
-        # - which is passed in svc description as of now
-        return self.\
-            _get_ipsec_tunnel_local_cidr_from_vpnsvc(
-                svc_context['service'])
+        return self._get_ipsec_tunnel_local_cidr_from_vpnsvc(
+                                                        svc_context['service'])
 
     def _get_stitching_fixed_ip(self, conn):
         desc = conn['description']
@@ -881,8 +872,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
 
         svc_context = self.agent.get_vpn_servicecontext(
             context, self._get_filters(conn_id=conn['id']))[0]
-        tunnel_local_cidr = self.\
-            _get_ipsec_tunnel_local_cidr(svc_context)
+        tunnel_local_cidr = self._get_ipsec_tunnel_local_cidr(svc_context)
         conn = svc_context['siteconns'][0]['connection']
         svc_context['siteconns'][0]['connection']['stitching_fixed_ip'] = (
             self._get_stitching_fixed_ip(conn))
@@ -909,8 +899,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         svc_context = self.agent.get_vpn_servicecontext(
             context, self._get_filters(conn_id=conn['id']))[0]
 
-        tunnel_local_cidr = self.\
-            _get_ipsec_tunnel_local_cidr(svc_context)
+        tunnel_local_cidr = self._get_ipsec_tunnel_local_cidr(svc_context)
 
         tunnel = {}
         tunnel['peer_address'] = conn['peer_address']
@@ -1014,8 +1003,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         Returns: None
         """
 
-        lcidr = self.\
-            _get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
+        lcidr = self._get_ipsec_tunnel_local_cidr_from_vpnsvc(conn)
 
         tunnel = {}
         tunnel['peer_address'] = conn['peer_address']
@@ -1066,8 +1054,7 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         """
 
         c_state = None
-        lcidr = self.\
-            _get_ipsec_tunnel_local_cidr(svc_context)
+        lcidr = self._get_ipsec_tunnel_local_cidr(svc_context)
         if conn['status'] == const.STATE_INIT:
             tunnel = {
                 'peer_address': conn['peer_address'],
@@ -1078,11 +1065,11 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 tunnel)
             state = output['state']
 
-            if state.upper() == 'UP' and\
-               conn['status'] != const.STATE_ACTIVE:
+            if state.upper() == 'UP' and(
+               conn['status'] != const.STATE_ACTIVE):
                 c_state = const.STATE_ACTIVE
-            if state.upper() == 'DOWN' and\
-               conn['status'] == const.STATE_ACTIVE:
+            if state.upper() == 'DOWN' and(
+               conn['status'] == const.STATE_ACTIVE):
                 c_state = const.STATE_PENDING
 
         if c_state:
