@@ -19,6 +19,7 @@ from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
 from gbpservice.nfp.configurator.agents import generic_config as gc
 from gbpservice.nfp.configurator.lib import (
                                     generic_config_constants as const)
+from gbpservice.nfp.configurator.lib import constants as common_const
 
 
 class GenericConfigRpcManagerTestCase(unittest.TestCase):
@@ -184,22 +185,26 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         driver = mock.Mock()
 
         with mock.patch.object(
-                driver, const.EVENT_CONFIGURE_INTERFACES.lower()) as (
+                driver, const.EVENT_CONFIGURE_INTERFACES.lower(),
+                return_value=common_const.SUCCESS) as (
                                                         mock_config_inte), (
             mock.patch.object(
-                driver, const.EVENT_CLEAR_INTERFACES.lower())) as (
+                driver, const.EVENT_CLEAR_INTERFACES.lower(),
+                return_value=common_const.SUCCESS)) as (
                                                     mock_clear_inte), (
             mock.patch.object(
-                driver, const.EVENT_CONFIGURE_ROUTES.lower())) as (
+                driver, const.EVENT_CONFIGURE_ROUTES.lower(),
+                return_value=common_const.SUCCESS)) as (
                                                     mock_config_src_routes), (
             mock.patch.object(
-                driver, const.EVENT_CLEAR_ROUTES.lower())) as (
+                driver, const.EVENT_CLEAR_ROUTES.lower(),
+                return_value=common_const.SUCCESS)) as (
                                                 mock_delete_src_routes), (
             mock.patch.object(
                 sc, 'poll_event')) as mock_hm_poll_event, (
             mock.patch.object(
                 driver, const.EVENT_CONFIGURE_HEALTHMONITOR.lower(),
-                return_value='SUCCESS')), (
+                return_value=common_const.SUCCESS)), (
             mock.patch.object(
                 agent, '_get_driver', return_value=driver)):
 
@@ -227,8 +232,6 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
                                 ev, max_times=const.INITIAL_HM_RETRIES)
                 elif periodicity == const.FOREVER:
                     mock_hm_poll_event.assert_called_with(ev)
-            elif ev.id == const.EVENT_CLEAR_HEALTHMONITOR:
-                pass
 
     def _test_handle_periodic_event(self, ev):
         """ Test handle periodic event method of generic config agent
@@ -248,7 +251,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
                 agent, '_get_driver', return_value=driver), (
              mock.patch.object(
                     driver, const.EVENT_CONFIGURE_HEALTHMONITOR.lower(),
-                    return_value='SUCCESS')), (
+                    return_value=common_const.SUCCESS)), (
              mock.patch.object(subprocess, 'check_output', return_value=True)):
 
             agent.handle_configure_healthmonitor(ev)
@@ -324,18 +327,6 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         ev = fo.FakeEventGenericConfig()
         ev.data['resource_data'].update({'periodicity': const.FOREVER})
         ev.id = 'CONFIGURE_HEALTHMONITOR forever'
-        self._test_handle_event(ev)
-
-    def test_clear_hm_genericconfigeventhandler(self):
-        """ Implements test case for clear health monitor method
-        of generic config event handler.
-
-        Returns: none
-
-        """
-
-        ev = fo.FakeEventGenericConfig()
-        ev.id = const.EVENT_CLEAR_HEALTHMONITOR
         self._test_handle_event(ev)
 
     def test_handle_configure_healthmonitor_genericconfigeventhandler(self):
