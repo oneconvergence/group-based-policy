@@ -26,6 +26,7 @@ class VPNTestData(object):
         self.context_device = {'notification_data': {},
                                'resource': 'interfaces'}
         self.sc = 'sc'
+        self.conf = 'conf'
         self.msg = 'msg'
         self.drivers = 'drivers'
         self.svc = {' ': ' '}
