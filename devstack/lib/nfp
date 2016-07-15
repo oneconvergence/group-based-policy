@@ -457,11 +457,11 @@ function copy_nfp_files_and_start_process {
     source $DEVSTACK_DIR/functions-common
 
     echo "Starting nfp_orchestrator under screen named nfp_orchestrator"
-    run_process nfp_orchestrator "sudo /usr/bin/nfp --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orchestrator.ini --log-file /opt/stack/logs/nfp_orchestrator.log"
+    run_process nfp_orchestrator "sudo /usr/bin/nfp --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orchestrator.ini --log-file $DEST/logs/nfp_orchestrator.log"
     sleep 4
 
     echo "Starting nfp_proxy_agent under screen named nfp_proxy_agent"
-    run_process nfp_proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
+    run_process nfp_proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file $DEST/logs/nfp_proxy_agent.log"
     sleep 4
 
     echo "Starting nfp_proxy inside namespace named nfp-proxy, under screen named nfp_proxy"
@@ -470,7 +470,7 @@ function copy_nfp_files_and_start_process {
 
     if [[ $NFP_DEVSTACK_MODE = advanced ]]; then
         echo "Starting nfp_config_orchestrator under screen named nfp_config_orchestrator"
-        run_process nfp_config_orchestrator "sudo /usr/bin/nfp --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file /opt/stack/logs/nfp_config_orchestrator.log"
+        run_process nfp_config_orchestrator "sudo /usr/bin/nfp --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file $DEST/logs/nfp_config_orchestrator.log"
     else
         cd pecan/api
         sudo python setup.py develop
