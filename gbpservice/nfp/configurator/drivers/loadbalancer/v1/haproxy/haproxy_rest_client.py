@@ -44,7 +44,7 @@ class HttpRequests(object):
             msg = ("[Request:%s, URL:%s, Body:%s] Failed.Reason:%s"
                    % (method, url, data, e))
             LOG.error(msg)
-            raise e
+            raise Exception(msg)
         return response
 
     def request(self, method, uri, body=None,
@@ -55,6 +55,12 @@ class HttpRequests(object):
         response = self.do_request(method, url=url, headers=headers,
                                    data=body,
                                    timeout=self._request_timeout)
+        if response is None:
+            msg = ("[Request:%s, URL:%s, Body:%s] Failed.HTTP response is None"
+                   ".Request timed out" % (method, url, body))
+            LOG.error(msg)
+            raise Exception(msg)
+
         status = response.status_code
         # Not Found (404) is OK for DELETE. Ignore it here
         if method == 'DELETE' and status == 404:
@@ -65,6 +71,7 @@ class HttpRequests(object):
             msg = ("[Request:%s, URL:%s, Body:%s] Failed with status:%s"
                    % (method, url, body, status))
             LOG.error(msg)
+            raise Exception(msg)
         else:
             msg = ("[Request:%s, URL:%s, Body:%s] executed successfully"
                    % (method, url, body))

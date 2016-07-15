@@ -454,58 +454,6 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
         except Exception as e:
             raise e
 
-    def deploy_instance(self, logical_config):
-        """ REVISIT (pritam): Not used now but will be used when
-            agent_updated() call is supported in LB agent """
-        # do actual deploy only if vip and pool are configured and active
-        if (not logical_config or
-                'vip' not in logical_config or
-                (logical_config['vip']['status'] not in
-                 lb_constants.ACTIVE_PENDING_STATUSES) or
-                not logical_config['vip']['admin_state_up'] or
-                (logical_config['pool']['status'] not in
-                 lb_constants.ACTIVE_PENDING_STATUSES) or
-                not logical_config['pool']['admin_state_up']):
-            return
-
-        try:
-            device_addr = self._get_device_for_pool(
-                                            logical_config['pool']['id'])
-
-            self._create_pool(logical_config['pool'], device_addr)
-            self._create_vip(logical_config['vip'], device_addr)
-            for member in logical_config['members']:
-                self._create_member(member, device_addr)
-            for hm in logical_config['healthmonitors']:
-                self._create_pool_health_monitor(hm,
-                                                 logical_config['pool']['id'],
-                                                 device_addr)
-        except Exception as e:
-            msg = ("Failed to deploy instance. %s"
-                   % str(e).capitalize())
-            LOG.error(msg)
-            raise e
-
-    def undeploy_instance(self, pool_id, context):
-        """ REVISIT (pritam): Not used now but will be used when
-            agent_updated() call is supported in LB agent """
-        try:
-            device_addr = self._get_device_for_pool(pool_id, context)
-            logical_device = self.plugin_rpc.get_logical_device(pool_id,
-                                                                context)
-
-            self._delete_vip(logical_device['vip'], device_addr)
-            self._delete_pool(logical_device['pool'], device_addr)
-        except Exception as e:
-            msg = ("Failed to undeploy instance. %s"
-                   % str(e).capitalize())
-            LOG.error(msg)
-            raise e
-
-    def remove_orphans(self, pol_ids):
-        """ REVISIT (pritam): Unused"""
-        raise NotImplementedError
-
     def get_stats(self, pool_id):
         stats = {}
         try:

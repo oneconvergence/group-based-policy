@@ -25,9 +25,11 @@ LOG = nfp_logging.getLogger(__name__)
 
 class LBaasRpcSender(data_filter.Filter):
     """Implements LBaaS response path to Neutron plugin.
-       Methods of this class are invoked by LBaasEventHandler class
-       and also by driver class for sending response from driver to
-       the LBaaS Neutron plugin.
+
+    Methods of this class are invoked by LBaasEventHandler class
+    and also by driver class for sending response from driver to
+    the LBaaS Neutron plugin.
+
     """
     def __init__(self, sc):
         self.notify = agent_base.AgentBaseNotification(sc)
@@ -152,7 +154,7 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
 
         ev = self.sc.new_event(id=event_id, data=data)
         ev.key = key
-        ev.sequence = serialize
+        ev.serialize = serialize
         ev.binding_key = binding_key
         self.sc.post_event(ev)
 
@@ -379,17 +381,15 @@ class LBaaSRpcManager(agent_base.AgentBaseRPCManager):
         self._send_event(lb_constants.EVENT_AGENT_UPDATED, arg_dict)
 
 
-"""Implements event handlers and their helper methods.
-
-Object of this class is registered with the event class of core service
-controller. Based on the event key, handle_event method of this class is
-invoked by core service controller.
-
-"""
-
-
 class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
                         nfp_api.NfpEventHandler):
+    """Implements event handlers and their helper methods.
+
+    Object of this class is registered with the event class of core service
+    controller. Based on the event key, handle_event method of this class is
+    invoked by core service controller.
+
+    """
     instance_mapping = {}
 
     def __init__(self, sc, drivers, rpcmgr):
@@ -398,10 +398,11 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         self.rpcmgr = rpcmgr
         self.plugin_rpc = LBaasRpcSender(sc)
 
-        """REVISIT (pritam): Remove neutron context dependency. As of now because
-           config agent needs context in notification, and internal poll event
-           like collect_stats() does not have context, creating context here,
-           but should get rid of this in future.
+        """REVISIT (pritam):
+        Remove neutron context dependency. As of now
+        because config agent needs context in notification, and internal
+        poll event like collect_stats() does not have context, creating
+        context here, but should get rid of this in future.
         """
         self.context = context.get_admin_context_without_session()
 
