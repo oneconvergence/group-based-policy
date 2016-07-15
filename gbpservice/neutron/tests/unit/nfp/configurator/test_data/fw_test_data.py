@@ -24,7 +24,8 @@ class FakeObjects(object):
             'agent_info': {
                 'resource': 'firewall',
                 'service_vendor': 'vyos',
-                'context': {'requester': 'device_orch'},
+                'context': {'requester': 'device_orch',
+                            'logging_context': {}},
                 'resource_type': 'firewall'},
             'notification_data': {}, 'service_info': {},
             'resource': 'firewall'}
@@ -41,6 +42,8 @@ class FakeObjects(object):
     gateway_ip = '1.2.3.4'
     provider_interface_position = 'provider_interface_position'
     url = 'http://172.24.4.5:8888'
+    url_for_log_forward = "%s/configure-rsyslog-as-client" % url
+    url_for_add_static_ip = "%s/add_static_ip" % url
     url_for_add_inte = "%s/add_rule" % url
     url_for_del_inte = "%s/delete_rule" % url
     url_for_add_src_route = "%s/add-source-route" % url
@@ -48,14 +51,26 @@ class FakeObjects(object):
     url_for_config_fw = "%s/configure-firewall-rule" % url
     url_for_update_fw = "%s/update-firewall-rule" % url
     url_for_delete_fw = "%s/delete-firewall-rule" % url
-    data = ('{"stitching_mac": "00:0a:95:9d:68:16",'
-            '"provider_mac": "00:0a:95:9d:68:16"}')
-    data_for_interface = ('{"stitching_mac": "00:0a:95:9d:68:16",'
-                          ' "provider_mac": "00:0a:95:9d:68:16"}')
-    data_for_add_src_route = ('[{"source_cidr": "1.2.3.4/24", '
-                              '"gateway_ip": "1.2.3.4"}]')
-    data_for_del_src_route = '[{"source_cidr": "1.2.3.4/24"}]'
+    data_for_interface = dict(provider_mac="00:0a:95:9d:68:16",
+                              stitching_mac="00:0a:95:9d:68:16")
+    data_for_add_src_route = {'source_cidr': "1.2.3.4/24",
+                              'gateway_ip': "1.2.3.4"}
+    data_for_del_src_route = {'source_cidr': '1.2.3.4/24'}
     timeout = 120
+
+    def log_forward_data(self):
+        return dict(server_ip={}, server_port={}, log_level={})
+
+    def static_ip_data(self):
+        return dict(
+                    provider_ip="11.0.1.1",
+                    provider_cidr="11.0.1.0/24",
+                    provider_mac="00:0a:95:9d:68:16",
+                    stitching_ip="192.168.0.3",
+                    stitching_cidr="192.168.0.0/28",
+                    stitching_mac="00:0a:95:9d:68:16",
+                    provider_interface_position="2",
+                    stitching_interface_position="3")
 
     def fake_request_data_generic_bulk(self):
         """ A sample bulk request data for generic APIs
@@ -70,7 +85,8 @@ class FakeObjects(object):
                 "service_type": "firewall",
                 "service_vendor": "vyos",
                 "context": {
-                        "requester": "device_orch"
+                        "requester": "device_orch",
+                        "logging_context": {}
                 }
             },
             "config": [{
@@ -127,7 +143,8 @@ class FakeObjects(object):
                 "service_type": "firewall",
                 "service_vendor": "vyos",
                 "context": {
-                        "requester": "device_orch"
+                        "requester": "device_orch",
+                        "logging_context": {}
                 }
             },
             "config": [{
@@ -155,7 +172,8 @@ class FakeObjects(object):
                             "service_vendor": "vyos",
                             "resource": "firewall",
                             "context": {
-                                "requester": "device_orch"
+                                "requester": "device_orch",
+                                "logging_context": {}
                             },
                             "resource_type": "firewall"
                         },
@@ -204,7 +222,8 @@ class FakeObjects(object):
                         "service_vendor": "vyos",
                         "resource": "interfaces",
                         "context": {
-                            "requester": "device_orch"
+                            "requester": "device_orch",
+                            "logging_context": {}
                         },
                         "resource_type": "firewall"
                     },
@@ -227,7 +246,8 @@ class FakeObjects(object):
                         "service_vendor": "vyos",
                         "resource": "routes",
                         "context": {
-                            "requester": "device_orch"
+                            "requester": "device_orch",
+                            "logging_context": {}
                         },
                         "resource_type": "firewall"
                     },
@@ -265,8 +285,8 @@ class FakeObjects(object):
                     'stitching_cidr': '192.168.0.0/28',
                     'destination_cidr': '192.168.0.0/28',
                     'stitching_mac': '00:0a:95:9d:68:16',
-                    'provider_interface_index': 'provider_interface_index',
-                    'stitching_interface_index': 'stitching_interface_index',
+                    'provider_interface_index': '2',
+                    'stitching_interface_index': '3',
                     'mgmt_ip': '172.24.4.5',
                     'source_cidrs': ['1.2.3.4/24'],
                     'gateway_ip': '1.2.3.4'
@@ -344,3 +364,8 @@ class FakeEventGenericConfig(object):
                     'host': fo.host,
                     'resource_data': kwargs}
         self.id = 'dummy'
+
+
+class FakeEventGetNotifications(object):
+    def __init__(self):
+        self.data = {'dummy_data': 'dummy_value'}

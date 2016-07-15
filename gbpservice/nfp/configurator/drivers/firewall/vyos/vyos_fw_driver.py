@@ -39,10 +39,11 @@ class RestApi(object):
 
     def request_type_to_api_map(self, url, data, request_type):
         request_api_map = {
-            'POST': requests.post(url, data=data, timeout=self.timeout),
-            'PUT': requests.put(url, data=data, timeout=self.timeout),
-            'DELETE': requests.delete(url, data=data, timeout=self.timeout)}
-        return request_api_map[request_type]
+            'POST': requests.post,
+            'PUT': requests.put,
+            'DELETE': requests.delete}
+        return request_api_map[request_type](url,
+                                             data=data, timeout=self.timeout)
 
     def fire(self, url, data, request_type):
         """ Invokes REST POST call to the Service VM.
