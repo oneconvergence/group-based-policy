@@ -190,9 +190,8 @@ def dib(nfp_branch_name):
     if not ret:
         image_path = "%s/output/%s.qcow2" % (cur_dir, image_name)
         print("Image location: %s" % image_path)
-        with open("/tmp/image_path", "w") as f:
+        with open("%s/output/last_built_image_path" % cur_dir, "w") as f:
             f.write(image_path)
-        f.close()
 
 
 if __name__ == "__main__":

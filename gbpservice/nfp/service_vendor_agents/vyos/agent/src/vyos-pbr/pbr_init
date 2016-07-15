@@ -1,0 +1,90 @@
+#!/bin/bash
+
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+#Converts decimal to ip address
+function dec2ip () {
+    local ip dec=$1
+    for e in {3..0}
+    do
+        ((octet = dec / (256 ** e) ))
+        ((dec -= octet * 256 ** e))
+        ip+=$delim$octet
+        delim=.
+    done
+    echo $ip
+}
+
+#Converts ip notation to decimal
+function ip2dec () {
+    local a b c d ip=$1
+    IFS=. read -r a b c d <<< "$ip"
+    echo $((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))
+}
+
+
+flag=0
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+all_interfaces=`/sbin/ifconfig | grep "Link encap" | grep -v "127.0.0.1" |cut -d: -d " " -f 1`
+index=0
+for i in $all_interfaces; do
+    if [ "$i" == "eth0" ] || [ "$i" == "eth1" ]
+    then
+        while true
+        do
+            ip_addr=`/sbin/ifconfig $i | grep "inet " | awk -F'[: ]+' '{ print $4 }'`
+	    if [ $ip_addr ]
+	    then 
+            break
+	    fi
+        done
+        bcast_ip=`/sbin/ifconfig $i | grep "inet " | awk -F'[: ]+' '{ print $6 }'`;
+        mask=`/sbin/ifconfig $i | grep "inet " | awk -F'[: ]+' '{ print $8 }'`;
+        dec_bcast_ip=$(ip2dec $bcast_ip)
+        dec_mask=$(ip2dec $mask)
+        dec_net_ip=$(($dec_bcast_ip & $dec_mask))
+        net_ip=$(dec2ip $dec_net_ip)
+        interfaces[$index]=$i
+        ip_addresses[$index]=$ip_addr
+        network_id[$index]=$net_ip
+        filename="/var/lib/dhcp3/dhclient_"$i"_lease"
+        route=`grep "new_routers" $filename |tail -1| cut -d: -d "=" -f2| tr -d "'"`
+        default_route[$index]=$route
+	if [ "$i" == "eth0" ] && [ $flag == 0 ]
+	then
+	    table_name=$i"_table"
+	    table_id=`expr $index + 5`
+	    is_present=`grep "$table_name" /etc/iproute2/rt_tables`
+            if [ "$is_present" == "" ]
+            then
+                echo $table_id  $table_name >> /etc/iproute2/rt_tables
+            fi
+	    `ip route add default via ${default_route[$index]} table $table_name`
+	    `ip rule del from ${ip_addresses[$index]} table $table_name`
+	    `ip rule add from ${ip_addresses[$index]} table $table_name`
+	    echo 0 > /proc/sys/net/ipv4/conf/eth0/accept_source_route
+	fi
+        ((index++))	
+    fi
+done
+
+index=0
+for interface in ${interfaces[*]}; do
+    if [ "$interface" == "eth1" ] && [ $flag == 0 ]
+    then
+        cmd="bash /usr/share/vyos-pbr/pbr ${default_route[$index]}"
+    fi	
+    ((index++))
+done
+
+echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore

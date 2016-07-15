@@ -1,7 +1,6 @@
 #!/bin/bash
 #set -x
-#echo "interface : $interface"
-#echo "new routers : $new_routers"
+
 #Converts decimal to ip address
 function dec2ip () {
     local ip dec=$1
@@ -26,16 +25,28 @@ function ip2dec () {
 all_interfaces=`ifconfig | grep "Link encap" | grep -v "127.0.0.1" |cut -d: -d " " -f 1`;
 index=0;
 for i in $all_interfaces; do
-    if [ "$i" != "lo" ] #&& [ "$i" != "eth0" ]
-    #if [ "$i" == "$interface" ]
+    if [ "$i" != "lo" ] 
     then
-        ip_addr=`ip addr show $i | grep "inet " | grep -v "/32" | awk -F'[/ ]+' '{ print $3 }'`
+        interface_ip_configure_time=30
+        while [[ $interface_ip_configure_time -gt 0 ]]; do
+                ip_addr=`ip addr show $i | grep "inet " | grep -v "/32" | awk -F'[/ ]+' '{ print $3 }'`
+                if [[ -z $ip_addr ]]; then
+                        sleep 5
+                else
+                        break
+                fi
+                ((interface_ip_configure_time-=5))
+        done
+        if [[ -z $ip_addr ]]; then
+                echo "Hotplugged interface $i doesn't have an IP address. Hence, EXITING!!!" >&2
+                exit 1
+        fi
+
         bcast_ip=`ip addr show $i | grep "inet "  | grep -v "/32" | awk -F'[/ ]+' '{ print $6 }'`;
         filename="/var/lib/dhcp/dhclient."$i".leases"
 
         if [ "$i" == "$interface" ]
         then
-            #mask=`grep "option subnet-mask" $filename |tail -1| awk -F'[; ]+' '{ print $4 }'`
             mask=$new_subnet_mask
         else
             mask=`grep "option subnet-mask" $filename |tail -1| awk -F'[; ]+' '{ print $4 }'`
@@ -72,7 +83,6 @@ for i in $all_interfaces; do
         fi
 
         index=`expr $index + 1`
-        #echo $net_ip_with_mask $i $mask_num
         `ip route flush dev $i`
         `ip route add $net_ip_with_mask dev $i`
 
@@ -93,8 +103,6 @@ echo ${default_route[*]}
 index=0
 echo $interface
 for interface in ${interfaces[*]}; do
-    #if [ "$interface1" == "$interface" ]
-    #then
        table_name=$interface"_table"
        mask_num=`ip addr show dev $interface | grep -m2 "inet "  | grep -v "/32" | awk -F'[: ]+' '{ print $3 }'|cut -d '/' -f 2`
        net_ip_with_mask="${network_id[$index]}/${mask_num}"
@@ -113,6 +121,5 @@ for interface in ${interfaces[*]}; do
        fi
        `ip rule add from ${ip_addresses[$index]} table $table_name`
        index=`expr $index + 1`
-    #fi
 done
 

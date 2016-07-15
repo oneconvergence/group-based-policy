@@ -12,15 +12,18 @@ Fresh Installation Steps:
 
 (3) Configure local.conf
     # Modify NFP_DEVSTACK_MODE to 'advanced'
-    # Modify the GBPSERVICE_BRANCH to point to the top patch in devstack changeset refs/changes/05/335405
     # Configure following external network details,
       EXT_NET_GATEWAY=
       EXT_NET_ALLOCATION_POOL_START=
       EXT_NET_ALLOCATION_POOL_END=
       EXT_NET_CIDR= 
-    # Configure the following image paths,
+    # Configure the following image paths(optional),
+    # Leave them empty, so that the images are built during installation
+      ConfiguratorQcow2Image=
       VyosQcow2Image=
-      Haproxy_LBaasV2_Qcow2Image=
+      HaproxyQcow2Image=
+    # Configure PUBLIC_INTERFACE with the public interface name
+    # Modify the GBPSERVICE_BRANCH to point to the top patch in devstack changeset refs/changes/05/335405
 
 (4) Install devstack.
     # ./stack.sh

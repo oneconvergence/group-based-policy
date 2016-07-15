@@ -5,10 +5,6 @@ function gbp_configure_nova {
     iniset $NOVA_CONF neutron allow_duplicate_networks "True"
 }
 
-function nfp_configure_nova {
-    iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
-}
-
 function gbp_configure_heat {
     local HEAT_PLUGINS_DIR="/opt/stack/gbpautomation/gbpautomation/heat"
     iniset $HEAT_CONF DEFAULT plugin_dirs "$HEAT_PLUGINS_DIR"
@@ -102,8 +98,7 @@ if is_service_enabled group-policy; then
         if [[ $ENABLE_NFP = True ]]; then
             echo_summary "Configuring $NFP"
             nfp_configure_neutron
-            [[ $NFP_DEVSTACK_MODE = enterprise ]] && nfp_configure_nova
-            if [[ $NFP_DEVSTACK_MODE != base ]]; then
+            if [[ $NFP_DEVSTACK_MODE = advanced ]]; then
                 configure_nfp_loadbalancer
                 configure_nfp_firewall
                 configure_nfp_vpn
@@ -129,7 +124,6 @@ if is_service_enabled group-policy; then
             create_nfp_gbp_resources
             create_nfp_image
             [[ $NFP_DEVSTACK_MODE = advanced ]] && launch_configuratorVM
-            [[ $NFP_DEVSTACK_MODE = enterprise ]] && launch_configuratorVM && launch_visibilityVM && nfp_logs_forword
             copy_nfp_files_and_start_process
         fi
     fi
