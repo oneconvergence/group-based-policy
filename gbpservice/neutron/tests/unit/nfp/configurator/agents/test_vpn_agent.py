@@ -25,7 +25,7 @@ class VPNaasRpcManagerTestCase(unittest.TestCase):
     Implements test cases for RPC manager methods of vpn agent
     '''
     def __init__(self, *args, **kwargs):
-        super(VPNaasEventHandlerTestCase, self).__init__(*args, **kwargs)
+        super(VPNaasRpcManagerTestCase, self).__init__(*args, **kwargs)
         self.dict_obj = vpn_test_data.VPNTestData()
         self.conf = self.dict_obj.conf
         self.sc = self.dict_obj.sc
