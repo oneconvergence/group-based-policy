@@ -13,8 +13,7 @@
 # - assign_user_role_credential
 # - create_nfp_gbp_resources
 # - create_nfp_image
-# - launch_[configurator/visibility]VM
-# - nfp_logs_forword
+# - launch_configuratorVM
 # - copy_nfp_files_and_start_process
 #
 # ``unstack.sh`` calls the entry points in this order:
@@ -39,7 +38,7 @@ function prepare_nfp_image_builder {
     sudo -H -E pip install -r $DISKIMAGE_CREATE_DIR/requirements.txt
     sudo apt-get install -y --force-yes qemu-utils
     sudo apt-get install -y --force-yes dpkg-dev
-    if [[ $NFP_DEVSTACK_MODE != base ]]; then
+    if [[ $NFP_DEVSTACK_MODE = advanced ]]; then
         sudo wget -qO- https://get.docker.com/ | bash
     fi
 }
@@ -91,16 +90,12 @@ function create_ext_net {
     EXT_NET_ALLOCATION_POOL_END=$EXT_NET_ALLOCATION_POOL_END
     EXT_NET_CIDR=$EXT_NET_CIDR
 
-    source $DEVSTACK_DIR/openrc neutron service
-    unset OS_USER_DOMAIN_ID
-    unset OS_PROJECT_DOMAIN_ID
-
     neutron net-create\
  --router:external=true\
  --shared\
  $EXT_NET_NAME
 
-    neutron subnet-create
+    neutron subnet-create\
  --ip_version 4\
  --gateway $EXT_NET_GATEWAY\
  --name $EXT_NET_SUBNET_NAME\
@@ -137,27 +132,11 @@ function create_ep_and_nsp {
  svc_mgmt_fip_policy
 }
 
-# create_advance_sharing_ptg() - Create a Policy target group
-function create_advance_sharing_ptg {
-    gbp l3policy-create\
- --ip-version 4\
- --ip-pool 121.0.0.0/20\
- --proxy-ip-pool=192.167.0.0/24\
- --subnet-prefix-length 20\
- advanced_services_sharing_l3p
-
-    gbp l2policy-create\
- --l3-policy advanced_services_sharing_l3p\
- advance_sharing_l2p
-
-    gbp group-create\
- --l2-policy advance_sharing_l2p\
- Advance_Sharing_PTG
-}
-
 # create_nfp_gbp_resources() - Create various GBP resources
 function create_nfp_gbp_resources {
     source $DEVSTACK_DIR/openrc neutron service
+    unset OS_USER_DOMAIN_ID
+    unset OS_PROJECT_DOMAIN_ID
 
     if [[ $NFP_DEVSTACK_MODE = base ]]; then
 
@@ -214,19 +193,8 @@ function create_nfp_gbp_resources {
  --vendor NFP\
  vpn_profile
 
-        if [[ $NFP_DEVSTACK_MODE = enterprise ]]; then
-            gbp service-profile-create\
- --servicetype FIREWALL\
- --insertion-mode l3\
- --shared True\
- --service-flavor service_vendor=asav,device_type=nova\
- --vendor NFP\
- asav_fw_profile
-        fi
-
         create_ext_net
         create_ep_and_nsp
-        create_advance_sharing_ptg
 
     fi
 
@@ -244,7 +212,8 @@ function create_nfp_gbp_resources {
     gbp group-create\
  svc_management_ptg\
  --service_management True\
- --l2-policy svc_management_ptg
+ --l2-policy\
+ svc_management_ptg
 
     neutron router-gateway-clear\
  l3p_service_management
@@ -252,34 +221,18 @@ function create_nfp_gbp_resources {
 
 # create_port_for_vm() - Create a port, and get its details
 # Args:
-#     $1 is image_name
+#     $1 - image_name
+#     $2 - instance name
 function create_port_for_vm {
-    if [[ $1 = configurator ]]; then
-        instance_name=$ConfiguratorInstanceName
-    else
-        instance_name=$VisibilityInstanceName
-    fi
     GROUP="svc_management_ptg"
-    PortId=$(gbp policy-target-create --policy-target-group $GROUP $instance_name | grep port_id | awk '{print $4}')
+    PortId=$(gbp policy-target-create --policy-target-group $GROUP $2 | grep port_id | awk '{print $4}')
     IpAddr_extractor=`neutron port-list --format value | grep $PortId | awk '{print $7}'`
     IpAddr_purge_last=${IpAddr_extractor::-1}
     IpAddr=${IpAddr_purge_last//\"/}
     echo "IpAddr of port($PortId): $IpAddr"
-    if [[ $1 = configurator ]]; then
-        configurator_image_name=$1
-        configurator_port_id=$PortId
-        configurator_ip=$IpAddr
-    else
-        visibility_image_name=$1
-        visibility_port_id=$PortId
-        visibility_ip=$IpAddr
-    fi
-}
-
-# configure_vis_ip_addr_in_docker() - Configure Configurator with Visibility VM's IP address
-function configure_vis_ip_addr_in_docker {
-    echo "Visibility VM IP address is: $visibility_ip"
-    sed -i "s/VIS_VM_IP_ADDRESS/"$visibility_ip"/" $NFPSERVICE_DIR/gbpservice/nfp/configurator/Dockerfile
+    configurator_image_name=$1
+    configurator_port_id=$PortId
+    configurator_ip=$IpAddr
 }
 
 # create_nfp_image() - Create and upload the service images
@@ -296,68 +249,30 @@ function create_nfp_image {
         RefConfiguratorQcow2ImageName=reference_configurator_image
         echo "Building Image: $RefConfiguratorQcow2ImageName"
         sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/ref_configurator_conf.json
-        RefConfiguratorQcow2Image=$(cat /tmp/image_path)
+        RefConfiguratorQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         echo "Uploading Image: $RefConfiguratorQcow2ImageName"
         glance image-create --name $RefConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $RefConfiguratorQcow2Image
         openstack --os-cloud=devstack-admin flavor create --ram 512 --disk 3 --vcpus 1 m1.nfp-tiny
     else
-        if [[ $NFP_DEVSTACK_MODE = enterprise ]]; then
-            ConfiguratorQcow2ImageName=configurator
-            ConfiguratorInstanceName="configuratorVM_instance"
-            create_port_for_vm $ConfiguratorQcow2ImageName
-            if [[ $ConfiguratorQcow2Image = build ]]; then
-                echo "Building Image: $ConfiguratorQcow2ImageName"
-                sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/configurator_conf.json $GBPSERVICE_BRANCH
-                ConfiguratorQcow2Image=$(cat /tmp/image_path)
-            fi
-            echo "Uploading Image: $ConfiguratorQcow2ImageName"
-            glance image-create --name $ConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $ConfiguratorQcow2Image
-
-            VisibilityQcow2ImageName=visibility
-            VisibilityInstanceName="VisibilityVM_instance"
-            create_port_for_vm $VisibilityQcow2ImageName
-            if [[ $VisibilityQcow2Image = build ]]; then
-                # edits the docker file to add visibility vm IP address
-                configure_vis_ip_addr_in_docker
-                # prepare visibility source, this is needed for diskimage build
-                cd /home/stack/
-                sudo rm -rf visibility
-                sudo git clone https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git -b $VISIBILITY_GIT_BRANCH
-                echo "Building Image: $VisibilityQcow2ImageName"
-                sudo python $DISKIMAGE_CREATE_DIR/visibility_disk_image_create.py $DISKIMAGE_CREATE_DIR/visibility_conf.json $GBPSERVICE_BRANCH $DEVSTACK_DIR/local.conf
-                VisibilityQcow2Image=$(cat /tmp/image_path)
-            fi
-            echo "Uploading Image: $VisibilityQcow2ImageName"
-            glance image-create --name $VisibilityQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VisibilityQcow2Image
-
-            AsavQcow2ImageName=asav
-            echo "Uploading Image: $AsavQcow2ImageName"
-            glance image-create --name $AsavQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $AsavQcow2Image
-
-            PaloAltoQcow2ImageName=paloalto
-            echo "Uploading Image: $PaloAltoQcow2ImageName"
-            glance image-create --name $PaloAltoQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $PaloAltoQcow2Image
-        else
-            ConfiguratorQcow2ImageName=configurator
-            ConfiguratorInstanceName="configuratorVM_instance"
-            create_port_for_vm $ConfiguratorQcow2ImageName
-            if [[ $ConfiguratorQcow2Image = build ]]; then
-                echo "Building Image: $ConfiguratorQcow2ImageName"
-                sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/configurator_conf.json $GBPSERVICE_BRANCH
-                ConfiguratorQcow2Image=$(cat /tmp/image_path)
-            fi
-            echo "Uploading Image: $ConfiguratorQcow2ImageName"
-            glance image-create --name $ConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $ConfiguratorQcow2Image
+        ConfiguratorQcow2ImageName=configurator
+        ConfiguratorInstanceName="configuratorVM_instance"
+        create_port_for_vm $ConfiguratorQcow2ImageName $ConfiguratorInstanceName
+        if [[ $ConfiguratorQcow2Image = build ]]; then
+            echo "Building Image: $ConfiguratorQcow2ImageName"
+            sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/configurator_conf.json $GBPSERVICE_BRANCH
+            ConfiguratorQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         fi
+        echo "Uploading Image: $ConfiguratorQcow2ImageName"
+        glance image-create --name $ConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $ConfiguratorQcow2Image
 
         VyosQcow2ImageName=vyos
         if [[ $VyosQcow2Image = build ]]; then
             echo "Building Image: $VyosQcow2ImageName"
             cur_dir=$PWD
-            cd $DISK_IMAGE_DIR/diskimage-create/vyos/
+            cd $DISKIMAGE_CREATE_DIR/vyos/
             sudo python vyos_image_create.py vyos_conf.json
             cd $cur_dir
-            VyosQcow2Image=$(cat /tmp/image_path)
+            VyosQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         fi
         echo "Uploading Image: $VyosQcow2ImageName"
         glance image-create --name $VyosQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VyosQcow2Image
@@ -366,13 +281,10 @@ function create_nfp_image {
         if [[ $HaproxyQcow2Image = build ]]; then
             echo "Building Image: $HaproxyQcow2ImageName"
             sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/haproxy_conf.json
-            HaproxyQcow2Image=$(cat /tmp/image_path)
+            HaproxyQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         fi
         echo "Uploading Image: $HaproxyQcow2ImageName"
         glance image-create --name $HaproxyQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $HaproxyQcow2Image
-        Haproxy_LBaasV2_Qcow2Image_Name=haproxy_lbaasv2
-        echo "Uploading Image: $Haproxy_LBaasV2_Qcow2Image_Name"
-        glance image-create --name $Haproxy_LBaasV2_Qcow2Image_Name --disk-format qcow2 --container-format bare --visibility public --file $Haproxy_LBaasV2_Qcow2Image
     fi
 
     # restore the apache2 setting that we did above
@@ -414,102 +326,6 @@ function launch_configuratorVM {
  --nic port-id=$configurator_port_id\
  $ConfiguratorInstanceName
     sleep 10
-}
-
-# configure_visibility_user_data() - Configure Visibility user data
-# Args:
-#     $1 - Visibility VM's IP address
-function configure_visibility_user_data { 
-    CUR_DIR=$PWD
-    visibility_vm_ip=$1
-    sudo rm -rf /opt/visibility_user_data
-    sudo cp -r $NFPSERVICE_DIR/devstack/exercises/nfp_service/user-data/visibility_user_data /opt/.
-    cd /opt
-    sudo rm -rf my.key my.key.pub
-    sudo ssh-keygen -t rsa -N "" -f my.key
-    value=`sudo cat my.key.pub`
-    sudo echo $value
-    sudo sed -i "s|<SSH PUBLIC KEY>|${value}|" visibility_user_data
-    sudo sed -i "s/visibility_vm_ip=*.*/visibility_vm_ip=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/os_controller_ip=*.*/os_controller_ip=$HOST_IP/g" visibility_user_data
-    sudo sed -i "s/statsd_host=*.*/statsd_host=$visibility_vm_ip/g" visibility_user_data
-    sudo sed -i "s/rabbit_host=*.*/rabbit_host=$configurator_ip/g" visibility_user_data
-    cd $CUR_DIR
-}
-
-# attach_security_groups() - Create and add a security group to the Visibility VM
-function attach_security_groups {
-    unset OS_USER_DOMAIN_ID
-    unset OS_PROJECT_DOMAIN_ID
-
-    SecGroup="allow_all"
-    nova secgroup-create $SecGroup "allow all traffic"
-    nova secgroup-add-rule $SecGroup udp 1 65535 120.0.0.0/24
-    nova secgroup-add-rule $SecGroup icmp -1 -1 120.0.0.0/24
-    nova secgroup-add-rule $SecGroup tcp 1 65535 120.0.0.0/24
-    nova secgroup-add-rule $SecGroup tcp 80 80 0.0.0.0/0
-    nova secgroup-add-rule $SecGroup udp 514 514 0.0.0.0/0
-    nova secgroup-add-rule $SecGroup tcp 443 443 0.0.0.0/0
-
-    nova add-secgroup $VisibilityInstanceName $SecGroup
-}
-
-# launch_visibilityVM() - Launch the Visibility VM
-function launch_visibilityVM {
-    neutron net-create visibility-network
-    neutron subnet-create visibility-network 188.0.0.0/24 --name visibility-subnet
-    neutron router-create visibility-router
-    neutron router-gateway-set visibility-router $EXT_NET_NAME
-    neutron router-interface-add visibility-router visibility-subnet
-    ExtPortId=$(neutron port-create visibility-network | grep ' id ' | awk '{print $4}')
-    fip_id=$(neutron floatingip-create $EXT_NET_NAME | grep ' id '| awk '{print $4}')
-    neutron floatingip-associate $fip_id $ExtPortId
-    IpAddr_extractor=`neutron port-list --format value|grep $ExtPortId|awk '{print $6}'`
-    IpAddr_purge_last=${IpAddr_extractor::-1}
-    IpAddr2=${IpAddr_purge_last//\"/}
-    echo "Collecting IpAddr : for $ExtPortId"
-    echo $IpAddr2
-
-    echo "Collecting ImageId : for $visibility_image_name"
-    ImageId=`glance image-list|grep $visibility_image_name |awk '{print $2}'`
-    if [ ! -z "$ImageId" -a "$ImageId" != " " ]; then
-        echo $ImageId
-    else
-        echo "No image found with name $visibility_image_name"
-        exit
-    fi
-
-    configure_visibility_user_data $visibility_ip
-    echo "Launching Visibility image"
-    nova boot\
- --image $ImageId\
- --flavor m1.xlarge\
- --user-data /opt/visibility_user_data\
- --nic port-id=$visibility_port_id\
- --nic port-id=$ExtPortId\
- $VisibilityInstanceName 
-    sleep 10
-    attach_security_groups
-}
-
-# nfp_logs_forword() - Configure log forwarding for visibility
-function nfp_logs_forword {
-    VISIBILITY_CONF="/etc/rsyslog.d/visibility.conf"
-    SYSLOG_CONFIG="/etc/rsyslog.conf"
-    log_facility=local1
-
-    sudo sed -i '/#$ModLoad imudp/ s/^#//' $SYSLOG_CONFIG
-    sudo sed -i '/#$UDPServerRun 514/ s/^#//' $SYSLOG_CONFIG
-    echo "Successfully enabled UDP in syslog"
-
-    visibility_vm_ip_address=$(neutron floatingip-list --format value | grep "$IpAddr2" | awk '{print $3}')
-    echo "$log_facility.* @$visibility_vm_ip_address:514" | sudo tee $VISIBILITY_CONF
-    echo "Created $VISIBILITY_CONF file" 
-
-    sudo service rsyslog restart
-    if [ $? -ne 0 ]; then
-        echo "ERROR: Failed to restart rsyslog"
-    fi
 }
 
 # namespace_delete() - Utility for namespace management
@@ -616,13 +432,13 @@ function namespace_create {
 
 # copy_nfp_files_and_start_process() - Setup configuration and start processes
 function copy_nfp_files_and_start_process {
-    cd /opt/stack/gbp/gbpservice/nfp
+    cd $NFPSERVICE_DIR/gbpservice/nfp
     sudo cp -r bin/nfp /usr/bin/
     sudo chmod +x /usr/bin/nfp
     sudo rm -rf /etc/nfp_*
     sudo cp -r bin/nfp_orchestrator.ini /etc/
     sudo cp -r bin/nfp_proxy_agent.ini /etc/
-    [[ $NFP_DEVSTACK_MODE != base ]] && sudo cp -r bin/nfp_config_orch.ini /etc/
+    [[ $NFP_DEVSTACK_MODE = advanced ]] && sudo cp -r bin/nfp_config_orch.ini /etc/
     sudo cp -r bin/nfp_proxy.ini /etc/nfp_proxy.ini
     sudo cp -r bin/nfp_proxy /usr/bin/
 
@@ -637,29 +453,29 @@ function copy_nfp_files_and_start_process {
     sudo sed -i "s/rest_server_address=*.*/rest_server_address=$configurator_ip/g" /etc/nfp_proxy.ini
     sudo sed -i "s/rest_server_port= *.*/rest_server_port=$configurator_port/g" /etc/nfp_proxy.ini
 
-    sed -i 's#source.*#source '$DEVSTACK_DIR'/openrc demo demo#g' /opt/stack/gbp/devstack/exercises/nfp_service/*.sh
+    sed -i 's#source.*#source '$DEVSTACK_DIR'/openrc demo demo#g' $NFPSERVICE_DIR/devstack/exercises/nfp_service/*.sh
     source $DEVSTACK_DIR/functions-common
 
     echo "Starting nfp_orchestrator under screen named nfp_orchestrator"
-    run_process nfp_orchestrator "sudo /usr/bin/nfp --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orchestrator.ini --log-file /opt/stack/logs/nfp_orchestrator.log"
+    run_process nfp_orchestrator "sudo /usr/bin/nfp --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orchestrator.ini --log-file $DEST/logs/nfp_orchestrator.log"
     sleep 4
 
     echo "Starting nfp_proxy_agent under screen named nfp_proxy_agent"
-    run_process nfp_proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
+    run_process nfp_proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file $DEST/logs/nfp_proxy_agent.log"
     sleep 4
 
     echo "Starting nfp_proxy inside namespace named nfp-proxy, under screen named nfp_proxy"
     run_process nfp_proxy "source $NFPSERVICE_DIR/devstack/lib/nfp; namespace_delete; namespace_create"
     sleep 10
 
-    if [[ $NFP_DEVSTACK_MODE != base ]]; then
+    if [[ $NFP_DEVSTACK_MODE = advanced ]]; then
         echo "Starting nfp_config_orchestrator under screen named nfp_config_orchestrator"
-        run_process nfp_config_orchestrator "sudo /usr/bin/nfp --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file /opt/stack/logs/nfp_config_orchestrator.log"
+        run_process nfp_config_orchestrator "sudo /usr/bin/nfp --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file $DEST/logs/nfp_config_orchestrator.log"
     else
         cd pecan/api
         sudo python setup.py develop
         echo "Starting nfp_base_configurator under screen named nfp_base_configurator"
-        run_process nfp_base_configurator "cd /opt/stack/gbp/gbpservice/nfp/pecan/api; sudo ip netns exec nfp-proxy pecan configurator_decider config.py --mode base"
+        run_process nfp_base_configurator "cd $NFPSERVICE_DIR/gbpservice/nfp/pecan/api; sudo ip netns exec nfp-proxy pecan configurator_decider config.py --mode base"
     fi
     sleep 1
 
