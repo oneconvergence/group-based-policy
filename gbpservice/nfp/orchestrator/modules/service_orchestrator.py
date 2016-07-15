@@ -853,8 +853,9 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                                 event_data=network_function_details)
         else:
             for nfi_id in network_function['network_function_instances']:
-                self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE',
-                                   event_data=nfi_id, is_internal_event=True)
+                self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE_FAST',
+                                   event_data=network_function_details,
+                                   is_internal_event=True)
         nfp_logging.clear_logging_context()
 
     def delete_network_function(self, context, network_function_id):

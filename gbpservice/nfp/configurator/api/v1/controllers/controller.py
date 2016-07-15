@@ -18,6 +18,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 import pecan
+import pika
 
 from gbpservice.nfp.configurator.api.base_controller import BaseController
 
@@ -44,6 +45,9 @@ class Controller(BaseController):
             self.rpc_routing_table = {}
             for service in self.services:
                 self._entry_to_rpc_routing_table(service)
+            self.rmqconsumer = RMQConsumer(
+                nsd_controller['host'],
+                nsd_controller['notification_queue'])
 
             self.method_name = method_name
             super(Controller, self).__init__()
@@ -90,10 +94,12 @@ class Controller(BaseController):
 
         try:
             if self.method_name == 'get_notifications':
-                routing_key = 'CONFIGURATION'
-                uservice = self.rpc_routing_table[routing_key]
-                notification_data = uservice[0].rpcclient.call(
-                    self.method_name)
+                # routing_key = 'CONFIGURATION'
+                # uservice = self.rpc_routing_table[routing_key]
+                # notification_data = uservice[0].rpcclient.call(
+                #     self.method_name)
+                notification_data = jsonutils.dumps(
+                    self.rmqconsumer.pull_notifications())
                 msg = ("NOTIFICATION_DATA sent to config_agent %s"
                        % notification_data)
                 LOG.info(msg)
@@ -275,3 +281,68 @@ class CloudService(object):
         self.topic = kwargs.get('topic')
         self.reporting_interval = kwargs.get('reporting_interval')
         self.rpcclient = RPCClient(topic=self.topic)
+
+
+"""RMQConsumer for over the cloud services.
+This class access rabbitmq's 'configurator-notifications' queue
+to pull all the notifications came from over the cloud services.
+"""
+
+
+class RMQConsumer(object):
+
+    def __init__(self, rabbitmq_host, queue):
+        self.rabbitmq_host = rabbitmq_host
+        self.queue = queue
+        self.create_connection()
+
+    def create_connection(self):
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host=self.rabbitmq_host))
+
+    def _fetch_data_from_wrapper_strct(self, oslo_notifications):
+        notifications = []
+        for oslo_notification_data in oslo_notifications:
+            notification_data = jsonutils.loads(
+            oslo_notification_data["oslo.message"])[
+                "args"]["notification_data"]
+            notifications.extend(notification_data)
+        return notifications
+
+    def pull_notifications(self):
+        notifications = []
+        msgs_acknowledged = False
+        try:
+            self.channel = self.connection.channel()
+            self.queue_declared = self.channel.queue_declare(queue=self.queue,
+                                                             durable=True)
+            self.channel.queue_bind(self.queue, 'openstack')
+            pending_msg_count = self.queue_declared.method.message_count
+            log = ('[notifications queue:%s, pending notifications:%s]'
+                   % (self.queue, pending_msg_count))
+            LOG.info(log)
+            for i in range(pending_msg_count):
+                method, properties, body = self.channel.basic_get(self.queue)
+                notifications.append(jsonutils.loads(body))
+
+            # Acknowledge all messages delivery
+            if pending_msg_count > 0:
+                self.channel.basic_ack(delivery_tag=method.delivery_tag,
+                                       multiple=True)
+                msgs_acknowledged = True
+
+            self.channel.close()
+            return self._fetch_data_from_wrapper_strct(notifications)
+
+        except pika.exceptions.ConnectionClosed:
+            LOG.error("Caught ConnectionClosed exception."
+                      "Creating new connection")
+            self.create_connection()
+            return self._fetch_data_from_wrapper_strct(notifications)
+        except pika.exceptions.ChannelClosed:
+            LOG.error("Caught ChannelClosed exception.")
+            if msgs_acknowledged is False:
+                return self.pull_notifications()
+            else:
+                return self._fetch_data_from_wrapper_strct(notifications)
+

@@ -14,6 +14,14 @@ from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.core import log as nfp_logging
 
+from neutron.common import rpc as n_rpc
+from neutron import context as n_context
+
+from oslo_config import cfg
+import oslo_messaging as messaging
+
+n_rpc.init(cfg.CONF)
+
 LOG = nfp_logging.getLogger(__name__)
 
 """Implements base class for all service agents.
@@ -110,8 +118,15 @@ class AgentBaseRPCManager(object):
 
 class AgentBaseNotification(object):
 
+    API_VERSION = '1.0'
     def __init__(self, sc):
         self.sc = sc
+        self.topic = 'configurator-notifications'
+        target = messaging.Target(topic=self.topic,
+                                  version=self.API_VERSION)
+        self.client = n_rpc.get_client(target)
+        self.cctxt = self.client.prepare(version=self.API_VERSION,
+                                         topic=self.topic)
 
     def _notification(self, data):
         """Enqueues notification event into notification queue
@@ -124,9 +139,12 @@ class AgentBaseNotification(object):
         Returns: None
 
         """
-        event = self.sc.new_event(
-                id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
-        self.sc.stash_event(event)
+        msg = ("Pushing Notification to configurator-notifications Queue, data: ",
+               str(data))
+        LOG.info(msg)
+        context = data['info']['context']['neutron_context']
+        ctx_obj = n_context.Context.from_dict(context)
+        self.cctxt.cast(ctx_obj, 'send_notification', notification_data=[data])
 
 
 class AgentBaseEventHandler(nfp_api.NfpEventHandler):
