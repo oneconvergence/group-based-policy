@@ -95,7 +95,7 @@ function create_ext_net {
  --shared\
  $EXT_NET_NAME
 
-    neutron subnet-create
+    neutron subnet-create\
  --ip_version 4\
  --gateway $EXT_NET_GATEWAY\
  --name $EXT_NET_SUBNET_NAME\
@@ -269,7 +269,7 @@ function create_nfp_image {
         if [[ $VyosQcow2Image = build ]]; then
             echo "Building Image: $VyosQcow2ImageName"
             cur_dir=$PWD
-            cd $DISK_IMAGE_DIR/diskimage-create/vyos/
+            cd $DISKIMAGE_CREATE_DIR/vyos/
             sudo python vyos_image_create.py vyos_conf.json
             cd $cur_dir
             VyosQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
