@@ -13,15 +13,10 @@
 import mock
 import unittest
 
-from oslo_config import cfg
-from oslo_log import log as logging
-
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
                                                 nfp_service_test_data as fo)
 from gbpservice.nfp.configurator.agents import nfp_service as ns
 from gbpservice.nfp.configurator.lib import nfp_service_constants as const
-
-LOG = logging.getLogger(__name__)
 
 
 class NfpServiceRpcManagerTestCase(unittest.TestCase):
@@ -129,9 +124,9 @@ class NfpServiceEventHandlerTestCase(unittest.TestCase):
         driver = mock.Mock()
 
         with mock.patch.object(
-                driver, 'run_heat', return_value=result) as mock_config_inte, \
-               mock.patch.object(
-                agent, '_get_driver', return_value=driver):
+                driver, 'run_heat', return_value=result) as mock_config_inte, (
+             mock.patch.object(
+                agent, '_get_driver', return_value=driver)):
 
             agent.handle_event(ev)
 
@@ -177,9 +172,9 @@ class NfpServiceEventHandlerTestCase(unittest.TestCase):
         agent, sc = self._get_NfpServiceEventHandler_object()
         driver = mock.Mock()
 
-        with mock.patch.object(driver, 'run_heat'), \
+        with mock.patch.object(driver, 'run_heat'), (
                mock.patch.object(
-                agent, '_get_driver', return_value=driver):
+                agent, '_get_driver', return_value=driver)):
 
             with self.assertRaises(KeyError):
                 agent.handle_event(ev)

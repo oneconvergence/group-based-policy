@@ -31,7 +31,6 @@ class FakeEventNfpService(object):
     """
 
     def __init__(self):
-        fo = FakeObjects()
         self.data = {
                     'context': {
                             'resource': 'heat',
