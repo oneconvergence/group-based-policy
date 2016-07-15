@@ -11,8 +11,8 @@
 #    under the License.
 
 import mock
-import unittest
 
+from neutron.tests import base
 from oslo_config import cfg
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
@@ -22,7 +22,7 @@ from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.configurator.lib import fw_constants as fw_const
 
 
-class FWaasRpcManagerTestCase(unittest.TestCase):
+class FWaasRpcManagerTestCase(base.BaseTestCase):
     """ Implements test cases for RPC manager methods of firewall agent.
 
     """
@@ -100,7 +100,7 @@ class FWaasRpcManagerTestCase(unittest.TestCase):
         self._test_event_creation(fw_const.FIREWALL_DELETE_EVENT)
 
 
-class FwaasHandlerTestCase(unittest.TestCase):
+class FwaasHandlerTestCase(base.BaseTestCase):
     """ Implements test cases for event handler methods
     of firewall agent.
 
@@ -268,7 +268,3 @@ class FwaasHandlerTestCase(unittest.TestCase):
 
         self.ev.id = fw_const.FIREWALL_DELETE_EVENT
         self._test_handle_event(False)
-
-
-if __name__ == '__main__':
-    unittest.main()

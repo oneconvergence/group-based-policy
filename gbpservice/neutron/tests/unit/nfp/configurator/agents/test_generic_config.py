@@ -12,7 +12,8 @@
 
 import mock
 import subprocess
-import unittest
+
+from neutron.tests import base
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
                                                         fw_test_data as fo)
@@ -22,7 +23,7 @@ from gbpservice.nfp.configurator.lib import (
 from gbpservice.nfp.configurator.lib import constants as common_const
 
 
-class GenericConfigRpcManagerTestCase(unittest.TestCase):
+class GenericConfigRpcManagerTestCase(base.BaseTestCase):
     """ Implement test cases for RPC manager methods of generic config agent.
 
     """
@@ -139,7 +140,7 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
         self._test_event_creation(const.EVENT_CLEAR_HEALTHMONITOR)
 
 
-class GenericConfigEventHandlerTestCase(unittest.TestCase):
+class GenericConfigEventHandlerTestCase(base.BaseTestCase):
     """ Implements test cases for event handler methods
     of generic config agent.
 
@@ -340,7 +341,3 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         ev = fo.FakeEventGenericConfig()
         ev.id = const.EVENT_CONFIGURE_HEALTHMONITOR
         self._test_handle_periodic_event(ev)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -12,8 +12,8 @@
 
 import mock
 import requests
-import unittest
 
+from neutron.tests import base
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 
@@ -24,7 +24,7 @@ from gbpservice.nfp.configurator.drivers.firewall.vyos import (
 from gbpservice.nfp.configurator.lib import constants as const
 
 
-class FwGenericConfigDriverTestCase(unittest.TestCase):
+class FwGenericConfigDriverTestCase(base.BaseTestCase):
     """ Implements test cases for driver methods
     of generic config.
 
@@ -175,7 +175,7 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                                 timeout=self.fo.timeout)
 
 
-class FwaasDriverTestCase(unittest.TestCase):
+class FwaasDriverTestCase(base.BaseTestCase):
     """ Implements test cases for driver methods
     of firewall.
 
@@ -214,19 +214,6 @@ class FwaasDriverTestCase(unittest.TestCase):
                                          data=self.firewall,
                                          timeout=self.fo.timeout)
 
-    def test_create_firewall_key_error_fwaasdriver(self):
-        """ Implements test case for catching key error in
-        create firewall method of firewall's drivers.
-
-        Returns: none
-
-        """
-
-        self.fo.firewall.pop('description')
-        with self.assertRaises(KeyError):
-            self.driver.create_firewall(self.fo.context,
-                                        self.fo.firewall, self.fo.host)
-
     def test_update_firewall_fwaasdriver(self):
         """ Implements test case for update firewall method
         of firewall's drivers.
@@ -245,19 +232,6 @@ class FwaasDriverTestCase(unittest.TestCase):
                                         data=self.firewall,
                                         timeout=self.fo.timeout)
 
-    def test_update_firewall_key_error_fwaasdriver(self):
-        """ Implements test case for catching key error in
-        update firewall method of firewall's drivers.
-
-        Returns: none
-
-        """
-
-        self.fo.firewall.pop('description')
-        with self.assertRaises(KeyError):
-            self.driver.update_firewall(self.fo.context,
-                                        self.fo.firewall, self.fo.host)
-
     def test_delete_firewall_fwaasdriver(self):
         """ Implements test case for delete firewall method
         of firewall's drivers.
@@ -275,20 +249,3 @@ class FwaasDriverTestCase(unittest.TestCase):
             mock_delete.assert_called_with(self.fo.url_for_delete_fw,
                                            data=self.firewall,
                                            timeout=self.fo.timeout)
-
-    def test_delete_firewall_key_error_fwaasdriver(self):
-        """ Implements test case for catching key error in
-        delete firewall method of firewall's drivers.
-
-        Returns: none
-
-        """
-
-        self.fo.firewall.pop('description')
-        with self.assertRaises(KeyError):
-            self.driver.delete_firewall(self.fo.context,
-                                        self.fo.firewall, self.fo.host)
-
-
-if __name__ == '__main__':
-    unittest.main()

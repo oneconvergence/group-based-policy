@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import unittest
+from neutron.tests import base
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
                                                 nfp_service_test_data as fo)
@@ -19,7 +19,7 @@ from gbpservice.nfp.configurator.drivers.nfp_service.heat.heat_driver import (
 from gbpservice.nfp.configurator.lib import nfp_service_constants as const
 
 
-class NfpServiceHeatDriverTestCase(unittest.TestCase):
+class NfpServiceHeatDriverTestCase(base.BaseTestCase):
     """ Implements test cases for driver methods
     of nfp service.
 
@@ -41,7 +41,3 @@ class NfpServiceHeatDriverTestCase(unittest.TestCase):
 
         expected_val = const.UNHANDLED_RESULT
         self.assertEqual(actual_val, expected_val)
-
-
-if __name__ == '__main__':
-    unittest.main()

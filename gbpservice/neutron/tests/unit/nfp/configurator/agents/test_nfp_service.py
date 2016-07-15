@@ -11,7 +11,8 @@
 #    under the License.
 
 import mock
-import unittest
+
+from neutron.tests import base
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
                                                 nfp_service_test_data as fo)
@@ -19,7 +20,7 @@ from gbpservice.nfp.configurator.agents import nfp_service as ns
 from gbpservice.nfp.configurator.lib import nfp_service_constants as const
 
 
-class NfpServiceRpcManagerTestCase(unittest.TestCase):
+class NfpServiceRpcManagerTestCase(base.BaseTestCase):
     """ Implement test cases for RPC manager methods of nfp service agent.
 
     """
@@ -80,7 +81,7 @@ class NfpServiceRpcManagerTestCase(unittest.TestCase):
         self._test_event_creation(const.CREATE_NFP_SERVICE_EVENT)
 
 
-class NfpServiceEventHandlerTestCase(unittest.TestCase):
+class NfpServiceEventHandlerTestCase(base.BaseTestCase):
     """ Implements test cases for event handler methods
     of nfp service agent.
 
@@ -156,29 +157,3 @@ class NfpServiceEventHandlerTestCase(unittest.TestCase):
         ev = fo.FakeEventNfpService()
         ev.id = const.CREATE_NFP_SERVICE_EVENT
         self._test_handle_event(ev, const.FAILURE)
-
-    def test_create_nfp_service_handle_event_key_error(self):
-        """ Implements key error test case for create_nfp_service method
-        of nfp service event handler.
-
-        Returns: none
-
-        """
-
-        ev = fo.FakeEventNfpService()
-        ev.id = const.CREATE_NFP_SERVICE_EVENT
-        ev.data['context'].pop('service_vendor')
-
-        agent, sc = self._get_NfpServiceEventHandler_object()
-        driver = mock.Mock()
-
-        with mock.patch.object(driver, 'run_heat'), (
-               mock.patch.object(
-                agent, '_get_driver', return_value=driver)):
-
-            with self.assertRaises(KeyError):
-                agent.handle_event(ev)
-
-
-if __name__ == '__main__':
-    unittest.main()
