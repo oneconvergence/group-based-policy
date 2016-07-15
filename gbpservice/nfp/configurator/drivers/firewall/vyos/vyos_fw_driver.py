@@ -173,9 +173,9 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
                 pass
             elif result_log_forward != common_const.STATUS_SUCCESS:
                 msg = ("Failed to configure log forwarding for service at %s. "
-                       "Error: %s" % (mgmt_ip, err))
+                       "Error: %s" % (mgmt_ip, result_log_forward))
                 LOG.error(msg)
-                return result_log_forward
+                return msg
 
         try:
             result_static_ips = self._configure_static_ips(resource_data)
@@ -610,8 +610,7 @@ class FwaasDriver(FwGenericConfigDriver):
                 LOG.error(err_msg)
                 return common_const.STATUS_SUCCESS
             else:
-                err_msg += ("Reason: %r, Response Content: %r" %
-                            (resp.pop('reason'), resp))
+                err_msg += ("Response Content: %r" % resp)
         else:
             err_msg += ("Reason: " + resp)
         LOG.error(err_msg)

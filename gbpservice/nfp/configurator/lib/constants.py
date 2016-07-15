@@ -36,7 +36,7 @@ HAPROXY_LBAASV2 = 'haproxy_lbaasv2'
 CREATE = 'create'
 UPDATE = 'update'
 DELETE = 'delete'
-POST = 'POST'
+POST = 'post'
 PUT = 'put'
 UNHANDLED = "UNHANDLED"
 

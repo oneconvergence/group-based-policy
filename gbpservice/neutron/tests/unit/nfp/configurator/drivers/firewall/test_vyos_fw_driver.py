@@ -37,7 +37,7 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
             mock_cfg.configure_mock(rest_timeout=120, host='foo')
             self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
-        self.fake_resp_dict = {'status': True}
+        self.fake_resp_dict = {'status': True, 'reason': 'not found!'}
         self.kwargs = self.fo._fake_resource_data()
 
     def test_configure_log_forward(self):
@@ -48,15 +48,17 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
 
         """
 
+        resp_data = self.fake_resp_dict
+        resp_data['status'] = False
         with mock.patch.object(
                 requests, 'post', return_value=self.resp) as mock_post, (
             mock.patch.object(
-                self.resp, 'json', return_value=self.fake_resp_dict)):
+                self.resp, 'json', return_value=resp_data)):
             self.driver.configure_interfaces(self.fo.context, self.kwargs)
 
             data = jsonutils.dumps(self.fo.log_forward_data())
             mock_post.assert_called_with(self.fo.url_for_log_forward,
-                                         data=data,
+                                         data,
                                          timeout=self.fo.timeout)
 
     def test_configure_static_ip(self):
@@ -139,8 +141,8 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
                 requests, 'post', return_value=self.resp) as mock_post, (
             mock.patch.object(
                 self.resp, 'json', return_value=self.fake_resp_dict)):
-            self.driver.configure_routes(
-                self.fo.context, self.kwargs)
+
+            self.driver.configure_routes(self.fo.context, self.kwargs)
 
             data = list()
             data.append(self.fo.data_for_add_src_route)
@@ -187,6 +189,7 @@ class FwaasDriverTestCase(unittest.TestCase):
             self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,
+                               'message': 'something',
                                'config_success': True,
                                'delete_success': True}
         self.fo.firewall = self.fo._fake_firewall_obj()
@@ -208,7 +211,7 @@ class FwaasDriverTestCase(unittest.TestCase):
             self.driver.create_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
             mock_post.assert_called_with(self.fo.url_for_config_fw,
-                                         self.firewall,
+                                         data=self.firewall,
                                          timeout=self.fo.timeout)
 
     def test_create_firewall_key_error_fwaasdriver(self):
