@@ -144,7 +144,7 @@ class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
-        super(VPNaasRpcManager, self).__init__(conf, sc)
+        super(VPNaasRpcManager, self).__init__(sc, conf)
 
     def vpnservice_updated(self, context, **resource_data):
         """Registers the VPNaas plugin events to update the vpn configurations.
@@ -277,7 +277,6 @@ class VPNaasEventHandler(nfp_api.NfpEventHandler):
         Returns: None
         """
         try:
-            self._get_driver()
 
             return self._get_driver().check_status(context, svc_context)
         except Exception as err:
