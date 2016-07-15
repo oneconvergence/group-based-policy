@@ -38,12 +38,8 @@ class RestApi(object):
         self.timeout = timeout
 
     def request_type_to_api_map(self, url, data, request_type):
-        request_api_map = {
-            'POST': requests.post,
-            'PUT': requests.put,
-            'DELETE': requests.delete}
-        return request_api_map[request_type](url,
-                                             data=data, timeout=self.timeout)
+        return getattr(requests, request_type)(url,
+                                               data=data, timeout=self.timeout)
 
     def fire(self, url, data, request_type):
         """ Invokes REST POST call to the Service VM.
@@ -58,7 +54,7 @@ class RestApi(object):
 
         try:
             resp = self.request_type_to_api_map(url,
-                                                data, request_type.upper())
+                                                data, request_type.lower())
         except requests.exceptions.ConnectionError as err:
             msg = ("Failed to establish connection to the service at URL: %r. "
                    "ERROR: %r" % (url, str(err).capitalize()))
