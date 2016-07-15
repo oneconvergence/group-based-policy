@@ -12,15 +12,16 @@
 
 
 import mock
-import unittest
+#import unittest
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
     vpn_test_data)
 from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 
+from neutron.tests import base
 
-class VPNaasRpcManagerTestCase(unittest.TestCase):
+class VPNaasRpcManagerTestCase(base.BaseTestCase):
     '''
     Implements test cases for RPC manager methods of vpn agent
     '''
@@ -34,15 +35,15 @@ class VPNaasRpcManagerTestCase(unittest.TestCase):
     def test_vpnservice_updated(self):
         resource_data = self.dict_obj._create_ipsec_site_conn_obj()
         with mock.patch.object(self.sc, 'new_event',
-                               return_value='foo'),\
-             mock.patch.object(self.sc, 'post_event') as mock_post_event:
+                               return_value='foo'), (
+             mock.patch.object(self.sc, 'post_event')) as mock_post_event:
             self.rpcmgr.vpnservice_updated(
                         self.dict_obj.make_service_context(),
                         resource_data=resource_data)
             mock_post_event.assert_called_with('foo')
 
 
-class VPNaasEventHandlerTestCase(unittest.TestCase):
+class VPNaasEventHandlerTestCase(base.BaseTestCase):
     '''
     Implements test cases for RPC manager methods of vpn agent
     '''
@@ -65,9 +66,9 @@ class VPNaasEventHandlerTestCase(unittest.TestCase):
         '''
         with mock.patch.object(self.handler,
                                '_get_driver',
-                               return_value=self.dict_obj.drivers),\
+                               return_value=self.dict_obj.drivers), (
              mock.patch.object(self.driver,
-                               'vpnservice_updated') as mock_vpnservice_updated:
+                               'vpnservice_updated')) as mock_vpnservice_updated:
             self.handler._vpnservice_updated(self.ev, self.driver)
             mock_vpnservice_updated.assert_called_with(self.ev.data['context'],
                                                        self.ev.data[
@@ -81,11 +82,11 @@ class VPNaasEventHandlerTestCase(unittest.TestCase):
         '''
         with mock.patch.object(self.handler,
                                '_get_driver',
-                               return_value=self.driver),\
+                               return_value=self.driver), (
              mock.patch.object(self.rpc_sender,
-                               'get_vpn_servicecontext') as mock_vpn_svc_context,\
+                               'get_vpn_servicecontext')) as mock_vpn_svc_context, (
              mock.patch.object(self.driver,
                                'check_status',
-                               return_value=const.STATE_ACTIVE):
+                               return_value=const.STATE_ACTIVE)):
 
             self.assertEqual(self.handler.sync(self.ev), {'poll': False})
