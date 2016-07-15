@@ -11,7 +11,6 @@
 #    under the License.
 
 import requests
-import unittest
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
     vpn_test_data)
@@ -80,8 +79,7 @@ class VpnaasIpsecDriverTestCase(base.BaseTestCase):
             mock.patch.object(requests, 'post')) as mock_post, (
             mock.patch.object(
                 self.driver.agent, 'get_vpn_servicecontext',
-                    return_value=[
-                        self.dict_objects.svc_context])):
+                return_value=[self.dict_objects.svc_context])):
             mock_resp.return_value = self.fake_resp_dict
             mock_post.return_value = self.resp
             self.driver.vpnservice_updated(context, kwargs)

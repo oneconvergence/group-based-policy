@@ -26,7 +26,6 @@ class VPNTestData(object):
         self.context_device = {'notification_data': {},
                                'resource': 'interfaces'}
         self.sc = 'sc'
-        self.conf = 'conf'
         self.msg = 'msg'
         self.drivers = 'drivers'
         self.svc = {' ': ' '}
@@ -528,10 +527,9 @@ class VPNTestData(object):
             return self._create_vpnservice_obj()
 
     def fake_resource_data(self):
-        '''
-        A sample keyword arguments for configurator
+        """ A sample keyword arguments for configurator
         Returns: resource_data
-        '''
+        """
         resource_data = {'service_type': 'vpn',
                          'vm_mgmt_ip': '192.168.20.75',
                          'mgmt_ip': '192.168.20.75',

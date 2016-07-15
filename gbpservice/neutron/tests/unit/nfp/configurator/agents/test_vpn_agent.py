@@ -12,7 +12,6 @@
 
 
 import mock
-#import unittest
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
     vpn_test_data)
@@ -20,6 +19,7 @@ from gbpservice.nfp.configurator.agents import vpn
 from gbpservice.nfp.configurator.lib import vpn_constants as const
 
 from neutron.tests import base
+
 
 class VPNaasRpcManagerTestCase(base.BaseTestCase):
     '''
@@ -67,8 +67,9 @@ class VPNaasEventHandlerTestCase(base.BaseTestCase):
         with mock.patch.object(self.handler,
                                '_get_driver',
                                return_value=self.dict_obj.drivers), (
-             mock.patch.object(self.driver,
-                               'vpnservice_updated')) as mock_vpnservice_updated:
+             mock.patch.object(
+                     self.driver,
+                     'vpnservice_updated')) as mock_vpnservice_updated:
             self.handler._vpnservice_updated(self.ev, self.driver)
             mock_vpnservice_updated.assert_called_with(self.ev.data['context'],
                                                        self.ev.data[
@@ -84,7 +85,7 @@ class VPNaasEventHandlerTestCase(base.BaseTestCase):
                                '_get_driver',
                                return_value=self.driver), (
              mock.patch.object(self.rpc_sender,
-                               'get_vpn_servicecontext')) as mock_vpn_svc_context, (
+                               'get_vpn_servicecontext')), (
              mock.patch.object(self.driver,
                                'check_status',
                                return_value=const.STATE_ACTIVE)):
