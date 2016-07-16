@@ -37,7 +37,7 @@ class LBaasRpcSender(data_filter.Filter):
     def get_logical_device(self, pool_id, context):
         """ Calls data filter library to get logical device from pool_id.
 
-        :param pool_id: pool id
+        :param pool_id: Neutron LBaaS pool id
         :param context: RPC context
 
         Returns: logical_device
@@ -54,11 +54,12 @@ class LBaasRpcSender(data_filter.Filter):
     def update_status(self, obj_type, obj_id, status, agent_info, obj=None):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
-        :param obj_type: object type
-        :param obj_id: object id
-        :param status: status of the object to be set
-        :param agent_info: agent_info
-        :param obj: object
+        :param obj_type: Neutron LBaaS object type
+        :param obj_id: Neutron LBaaS object id
+        :param status: Neutron LBaaS object status to be set
+        :param agent_info: Agent info which carries context which is needed
+                           in config_orch to send response back to *aaS plugin
+        :param obj: Neutron LBaaS object
 
         Returns: None
 
@@ -78,7 +79,7 @@ class LBaasRpcSender(data_filter.Filter):
     def update_pool_stats(self, pool_id, stats, context, pool=None):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
-        :param pool_id: pool id
+        :param pool_id: Neutron LBaaS pool id
         :param stats: statistics of that pool
         :param context: RPC context
 
@@ -98,9 +99,10 @@ class LBaasRpcSender(data_filter.Filter):
     def vip_deleted(self, vip, status, agent_info):
         """ Enqueues the response from LBaaS operation to neutron plugin.
 
-        :param vip: vip resource
-        :param status: vip status
-        :param agent_info: agent_info
+        :param vip: Neutron LBaaS vip resource
+        :param status: Neutron LBaaS vip resource status
+        :param agent_info: Agent info which carries context which is needed
+                           in config_orch to send response back to *aaS plugin
 
         Returns: None
         """
@@ -407,7 +409,8 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         self.context = context.get_admin_context_without_session()
 
     def _get_driver(self, service_vendor):
-        """Retrieves service driver instance.
+        """Retrieves service driver instance based on service type
+        and service vendor.
 
         :param service_vendor: service vendor
 
