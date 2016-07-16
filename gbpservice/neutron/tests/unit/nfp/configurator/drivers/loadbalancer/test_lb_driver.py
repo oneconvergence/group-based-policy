@@ -11,7 +11,6 @@
 #    under the License.
 
 import mock
-import unittest
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
     lb_test_data as test_data)
@@ -20,6 +19,7 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_lb_driver as lb_driver)
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_rest_client as _rest_client)
+from neutron.tests import base
 from oslo_serialization import jsonutils
 
 """ Implement test cases for loadbalancer driver.
@@ -27,7 +27,7 @@ from oslo_serialization import jsonutils
 """
 
 
-class HaproxyOnVmDriverTestCase(unittest.TestCase):
+class HaproxyOnVmDriverTestCase(base.BaseTestCase):
 
     def __init__(self, *args, **kwargs):
         super(HaproxyOnVmDriverTestCase, self).__init__(*args, **kwargs)
@@ -89,20 +89,16 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
             'healthmonitors': self.fo.hm,
             'members': self.fo.member}
         with mock.patch.object(
-                agent.plugin_rpc,
-                'get_logical_device',
-                return_value=logical_device_return_value),\
+                agent.plugin_rpc, 'get_logical_device',
+                return_value=logical_device_return_value), (
             mock.patch.object(
-                driver,
-                '_get_rest_client',
-                return_value=rest_client),\
+                driver, '_get_rest_client', return_value=rest_client)), (
             mock.patch.object(
-                rest_client.pool,
-                'request', return_value=self.resp) as (mock_request),\
+                rest_client.pool, 'request',
+                return_value=self.resp)) as mock_request, (
             mock.patch.object(
-                rest_client,
-                'get_resource',
-                return_value=self.get_resource) as (mock_get_resource):
+                rest_client, 'get_resource',
+                return_value=self.get_resource)) as mock_get_resource:
 
             mock_request.status_code = 200
             if method_name == 'DELETE_VIP':
@@ -327,7 +323,3 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
         """
 
         self._test_lbaasdriver('UPDATE_POOL_HEALTH_MONITOR')
-
-
-if __name__ == '__main__':
-    unittest.main()

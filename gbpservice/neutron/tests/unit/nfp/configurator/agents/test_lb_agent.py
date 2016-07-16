@@ -11,7 +11,6 @@
 #    under the License.
 
 import mock
-import unittest
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
     lb_test_data as test_data)
@@ -19,14 +18,14 @@ from gbpservice.nfp.configurator.agents import loadbalancer_v1 as lb
 from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.configurator.lib import demuxer
 from gbpservice.nfp.configurator.modules import configurator
-
+from neutron.tests import base
 
 """Implement test cases for LBaasRpcSender methods of loadbalancer agent.
 
 """
 
 
-class LBaasRpcSenderTest(unittest.TestCase):
+class LBaasRpcSenderTest(base.BaseTestCase):
 
     @mock.patch(__name__ + '.test_data.FakeObjects.conf')
     @mock.patch(__name__ + '.test_data.FakeObjects.sc')
@@ -57,9 +56,11 @@ class LBaasRpcSenderTest(unittest.TestCase):
         sc, conf, rpc_mgr = self._get_configurator_rpc_manager_object()
         agent = lb.LBaasRpcSender(sc)
         agent_info = {'context': 'context', 'resource': 'pool'}
-        with mock.patch.object(sc, 'new_event', return_value='foo') as (
-                mock_new_event),\
-            mock.patch.object(sc, 'stash_event') as mock_stash_event:
+        with mock.patch.object(
+                sc, 'new_event', return_value='foo') as mock_new_event, (
+            mock.patch.object(
+                sc, 'stash_event')) as mock_stash_event:
+
             agent.update_status('pool', 'object_id',
                                 'status', agent_info, 'pool')
 
@@ -90,9 +91,10 @@ class LBaasRpcSenderTest(unittest.TestCase):
         sc, conf, rpc_mgr = self._get_configurator_rpc_manager_object()
         agent = lb.LBaasRpcSender(sc)
 
-        with mock.patch.object(sc, 'new_event', return_value='foo') as (
-                mock_new_event), \
-                mock.patch.object(sc, 'stash_event') as (mock_stash_event):
+        with mock.patch.object(
+                sc, 'new_event', return_value='foo') as mock_new_event, (
+            mock.patch.object(
+                sc, 'stash_event')) as mock_stash_event:
             context = test_data.Context()
             agent.update_pool_stats('pool_id', 'stats', context)
 
@@ -130,7 +132,7 @@ class LBaasRpcSenderTest(unittest.TestCase):
 """
 
 
-class LBaaSRpcManagerTest(unittest.TestCase):
+class LBaaSRpcManagerTest(base.BaseTestCase):
 
     def __init__(self, *args, **kwargs):
         super(LBaaSRpcManagerTest, self).__init__(*args, **kwargs)
@@ -222,12 +224,12 @@ class LBaaSRpcManagerTest(unittest.TestCase):
         agent, sc = self._get_lbaas_rpc_manager_object(conf, sc)
         method = self.fo.method
 
-        with mock.patch.object(sc, 'new_event', return_value=self.foo) as (
-            mock_sc_new_event), \
-            mock.patch.object(sc, 'post_event') as mock_sc_post_event, \
-            mock.patch.object(rpc_mgr,
-                              '_get_service_agent_instance',
-                              return_value=agent):
+        with mock.patch.object(
+                sc, 'new_event', return_value=self.foo) as mock_sc_new_event, (
+            mock.patch.object(
+                sc, 'post_event')) as mock_sc_post_event, (
+            mock.patch.object(
+                rpc_mgr, '_get_service_agent_instance', return_value=agent)):
 
             getattr(rpc_mgr, method[operation])(self.fo.context, request_data)
             mock_sc_new_event.assert_called_with(id=operation, data=args)
@@ -391,7 +393,7 @@ class LBaaSRpcManagerTest(unittest.TestCase):
 """
 
 
-class LBaasEventHandlerTestCase(unittest.TestCase):
+class LBaasEventHandlerTestCase(base.BaseTestCase):
 
     def __init__(self, *args, **kwargs):
         super(LBaasEventHandlerTestCase, self).__init__(*args, **kwargs)
@@ -427,31 +429,32 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
         agent = self._get_lb_handler_objects(sc, self.drivers, rpcmgr)
         driver = self.drivers['loadbalancer']
 
-        with mock.patch.object(agent, '_get_driver', return_value=driver), \
+        with mock.patch.object(
+                agent, '_get_driver', return_value=driver), (
             mock.patch.object(
-                driver, 'create_vip') as mock_create_vip,\
+                driver, 'create_vip')) as mock_create_vip, (
             mock.patch.object(
-                driver, 'delete_vip') as mock_delete_vip,\
+                driver, 'delete_vip')) as mock_delete_vip, (
             mock.patch.object(
-                driver, 'update_vip') as mock_update_vip,\
+                driver, 'update_vip')) as mock_update_vip, (
             mock.patch.object(
-                driver, 'create_pool') as mock_create_pool,\
+                driver, 'create_pool')) as mock_create_pool, (
             mock.patch.object(
-                driver, 'delete_pool') as mock_delete_pool,\
+                driver, 'delete_pool')) as mock_delete_pool, (
             mock.patch.object(
-                driver, 'update_pool') as mock_update_pool,\
+                driver, 'update_pool')) as mock_update_pool, (
             mock.patch.object(
-                driver, 'create_member') as mock_create_member,\
+                driver, 'create_member')) as mock_create_member, (
             mock.patch.object(
-                driver, 'delete_member') as mock_delete_member,\
+                driver, 'delete_member')) as mock_delete_member, (
             mock.patch.object(
-                driver, 'update_member') as mock_update_member,\
+                driver, 'update_member')) as mock_update_member, (
             mock.patch.object(
-                driver, 'create_pool_health_monitor') as mock_create_poolhm,\
+                driver, 'create_pool_health_monitor')) as mock_create_poolhm, (
             mock.patch.object(
-                driver, 'delete_pool_health_monitor') as mock_delete_poolhm,\
+                driver, 'delete_pool_health_monitor')) as mock_delete_poolhm, (
             mock.patch.object(
-                driver, 'update_pool_health_monitor') as mock_update_poolhm:
+                driver, 'update_pool_health_monitor')) as mock_update_poolhm:
 
             vip = self.fo._get_vip_object()[0]
             old_vip = self.fo._get_vip_object()[0]
@@ -629,7 +632,3 @@ class LBaasEventHandlerTestCase(unittest.TestCase):
 
         self.ev.id = 'UPDATE_POOL_HEALTH_MONITOR'
         self._test_handle_event()
-
-
-if __name__ == '__main__':
-    unittest.main()
