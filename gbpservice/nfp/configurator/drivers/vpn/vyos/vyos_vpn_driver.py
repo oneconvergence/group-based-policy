@@ -1271,4 +1271,3 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         port = str(const.CONFIGURATION_SERVER_PORT)
         command = 'nc ' + ip + ' ' + port + ' -z'
         return self._check_vm_health(command)
-

@@ -91,4 +91,3 @@ class VPNaasEventHandlerTestCase(base.BaseTestCase):
                                return_value=const.STATE_ACTIVE)):
 
             self.assertEqual(self.handler.sync(self.ev), {'poll': False})
-

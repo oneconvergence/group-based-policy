@@ -57,7 +57,7 @@ class VpnaasIpsecDriverTestCase(base.BaseTestCase):
         context = self.test_dict.make_service_context(operation_type='vpn')
 
         kwargs = self.test_dict.make_resource_data(operation='create',
-                                                      service_type='vpn')
+                                                   service_type='vpn')
         with mock.patch.object(bdobj.agent, 'update_status') as (
                 mock_update_status):
             self.driver.vpnservice_updated(context, kwargs)
@@ -72,7 +72,7 @@ class VpnaasIpsecDriverTestCase(base.BaseTestCase):
         self.resp = mock.Mock(status_code=200)
         context = self.test_dict.make_service_context()
         kwargs = self.test_dict.make_resource_data(operation='create',
-                                                      service_type='ipsec')
+                                                   service_type='ipsec')
         with mock.patch.object(
                 bdobj.agent, 'update_status') as mock_update_status, (
             mock.patch.object(jsonutils, 'loads')) as mock_resp, (
@@ -102,7 +102,7 @@ class VpnaasIpsecDriverTestCase(base.BaseTestCase):
 
         self.resp = mock.Mock(status_code=200)
         kwargs = self.test_dict.make_resource_data(operation='delete',
-                                                      service_type='ipsec')
+                                                   service_type='ipsec')
         with mock.patch.object(self.plugin_rpc, 'ipsec_site_conn_deleted'), (
                 mock.patch.object(json, 'loads')) as mock_resp, (
                 mock.patch.object(requests, 'delete')) as (
@@ -418,4 +418,3 @@ class RestApiTestCase(base.BaseTestCase):
                 self.test_dict.url_create_ipsec_tunnel,
                 params=self.data,
                 timeout=self.timeout)
-
