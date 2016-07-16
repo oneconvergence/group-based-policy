@@ -1065,10 +1065,10 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
                 tunnel)
             state = output['state']
 
-            if state.upper() == 'UP' and(
+            if state.upper() == 'UP' and (
                conn['status'] != const.STATE_ACTIVE):
                 c_state = const.STATE_ACTIVE
-            if state.upper() == 'DOWN' and(
+            if state.upper() == 'DOWN' and (
                conn['status'] == const.STATE_ACTIVE):
                 c_state = const.STATE_PENDING
 
@@ -1271,3 +1271,4 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver, base_driver.BaseDriver):
         port = str(const.CONFIGURATION_SERVER_PORT)
         command = 'nc ' + ip + ' ' + port + ' -z'
         return self._check_vm_health(command)
+
