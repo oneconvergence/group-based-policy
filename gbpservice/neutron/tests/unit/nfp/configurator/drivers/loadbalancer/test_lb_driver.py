@@ -11,7 +11,6 @@
 #    under the License.
 
 import mock
-import unittest
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
     lb_test_data as test_data)
@@ -20,14 +19,15 @@ from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_lb_driver as lb_driver)
 from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_rest_client as _rest_client)
-
+from neutron.tests import base
+from oslo_serialization import jsonutils
 
 """ Implement test cases for loadbalancer driver.
 
 """
 
 
-class HaproxyOnVmDriverTestCase(unittest.TestCase):
+class HaproxyOnVmDriverTestCase(base.BaseTestCase):
 
     def __init__(self, *args, **kwargs):
         super(HaproxyOnVmDriverTestCase, self).__init__(*args, **kwargs)
@@ -89,20 +89,16 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
             'healthmonitors': self.fo.hm,
             'members': self.fo.member}
         with mock.patch.object(
-                agent.plugin_rpc,
-                'get_logical_device',
-                return_value=logical_device_return_value),\
+                agent.plugin_rpc, 'get_logical_device',
+                return_value=logical_device_return_value), (
             mock.patch.object(
-                driver,
-                '_get_rest_client',
-                return_value=rest_client),\
+                driver, '_get_rest_client', return_value=rest_client)), (
             mock.patch.object(
-                rest_client.pool,
-                'request', return_value=self.resp) as (mock_request),\
+                rest_client.pool, 'request',
+                return_value=self.resp)) as mock_request, (
             mock.patch.object(
-                rest_client,
-                'get_resource',
-                return_value=self.get_resource) as (mock_get_resource):
+                rest_client, 'get_resource',
+                return_value=self.get_resource)) as mock_get_resource:
 
             mock_request.status_code = 200
             if method_name == 'DELETE_VIP':
@@ -115,9 +111,10 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                     url=self.data.delete_vip_url)
             elif method_name == 'CREATE_VIP':
                 driver.create_vip(self.fo.vip, self.fo.context)
+                data = jsonutils.dumps(self.data.create_vip_data)
                 mock_request.assert_called_with(
                     'POST',
-                    data=self.data.create_vip_data,
+                    data=data,
                     headers=self.data.header,
                     timeout=30,
                     url=self.data.create_vip_url)
@@ -128,9 +125,10 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                     self.fo.old_vip,
                     self.fo.vip,
                     self.fo.context)
+                data = jsonutils.dumps(self.data.update_vip_data)
                 mock_request.assert_called_with(
                     'PUT',
-                    data=self.data.update_vip_data,
+                    data=data,
                     headers=self.data.header,
                     timeout=self.data.timeout,
                     url=self.data.update_vip_url)
@@ -143,25 +141,28 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                     self.fo.old_pool,
                     self.fo.pool,
                     self.fo.context)
+                data = jsonutils.dumps(self.data.update_pool_data)
                 mock_request.assert_called_with(
                     'PUT',
-                    data=self.data.update_pool_data,
+                    data=data,
                     headers=self.data.header,
                     timeout=self.data.timeout,
                     url=self.data.update_pool_url)
             elif method_name == 'CREATE_MEMBER':
                 driver.create_member(self.fo.member[0], self.fo.context)
+                data = jsonutils.dumps(self.data.create_member_data)
                 mock_request.assert_called_with(
                     'PUT',
-                    data=self.data.create_member_data,
+                    data=data,
                     headers=self.data.header,
                     timeout=self.data.timeout,
                     url=self.data.create_member_url)
             elif method_name == 'DELETE_MEMBER':
                 driver.delete_member(self.fo.member[0], self.fo.context)
+                data = jsonutils.dumps(self.data.delete_member_data)
                 mock_request.assert_called_with(
                     'PUT',
-                    data=self.data.delete_member_data,
+                    data=data,
                     headers=self.data.header,
                     timeout=self.data.timeout,
                     url=self.data.delete_member_url)
@@ -170,9 +171,10 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                     self.fo.old_member[0],
                     self.fo.member[0],
                     self.fo.context)
+                data = jsonutils.dumps(self.data.update_member_data)
                 mock_request.assert_called_with(
                     'PUT',
-                    data=self.data.update_member_data,
+                    data=data,
                     headers=self.data.header,
                     timeout=self.data.timeout,
                     url=self.data.update_member_url)
@@ -180,9 +182,10 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                 driver.create_pool_health_monitor(
                     self.fo.hm[0], self.fo._get_pool_object()[0]['id'],
                     self.fo.context)
+                data = jsonutils.dumps(self.data.create_hm_data)
                 mock_request.assert_called_with(
                     'PUT',
-                    data=self.data.create_hm_data,
+                    data=data,
                     headers=self.data.header,
                     timeout=self.data.timeout,
                     url=self.data.create_hm_url)
@@ -190,9 +193,10 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                 driver.delete_pool_health_monitor(
                     self.fo.hm[0], self.fo._get_pool_object()[0]['id'],
                     self.fo.context)
+                data = jsonutils.dumps(self.data.delete_hm_data)
                 mock_request.assert_called_with(
                     'PUT',
-                    data=self.data.delete_hm_data,
+                    data=data,
                     headers=self.data.header,
                     timeout=self.data.timeout,
                     url=self.data.delete_hm_url)
@@ -201,9 +205,10 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
                     self.fo.old_hm[0],
                     self.fo.hm[0], self.fo._get_pool_object()[0]['id'],
                     self.fo.context)
+                data = jsonutils.dumps(self.data.update_hm_data)
                 mock_request.assert_called_with(
                     'PUT',
-                    data=self.data.update_hm_data,
+                    data=data,
                     headers=self.data.header,
                     timeout=self.data.timeout,
                     url=self.data.update_hm_url)
@@ -318,7 +323,3 @@ class HaproxyOnVmDriverTestCase(unittest.TestCase):
         """
 
         self._test_lbaasdriver('UPDATE_POOL_HEALTH_MONITOR')
-
-
-if __name__ == '__main__':
-    unittest.main()

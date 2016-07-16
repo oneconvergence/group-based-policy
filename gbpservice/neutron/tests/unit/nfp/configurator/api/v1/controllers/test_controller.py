@@ -172,41 +172,6 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
             'update_network_function_config', self.data)
         self.assertEqual(response.status_code, 200)
 
-    def test_call(self):
-        """Tests call function of RPCClient.
-
-        Returns: none
-
-        """
-        rpcclient = controller.RPCClient('topic_name')
-        with mock.patch.object(
-            rpcclient.client, 'call') as rpc_mock,\
-            mock.patch.object(
-                rpcclient.client, 'prepare') as (
-                    prepare_mock):
-            prepare_mock.return_value = rpcclient.client
-            rpc_mock.return_value = True
-            value = rpcclient.call('rpc_method_name')
-        self.assertTrue(value)
-
-    def test_cast(self):
-        """Tests cast function of RPCClient.
-
-        Returns: none
-
-        """
-        rpcclient = controller.RPCClient('topic_name')
-        with mock.patch.object(
-            rpcclient.client, 'cast') as rpc_mock,\
-            mock.patch.object(
-                rpcclient.client, 'prepare') as (
-                    prepare_mock):
-            prepare_mock.return_value = rpcclient.client
-            rpc_mock.return_value = True
-            value = rpcclient.cast('rpc_method_name',
-                                   jsonutils.dumps(self.data))
-        self.assertTrue(value)
-
     def test_post_create_network_function_device_config_fail(self):
         """Tests failure case of HTTP post request
         create_network_function_device_config
