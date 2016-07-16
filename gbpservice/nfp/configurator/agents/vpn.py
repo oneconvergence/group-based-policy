@@ -18,10 +18,10 @@ from gbpservice.nfp.configurator.drivers.base import base_driver
 from gbpservice.nfp.configurator.lib import data_filter
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.configurator.lib import vpn_constants as const
-from gbpservice.nfp.core import controller as main
 from gbpservice.nfp.core.event import Event
-from gbpservice.nfp.core import module as nfp_api
+
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import module as nfp_api
 
 import oslo_messaging as messaging
 
@@ -145,7 +145,7 @@ class VPNaasRpcManager(agent_base.AgentBaseRPCManager):
 
         """
 
-        super(VPNaasRpcManager, self).__init__(conf, sc)
+        super(VPNaasRpcManager, self).__init__(sc, conf)
 
     def vpnservice_updated(self, context, **resource_data):
         """Registers the VPNaas plugin events to update the vpn configurations.
@@ -317,9 +317,9 @@ def events_init(sc, drivers):
     """
     evs = [
         Event(id='VPNSERVICE_UPDATED',
-                   handler=VPNaasEventHandler(sc, drivers)),
+              handler=VPNaasEventHandler(sc, drivers)),
         Event(id='VPN_SYNC',
-                   handler=VPNaasEventHandler(sc, drivers))]
+              handler=VPNaasEventHandler(sc, drivers))]
 
     sc.register_events(evs)
 
