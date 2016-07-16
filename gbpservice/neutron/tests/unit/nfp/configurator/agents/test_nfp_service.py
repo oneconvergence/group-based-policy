@@ -60,8 +60,8 @@ class NfpServiceRpcManagerTestCase(base.BaseTestCase):
         arg_dict = {'context': self.fo.context,
                     'resource_data': self.fo.kwargs}
         with mock.patch.object(
-                    sc, 'new_event', return_value='foo') as mock_sc_event, \
-            mock.patch.object(sc, 'post_event') as mock_sc_rpc_event:
+                    sc, 'new_event', return_value='foo') as mock_sc_event, (
+             mock.patch.object(sc, 'post_event')) as mock_sc_rpc_event:
             actual_call = agent.run_nfp_service(self.fo.context,
                                                 self.fo.kwargs)
 
@@ -97,7 +97,7 @@ class NfpServiceEventHandlerTestCase(base.BaseTestCase):
     @mock.patch(__name__ + '.fo.FakeObjects.rpcmgr')
     @mock.patch(__name__ + '.fo.FakeObjects.drivers')
     @mock.patch(__name__ + '.fo.FakeObjects.sc')
-    def _get_NfpServiceEventHandler_object(self, sc, drivers, rpcmgr):
+    def _get_nfp_service_event_handler_object(self, sc, drivers, rpcmgr):
         """ Retrieves event handler object of nfp service.
 
         :param sc: mocked service controller object of process model framework
@@ -121,7 +121,7 @@ class NfpServiceEventHandlerTestCase(base.BaseTestCase):
 
         """
 
-        agent, sc = self._get_NfpServiceEventHandler_object()
+        agent, sc = self._get_nfp_service_event_handler_object()
         driver = mock.Mock()
 
         with mock.patch.object(

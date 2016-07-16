@@ -57,12 +57,12 @@ class FwGenericConfigDriverTestCase(base.BaseTestCase):
             self.driver.configure_interfaces(self.fo.context, self.kwargs)
 
             data = jsonutils.dumps(self.fo.log_forward_data())
-            mock_post.assert_called_with(self.fo.url_for_log_forward,
+            mock_post.assert_called_with(self.fo.get_url_for_api('log_forward'),
                                          data,
                                          timeout=self.fo.timeout)
 
     def test_configure_static_ip(self):
-        """ Implements test case for configure log forward method
+        """ Implements test case for configure static ip method
         of generic config driver.
 
         Returns: none
@@ -79,12 +79,12 @@ class FwGenericConfigDriverTestCase(base.BaseTestCase):
             self.driver.configure_interfaces(self.fo.context, self.kwargs)
 
             data = jsonutils.dumps(self.fo.static_ip_data())
-            mock_post.assert_called_with(self.fo.url_for_add_static_ip,
-                                         data=data,
-                                         timeout=self.fo.timeout)
+            mock_post.assert_called_with(
+                self.fo.get_url_for_api('add_static_ip'),
+                data=data, timeout=self.fo.timeout)
 
     def test_configure_interfaces(self):
-        """ Implements test case for configure log forward method
+        """ Implements test case for configure interfaces method
         of generic config driver.
 
         Returns: none
@@ -104,7 +104,7 @@ class FwGenericConfigDriverTestCase(base.BaseTestCase):
             self.driver.configure_interfaces(self.fo.context, self.kwargs)
 
             data = jsonutils.dumps(self.fo.data_for_interface)
-            mock_post.assert_called_with(self.fo.url_for_add_inte,
+            mock_post.assert_called_with(self.fo.get_url_for_api('add_inte'),
                                          data=data,
                                          timeout=self.fo.timeout)
 
@@ -125,7 +125,7 @@ class FwGenericConfigDriverTestCase(base.BaseTestCase):
 
             data = jsonutils.dumps(self.fo.data_for_interface)
             mock_delete.assert_called_with(
-                                self.fo.url_for_del_inte,
+                                self.fo.get_url_for_api('del_inte'),
                                 data=data,
                                 timeout=self.fo.timeout)
 
@@ -147,9 +147,9 @@ class FwGenericConfigDriverTestCase(base.BaseTestCase):
             data = list()
             data.append(self.fo.data_for_add_src_route)
             data = jsonutils.dumps(data)
-            mock_post.assert_called_with(self.fo.url_for_add_src_route,
-                                         data=data,
-                                         timeout=self.fo.timeout)
+            mock_post.assert_called_with(
+                self.fo.get_url_for_api('add_src_route'),
+                data=data, timeout=self.fo.timeout)
 
     def test_delete_source_routes(self):
         """ Implements test case for clear routes method
@@ -170,9 +170,8 @@ class FwGenericConfigDriverTestCase(base.BaseTestCase):
             data.append(self.fo.data_for_del_src_route)
             data = jsonutils.dumps(data)
             mock_delete.assert_called_with(
-                                self.fo.url_for_del_src_route,
-                                data=data,
-                                timeout=self.fo.timeout)
+                self.fo.get_url_for_api('del_src_route'),
+                data=data, timeout=self.fo.timeout)
 
 
 class FwaasDriverTestCase(base.BaseTestCase):
@@ -210,7 +209,7 @@ class FwaasDriverTestCase(base.BaseTestCase):
             mock_post.configure_mock(status_code=200)
             self.driver.create_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_post.assert_called_with(self.fo.url_for_config_fw,
+            mock_post.assert_called_with(self.fo.get_url_for_api('config_fw'),
                                          data=self.firewall,
                                          timeout=self.fo.timeout)
 
@@ -228,7 +227,7 @@ class FwaasDriverTestCase(base.BaseTestCase):
                 self.resp, 'json', return_value=self.fake_resp_dict)):
             self.driver.update_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_put.assert_called_with(self.fo.url_for_update_fw,
+            mock_put.assert_called_with(self.fo.get_url_for_api('update_fw'),
                                         data=self.firewall,
                                         timeout=self.fo.timeout)
 
@@ -246,6 +245,6 @@ class FwaasDriverTestCase(base.BaseTestCase):
                 self.resp, 'json', return_value=self.fake_resp_dict)):
             self.driver.delete_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_delete.assert_called_with(self.fo.url_for_delete_fw,
+            mock_delete.assert_called_with(self.fo.get_url_for_api('delete_fw'),
                                            data=self.firewall,
                                            timeout=self.fo.timeout)

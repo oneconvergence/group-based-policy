@@ -35,28 +35,28 @@ class FakeObjects(object):
     kwargs = {'vmid': 'vmid'}
     rpcmgr = 'rpcmgr'
     drivers = 'drivers'
-    vm_mgmt_ip = '172.24.4.5'
-    service_vendor = 'service_vendor'
-    source_cidrs = ['1.2.3.4/24']
-    destination_cidr = 'destination_cidr'
-    gateway_ip = '1.2.3.4'
     provider_interface_position = 'provider_interface_position'
-    url = 'http://172.24.4.5:8888'
-    url_for_log_forward = "%s/configure-rsyslog-as-client" % url
-    url_for_add_static_ip = "%s/add_static_ip" % url
-    url_for_add_inte = "%s/add_rule" % url
-    url_for_del_inte = "%s/delete_rule" % url
-    url_for_add_src_route = "%s/add-source-route" % url
-    url_for_del_src_route = "%s/delete-source-route" % url
-    url_for_config_fw = "%s/configure-firewall-rule" % url
-    url_for_update_fw = "%s/update-firewall-rule" % url
-    url_for_delete_fw = "%s/delete-firewall-rule" % url
     data_for_interface = dict(provider_mac="00:0a:95:9d:68:16",
                               stitching_mac="00:0a:95:9d:68:16")
     data_for_add_src_route = {'source_cidr': "1.2.3.4/24",
                               'gateway_ip': "1.2.3.4"}
     data_for_del_src_route = {'source_cidr': '1.2.3.4/24'}
     timeout = 120
+
+    def get_url_for_api(self, api):
+        url = 'http://172.24.4.5:8888/'
+        api_url_map = {
+            'log_forward': 'configure-rsyslog-as-client',
+            'add_static_ip': 'add_static_ip',
+            'add_inte': 'add_rule',
+            'del_inte': 'delete_rule',
+            'add_src_route': 'add-source-route',
+            'del_src_route': 'delete-source-route',
+            'config_fw': 'configure-firewall-rule',
+            'update_fw': 'update-firewall-rule',
+            'delete_fw': 'delete-firewall-rule'}
+
+        return url + api_url_map[api]
 
     def log_forward_data(self):
         return dict(server_ip={}, server_port={}, log_level={})
@@ -367,5 +367,10 @@ class FakeEventGenericConfig(object):
 
 
 class FakeEventGetNotifications(object):
+    """ Implements a fake event class for notifications functionality
+        for the process framework to use
+
+    """
+
     def __init__(self):
         self.data = {'dummy_data': 'dummy_value'}

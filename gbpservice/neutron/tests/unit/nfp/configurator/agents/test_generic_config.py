@@ -187,12 +187,10 @@ class GenericConfigEventHandlerTestCase(base.BaseTestCase):
 
         with mock.patch.object(
                 driver, const.EVENT_CONFIGURE_INTERFACES.lower(),
-                return_value=common_const.SUCCESS) as (
-                                                        mock_config_inte), (
+                return_value=common_const.SUCCESS) as (mock_config_inte), (
             mock.patch.object(
                 driver, const.EVENT_CLEAR_INTERFACES.lower(),
-                return_value=common_const.SUCCESS)) as (
-                                                    mock_clear_inte), (
+                return_value=common_const.SUCCESS)) as (mock_clear_inte), (
             mock.patch.object(
                 driver, const.EVENT_CONFIGURE_ROUTES.lower(),
                 return_value=common_const.SUCCESS)) as (
@@ -206,6 +204,9 @@ class GenericConfigEventHandlerTestCase(base.BaseTestCase):
             mock.patch.object(
                 driver, const.EVENT_CONFIGURE_HEALTHMONITOR.lower(),
                 return_value=common_const.SUCCESS)), (
+            mock.patch.object(
+                driver, const.EVENT_CLEAR_HEALTHMONITOR.lower(),
+                return_value=common_const.SUCCESS)) as mock_clear_hm, (
             mock.patch.object(
                 agent, '_get_driver', return_value=driver)):
 
@@ -233,6 +234,9 @@ class GenericConfigEventHandlerTestCase(base.BaseTestCase):
                                 ev, max_times=const.INITIAL_HM_RETRIES)
                 elif periodicity == const.FOREVER:
                     mock_hm_poll_event.assert_called_with(ev)
+            elif ev.id == const.EVENT_CLEAR_HEALTHMONITOR:
+                mock_clear_hm.assert_called_with(
+                            self.fo.context, resource_data)
 
     def _test_handle_periodic_event(self, ev):
         """ Test handle periodic event method of generic config agent
@@ -328,6 +332,17 @@ class GenericConfigEventHandlerTestCase(base.BaseTestCase):
         ev = fo.FakeEventGenericConfig()
         ev.data['resource_data'].update({'periodicity': const.FOREVER})
         ev.id = 'CONFIGURE_HEALTHMONITOR forever'
+        self._test_handle_event(ev)
+
+    def test_clear_hm_genericconfigeventhandler(self):
+        """ Implements test case for clear health monitor method
+        of generic config event handler.
+
+        Returns: none
+        """
+
+        ev = fo.FakeEventGenericConfig()
+        ev.id = 'CLEAR_HEALTHMONITOR'
         self._test_handle_event(ev)
 
     def test_handle_configure_healthmonitor_genericconfigeventhandler(self):
