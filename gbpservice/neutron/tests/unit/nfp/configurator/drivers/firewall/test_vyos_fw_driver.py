@@ -57,9 +57,9 @@ class FwGenericConfigDriverTestCase(base.BaseTestCase):
             self.driver.configure_interfaces(self.fo.context, self.kwargs)
 
             data = jsonutils.dumps(self.fo.log_forward_data())
-            mock_post.assert_called_with(self.fo.get_url_for_api('log_forward'),
-                                         data,
-                                         timeout=self.fo.timeout)
+            mock_post.assert_called_with(
+                self.fo.get_url_for_api('log_forward'),
+                data, timeout=self.fo.timeout)
 
     def test_configure_static_ip(self):
         """ Implements test case for configure static ip method
@@ -245,6 +245,6 @@ class FwaasDriverTestCase(base.BaseTestCase):
                 self.resp, 'json', return_value=self.fake_resp_dict)):
             self.driver.delete_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_delete.assert_called_with(self.fo.get_url_for_api('delete_fw'),
-                                           data=self.firewall,
-                                           timeout=self.fo.timeout)
+            mock_delete.assert_called_with(
+                self.fo.get_url_for_api('delete_fw'),
+                data=self.firewall, timeout=self.fo.timeout)

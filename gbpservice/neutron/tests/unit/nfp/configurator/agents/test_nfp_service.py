@@ -40,7 +40,6 @@ class NfpServiceRpcManagerTestCase(base.BaseTestCase):
 
         Returns: object of nfp service's RPC manager
         and service controller.
-
         """
 
         agent = ns.ConfigScriptRpcManager(sc, conf)
@@ -53,7 +52,6 @@ class NfpServiceRpcManagerTestCase(base.BaseTestCase):
         :param method: CREATE_NFP_SERVICE
 
         Returns: none
-
         """
 
         agent, sc = self._get_NfpServiceRpcManager_object()
@@ -75,7 +73,6 @@ class NfpServiceRpcManagerTestCase(base.BaseTestCase):
         of nfp service RPC manager.
 
         Returns: none
-
         """
 
         self._test_event_creation(const.CREATE_NFP_SERVICE_EVENT)
@@ -105,7 +102,6 @@ class NfpServiceEventHandlerTestCase(base.BaseTestCase):
         :param drivers: list of driver objects for nfp service agent
 
         Returns: object of nfp service's event handler
-
         """
 
         agent = ns.ConfigScriptEventHandler(sc, drivers, rpcmgr)
@@ -118,7 +114,6 @@ class NfpServiceEventHandlerTestCase(base.BaseTestCase):
         process framework.
 
         Returns: None
-
         """
 
         agent, sc = self._get_nfp_service_event_handler_object()
@@ -139,7 +134,6 @@ class NfpServiceEventHandlerTestCase(base.BaseTestCase):
         of nfp service event handler.
 
         Returns: none
-
         """
 
         ev = fo.FakeEventNfpService()
@@ -151,7 +145,6 @@ class NfpServiceEventHandlerTestCase(base.BaseTestCase):
         of nfp service event handler.
 
         Returns: none
-
         """
 
         ev = fo.FakeEventNfpService()
