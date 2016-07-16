@@ -36,6 +36,8 @@ HAPROXY_LBAASV2 = 'haproxy_lbaasv2'
 CREATE = 'create'
 UPDATE = 'update'
 DELETE = 'delete'
+POST = 'post'
+PUT = 'put'
 UNHANDLED = "UNHANDLED"
 
 SUCCESS_CODES = [200, 201, 202, 203, 204]
@@ -47,3 +49,6 @@ STATUS_UPDATED = "UPDATED"
 STATUS_ERROR = "ERROR"
 STATUS_SUCCESS = "SUCCESS"
 UNHANDLED = "UNHANDLED"
+
+AGENTS_PKG = 'gbpservice.nfp.configurator.agents'
+CONFIGURATOR_RPC_TOPIC = 'configurator'

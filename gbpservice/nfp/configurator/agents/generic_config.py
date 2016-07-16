@@ -18,23 +18,23 @@ from gbpservice.nfp.configurator.lib import (
 from gbpservice.nfp.configurator.lib import constants as common_const
 from gbpservice.nfp.configurator.lib import utils
 from gbpservice.nfp.core import event as nfp_event
-from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import module as nfp_api
 
 LOG = nfp_logging.getLogger(__name__)
 
-"""Implements APIs invoked by configurator for processing RPC messages.
-
-RPC client of configurator module receives RPC messages from REST server
-and invokes the API of this class. The instance of this class is registered
-with configurator module using register_service_agent API. Configurator module
-identifies the service agent object based on service type and invokes ones of
-the methods of this class to configure the device.
-
-"""
-
 
 class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
+    """Implements APIs invoked by configurator for processing RPC messages.
+
+    RPC client of configurator module receives RPC messages from REST server
+    and invokes the API of this class. The instance of this class is registered
+    with configurator module using register_service_agent API. Configurator
+    module identifies the service agent object based on service type and
+    invokes ones of the methods of this class to configure the device.
+
+    """
+
     def __init__(self, sc, conf):
         """Instantiates child and parent class objects.
 
@@ -161,17 +161,15 @@ class GenericConfigRpcManager(agent_base.AgentBaseRPCManager):
                          resource_data['vmid'])
 
 
-"""Implements event handlers and their helper methods.
-
-Object of this class is registered with the event class of core service
-controller. Based on the event key, handle_event method of this class is
-invoked by core service controller.
-
-"""
-
-
 class GenericConfigEventHandler(agent_base.AgentBaseEventHandler,
                                 nfp_api.NfpEventHandler):
+    """Implements event handlers and their helper methods.
+
+    Object of this class is registered with the event class of core service
+    controller. Based on the event key, handle_event method of this class is
+    invoked by core service controller.
+    """
+
     def __init__(self, sc, drivers, rpcmgr):
         super(GenericConfigEventHandler, self).__init__(
                                         sc, drivers, rpcmgr)

@@ -24,15 +24,14 @@ from gbpservice.nfp.core import module as nfp_api
 
 LOG = nfp_logging.getLogger(__name__)
 
-""" Implements Fwaas response path to Neutron plugin.
-
-Methods of this class are invoked by the FwaasEventHandler class
-for sending response from driver to the Fwaas Neutron plugin.
-
-"""
-
 
 class FwaasRpcSender(agent_base.AgentBaseEventHandler):
+    """ Implements Fwaas response path to Neutron plugin.
+
+    Methods of this class are invoked by the FwaasEventHandler class
+    for sending response from driver to the Fwaas Neutron plugin.
+
+    """
 
     def __init__(self, sc, host, drivers, rpcmgr):
         super(FwaasRpcSender, self).__init__(sc, drivers, rpcmgr)
@@ -81,16 +80,16 @@ class FwaasRpcSender(agent_base.AgentBaseEventHandler):
                }
         self.notify._notification(msg)
 
-""" Implements FWaasRpcManager class which receives requests
-    from Configurator to Agent.
-
-Methods of this class are invoked by the configurator. Events are
-created according to the requests received and enqueued to worker queues.
-
-"""
-
 
 class FWaasRpcManager(agent_base.AgentBaseRPCManager):
+    """ Implements FWaasRpcManager class which receives requests
+        from Configurator to Agent.
+
+    Methods of this class are invoked by the configurator. Events are
+    created according to the requests received and enqueued to worker queues.
+
+    """
+
     RPC_API_VERSION = '1.0'
     target = messaging.Target(version=RPC_API_VERSION)
 
@@ -156,15 +155,15 @@ class FWaasRpcManager(agent_base.AgentBaseRPCManager):
         self._create_event(context, firewall,
                            host, const.FIREWALL_DELETE_EVENT)
 
-""" Handler class which invokes firewall driver methods
-
-Worker processes dequeue the worker queues and invokes the
-appropriate handler class methods for Fwaas methods.
-
-"""
-
 
 class FWaasEventHandler(nfp_api.NfpEventHandler):
+    """ Handler class which invokes firewall driver methods
+
+    Worker processes dequeue the worker queues and invokes the
+    appropriate handler class methods for Fwaas methods.
+
+    """
+
     def __init__(self, sc, drivers, rpcmgr, conf):
         """ Instantiates class object.
 
@@ -278,7 +277,7 @@ class FWaasEventHandler(nfp_api.NfpEventHandler):
             try:
                 status = self.method(context, firewall, host)
             except requests.ConnectionError:
-                # FIXME It can't be correct everytime
+                # REVISIT(VIKASH): It can't be correct everytime
                 msg = ("There is a connection error for firewall %r of "
                        "tenant %r. Assuming either there is serious "
                        "issue with VM or data path is completely "
@@ -289,7 +288,7 @@ class FWaasEventHandler(nfp_api.NfpEventHandler):
                     agent_info, firewall['id'], firewall)
 
             except Exception as err:
-                # TODO(VIKASH) Is it correct to raise ? As the subsequent
+                # REVISIT(VIKASH): Is it correct to raise ? As the subsequent
                 # attempt to clean will only re-raise the last one.And it
                 # can go on and on and may not be ever recovered.
                 self.plugin_rpc.set_firewall_status(

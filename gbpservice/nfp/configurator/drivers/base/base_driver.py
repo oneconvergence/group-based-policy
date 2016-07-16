@@ -20,13 +20,14 @@ from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
-"""Every service vendor must inherit this class. If any service vendor wants
-   to add extra methods for their service, apart from below given, they should
-   add method definition here and implement the method in their driver
-"""
-
 
 class BaseDriver(object):
+    """ Implements common functions for drivers.
+
+    Every service vendor must inherit this class. If any service vendor wants
+    to add extra methods for their service, apart from below given, they should
+    add method definition here and implement the method in their driver
+    """
 
     def __init__(self, conf):
         pass
@@ -120,6 +121,7 @@ class BaseDriver(object):
         msg = ("Initiating POST request to configure log forwarding "
                "for service at: %r" % mgmt_ip)
         LOG.info(msg)
+
         try:
             resp = requests.post(url, data, timeout=self.timeout)
         except requests.exceptions.ConnectionError as err:

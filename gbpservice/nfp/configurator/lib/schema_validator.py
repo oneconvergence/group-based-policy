@@ -16,14 +16,13 @@ from gbpservice.nfp.configurator.lib import constants as const
 import gbpservice.nfp.configurator.lib.schema as schema
 LOG = nfp_logging.getLogger(__name__)
 
-""" Validates request data against standard resource schemas given in schema.py
-
-    Validation is focused on keys. It cross checks if resources in
-    request_data has all the keys given in the schema of that resource.
-"""
-
 
 class SchemaValidator(object):
+    """ Validates request data against standard resource schemas given in schema.py
+
+        Validation is focused on keys. It cross checks if resources in
+        request_data has all the keys given in the schema of that resource.
+    """
 
     def decode(self, request_data, is_generic_config):
         """ Validate request data against resource schema.

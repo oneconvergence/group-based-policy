@@ -61,6 +61,24 @@ HEALTH_MONITOR_HTTPS = 'HTTPS'
 
 LBAAS = 'lbaas'
 
+PROTOCOL_MAP = {
+    PROTOCOL_TCP: 'tcp',
+    PROTOCOL_HTTP: 'http',
+    PROTOCOL_HTTPS: 'https',
+}
+BALANCE_MAP = {
+    LB_METHOD_ROUND_ROBIN: 'roundrobin',
+    LB_METHOD_LEAST_CONNECTIONS: 'leastconn',
+    LB_METHOD_SOURCE_IP: 'source'
+}
+REQUEST_RETRIES = 0
+REQUEST_TIMEOUT = 120
+
+# Operations
+CREATE = 'create'
+UPDATE = 'update'
+DELETE = 'delete'
+
 """ Event ids """
 EVENT_CREATE_POOL = 'CREATE_POOL'
 EVENT_UPDATE_POOL = 'UPDATE_POOL'

@@ -17,8 +17,8 @@ from gbpservice.nfp.configurator.lib import (
 
 
 class Filter(object):
-    """
-    Filter class which provides data asked in a specific format.
+    """ Filter class which provides data asked in a specific format.
+
     This class mocks all rpc calls going from *aaS agent/driver to respective
         *aaS plugin.
     """
@@ -35,6 +35,7 @@ class Filter(object):
         Returns: data after applying filter on it
 
         """
+        filters = {}
         try:
             for fk, fv in msg['args'].items():
                 if dict == type(fv):

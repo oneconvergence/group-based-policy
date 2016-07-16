@@ -12,8 +12,8 @@
 
 import mock
 import requests
-import unittest
 
+from neutron.tests import base
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 
@@ -21,17 +21,14 @@ from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
                                                         fw_test_data as fo)
 from gbpservice.nfp.configurator.drivers.firewall.vyos import (
                                                     vyos_fw_driver as fw_dvr)
+from gbpservice.nfp.configurator.lib import constants as const
 
 
-STATUS_ACTIVE = "ACTIVE"
+class FwGenericConfigDriverTestCase(base.BaseTestCase):
+    """ Implements test cases for driver methods
+    of generic config.
 
-""" Implements test cases for driver methods
-of generic config.
-
-"""
-
-
-class FwGenericConfigDriverTestCase(unittest.TestCase):
+    """
 
     def __init__(self, *args, **kwargs):
         super(FwGenericConfigDriverTestCase, self).__init__(*args, **kwargs)
@@ -40,8 +37,51 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
             mock_cfg.configure_mock(rest_timeout=120, host='foo')
             self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
-        self.fake_resp_dict = {'status': True}
+        self.fake_resp_dict = {'status': True, 'reason': 'not found!'}
         self.kwargs = self.fo._fake_resource_data()
+
+    def test_configure_log_forward(self):
+        """ Implements test case for configure log forward method
+        of generic config driver.
+
+        Returns: none
+
+        """
+
+        resp_data = self.fake_resp_dict
+        resp_data['status'] = False
+        with mock.patch.object(
+                requests, 'post', return_value=self.resp) as mock_post, (
+            mock.patch.object(
+                self.resp, 'json', return_value=resp_data)):
+            self.driver.configure_interfaces(self.fo.context, self.kwargs)
+
+            data = jsonutils.dumps(self.fo.log_forward_data())
+            mock_post.assert_called_with(
+                self.fo.get_url_for_api('log_forward'),
+                data, timeout=self.fo.timeout)
+
+    def test_configure_static_ip(self):
+        """ Implements test case for configure static ip method
+        of generic config driver.
+
+        Returns: none
+
+        """
+
+        with mock.patch.object(
+                requests, 'post', return_value=self.resp) as mock_post, (
+            mock.patch.object(
+                self.resp, 'json', return_value=self.fake_resp_dict)), (
+            mock.patch.object(
+                self.driver, '_configure_log_forwarding',
+                return_value=const.STATUS_SUCCESS)):
+            self.driver.configure_interfaces(self.fo.context, self.kwargs)
+
+            data = jsonutils.dumps(self.fo.static_ip_data())
+            mock_post.assert_called_with(
+                self.fo.get_url_for_api('add_static_ip'),
+                data=data, timeout=self.fo.timeout)
 
     def test_configure_interfaces(self):
         """ Implements test case for configure interfaces method
@@ -52,13 +92,20 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
         """
 
         with mock.patch.object(
-                requests, 'post', return_value=self.resp) as mock_post, \
+                requests, 'post', return_value=self.resp) as mock_post, (
             mock.patch.object(
-                self.resp, 'json', return_value=self.fake_resp_dict):
+                self.resp, 'json', return_value=self.fake_resp_dict)), (
+            mock.patch.object(
+                self.driver, '_configure_log_forwarding',
+                return_value=const.STATUS_SUCCESS)), (
+            mock.patch.object(
+                self.driver, '_configure_static_ips',
+                return_value=const.STATUS_SUCCESS)):
             self.driver.configure_interfaces(self.fo.context, self.kwargs)
 
-            mock_post.assert_called_with(self.fo.url_for_add_inte,
-                                         self.fo.data_for_interface,
+            data = jsonutils.dumps(self.fo.data_for_interface)
+            mock_post.assert_called_with(self.fo.get_url_for_api('add_inte'),
+                                         data=data,
                                          timeout=self.fo.timeout)
 
     def test_clear_interfaces(self):
@@ -71,14 +118,15 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
 
         self.resp = mock.Mock(status_code=200)
         with mock.patch.object(
-                requests, 'delete', return_value=self.resp) as mock_delete, \
+                requests, 'delete', return_value=self.resp) as mock_delete, (
             mock.patch.object(
-                self.resp, 'json', return_value=self.fake_resp_dict):
+                self.resp, 'json', return_value=self.fake_resp_dict)):
             self.driver.clear_interfaces(self.fo.context, self.kwargs)
 
+            data = jsonutils.dumps(self.fo.data_for_interface)
             mock_delete.assert_called_with(
-                                self.fo.url_for_del_inte,
-                                data=self.fo.data_for_interface,
+                                self.fo.get_url_for_api('del_inte'),
+                                data=data,
                                 timeout=self.fo.timeout)
 
     def test_configure_source_routes(self):
@@ -90,15 +138,18 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
         """
 
         with mock.patch.object(
-                requests, 'post', return_value=self.resp) as mock_post, \
+                requests, 'post', return_value=self.resp) as mock_post, (
             mock.patch.object(
-                self.resp, 'json', return_value=self.fake_resp_dict):
-            self.driver.configure_routes(
-                self.fo.context, self.kwargs)
+                self.resp, 'json', return_value=self.fake_resp_dict)):
 
-            mock_post.assert_called_with(self.fo.url_for_add_src_route,
-                                         data=self.fo.data_for_add_src_route,
-                                         timeout=self.fo.timeout)
+            self.driver.configure_routes(self.fo.context, self.kwargs)
+
+            data = list()
+            data.append(self.fo.data_for_add_src_route)
+            data = jsonutils.dumps(data)
+            mock_post.assert_called_with(
+                self.fo.get_url_for_api('add_src_route'),
+                data=data, timeout=self.fo.timeout)
 
     def test_delete_source_routes(self):
         """ Implements test case for clear routes method
@@ -109,24 +160,25 @@ class FwGenericConfigDriverTestCase(unittest.TestCase):
         """
 
         with mock.patch.object(
-                requests, 'delete', return_value=self.resp) as mock_delete, \
+                requests, 'delete', return_value=self.resp) as mock_delete, (
             mock.patch.object(
-                self.resp, 'json', return_value=self.fake_resp_dict):
+                self.resp, 'json', return_value=self.fake_resp_dict)):
             self.driver.clear_routes(
                 self.fo.context, self.kwargs)
 
+            data = list()
+            data.append(self.fo.data_for_del_src_route)
+            data = jsonutils.dumps(data)
             mock_delete.assert_called_with(
-                                self.fo.url_for_del_src_route,
-                                data=self.fo.data_for_del_src_route,
-                                timeout=self.fo.timeout)
-
-""" Implements test cases for driver methods
-of firewall.
-
-"""
+                self.fo.get_url_for_api('del_src_route'),
+                data=data, timeout=self.fo.timeout)
 
 
-class FwaasDriverTestCase(unittest.TestCase):
+class FwaasDriverTestCase(base.BaseTestCase):
+    """ Implements test cases for driver methods
+    of firewall.
+
+    """
 
     def __init__(self, *args, **kwargs):
         super(FwaasDriverTestCase, self).__init__(*args, **kwargs)
@@ -136,6 +188,7 @@ class FwaasDriverTestCase(unittest.TestCase):
             self.driver = fw_dvr.FwaasDriver(mock_cfg)
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True,
+                               'message': 'something',
                                'config_success': True,
                                'delete_success': True}
         self.fo.firewall = self.fo._fake_firewall_obj()
@@ -150,28 +203,15 @@ class FwaasDriverTestCase(unittest.TestCase):
         """
 
         with mock.patch.object(
-                requests, 'post', return_value=self.resp) as mock_post, \
+                requests, 'post', return_value=self.resp) as mock_post, (
             mock.patch.object(
-                self.resp, 'json', return_value=self.fake_resp_dict):
+                self.resp, 'json', return_value=self.fake_resp_dict)):
             mock_post.configure_mock(status_code=200)
             self.driver.create_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_post.assert_called_with(self.fo.url_for_config_fw,
-                                         self.firewall,
+            mock_post.assert_called_with(self.fo.get_url_for_api('config_fw'),
+                                         data=self.firewall,
                                          timeout=self.fo.timeout)
-
-    def test_create_firewall_key_error_fwaasdriver(self):
-        """ Implements test case for catching key error in
-        create firewall method of firewall's drivers.
-
-        Returns: none
-
-        """
-
-        self.fo.firewall.pop('description')
-        with self.assertRaises(KeyError):
-            self.driver.create_firewall(self.fo.context,
-                                        self.fo.firewall, self.fo.host)
 
     def test_update_firewall_fwaasdriver(self):
         """ Implements test case for update firewall method
@@ -182,27 +222,14 @@ class FwaasDriverTestCase(unittest.TestCase):
         """
 
         with mock.patch.object(
-                requests, 'put', return_value=self.resp) as mock_put, \
+                requests, 'put', return_value=self.resp) as mock_put, (
             mock.patch.object(
-                self.resp, 'json', return_value=self.fake_resp_dict):
+                self.resp, 'json', return_value=self.fake_resp_dict)):
             self.driver.update_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_put.assert_called_with(self.fo.url_for_update_fw,
+            mock_put.assert_called_with(self.fo.get_url_for_api('update_fw'),
                                         data=self.firewall,
                                         timeout=self.fo.timeout)
-
-    def test_update_firewall_key_error_fwaasdriver(self):
-        """ Implements test case for catching key error in
-        update firewall method of firewall's drivers.
-
-        Returns: none
-
-        """
-
-        self.fo.firewall.pop('description')
-        with self.assertRaises(KeyError):
-            self.driver.update_firewall(self.fo.context,
-                                        self.fo.firewall, self.fo.host)
 
     def test_delete_firewall_fwaasdriver(self):
         """ Implements test case for delete firewall method
@@ -213,28 +240,11 @@ class FwaasDriverTestCase(unittest.TestCase):
         """
 
         with mock.patch.object(
-                requests, 'delete', return_value=self.resp) as mock_delete, \
+                requests, 'delete', return_value=self.resp) as mock_delete, (
             mock.patch.object(
-                self.resp, 'json', return_value=self.fake_resp_dict):
+                self.resp, 'json', return_value=self.fake_resp_dict)):
             self.driver.delete_firewall(self.fo.context,
                                         self.fo.firewall, self.fo.host)
-            mock_delete.assert_called_with(self.fo.url_for_delete_fw,
-                                           data=self.firewall,
-                                           timeout=self.fo.timeout)
-
-    def test_delete_firewall_key_error_fwaasdriver(self):
-        """ Implements test case for catching key error in
-        delete firewall method of firewall's drivers.
-
-        Returns: none
-
-        """
-
-        self.fo.firewall.pop('description')
-        with self.assertRaises(KeyError):
-            self.driver.delete_firewall(self.fo.context,
-                                        self.fo.firewall, self.fo.host)
-
-
-if __name__ == '__main__':
-    unittest.main()
+            mock_delete.assert_called_with(
+                self.fo.get_url_for_api('delete_fw'),
+                data=self.firewall, timeout=self.fo.timeout)

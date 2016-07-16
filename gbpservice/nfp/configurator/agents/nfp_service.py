@@ -21,16 +21,16 @@ from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
-""" Implements ConfigScriptRpcManager class which receives requests
-    from Configurator module.
-
-Methods of this class are invoked by the configurator. Events are
-created according to the requests received and enqueued to worker queues.
-
-"""
-
 
 class ConfigScriptRpcManager(agent_base.AgentBaseRPCManager):
+    """ Implements ConfigScriptRpcManager class which receives requests
+        from Configurator module.
+
+    Methods of this class are invoked by the configurator. Events are
+    created according to the requests received and enqueued to worker queues.
+
+    """
+
     RPC_API_VERSION = '1.0'
     target = messaging.Target(version=RPC_API_VERSION)
 
@@ -63,15 +63,14 @@ class ConfigScriptRpcManager(agent_base.AgentBaseRPCManager):
                                data=arg_dict, key=None)
         self.sc.post_event(ev)
 
-""" Handler class which invokes nfp_service driver methods
-
-Worker processes dequeue the worker queues and invokes the
-appropriate handler class methods for ConfigScript methods.
-
-"""
-
 
 class ConfigScriptEventHandler(agent_base.AgentBaseEventHandler):
+    """ Handler class which invokes nfp_service driver methods
+
+    Worker processes dequeue the worker queues and invokes the
+    appropriate handler class methods for ConfigScript methods.
+
+    """
 
     def __init__(self, sc, drivers, rpcmgr):
         """ Initializes parent and child class objects.

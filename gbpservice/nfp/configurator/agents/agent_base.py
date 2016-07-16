@@ -10,21 +10,21 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.configurator.lib import constants as const
 from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import module as nfp_api
 
 LOG = nfp_logging.getLogger(__name__)
 
-"""Implements base class for all service agents.
-
-Common methods for service agents are implemented in this class. Configurator
-module invokes these methods through the service agent's child class instance.
-
-"""
-
 
 class AgentBaseRPCManager(object):
+    """Implements base class for all service agents.
+
+    Common methods for service agents are implemented in this class.
+    Configurator module invokes these methods through the service
+    agent's child class instance.
+
+    """
 
     def __init__(self, sc, conf):
         self.sc = sc
@@ -68,7 +68,7 @@ class AgentBaseRPCManager(object):
 
         # In case of malformed input, send failure notification
         if not self.validate_request(sa_req_list, notification_data):
-            # TODO(JAGADISH): Need to send failure notification
+            # REVISIT(JAGADISH): Need to send failure notification
             return
 
         # Multiple request data blobs needs batch processing. Send batch
@@ -109,6 +109,11 @@ class AgentBaseRPCManager(object):
 
 
 class AgentBaseNotification(object):
+    """Enqueues notification event into notification queue
+
+    Responses from the REST calls made to the VM are fed to under the
+    cloud components using this notification handle.
+    """
 
     def __init__(self, sc):
         self.sc = sc
@@ -130,6 +135,9 @@ class AgentBaseNotification(object):
 
 
 class AgentBaseEventHandler(nfp_api.NfpEventHandler):
+    """ Super class for all agents to handle batch events.
+
+    """
 
     def __init__(self, sc, drivers, rpcmgr):
         self.sc = sc

@@ -12,30 +12,21 @@
 
 import mock
 import subprocess
-import unittest
 
-from oslo_config import cfg
-from oslo_log import log as logging
+from neutron.tests import base
 
 from gbpservice.neutron.tests.unit.nfp.configurator.test_data import (
                                                         fw_test_data as fo)
 from gbpservice.nfp.configurator.agents import generic_config as gc
-from gbpservice.nfp.configurator.drivers.firewall.vyos import (
-                                                    vyos_fw_driver as fw_dvr)
 from gbpservice.nfp.configurator.lib import (
-                                    generic_config_constants as gen_cfg_const)
-
-LOG = logging.getLogger(__name__)
-
-STATUS_ACTIVE = "ACTIVE"
-
-""" Implement test cases for RPC manager methods of generic config agent.
-
-"""
+                                    generic_config_constants as const)
+from gbpservice.nfp.configurator.lib import constants as common_const
 
 
-class GenericConfigRpcManagerTestCase(unittest.TestCase):
-    ''' Generic Config RPC receiver for Firewall module '''
+class GenericConfigRpcManagerTestCase(base.BaseTestCase):
+    """ Implement test cases for RPC manager methods of generic config agent.
+
+    """
 
     def __init__(self, *args, **kwargs):
         super(GenericConfigRpcManagerTestCase, self).__init__(
@@ -73,8 +64,8 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
         arg_dict = {'context': self.fo.context,
                     'resource_data': self.fo.kwargs}
         with mock.patch.object(
-                    sc, 'new_event', return_value='foo') as mock_sc_event, \
-            mock.patch.object(sc, 'post_event') as mock_sc_rpc_event:
+                    sc, 'new_event', return_value='foo') as mock_sc_event, (
+             mock.patch.object(sc, 'post_event')) as mock_sc_rpc_event:
             call_method = getattr(agent, method.lower())
 
             call_method(self.fo.context, self.fo.kwargs)
@@ -96,7 +87,7 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
 
         """
 
-        self._test_event_creation('CONFIGURE_INTERFACES')
+        self._test_event_creation(const.EVENT_CONFIGURE_INTERFACES)
 
     def test_clear_interfaces_genericconfigrpcmanager(self):
         """ Implements test case for clear interfaces method
@@ -106,7 +97,7 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
 
         """
 
-        self._test_event_creation('CLEAR_INTERFACES')
+        self._test_event_creation(const.EVENT_CLEAR_INTERFACES)
 
     def test_configure_routes_genericconfigrpcmanager(self):
         """ Implements test case for configure routes method
@@ -116,7 +107,7 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
 
         """
 
-        self._test_event_creation('CONFIGURE_ROUTES')
+        self._test_event_creation(const.EVENT_CONFIGURE_ROUTES)
 
     def test_clear_routes_genericconfigrpcmanager(self):
         """ Implements test case for clear routes method
@@ -126,7 +117,7 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
 
         """
 
-        self._test_event_creation('CLEAR_ROUTES')
+        self._test_event_creation(const.EVENT_CLEAR_ROUTES)
 
     def test_configure_hm_genericconfigrpcmanager(self):
         """ Implements test case for configure healthmonitor method
@@ -136,7 +127,7 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
 
         """
 
-        self._test_event_creation('CONFIGURE_HEALTHMONITOR')
+        self._test_event_creation(const.EVENT_CONFIGURE_HEALTHMONITOR)
 
     def test_clear_hm_genericconfigrpcmanager(self):
         """ Implements test case for clear healthmonitor method
@@ -146,15 +137,15 @@ class GenericConfigRpcManagerTestCase(unittest.TestCase):
 
         """
 
-        self._test_event_creation('CLEAR_HEALTHMONITOR')
-
-""" Implements test cases for event handler methods
-of generic config agent.
-
-"""
+        self._test_event_creation(const.EVENT_CLEAR_HEALTHMONITOR)
 
 
-class GenericConfigEventHandlerTestCase(unittest.TestCase):
+class GenericConfigEventHandlerTestCase(base.BaseTestCase):
+    """ Implements test cases for event handler methods
+    of generic config agent.
+
+    """
+
     def __init__(self, *args, **kwargs):
         super(GenericConfigEventHandlerTestCase, self).__init__(
                                                         *args, **kwargs)
@@ -192,51 +183,60 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         agent, sc = self._get_GenericConfigEventHandler_object()
-        with mock.patch.object(cfg, 'CONF') as mock_cfg:
-            mock_cfg.configure_mock(rest_timeout='30', host='foo')
-            driver = fw_dvr.FwaasDriver(mock_cfg)
+        driver = mock.Mock()
 
         with mock.patch.object(
-                driver, 'configure_interfaces') as mock_config_inte, \
+                driver, const.EVENT_CONFIGURE_INTERFACES.lower(),
+                return_value=common_const.SUCCESS) as (mock_config_inte), (
             mock.patch.object(
-                driver, 'clear_interfaces') as mock_clear_inte, \
+                driver, const.EVENT_CLEAR_INTERFACES.lower(),
+                return_value=common_const.SUCCESS)) as (mock_clear_inte), (
             mock.patch.object(
-                driver, 'configure_routes') as mock_config_src_routes, \
+                driver, const.EVENT_CONFIGURE_ROUTES.lower(),
+                return_value=common_const.SUCCESS)) as (
+                                                    mock_config_src_routes), (
             mock.patch.object(
-                driver, 'clear_routes') as mock_delete_src_routes, \
+                driver, const.EVENT_CLEAR_ROUTES.lower(),
+                return_value=common_const.SUCCESS)) as (
+                                                mock_delete_src_routes), (
             mock.patch.object(
-                sc, 'poll_event') as mock_hm_poll_event, \
+                sc, 'poll_event')) as mock_hm_poll_event, (
             mock.patch.object(
-                driver, 'configure_healthmonitor', return_value='SUCCESS'), \
+                driver, const.EVENT_CONFIGURE_HEALTHMONITOR.lower(),
+                return_value=common_const.SUCCESS)), (
             mock.patch.object(
-                agent, '_get_driver', return_value=driver):
+                driver, const.EVENT_CLEAR_HEALTHMONITOR.lower(),
+                return_value=common_const.SUCCESS)) as mock_clear_hm, (
+            mock.patch.object(
+                agent, '_get_driver', return_value=driver)):
 
-            if 'CONFIGURE_HEALTHMONITOR' in ev.id:
+            if const.EVENT_CONFIGURE_HEALTHMONITOR in ev.id:
                 ev.id, periodicity = ev.id.split()
 
             agent.handle_event(ev)
 
             resource_data = self.fo._fake_resource_data()
-            if ev.id == 'CONFIGURE_INTERFACES':
+            if ev.id == const.EVENT_CONFIGURE_INTERFACES:
                 mock_config_inte.assert_called_with(
                                         self.fo.context, resource_data)
-            elif ev.id == 'CLEAR_INTERFACES':
+            elif ev.id == const.EVENT_CLEAR_INTERFACES:
                 mock_clear_inte.assert_called_with(
                                         self.fo.context, resource_data)
-            elif ev.id == 'CONFIGURE_ROUTES':
+            elif ev.id == const.EVENT_CONFIGURE_ROUTES:
                 mock_config_src_routes.assert_called_with(
                             self.fo.context, resource_data)
-            elif ev.id == 'CLEAR_ROUTES':
+            elif ev.id == const.EVENT_CLEAR_ROUTES:
                 mock_delete_src_routes.assert_called_with(
                             self.fo.context, resource_data)
-            elif 'CONFIGURE_HEALTHMONITOR' in ev.id:
-                if periodicity == gen_cfg_const.INITIAL_HM_RETRIES:
+            elif const.EVENT_CONFIGURE_HEALTHMONITOR in ev.id:
+                if periodicity == const.INITIAL_HM_RETRIES:
                     mock_hm_poll_event.assert_called_with(
-                                ev, max_times=gen_cfg_const.INITIAL_HM_RETRIES)
-                elif periodicity == gen_cfg_const.FOREVER:
+                                ev, max_times=const.INITIAL_HM_RETRIES)
+                elif periodicity == const.FOREVER:
                     mock_hm_poll_event.assert_called_with(ev)
-            elif ev.id == 'CLEAR_HEALTHMONITOR':
-                pass
+            elif ev.id == const.EVENT_CLEAR_HEALTHMONITOR:
+                mock_clear_hm.assert_called_with(
+                            self.fo.context, resource_data)
 
     def _test_handle_periodic_event(self, ev):
         """ Test handle periodic event method of generic config agent
@@ -250,15 +250,14 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         agent, sc = self._get_GenericConfigEventHandler_object()
-        with mock.patch.object(cfg, 'CONF') as mock_cfg:
-            mock_cfg.configure_mock(rest_timeout='30', host='foo')
-            driver = fw_dvr.FwaasDriver(mock_cfg)
+        driver = mock.Mock()
+
         with mock.patch.object(
-                agent, '_get_driver', return_value=driver), \
-            mock.patch.object(
-                    driver, 'configure_healthmonitor',
-                    return_value='SUCCESS'), \
-            mock.patch.object(subprocess, 'check_output', return_value=True):
+                agent, '_get_driver', return_value=driver), (
+             mock.patch.object(
+                    driver, const.EVENT_CONFIGURE_HEALTHMONITOR.lower(),
+                    return_value=common_const.SUCCESS)), (
+             mock.patch.object(subprocess, 'check_output', return_value=True)):
 
             agent.handle_configure_healthmonitor(ev)
 
@@ -271,7 +270,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         ev = fo.FakeEventGenericConfig()
-        ev.id = 'CONFIGURE_INTERFACES'
+        ev.id = const.EVENT_CONFIGURE_INTERFACES
         self._test_handle_event(ev)
 
     def test_clear_interfaces_genericconfigeventhandler(self):
@@ -283,7 +282,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         ev = fo.FakeEventGenericConfig()
-        ev.id = 'CLEAR_INTERFACES'
+        ev.id = const.EVENT_CLEAR_INTERFACES
         self._test_handle_event(ev)
 
     def test_configure_routes_genericconfigeventhandler(self):
@@ -295,7 +294,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         ev = fo.FakeEventGenericConfig()
-        ev.id = 'CONFIGURE_ROUTES'
+        ev.id = const.EVENT_CONFIGURE_ROUTES
         self._test_handle_event(ev)
 
     def test_clear_routes_genericconfigeventhandler(self):
@@ -307,7 +306,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         ev = fo.FakeEventGenericConfig()
-        ev.id = 'CLEAR_ROUTES'
+        ev.id = const.EVENT_CLEAR_ROUTES
         self._test_handle_event(ev)
 
     def test_configure_hm_initial_genericconfigeventhandler(self):
@@ -331,7 +330,7 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         ev = fo.FakeEventGenericConfig()
-        ev.data['resource_data'].update({'periodicity': gen_cfg_const.FOREVER})
+        ev.data['resource_data'].update({'periodicity': const.FOREVER})
         ev.id = 'CONFIGURE_HEALTHMONITOR forever'
         self._test_handle_event(ev)
 
@@ -340,7 +339,6 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         of generic config event handler.
 
         Returns: none
-
         """
 
         ev = fo.FakeEventGenericConfig()
@@ -356,9 +354,5 @@ class GenericConfigEventHandlerTestCase(unittest.TestCase):
         """
 
         ev = fo.FakeEventGenericConfig()
-        ev.id = 'CONFIGURE_HEALTHMONITOR'
+        ev.id = const.EVENT_CONFIGURE_HEALTHMONITOR
         self._test_handle_periodic_event(ev)
-
-
-if __name__ == '__main__':
-    unittest.main()
