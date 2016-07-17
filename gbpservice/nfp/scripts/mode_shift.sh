@@ -25,7 +25,7 @@ function create_port_for_vm {
 
 function configure_vis_ip_addr_in_docker {
     echo "Visibility VM IP address is: $IpAddr"
-    sed -i "s/VIS_VM_IP_ADDRESS/"$IpAddr"/" $NFPSERVICE_DIR/gbpservice/nfp/configurator/Dockerfile
+    sed -i "s/VIS_VM_IP_ADDRESS/"$IpAddr"/" $NFPSERVICE_DIR/gbpservice/contrib/nfp/configurator/Dockerfile
 }
 
 function create_images {

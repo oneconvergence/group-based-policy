@@ -16,7 +16,7 @@ from oslo_config import cfg
 from oslo_utils import uuidutils
 from sqlalchemy import orm
 
-from gbpservice.nfp.config_orchestrator.common import topics
+from gbpservice.contrib.nfp.config_orchestrator.common import topics
 import neutron_fwaas.extensions
 from neutron_fwaas.services.firewall import fwaas_plugin as ref_fw_plugin
 
