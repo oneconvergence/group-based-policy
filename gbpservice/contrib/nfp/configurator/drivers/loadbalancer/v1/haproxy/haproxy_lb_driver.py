@@ -21,6 +21,8 @@ from gbpservice.nfp.core import log as nfp_logging
 
 LOG = nfp_logging.getLogger(__name__)
 
+DRIVER_NAME = 'loadbalancer'
+
 
 class LbGenericConfigDriver(object):
     """ Loadbalancer generic configuration driver class for handling device
@@ -454,6 +456,10 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
         except Exception as e:
             raise e
 
+    @classmethod
+    def get_name(self):
+        return DRIVER_NAME
+
     def get_stats(self, pool_id):
         stats = {}
         try:
@@ -465,8 +471,8 @@ class HaproxyOnVmDriver(LbGenericConfigDriver, base_driver.BaseDriver):
             device_addr = self._get_device_for_pool(pool_id, None)
 
             # create REST client object
-            client = self._get_rest_client(device_addr)
 
+            client = self._get_rest_client(device_addr)
             stats = client.get_resource('stats/%s' % pool_id)
 
             for key, value in stats.get('members', {}).items():
