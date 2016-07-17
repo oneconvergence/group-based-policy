@@ -1,5 +1,5 @@
-from gbpservice.nfp.config_orchestrator.common import topics
-from gbpservice.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
+from gbpservice.contrib.nfp.config_orchestrator.common import topics
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
     haproxy_lb_driver
 )
 from neutron_lbaas.services.loadbalancer.drivers.common import (

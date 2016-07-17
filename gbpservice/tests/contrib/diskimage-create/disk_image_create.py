@@ -37,7 +37,7 @@ def set_nfp_git_branch(nfp_branch_name, configurator_dir):
 
 
 def create_configurator_docker(nfp_branch_name):
-    configurator_dir = "%s/../../../nfp/configurator" % cur_dir
+    configurator_dir = "%s/../../../contrib/nfp/configurator" % cur_dir
     docker_images = "%s/output/docker_images/" % cur_dir
     if not os.path.exists(docker_images):
         os.makedirs(docker_images)

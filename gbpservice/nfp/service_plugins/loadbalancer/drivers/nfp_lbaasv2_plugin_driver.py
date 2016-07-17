@@ -10,8 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.config_orchestrator.common import topics
-from gbpservice.nfp.configurator.drivers.loadbalancer.v2.haproxy import (
+from gbpservice.contrib.nfp.config_orchestrator.common import topics
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy import (
     haproxy_driver
 )
 from neutron_lbaas.drivers.common import agent_driver_base as adb
