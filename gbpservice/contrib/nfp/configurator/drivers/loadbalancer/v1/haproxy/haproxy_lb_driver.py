@@ -13,8 +13,8 @@
 import ast
 
 from gbpservice.contrib.nfp.configurator.drivers.base import base_driver
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
-                                                    haproxy_rest_client)
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v1.\
+    haproxy import (haproxy_rest_client)
 from gbpservice.contrib.nfp.configurator.lib import constants as common_const
 from gbpservice.contrib.nfp.configurator.lib import lb_constants
 from gbpservice.nfp.core import log as nfp_logging

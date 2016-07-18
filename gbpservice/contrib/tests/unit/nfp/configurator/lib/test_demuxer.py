@@ -10,18 +10,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import unittest
-
+from gbpservice.contrib.nfp.configurator.lib import demuxer
 from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
                                                         fw_test_data as fo)
-from gbpservice.contrib.nfp.configurator.lib import demuxer
-
-""" Implements test cases for demuxer of configurator.
-
-"""
+from neutron.tests import base
 
 
-class ServiceAgentDemuxerTestCase(unittest.TestCase):
+class ServiceAgentDemuxerTestCase(base.BaseTestCase):
+    """ Implements test cases for demuxer of configurator. """
     def __init__(self, *args, **kwargs):
         super(ServiceAgentDemuxerTestCase, self).__init__(*args, **kwargs)
         self.fo = fo.FakeObjects()

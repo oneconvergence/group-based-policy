@@ -15,12 +15,14 @@ import mock
 import os
 import oslo_serialization.jsonutils as jsonutils
 import pecan
-PECAN_CONFIG_FILE = os.getcwd() + "/gbpservice/contrib/nfp/configurator/api/config.py"
+PECAN_CONFIG_FILE = (os.getcwd() +
+                     "/gbpservice/contrib/nfp/configurator/api/config.py")
 pecan.set_config(PECAN_CONFIG_FILE, overwrite=True)
-import unittest
+
 import webtest
 import zlib
 
+from neutron.tests import base
 from pecan import rest
 
 from gbpservice.contrib.nfp.configurator.api import root_controller
@@ -38,7 +40,7 @@ print the error trace.
 """
 
 
-class ControllerTestCase(unittest.TestCase, rest.RestController):
+class ControllerTestCase(base.BaseTestCase, rest.RestController):
 
     @classmethod
     def setUpClass(cls):
@@ -267,7 +269,3 @@ class ControllerTestCase(unittest.TestCase, rest.RestController):
                 '/v1/nfp/update_network_function_config',
                 expect_errors=True)
             self.assertEqual(response.status_code, 400)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -12,31 +12,29 @@
 
 import oslo_serialization.jsonutils as jsonutils
 
-# from neutron.agent.common import config
 from neutron.common import rpc as n_rpc
 from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 import pecan
 
-from gbpservice.contrib.nfp.configurator.api.base_controller import BaseController
+from gbpservice.contrib.nfp.configurator.api import base_controller
 
 LOG = logging.getLogger(__name__)
 n_rpc.init(cfg.CONF)
 
-"""Implements all the APIs Invoked by HTTP requests.
 
-Implements following HTTP methods.
-    -get
-    -post
-    -put
-According to the HTTP request received from config-agent this class make
-call/cast to configurator and return response to config-agent
+class Controller(base_controller.BaseController):
+    """Implements all the APIs Invoked by HTTP requests.
 
-"""
+    Implements following HTTP methods.
+        -get
+        -post
+        -put
+    According to the HTTP request received from config-agent this class make
+    call/cast to configurator and return response to config-agent
 
-
-class Controller(BaseController):
+    """
 
     def __init__(self, method_name):
         try:
@@ -195,18 +193,16 @@ class Controller(BaseController):
         return error_data
 
 
-"""Implements call/cast methods used in REST Controller.
-
-Implements following methods.
-    -call
-    -cast
-This class send an RPC call/cast to configurator according to the data sent
-by Controller class of REST server.
-
- """
-
-
 class RPCClient(object):
+    """Implements call/cast methods used in REST Controller.
+
+    Implements following methods.
+        -call
+        -cast
+    This class send an RPC call/cast to configurator according to the data sent
+    by Controller class of REST server.
+
+     """
 
     API_VERSION = '1.0'
 
@@ -263,12 +259,10 @@ class RPCClient(object):
         return {}
 
 
-""" CloudService keeps all information of uservice along with initialized
-    RPCClient object using which rpc is routed to over the cloud service.
-"""
-
-
 class CloudService(object):
+    """ CloudService keeps all information of uservice along with initialized
+        RPCClient object using which rpc is routed to over the cloud service.
+    """
 
     def __init__(self, **kwargs):
         self.service_name = kwargs.get('service_name')

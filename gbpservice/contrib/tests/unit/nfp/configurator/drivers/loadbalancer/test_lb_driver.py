@@ -12,22 +12,19 @@
 
 import mock
 
+from gbpservice.contrib.nfp.configurator.agents import loadbalancer_v1 as lb
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v1.\
+    haproxy import (haproxy_lb_driver as lb_driver)
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v1.\
+    haproxy import (haproxy_rest_client as _rest_client)
 from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
     lb_test_data as test_data)
-from gbpservice.contrib.nfp.configurator.agents import loadbalancer_v1 as lb
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
-    haproxy_lb_driver as lb_driver)
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
-    haproxy_rest_client as _rest_client)
 from neutron.tests import base
 from oslo_serialization import jsonutils
 
-""" Implement test cases for loadbalancer driver.
-
-"""
-
 
 class HaproxyOnVmDriverTestCase(base.BaseTestCase):
+    """ Implements test cases for haproxy loadbalancer driver. """
 
     def __init__(self, *args, **kwargs):
         super(HaproxyOnVmDriverTestCase, self).__init__(*args, **kwargs)
@@ -63,7 +60,6 @@ class HaproxyOnVmDriverTestCase(base.BaseTestCase):
         :param sc: mocked service controller object of process model framework
         :param drivers: mocked drivers object of loadbalancer object
         :param rpcmgr: mocked RPC manager object loadbalancer object
-        :param nqueue: mocked nqueue object of process model framework
 
         Returns: objects of LBaaSEventHandler of loadbalancer agent
 
