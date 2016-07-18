@@ -18,8 +18,7 @@ from gbpservice.contrib.nfp.configurator.drivers.base import base_driver
 from gbpservice.contrib.nfp.configurator.lib import data_filter
 from gbpservice.contrib.nfp.configurator.lib import utils
 from gbpservice.contrib.nfp.configurator.lib import vpn_constants as const
-from gbpservice.nfp.core.event import Event
-
+from gbpservice.nfp.core import event as main
 from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import module as nfp_api
 
@@ -181,9 +180,9 @@ class VPNaasEventHandler(nfp_api.NfpEventHandler):
         self._drivers = drivers
         self._plugin_rpc = VpnaasRpcSender(self._sc)
 
-    def _get_driver(self):
+    def _get_driver(self, service_vendor):
 
-        driver_id = const.SERVICE_TYPE + const.SERVICE_VENDOR
+        driver_id = const.SERVICE_TYPE + service_vendor
         return self._drivers[driver_id]
 
     def handle_event(self, ev):
@@ -204,15 +203,16 @@ class VPNaasEventHandler(nfp_api.NfpEventHandler):
                        % (os.getpid(),
                           ev.id, const.VPN_GENERIC_CONFIG_RPC_TOPIC))
                 LOG.debug(msg)
-
-                driver = self._get_driver()
+                service_vendor = (
+                        ev.data['context']['agent_info']['service_vendor'])
+                driver = self._get_driver(service_vendor)
+                setattr(VPNaasEventHandler, "service_driver", driver)
                 self._vpnservice_updated(ev, driver)
             except Exception as err:
                 msg = ("Failed to perform the operation: %s. %s"
                        % (ev.id, str(err).capitalize()))
                 LOG.error(msg)
-            finally:
-                self._sc.event_done(ev)
+
 
     def _vpnservice_updated(self, ev, driver):
         """
@@ -278,9 +278,8 @@ class VPNaasEventHandler(nfp_api.NfpEventHandler):
         Returns: None
         """
         try:
-            self._get_driver()
 
-            return self._get_driver().check_status(context, svc_context)
+            return self.service_driver.check_status(context, svc_context)
         except Exception as err:
             msg = ("Failed to sync ipsec connection information. %s."
                    % str(err).capitalize())
@@ -316,10 +315,10 @@ def events_init(sc, drivers):
     Returns: None
     """
     evs = [
-        Event(id='VPNSERVICE_UPDATED',
-              handler=VPNaasEventHandler(sc, drivers)),
-        Event(id='VPN_SYNC',
-              handler=VPNaasEventHandler(sc, drivers))]
+        main.Event(id='VPNSERVICE_UPDATED',
+                   handler=VPNaasEventHandler(sc, drivers)),
+        main.Event(id='VPN_SYNC',
+                   handler=VPNaasEventHandler(sc, drivers))]
 
     sc.register_events(evs)
 
