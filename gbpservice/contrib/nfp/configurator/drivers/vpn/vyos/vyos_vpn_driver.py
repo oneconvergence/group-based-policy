@@ -15,6 +15,7 @@ import copy
 import requests
 
 from gbpservice.contrib.nfp.configurator.drivers.base import base_driver
+from gbpservice.contrib.nfp.configurator.lib import constants as common_const
 from gbpservice.contrib.nfp.configurator.lib import vpn_constants as const
 from gbpservice.nfp.core import log as nfp_logging
 
@@ -382,6 +383,27 @@ class VpnGenericConfigDriver(object):
 
         """
 
+        mgmt_ip = resource_data['mgmt_ip']
+
+        try:
+            result_log_forward = self._configure_log_forwarding(
+                const.request_url, mgmt_ip, self.port)
+        except Exception as err:
+            msg = ("Failed to configure log forwarding for service at %s. "
+                   "Error: %s" % (mgmt_ip, err))
+            LOG.error(msg)
+        else:
+            if result_log_forward == common_const.UNHANDLED:
+                pass
+            elif result_log_forward != common_const.STATUS_SUCCESS:
+                # Failure in log forward configuration won't break chain
+                # creation. However, error will be logged for detecting
+                # failure.
+                # return result_log_forward
+                msg = ("Failed to configure log forwarding for service at %s. "
+                       "Error: %s" % (mgmt_ip, result_log_forward))
+                LOG.error(msg)
+
         try:
             result_static_ips = self._configure_static_ips(resource_data)
         except Exception as err:
@@ -398,8 +420,6 @@ class VpnGenericConfigDriver(object):
         rule_info = dict(
             provider_mac=resource_data['provider_mac'],
             stitching_mac=resource_data['stitching_mac'])
-
-        mgmt_ip = resource_data['mgmt_ip']
 
         url = const.request_url % (mgmt_ip,
                                    const.CONFIGURATION_SERVER_PORT, 'add_rule')
