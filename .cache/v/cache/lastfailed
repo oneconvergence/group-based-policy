@@ -1,4 +1,0 @@
-{
-  "gbpservice/neutron/tests/unit/nfp/configurator/api/v1/controllers/test_controller.py::ControllerTestCase::test_call": true, 
-  "gbpservice/neutron/tests/unit/nfp/configurator/api/v1/controllers/test_controller.py::ControllerTestCase::test_cast": true
-}
