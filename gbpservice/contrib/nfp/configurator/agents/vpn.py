@@ -18,7 +18,7 @@ from gbpservice.contrib.nfp.configurator.drivers.base import base_driver
 from gbpservice.contrib.nfp.configurator.lib import data_filter
 from gbpservice.contrib.nfp.configurator.lib import utils
 from gbpservice.contrib.nfp.configurator.lib import vpn_constants as const
-from gbpservice.nfp.core import event as main
+from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import module as nfp_api
 
@@ -314,9 +314,9 @@ def events_init(sc, drivers):
     Returns: None
     """
     evs = [
-        main.Event(id='VPNSERVICE_UPDATED',
+        nfp_event.Event(id='VPNSERVICE_UPDATED',
                    handler=VPNaasEventHandler(sc, drivers)),
-        main.Event(id='VPN_SYNC',
+        nfp_event.Event(id='VPN_SYNC',
                    handler=VPNaasEventHandler(sc, drivers))]
 
     sc.register_events(evs)
