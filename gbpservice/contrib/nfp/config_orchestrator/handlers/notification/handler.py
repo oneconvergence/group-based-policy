@@ -10,11 +10,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.nfp.common import constants as const
 from gbpservice.contrib.nfp.config_orchestrator.common import (
     lbv2_constants as lbv2_const)
 from gbpservice.contrib.nfp.config_orchestrator.common import (
     topics as a_topics)
+from gbpservice.nfp.common import constants as const
 from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
 
