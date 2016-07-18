@@ -213,7 +213,6 @@ class VPNaasEventHandler(nfp_api.NfpEventHandler):
                        % (ev.id, str(err).capitalize()))
                 LOG.error(msg)
 
-
     def _vpnservice_updated(self, ev, driver):
         """
         Makes call to the respective operation method of vpn driver.
