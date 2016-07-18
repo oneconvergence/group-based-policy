@@ -17,10 +17,10 @@ import time
 import traceback
 
 from gbpservice.contrib.nfp.config_orchestrator.common import common
-from gbpservice.nfp.core.event import Event
-from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.core import module as nfp_api
-from gbpservice.nfp.lib import transport
+from gbpservice.contrib.nfp.core.event import Event
+from gbpservice.contrib.nfp.core import log as nfp_logging
+from gbpservice.contrib.nfp.core import module as nfp_api
+from gbpservice.contrib.nfp.lib import transport
 
 from neutron import context as n_context
 from neutron_fwaas.db.firewall import firewall_db
@@ -56,7 +56,34 @@ def event_init(sc, conf):
               handler=EventsHandler(sc, conf)),
         Event(id='SERVICE_CREATE_PENDING',
               handler=EventsHandler(sc, conf))]
-    return evs
+
+    sc.register_events(evs)
+
+
+def nfp_module_init(sc, conf):
+    event_init(sc, conf)
+
+
+def nfp_module_post_init(sc, conf):
+    try:
+        ev = sc.new_event(id='SERVICE_OPERATION_POLL_EVENT',
+                          key='SERVICE_OPERATION_POLL_EVENT')
+        sc.post_event(ev)
+    except Exception as e:
+        msg = ("%s" % (e))
+        LOG.error(msg)
+    uptime = time.strftime("%c")
+    body = {'eventdata': {'uptime': uptime,
+                          'module': 'config_orchestrator'},
+            'eventid': 'NFP_UP_TIME',
+            'eventtype': 'NFP_CONTROLLER'}
+    context = n_context.Context('config_agent_user', 'config_agent_tenant')
+    transport.send_request_to_configurator(conf,
+                                           context,
+                                           body,
+                                           'CREATE',
+                                           network_function_event=True,
+                                           override_backend='tcp_rest')
 
 
 """Periodic Class to service events for visiblity."""

@@ -11,9 +11,10 @@
 #    under the License.
 
 from gbpservice.nfp.common import constants as const
-from gbpservice.contrib.nfp.config_orchestrator.common import lbv2_constants \
-    as lbv2_const
-from gbpservice.contrib.nfp.config_orchestrator.common import topics as a_topics
+from gbpservice.contrib.nfp.config_orchestrator.common import (
+    lbv2_constants as lbv2_const)
+from gbpservice.contrib.nfp.config_orchestrator.common import (
+    topics as a_topics)
 from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
 
@@ -53,10 +54,11 @@ class RpcHandler(object):
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             msg = ("Generic exception (%s) while handling message (%s) : %s"
-                   % (e, notification_data, traceback.format_exception(
-                                                exc_type,
-                                                exc_value,
-                                                exc_traceback)))
+                   % (e,
+                      notification_data,
+                      traceback.format_exception(exc_type,
+                                                 exc_value,
+                                                 exc_traceback)))
             LOG.info(msg)
 
 
@@ -302,8 +304,9 @@ class NaasNotificationHandler(object):
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             msg = ("Generic exception (%s) while handling message (%s) : %s"
-                   % (e, notification_data, traceback.format_exception(
-                                            exc_type,
-                                            exc_value,
-                                            exc_traceback)))
+                   % (e,
+                      notification_data,
+                      traceback.format_exception(exc_type,
+                                                 exc_value,
+                                                 exc_traceback)))
             LOG.error(msg)
