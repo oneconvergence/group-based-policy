@@ -279,9 +279,7 @@ class VyosFWConfig(ConfigOpts):
         self.provider_ptg_interfaces = list()
         for interface in interfaces:
             # IPV4 support only
-            # (Fixme) what in the case of aliasing?
-            # TODO(Vikash) Not reqd for L2 , need to revisit for L3
-            # vpn tunnel interface for ssl vpn does not have a mac address
+            # REVISIT(Vikash): what in the case of aliasing?
             physical_interface = netifaces.ifaddresses(interface).get(AF_LINK)
             if not physical_interface:
                 continue

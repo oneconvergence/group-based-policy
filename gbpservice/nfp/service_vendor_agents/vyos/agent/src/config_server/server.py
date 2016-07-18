@@ -175,66 +175,6 @@ def get_ipsec_site_tunnel_state():
         return jsonutils.dumps(dict(status=False, reason=err))
 
 
-@app.route('/create-ssl-vpn-conn', methods=['POST'])
-def create_ssl_vpn_conn():
-    try:
-        data = jsonutils.loads(request.data)
-        status = vpnhandler().create_ssl_vpn_conn(data)
-        return jsonutils.dumps(dict(status=status))
-    except Exception as ex:
-        err = ("Error in create_ssl_vpn_connection. Reason: %s" % ex)
-        logger.error(err)
-        return jsonutils.dumps(dict(status=False, reason=err))
-
-
-@app.route('/ssl-vpn-push-route', methods=['POST'])
-def ssl_vpn_push_route():
-    try:
-        data = jsonutils.loads(request.data)
-        status = vpnhandler().ssl_vpn_push_route(data)
-        return jsonutils.dumps(dict(status=status))
-    except Exception as ex:
-        err = ("Error in ssl_vpn_push_route. Reason: %s" % ex)
-        logger.error(err)
-        return jsonutils.dumps(dict(status=False, reason=err))
-
-
-@app.route('/delete-ssl-vpn-conn', methods=['DELETE'])
-def delete_ssl_vpn_conn():
-    try:
-        tunnel_name = request.args.get('tunnel')
-        status = vpnhandler().delete_ssl_vpn_conn(tunnel_name)
-        return jsonutils.dumps(dict(status=status))
-    except Exception as ex:
-        err = ("Error in delete_ssl_vpn_conn. Reason: %s" % ex)
-        logger.error(err)
-        return jsonutils.dumps(dict(status=False, reason=err))
-
-
-@app.route('/delete-ssl-vpn-route', methods=['DELETE'])
-def delete_ssl_vpn_route():
-    try:
-        route = request.args.get('route')
-        status = vpnhandler().delete_ssl_vpn_route(route)
-        return jsonutils.dumps(dict(status=status))
-    except Exception as ex:
-        err = ("Error in delete_ssl_vpn_route. Reason: %s" % ex)
-        logger.error(err)
-        return jsonutils.dumps(dict(status=False, reason=err))
-
-
-@app.route('/get-ssl-vpn-conn-state', methods=['GET'])
-def get_ssl_vpn_conn_state():
-    try:
-        tunnel_name = request.args.get('tunnel')
-        status, state = vpnhandler().get_ssl_vpn_conn_state(tunnel_name)
-        return jsonutils.dumps(dict(status=status, state=state))
-    except Exception as ex:
-        err = ("Error in get_ssl_vpn_conn_state. Reason: %s" % ex)
-        logger.error(err)
-        return jsonutils.dumps(dict(status=False, reason=err))
-
-
 @app.route('/configure-firewall-rule', methods=['POST'])
 def configure_firewall_rule():
     global fw_module

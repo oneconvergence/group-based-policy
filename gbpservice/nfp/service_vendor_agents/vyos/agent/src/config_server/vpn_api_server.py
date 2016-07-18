@@ -177,45 +177,6 @@ class VPNHandler(ConfigOpts):
             logger.error("Error in deleting ipsec site connection. %s" % ex)
             return FAILED
 
-    def create_ssl_vpn_conn(self, ctx):
-        session.setup_config_session()
-        self._create_ssl_vpn_conn(ctx)
-        session.commit()
-        session.save()
-        time.sleep(2)
-        session.teardown_config_session()
-        return SUCCESS
-
-    def ssl_vpn_push_route(self, route):
-        session.setup_config_session()
-        self._ssl_vpn_push_route(route)
-        session.commit()
-        session.save()
-        time.sleep(2)
-        session.teardown_config_session()
-        return SUCCESS
-
-    def delete_ssl_vpn_conn(self, tunnel):
-        session.setup_config_session()
-        self._delete_ssl_vpn_conn(tunnel)
-        session.commit()
-        session.save()
-        time.sleep(2)
-        session.teardown_config_session()
-        return SUCCESS
-
-    def delete_ssl_vpn_route(self, route):
-        session.setup_config_session()
-        self._delete_ssl_vpn_route(route)
-        session.commit()
-        session.save()
-        time.sleep(2)
-        session.teardown_config_session()
-        return SUCCESS
-
-    def get_ssl_vpn_conn_state(self, peer_address):
-        return SUCCESS, 'UP'
-
     def get_ipsec_site_tunnel_state(self, tunnel):
         tunidx = self._ipsec_get_tunnel_idx(tunnel)
         command = 'perl'
@@ -245,20 +206,6 @@ class VPNHandler(ConfigOpts):
         cmds = copy.deepcopy(IPSEC_SITE2SITE_COMMANDS)
         cmd = cmds['delete'][2]
 
-        self._set_commands([cmd])
-
-    def _delete_ssl_vpn_conn(self, tunnel):
-        cmds = copy.deepcopy(SSL_VPN_COMMANDS)
-        cmd = cmds['delete'][0]
-
-        cmd = cmd % tunnel
-
-        self._set_commands([cmd])
-
-    def _delete_ssl_vpn_route(self, route):
-        cmds = copy.deepcopy(SSL_VPN_COMMANDS)
-        cmd = cmds['delete'][1]
-        cmd = cmd % route
         self._set_commands([cmd])
 
     def _set_commands(self, cmds):
@@ -345,35 +292,6 @@ class VPNHandler(ConfigOpts):
         conn_cmds[9] = conn_cmds[9] % (conn['peer_address'], conn['access_ip'])
 
         self._set_commands(conn_cmds)
-
-    def _create_ssl_vpn_conn(self, ctx):
-        cmds = copy.deepcopy(SSL_VPN_COMMANDS)
-        conn = ctx['sslvpnconns'][0]['connection']
-        cidr = ctx['service']['cidr']
-
-        conn_cmds = cmds['create']
-
-        conn_cmds[0] = conn_cmds[0] % ('vtun0')
-        conn_cmds[1] = conn_cmds[1] % ('vtun0')
-        conn_cmds[2] = conn_cmds[2] % (
-            'vtun0', conn['client_address_pool_cidr'])
-        conn_cmds[3] = conn_cmds[3] % ('vtun0')
-        conn_cmds[4] = conn_cmds[4] % ('vtun0')
-        conn_cmds[5] = conn_cmds[5] % ('vtun0')
-        conn_cmds[6] = conn_cmds[6] % ('vtun0')
-        conn_cmds[7] = conn_cmds[7] % ('vtun0', cidr)
-        conn_cmds[8] = conn_cmds[8] % ('vtun0')
-
-        self._set_commands(conn_cmds)
-
-    def _ssl_vpn_push_route(self, route):
-
-        cmds = copy.deepcopy(SSL_VPN_COMMANDS)
-        conn_cmds = cmds['create']
-        route_cmds = ['']
-
-        route_cmds[0] = conn_cmds[7] % ('vtun0', route['route'])
-        self._set_commands(route_cmds)
 
     def configure_static_route(self, action, cidr, gateway_ip):
         if action == "set":
