@@ -286,7 +286,7 @@ class LoadBalanceTestCase(unittest.TestCase):
     def _call_to_get_network_function_desc(self):
         data = call_network_function_info()
         data['network_function']['description'] = ("\n" + str(
-                {'service_vendor': 'xyz'}))
+            {'service_vendor': 'xyz'}))
         return data['network_function']
 
     def _call_data(self, context, method, **kwargs):
@@ -611,8 +611,8 @@ class VPNTestCase(unittest.TestCase):
     def _call_data(self, context, method, **kwargs):
         if method.lower() == "get_network_function_details":
             data = call_network_function_info()
-            data['network_function']['description'] = ("\n" +
-                ("ipsec_site_connection_id=%s;service_vendor=xyz" % (
+            data['network_function']['description'] = ("\n" + (
+                "ipsec_site_connection_id=%s;service_vendor=xyz" % (
                     str(uuid.uuid4()))))
             return data['network_function']
 
@@ -639,8 +639,8 @@ class VPNTestCase(unittest.TestCase):
 
     def _call_to_get_network_function_desc(self):
         data = call_network_function_info()
-        data['network_function']['description'] = ("\n" +
-            ("ipsec_site_connection_id=%s;service_vendor=xyz" % (
+        data['network_function']['description'] = ("\n" + (
+            "ipsec_site_connection_id=%s;service_vendor=xyz" % (
                 str(uuid.uuid4()))))
         return data['network_function']
 
@@ -745,7 +745,7 @@ class FirewallNotifierTestCase(unittest.TestCase):
     def test_set_firewall_status(self):
         notification_data = self.get_notification_data()
         rpc_client = self._get_rpc_client()
-        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        transport.RPCClient = mock.MagicMock(return_value=rpc_client)
         self.n_handler.handle_notification(self.context,
                                            notification_data)
 
@@ -754,7 +754,7 @@ class FirewallNotifierTestCase(unittest.TestCase):
         notification_data['notification'][0]['data'][
                           'notification_type'] = 'firewall_deleted'
         rpc_client = self._get_rpc_client()
-        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        transport.RPCClient = mock.MagicMock(return_value=rpc_client)
         self.n_handler.handle_notification(self.context,
                                            notification_data)
 
@@ -778,7 +778,7 @@ class LoadbalancerNotifierTestCase(unittest.TestCase):
     def _get_rpc_client(self):
         class Context(object):
             def cast(self, context, method, host='', pool_id='',
-                     stats ='', body=''):
+                     stats='', body=''):
                 return {}
 
         class RCPClient(object):
@@ -802,7 +802,7 @@ class LoadbalancerNotifierTestCase(unittest.TestCase):
     def test_update_status(self):
         notification_data = self.get_notification_data()
         rpc_client = self._get_rpc_client()
-        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        transport.RPCClient = mock.MagicMock(return_value=rpc_client)
         self.n_handler.handle_notification(self.context,
                                            notification_data)
 
@@ -811,7 +811,7 @@ class LoadbalancerNotifierTestCase(unittest.TestCase):
         notification_data['notification'][0]['data'][
                           'notification_type'] = 'update_pool_stats'
         rpc_client = self._get_rpc_client()
-        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        transport.RPCClient = mock.MagicMock(return_value=rpc_client)
         self.n_handler.handle_notification(self.context,
                                            notification_data)
 
@@ -857,7 +857,7 @@ class VpnNotifierTestCase(unittest.TestCase):
     def test_update_status(self):
         notification_data = self.get_notification_data()
         rpc_client = self._get_rpc_client()
-        transport.RPCClient = mock.MagicMock(return_value = rpc_client)
+        transport.RPCClient = mock.MagicMock(return_value=rpc_client)
         self.n_handler.handle_notification(self.context,
                                            notification_data)
 
