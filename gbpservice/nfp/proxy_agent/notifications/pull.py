@@ -44,14 +44,19 @@ class PullNotification(nfp_api.NfpEventHandler):
     def _method_handler(self, notification):
         # Method handles notification as per resource, resource_type and method
         try:
-            logging_context = notification['info']['context'][
-                                                    'logging_context']
-            nfp_logging.store_logging_context(**logging_context)
+            if 'logging_context' in notification['info']['context']:
+                logging_context = notification['info']['context'][
+                    'logging_context']
+                nfp_logging.store_logging_context(**logging_context)
             requester = notification['info']['context']['requester']
-            topic = ResourceMap[requester]
-            context = notification['info']['context']['neutron_context']
+            if requester in ResourceMap:
+                topic = ResourceMap[requester]
+                context = notification['info']['context']['neutron_context']
+                rpc_ctx = n_context.Context.from_dict(context)
+            else:
+                topic = a_topics.CONFIG_ORCH_TOPIC
+                rpc_ctx = n_context.get_admin_context()
             rpcClient = transport.RPCClient(topic)
-            rpc_ctx = n_context.Context.from_dict(context)
             rpcClient.cctxt.cast(rpc_ctx,
                                  'network_function_notification',
                                  notification_data=notification)
