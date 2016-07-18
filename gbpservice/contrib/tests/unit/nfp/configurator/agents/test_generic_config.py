@@ -15,12 +15,12 @@ import subprocess
 
 from neutron.tests import base
 
-from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
-                                                        fw_test_data as fo)
 from gbpservice.contrib.nfp.configurator.agents import generic_config as gc
 from gbpservice.contrib.nfp.configurator.lib import (
                                     generic_config_constants as const)
 from gbpservice.contrib.nfp.configurator.lib import constants as common_const
+from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
+                                                        fw_test_data as fo)
 
 
 class GenericConfigRpcManagerTestCase(base.BaseTestCase):

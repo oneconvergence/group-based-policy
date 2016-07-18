@@ -15,12 +15,12 @@ import unittest
 
 from oslo_log import log as logging
 
-from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
-                                                        fw_test_data as fo)
 from gbpservice.contrib.nfp.configurator.agents import firewall as fw
 from gbpservice.contrib.nfp.configurator.agents import generic_config as gc
 from gbpservice.contrib.nfp.configurator.lib import demuxer as demuxer_lib
 from gbpservice.contrib.nfp.configurator.modules import configurator as cfgr
+from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
+                                                        fw_test_data as fo)
 
 LOG = logging.getLogger(__name__)
 

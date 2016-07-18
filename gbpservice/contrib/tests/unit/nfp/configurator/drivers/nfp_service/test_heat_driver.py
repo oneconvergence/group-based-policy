@@ -12,11 +12,12 @@
 
 from neutron.tests import base
 
+from gbpservice.contrib.nfp.configurator.drivers.nfp_service.heat.heat_driver \
+                                                        import HeatDriver
+from gbpservice.contrib.nfp.configurator.lib import (
+                                            nfp_service_constants as const)
 from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
                                                 nfp_service_test_data as fo)
-from gbpservice.contrib.nfp.configurator.drivers.nfp_service.heat.heat_driver import (
-                                                                HeatDriver)
-from gbpservice.contrib.nfp.configurator.lib import nfp_service_constants as const
 
 
 class NfpServiceHeatDriverTestCase(base.BaseTestCase):
