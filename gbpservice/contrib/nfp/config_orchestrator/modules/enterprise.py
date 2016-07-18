@@ -17,10 +17,10 @@ import time
 import traceback
 
 from gbpservice.contrib.nfp.config_orchestrator.common import common
-from gbpservice.contrib.nfp.core.event import Event
-from gbpservice.contrib.nfp.core import log as nfp_logging
-from gbpservice.contrib.nfp.core import module as nfp_api
-from gbpservice.contrib.nfp.lib import transport
+from gbpservice.nfp.core.event import Event
+from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.core import module as nfp_api
+from gbpservice.nfp.lib import transport
 
 from neutron import context as n_context
 from neutron_fwaas.db.firewall import firewall_db
