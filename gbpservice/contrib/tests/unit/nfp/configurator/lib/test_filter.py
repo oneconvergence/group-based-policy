@@ -15,11 +15,9 @@ import filter_base
 from gbpservice.contrib.nfp.configurator.lib import data_filter
 import mock
 
-"""Test class to test data_filter.py using unittest framework
-"""
-
 
 class FilterTest(filter_base.BaseTestCase):
+    """Test class to test data_filter.py using unittest framework """
     def __init__(self, *args, **kwargs):
         super(FilterTest, self).__init__(*args, **kwargs)
 

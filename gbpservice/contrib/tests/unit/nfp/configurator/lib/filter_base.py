@@ -11,13 +11,12 @@
 #    under the License.
 
 
-import unittest
-
-""" Defines all the dummy resources needed for test_filter.py
-"""
+from neutron.tests import base
 
 
-class BaseTestCase(unittest.TestCase):
+class BaseTestCase(base.BaseTestCase):
+    """ Defines all the dummy resources needed for test_filter.py
+    """
     def __init__(self, *args, **kwargs):
         super(BaseTestCase, self).__init__(*args, **kwargs)
         self.service_info = {}

@@ -12,15 +12,13 @@
 
 import gbpservice.contrib.nfp.configurator.lib.schema as schema
 import gbpservice.contrib.nfp.configurator.lib.schema_validator as sv
-import unittest
-
-
-"""SchemaResources is a helper class which contains all the dummy resources
-   needed for TestSchemaValidator class
-"""
+from neutron.tests import base
 
 
 class SchemaResources(object):
+    """SchemaResources is a helper class which contains all the dummy resources
+       needed for TestSchemaValidator class
+    """
     resource_healthmonitor = 'healthmonitor'
     resource_interfaces = 'interfaces'
     resource_routes = 'routes'
@@ -65,12 +63,11 @@ class SchemaResources(object):
                      'periodicity': 'initial'
                      }
 
-"""TestSchemaValidator is a test class to test schema_validator.py using
-   unittest framework
-"""
 
-
-class TestSchemaValidator(unittest.TestCase):
+class TestSchemaValidator(base.BaseTestCase):
+    """TestSchemaValidator is a test class to test schema_validator.py using
+       unittest framework
+    """
 
     def __init__(self, *args, **kwargs):
         super(TestSchemaValidator, self).__init__(*args, **kwargs)
@@ -179,6 +176,3 @@ class TestSchemaValidator(unittest.TestCase):
         request_data['info']['service_type'] = 'firewall'
         result = self.sv.decode(request_data, False)
         self.assertTrue(result)
-
-if __name__ == '__main__':
-    unittest.main()
