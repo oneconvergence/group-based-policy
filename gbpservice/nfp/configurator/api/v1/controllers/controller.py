@@ -45,6 +45,7 @@ class Controller(BaseController):
             self.rpc_routing_table = {}
             for service in self.services:
                 self._entry_to_rpc_routing_table(service)
+            nsd_controller = pecan.conf['nsd_controller']
             self.rmqconsumer = RMQConsumer(
                 nsd_controller['host'],
                 nsd_controller['notification_queue'])
@@ -98,8 +99,7 @@ class Controller(BaseController):
                 # uservice = self.rpc_routing_table[routing_key]
                 # notification_data = uservice[0].rpcclient.call(
                 #     self.method_name)
-                notification_data = jsonutils.dumps(
-                    self.rmqconsumer.pull_notifications())
+                notification_data = self.rmqconsumer.pull_notifications()
                 msg = ("NOTIFICATION_DATA sent to config_agent %s"
                        % notification_data)
                 LOG.info(msg)
