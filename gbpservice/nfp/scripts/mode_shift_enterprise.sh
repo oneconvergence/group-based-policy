@@ -2,33 +2,49 @@
 
 source /opt/stack/gbp/gbpservice/nfp/config/mode_shift.conf
 
-DEVSTACK_DIR=/home/stack/devstack
-source $DEVSTACK_DIR/local.conf
+DEVSTACK_SRC_DIR=/home/stack/devstack
+source $DEVSTACK_SRC_DIR/local.conf
 NFPSERVICE_DIR=/opt/stack/gbp
 # TODO(DEEPAK): Should be retrieved from a result file populated by advanced mode.
 EXT_NET_NAME=ext-net
 
+function setup_ssh_key {
+    sudo ssh-keygen -f "/root/.ssh/known_hosts" -R $configurator_ip
+    sudo ssh-keygen -f configurator_vm -t rsa -N ''
+    echo "Give the password for the root user of the Configurator VM when prompted."
+    sleep 5
+    cat configurator_vm.pub | sudo ip netns exec nfp-proxy ssh -o "StrictHostKeyChecking no" root@$configurator_ip 'cat >> .ssh/authorized_keys'
+    sleep 5
+}
+
+function copy_files {
+    sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@120.0.0.3\
+ docker exec configurator\
+ cp -r /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/config /etc/nfp_config
+}
+
 function nfp_configure_nova {
     NOVA_CONF_DIR=/etc/nova
     NOVA_CONF=$NOVA_CONF_DIR/nova.conf
-    source $DEVSTACK_DIR/inc/ini-config
+    source $DEVSTACK_SRC_DIR/inc/ini-config
     iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
     
-    source $DEVSTACK_DIR/functions-common
-    stop_process n-cpu
-    stop_process n-cond 
-    stop_process n-sch 
-    stop_process n-novnc 
-    stop_process n-cauth
-    stop_process n-api 
+    source $DEVSTACK_SRC_DIR/functions-common
+    sudo stop_process n-cpu
+    sudo stop_process n-cond 
+    sudo stop_process n-sch 
+    sudo stop_process n-novnc 
+    sudo stop_process n-cauth
+    sudo stop_process n-api 
     
-    source $DEVSTACK_DIR/lib/nova
-    start_nova_compute
-    start_nova_api
-    run_process n-cond "$NOVA_BIN_DIR/nova-conductor --config-file $NOVA_CONF"
-    run_process n-sch "$NOVA_BIN_DIR/nova-scheduler --config-file $NOVA_CONF"
-    run_process n-novnc "$NOVA_BIN_DIR/nova-novncproxy --config-file $NOVA_CONF --web $DEST/noVNC"
-    run_process n-cauth "$NOVA_BIN_DIR/nova-consoleauth --config-file $NOVA_CONF"
+    source $DEVSTACK_SRC_DIR/lib/nova
+    sudo start_nova_compute
+    sudo start_nova_api
+    sudo run_process n-cond "$NOVA_BIN_DIR/nova-conductor --config-file $NOVA_CONF"
+    sudo run_process n-sch "$NOVA_BIN_DIR/nova-scheduler --config-file $NOVA_CONF"
+    sudo run_process n-novnc "$NOVA_BIN_DIR/nova-novncproxy --config-file $NOVA_CONF --web $DEST/noVNC"
+    sudo run_process n-cauth "$NOVA_BIN_DIR/nova-consoleauth --config-file $NOVA_CONF"
 }
 
 function create_port_for_vm {
@@ -46,15 +62,13 @@ function create_port_for_vm {
 }
 
 function configure_vis_ip_addr_in_docker {
-    echo "Visibility VM IP address is: $visibility_ip"
-    sed -i "s/VIS_VM_IP_ADDRESS/"$visibility_ip"/" $NFPSERVICE_DIR/gbpservice/contrib/nfp/configurator/Dockerfile
+    sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
+ docker exec configurator\
+ sed -i "s/log_forward_ip_address=*.*/log_forward_ip_address=$visibility_ip/" /etc/nfp_configurator.ini
 }
 
 function create_images {
-    source $DEVSTACK_DIR/openrc neutron service
-    unset OS_USER_DOMAIN_ID
-    unset OS_PROJECT_DOMAIN_ID
-
     # prepare visibility image and upload it into glance
     VISIBILITY_QCOW2_IMAGE=${VISIBILITY_QCOW2_IMAGE:-build}
     VISIBILITY_QCOW2_IMAGE_NAME=visibility
@@ -71,8 +85,8 @@ function create_images {
        sudo git clone https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git -b $VISIBILITY_GIT_BRANCH
        echo "Building Image: $VISIBILITY_QCOW2_IMAGE_NAME"
        cd $NFPSERVICE_DIR/gbpservice/tests/contrib/diskimage-create/
-       sudo python visibility_disk_image_create.py visibility_conf.json $DEVSTACK_DIR/local.conf
-       VISIBILITY_QCOW2_IMAGE=$(cat /tmp/image_path)
+       sudo python visibility_disk_image_create.py visibility_conf.json $GBPSERVICE_BRANCH $DOCKER_IMAGES_URL
+       VISIBILITY_QCOW2_IMAGE=$(cat output/last_built_image_path)
     fi
     echo "Uploading Image: $VISIBILITY_QCOW2_IMAGE_NAME"
     glance image-create --name $VISIBILITY_QCOW2_IMAGE_NAME --disk-format qcow2 --container-format bare --visibility public --file $VISIBILITY_QCOW2_IMAGE
@@ -97,7 +111,7 @@ function configure_visibility_user_data {
 # $1 is the Visibility VM's IP address
     CUR_DIR=$PWD
     visibility_vm_ip=$1
-    configurator_ip=
+    configurator_ip=`neutron port-show pt_configuratorVM_instance -f value -c fixed_ips | cut -d'"' -f8`
     sudo rm -rf /opt/visibility_user_data
     sudo cp -r $NFPSERVICE_DIR/devstack/exercises/nfp_service/user-data/visibility_user_data /opt/.
     cd /opt
@@ -114,9 +128,6 @@ function configure_visibility_user_data {
 }
 
 function attach_security_groups {
-    unset OS_USER_DOMAIN_ID
-    unset OS_PROJECT_DOMAIN_ID
-
     SecGroup="allow_all"
     nova secgroup-create $SecGroup "allow all traffic"
     nova secgroup-add-rule $SecGroup udp 1 65535 120.0.0.0/24
@@ -180,29 +191,33 @@ function nfp_logs_forword {
 }
 
 function restart_processes {
-    source $DEVSTACK_DIR/functions-common
-    source $DEVSTACK_DIR/openrc neutron service
-    
-    # restart proxy
-    stop_process proxy
-    run_process proxy "source $NFPSERVICE_DIR/devstack/lib/nfp;namespace_delete $DEVSTACK_DIR;namespace_create $DEVSTACK_DIR $IpAddr"
-    echo "Restarted proxy process"
-    sleep 10
-
-    # restart proxy agent
-    stop_process proxy_agent
-    run_process proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file /opt/stack/logs/nfp_proxy_agent.log"
-    echo "Restarted proxy agent process"
-    sleep 3
+    # restart configurator
+    configurator_ip=120.0.0.3
+    sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
+ docker exec configurator screen -S configurator -X quit
+    sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
+ docker exec configurator screen -dmS "configurator" /usr/bin/python2 /usr/bin/nfp --config-file=/etc/nfp_configurator.ini --config-dir=/etc/nfp_config --log-file=/var/log/nfp/nfp_configurator.log
 }
 
 function prepare_for_mode_shift {
     if [[ $FROM = advanced ]] && [[ $TO = enterprise ]]; then
-        source $DEST/gbp/devstack/lib/nfp
+        source $DEVSTACK_SRC_DIR/openrc neutron service
+        unset OS_USER_DOMAIN_ID
+        unset OS_PROJECT_DOMAIN_ID
 
+        configurator_ip=`neutron port-show pt_configuratorVM_instance -f value -c fixed_ips | cut -d'"' -f8`
+        echo "Configurator's IP: $configurator_ip"
+
+        echo "Setting up ssh key in configurator for password less ssh"
+        setup_ssh_key
+        echo "Copy files and configure"
+        copy_files
+        #echo "Configuring nova"
+        #nfp_configure_nova
+        #sleep 10
         echo "Preparing image creation"
-        nfp_configure_nova
-        sleep 10
         create_images
         echo "Launching the Visibility VM"
         launch_visibilityVM
@@ -225,9 +240,9 @@ function mode_shift {
 echo "Task: Shifting mode of NFP from $FROM mode to $TO mode."
 
 echo "Preparing for the NFP mode shift."
-prepare_for_mode_shift
+#prepare_for_mode_shift
 
-echo "Shifting NFP to $TO mode. There will be a little downtime. Kindly bear with me."
+echo "Shifting NFP to $TO mode. There will be a little downtime. Kindly bear with it."
 mode_shift
 
 echo "Successfully shifted NFP from $FROM mode to $TO mode."
