@@ -31,20 +31,20 @@ function nfp_configure_nova {
     iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
     
     source $DEVSTACK_SRC_DIR/functions-common
-    sudo stop_process n-cpu
-    sudo stop_process n-cond 
-    sudo stop_process n-sch 
-    sudo stop_process n-novnc 
-    sudo stop_process n-cauth
-    sudo stop_process n-api 
+    stop_process n-cpu
+    stop_process n-cond 
+    stop_process n-sch 
+    stop_process n-novnc 
+    stop_process n-cauth
+    stop_process n-api 
     
     source $DEVSTACK_SRC_DIR/lib/nova
-    sudo start_nova_compute
-    sudo start_nova_api
-    sudo run_process n-cond "$NOVA_BIN_DIR/nova-conductor --config-file $NOVA_CONF"
-    sudo run_process n-sch "$NOVA_BIN_DIR/nova-scheduler --config-file $NOVA_CONF"
-    sudo run_process n-novnc "$NOVA_BIN_DIR/nova-novncproxy --config-file $NOVA_CONF --web $DEST/noVNC"
-    sudo run_process n-cauth "$NOVA_BIN_DIR/nova-consoleauth --config-file $NOVA_CONF"
+    start_nova_compute
+    start_nova_api
+    run_process n-cond "$NOVA_BIN_DIR/nova-conductor --config-file $NOVA_CONF"
+    run_process n-sch "$NOVA_BIN_DIR/nova-scheduler --config-file $NOVA_CONF"
+    run_process n-novnc "$NOVA_BIN_DIR/nova-novncproxy --config-file $NOVA_CONF --web $DEST/noVNC"
+    run_process n-cauth "$NOVA_BIN_DIR/nova-consoleauth --config-file $NOVA_CONF"
 }
 
 function create_port_for_vm {
@@ -214,9 +214,9 @@ function prepare_for_mode_shift {
         setup_ssh_key
         echo "Copy files and configure"
         copy_files
-        #echo "Configuring nova"
-        #nfp_configure_nova
-        #sleep 10
+        echo "Configuring nova"
+        nfp_configure_nova
+        sleep 10
         echo "Preparing image creation"
         create_images
         echo "Launching the Visibility VM"
