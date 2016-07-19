@@ -13,8 +13,8 @@
 import ast
 import copy
 
-from gbpservice.nfp.common import constants as const
 from gbpservice.contrib.nfp.config_orchestrator.common import common
+from gbpservice.nfp.common import constants as const
 from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
 
@@ -172,7 +172,7 @@ class Lbv2Agent(loadbalancer_dbv2.LoadBalancerPluginDbv2):
         nf_id = desc_dict['network_function_id']
         return nf_id
 
-    #TODO(jiahao): Argument allocate_vip and
+    # TODO(jiahao): Argument allocate_vip and
     # delete_vip_port are not implememnted.
     @log_helpers.log_method_call
     def create_loadbalancer(self, context, loadbalancer, driver_name,

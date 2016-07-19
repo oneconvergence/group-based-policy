@@ -13,8 +13,8 @@
 import ast
 
 from gbpservice.contrib.nfp.configurator.drivers.base import base_driver
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v1.haproxy import (
-                                                    haproxy_rest_client)
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v1.\
+    haproxy import (haproxy_rest_client)
 from gbpservice.contrib.nfp.configurator.lib import constants as common_const
 from gbpservice.contrib.nfp.configurator.lib import lb_constants
 from gbpservice.nfp.core import log as nfp_logging
@@ -53,7 +53,6 @@ class LbGenericConfigDriver(object):
             msg = ("Failed to configure log forwarding for service at %s. "
                    "Error: %s" % (mgmt_ip, err))
             LOG.error(msg)
-            return msg
         else:
             if result_log_forward == common_const.UNHANDLED:
                 pass
@@ -64,7 +63,6 @@ class LbGenericConfigDriver(object):
                 # Failure in log forward configuration won't break chain
                 # creation. However, error will be logged for detecting
                 # failure.
-                # return result_log_forward
             else:
                 msg = ("Configured log forwarding for service at %s. "
                        "Result: %s" % (mgmt_ip, result_log_forward))

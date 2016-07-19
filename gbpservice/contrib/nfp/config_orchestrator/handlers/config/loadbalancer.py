@@ -13,8 +13,8 @@
 import ast
 import copy
 
-from gbpservice.nfp.common import constants as const
 from gbpservice.contrib.nfp.config_orchestrator.common import common
+from gbpservice.nfp.common import constants as const
 from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
 

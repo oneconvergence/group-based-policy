@@ -10,7 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from gbpservice.contrib.nfp.config_orchestrator.common import topics as a_topics
+from gbpservice.contrib.nfp.config_orchestrator.common import (
+    topics as a_topics)
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import (
     firewall as fw)
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import (
@@ -18,16 +19,11 @@ from gbpservice.contrib.nfp.config_orchestrator.handlers.config import (
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import (
     loadbalancerv2 as lbv2)
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import vpn
-from gbpservice.contrib.nfp.config_orchestrator.handlers.event import (
-    handler as v_handler)
 from gbpservice.contrib.nfp.config_orchestrator.handlers.notification import (
     handler as notif_handler)
 
 from gbpservice.nfp.core.rpc import RpcAgent
-from gbpservice.nfp.lib import transport
-from neutron import context as n_context
 from oslo_config import cfg
-import time
 
 
 def rpc_init(sc, conf):
@@ -107,31 +103,5 @@ def rpc_init(sc, conf):
     sc.register_rpc_agents([fwagent, lbagent, lbv2agent, vpnagent, rpcagent])
 
 
-def events_init(sc, conf):
-    """Register event with its handler."""
-    evs = v_handler.event_init(sc, conf)
-    sc.register_events(evs)
-
-
 def nfp_module_init(sc, conf):
     rpc_init(sc, conf)
-    events_init(sc, conf)
-
-
-def nfp_module_post_init(sc, conf):
-    ev = sc.new_event(id='SERVICE_OPERATION_POLL_EVENT',
-                      key='SERVICE_OPERATION_POLL_EVENT')
-    sc.post_event(ev)
-
-    uptime = time.strftime("%c")
-    body = {'eventdata': {'uptime': uptime,
-                          'module': 'config_orchestrator'},
-            'eventid': 'NFP_UP_TIME',
-            'eventtype': 'NFP_CONTROLLER'}
-    context = n_context.Context('config_agent_user', 'config_agent_tenant')
-    transport.send_request_to_configurator(conf,
-                                           context,
-                                           body,
-                                           'CREATE',
-                                           network_function_event=True,
-                                           override_backend='tcp_rest')

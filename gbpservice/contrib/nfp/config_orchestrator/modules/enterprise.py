@@ -56,7 +56,34 @@ def event_init(sc, conf):
               handler=EventsHandler(sc, conf)),
         Event(id='SERVICE_CREATE_PENDING',
               handler=EventsHandler(sc, conf))]
-    return evs
+
+    sc.register_events(evs)
+
+
+def nfp_module_init(sc, conf):
+    event_init(sc, conf)
+
+
+def nfp_module_post_init(sc, conf):
+    try:
+        ev = sc.new_event(id='SERVICE_OPERATION_POLL_EVENT',
+                          key='SERVICE_OPERATION_POLL_EVENT')
+        sc.post_event(ev)
+    except Exception as e:
+        msg = ("%s" % (e))
+        LOG.error(msg)
+    uptime = time.strftime("%c")
+    body = {'eventdata': {'uptime': uptime,
+                          'module': 'config_orchestrator'},
+            'eventid': 'NFP_UP_TIME',
+            'eventtype': 'NFP_CONTROLLER'}
+    context = n_context.Context('config_agent_user', 'config_agent_tenant')
+    transport.send_request_to_configurator(conf,
+                                           context,
+                                           body,
+                                           'CREATE',
+                                           network_function_event=True,
+                                           override_backend='tcp_rest')
 
 
 """Periodic Class to service events for visiblity."""

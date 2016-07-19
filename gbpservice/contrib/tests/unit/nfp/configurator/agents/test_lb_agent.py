@@ -12,20 +12,19 @@
 
 import mock
 
-from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
-    lb_test_data as test_data)
 from gbpservice.contrib.nfp.configurator.agents import loadbalancer_v1 as lb
 from gbpservice.contrib.nfp.configurator.lib import constants as const
 from gbpservice.contrib.nfp.configurator.lib import demuxer
 from gbpservice.contrib.nfp.configurator.modules import configurator
+from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
+    lb_test_data as test_data)
 from neutron.tests import base
-
-"""Implement test cases for LBaasRpcSender methods of loadbalancer agent.
-
-"""
 
 
 class LBaasRpcSenderTest(base.BaseTestCase):
+    """Implements test cases for LBaasRpcSender class methods of
+       loadbalancer agent.
+    """
 
     @mock.patch(__name__ + '.test_data.FakeObjects.conf')
     @mock.patch(__name__ + '.test_data.FakeObjects.sc')
@@ -127,12 +126,11 @@ class LBaasRpcSenderTest(base.BaseTestCase):
             '6350c0fd-07f8-46ff-b797-62acd23760de',
             test_data.FakeObjects()._get_context_logical_device())
 
-"""Implement test cases for RPC manager methods of loadbalancer agent.
-
-"""
-
 
 class LBaaSRpcManagerTest(base.BaseTestCase):
+    """Implements test cases for LBaaSRpcManager class methods of
+       loadbalancer agent.
+    """
 
     def __init__(self, *args, **kwargs):
         super(LBaaSRpcManagerTest, self).__init__(*args, **kwargs)
@@ -388,12 +386,11 @@ class LBaaSRpcManagerTest(base.BaseTestCase):
             self.fo.get_request_data_for_update_pool_hm(),
             self.arg_dict_health_monitor_update)
 
-"""Implement test cases for methods of EventHandler of loadbalancer agent.
-
-"""
-
 
 class LBaasEventHandlerTestCase(base.BaseTestCase):
+    """Implement test cases for LBaaSEventHandler class methods of
+       loadbalancer agent.
+    """
 
     def __init__(self, *args, **kwargs):
         super(LBaasEventHandlerTestCase, self).__init__(*args, **kwargs)
@@ -407,7 +404,6 @@ class LBaasEventHandlerTestCase(base.BaseTestCase):
         :param sc: mocked service controller object of process model framework
         :param drivers: mocked drivers object of loadbalancer object
         :param rpcmgr: mocked RPC manager object loadbalancer object
-        :param nqueue: mocked nqueue object of process model framework
 
         Returns: objects of LBaaSEventHandler of loadbalancer agent
 
