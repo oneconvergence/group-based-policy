@@ -53,7 +53,6 @@ class LbGenericConfigDriver(object):
             msg = ("Failed to configure log forwarding for service at %s. "
                    "Error: %s" % (mgmt_ip, err))
             LOG.error(msg)
-            return msg
         else:
             if result_log_forward == common_const.UNHANDLED:
                 pass
@@ -64,7 +63,6 @@ class LbGenericConfigDriver(object):
                 # Failure in log forward configuration won't break chain
                 # creation. However, error will be logged for detecting
                 # failure.
-                # return result_log_forward
             else:
                 msg = ("Configured log forwarding for service at %s. "
                        "Result: %s" % (mgmt_ip, result_log_forward))

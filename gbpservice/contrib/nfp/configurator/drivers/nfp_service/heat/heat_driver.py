@@ -14,7 +14,8 @@ from gbpservice.nfp.core import log as nfp_logging
 
 
 from gbpservice.contrib.nfp.configurator.drivers.base import base_driver
-from gbpservice.contrib.nfp.configurator.lib import nfp_service_constants as const
+from gbpservice.contrib.nfp.configurator.lib import (
+                                    nfp_service_constants as const)
 
 LOG = nfp_logging.getLogger(__name__)
 

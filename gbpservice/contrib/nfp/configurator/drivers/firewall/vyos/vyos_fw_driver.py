@@ -167,15 +167,16 @@ class FwGenericConfigDriver(base_driver.BaseDriver):
             msg = ("Failed to configure log forwarding for service at %s. "
                    "Error: %s" % (mgmt_ip, err))
             LOG.error(msg)
-            return msg
         else:
             if result_log_forward == common_const.UNHANDLED:
                 pass
             elif result_log_forward != common_const.STATUS_SUCCESS:
+                # Failure in log forward configuration won't break chain
+                # creation. However, error will be logged for detecting
+                # failure.
                 msg = ("Failed to configure log forwarding for service at %s. "
                        "Error: %s" % (mgmt_ip, result_log_forward))
                 LOG.error(msg)
-                return msg
 
         try:
             result_static_ips = self._configure_static_ips(resource_data)

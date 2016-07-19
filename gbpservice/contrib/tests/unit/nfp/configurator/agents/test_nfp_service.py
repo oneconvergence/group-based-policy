@@ -14,10 +14,11 @@ import mock
 
 from neutron.tests import base
 
+from gbpservice.contrib.nfp.configurator.agents import nfp_service as ns
+from gbpservice.contrib.nfp.configurator.lib import (
+                                        nfp_service_constants as const)
 from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
                                                 nfp_service_test_data as fo)
-from gbpservice.contrib.nfp.configurator.agents import nfp_service as ns
-from gbpservice.contrib.nfp.configurator.lib import nfp_service_constants as const
 
 
 class NfpServiceRpcManagerTestCase(base.BaseTestCase):

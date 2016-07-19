@@ -15,11 +15,11 @@ import mock
 from neutron.tests import base
 from oslo_config import cfg
 
-from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
-                                                        fw_test_data as fo)
 from gbpservice.contrib.nfp.configurator.agents import firewall as fw
 from gbpservice.contrib.nfp.configurator.lib import constants as const
 from gbpservice.contrib.nfp.configurator.lib import fw_constants as fw_const
+from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
+                                                        fw_test_data as fo)
 
 
 class FWaasRpcManagerTestCase(base.BaseTestCase):

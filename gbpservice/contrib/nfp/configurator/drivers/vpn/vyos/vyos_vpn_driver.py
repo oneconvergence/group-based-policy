@@ -16,7 +16,7 @@ import requests
 
 from gbpservice.contrib.nfp.configurator.drivers.base import base_driver
 from gbpservice.contrib.nfp.configurator.drivers.vpn.vyos import (
-    vyos_vpn_constants as const)
+                                                vyos_vpn_constants as const)
 from gbpservice.contrib.nfp.configurator.lib import constants as common_const
 from gbpservice.contrib.nfp.configurator.lib import vpn_constants as vpn_const
 from gbpservice.nfp.core import log as nfp_logging
@@ -394,19 +394,16 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
             msg = ("Failed to configure log forwarding for service at %s. "
                    "Error: %s" % (mgmt_ip, err))
             LOG.error(msg)
-            return msg
         else:
             if result_log_forward == common_const.UNHANDLED:
                 pass
             elif result_log_forward != common_const.STATUS_SUCCESS:
+                # Failure in log forward configuration won't break chain
+                # creation. However, error will be logged for detecting
+                # failure.
                 msg = ("Failed to configure log forwarding for service at %s. "
-                       "Error: %s" % (mgmt_ip, err))
+                       "Error: %s" % (mgmt_ip, result_log_forward))
                 LOG.error(msg)
-                return result_log_forward
-            else:
-                msg = ("Configured log forwarding for service at %s. "
-                       "Result: %s" % (mgmt_ip, result_log_forward))
-                LOG.info(msg)
 
         try:
             result_static_ips = self._configure_static_ips(resource_data)
@@ -1091,11 +1088,11 @@ class VpnaasIpsecDriver(VpnGenericConfigDriver):
             state = output['state']
 
             if state.upper() == 'UP' and (
-               conn['status'] != const.STATE_ACTIVE):
-                c_state = const.STATE_ACTIVE
+               conn['status'] != vpn_const.STATE_ACTIVE):
+                c_state = vpn_const.STATE_ACTIVE
             if state.upper() == 'DOWN' and (
-               conn['status'] == const.STATE_ACTIVE):
-                c_state = const.STATE_PENDING
+               conn['status'] == vpn_const.STATE_ACTIVE):
+                c_state = vpn_const.STATE_PENDING
 
         if c_state:
             return c_state, True
