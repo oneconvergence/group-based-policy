@@ -719,11 +719,10 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         base_mode_support = (True if service_details['device_type'] == 'None'
                              else False)
         service_vendor = service_details['service_vendor']
-        # REVISIT(ashu): take the first few characters just like neutron does
-        # with ovs interfaces inside the name spaces..
+        u_id = service_chain_id[:11] if service_chain_id else service_id[:11]
         name = "%s_%s_%s" % (service_profile['service_type'],
                              service_vendor,
-                             service_chain_id or service_id)
+                             u_id)
         service_config_str = network_function_info.get('service_config')
         network_function = {
             'name': name,
@@ -889,10 +888,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                      'port_model': ele['port_model'],
                      'port_classification': ele['port_classification']
                      })
-
-        # REVISIT(ashu): Only pick few chars from id
-        name = '%s_%s' % (network_function['name'],
-                          network_function['id'])
+        name = '%s_%s' % (network_function['name'][:-12],
+                          network_function['id'][:11])
         network_function_instance = (
             self._get_network_function_instance_for_multi_service_sharing(
                 port_info))
