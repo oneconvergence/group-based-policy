@@ -240,7 +240,7 @@ function mode_shift {
 echo "Task: Shifting mode of NFP from $FROM mode to $TO mode."
 
 echo "Preparing for the NFP mode shift."
-#prepare_for_mode_shift
+prepare_for_mode_shift
 
 echo "Shifting NFP to $TO mode. There will be a little downtime. Kindly bear with it."
 mode_shift
