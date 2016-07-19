@@ -17,11 +17,11 @@ from neutron.tests import base
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 
-from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
-                                                        fw_test_data as fo)
 from gbpservice.contrib.nfp.configurator.drivers.firewall.vyos import (
                                                     vyos_fw_driver as fw_dvr)
 from gbpservice.contrib.nfp.configurator.lib import constants as const
+from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
+                                                        fw_test_data as fo)
 
 
 class FwGenericConfigDriverTestCase(base.BaseTestCase):
