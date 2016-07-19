@@ -16,7 +16,8 @@ from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
     vpn_test_data)
 from gbpservice.contrib.nfp.configurator.agents import vpn
 from gbpservice.contrib.nfp.configurator.drivers.base import base_driver
-from gbpservice.contrib.nfp.configurator.drivers.vpn.vyos import vyos_vpn_driver
+from gbpservice.contrib.nfp.configurator.drivers.vpn.vyos import (
+    vyos_vpn_driver)
 from oslo_serialization import jsonutils
 
 from neutron.tests import base
