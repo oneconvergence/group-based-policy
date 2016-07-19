@@ -401,7 +401,6 @@ class VpnGenericConfigDriver(base_driver.BaseDriver):
                 # Failure in log forward configuration won't break chain
                 # creation. However, error will be logged for detecting
                 # failure.
-                # return result_log_forward
                 msg = ("Failed to configure log forwarding for service at %s. "
                        "Error: %s" % (mgmt_ip, result_log_forward))
                 LOG.error(msg)
