@@ -10,25 +10,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# -*- coding: utf-8 -*-
-try:
-    import setuptools
-except ImportError:
-    import ez_setup
-    ez_setup.use_setuptools()
-    import setuptools
 
-setuptools.setup(
-    name='api',
-    version='0.1',
-    description='',
-    author='',
-    author_email='',
-    install_requires=[
-        "pecan",
-    ],
-    test_suite='api',
-    zip_safe=False,
-    include_package_data=True,
-    packages=setuptools.find_packages(exclude=['ez_setup'])
-)
+BASE_CONTROLLER = 'base_controller'
+REFERENCE_CONTROLLER = 'reference_controller'
+
+
+controllers = {
+    BASE_CONTROLLER: 'gbpservice.nfp.base_configurator.controllers',
+    REFERENCE_CONTROLLER: ('gbpservice.tests.contrib'
+                           '.nfp_service.reference_configurator.controllers')
+}
+
+base_with_vm = 'base_with_vm'
+base = 'base'
+modes = [base, base_with_vm]

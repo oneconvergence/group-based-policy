@@ -27,8 +27,9 @@ LOG = logging.getLogger(__name__)
 SUCCESS = 'SUCCESS'
 
 notifications = []
-FW_SCRIPT_PATH = ("/home/ubuntu/reference_configurator/" +
-                  "scripts/configure_fw_rules.py")
+FW_SCRIPT_PATH = ("/usr/local/lib/python2.7/dist-packages/" +
+                  "gbpservice/tests/contrib/nfp_service/" +
+                  "reference_configurator/scripts/configure_fw_rules.py")
 
 
 class Controller(rest.RestController):
