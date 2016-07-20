@@ -11,21 +11,20 @@
 #    under the License.
 
 import pecan
-from v1 import controllers
+
+from gbpservice.nfp.pecan import constants
 
 
-class RootController(object):
-    """This is root controller that forward the request to __init__.py
-    file inside controller folder inside v1
+class DecideConfigurator(pecan.commands.serve.ServeCommand):
+    ''' decides the type of configurtor to be used
+        like base_configurator or reference_configurator
+    '''
+    arguments = pecan.commands.serve.ServeCommand.arguments + ({
+        'name': '--mode',
+        'help': 'decides the type of configurtor to be used',
+        'choices': constants.modes,
+    },)
 
-    """
-
-    v1 = controllers.V1Controller()
-
-    @pecan.expose()
-    def get(self):
-        # TODO(blogan): once a decision is made on how to do versions, do that
-        # here
-        return {'versions': [{'status': 'CURRENT',
-                              'updated': '2014-12-11T00:00:00Z',
-                              'id': 'v1'}]}
+    def run(self, args):
+        setattr(pecan, 'mode', args.mode)
+        super(DecideConfigurator, self).run(args)
