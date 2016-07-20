@@ -40,27 +40,6 @@ class FwGenericConfigDriverTestCase(base.BaseTestCase):
         self.fake_resp_dict = {'status': True, 'reason': 'not found!'}
         self.kwargs = self.fo._fake_resource_data()
 
-    def test_configure_log_forward(self):
-        """ Implements test case for configure log forward method
-        of generic config driver.
-
-        Returns: none
-
-        """
-
-        resp_data = self.fake_resp_dict
-        resp_data['status'] = False
-        with mock.patch.object(
-                requests, 'post', return_value=self.resp) as mock_post, (
-            mock.patch.object(
-                self.resp, 'json', return_value=resp_data)):
-            self.driver.configure_interfaces(self.fo.context, self.kwargs)
-
-            data = jsonutils.dumps(self.fo.log_forward_data())
-            mock_post.assert_called_with(
-                self.fo.get_url_for_api('log_forward'),
-                data, timeout=self.fo.timeout)
-
     def test_configure_static_ip(self):
         """ Implements test case for configure static ip method
         of generic config driver.
