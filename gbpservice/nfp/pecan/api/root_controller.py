@@ -31,10 +31,13 @@ class RootController(object):
         except Exception:
             pass
 
-    if pecan.mode == constants.base_with_vm:
-        v1 = _controllers[constants.REFERENCE_CONTROLLER].V1Controller()
-    elif pecan.mode == constants.base:
+    if pecan.mode == constants.base:
         v1 = _controllers[constants.BASE_CONTROLLER].V1Controller()
+    elif pecan.mode == constants.base_with_vm:
+        v1 = _controllers[constants.REFERENCE_CONTROLLER].V1Controller()
+    elif pecan.mode == constants.advanced:
+        v1 = _controllers[constants.ADVANCED_CONTROLLER].V1Controller()
+
 
     @pecan.expose()
     def get(self):
