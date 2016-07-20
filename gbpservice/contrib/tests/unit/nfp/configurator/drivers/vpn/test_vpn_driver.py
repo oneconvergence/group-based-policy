@@ -21,6 +21,7 @@ from gbpservice.contrib.nfp.configurator.drivers.vpn.vyos import (
     vyos_vpn_driver)
 from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
     vpn_test_data)
+
 from neutron.tests import base
 
 from oslo_serialization import jsonutils
@@ -158,7 +159,7 @@ class VpnGenericConfigDriverTestCase(base.BaseTestCase):
         self.context = self.test_dict.make_service_context()
         self.plugin_rpc = vpn.VpnaasRpcSender(self.test_dict.sc)
         self.rest_apt = vyos_vpn_driver.RestApi(self.test_dict.vm_mgmt_ip)
-        self.driver = vyos_vpn_driver.VpnGenericConfigDriver(self.conf)
+        self.driver = vyos_vpn_driver.VpnGenericConfigDriver()
         self.resp = mock.Mock()
         self.fake_resp_dict = {'status': True}
         self.kwargs = self.test_dict.fake_resource_data()
