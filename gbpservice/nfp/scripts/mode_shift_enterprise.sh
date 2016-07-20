@@ -1,11 +1,11 @@
 #! /bin/bash
 
-source /opt/stack/gbp/gbpservice/nfp/config/mode_shift.conf
-
+#FIXME(RPM): Devstack can be at different location. Fix this
 DEVSTACK_SRC_DIR=/home/stack/devstack
 source $DEVSTACK_SRC_DIR/local.conf
-NFPSERVICE_DIR=/opt/stack/gbp
-# TODO(DEEPAK): Should be retrieved from a result file populated by advanced mode.
+NFPSERVICE_DIR=$DEST/gbp
+source $NFPSERVICE_DIR/gbpservice/nfp/config/mode_shift.conf
+# BUGBUG(DEEPAK): Should be retrieved from a result file populated by advanced mode.
 EXT_NET_NAME=ext-net
 
 function setup_ssh_key {
@@ -13,17 +13,22 @@ function setup_ssh_key {
     sudo ssh-keygen -f configurator_vm -t rsa -N ''
     echo "Give the password for the root user of the Configurator VM when prompted."
     sleep 5
-    cat configurator_vm.pub | sudo ip netns exec nfp-proxy ssh -o "StrictHostKeyChecking no" root@$configurator_ip 'cat >> .ssh/authorized_keys'
+    cat configurator_vm.pub |\
+ sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" root@$configurator_ip\
+ 'cat >> .ssh/authorized_keys'
     sleep 5
 }
 
 function copy_files {
     sudo ip netns exec nfp-proxy\
- ssh -o "StrictHostKeyChecking no" -i configurator_vm root@120.0.0.3\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker exec configurator\
  cp -r /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/config /etc/nfp_config
+    # BUGBUG(RPM): Add any other enterprise files here, and configure them
 }
 
+# FIXME(RPM): Not working, this need to be fixed.
 function nfp_configure_nova {
     NOVA_CONF_DIR=/etc/nova
     NOVA_CONF=$NOVA_CONF_DIR/nova.conf
@@ -74,36 +79,59 @@ function create_images {
     VISIBILITY_QCOW2_IMAGE_NAME=visibility
     InstanceName="VisibilityVM_instance"
     create_port_for_vm $VISIBILITY_QCOW2_IMAGE_NAME $InstanceName
+    # edits the docker file to add visibility vm IP address
+    configure_vis_ip_addr_in_docker
 
     if [[ $VISIBILITY_QCOW2_IMAGE = build ]]; then
-       # edits the docker file to add visibility vm IP address
-       configure_vis_ip_addr_in_docker
-
        # prepare visibility source, this is needed for diskimage build
        cd /home/stack/
        sudo rm -rf visibility
-       sudo git clone https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git -b $VISIBILITY_GIT_BRANCH
+       sudo git clone\
+ https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git\
+ -b $VISIBILITY_GIT_BRANCH
        echo "Building Image: $VISIBILITY_QCOW2_IMAGE_NAME"
        cd $NFPSERVICE_DIR/gbpservice/tests/contrib/diskimage-create/
-       sudo python visibility_disk_image_create.py visibility_conf.json $GBPSERVICE_BRANCH $DOCKER_IMAGES_URL
+       sudo python visibility_disk_image_create.py\
+ visibility_conf.json $GBPSERVICE_BRANCH $DOCKER_IMAGES_URL
        VISIBILITY_QCOW2_IMAGE=$(cat output/last_built_image_path)
     fi
     echo "Uploading Image: $VISIBILITY_QCOW2_IMAGE_NAME"
-    glance image-create --name $VISIBILITY_QCOW2_IMAGE_NAME --disk-format qcow2 --container-format bare --visibility public --file $VISIBILITY_QCOW2_IMAGE
+    glance image-create\
+ --name $VISIBILITY_QCOW2_IMAGE_NAME\
+ --disk-format qcow2\
+ --container-format bare\
+ --visibility public\
+ --file $VISIBILITY_QCOW2_IMAGE
     sleep 4
     
     if ! [[ -z $AsavQcow2Image ]]; then
-        gbp service-profile-create --servicetype FIREWALL --insertion-mode l3 --shared True --service-flavor service_vendor=asav,device_type=nova --vendor NFP asav_fw_profile
+        gbp service-profile-create\
+ --servicetype FIREWALL\
+ --insertion-mode l3\
+ --shared True\
+ --service-flavor service_vendor=asav,device_type=nova\
+ --vendor NFP\
+ asav_fw_profile
 
         ASAV_QCOW2_IMAGE_NAME=asav
         echo "Uploading Image: $ASAV_QCOW2_IMAGE_NAME"
-        glance image-create --name $ASAV_QCOW2_IMAGE_NAME --disk-format qcow2 --container-format bare --visibility public --file $AsavQcow2Image
+        glance image-create\
+ --name $ASAV_QCOW2_IMAGE_NAME\
+ --disk-format qcow2\
+ --container-format bare\
+ --visibility public\
+ --file $AsavQcow2Image
     fi
 
     if ! [[ -z $PaloAltoQcow2Image ]]; then
         PALO_ALTO_QCOW2_IMAGE_NAME=paloalto
         echo "Uploading Image: $PALO_ALTO_QCOW2_IMAGE_NAME"
-        glance image-create --name $PALO_ALTO_QCOW2_IMAGE_NAME --disk-format qcow2 --container-format bare --visibility public --file $PaloAltoQcow2Image
+        glance image-create\
+ --name $PALO_ALTO_QCOW2_IMAGE_NAME\
+ --disk-format qcow2\
+ --container-format bare\
+ --visibility public\
+ --file $PaloAltoQcow2Image
     fi
 }
 
@@ -111,7 +139,6 @@ function configure_visibility_user_data {
 # $1 is the Visibility VM's IP address
     CUR_DIR=$PWD
     visibility_vm_ip=$1
-    configurator_ip=`neutron port-show pt_configuratorVM_instance -f value -c fixed_ips | cut -d'"' -f8`
     sudo rm -rf /opt/visibility_user_data
     sudo cp -r $NFPSERVICE_DIR/devstack/exercises/nfp_service/user-data/visibility_user_data /opt/.
     cd /opt
@@ -121,6 +148,7 @@ function configure_visibility_user_data {
     sudo echo $value
     sudo sed -i "s|<SSH PUBLIC KEY>|${value}|" visibility_user_data
     sudo sed -i "s/visibility_vm_ip=*.*/visibility_vm_ip=$visibility_vm_ip/g" visibility_user_data
+    #BUGBUG(RPM): Verify HOST_IP
     sudo sed -i "s/os_controller_ip=*.*/os_controller_ip=$HOST_IP/g" visibility_user_data
     sudo sed -i "s/statsd_host=*.*/statsd_host=$visibility_vm_ip/g" visibility_user_data
     sudo sed -i "s/rabbit_host=*.*/rabbit_host=$configurator_ip/g" visibility_user_data
@@ -166,7 +194,13 @@ function launch_visibilityVM {
 
     configure_visibility_user_data $visibility_ip
     echo "Launching Visibility image"
-    nova boot --image $ImageId --flavor m1.xlarge --user-data /opt/visibility_user_data --nic port-id=$visibility_port_id --nic port-id=$ExtPortId $InstanceName
+    nova boot\
+ --image $ImageId\
+ --flavor m1.xlarge\
+ --user-data /opt/visibility_user_data\
+ --nic port-id=$visibility_port_id\
+ --nic port-id=$ExtPortId\
+ $InstanceName
     sleep 10
     attach_security_groups
 }
@@ -192,7 +226,6 @@ function nfp_logs_forword {
 
 function restart_processes {
     # restart configurator
-    configurator_ip=120.0.0.3
     sudo ip netns exec nfp-proxy\
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker exec configurator screen -S configurator -X quit
@@ -207,6 +240,7 @@ function prepare_for_mode_shift {
         unset OS_USER_DOMAIN_ID
         unset OS_PROJECT_DOMAIN_ID
 
+        # BUGBUG(RPM): Configurator's port name should be retrieved from a result file populated by advanced mode.
         configurator_ip=`neutron port-show pt_configuratorVM_instance -f value -c fixed_ips | cut -d'"' -f8`
         echo "Configurator's IP: $configurator_ip"
 
@@ -214,9 +248,11 @@ function prepare_for_mode_shift {
         setup_ssh_key
         echo "Copy files and configure"
         copy_files
-        echo "Configuring nova"
-        nfp_configure_nova
-        sleep 10
+        # FIXME(RPM): Restart of the processes in nfp_configure_nova
+        # is not working, this need to be fixed.
+        #echo "Configuring nova"
+        #nfp_configure_nova
+        #sleep 10
         echo "Preparing image creation"
         create_images
         echo "Launching the Visibility VM"
