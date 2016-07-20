@@ -11,8 +11,8 @@
 #    under the License.
 
 import mock
-import unittest
 
+from neutron.tests import base
 from oslo_log import log as logging
 
 from gbpservice.contrib.nfp.configurator.agents import firewall as fw
@@ -31,7 +31,7 @@ STATUS_ACTIVE = "ACTIVE"
 """
 
 
-class ConfiguratorRpcManagerTestCase(unittest.TestCase):
+class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
     def __init__(self, *args, **kwargs):
         super(ConfiguratorRpcManagerTestCase, self).__init__(*args, **kwargs)
@@ -335,7 +335,3 @@ class ConfiguratorRpcManagerTestCase(unittest.TestCase):
         """
 
         self._test_notifications()
-
-
-if __name__ == '__main__':
-    unittest.main()
