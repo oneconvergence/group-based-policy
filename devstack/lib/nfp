@@ -213,6 +213,8 @@ function create_nfp_gbp_resources {
 
     neutron router-gateway-clear\
  l3p_service_management
+    gbp l3policy-update --external-segment "" service_management
+
 }
 
 # create_port_for_vm() - Create a port, and get its details
