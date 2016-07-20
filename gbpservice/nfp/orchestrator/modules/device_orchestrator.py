@@ -266,6 +266,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             "DELETE_CONFIGURATION_COMPLETED": self.unplug_interfaces,
             "DELETE_CONFIGURATION_COMPLETED_FAST": self.unplug_interfaces_fast,
             "DELETE_DEVICE": self.delete_device,
+            "DELETE_DEVICE_FAST": self.delete_device_fast,
             "DELETE_CONFIGURATION": self.delete_device_configuration,
             "DELETE_CONFIGURATION_FAST": self.delete_device_configuration_fast,
             "DEVICE_NOT_REACHABLE": self.handle_device_not_reachable,
@@ -353,9 +354,15 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             del device['id']
             orchestration_driver.delete_network_function_device(device)
             self._delete_network_function_device_db(device_id, device)
+            '''
             # DEVICE_DELETED event for NSO
             self._create_event(event_id='DEVICE_DELETED',
                                event_data=device)
+            '''
+            ucdf_event = (
+                self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
+										   key=nf_id))
+            self._controller.event_complete(ucdf_event, result='FAILED')
 
     def _update_device_status(self, device, state, status_desc=None):
         device['status'] = state
@@ -1306,7 +1313,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         else:
             # Ignore unplug error
             pass
-        self._create_event(event_id='DELETE_DEVICE',
+        self._create_event(event_id='DELETE_DEVICE_FAST',
                            event_data=device,
                            is_internal_event=True)
 
@@ -1329,9 +1336,42 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             self._update_network_function_device_db(device,
                                                     device['status'],
                                                     desc)
+            
             # DEVICE_DELETED event for NSO
             self._create_event(event_id='DEVICE_DELETED',
                                event_data=device)
+            
+
+    def delete_device_fast(self, event):
+        # Update status in DB, send DEVICE_DELETED event to NSO.
+        device = event.data
+        orchestration_driver = self._get_orchestration_driver(
+            device['service_details']['service_vendor'])
+
+        self._decrement_device_ref_count(device)
+        device_ref_count = device['reference_count']
+        if device_ref_count <= 0:
+            orchestration_driver.delete_network_function_device(device)
+            self._create_event(event_id='DEVICE_BEING_DELETED',
+                               event_data=device,
+                               is_poll_event=True,
+                               original_event=event)
+        else:
+            desc = 'Network Service Device can be reuse'
+            self._update_network_function_device_db(device,
+                                                    device['status'],
+                                                    desc)
+            nf_id = device['network_function_id']
+            ucdf_event = (
+				self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
+										   key=nf_id))
+            self._controller.event_complete(ucdf_event, result='SUCCESS')
+
+            '''
+            # DEVICE_DELETED event for NSO
+            self._create_event(event_id='DEVICE_DELETED',
+                               event_data=device)
+            '''
 
     @nfp_api.poll_event_desc(event='DEVICE_BEING_DELETED', spacing=2)
     def check_device_deleted(self, event):
@@ -1346,8 +1386,15 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             orchestration_driver.delete_network_function_device(device)
             self._delete_network_function_device_db(device_id, device)
             # DEVICE_DELETED event for NSO
+            '''
             self._create_event(event_id='DEVICE_DELETED',
                                event_data=device)
+            '''
+            nf_id = device['network_function_id']
+            ucdf_event = (
+				self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
+										   key=nf_id))
+            self._controller.event_complete(ucdf_event, result='SUCCESS')
             return STOP_POLLING
         else:
             return CONTINUE_POLLING

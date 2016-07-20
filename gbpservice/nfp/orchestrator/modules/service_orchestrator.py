@@ -78,7 +78,8 @@ def events_init(controller, config, service_orchestrator):
               'USER_CONFIG_DELETE_FAILED', 'USER_CONFIG_UPDATE_FAILED',
               'USER_CONFIG_FAILED', 'CHECK_USER_CONFIG_COMPLETE',
               'SERVICE_CONFIGURED', 'DELETE_USER_CONFIG_FAST',
-              'USER_CONFIG_DELETED_FAST']
+              'USER_CONFIG_DELETED_FAST',
+              'DELETE_NETWORK_FUNCTION_COMPLETE']
     events_to_register = []
     for event in events:
         events_to_register.append(
@@ -453,7 +454,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             "USER_CONFIG_DELETE_FAILED": self.handle_user_config_delete_failed,
             "USER_CONFIG_UPDATE_FAILED": self.handle_update_user_config_failed,
             "USER_CONFIG_FAILED": self.handle_user_config_failed,
-            "SERVICE_CONFIGURED": self.handle_service_configured
+            "SERVICE_CONFIGURED": self.handle_service_configured,
+            "DELETE_NETWORK_FUNCTION_COMPLETE": self.delete_network_function_complete
         }
         if event_id not in event_handler_mapping:
             raise Exception("Invalid Event ID")
@@ -840,22 +842,31 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         }
         network_function = self.db_handler.update_network_function(
             self.db_session, network_function_id, network_function)
-        heat_stack_id = network_function['heat_stack_id']
+
         LOG.info(_LI("[Event:DeleteService]"))
-        if heat_stack_id:
-            # service_config = network_function_info['service_config']
-            # self.delete_network_function_user_config(network_function_id,
-            #                                          service_config)
-            # Generate DELETE USER CONFIG EVENT
-            self._create_event(event_id='DELETE_USER_CONFIG_FAST',
-                                event_data=network_function_details)
-            self._create_event(event_id='USER_CONFIG_DELETED_FAST',
-                                event_data=network_function_details)
-        else:
-            for nfi_id in network_function['network_function_instances']:
-                self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE_FAST',
-                                   event_data=network_function_details,
-                                   is_internal_event=True)
+        dnf_event = (
+            self._controller.new_event(id='DELETE_NETWORK_FUNCTION_COMPLETE',
+                                        key=nf_id,
+                            			data=network_function_details,
+                            			graph=True))
+        ducf_event = (
+		    self._controller.new_event(id='DELETE_USER_CONFIG_FAST',
+			    					   key=nf_id,
+				    				   data=network_function_details,
+					    			   graph=True))
+        ucdf_event = (
+		    self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
+			    					   key=nf_id,
+				    				   data=network_function_details,
+					    			   graph=True))
+        graph = nfp_event.EventGraph(dnf_event)
+        graph.add_node(ducf_event, dnf_event)
+        graph.add_node(ucdf_event, dnf_event)
+
+        graph_event = self._controller.new_event(id="DELETE_NF_GRAPH",
+												 graph=graph)
+        graph_nodes = [dnf_event, ducf_event, ucdf_event]
+        self._controller.post_event_graph(graph_event, graph_nodes)
         nfp_logging.clear_logging_context()
 
     def delete_network_function(self, context, network_function_id):
@@ -922,13 +933,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         network_function_details = event.data
         network_function_info = network_function_details['network_function']
         if not network_function_info['heat_stack_id']:
-            event_data = {
-                'network_function_id': network_function_info['id']
-            }
-            self._create_event('USER_CONFIG_DELETED',
-                               event_data=event_data, is_internal_event=True)
+            self._controller.event_complete(event, result="SUCCESS")
             return
-
         heat_stack_id = self.config_driver.delete_config_fast(
             network_function_info['heat_stack_id'],
             network_function_info['tenant_id'])
@@ -941,6 +947,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         if not heat_stack_id:
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=request_data, is_internal_event=True)
+            self._controller.event_complete(event, result="SUCCESS")
             return
         self._create_event('DELETE_USER_CONFIG_IN_PROGRESS_FAST',
                            event_data=request_data,
@@ -1373,7 +1380,10 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                     self.db_session, nfi['network_function_id'])
                 LOG.info(_LI("NSO: Deleted network function: %(nf_id)s"),
                          {'nf_id': nf_id})
-
+                ucdf_event = (
+                    self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
+                                               key=nf_id))
+                self._controller.event_complete(ucdf_event, result='SUCCESS')
                 return
             delete_nfd_request = {
                 'network_function_device_id': nfi[
@@ -1385,13 +1395,19 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             self._create_event('DELETE_NETWORK_FUNCTION_DEVICE_FAST',
                                event_data=delete_nfd_request)
         else:
+            ucdf_event = (
+                self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
+                                           key=nf_id))
+            self._controller.event_complete(ucdf_event, result='SUCCESS')
+            return
+            '''
             device_deleted_event = {
                 'network_function_instance_id': nfi['id']
             }
             self._create_event('DEVICE_DELETED',
                                event_data=device_deleted_event,
                                is_internal_event=True)
-
+            '''
     # FIXME: Add all possible validations here
     def _validate_create_service_input(self, context, create_service_request):
         required_attributes = ["resource_owner_context",
@@ -1567,8 +1583,9 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
 
     def check_for_user_config_deleted_fast(self, event):
         request_data = event.data
+        nf_id = request_data['network_function_id']
         event_data = {
-            'network_function_id': request_data['network_function_id']
+            'network_function_id': nf_id
         }
         try:
             config_status = self.config_driver.is_config_delete_complete_fast(
@@ -1580,15 +1597,28 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
             self._controller.event_complete(event)
+            ducf_event = (
+                self._controller.new_event(id='DELETE_USER_CONFIG_FAST',
+                  	                       key=nf_id))
+            self._controller.event_complete(ducf_event, result="FAILED")
+            
             return STOP_POLLING
         if config_status == nfp_constants.ERROR:
             self._create_event('USER_CONFIG_DELETE_FAILED',
                                event_data=event_data, is_internal_event=True)
             self._controller.event_complete(event)
+            ducf_event = (
+                self._controller.new_event(id='DELETE_USER_CONFIG_FAST',
+                  	                       key=nf_id))
+            self._controller.event_complete(ducf_event, result="FAILED")
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.COMPLETED:
             self._controller.event_complete(event)
+            ducf_event = (
+                self._controller.new_event(id='DELETE_USER_CONFIG_FAST',
+                  	                       key=nf_id))
+            self._controller.event_complete(ducf_event, result="SUCCESS")
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
         elif config_status == nfp_constants.IN_PROGRESS:
@@ -1689,6 +1719,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         if base_mode_support:
             self.db_handler.delete_network_function(
                 self.db_session, network_function['id'])
+            self._controller.event_complete(event, result="SUCCESS")
             return
         for nfi_id in network_function['network_function_instances']:
             self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE_FAST',
@@ -1711,6 +1742,18 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
     # When NDO deletes Device DB, the Foreign key NSI will be nulled
     # So we have to pass the NSI ID in delete event to NDO and process
     # the result based on that
+    def delete_network_function_complete(self, event):
+        network_function_details = event.data
+        nfi_id = network_function_details['network_function_instance']['id']
+        self.db_handler.delete_network_function_instance(
+            self.db_session, nfi_id)
+        nf = network_function_details['network_function']
+        if not nf['network_function_instances']:
+            self.db_handler.delete_network_function(
+                self.db_session, nf['id'])
+        LOG.info(_LI("NSO: Deleted network function: %(nf_id)s"),
+                 {'nf_id': nf['id']})
+
     def handle_device_deleted(self, event):
         request_data = event.data
         nfi_id = request_data['network_function_instance_id']
