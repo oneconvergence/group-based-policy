@@ -10,6 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import mock
+import uuid
+
+from gbpservice.contrib.nfp.config_orchestrator.common import common
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import (
     firewall)
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import (
@@ -17,13 +21,10 @@ from gbpservice.contrib.nfp.config_orchestrator.handlers.config import (
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import vpn
 from gbpservice.contrib.nfp.config_orchestrator.handlers.notification import (
     handler as notif_handler)
-
-from gbpservice.contrib.nfp.config_orchestrator.common import common
 from gbpservice.nfp.lib import transport
-import mock
+
 from neutron import context as ctx
-import unittest
-import uuid
+from neutron.tests import base
 
 
 class TestContext(object):
@@ -181,9 +182,10 @@ class GeneralConfigStructure(object):
         return mod_method(data, resource)
 
 
-class FirewallTestCase(unittest.TestCase):
+class FirewallTestCase(base.BaseTestCase):
 
     def setUp(self):
+        super(FirewallTestCase, self).setUp()
         self.conf = Conf()
         self.fw_handler = firewall.FwAgent(self.conf, 'sc')
         self.context = TestContext().get_context()
@@ -254,9 +256,10 @@ class FirewallTestCase(unittest.TestCase):
             self.fw_handler.delete_firewall(self.context, self.fw, self.host)
 
 
-class LoadBalanceTestCase(unittest.TestCase):
+class LoadBalanceTestCase(base.BaseTestCase):
 
     def setUp(self):
+        super(LoadBalanceTestCase, self).setUp()
         self.conf = Conf()
         self.lb_handler = loadbalancer.LbAgent(self.conf, 'sc')
         self.context = TestContext().get_context()
@@ -583,9 +586,10 @@ class LoadBalanceTestCase(unittest.TestCase):
                 self.context, hm, pool_id)
 
 
-class VPNTestCase(unittest.TestCase):
+class VPNTestCase(base.BaseTestCase):
 
     def setUp(self):
+        super(VPNTestCase, self).setUp()
         self.conf = Conf()
         self.vpn_handler = vpn.VpnAgent(self.conf, 'sc')
         self.context = TestContext().get_context()
@@ -704,7 +708,7 @@ class VPNTestCase(unittest.TestCase):
             self.vpn_handler.vpnservice_updated(self.context, **kwargs)
 
 
-class FirewallNotifierTestCase(unittest.TestCase):
+class FirewallNotifierTestCase(base.BaseTestCase):
 
     class Controller(object):
 
@@ -715,6 +719,7 @@ class FirewallNotifierTestCase(unittest.TestCase):
             return
 
     def setUp(self):
+        super(FirewallNotifierTestCase, self).setUp()
         self.conf = Conf()
         self.n_handler = notif_handler.NaasNotificationHandler(
             self.conf, self.Controller())
@@ -759,7 +764,7 @@ class FirewallNotifierTestCase(unittest.TestCase):
                                            notification_data)
 
 
-class LoadbalancerNotifierTestCase(unittest.TestCase):
+class LoadbalancerNotifierTestCase(base.BaseTestCase):
 
     class Controller(object):
 
@@ -770,6 +775,7 @@ class LoadbalancerNotifierTestCase(unittest.TestCase):
             return
 
     def setUp(self):
+        super(LoadbalancerNotifierTestCase, self).setUp()
         self.conf = Conf()
         self.n_handler = notif_handler.NaasNotificationHandler(
             self.conf, self.Controller())
@@ -816,7 +822,7 @@ class LoadbalancerNotifierTestCase(unittest.TestCase):
                                            notification_data)
 
 
-class VpnNotifierTestCase(unittest.TestCase):
+class VpnNotifierTestCase(base.BaseTestCase):
 
     class Controller(object):
 
@@ -827,6 +833,7 @@ class VpnNotifierTestCase(unittest.TestCase):
             return
 
     def setUp(self):
+        super(VpnNotifierTestCase, self).setUp()
         self.conf = Conf()
         self.n_handler = notif_handler.NaasNotificationHandler(
             self.conf, self.Controller())
@@ -860,7 +867,3 @@ class VpnNotifierTestCase(unittest.TestCase):
         transport.RPCClient = mock.MagicMock(return_value=rpc_client)
         self.n_handler.handle_notification(self.context,
                                            notification_data)
-
-
-if __name__ == '__main__':
-    unittest.main()

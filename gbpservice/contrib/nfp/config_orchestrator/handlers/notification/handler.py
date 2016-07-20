@@ -10,6 +10,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import sys
+import traceback
+
 from gbpservice.contrib.nfp.config_orchestrator.common import (
     lbv2_constants as lbv2_const)
 from gbpservice.contrib.nfp.config_orchestrator.common import (
@@ -19,9 +22,6 @@ from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
 
 import oslo_messaging as messaging
-
-import sys
-import traceback
 
 
 LOG = nfp_logging.getLogger(__name__)

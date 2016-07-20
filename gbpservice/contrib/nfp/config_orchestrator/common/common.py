@@ -12,13 +12,13 @@
 
 from gbpservice.contrib.nfp.config_orchestrator.common import (
     topics as a_topics)
+from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.lib import transport
 
 from neutron.common import constants as n_constants
 from neutron.common import rpc as n_rpc
 from neutron.common import topics as n_topics
 
-from gbpservice.nfp.core import log as nfp_logging
 import oslo_messaging as messaging
 
 LOG = nfp_logging.getLogger(__name__)
