@@ -30,8 +30,7 @@ if [[ $ENABLE_NFP = True ]]; then
         EXT_NET_CIDR=
     
         # Following image path options are optional
-        # Configure them to use the custom images
-        # Leave them empty, so that they will be built during the installation
+        # Leave ConfiguratorQcow2Image empty to let the install step build it
         ConfiguratorQcow2Image=
         VyosQcow2Image=
         HaproxyQcow2Image=

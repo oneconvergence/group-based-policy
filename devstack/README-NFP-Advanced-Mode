@@ -18,7 +18,7 @@ Fresh Installation Steps:
       EXT_NET_ALLOCATION_POOL_END=
       EXT_NET_CIDR= 
     # Configure the following image paths(optional),
-    # Leave them empty, so that the images are built during installation
+    # Leave ConfiguratorQcow2Image empty to let the install step build it.
       ConfiguratorQcow2Image=
       VyosQcow2Image=
       HaproxyQcow2Image=
