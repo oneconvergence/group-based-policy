@@ -264,7 +264,13 @@ class NfpResourceManager(NfpProcessManager, NfpEventManager):
             # Release the sequencer for this sequence,
             # so that next event can get scheduled.
             self._event_sequencer.release(event.binding_key, event)
-            self._graph_event_complete(cached_event)
+            if cached_event:
+                self._graph_event_complete(cached_event)
+            else:
+                message = ("(event - %s) - completed, not in cache"
+                           "cannot go for graph event complete." % (
+                          event.identify()))
+                LOG.error(message)
 
     def _non_schedule_event(self, event):
         if event.desc.type == nfp_event.POLL_EVENT:

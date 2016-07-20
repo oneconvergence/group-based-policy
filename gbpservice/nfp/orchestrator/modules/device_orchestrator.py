@@ -1229,7 +1229,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         LOG.info(_LI("Device Orchestrator received delete network service "
                      "device request for device %(device)s"),
                  {'device': delete_nfd_request})
-
+        device['event_desc'] = network_function_details['event_desc']
         self._create_event(event_id='DELETE_CONFIGURATION_FAST',
                            event_data=device,
                            is_internal_event=True)
@@ -1261,6 +1261,13 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             self._create_event(event_id='DRIVER_ERROR',
                                event_data=device,
                                is_internal_event=True)
+            ucdf_event = (
+                self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
+                                           key=nf_id,
+                                           desc_dict=device[
+                                               'event_desc']))
+            self._controller.event_complete(ucdf_event, result='FAILED')
+
             return None
         self._create_event(event_id='DELETE_CONFIGURATION_COMPLETED_FAST',
                            event_data=device)
@@ -1311,6 +1318,12 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             self._decrement_device_interface_count(device)
             device['mgmt_port_id'] = mgmt_port_id
         else:
+            ucdf_event = (
+                self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
+                                           key=nf_id,
+                                           desc_dict=device[
+                                               'event_desc']))
+            self._controller.event_complete(ucdf_event, result='SUCCESS')
             # Ignore unplug error
             pass
         self._create_event(event_id='DELETE_DEVICE_FAST',
@@ -1364,7 +1377,8 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             nf_id = device['network_function_id']
             ucdf_event = (
 				self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
-										   key=nf_id))
+										   key=nf_id,
+                                           desc_dict=device['event_desc']))
             self._controller.event_complete(ucdf_event, result='SUCCESS')
 
             '''
@@ -1393,7 +1407,8 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             nf_id = device['network_function_id']
             ucdf_event = (
 				self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
-										   key=nf_id))
+										   key=nf_id,
+                                           desc_dict=device['event_desc']))
             self._controller.event_complete(ucdf_event, result='SUCCESS')
             return STOP_POLLING
         else:

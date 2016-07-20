@@ -949,6 +949,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                                event_data=request_data, is_internal_event=True)
             self._controller.event_complete(event, result="SUCCESS")
             return
+        request_data['event_desc'] = event.desc.to_dict()
         self._create_event('DELETE_USER_CONFIG_IN_PROGRESS_FAST',
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
@@ -1382,7 +1383,9 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                          {'nf_id': nf_id})
                 ucdf_event = (
                     self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
-                                               key=nf_id))
+                                               key=nf_id,
+                                               desc_dict=network_function_details[
+                                                   'event_desc']))
                 self._controller.event_complete(ucdf_event, result='SUCCESS')
                 return
             delete_nfd_request = {
@@ -1397,7 +1400,9 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         else:
             ucdf_event = (
                 self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
-                                           key=nf_id))
+                                           key=nf_id,
+                                           desc_dict=network_function_details[
+                                               'event_desc']))
             self._controller.event_complete(ucdf_event, result='SUCCESS')
             return
             '''
@@ -1599,7 +1604,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             self._controller.event_complete(event)
             ducf_event = (
                 self._controller.new_event(id='DELETE_USER_CONFIG_FAST',
-                  	                       key=nf_id))
+                  	                       key=nf_id,
+                  	                       desc_dict=request_data['event_desc']))
             self._controller.event_complete(ducf_event, result="FAILED")
             
             return STOP_POLLING
@@ -1609,7 +1615,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             self._controller.event_complete(event)
             ducf_event = (
                 self._controller.new_event(id='DELETE_USER_CONFIG_FAST',
-                  	                       key=nf_id))
+                  	                       key=nf_id,
+                  	                       desc_dict=request_data['event_desc']))
             self._controller.event_complete(ducf_event, result="FAILED")
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
@@ -1617,7 +1624,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             self._controller.event_complete(event)
             ducf_event = (
                 self._controller.new_event(id='DELETE_USER_CONFIG_FAST',
-                  	                       key=nf_id))
+                  	                       key=nf_id,
+                  	                       desc_dict=request_data['event_desc']))
             self._controller.event_complete(ducf_event, result="SUCCESS")
             return STOP_POLLING
             # Trigger RPC to notify the Create_Service caller with status
@@ -1721,6 +1729,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                 self.db_session, network_function['id'])
             self._controller.event_complete(event, result="SUCCESS")
             return
+        event_desc = event.desc.to_dict()
+        network_function_details['event_desc'] = event_desc
         for nfi_id in network_function['network_function_instances']:
             self._create_event('DELETE_NETWORK_FUNCTION_INSTANCE_FAST',
                                event_data=network_function_details,
