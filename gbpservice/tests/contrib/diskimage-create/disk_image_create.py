@@ -151,6 +151,7 @@ if __name__ == "__main__":
 
     # parse args from json file
     parse_json(sys.argv[1])
+    elements = conf['dib']['elements']
 
     nfp_branch_name = sys.argv[2] if len(sys.argv) == 3 else None
 
