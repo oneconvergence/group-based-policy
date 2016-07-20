@@ -213,8 +213,10 @@ function create_nfp_gbp_resources {
 
     neutron router-gateway-clear\
  l3p_service_management
-    gbp l3policy-update --external-segment "" service_management
 
+    gbp l3policy-update\
+ --external-segment ""\
+ service_management
 }
 
 # create_port_for_vm() - Create a port, and get its details
@@ -239,10 +241,6 @@ function create_nfp_image {
     unset OS_USER_DOMAIN_ID
     unset OS_PROJECT_DOMAIN_ID
 
-    # during diskimage build, the following setting in apache2 is needed for local repo
-    sudo cp /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-enabled/
-    sudo service apache2 restart
-
     if [[ $NFP_DEVSTACK_MODE = base ]]; then
         RefConfiguratorQcow2ImageName=reference_configurator_image
         echo "Building Image: $RefConfiguratorQcow2ImageName"
@@ -264,30 +262,17 @@ function create_nfp_image {
         glance image-create --name $ConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $ConfiguratorQcow2Image
 
         VyosQcow2ImageName=vyos
-        if [[ $VyosQcow2Image = build ]]; then
-            echo "Building Image: $VyosQcow2ImageName"
-            cur_dir=$PWD
-            cd $DISKIMAGE_CREATE_DIR/vyos/
-            sudo python vyos_image_create.py vyos_conf.json
-            cd $cur_dir
-            VyosQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
+        if ! [[ -z $VyosQcow2Image ]]; then
+            echo "Uploading Image: $VyosQcow2ImageName"
+            glance image-create --name $VyosQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VyosQcow2Image
         fi
-        echo "Uploading Image: $VyosQcow2ImageName"
-        glance image-create --name $VyosQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $VyosQcow2Image
 
         HaproxyQcow2ImageName=haproxy
-        if [[ $HaproxyQcow2Image = build ]]; then
-            echo "Building Image: $HaproxyQcow2ImageName"
-            sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/haproxy_conf.json
-            HaproxyQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
+        if ! [[ -z $HaproxyQcow2Image ]]; then
+            echo "Uploading Image: $HaproxyQcow2ImageName"
+            glance image-create --name $HaproxyQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $HaproxyQcow2Image
         fi
-        echo "Uploading Image: $HaproxyQcow2ImageName"
-        glance image-create --name $HaproxyQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $HaproxyQcow2Image
     fi
-
-    # restore the apache2 setting that we did above
-    sudo rm /etc/apache2/sites-enabled/000-default.conf
-    sudo service apache2 restart
 }
 
 # configure_configurator_user_data() - Configure Configurator user data

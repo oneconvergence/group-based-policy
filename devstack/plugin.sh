@@ -86,6 +86,7 @@ if is_service_enabled group-policy; then
         echo_summary "Preparing $GBP"
     elif [[ "$1" == "stack" && "$2" == "install" ]]; then
         echo_summary "Installing $GBP"
+        [[ $ENABLE_APIC_AIM = True ]] && install_apic_aim
         if [[ $ENABLE_NFP = True ]]; then
             echo_summary "Installing $NFP"
             prepare_nfp_image_builder
@@ -104,9 +105,8 @@ if is_service_enabled group-policy; then
                 configure_nfp_vpn
             fi
         fi
-#        install_apic_ml2
-#        install_aim
-#        init_aim
+        # REVISIT move installs to install phase?
+        # install_apic_ml2
         install_gbpclient
         install_gbpservice
         [[ $ENABLE_NFP = True ]] && install_nfpgbpservice
@@ -114,6 +114,7 @@ if is_service_enabled group-policy; then
         [[ $ENABLE_NFP = True ]] && init_nfpgbpservice
         install_gbpheat
         install_gbpui
+        [[ $ENABLE_APIC_AIM = True ]] && configure_apic_aim
         stop_apache_server
         start_apache_server
     elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
