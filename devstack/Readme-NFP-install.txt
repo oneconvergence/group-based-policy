@@ -23,9 +23,13 @@ Fresh Installation Steps:
               EXT_NET_ALLOCATION_POOL_START=
               EXT_NET_ALLOCATION_POOL_END=
               EXT_NET_CIDR=
-        # Service VM image path(s) (optional)
-        # (Leave ConfiguratorQcow2Image empty to let the install step build it)
+        # Configurator VM image path, its optional
+        # If configured, install step uploads the specified image
+        # If not configured, install step will build a new one and upload it
               ConfiguratorQcow2Image=
+        # Service VM image paths, they are optional
+        # If configured, install step uploads the specified images
+        # If not configured, install step ignores uploading these service images
               VyosQcow2Image=
               HaproxyQcow2Image=
         # Public interface name

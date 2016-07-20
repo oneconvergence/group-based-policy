@@ -29,12 +29,16 @@ if [[ $ENABLE_NFP = True ]]; then
         EXT_NET_ALLOCATION_POOL_END=
         EXT_NET_CIDR=
     
-        # Following image path options are optional
-        # Leave ConfiguratorQcow2Image empty to let the install step build it
+        # Configurator image path option, its optional
+        # If configured, install step uploads the specified image
+        # If not configured, install step will build a new one and upload it
         ConfiguratorQcow2Image=
+        # Service VM image path options, they are optional
+        # If configured, install step uploads the specified images
+        # If not configured, install step ignores uploading these service images
         VyosQcow2Image=
         HaproxyQcow2Image=
-    
+
         # Make sure that your public interface is not attached to any bridge.
         PUBLIC_INTERFACE=
     
