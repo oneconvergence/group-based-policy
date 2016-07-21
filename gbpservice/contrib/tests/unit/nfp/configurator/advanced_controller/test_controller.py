@@ -15,8 +15,8 @@ import mock
 import os
 import oslo_serialization.jsonutils as jsonutils
 import pecan
-PECAN_CONFIG_FILE = (os.path.abspath(os.path.join(os.getcwd(),
-                     "./../../../../../../nfp/pecan/api/config.py")))
+PECAN_CONFIG_FILE = (os.getcwd() +
+                     "/gbpservice/nfp/pecan/api/config.py")
 
 pecan.set_config(PECAN_CONFIG_FILE, overwrite=True)
 
@@ -28,10 +28,10 @@ from pecan import rest
 
 from gbpservice.nfp.pecan import constants
 
-setattr(pecan, 'mode', constants.controller)
+setattr(pecan, 'mode', constants.advanced)
 
-from gbpservice.contrib.nfp.configurator.controller import controller
 from gbpservice.nfp.pecan.api import root_controller
+from gbpservice.contrib.nfp.configurator.advanced_controller import controller
 
 
 """This class contains all the unittest cases for REST server of configurator.
