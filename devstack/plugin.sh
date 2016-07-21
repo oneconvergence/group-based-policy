@@ -104,9 +104,6 @@ if is_service_enabled group-policy; then
                 configure_nfp_vpn
             fi
         fi
-#        install_apic_ml2
-#        install_aim
-#        init_aim
         install_gbpclient
         install_gbpservice
         [[ $ENABLE_NFP = True ]] && install_nfpgbpservice
