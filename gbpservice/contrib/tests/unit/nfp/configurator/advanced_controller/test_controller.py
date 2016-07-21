@@ -25,8 +25,12 @@ import zlib
 from neutron.tests import base
 from pecan import rest
 
-from gbpservice.contrib.nfp.configurator.api import root_controller
-from gbpservice.contrib.nfp.configurator.api.v1.controllers import controller
+from gbpservice.nfp.pecan import constants
+
+setattr(pecan, 'mode', constants.base)
+
+from gbpservice.nfp.pecan.api import root_controller
+from gbpservice.contrib.nfp.configurator.advanced_controller import controller
 
 
 """This class contains all the unittest cases for REST server of configurator.
