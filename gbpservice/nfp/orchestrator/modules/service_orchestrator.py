@@ -22,6 +22,7 @@ from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.common import exceptions as nfp_exc
 from gbpservice.nfp.common import topics as nfp_rpc_topics
 from gbpservice.nfp.core import context as nfp_core_context
+from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core import module as nfp_api
 from gbpservice.nfp.core.rpc import RpcAgent
@@ -846,17 +847,17 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         LOG.info(_LI("[Event:DeleteService]"))
         dnf_event = (
             self._controller.new_event(id='DELETE_NETWORK_FUNCTION_COMPLETE',
-                                        key=nf_id,
+                                        key=network_function_id,
                             			data=network_function_details,
                             			graph=True))
         ducf_event = (
 		    self._controller.new_event(id='DELETE_USER_CONFIG_FAST',
-			    					   key=nf_id,
+			    					   key=network_function_id,
 				    				   data=network_function_details,
 					    			   graph=True))
         ucdf_event = (
 		    self._controller.new_event(id='USER_CONFIG_DELETED_FAST',
-			    					   key=nf_id,
+			    					   key=network_function_id,
 				    				   data=network_function_details,
 					    			   graph=True))
         graph = nfp_event.EventGraph(dnf_event)
@@ -1753,11 +1754,19 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
     # So we have to pass the NSI ID in delete event to NDO and process
     # the result based on that
     def delete_network_function_complete(self, event):
+        results = event.graph.get_leaf_node_results(event)
+        for result in results:
+            if result.result.lower() != 'success':
+                LOG.error("Event: %s failed" %(result.id))
+
         network_function_details = event.data
         nfi_id = network_function_details['network_function_instance']['id']
         self.db_handler.delete_network_function_instance(
             self.db_session, nfi_id)
-        nf = network_function_details['network_function']
+        nf_id = network_function_details['network_function']['id']
+        nf = self.db_handler.get_network_function(
+            self.db_session, nf_id)
+
         if not nf['network_function_instances']:
             self.db_handler.delete_network_function(
                 self.db_session, nf['id'])
