@@ -32,6 +32,7 @@ Fresh Installation Steps:
         # If not configured, install step ignores uploading these service images
               VyosQcow2Image=
               HaproxyQcow2Image=
+        # NOTE: The Service images can be built using a script. Refer the section "Build images".
         # Public interface name
               PUBLIC_INTERFACE=
         # Change the value of GBPSERVICE_BRANCH to use different branch(in OC repo)/patch(in Openstack repo)
@@ -53,3 +54,35 @@ Re-installation Steps:
 
 (2) Follow the fresh installation steps
 
+
+Build images:
+=============
+
+Steps to get the scripts to build images
+ # git clone\
+ -b mitaka_21st_march_base\
+ --single-branch\
+ https://github.com/oneconvergence/group-based-policy.git\
+ /home/stack/gbp_mitaka_21st_march_base
+
+Steps to build VyOS service image:
+ # cd /home/stack/gbp_mitaka_21st_march_base/gbpservice/tests/contrib/diskimage_create/vyos/
+ # sudo python vyos_image_create.py vyos_conf.json
+Image location:
+ # /home/stack/gbp_mitaka_21st_march_base/gbpservice/tests/contrib/diskimage_create/vyos/output/vyos.qcow2
+
+Steps to build Haproxy service image:
+ # cd /home/stack/gbp_mitaka_21st_march_base/gbpservice/tests/contrib/diskimage_create/
+ # sudo python build_image.py haproxy_conf.json
+Image location:
+ # /home/stack/gbp_mitaka_21st_march_base/gbpservice/tests/contrib/diskimage_create/output/haproxy.qcow2
+
+
+Upload images:
+=============
+
+Steps to upload VyOS service image:
+ # glance image-create --name vyos --disk-format qcow2 --container-format bare --visibility public --file /home/stack/gbp_mitaka_21st_march_base/gbpservice/tests/contrib/diskimage_create/vyos/output/vyos.qcow2
+
+Steps to upload Haproxy service image:
+ # glance image-create --name haproxy --disk-format qcow2 --container-format bare --visibility public --file /home/stack/gbp_mitaka_21st_march_base/gbpservice/tests/contrib/diskimage_create/output/haproxy.qcow2
