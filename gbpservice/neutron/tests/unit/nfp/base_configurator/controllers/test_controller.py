@@ -21,7 +21,7 @@ import zlib
 
 from gbpservice.nfp.pecan import constants
 
-setattr(pecan, 'mode', constants.base)
+setattr(pecan, 'mode', constants.base_controller)
 
 from gbpservice.nfp.pecan.api import root_controller
 

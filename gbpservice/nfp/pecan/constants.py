@@ -11,20 +11,17 @@
 #    under the License.
 
 
-BASE_CONTROLLER = 'base_controller'
-REFERENCE_CONTROLLER = 'reference_controller'
-ADVANCED_CONTROLLER = 'advanced_controller'
+base_vm = 'base_vm'
+base_controller = 'base_controller'
+controller = 'controller'
 
 
 controllers = {
-    BASE_CONTROLLER: 'gbpservice.nfp.base_configurator.controllers',
-    REFERENCE_CONTROLLER: ('gbpservice.tests.contrib'
-                           '.nfp_service.reference_configurator.controllers'),
-    ADVANCED_CONTROLLER: ('gbpservice.contrib.nfp.configurator'
-                          '.advanced_controller')
+    base_controller: 'gbpservice.nfp.base_configurator.controllers',
+    base_vm: ('gbpservice.tests.contrib.nfp_service'
+              '.reference_configurator.controllers'
+              ),
+    controller: 'gbpservice.contrib.nfp.configurator.controller'
 }
 
-base_with_vm = 'base_with_vm'
-base = 'base'
-advanced = 'advanced'
-modes = [base, base_with_vm, advanced]
+modes = [base_controller, base_vm, controller]

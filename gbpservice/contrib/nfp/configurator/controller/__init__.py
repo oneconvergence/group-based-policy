@@ -12,8 +12,7 @@
 
 import pecan
 
-from gbpservice.contrib.nfp.configurator.advanced_controller import (
-    controller)
+from gbpservice.contrib.nfp.configurator.controller import controller
 
 """This class forwards HTTP request to controller class.
 

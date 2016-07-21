@@ -22,21 +22,21 @@ class RootController(object):
     """
     _controllers = {}
 
-    for name, controller in constants.controllers.items():
+    for name, _controller in constants.controllers.items():
         try:
-            _controllers.update({name: __import__(controller,
+            _controllers.update({name: __import__(_controller,
                                                   globals(),
                                                   locals(),
                                                   ['controllers'], -1)})
         except Exception:
             pass
 
-    if pecan.mode == constants.base:
-        v1 = _controllers[constants.BASE_CONTROLLER].V1Controller()
-    elif pecan.mode == constants.base_with_vm:
-        v1 = _controllers[constants.REFERENCE_CONTROLLER].V1Controller()
-    elif pecan.mode == constants.advanced:
-        v1 = _controllers[constants.ADVANCED_CONTROLLER].V1Controller()
+    if pecan.mode == constants.base_controller:
+        v1 = _controllers[constants.base_controller].V1Controller()
+    elif pecan.mode == constants.base_vm:
+        v1 = _controllers[constants.base_vm].V1Controller()
+    elif pecan.mode == constants.controller:
+        v1 = _controllers[constants.controller].V1Controller()
 
     @pecan.expose()
     def get(self):

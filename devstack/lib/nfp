@@ -458,7 +458,7 @@ function copy_nfp_files_and_start_process {
         cd pecan/api
         sudo python setup.py develop
         echo "Starting nfp_base_configurator under screen named nfp_base_configurator"
-        run_process nfp_base_configurator "cd $NFPSERVICE_DIR/gbpservice/nfp/pecan/api; sudo ip netns exec nfp-proxy pecan configurator_decider config.py --mode base"
+        run_process nfp_base_configurator "cd $NFPSERVICE_DIR/gbpservice/nfp/pecan/api; sudo ip netns exec nfp-proxy pecan configurator_decider config.py --mode base_controller"
     fi
     sleep 1
 
