@@ -72,6 +72,13 @@ function copy_files {
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker exec configurator\
  cp -r /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/config /etc/nfp_config
+
+    # Update the DB model
+    sudo cp\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/d2aab79622fe_nfp_enterprise_db.py\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/
+    echo "d2aab79622fe" > $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/HEAD
+    gbp-db-manage --config-file /etc/neutron/neutron.conf upgrade head
 }
 
 # FIXME(RPM): Not working, this need to be fixed.
