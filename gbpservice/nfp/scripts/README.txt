@@ -2,13 +2,10 @@ Steps to shift the advanced mode to enterprise mode:
 ===================================================
 
 (1) Get the enterprise source
-    # git clone\
- -b mitaka_21st_march_base\
- --single-branch\
- https://github.com/oneconvergence/group-based-policy.git\
- /home/stack/gbp_mitaka_21st_march_base
+    # ENTERPRISE_BRANCH=mitaka_21st_march_base
+    # git clone -b $ENTERPRISE_BRANCH --single-branch https://github.com/oneconvergence/group-based-policy.git /home/stack/gbp_$ENTERPRISE_BRANCH
 
-(2) Configure the /home/stack/gbp_mitaka_21st_march_base/gbpservice/nfp/config/mode_shift.conf
+(2) Configure the /home/stack/gbp_$ENTERPRISE_BRANCH/gbpservice/nfp/config/mode_shift.conf
     # DEVSTACK_SRC_DIR=
 
     For shifting to enterprise,
@@ -20,5 +17,5 @@ Steps to shift the advanced mode to enterprise mode:
     # PaloAltoQcow2Image=
 
 (3) Execute the script.
-    # cd /home/stack/gbp_mitaka_21st_march_base/gbpservice/nfp/scripts/
+    # cd /home/stack/gbp_$ENTERPRISE_BRANCH/gbpservice/nfp/scripts/
     # bash mode_shift.sh 

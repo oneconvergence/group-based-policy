@@ -9,6 +9,7 @@ INSTALLED_NFPSERVICE_DIR=$DEST/gbp
 EXT_NET_NAME=ext-net
 
 function setup_ssh_key {
+    cd $SCRIPT_DIR
     sudo ssh-keygen -f "/root/.ssh/known_hosts" -R $configurator_ip
     sudo ssh-keygen -f configurator_vm -t rsa -N ''
     echo "Give the password for the root user of the Configurator VM when prompted."
@@ -21,39 +22,47 @@ function setup_ssh_key {
 }
 
 function copy_files {
-    # Copy Orchestrator from enterprise source
-    sudo cp -r\
- $ENTERPRISE_NFPSERVICE_DIR/gbpservice/nfp/orchestrator\
- $INSTALLED_NFPSERVICE_DIR/gbpservice/nfp/
+    cd $SCRIPT_DIR
 
-    # Copy Config Orchestrator from enterprise source
+    # Copy gbpservice/nfp from enterprise source
     sudo cp -r\
- $ENTERPRISE_NFPSERVICE_DIR/gbpservice/contrib/nfp/config_orchestrator\
- $INSTALLED_NFPSERVICE_DIR/gbpservice/contrib/nfp/
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/nfp\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/
 
-    # Copy Configurator from enterprise source
+    # Copy gbpservice/contrib/nfp from enterprise source
     sudo cp -r\
- $ENTERPRISE_NFPSERVICE_DIR/gbpservice/contrib/nfp/configurator\
- $INSTALLED_NFPSERVICE_DIR/gbpservice/contrib/nfp/
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/contrib/nfp\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/contrib/
+
+    # Copy to Configurator from enterprise source
     sudo ip netns exec nfp-proxy\
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
- mkdir ~/enterprise_src
+ mkdir /enterprise_src
+
     sudo ip netns exec nfp-proxy\
  scp -o "StrictHostKeyChecking no" -i configurator_vm -r\
- $ENTERPRISE_NFPSERVICE_DIR/gbpservice/contrib/nfp/configurator\ 
- root@$configurator_ip:~/enterprise_src/
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/nfp\
+ root@$configurator_ip:/enterprise_src/
     sudo ip netns exec nfp-proxy\
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker cp\
- ~/enterprise_src/configurator\
- configurator:/usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/
+ /enterprise_src/nfp\
+ configurator:/usr/local/lib/python2.7/dist-packages/gbpservice/
+
+    sudo ip netns exec nfp-proxy\
+ scp -o "StrictHostKeyChecking no" -i configurator_vm -r\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/contrib/nfp\
+ root@$configurator_ip:/enterprise_src/contrib_nfp
+    sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
+ docker cp\
+ /enterprise_src/contrib_nfp\
+ configurator:/usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp
+
     sudo ip netns exec nfp-proxy\
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker exec configurator\
  cp -r /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/config /etc/nfp_config
-
-    # Copy 
-    # BUGBUG(RPM): Add any other enterprise files here, and configure them
 }
 
 # FIXME(RPM): Not working, this need to be fixed.
@@ -95,6 +104,7 @@ function create_port_for_vm {
 }
 
 function configure_vis_ip_addr_in_docker {
+    cd $SCRIPT_DIR
     sudo ip netns exec nfp-proxy\
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker exec configurator\
@@ -176,7 +186,6 @@ function configure_visibility_user_data {
     sudo echo $value
     sudo sed -i "s|<SSH PUBLIC KEY>|${value}|" visibility_user_data
     sudo sed -i "s/visibility_vm_ip=*.*/visibility_vm_ip=$visibility_vm_ip/g" visibility_user_data
-    #BUGBUG(RPM): Verify HOST_IP
     sudo sed -i "s/os_controller_ip=*.*/os_controller_ip=$HOST_IP/g" visibility_user_data
     sudo sed -i "s/statsd_host=*.*/statsd_host=$visibility_vm_ip/g" visibility_user_data
     sudo sed -i "s/rabbit_host=*.*/rabbit_host=$configurator_ip/g" visibility_user_data
@@ -252,8 +261,36 @@ function nfp_logs_forword {
     fi
 }
 
+function restart_screen_process {
+    SCREEN_NAME=stack
+    SERVICE_DIR=$DEST/status
+    name=$1
+    cmd=$2
+
+    # stop the process
+    screen -S $SCREEN_NAME -p $name -X kill
+
+    sleep 2
+
+    # start the process
+    screen -S $SCREEN_NAME -X screen -t $name
+    screen -S $SCREEN_NAME -p $name -X stuff "$cmd & echo \$! >$SERVICE_DIR/$SCREEN_NAME/${name}.pid; fg || echo \"$name failed to start\" | tee \"$SERVICE_DIR/$SCREEN_NAME/${name}.failure\"\n"
+
+    sleep 5
+}
+
 function restart_processes {
-    # restart configurator
+    cd $SCRIPT_DIR
+
+    restart_screen_process nfp_orchestrator "sudo /usr/bin/nfp --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orchestrator.ini --log-file $DEST/logs/nfp_orchestrator.log"
+
+    restart_screen_process nfp_proxy_agent "sudo /usr/bin/nfp --config-file /etc/nfp_proxy_agent.ini --log-file $DEST/logs/nfp_proxy_agent.log"
+
+    restart_screen_process nfp_proxy "source $INSTALLED_NFPSERVICE_DIR/devstack/lib/nfp; namespace_delete; namespace_create"
+
+    restart_screen_process nfp_config_orchestrator "sudo /usr/bin/nfp --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file $DEST/logs/nfp_config_orchestrator.log"
+
+    # restart nfp_configurator
     sudo ip netns exec nfp-proxy\
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker exec configurator screen -S configurator -X quit
