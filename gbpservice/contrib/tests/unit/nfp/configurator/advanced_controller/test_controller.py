@@ -30,23 +30,21 @@ from gbpservice.nfp.pecan import constants
 
 setattr(pecan, 'mode', constants.advanced)
 
-from gbpservice.nfp.pecan.api import root_controller
 from gbpservice.contrib.nfp.configurator.advanced_controller import controller
-
-
-"""This class contains all the unittest cases for REST server of configurator.
-
-This class tests success and failure cases for all the HTTP requests which
-are implemented in REST server. run_tests.sh file is used for running all
-the tests in this class. All the methods of this class started with test
-prefix called and on success it will print ok and on failure it will
-print the error trace.
-
-"""
+from gbpservice.nfp.pecan.api import root_controller
 
 
 class ControllerTestCase(base.BaseTestCase, rest.RestController):
+    """
+    This class contains all the unittest cases for REST server of configurator.
 
+    This class tests success and failure cases for all the HTTP requests which
+    are implemented in REST server. run_tests.sh file is used for running all
+    the tests in this class. All the methods of this class started with test
+    prefix called and on success it will print ok and on failure it will
+    print the error trace.
+
+    """
     @classmethod
     def setUpClass(cls):
         """A class method called before tests in an individual class run
