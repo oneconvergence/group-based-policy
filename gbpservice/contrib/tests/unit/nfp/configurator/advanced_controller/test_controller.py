@@ -16,7 +16,7 @@ import os
 import oslo_serialization.jsonutils as jsonutils
 import pecan
 PECAN_CONFIG_FILE = (os.getcwd() +
-                     "/gbpservice/contrib/nfp/configurator/api/config.py")
+                     "/gbpservice/nfp/pecan/api/config.py")
 pecan.set_config(PECAN_CONFIG_FILE, overwrite=True)
 
 import webtest
