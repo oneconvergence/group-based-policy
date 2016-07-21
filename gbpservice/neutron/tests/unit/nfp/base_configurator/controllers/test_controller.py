@@ -19,7 +19,11 @@ from pecan import rest
 import webtest
 import zlib
 
-from gbpservice.nfp.base_configurator.api import root_controller
+from gbpservice.nfp.pecan import constants
+
+setattr(pecan, 'mode', constants.base)
+
+from gbpservice.nfp.pecan.api import root_controller
 
 ERROR = 'error'
 UNHANDLED = 'unhandled'

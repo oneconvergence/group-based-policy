@@ -38,7 +38,6 @@ class RootController(object):
     elif pecan.mode == constants.advanced:
         v1 = _controllers[constants.ADVANCED_CONTROLLER].V1Controller()
 
-
     @pecan.expose()
     def get(self):
         return {'versions': [{'status': 'CURRENT',

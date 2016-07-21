@@ -20,7 +20,8 @@ controllers = {
     BASE_CONTROLLER: 'gbpservice.nfp.base_configurator.controllers',
     REFERENCE_CONTROLLER: ('gbpservice.tests.contrib'
                            '.nfp_service.reference_configurator.controllers'),
-    ADVANCED_CONTROLLER: 'gbpservice.contrib.nfp.configurator.advanced_controller'
+    ADVANCED_CONTROLLER: ('gbpservice.contrib.nfp.configurator'
+                          '.advanced_controller')
 }
 
 base_with_vm = 'base_with_vm'
