@@ -854,23 +854,6 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
 
-    def _get_network_function_instance_for_multi_service_sharing(self,
-                                                                 port_info):
-        network_function_instances = (
-            self.db_handler.get_network_function_instances(self.db_session,
-                                                           filters={}))
-        provider_port_id = None
-        for port in port_info:
-            if port['port_classification'] == 'provider':
-                provider_port_id = port['id']
-                break
-        for network_function_instance in network_function_instances:
-            if (provider_port_id in network_function_instance['port_info'] and
-                network_function_instance['network_function_device_id']
-                    is not None):
-                return network_function_instance
-        return None
-
     def create_network_function_instance(self, event):
         nfp_context = event.data
 
@@ -893,11 +876,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         # REVISIT(ashu): Only pick few chars from id
         name = '%s_%s' % (network_function['name'],
                           network_function['id'])
-        network_function_instance = (
-            self._get_network_function_instance_for_multi_service_sharing(
-                port_info))
-        if network_function_instance:
-            port_info = []
+
         create_nfi_request = {
             'name': name,
             'tenant_id': network_function['tenant_id'],
@@ -908,26 +887,10 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             'share_existing_device': nfp_context['share_existing_device'],
             'port_info': port_info,
         }
+
         nfi_db = self.db_handler.create_network_function_instance(
             self.db_session, create_nfi_request)
-        if network_function_instance:
-            port_info = []
-            for port_id in network_function_instance['port_info']:
-                port_info.append(self.db_handler.get_port_info(self.db_session,
-                                                               port_id))
-            nfi = {
-                'port_info': port_info
-            }
-            nfi_db = self.db_handler.update_network_function_instance(
-                self.db_session, nfi_db['id'], nfi)
-            nfd_data = {}
-            nfd_data['network_function_instance_id'] = nfi_db['id']
-            nfd_data['network_function_device_id'] = (
-                network_function_instance['network_function_device_id'])
-            self._create_event('DEVICE_ACTIVE',
-                               event_data=nfd_data)
 
-            return
         # Sending LogMeta Details to visibility
         self._report_logging_info(network_function,
                                   nfi_db,

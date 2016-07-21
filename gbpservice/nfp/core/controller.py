@@ -19,6 +19,7 @@ import operator
 import os
 import pickle
 import Queue
+import signal
 import sys
 import time
 import zlib
@@ -60,6 +61,15 @@ class NfpService(object):
         self._conf = conf
         self._event_handlers = nfp_event.NfpEventHandlers()
         self._rpc_agents = list()
+        self._modules = []
+
+    @property
+    def modules(self):
+        return self._modules
+
+    @modules.setter
+    def modules(self, value):
+        self._modules = value
 
     def _make_new_event(self, event):
         """Make a new event from the object passed. """
@@ -202,6 +212,10 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
 
         # ID of process handling this controller obj
         self.PROCESS_TYPE = "distributor"
+
+    def module_watcher(self, signal, frame):
+        modules = self.modules
+        load_nfp_modules(self._conf, self)
 
     def compress(self, event):
         # REVISIT (mak) : zip only if length is > than threshold (1k maybe)
@@ -529,11 +543,16 @@ def load_nfp_modules(conf, controller):
                                           [pyfile[:-3]], -1)
                     pymodule = eval('pymodule.%s' % (pyfile[:-3]))
                     try:
-                        pymodule.nfp_module_init(controller, conf)
+                        if pymodule in controller.modules:
+                            message = "(module - %s) - Already Loaded" % (
+                                identify(pymodule))
+                            LOG.warn(message)
+                        else:
+                            message = "(module - %s) - Initialized" % (
+                                identify(pymodule))
+                            LOG.info(message)
+                            pymodule.nfp_module_init(controller, conf)
                         pymodules += [pymodule]
-                        message = "(module - %s) - Initialized" % (
-                            identify(pymodule))
-                        LOG.debug(message)
                     except AttributeError as e:
                         exc_type, exc_value, exc_traceback = sys.exc_info()
                         message = "Traceback: %s" % (exc_traceback)
@@ -552,6 +571,7 @@ def load_nfp_modules(conf, controller):
             conf.nfp_modules_path)
         LOG.error(message)
 
+    controller.modules = pymodules
     return pymodules
 
 
@@ -571,7 +591,6 @@ def nfp_modules_post_init(conf, nfp_modules, nfp_controller):
                        "nfp_module_post_init(), ignoring") % (identify(module))
             LOG.debug(message)
 
-
 def main():
     conf = nfp_cfg.init(sys.argv[1:])
     nfp_common.init()
@@ -582,5 +601,6 @@ def main():
     controller_init(conf, nfp_controller)
     # post_init of each module
     nfp_modules_post_init(conf, nfp_modules, nfp_controller)
+    signal.signal(signal.SIGUSR1, nfp_controller.module_watcher)
     # Wait for every exec context to complete
     nfp_controller.wait()

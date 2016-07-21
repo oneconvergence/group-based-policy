@@ -629,41 +629,19 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         device_data = self._prepare_device_data_from_nfp_context(nfp_context)
 
-        # dev_sharing_info = (
-        #     orchestration_driver.get_network_function_device_sharing_info(
-        #         device_data))
+        LOG.info(_LI(
+            "No Device exists for sharing, Creating new device,"
+            "device request: %(device)s"), {'device': nfd_request})
 
-        # if dev_sharing_info:
-        #     device = self._get_device_to_reuse(device_data, dev_sharing_info)
-        #     if device:
-        #         device = self._update_device_data(device, device_data)
-
-        # # To handle case, when device sharing is supported but device not
-        # # exists to share, so create a new device.
-        # if dev_sharing_info and device:
-        #     # Device is already active, no need to change status
-        #     device['network_function_device_id'] = device['id']
-        #     self._create_event(event_id='DEVICE_HEALTHY',
-        #                        event_data=device,
-        #                        is_internal_event=True)
-        #     LOG.info(_LI("Sharing existing device: %s(device)s for reuse"),
-        #              {'device': device})
-        # REVISIT(TODO): Removing sharing for cisco live demo
-        if 0:
-            pass
-        else:
-            LOG.info(_LI(
-                "No Device exists for sharing, Creating new device,"
-                "device request: %(device)s"), {'device': nfd_request})
-            driver_device_info = (
-                orchestration_driver.create_network_function_device(
-                    device_data))
-            if not driver_device_info:
-                LOG.info(_LI("Device creation failed"))
-                self._create_event(event_id='DEVICE_ERROR',
-                                   event_data=nfd_request,
-                                   is_internal_event=True)
-                return None
+        driver_device_info = (
+            orchestration_driver.create_network_function_device(
+                device_data))
+        if not driver_device_info:
+            LOG.info(_LI("Device creation failed"))
+            self._create_event(event_id='DEVICE_ERROR',
+                               event_data=nfd_request,
+                               is_internal_event=True)
+            return None
 
         nfp_context['vendor_data'] = driver_device_info.get('vendor_data')
         management = nfp_context['management']
