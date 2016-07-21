@@ -5,8 +5,6 @@ ENABLE_NFP=${ENABLE_NFP:-False}
 [[ $ENABLE_NFP = True ]] && source $DEST/gbp/devstack/lib/nfp
 # VM locations
 ConfiguratorQcow2Image=${ConfiguratorQcow2Image:-build}
-VyosQcow2Image=${VyosQcow2Image:-build}
-HaproxyQcow2Image=${HaproxyQcow2Image:-build}
 
 # Enable necessary Neutron plugins, including group_policy and ncp
 Q_SERVICE_PLUGIN_CLASSES=neutron.services.l3_router.l3_router_plugin.L3RouterPlugin,group_policy,ncp

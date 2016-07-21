@@ -87,7 +87,7 @@ class Lbv2Agent(loadbalancer_dbv2.LoadBalancerPluginDbv2):
         if context.is_admin:
             kwargs['tenant_id'] = context.tenant_id
         core_db = self._get_core_context(context, kwargs['tenant_id'])
-        # TODO(jiahao): _get_lb_context() fails for flavor_id, disable it
+        # REVISIT(jiahao): _get_lb_context() fails for flavor_id, disable it
         # for now. Sent the whole core_db to cofigurator
         # lb_db = self._get_lb_context(**kwargs)
         # db = self._filter_service_info_with_resource(lb_db, core_db)
@@ -139,8 +139,7 @@ class Lbv2Agent(loadbalancer_dbv2.LoadBalancerPluginDbv2):
                 'context': context,
                 'description': str(description)}
 
-        ctx_dict, rsrc_ctx_dict = self.\
-            _prepare_resource_context_dicts(**args)
+        ctx_dict, rsrc_ctx_dict = self._prepare_resource_context_dicts(**args)
 
         nfp_context.update({'neutron_context': ctx_dict,
                             'requester': 'nas_service',
@@ -172,7 +171,7 @@ class Lbv2Agent(loadbalancer_dbv2.LoadBalancerPluginDbv2):
         nf_id = desc_dict['network_function_id']
         return nf_id
 
-    # TODO(jiahao): Argument allocate_vip and
+    # REVISIT(jiahao): Argument allocate_vip and
     # delete_vip_port are not implememnted.
     @log_helpers.log_method_call
     def create_loadbalancer(self, context, loadbalancer, driver_name,
@@ -295,7 +294,7 @@ class Lbv2Agent(loadbalancer_dbv2.LoadBalancerPluginDbv2):
             'healthmonitor', nf, healthmonitor=healthmonitor)
         nfp_logging.clear_logging_context()
 
-    # TODO(jiahao): L7policy support not implemented
+    # REVISIT(jiahao): L7policy support not implemented
     # disable L7policy
     # def create_l7policy(self, context, l7policy):
     #     self._post(

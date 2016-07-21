@@ -10,25 +10,21 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# -*- coding: utf-8 -*-
-try:
-    import setuptools
-except ImportError:
-    import ez_setup
-    ez_setup.use_setuptools()
-    import setuptools
+import pecan
 
-setuptools.setup(
-    name='api',
-    version='0.1',
-    description='',
-    author='',
-    author_email='',
-    install_requires=[
-        "pecan",
-    ],
-    test_suite='api',
-    zip_safe=False,
-    include_package_data=True,
-    packages=setuptools.find_packages(exclude=['ez_setup'])
-)
+from gbpservice.nfp.pecan import constants
+
+
+class DecideConfigurator(pecan.commands.serve.ServeCommand):
+    ''' decides the type of configurtor to be used
+        like base_configurator or reference_configurator
+    '''
+    arguments = pecan.commands.serve.ServeCommand.arguments + ({
+        'name': '--mode',
+        'help': 'decides the type of configurtor to be used',
+        'choices': constants.modes,
+    },)
+
+    def run(self, args):
+        setattr(pecan, 'mode', args.mode)
+        super(DecideConfigurator, self).run(args)

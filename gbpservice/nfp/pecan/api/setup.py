@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# -*- coding: utf-8 -*-
 try:
     import setuptools
 except ImportError:
@@ -30,5 +29,11 @@ setuptools.setup(
     test_suite='api',
     zip_safe=False,
     include_package_data=True,
-    packages=setuptools.find_packages(exclude=['ez_setup'])
+    packages=setuptools.find_packages(exclude=['ez_setup']),
+    # Having entry point gives the option to define custom classes
+    # to improve the flexibility in accessing different configurators
+    entry_points="""
+    [pecan.command]
+    configurator_decider = configurator_decider:DecideConfigurator
+    """
 )

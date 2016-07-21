@@ -10,22 +10,20 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import pecan
-from v1 import controllers
+
+BASE_CONTROLLER = 'base_controller'
+REFERENCE_CONTROLLER = 'reference_controller'
+ADVANCED_CONTROLLER = 'advanced_controller'
 
 
-class RootController(object):
-    """This is root controller that forward the request to __init__.py
-    file inside controller folder inside v1
+controllers = {
+    BASE_CONTROLLER: 'gbpservice.nfp.base_configurator.controllers',
+    REFERENCE_CONTROLLER: ('gbpservice.tests.contrib'
+                           '.nfp_service.reference_configurator.controllers'),
+    ADVANCED_CONTROLLER: 'gbpservice.contrib.nfp.configurator.advanced_controller'
+}
 
-    """
-
-    v1 = controllers.V1Controller()
-
-    @pecan.expose()
-    def get(self):
-        # TODO(blogan): once a decision is made on how to do versions, do that
-        # here
-        return {'versions': [{'status': 'CURRENT',
-                              'updated': '2014-12-11T00:00:00Z',
-                              'id': 'v1'}]}
+base_with_vm = 'base_with_vm'
+base = 'base'
+advanced = 'advanced'
+modes = [base, base_with_vm, advanced]

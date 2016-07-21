@@ -13,10 +13,10 @@
 
 import mock
 
-from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
-    vpn_test_data)
 from gbpservice.contrib.nfp.configurator.agents import vpn
 from gbpservice.contrib.nfp.configurator.lib import vpn_constants as const
+from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
+    vpn_test_data)
 
 from neutron.tests import base
 
