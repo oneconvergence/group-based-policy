@@ -53,9 +53,9 @@ RUN git clone -b GIT-BRANCH-NAME --single-branch https://github.com/oneconvergen
 RUN cp -r /group-based-policy/gbpservice /usr/local/lib/python2.7/dist-packages/
 RUN cp /group-based-policy/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
-RUN cp /group-based-policy/gbpservice/nfp/bin/nfp_configurator.ini /etc/
+RUN cp /group-based-policy/gbpservice/contrib/nfp/bin/nfp_configurator.ini /etc/
 RUN sed -i "s/log_forward_ip_address=*.*/log_forward_ip_address=VIS_VM_IP_ADDRESS/" /etc/nfp_configurator.ini
-RUN cp /group-based-policy/gbpservice/nfp/bin/policy.json /etc/
+RUN cp /group-based-policy/gbpservice/contrib/nfp/bin/policy.json /etc/
 RUN mkdir -p /var/log/nfp
 RUN touch /var/log/nfp/nfp_configurator.log
 RUN touch /var/log/nfp/nfp_pecan.log

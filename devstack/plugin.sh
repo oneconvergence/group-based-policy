@@ -51,7 +51,7 @@ function configure_nfp_loadbalancer {
 's'/\
 ':default'/\
 '\n'\
-'service_provider = LOADBALANCER:loadbalancer:gbpservice.nfp.service_plugins.loadbalancer.drivers.nfp_lbaas_plugin_driver.HaproxyOnVMPluginDriver:default'/\
+'service_provider = LOADBALANCER:loadbalancer:gbpservice.contrib.nfp.service_plugins.loadbalancer.drivers.nfp_lbaas_plugin_driver.HaproxyOnVMPluginDriver:default'/\
  /etc/neutron/neutron_lbaas.conf
 }
 
@@ -63,7 +63,7 @@ function configure_nfp_firewall {
  '/^service_plugins/'\
 's'/\
 'neutron_fwaas.services.firewall.fwaas_plugin.FirewallPlugin'/\
-'gbpservice.nfp.service_plugins.firewall.nfp_fwaas_plugin.NFPFirewallPlugin'/\
+'gbpservice.contrib.nfp.service_plugins.firewall.nfp_fwaas_plugin.NFPFirewallPlugin'/\
  /etc/neutron/neutron.conf
 }
 
@@ -76,7 +76,7 @@ function configure_nfp_vpn {
 's'/\
 ':default'/\
 '\n'\
-'service_provider = VPN:vpn:gbpservice.nfp.service_plugins.vpn.drivers.nfp_vpnaas_driver.NFPIPsecVPNDriver:default'/\
+'service_provider = VPN:vpn:gbpservice.contrib.nfp.service_plugins.vpn.drivers.nfp_vpnaas_driver.NFPIPsecVPNDriver:default'/\
  /etc/neutron/neutron_vpnaas.conf
 }
 
