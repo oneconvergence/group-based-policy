@@ -430,8 +430,20 @@ class EventsHandler(nfp_api.NfpEventHandler):
                 ctxt, nf_id)
             event_data.update(request_data)
         except Exception:
-            return event_data
+            return event_data, context
         return event_data, context
+
+    def get_network_function_status(self, event_data):
+        nf = None
+        try:
+            nf_id = event_data['nf_id']
+            context = event_data['context']
+            ctxt = n_context.Context.from_dict(context)
+            nf = common.get_network_function_status(
+                ctxt, nf_id)
+            return nf
+        except Exception:
+            return nf
 
     def _trigger_service_event(self, context, event_data, event_type):
         new_event_data = {'resource': None,
@@ -449,15 +461,16 @@ class EventsHandler(nfp_api.NfpEventHandler):
                                     data=new_event_data)
         self._sc.post_event(new_ev)
 
-    @nfp_api.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=5)
+    @nfp_api.poll_event_desc(event='SERVICE_CREATE_PENDING', spacing=2)
     def create_sevice_pending_event(self, ev):
         event_data = copy.deepcopy(ev.data)
+        nf = self.get_network_function_status(event_data)
         try:
-            updated_event_data, context = self._prepare_request_data(
-                event_data)
-            msg = ('%s' % (updated_event_data))
-            LOG.info(msg)
-            if updated_event_data['nf']['status'] == 'ACTIVE':
+            if nf['status'] == 'ACTIVE':
+                updated_event_data, context = self._prepare_request_data(
+                    event_data)
+                msg = ('%s' % (updated_event_data))
+                LOG.info(msg)
                 self._trigger_service_event(
                     context, updated_event_data, 'SERVICE_CREATED')
                 return STOP_POLLING

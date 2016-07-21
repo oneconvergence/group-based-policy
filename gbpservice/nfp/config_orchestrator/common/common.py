@@ -157,3 +157,20 @@ def get_network_function_map(context, network_function_id):
         msg = (" %s " % (e))
         LOG.info(msg)
         return request_data
+
+def get_network_function_status(context, network_function_id):
+    nf = None
+    try:
+        rpc_nso_client = transport.RPCClient(a_topics.NFP_NSO_TOPIC)
+        nf = rpc_nso_client.cctxt.call(
+            context,
+            'get_network_function',
+            network_function_id=network_function_id)
+        msg = (" %s " % (nf))
+        LOG.info(msg)
+        return nf
+    except Exception as e:
+        msg = (" %s " % (e))
+        LOG.info(msg)
+        return nf
+
