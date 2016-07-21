@@ -57,7 +57,16 @@ function copy_files {
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker cp\
  /enterprise_src/contrib_nfp\
- configurator:/usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp
+ configurator:/usr/local/lib/python2.7/dist-packages/gbpservice/contrib/
+    sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
+ docker exec configurator\
+ rm -rf /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp
+    sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
+ docker exec configurator\
+ mv /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/contrib_nfp\
+ /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp
 
     sudo ip netns exec nfp-proxy\
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
