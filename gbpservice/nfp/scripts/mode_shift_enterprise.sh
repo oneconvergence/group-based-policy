@@ -1,10 +1,10 @@
 #! /bin/bash
 
-#FIXME(RPM): Devstack can be at different location. Fix this
-DEVSTACK_SRC_DIR=/home/stack/devstack
+SCRIPT_DIR=$PWD
+ENTERPRISE_NFPSERVICE_DIR=$SCRIPT_DIR/../../../
+source $SCRIPT_DIR/../config/mode_shift.conf
 source $DEVSTACK_SRC_DIR/local.conf
-NFPSERVICE_DIR=$DEST/gbp
-source $NFPSERVICE_DIR/gbpservice/nfp/config/mode_shift.conf
+INSTALLED_NFPSERVICE_DIR=$DEST/gbp
 # BUGBUG(DEEPAK): Should be retrieved from a result file populated by advanced mode.
 EXT_NET_NAME=ext-net
 
@@ -21,10 +21,38 @@ function setup_ssh_key {
 }
 
 function copy_files {
+    # Copy Orchestrator from enterprise source
+    sudo cp -r\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/nfp/orchestrator\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/nfp/
+
+    # Copy Config Orchestrator from enterprise source
+    sudo cp -r\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/contrib/nfp/config_orchestrator\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/contrib/nfp/
+
+    # Copy Configurator from enterprise source
+    sudo cp -r\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/contrib/nfp/configurator\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/contrib/nfp/
+    sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
+ mkdir ~/enterprise_src
+    sudo ip netns exec nfp-proxy\
+ scp -o "StrictHostKeyChecking no" -i configurator_vm -r\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/contrib/nfp/configurator\ 
+ root@$configurator_ip:~/enterprise_src/
+    sudo ip netns exec nfp-proxy\
+ ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
+ docker cp\
+ ~/enterprise_src/configurator\
+ configurator:/usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/
     sudo ip netns exec nfp-proxy\
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker exec configurator\
  cp -r /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/config /etc/nfp_config
+
+    # Copy 
     # BUGBUG(RPM): Add any other enterprise files here, and configure them
 }
 
@@ -90,7 +118,7 @@ function create_images {
  https://$GIT_ACCESS_USERNAME:$GIT_ACCESS_PASSWORD@github.com/oneconvergence/visibility.git\
  -b $VISIBILITY_GIT_BRANCH
        echo "Building Image: $VISIBILITY_QCOW2_IMAGE_NAME"
-       cd $NFPSERVICE_DIR/gbpservice/tests/contrib/diskimage-create/
+       cd $ENTERPRISE_NFPSERVICE_DIR/gbpservice/tests/contrib/diskimage-create/
        sudo python visibility_disk_image_create.py\
  visibility_conf.json $GBPSERVICE_BRANCH $DOCKER_IMAGES_URL
        VISIBILITY_QCOW2_IMAGE=$(cat output/last_built_image_path)
@@ -140,7 +168,7 @@ function configure_visibility_user_data {
     CUR_DIR=$PWD
     visibility_vm_ip=$1
     sudo rm -rf /opt/visibility_user_data
-    sudo cp -r $NFPSERVICE_DIR/devstack/exercises/nfp_service/user-data/visibility_user_data /opt/.
+    sudo cp -r $ENTERPRISE_NFPSERVICE_DIR/devstack/exercises/nfp_service/user-data/visibility_user_data /opt/.
     cd /opt
     sudo rm -rf my.key my.key.pub
     sudo ssh-keygen -t rsa -N "" -f my.key
