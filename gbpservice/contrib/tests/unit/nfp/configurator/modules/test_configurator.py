@@ -13,25 +13,17 @@
 import mock
 
 from neutron.tests import base
-from oslo_log import log as logging
 
-from gbpservice.contrib.nfp.configurator.agents import firewall as fw
-from gbpservice.contrib.nfp.configurator.agents import generic_config as gc
 from gbpservice.contrib.nfp.configurator.lib import demuxer as demuxer_lib
 from gbpservice.contrib.nfp.configurator.modules import configurator as cfgr
 from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
                                                         fw_test_data as fo)
 
-LOG = logging.getLogger(__name__)
-
-STATUS_ACTIVE = "ACTIVE"
-
-""" Tests RPC manager class of configurator
-
-"""
-
 
 class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
+    """ Tests RPC manager class of configurator
+
+    """
 
     def __init__(self, *args, **kwargs):
         super(ConfiguratorRpcManagerTestCase, self).__init__(*args, **kwargs)
@@ -52,51 +44,10 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
         cm = cfgr.ConfiguratorModule(sc)
         demuxer = demuxer_lib.ServiceAgentDemuxer()
         rpc_mgr = cfgr.ConfiguratorRpcManager(sc, cm, conf, demuxer)
-        return sc, conf, rpc_mgr
+        return sc, rpc_mgr
 
-    def _get_GenericConfigRpcManager_object(self, conf, sc):
-        """ Retrieves RPC manager object of generic config agent.
-
-        :param sc: mocked service controller object of process model framework
-        :param conf: mocked OSLO configuration file
-
-        Returns: object of generic config's RPC manager
-        and service controller.
-
-        """
-
-        agent = gc.GenericConfigRpcManager(sc, conf)
-        return agent, sc
-
-    @mock.patch(__name__ + '.fo.FakeObjects.drivers')
-    def _get_GenericConfigEventHandler_object(self, sc, rpcmgr, drivers):
-        """ Retrieves event handler object of generic configuration.
-
-        :param sc: mocked service controller object of process model framework
-        :param rpcmgr: object of configurator's RPC manager
-        :param drivers: list of driver objects for firewall agent
-
-        Returns: object of generic config's event handler
-
-        """
-
-        agent = gc.GenericConfigEventHandler(sc, drivers, rpcmgr)
-        return agent
-
-    def _get_FWaasRpcManager_object(self, conf, sc):
-        """ Retrieves RPC manager object of firewall agent.
-
-        :param sc: mocked service controller object of process model framework
-        :param conf: mocked OSLO configuration file
-
-        Returns: object of firewall's RPC manager and service controller
-
-        """
-
-        agent = fw.FWaasRpcManager(sc, conf)
-        return agent, sc
-
-    def _test_network_device_config(self, operation, method, batch=False):
+    def _test_network_function_device_config(self, operation,
+                                             method, batch=False):
         """ Tests generic config APIs
 
         :param operation: create/delete
@@ -109,8 +60,8 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
         """
 
-        sc, conf, rpc_mgr = self._get_ConfiguratorRpcManager_object()
-        agent, sc = self._get_GenericConfigRpcManager_object(conf, sc)
+        sc, rpc_mgr = self._get_ConfiguratorRpcManager_object()
+        agent = mock.Mock()
 
         request_data = {'batch': {
                 'request_data_actual': (
@@ -136,12 +87,10 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
             request_data_actual, request_data_expected = (
                                             request_data['single'].values())
 
-        with mock.patch.object(
-                    sc, 'new_event', return_value='foo') as mock_sc_event, \
-            mock.patch.object(sc, 'post_event') as mock_sc_rpc_event, \
-            mock.patch.object(rpc_mgr,
-                              '_get_service_agent_instance',
-                              return_value=agent):
+        with mock.patch.object(rpc_mgr,
+                               '_get_service_agent_instance',
+                               return_value=agent), (
+             mock.patch.object(agent, 'process_request')) as mock_request:
 
             if operation == 'create':
                 rpc_mgr.create_network_function_device_config(
@@ -163,24 +112,27 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
                      'context': context,
                      'notification_data': {}
                      })
-            resource_data = request_data_expected['config'][0]['resource_data']
-            if batch:
-                sa_req_list = self.fo.fake_sa_req_list()
-                if operation == 'delete':
-                    sa_req_list[0]['method'] = 'clear_interfaces'
-                    sa_req_list[1]['method'] = 'clear_routes'
-                args_dict = {
-                         'sa_req_list': sa_req_list,
-                         'notification_data': {}
-                        }
-            else:
-                args_dict = {'context': agent_info,
-                             'resource_data': resource_data}
-            mock_sc_event.assert_called_with(id=method,
-                                             data=args_dict, key=None)
-            mock_sc_rpc_event.assert_called_with('foo')
+            notification_data = dict()
+            sa_req_list = self.fo.fake_sa_req_list()
 
-    def _test_fw_event_creation(self, operation):
+            response_data = {'single': {'routes': [sa_req_list[1]],
+                                        'interfaces': [sa_req_list[0]]},
+                             'batch': sa_req_list}
+
+            if batch:
+                data = response_data['batch']
+                if operation == 'delete':
+                    data[0]['method'] = 'clear_interfaces'
+                    data[1]['method'] = 'clear_routes'
+            else:
+                data = response_data['single'][method.split('_')[1].lower()]
+                if operation == 'delete':
+                    data[0]['method'] = data[0]['method'].replace(
+                                                    'configure', 'clear', 1)
+            mock_request.assert_called_with(data,
+                                            notification_data)
+
+    def _test_network_function_config(self, operation):
         """ Tests firewall APIs
 
         :param operation: CREATE_FIREWALL/UPDATE_FIREWALL/DELETE_FIREWALL
@@ -189,27 +141,32 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
         """
 
-        sc, conf, rpc_mgr = self._get_ConfiguratorRpcManager_object()
-        agent, sc = self._get_FWaasRpcManager_object(conf, sc)
-        arg_dict = {'context': self.fo.fw_context,
-                    'firewall': self.fo._fake_firewall_obj(),
-                    'host': self.fo.host}
-        method = {'CREATE_FIREWALL': 'create_network_function_config',
-                  'UPDATE_FIREWALL': 'update_network_function_config',
-                  'DELETE_FIREWALL': 'delete_network_function_config'}
+        sc, rpc_mgr = self._get_ConfiguratorRpcManager_object()
+        agent = mock.Mock()
+        method = {'CREATE': 'create_network_function_config',
+                  'UPDATE': 'update_network_function_config',
+                  'DELETE': 'delete_network_function_config'}
         request_data = self.fo.fake_request_data_fw()
-        with mock.patch.object(sc, 'new_event', return_value='foo') as (
-                                                        mock_sc_event), \
-            mock.patch.object(sc, 'post_event') as mock_sc_rpc_event, \
-            mock.patch.object(rpc_mgr,
-                              '_get_service_agent_instance',
-                              return_value=agent):
-            getattr(rpc_mgr, method[operation])(self.fo.fw_context,
-                                                request_data)
+        with mock.patch.object(rpc_mgr,
+                               '_get_service_agent_instance',
+                               return_value=agent), (
+             mock.patch.object(agent, 'process_request')) as mock_request:
 
-            mock_sc_event.assert_called_with(id=operation,
-                                             data=arg_dict, key=None)
-            mock_sc_rpc_event.assert_called_with('foo')
+            getattr(rpc_mgr, method[operation.split('_')[0]])(
+                                                        self.fo.fw_context,
+                                                        request_data)
+
+            notification_data = dict()
+            data = self.fo.fake_sa_req_list_fw()
+            if 'UPDATE' in operation:
+                data[0]['method'] = data[0]['method'].replace(
+                                                    'create', 'update', 1)
+            elif 'DELETE' in operation:
+                data[0]['method'] = data[0]['method'].replace(
+                                                    'create', 'delete', 1)
+
+            mock_request.assert_called_with(data,
+                                            notification_data)
 
     def _test_notifications(self):
         """ Tests response path notification  APIs
@@ -218,22 +175,18 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
         """
 
-        sc, conf, rpc_mgr = self._get_ConfiguratorRpcManager_object()
-        agent = self._get_GenericConfigEventHandler_object(sc, rpc_mgr)
+        sc, rpc_mgr = self._get_ConfiguratorRpcManager_object()
 
-        data = "PUT ME IN THE QUEUE!"
-        with mock.patch.object(sc, 'new_event', return_value='foo') as (
-                                                            mock_new_event),\
-                mock.patch.object(sc, 'stash_event') as mock_poll_event:
+        events = fo.FakeEventGetNotifications()
+        with mock.patch.object(sc, 'get_stashed_events',
+                               return_value=[events]):
 
-            agent.notify._notification(data)
+            return_value = rpc_mgr.get_notifications('context')
 
-            mock_new_event.assert_called_with(id='STASH_EVENT',
-                                              key='STASH_EVENT',
-                                              data=data)
-            mock_poll_event.assert_called_with('foo')
+            expected_value = [events.data]
+            self.assertEqual(return_value, expected_value)
 
-    def test_configure_routes_configurator_api(self):
+    def test_configure_routes_generic_api(self):
         """ Implements test case for configure routes API
 
         Returns: none
@@ -242,9 +195,9 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
         method = "CONFIGURE_ROUTES"
         operation = 'create'
-        self._test_network_device_config(operation, method)
+        self._test_network_function_device_config(operation, method)
 
-    def test_clear_routes_configurator_api(self):
+    def test_clear_routes_generic_api(self):
         """ Implements test case for clear routes API
 
         Returns: none
@@ -253,9 +206,9 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
         method = "CLEAR_ROUTES"
         operation = 'delete'
-        self._test_network_device_config(operation, method)
+        self._test_network_function_device_config(operation, method)
 
-    def test_configure_interfaces_configurator_api(self):
+    def test_configure_interfaces_generic_api(self):
         """ Implements test case for configure interfaces API
 
         Returns: none
@@ -264,9 +217,9 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
         method = "CONFIGURE_INTERFACES"
         operation = 'create'
-        self._test_network_device_config(operation, method)
+        self._test_network_function_device_config(operation, method)
 
-    def test_clear_interfaces_configurator_api(self):
+    def test_clear_interfaces_generic_api(self):
         """ Implements test case for clear interfaces API
 
         Returns: none
@@ -275,9 +228,9 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
         method = "CLEAR_INTERFACES"
         operation = 'delete'
-        self._test_network_device_config(operation, method)
+        self._test_network_function_device_config(operation, method)
 
-    def test_configure_bulk_configurator_api(self):
+    def test_configure_bulk_generic_api(self):
         """ Implements test case for bulk configure request API
 
         Returns: none
@@ -286,9 +239,9 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
         method = "PROCESS_BATCH"
         operation = 'create'
-        self._test_network_device_config(operation, method, True)
+        self._test_network_function_device_config(operation, method, True)
 
-    def test_clear_bulk_configurator_api(self):
+    def test_clear_bulk_generic_api(self):
         """ Implements test case for bulk clear request API
 
         Returns: none
@@ -297,34 +250,34 @@ class ConfiguratorRpcManagerTestCase(base.BaseTestCase):
 
         method = "PROCESS_BATCH"
         operation = 'delete'
-        self._test_network_device_config(operation, method, True)
+        self._test_network_function_device_config(operation, method, True)
 
-    def test_create_firewall_configurator_api(self):
+    def test_network_function_create_api(self):
         """ Implements test case for create firewall API
 
         Returns: none
 
         """
 
-        self._test_fw_event_creation('CREATE_FIREWALL')
+        self._test_network_function_config('CREATE_FIREWALL')
 
-    def test_update_firewall_configurator_api(self):
+    def test_network_function_update_api(self):
         """ Implements test case for update firewall API
 
         Returns: none
 
         """
 
-        self._test_fw_event_creation('UPDATE_FIREWALL')
+        self._test_network_function_config('UPDATE_FIREWALL')
 
-    def test_delete_firewall_configurator_api(self):
+    def test_network_function_delete_api(self):
         """ Implements test case for delete firewall API
 
         Returns: none
 
         """
 
-        self._test_fw_event_creation('DELETE_FIREWALL')
+        self._test_network_function_config('DELETE_FIREWALL')
 
     def test_get_notifications_generic_configurator_api(self):
         """ Implements test case for get notifications API
