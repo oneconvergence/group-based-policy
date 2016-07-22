@@ -38,12 +38,12 @@ class Controller(base_controller.BaseController):
 
     def __init__(self, method_name):
         try:
+            self.method_name = method_name
             self.services = pecan.conf['cloud_services']
             self.rpc_routing_table = {}
             for service in self.services:
                 self._entry_to_rpc_routing_table(service)
 
-            self.method_name = method_name
             super(Controller, self).__init__()
         except Exception as err:
             msg = (
