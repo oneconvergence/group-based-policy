@@ -1,5 +1,10 @@
 from gbpservice.nfp.orchestrator.modules import device_orchestrator as ndo
 from gbpservice.nfp.core.event import Event
+from gbpservice.nfp.core import module as nfp_api
+from gbpservice.nfp.orchestrator.db import nfp_db
+
+from gbpservice.nfp.core import log as nfp_logging
+LOG = nfp_logging.getLogger(__name__)
 
 def events_init(controller, config, sharing_feature):
     events = ['CREATE_NETWORK_FUNCTION_DEVICE']
@@ -9,27 +14,28 @@ def events_init(controller, config, sharing_feature):
             Event(id=event, handler=sharing_feature, override=True))
     controller.register_events(events_to_register)
 
+
 def nfp_module_init(controller, config):
     events_init(controller, config, SharingFeature(controller, config))
-	LOG.debug("Sharing Feature: module_init")
+    LOG.debug("Sharing Feature: module_init")
+
 
 class SharingFeature(ndo.DeviceOrchestrator, nfp_api.NfpEventHandler):
 
     def __init__(self, controller, config):
-		super(SharingFeature, self).__init__(controller, config)
+        super(SharingFeature, self).__init__(controller, config)
         self._controller = controller
         self.config = config
-        self.nsf_db = nfp_db.NFPDbBase()
-        neutron_context = n_context.get_admin_context()
+        self.db_handler = nfp_db.NFPDbBase()
 
-	def event_method_mapping(self, event_id):
-		event_handler_mapping = {
+    def event_method_mapping(self, event_id):
+        event_handler_mapping = {
 			"CREATE_NETWORK_FUNCTION_DEVICE": self.create_network_function_device
 		}
     	if event_id not in event_handler_mapping:
 			raise Exception("Invalid event ID")
-		else:
-			return event_handler_mapping[event_id]
+        else:
+            return event_handler_mapping[event_id]
 
 	def handle_event(self, event):
 		try:
@@ -114,10 +120,11 @@ class SharingFeature(ndo.DeviceOrchestrator, nfp_api.NfpEventHandler):
 
 	def create_network_function_device(self, event):
 		nfp_context = event.data
-		provider = nfp_context['provider']
-		provider_pt_id = provider['pt']['id']
-		if provider_pt_id and
-				self._check_nfi_advanced_sharing(provider_pt_id, nfp_context):
+        provider = nfp_context['provider']
+        provider_pt_id = provider['pt']['id']
+        if (provider_pt_id and
+                self._check_nfi_advanced_sharing(provider_pt_id, nfp_context)):
 			self._prepare_advanced_sharing_graph(self, nfp_context)
 			return
-		super(SharingFeature, self).create_network_function_device(event)
+
+        super(SharingFeature, self).create_network_function_device(event)

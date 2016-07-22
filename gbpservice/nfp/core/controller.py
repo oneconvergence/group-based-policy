@@ -86,6 +86,9 @@ class NfpService(object):
         """Register event handlers with core. """
         # REVISIT (mak): change name to register_event_handlers() ?
         for event_desc in event_descs:
+            if event_desc.override:
+                message = "Event: %s is override" %(event_desc.id)
+                LOG.warn(message)
             self._event_handlers.register(event_desc.id, event_desc.handler)
 
     def register_rpc_agents(self, agents):

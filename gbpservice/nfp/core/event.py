@@ -225,6 +225,8 @@ class Event(object):
         self.binding_key = kwargs.get('binding_key')
         # Handler of the event.
         self.handler = kwargs.get('handler')
+        # Override of the event registration
+        self.override = kwargs.get('override', False)
         # Lifetime of the event in seconds.
         self.lifetime = kwargs.get('lifetime', 0)
         # Identifies whether event.data is zipped
