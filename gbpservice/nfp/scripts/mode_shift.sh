@@ -377,11 +377,11 @@ function prepare_for_mode_shift {
         setup_ssh_key
         echo "Copy files and configure"
         copy_files
-        # FIXME(RPM): Restart of the processes in nfp_configure_nova
-        # is not working, this need to be fixed.
-        #echo "Configuring nova"
-        #nfp_configure_nova
-        #sleep 10
+
+        echo "Configuring nova"
+        nfp_configure_nova
+        sleep 10
+
         echo "Preparing image creation"
         create_images
         echo "Launching the Visibility VM"
