@@ -74,10 +74,22 @@ function copy_files {
  cp -r /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/config /etc/nfp_config
 
     # Update the DB model
+    new_db_name=nfp_enterprise_db
+    temp_db_name=$new_db_name\-temp
+    gbp-db-manage --config-file /etc/neutron/neutron.conf revision -m "$new_db_name"
+
+    revision=$(sed -n '/revision = /p' *$new_db_name.py | awk 'NR==1{print $3}')
+    down_revision=$(sed -n '/revision = /p' *$new_db_name.py | awk 'NR==2{print $3}')
+    
+    sed -i "s/revision = *.*/revision = $revision/"\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$temp_db_name.py
+    sed -i "s/down_revision = *.*/down_revision = $down_revision/"\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$temp_db_name.py
+    
     sudo cp\
- $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/d2aab79622fe_nfp_enterprise_db.py\
- $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/
-    echo "d2aab79622fe" > $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/HEAD
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$temp_db_name.py\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/*$new_db_name.py
+
     gbp-db-manage --config-file /etc/neutron/neutron.conf upgrade head
 }
 
@@ -88,12 +100,12 @@ function nfp_configure_nova {
     iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
 
     for proc in n-cpu n-cond n-sch n-novnc n-cauth n-api; do
-        # can be used to run the binary in a specific environment
+        # Can be used to run the binary in a specific environment
         # A silly example will be 'watch free -m' where watch is the
         # sandbox and free is the proc 
         sandbox=
         param=--config-file\ /etc/nova/nova.conf
-        # multiple config files can be given as space separated
+        # Multiple config files can be given as space separated
         # e.g.: --config-file <conf file>\ --config-file\ <conf file>  
         extra_param=
         case $proc in
