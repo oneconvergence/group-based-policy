@@ -599,15 +599,17 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 provider_subnet = subnet
                 break
         if provider_subnet:
-            lb_pool_ids = self.lbaas_plugin.get_pools(
+            lb_pools = self.lbaas_plugin.get_pools(
                 context.plugin_context,
                 filters={'subnet_id': [provider_subnet['id']]})
-            if lb_pool_ids and lb_pool_ids[0]['vip_id']:
-                lb_vip =  self.lbaas_plugin.get_vip(
-                    context.plugin_context, lb_pool_ids[0]['vip_id'])
-                self._create_pt(context, context.provider['id'],
-                                "service_target_vip_pt",
-                                port_id=lb_vip['port_id'])
+            if lb_pools:
+                lb_pool = lb_pools[0]
+                if lb_pool['vip_id']:
+                    lb_vip =  self.lbaas_plugin.get_vip(
+                        context.plugin_context, lb_pool['vip_id'])
+                    self._create_pt(context, context.provider['id'],
+                                    "service_target_vip_pt",
+                                    port_id=lb_vip['port_id'])
 
     def _wait_for_network_function_operation_completion(self, context,
                                                         network_function_id,
@@ -652,7 +654,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
 
         if (self._get_service_type(
                 context.current_profile) == pconst.LOADBALANCER and
-                    operation=='create'):
+                    operation.lower()=='create'):
             self._create_policy_target_for_vip(context)
 
 
