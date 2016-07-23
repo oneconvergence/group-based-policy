@@ -26,8 +26,6 @@ from neutron.common import exceptions as n_exc
 from neutron.common import rpc as n_rpc
 from neutron.db import model_base
 from neutron.plugins.common import constants as pconst
-from neutron import manager
-
 from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
@@ -67,7 +65,6 @@ cfg.CONF.register_opts(NFP_NODE_DRIVER_OPTS, "nfp_node_driver")
 
 LOG = logging.getLogger(__name__)
 
-APIC_OWNED_RES = 'apic_owned_res_'
 
 class InvalidServiceType(exc.NodeCompositionPluginBadRequest):
     message = _("The NFP Node driver only supports the services "
@@ -250,14 +247,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
     def name(self):
         return self._name
 
-    @property
-    def lbaas_plugin(self):
-        if self._lbaas_plugin:
-            return self._lbaas_plugin
-        self._lbaas_plugin = manager.NeutronManager.get_service_plugins().get(
-            pconst.LOADBALANCER)
-        return self._lbaas_plugin
-
     def initialize(self, name):
         self.initialized = True
         self._name = name
@@ -434,7 +423,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 result = self._wait(gth)
             self.active_threads = []
 
-
     def update(self, context):
         context._plugin_context = self._get_resource_owner_context(
             context._plugin_context)
@@ -577,40 +565,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                       {'network_function': network_function_id})
             raise NodeInstanceDeleteFailed()
 
-    def _create_pt(self, context, ptg_id, name, port_id=None):
-        policy_target = {'name': name,
-                         'description': '',
-                         'tenant_id': context.plugin_context.tenant_id,
-                         'policy_target_group_id': ptg_id,
-                         'port_id': port_id,
-                         'proxy_gateway': False,
-                         'group_default_gateway': False,
-                         'cluster_id': ""}
-        return context.gbp_plugin.create_policy_target(
-            context.plugin_context, {"policy_target": policy_target})
-
-    def _create_policy_target_for_vip(self, context):
-        provider_subnet = None
-        provider_l2p_subnets = context.core_plugin.get_subnets(
-            context.plugin_context,
-            filters={'id': context.provider['subnets']})
-        for subnet in provider_l2p_subnets:
-            if not subnet['name'].startswith(APIC_OWNED_RES):
-                provider_subnet = subnet
-                break
-        if provider_subnet:
-            lb_pools = self.lbaas_plugin.get_pools(
-                context.plugin_context,
-                filters={'subnet_id': [provider_subnet['id']]})
-            if lb_pools:
-                lb_pool = lb_pools[0]
-                if lb_pool['vip_id']:
-                    lb_vip =  self.lbaas_plugin.get_vip(
-                        context.plugin_context, lb_pool['vip_id'])
-                    self._create_pt(context, context.provider['id'],
-                                    "service_target_vip_pt",
-                                    port_id=lb_vip['port_id'])
-
     def _wait_for_network_function_operation_completion(self, context,
                                                         network_function_id,
                                                         operation):
@@ -651,12 +605,6 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 raise NodeInstanceCreateFailed()
             elif operation.lower() == 'update':
                 raise NodeInstanceUpdateFailed()
-
-        if (self._get_service_type(
-                context.current_profile) == pconst.LOADBALANCER and
-                    operation.lower()=='create'):
-            self._create_policy_target_for_vip(context)
-
 
     def _is_service_target(self, policy_target):
         if policy_target['name'] and (policy_target['name'].startswith(
@@ -843,6 +791,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         if service_type_list_in_chain not in allowed_chain_combinations:
             raise InvalidNodeOrderInChain(
                     node_order=allowed_chain_combinations)
+
         self.sc_node_count = len(node_list)
 
     def _get_consumers_for_provider(self, context, provider):

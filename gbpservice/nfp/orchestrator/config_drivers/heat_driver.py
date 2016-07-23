@@ -246,6 +246,19 @@ class HeatDriver(object):
                     if port_info['port_model'] != nfp_constants.GBP_PORT:
                         return
 
+    def _post_stack_create(self, nfp_context):
+        service_details = self.get_service_details_from_nfp_context(
+            nfp_context)
+        service_details = service_details['service_details']
+        service_type = service_details['service_type']
+
+        if service_type in [pconst.LOADBALANCER]:
+            auth_token = nfp_context['resource_owner_context']['admin_token']
+            provider_tenant_id = nfp_context['tenant_id']
+            provider = service_details['provider_ptg']
+            self._create_policy_target_for_vip(
+                auth_token, provider_tenant_id, provider)
+
     def _create_policy_target_for_vip(self, auth_token,
                                       provider_tenant_id, provider):
         provider_subnet = None
@@ -1421,6 +1434,7 @@ class HeatDriver(object):
             if stack.stack_status == 'DELETE_FAILED':
                 return failure_status
             elif stack.stack_status == 'CREATE_COMPLETE':
+                self._post_stack_create(nfp_context)
                 return success_status
             elif stack.stack_status == 'UPDATE_COMPLETE':
                 return success_status
