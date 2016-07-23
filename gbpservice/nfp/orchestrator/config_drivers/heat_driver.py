@@ -253,7 +253,8 @@ class HeatDriver(object):
         service_type = service_details['service_type']
 
         if service_type in [pconst.LOADBALANCER]:
-            auth_token = nfp_context['resource_owner_context']['admin_token']
+            logging_context = nfp_logging.get_logging_context()
+            auth_token = logging_context['auth_token']
             provider_tenant_id = nfp_context['tenant_id']
             provider = service_details['provider_ptg']
             self._create_policy_target_for_vip(
