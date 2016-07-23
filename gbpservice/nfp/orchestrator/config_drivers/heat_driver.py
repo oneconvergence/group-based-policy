@@ -246,8 +246,20 @@ class HeatDriver(object):
                     if port_info['port_model'] != nfp_constants.GBP_PORT:
                         return
 
+    def loadbalancer_post_stack_create_fast(self, nfp_context):
+        service_details = nfp_context['service_details']
+        if service_details['service_type'] in [pconst.LOADBALANCER,
+                                               pconst.LOADBALANCERV2]:
+            logging_context = nfp_logging.get_logging_context()
+            auth_token = logging_context['auth_token']
+            provider_tenant_id = nfp_context['tenant_id']
+            provider = nfp_context['provider']['ptg']
+            self._create_policy_target_for_vip(auth_token,
+                                               provider_tenant_id,
+                                               provider)
+
     def _create_policy_target_for_vip(self, auth_token,
-                                      provider_tenant_id, provider):
+									  provider_tenant_id, provider):
         provider_subnet = None
         provider_l2p_subnets = self.neutron_client.get_subnets(
             auth_token,
@@ -257,16 +269,18 @@ class HeatDriver(object):
                 provider_subnet = subnet
                 break
         if provider_subnet:
-            lb_pool_ids = self.neutron_client.get_pools(
+            lb_pools = self.neutron_client.get_pools(
                 auth_token,
                 filters={'subnet_id': [provider_subnet['id']]})
-            if lb_pool_ids and lb_pool_ids[0]['vip_id']:
-                lb_vip = self.neutron_client.get_vip(
-                    auth_token, lb_pool_ids[0]['vip_id'])
-                vip_name = "service_target_vip_pt" + lb_pool_ids[0]['vip_id']
-                self.gbp_client.create_policy_target(
-                    auth_token, provider_tenant_id, provider['id'],
-                    vip_name, lb_vip['vip']['port_id'])
+            if lb_pools:
+                lb_pool = lb_pools[0]
+                if lb_pool['vip_id']:
+                    lb_vip =  self.neutron_client.get_vip(
+                        auth_token, lb_pool['vip_id'])
+                    vip_name = "service_target_vip_pt" + lb_pool['vip_id']
+                    self.gbp_client.create_policy_target(
+						auth_token, provider_tenant_id, provider['id'],
+                        vip_name, lb_vip['vip']['port_id'])
 
     def _is_service_target(self, policy_target):
         if policy_target['name'] and (policy_target['name'].startswith(
@@ -1421,6 +1435,7 @@ class HeatDriver(object):
             if stack.stack_status == 'DELETE_FAILED':
                 return failure_status
             elif stack.stack_status == 'CREATE_COMPLETE':
+                self.loadbalancer_post_stack_create_fast(nfp_context)
                 return success_status
             elif stack.stack_status == 'UPDATE_COMPLETE':
                 return success_status
