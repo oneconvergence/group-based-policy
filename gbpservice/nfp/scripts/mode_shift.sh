@@ -74,35 +74,98 @@ function copy_files {
  cp -r /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/config /etc/nfp_config
 
     # Update the DB model
+    db_name=nfp_enterprise_db
+    gbp-db-manage --config-file /etc/neutron/neutron.conf revision -m "$db_name"
+
+    revision=$(sed -n '/revision = /p'\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/*$db_name.py |\
+ awk 'NR==1{print $3}')
+    down_revision=$(sed -n '/revision = /p'\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/*$db_name.py |\
+ awk 'NR==2{print $3}')
+    
+    sed -i "s/revision = *.*/revision = $revision/"\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$db_name.py
+    sed -i "s/down_revision = *.*/down_revision = $down_revision/"\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$db_name.py
+    
     sudo cp\
- $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/d2aab79622fe_nfp_enterprise_db.py\
- $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/
-    echo "d2aab79622fe" > $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/HEAD
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$db_name.py\
+ $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/*$db_name.py
+
     gbp-db-manage --config-file /etc/neutron/neutron.conf upgrade head
 }
 
-# FIXME(RPM): Not working, this need to be fixed.
 function nfp_configure_nova {
     NOVA_CONF_DIR=/etc/nova
     NOVA_CONF=$NOVA_CONF_DIR/nova.conf
     source $DEVSTACK_SRC_DIR/inc/ini-config
     iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
+
+    for proc in n-cpu n-cond n-sch n-novnc n-cauth n-api; do
+        # Can be used to run the binary in a specific environment
+        # A silly example will be 'watch free -m' where watch is the
+        # sandbox and free is the proc 
+        sandbox=
+        param=--config-file\ /etc/nova/nova.conf
+        # Multiple config files can be given as space separated
+        # e.g.: --config-file <conf file>\ --config-file\ <conf file>  
+        extra_param=
+        case $proc in
+            n-cpu)
+                sandbox=sg\ libvirtd
+                proc_name=nova-compute
+                ;;
+            n-cond)
+                proc_name=nova-conductor
+                ;;
+            n-sch)
+                proc_name=nova-scheduler
+                ;;
+            n-novnc)
+                proc_name=nova-novncproxy
+                extra_param=--web\ /opt/stack/noVNC
+                ;;
+            n-cauth)
+                proc_name=nova-consoleauth
+                ;;
+            n-api)
+                proc_name=nova-api
+                param=
+                ;;
+        esac
+        restart_devstack_screen_processes "$proc" "$sandbox" "$proc_name" "$param" "$extra_param"
+    done
+}
+
+function restart_devstack_screen_processes {
+    SCREEN_NAME=stack
+    SERVICE_DIR=$DEST/status/$SCREEN_NAME
+    bin=/usr/local/bin
+    proc_screen_name=$1
+    sandbox=$2
+    proc_name=$3
+    param=$4
+    extra_param=$5
+
+    cmd=$bin/$proc_name\ $param\ $extra_param
+    cmd="$(echo -e "${cmd}" | sed -e 's/[[:space:]]*$//')"
     
-    source $DEVSTACK_SRC_DIR/functions-common
-    stop_process n-cpu
-    stop_process n-cond 
-    stop_process n-sch 
-    stop_process n-novnc 
-    stop_process n-cauth
-    stop_process n-api 
-    
-    source $DEVSTACK_SRC_DIR/lib/nova
-    start_nova_compute
-    start_nova_api
-    run_process n-cond "$NOVA_BIN_DIR/nova-conductor --config-file $NOVA_CONF"
-    run_process n-sch "$NOVA_BIN_DIR/nova-scheduler --config-file $NOVA_CONF"
-    run_process n-novnc "$NOVA_BIN_DIR/nova-novncproxy --config-file $NOVA_CONF --web $DEST/noVNC"
-    run_process n-cauth "$NOVA_BIN_DIR/nova-consoleauth --config-file $NOVA_CONF"
+    if [[ ! -z "${sandbox// }" ]]; then
+        cmd=$sandbox\ \'$cmd\'
+    fi
+
+    # stop the process
+    screen -S $SCREEN_NAME -p $proc_screen_name -X kill
+    sleep 4
+
+    # start the process
+    screen -S $SCREEN_NAME -X screen -t $proc_screen_name
+    screen -S $SCREEN_NAME -p $proc_screen_name -X stuff "$cmd \
+        & echo \$! >$SERVICE_DIR/${proc_screen_name}.pid; fg || \
+        echo \"$proc_screen_name failed to start\" \
+        | tee \"$SERVICE_DIR/${proc_screen_name}.failure\"\n"
+    sleep 5
 }
 
 function create_port_for_vm {
@@ -329,11 +392,11 @@ function prepare_for_mode_shift {
         setup_ssh_key
         echo "Copy files and configure"
         copy_files
-        # FIXME(RPM): Restart of the processes in nfp_configure_nova
-        # is not working, this need to be fixed.
-        #echo "Configuring nova"
-        #nfp_configure_nova
-        #sleep 10
+
+        echo "Configuring nova"
+        nfp_configure_nova
+        sleep 10
+
         echo "Preparing image creation"
         create_images
         echo "Launching the Visibility VM"
