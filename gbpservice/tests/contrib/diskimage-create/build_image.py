@@ -214,8 +214,11 @@ if __name__ == "__main__":
     # parse args from json file
     parse_json(sys.argv[1])
     elements = conf['dib']['elements']
-    elem = 'haproxy'
-    if elem in elements:
+    if 'haproxy' in elements:
+        # Enable default site in apache2 for local repo
+        sudo cp /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-enabled/
+        sudo service apache2 restart
+        sleep 5
         if(update_haproxy_repo()):
             exit()
 
@@ -227,3 +230,9 @@ if __name__ == "__main__":
 
     # run Disk Image Builder to create VM image
     dib(nfp_branch_name)
+
+    if 'haproxy' in elements:
+        # Disable the default site in apache2
+        sudo rm /etc/apache2/sites-enabled/000-default.conf
+        sudo service apache2 restart
+        sleep 5
