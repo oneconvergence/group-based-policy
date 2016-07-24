@@ -102,7 +102,7 @@ class NfpWorker(Service):
         """
         if event.desc.type == nfp_event.SCHEDULE_EVENT:
             self._send_event_ack(event)
-            eh = self.event_handlers.get_event_handler(event.id)
+            eh = self.event_handlers.get_event_handler(event.id, module=event.desc.target)
             self.dispatch(eh.handle_event, event)
         elif event.desc.type == nfp_event.POLL_EVENT:
             self.dispatch(self._handle_poll_event, event)
