@@ -216,9 +216,12 @@ if __name__ == "__main__":
     elements = conf['dib']['elements']
     if 'haproxy' in elements:
         # Enable default site in apache2 for local repo
-        sudo cp /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-enabled/
-        sudo service apache2 restart
-        sleep 5
+        cmd = ("sudo cp"
+               " /etc/apache2/sites-available/000-default.conf"
+               " /etc/apache2/sites-enabled/")
+        os.system(cmd)
+        cmd = ("sudo service apache2 restart")
+        os.system(cmd)
         if(update_haproxy_repo()):
             exit()
 
@@ -233,6 +236,8 @@ if __name__ == "__main__":
 
     if 'haproxy' in elements:
         # Disable the default site in apache2
-        sudo rm /etc/apache2/sites-enabled/000-default.conf
-        sudo service apache2 restart
-        sleep 5
+        cmd = ("sudo rm"
+               " /etc/apache2/sites-enabled/000-default.conf")
+        os.system(cmd)
+        cmd = ("sudo service apache2 restart")
+        os.system(cmd)
