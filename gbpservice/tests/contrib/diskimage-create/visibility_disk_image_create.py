@@ -84,7 +84,9 @@ def create_configurator_docker(nfp_branch_name):
     # create a docker image
     os.chdir(configurator_dir)
     set_nfp_git_branch(nfp_branch_name, configurator_dir)
-    docker_args = ['docker', 'build', '-t', 'configurator-docker', '.']
+    docker_args = ['docker', 'build', '--build-arg',
+                   'CACHE_DATE=$(date +%Y-%m-%d:%H:%M:%S)',
+                   '-t', 'configurator-docker', '.']
     ret = subprocess.call(docker_args)
     if(ret):
         print "Failed to build docker image [configurator-docker]"

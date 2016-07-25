@@ -43,6 +43,9 @@ RUN cur_dir=$PWD
 RUN cd /pan-python && sudo ./setup.py install
 RUN cd $cur_dir
 
+# Cache buster
+ARG CACHE_DATE=2016-07-25:15:20:10
+
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron-lib.git neutron_lib
 RUN cp -r  /neutron_lib/neutron_lib /usr/local/lib/python2.7/dist-packages/
 RUN git clone -b stable/mitaka --single-branch https://github.com/openstack/neutron.git neutron
