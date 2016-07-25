@@ -661,7 +661,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                 nfp_context['network_function_instance']['id']),
             'network_function_device_id': device['id']
         }
-
+        nfp_context['event_desc'] = event.desc.to_dict()
         self._create_event(event_id='DEVICE_SPAWNING',
                            event_data=nfp_context,
                            is_poll_event=True,
@@ -722,6 +722,11 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             # [REVISIT(mak)] to handle a very corner case where
             # PLUG_INTERFACES completes later than HEALTHMONITOR.
             # till proper fix is identified.
+            nfd_event = self._controller.new_event(id='CREATE_NETWORK_FUNCTION_DEVICE',
+                                                   key=nfp_context['network_function']['id'],
+                                                   binding_key=nfp_context['service_chain_node']['id'],
+                                                   desc_dict=nfp_context['event_desc'])
+            self._controller.event_complete(nfd_event)
             provider = nfp_context['provider']['ptg']
             consumer = nfp_context['consumer']['ptg']
             network_function_device = nfp_context['network_function_device']
@@ -1235,7 +1240,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
     def handle_plug_interface_failed(self, event):
         nfp_context = event.data
         device = self._prepare_failure_case_device_data(nfp_context)
-        status = nfp_constants.ERROR
+        status = nfp_constants.ACTIVE
         desc = "Failed to plug interfaces"
         self._update_network_function_device_db(device, status, desc)
         self._create_event(event_id='DEVICE_CREATE_FAILED',

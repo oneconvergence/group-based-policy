@@ -308,13 +308,13 @@ class NfpEventHandlers(object):
         try:
             try:
                 self._event_desc_table[event_id]['modules'][module].append(
-                    (event_handler, poll_handler, spacing)]
+                    (event_handler, poll_handler, spacing))
             except KeyError:
                 self._event_desc_table[event_id]['modules'][module] = [
                     (event_handler, poll_handler, spacing)]
             try:
                 self._event_desc_table[event_id]['priority'][priority].append(
-                    (event_handler, poll_handler, spacing)]
+                    (event_handler, poll_handler, spacing))
             except KeyError:
                 self._event_desc_table[event_id]['priority'][priority] = [
                     (event_handler, poll_handler, spacing)]
@@ -348,7 +348,9 @@ class NfpEventHandlers(object):
         """Get the poll handler for event_id. """
         ph = None
         try:
-            ph = self._event_desc_table[event_id][0][1]
+            priorities = self._event_desc_table[event_id]['priority'].keys()
+            priority = max(priorities)
+            ph = self._event_desc_table[event_id]['priority'][priority][0][1]
         finally:
             message = "%s - Returning poll handler" % (
                 self._log_meta(event_id, ph))

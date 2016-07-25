@@ -293,8 +293,6 @@ class OrchestrationDriver(object):
                       {'image_name': image_name, 'error': e})
             return None
         vendor_data = self._verify_vendor_data(image_name, metadata)
-        if not vendor_data:
-            return None
         return vendor_data
 
     def _update_self_with_vendor_data(self, vendor_data, attr):

@@ -1,7 +1,13 @@
+from gbpservice.nfp.common import constants as nfp_constants
+from gbpservice.nfp.common import exceptions
 from gbpservice.nfp.orchestrator.drivers import orchestration_driver
 
-class SharingDriver(OrchestrationDriver):
-    def select_network_function_device(self, devices, device_data):
+
+class SharingDriver(orchestration_driver.OrchestrationDriver):
+
+    @orchestration_driver._set_network_handler
+    def select_network_function_device(self, devices,
+                                       device_data, network_handler=None):
         """ Select a NFD which is eligible for sharing
 
         :param devices: NFDs
@@ -59,6 +65,26 @@ class SharingDriver(OrchestrationDriver):
                     # device already has VPN service instantiated, ignore this
                     # device and checks for next one
                     continue
+                admin_tenant_id = device_data['admin_tenant_id']
+                image_name = super(SharingDriver, self)._get_image_name(
+                    device_data)
+                vendor_data = super(SharingDriver, self)._get_vendor_data_fast(
+                    token,
+                    admin_tenant_id,
+                    image_name,
+                    device_data)
+                device['vendor_data'] = vendor_data
+
                 return device
         return None
-        
+
+    @orchestration_driver._set_network_handler
+    def get_managment_info(self, device_data, network_handler=None):
+        port_id = network_handler.get_port_id(device_data['token'],
+                                              device_data['mgmt_port_id'][
+            'id'])
+        managemt_info = super(
+            SharingDriver, self).get_neutron_port_details(network_handler,
+                                                          device_data['token'],
+                                                          port_id)
+        return managemt_info

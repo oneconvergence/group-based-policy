@@ -1,13 +1,12 @@
+from neutron._i18n import _LE
+from neutron._i18n import _LI
 from gbpservice.nfp.core import event as nfp_event
 from gbpservice.nfp.core.event import Event
 from gbpservice.nfp.core import module as nfp_api
 
 from gbpservice.nfp.orchestrator.modules import device_orchestrator
+from gbpservice.nfp.common import constants as nfp_constants
 from gbpservice.nfp.orchestrator.drivers import sharing_driver
-
-import sys
-import time
-import traceback
 
 from gbpservice.nfp.core import log as nfp_logging
 LOG = nfp_logging.getLogger(__name__)
@@ -19,7 +18,8 @@ def events_init(controller, config, orchestrator):
     for event in events:
         events_to_register.append(
             Event(id=event, handler=orchestrator))
-    controller.register_events(events_to_register, module='sharing', priority=1)
+    controller.register_events(
+        events_to_register, module='sharing', priority=1)
 
 
 def nfp_module_init(controller, config):
@@ -28,10 +28,12 @@ def nfp_module_init(controller, config):
 
 
 class Sharing(nfp_api.NfpEventHandler):
+
     def __init__(self, controller, config):
         self._controller = controller
         self.config = config
-        self.device_orchestrator = device_orchestrator.DeviceOrchestrator(controller, config)
+        self.device_orchestrator = device_orchestrator.DeviceOrchestrator(
+            controller, config)
         self.sharing_driver = sharing_driver.SharingDriver(config)
 
     def handle_event(self, event):
@@ -39,8 +41,8 @@ class Sharing(nfp_api.NfpEventHandler):
             self.create_network_function_device(event)
         else:
             LOG.error(_LE("Invalid event: %(event_id)s for "
-                              "event data %(event_data)s"),
-                          {'event_id': event.id, 'event_data': event.data})
+                          "event data %(event_data)s"),
+                      {'event_id': event.id, 'event_data': event.data})
 
     def _get_device_to_reuse(self, device_data):
         device_filters = {
@@ -49,18 +51,21 @@ class Sharing(nfp_api.NfpEventHandler):
                 'service_vendor']],
             'status': [nfp_constants.ACTIVE]
         }
-        devices = self.device_orchestrator._get_network_function_devices(device_filters)
-        device = self.sharing_driver.select_network_function_device(devices, device_data)
+        devices = self.device_orchestrator._get_network_function_devices(
+            device_filters)
+        device = self.sharing_driver.select_network_function_device(
+            devices, device_data)
         return device
-                      
+
     def create_network_function_device(self, event):
         nfp_context = event.data
         LOG.info(_LI("Orchestrator's sharing module received "
                      " create network function "
                      "device request with data %(data)s"),
-                 {'data': nfd_request})
-        device_data = self.device_orchestrator._prepare_device_data_from_nfp_context(nfp_context)
-       
+                 {'data': nfp_context})
+        device_data = (
+            self.device_orchestrator._prepare_device_data_from_nfp_context(
+                nfp_context))
         device = self._get_device_to_reuse(device_data)
         if device:
             device.update(device_data)
@@ -73,9 +78,16 @@ class Sharing(nfp_api.NfpEventHandler):
                     nfp_context['network_function_instance']['id']),
                 'network_function_device_id': device['id']
             }
-            self.device_orchestrator._create_event(event_id='DEVICE_CREATED',
-                           event_data=device_created_data)
-            
+            self.device_orchestrator._create_event(
+                event_id='DEVICE_CREATED',
+                event_data=device_created_data)
+            nfp_context['network_function_device'] = device
+            nfp_context['vendor_data'] = device['vendor_data']
+            management_info = self.sharing_driver.get_managment_info(device)
+            management = nfp_context['management']
+            management['port'] = management_info['neutron_port']
+            management['port']['ip_address'] = management_info['ip_address']
+            management['subnet'] = management_info['neutron_subnet']
 
             # Since the device is already UP, create a GRAPH so that
             # further processing continues in device orchestrator
@@ -97,6 +109,7 @@ class Sharing(nfp_api.NfpEventHandler):
                                                      graph=graph)
             graph_nodes = [du_event, plug_int_event]
             self._controller.post_event_graph(graph_event, graph_nodes)
+            self._controller.event_complete(event)
         else:
             # Device does not exist.
             # Post this event back to device orchestrator

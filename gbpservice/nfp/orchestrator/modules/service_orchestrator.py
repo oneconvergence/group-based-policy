@@ -897,9 +897,16 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
 
         nfp_context['network_function_instance'] = nfi_db
 
-        LOG.info(_LI("[Event:CreateService]"))
-        self._create_event('CREATE_NETWORK_FUNCTION_DEVICE',
-                           event_data=nfp_context)
+        LOG.info(_LI("[Event:CreateService]")),
+        binding_key = nfp_context['service_chain_node']['id']
+
+        ev = self._controller.new_event(
+            id='CREATE_NETWORK_FUNCTION_DEVICE',
+            data=nfp_context,
+            binding_key=binding_key,
+            key=network_function['id'],
+            serialize=True)
+        self._controller.post_event(ev)
 
     def handle_device_created(self, event):
         request_data = event.data
