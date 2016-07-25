@@ -93,9 +93,9 @@ class Sharing(nfp_api.NfpEventHandler):
             graph = nfp_event.EventGraph(du_event)
             graph.add_node(plug_int_event, du_event)
 
-            graph_event = self._controller.new_event(id="HEALTH_MONITOR_GRAPH",
+            graph_event = self._controller.new_event(id="DEVICE_SHARE_GRAPH",
                                                      graph=graph)
-            graph_nodes = [du_event, hc_event, plug_int_event]
+            graph_nodes = [du_event, plug_int_event]
             self._controller.post_event_graph(graph_event, graph_nodes)
         else:
             # Device does not exist.
