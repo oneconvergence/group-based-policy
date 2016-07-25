@@ -354,7 +354,7 @@ def register_service_agent(cm, sc, conf):
     Returns: None
     """
 
-    rpcmgr = VPNaasRpcManager(sc, conf)
+    rpcmgr = VPNaasRpcManager(conf, sc)
     cm.register_service_agent(const.SERVICE_TYPE, rpcmgr)
 
 
