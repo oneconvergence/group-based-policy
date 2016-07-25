@@ -13,6 +13,14 @@
 #    under the License.
 #
 
+"""nfp_enterprise_db
+
+Revision ID:
+Revises:
+Create Date: 2016-07-25 07:28:39.063889
+
+"""
+
 # revision identifiers, used by Alembic.
 revision = ''
 down_revision = ''

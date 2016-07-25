@@ -72,8 +72,10 @@ function copy_files {
  ssh -o "StrictHostKeyChecking no" -i configurator_vm root@$configurator_ip\
  docker exec configurator\
  cp -r /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/config /etc/nfp_config
+}
 
-    # Update the DB model
+function update_db {
+    # Updates the DB model
     db_name=nfp_enterprise_db
     gbp-db-manage --config-file /etc/neutron/neutron.conf revision -m "$db_name"
 
@@ -83,12 +85,17 @@ function copy_files {
     down_revision=$(sed -n '/revision = /p'\
  $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/*$db_name.py |\
  awk 'NR==2{print $3}')
-    
-    sed -i "s/revision = *.*/revision = $revision/"\
+
+    sed -i -e "s/revision = *.*/revision = $revision/" \
+           -e "s/down_revision = *.*/down_revision = $down_revision/" \
+           -e "s/Revision ID:*.*/Revision ID: "$(echo $revision | tr -d "'")"/" \
+           -e "s/Revises:*.*/Revises: "$(echo $down_revision | tr -d "'")"/"\
  $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$db_name.py
-    sed -i "s/down_revision = *.*/down_revision = $down_revision/"\
- $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$db_name.py
-    
+
+    # The sleep here is necessary as we need to give db migration script
+    # some time for processing the new revision file.
+    sleep 5
+
     sudo cp\
  $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$db_name.py\
  $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/*$db_name.py
@@ -392,6 +399,7 @@ function prepare_for_mode_shift {
         setup_ssh_key
         echo "Copy files and configure"
         copy_files
+        update_db
 
         echo "Configuring nova"
         nfp_configure_nova
