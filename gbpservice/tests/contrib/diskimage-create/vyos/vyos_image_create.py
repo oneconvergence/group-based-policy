@@ -182,7 +182,21 @@ if __name__ == "__main__":
         print "ERROR: Unable to get vyos-1.1.7-amd64.iso file"
         exit()
 
+    # Enable default site in apache2 for local repo
+    cmd = ("sudo cp"
+           " /etc/apache2/sites-available/000-default.conf"
+           " /etc/apache2/sites-enabled/")
+    os.system(cmd)
+    cmd = ("sudo service apache2 restart")
+    os.system(cmd)
     if(update_vyos_repo()):
         exit()
 
     packer_build()
+
+    # Disable the default site in apache2
+    cmd = ("sudo rm"
+           " /etc/apache2/sites-enabled/000-default.conf")
+    os.system(cmd)
+    cmd = ("sudo service apache2 restart")
+    os.system(cmd)
