@@ -254,6 +254,11 @@ function create_nfp_image {
         ConfiguratorInstanceName="configuratorVM_instance"
         create_port_for_vm $ConfiguratorQcow2ImageName $ConfiguratorInstanceName
         if [[ $ConfiguratorQcow2Image = build ]]; then
+            # REVISIT(DEEPAK): Needs to optimize this. 
+            echo "Cleaning up cached containers which may result in stale configurator code base"
+            sudo docker rm $(sudo docker ps -a -q)
+            sudo docker rmi $(sudo docker images -q)
+
             echo "Building Image: $ConfiguratorQcow2ImageName"
             sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/configurator_conf.json $GBPSERVICE_BRANCH
             ConfiguratorQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
