@@ -16,13 +16,13 @@
 """ncp_node_instance_nf_mapping
 
 Revision ID: c1aab79622fe
-Revises: 54ee8e8d205a
+Revises: 31b399f08b1c 
 
 """
 
 # revision identifiers, used by Alembic.
 revision = 'c1aab79622fe'
-down_revision = '54ee8e8d205a'
+down_revision = '31b399f08b1c'
 
 
 from alembic import op

@@ -13,15 +13,16 @@
 #    under the License.
 #
 
-"""nfp_db
+""" nfp_db
+
 Revision ID: 54ee8e8d205a
-Revises: 3791adbf0045
+Revises: c1aab79622fe 
 """
 
 
 # revision identifiers, used by Alembic.
 revision = '54ee8e8d205a'
-down_revision = '3791adbf0045'
+down_revision = 'c1aab79622fe' 
 
 
 from alembic import op
