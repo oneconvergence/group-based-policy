@@ -74,7 +74,7 @@ class SharingDriver(orchestration_driver.OrchestrationDriver):
                     image_name,
                     device_data)
                 device['vendor_data'] = vendor_data
-
+                device['interfaces_in_use'] += hotplug_ports_count
                 return device
         return None
 
