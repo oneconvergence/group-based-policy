@@ -16,13 +16,13 @@
 """ nfp_db
 
 Revision ID: 54ee8e8d205a
-Revises: c1aab79622fe 
+Revises: 31b399f08b1c
 """
 
 
 # revision identifiers, used by Alembic.
 revision = '54ee8e8d205a'
-down_revision = 'c1aab79622fe' 
+down_revision = '31b399f08b1c'
 
 
 from alembic import op
