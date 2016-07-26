@@ -76,7 +76,7 @@ def set_nfp_git_branch(nfp_branch_name, configurator_dir):
 
 
 def create_configurator_docker(nfp_branch_name):
-    configurator_dir = "%s/../../../nfp/configurator" % cur_dir
+    configurator_dir = "%s/../../../contrib/nfp/configurator" % cur_dir
     docker_images = "%s/output/docker_images/" % cur_dir
     if not os.path.exists(docker_images):
         os.makedirs(docker_images)
@@ -162,7 +162,7 @@ def update_haproxy_repo():
     return 0
 
 
-def dib(nfp_branch_name, local_conf_file_path):
+def dib(nfp_branch_name, docker_images_url):
     dib = conf['dib']
     elems = "%s/elements/" % cur_dir
 
@@ -203,10 +203,7 @@ def dib(nfp_branch_name, local_conf_file_path):
             create_visibility_docker()
             # create_configurator_docker(nfp_branch_name)
             # set environment variable, needed by 'extra-data.d'
-            p1 = subprocess.Popen(['grep', 'DOCKER_IMAGES_URL', local_conf_file_path], stdout=subprocess.PIPE)
-            p2 = subprocess.Popen(['cut', '-d', '=', '-f', '2'], stdin=p1.stdout, stdout=subprocess.PIPE)
-            p3 = subprocess.Popen(['tr', '-d', '[[:space:]]'], stdin=p2.stdout, stdout=subprocess.PIPE)
-            os.environ['DOCKER_IMAGES_URL'] = p3.communicate()[0]
+            os.environ['DOCKER_IMAGES_URL'] = docker_images_url
             # for bigger size images
             dib_args.append('--no-tmpfs')
         elif element == 'haproxy':
@@ -238,9 +235,8 @@ def dib(nfp_branch_name, local_conf_file_path):
     if not ret:
         image_path = "%s/output/%s.qcow2" % (cur_dir, image_name)
         print("Image location: %s" % image_path)
-        with open("/tmp/image_path", "w") as f:
+        with open("%s/output/last_built_image_path" % cur_dir, "w") as f:
             f.write(image_path)
-        f.close()
 
 
 if __name__ == "__main__":
@@ -250,7 +246,7 @@ if __name__ == "__main__":
         print("Usage:\n\t%s <json config file> NFP_BRANCH_NAME local.conf file" % sys.argv[0])
         print("\twhere: <json config file> contains all the configuration")
         print("\tNFP_BRANCH_NAME is the string")
-        print("\tand <local.conf file> is the configuration file from the devstack directory.")
+        print("\tand DOCKER_IMAGES_URL is the URL string.")
         exit()
 
     # save PWD

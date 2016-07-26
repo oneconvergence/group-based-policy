@@ -1,2 +1,0 @@
-/sbin/route del default dev $IFACE
-echo 1 > /proc/sys/net/ipv4/conf/$IFACE/arp_ignore

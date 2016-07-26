@@ -16,52 +16,42 @@ SERVICE_TOKEN=admin
 
 # NFP Service
 ENABLE_NFP=True
-# Edit NFP_DEVSTACK_MODE with either 'base' or 'advanced' or 'enterprise'
-[[ $ENABLE_NFP = True ]] && NFP_DEVSTACK_MODE=base
-[[ $NFP_DEVSTACK_MODE != base ]] && enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
-[[ $NFP_DEVSTACK_MODE != base ]] && enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
+GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
+GBPSERVICE_BRANCH=master
+# Edit NFP_DEVSTACK_MODE with either 'base' or 'advanced'
+if [[ $ENABLE_NFP = True ]]; then
+    NFP_DEVSTACK_MODE=base
 
-if [[ $NFP_DEVSTACK_MODE = base ]]; then
-    GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
-    GBPSERVICE_BRANCH=master
-elif [[ $NFP_DEVSTACK_MODE = advanced ]]; then
-    # Openstack repo
-    #GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
-    #GBPSERVICE_BRANCH=refs/changes/05/335405/27
-    # Oneconvergence repo
-    GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
-    GBPSERVICE_BRANCH=mitaka_21st_march_base
-else
-    GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
-    GBPSERVICE_BRANCH=mitaka_21st_march_base
+    if [[ $NFP_DEVSTACK_MODE = advanced ]]; then
+        # External Network
+        EXT_NET_GATEWAY=
+        EXT_NET_ALLOCATION_POOL_START=
+        EXT_NET_ALLOCATION_POOL_END=
+        EXT_NET_CIDR=
+    
+        # Configurator image path option, its optional
+        # If configured, install step uploads the specified image
+        # If not configured, install step will build a new one and upload it
+        ConfiguratorQcow2Image=
+        # Service VM image path options, they are optional
+        # If configured, install step uploads the specified images
+        # If not configured, install step ignores uploading these service images
+        VyosQcow2Image=
+        HaproxyQcow2Image=
+
+        # Make sure that your public interface is not attached to any bridge.
+        PUBLIC_INTERFACE=
+    
+        enable_plugin neutron-vpnaas https://git.openstack.org/openstack/neutron-vpnaas stable/mitaka
+        enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git stable/mitaka
+    
+        # Openstack repo
+        #GBPSERVICE_REPO=https://git.openstack.org/openstack/group-based-policy
+        #GBPSERVICE_BRANCH=refs/changes/05/335405/27
+        # Oneconvergence repo
+        GBPSERVICE_REPO=https://github.com/oneconvergence/group-based-policy.git
+        GBPSERVICE_BRANCH=mitaka_21st_march_base
+    fi
 fi
 enable_plugin gbp $GBPSERVICE_REPO $GBPSERVICE_BRANCH
-
-if [[ $NFP_DEVSTACK_MODE != base ]]; then
-    # External Network
-    EXT_NET_GATEWAY=
-    EXT_NET_ALLOCATION_POOL_START=
-    EXT_NET_ALLOCATION_POOL_END=
-    EXT_NET_CIDR=
-
-    VyosQcow2Image=
-    Haproxy_LBaasV2_Qcow2Image=
-
-    # Make sure that your public interface is not attached to any bridge.
-    PUBLIC_INTERFACE=
-fi
-
-if [[ $NFP_DEVSTACK_MODE = enterprise ]]; then
-    # Visibility GIT path
-    # Default visibility repo https://github.com/oneconvergence/visibility.git
-    VISIBILITY_GIT_BRANCH=master
-    GIT_ACCESS_USERNAME=
-    GIT_ACCESS_PASSWORD=
-
-    # Configure docker images local repository
-    DOCKER_IMAGES_URL=http://192.168.100.50/docker_images/
-    
-    AsavQcow2Image=
-    PaloAltoQcow2Image=
-fi
 
