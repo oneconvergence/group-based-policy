@@ -65,7 +65,8 @@ def events_init(controller, config, device_orchestrator):
     for event in events:
         events_to_register.append(
             Event(id=event, handler=device_orchestrator))
-    controller.register_events(events_to_register, module='device_orchestrator')
+    controller.register_events(events_to_register,
+                               module='device_orchestrator')
 
 
 def nfp_module_init(controller, config):
@@ -722,11 +723,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             # [REVISIT(mak)] to handle a very corner case where
             # PLUG_INTERFACES completes later than HEALTHMONITOR.
             # till proper fix is identified.
-            nfd_event = self._controller.new_event(id='CREATE_NETWORK_FUNCTION_DEVICE',
-                                                   key=nfp_context['network_function']['id'],
-                                                   binding_key=nfp_context['service_chain_node']['id'],
-                                                   desc_dict=nfp_context['event_desc'])
-            self._controller.event_complete(nfd_event)
             provider = nfp_context['provider']['ptg']
             consumer = nfp_context['consumer']['ptg']
             network_function_device = nfp_context['network_function_device']
@@ -807,6 +803,22 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         for result in results:
             if result.result.lower() != 'success':
                 return self._controller.event_complete(event, result='FAILED')
+        network_function_device = nfp_context['network_function_device']
+        self._update_network_function_device_db(
+            network_function_device, nfp_constants.ACTIVE)
+        LOG.info(_LI(
+            "Device Configuration completed for device: %(device_id)s"
+            "Updated DB status to ACTIVE, Incremented device "
+            "reference count for %(device)s"),
+            {'device_id': network_function_device['id'],
+             'device': network_function_device})
+
+        nfd_event = self._controller.new_event(
+            id='CREATE_NETWORK_FUNCTION_DEVICE',
+            key=nfp_context['network_function']['id'],
+            binding_key=nfp_context['service_chain_node']['id'],
+            desc_dict=nfp_context.pop('event_desc'))
+        self._controller.event_complete(nfd_event)
 
         self._post_configure_device_graph(nfp_context)
         self._controller.event_complete(event)
@@ -1089,13 +1101,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         if result.lower() == 'success':
             self._increment_device_ref_count(device)
-            self._update_network_function_device_db(
-                device, nfp_constants.ACTIVE)
-            LOG.info(_LI(
-                "Device Configuration completed for device: %(device_id)s"
-                "Updated DB status to ACTIVE, Incremented device "
-                "reference count for %(device)s"),
-                {'device_id': device['id'], 'device': device})
 
         # Invoke event_complete for original event which is
         # CREATE_DEVICE_CONFIGURATION

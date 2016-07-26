@@ -92,6 +92,7 @@ class Sharing(nfp_api.NfpEventHandler):
             # Since the device is already UP, create a GRAPH so that
             # further processing continues in device orchestrator
             nf_id = nfp_context['network_function']['id']
+            nfp_context['event_desc'] = event.desc.to_dict()
             du_event = self._controller.new_event(id="DEVICE_UP",
                                                   key=nf_id,
                                                   data=nfp_context,
@@ -109,7 +110,6 @@ class Sharing(nfp_api.NfpEventHandler):
                                                      graph=graph)
             graph_nodes = [du_event, plug_int_event]
             self._controller.post_event_graph(graph_event, graph_nodes)
-            self._controller.event_complete(event)
         else:
             # Device does not exist.
             # Post this event back to device orchestrator
