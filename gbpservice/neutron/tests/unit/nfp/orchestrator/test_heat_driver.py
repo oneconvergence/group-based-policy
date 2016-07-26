@@ -144,7 +144,7 @@ class TestHeatDriver(unittest.TestCase):
             self.heat_driver_obj.neutron_client.get_port = mock.MagicMock(
                 return_value=self.mock_dict.port_info)
             self.heat_driver_obj.neutron_client.get_floating_ips =\
-                mock.MagicMock(return_value=[])
+                mock.MagicMock(return_value=self.mock_dict.fip)
             self.heat_driver_obj.neutron_client.get_subnets = mock.MagicMock(
                 return_value=self.mock_dict.subnets_info['subnets'])
             self.heat_driver_obj.neutron_client.get_subnet = mock.MagicMock(
@@ -154,7 +154,7 @@ class TestHeatDriver(unittest.TestCase):
                     return_value=self.mock_dict.external_policies[
                         'external_policies'])
             self.heat_driver_obj.gbp_client.get_network_service_policies =\
-                mock.MagicMock(return_value={})
+                mock.MagicMock(return_value=self.mock_dict.services_nsp)
             self.heat_driver_obj.gbp_client.get_l3_policies = mock.MagicMock(
                 return_value=self.mock_dict.l3_policies['l3_policies'])
             self.heat_driver_obj.gbp_client.get_policy_targets =\
@@ -176,9 +176,9 @@ class TestHeatDriver(unittest.TestCase):
                     return_value=self.mock_dict.policy_actions[
                         'policy_actions'])
             self.heat_driver_obj.gbp_client.get_l3_policy = mock.MagicMock(
-                return_value={})
+                return_value=self.mock_dict.l3p)
             self.heat_driver_obj.gbp_client.get_l2_policy = mock.MagicMock(
-                return_value={})
+                return_value=self.mock_dict.l2p)
             self.heat_driver_obj.gbp_client.update_policy_target_group =\
                 mock.MagicMock(return_value={})
             self.heat_driver_obj.gbp_client.create_policy_target_group =\
@@ -454,13 +454,35 @@ class TestHeatDriver(unittest.TestCase):
         pools.assert_called_once_with(
             subnet_id=[subnets.return_value['subnets'][0]['id']])
 
+    def test_create_node_config_data_vpn(self):
+        self.mock_objects()
+        auth_token = 'asdasasd'
+        tenant_id = '8ae6701128994ab281dde6b92207bb19'
+        provider = self.mock_dict.provider_ptg
+        consumer = self.mock_dict.provider_ptg
+        provider_port = self.mock_dict.port_info['port']
+        mgmt_ip = self.mock_dict.mgmt_ip
+        stack_template, stack_params =\
+            self.heat_driver_obj._update_node_config(
+                auth_token, tenant_id,
+                self.mock_dict.vpn_service_chain_node,
+                self.mock_dict.service_chain_instance,
+                provider, provider_port, consumer,
+                self.mock_dict.consumer_port,
+                self.mock_dict.network_function_details['network_function'],
+                mgmt_ip,
+                self.mock_dict.service_details)
+        self.assertEqual(stack_template['resources']['sc_firewall_policy'],
+                         self.mock_dict.updated_sc_firewall_policy)
+        self.assertEqual(stack_params, )
+
     def test_update_node_config(self):
         self.mock_objects()
         auth_token = 'asdasasd'
         tenant_id = '8ae6701128994ab281dde6b92207bb19'
         provider = self.mock_dict.provider_ptg
         provider_port = self.mock_dict.port_info['port']
-        mgmt_ip = '11.3.4.5'
+        mgmt_ip = self.mock_dict.mgmt_ip
         stack_template, stack_params =\
             self.heat_driver_obj._update_node_config(
                 auth_token, tenant_id,
@@ -492,7 +514,7 @@ class TestHeatDriver(unittest.TestCase):
         provider = self.mock_dict.provider_ptg
         provider_port = self.mock_dict.port_info['port']
         stack_id = '70754fdd-0325-4856-8a39-f171b65617d6'
-        mgmt_ip = '11.3.4.5'
+        mgmt_ip = self.mock_dict.mgmt_ip
 
         service_details = {}
         service_details['service_profile'] = self.mock_dict.service_profile
