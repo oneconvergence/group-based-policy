@@ -24,9 +24,9 @@ from neutron_vpnaas.services.vpn.plugin import VPNDriverPlugin
 from neutron_vpnaas.services.vpn.plugin import VPNPlugin
 from neutron_vpnaas.services.vpn.service_drivers import base_ipsec
 
-LOG = nfp_logging.getLogger(__name__)
 import oslo_messaging
 
+LOG = nfp_logging.getLogger(__name__)
 BASE_VPN_VERSION = '1.0'
 AGENT_TYPE_VPN = 'NFP Vpn agent'
 ACTIVE = 'ACTIVE'
