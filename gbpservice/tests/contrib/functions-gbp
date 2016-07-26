@@ -24,6 +24,20 @@ function prepare_gbp_devstack {
     source $TOP_DIR/functions-common
 }
 
+function prepare_nfp_devstack {
+    cd $TOP_DIR
+    sudo cp $CONTRIB_DIR/devstack/local-nfp.conf $TOP_DIR/local.conf
+    sudo cp -r $CONTRIB_DIR/devstack/nfp-templates $TOP_DIR
+    sudo cp $CONTRIB_DIR/devstack/nfp $TOP_DIR/lib/
+    sed -i 's/source $TOP_DIR\/lib\/dstat/source $TOP_DIR\/lib\/dstat\nsource $TOP_DIR\/lib\/nfp/g' stack.sh
+    sed -i "s/install_gbpservice/install_gbpservice\n[[ $NFP_DEVSTACK_MODE = advanced ]] && configure_nfp_loadbalancer\n[[ $NFP_DEVSTACK_MODE = advanced ]] && configure_nfp_vpn\n/g" stack.sh
+    sed -i "s/start_neutron_service_and_check/[[ $NFP_DEVSTACK_MODE = advanced ]] && configure_nfp_firewall\n    start_neutron_service_and_check/g" stack.sh
+    sed -i 's/# Restore\/close logging file descriptors/nfp_setup $TOP_DIR\n# Restore\/close logging file descriptors/g' stack.sh
+    source $TOP_DIR/functions
+    source $TOP_DIR/functions-common
+    
+}
+
 function source_creds {
     local xtrace=$(set +o | grep xtrace)
     set +o xtrace

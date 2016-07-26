@@ -306,6 +306,7 @@ class OrchestrationDriver(object):
                      {'attr': attr, 'default': attr_value})
 
     def _update_vendor_data(self, device_data, token=None):
+        vendor_data = {}
         try:
             image_name = self._get_image_name(device_data)
             vendor_data = self._get_vendor_data(device_data, image_name)
@@ -328,6 +329,7 @@ class OrchestrationDriver(object):
             LOG.error(_LE("Error while getting metadata for image name:"
                           "%(image_name)s, proceeding with default values"),
                       {'image_name': image_name})
+        return vendor_data
 
     def _update_vendor_data_fast(self, token, admin_tenant_id,
                                  image_name, device_data):
@@ -1044,32 +1046,24 @@ class OrchestrationDriver(object):
                 compute_policy=device_data['service_details']['device_type'])
 
         image_name = self._get_image_name(device_data)
+        vendor_data = {}
         if image_name:
-            self._update_vendor_data(device_data,
-                                     device_data.get('token'))
+            vendor_data = self._update_vendor_data(device_data,
+                                                   device_data.get('token'))
 
         token = self._get_token(device_data.get('token'))
         if not token:
             return None
-
-        executor = nfp_executor.TaskExecutor(jobs=1)
-        vendor_data_result = {}
-        tenant_id = device_data.get('tenant_id')
-
-        executor.add_job('UPDATE_VENDOR_DATA',
-                         self._update_vendor_data_fast,
-                         token, tenant_id, image_name, device_data,
-                         result_store=vendor_data_result)
-        executor.fire()
-
-        vendor_data = vendor_data_result.get('result', None)
         if not vendor_data:
             LOG.warn(_LE('Failed to get vendor data for device deletion.'))
-            vendor_data = {}
 
         update_ifaces = []
-        try:
+        supports_hotplug = True
+        if vendor_data:
             if vendor_data.get('supports_hotplug') == False:
+                supports_hotplug = False
+        try:
+            if supports_hotplug == False:
                 if self.setup_mode.get(nfp_constants.APIC_MODE):
                     data_port_ids = []
                     for port in device_data['ports']:

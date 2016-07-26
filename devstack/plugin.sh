@@ -5,10 +5,6 @@ function gbp_configure_nova {
     iniset $NOVA_CONF neutron allow_duplicate_networks "True"
 }
 
-function nfp_configure_nova {
-    iniset $NOVA_CONF DEFAULT instance_usage_audit "True"
-}
-
 function gbp_configure_heat {
     local HEAT_PLUGINS_DIR="/opt/stack/gbpautomation/gbpautomation/heat"
     iniset $HEAT_CONF DEFAULT plugin_dirs "$HEAT_PLUGINS_DIR"
@@ -55,7 +51,7 @@ function configure_nfp_loadbalancer {
 's'/\
 ':default'/\
 '\n'\
-'service_provider = LOADBALANCER:loadbalancer:gbpservice.nfp.service_plugins.loadbalancer.drivers.nfp_lbaas_plugin_driver.HaproxyOnVMPluginDriver:default'/\
+'service_provider = LOADBALANCER:loadbalancer:gbpservice.contrib.nfp.service_plugins.loadbalancer.drivers.nfp_lbaas_plugin_driver.HaproxyOnVMPluginDriver:default'/\
  /etc/neutron/neutron_lbaas.conf
 }
 
@@ -67,7 +63,7 @@ function configure_nfp_firewall {
  '/^service_plugins/'\
 's'/\
 'neutron_fwaas.services.firewall.fwaas_plugin.FirewallPlugin'/\
-'gbpservice.nfp.service_plugins.firewall.nfp_fwaas_plugin.NFPFirewallPlugin'/\
+'gbpservice.contrib.nfp.service_plugins.firewall.nfp_fwaas_plugin.NFPFirewallPlugin'/\
  /etc/neutron/neutron.conf
 }
 
@@ -80,7 +76,7 @@ function configure_nfp_vpn {
 's'/\
 ':default'/\
 '\n'\
-'service_provider = VPN:vpn:gbpservice.nfp.service_plugins.vpn.drivers.nfp_vpnaas_driver.NFPIPsecVPNDriver:default'/\
+'service_provider = VPN:vpn:gbpservice.contrib.nfp.service_plugins.vpn.drivers.nfp_vpnaas_driver.NFPIPsecVPNDriver:default'/\
  /etc/neutron/neutron_vpnaas.conf
 }
 
@@ -102,16 +98,12 @@ if is_service_enabled group-policy; then
         if [[ $ENABLE_NFP = True ]]; then
             echo_summary "Configuring $NFP"
             nfp_configure_neutron
-            [[ $NFP_DEVSTACK_MODE = enterprise ]] && nfp_configure_nova
-            if [[ $NFP_DEVSTACK_MODE != base ]]; then
+            if [[ $NFP_DEVSTACK_MODE = advanced ]]; then
                 configure_nfp_loadbalancer
                 configure_nfp_firewall
                 configure_nfp_vpn
             fi
         fi
-#        install_apic_ml2
-#        install_aim
-#        init_aim
         install_gbpclient
         install_gbpservice
         [[ $ENABLE_NFP = True ]] && install_nfpgbpservice
@@ -129,7 +121,6 @@ if is_service_enabled group-policy; then
             create_nfp_gbp_resources
             create_nfp_image
             [[ $NFP_DEVSTACK_MODE = advanced ]] && launch_configuratorVM
-            [[ $NFP_DEVSTACK_MODE = enterprise ]] && launch_configuratorVM && launch_visibilityVM && nfp_logs_forword
             copy_nfp_files_and_start_process
         fi
     fi
