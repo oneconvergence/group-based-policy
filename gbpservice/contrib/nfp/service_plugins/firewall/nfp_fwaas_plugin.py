@@ -271,7 +271,6 @@ def _resource_owner_tenant_id():
 def _get_router_for_floatingip(self, context, internal_port,
                                internal_subnet_id,
                                external_network_id):
-    elevate_context(context)
     subnet = self._core_plugin.get_subnet(context, internal_subnet_id)
 
     if not subnet['gateway_ip']:
