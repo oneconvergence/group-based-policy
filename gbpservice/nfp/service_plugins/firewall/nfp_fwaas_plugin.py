@@ -98,6 +98,7 @@ def _is_net_reachable_from_net(self, context, tenant_id, from_net_id,
     @param to_net_id: the destination network for the search
     @return: True or False whether a path exists
     """
+    original_context = context
     context = elevate_context(context)
     tenant_id = context.tenant_id
     def nexthop_nets_query(nets, visited):
@@ -115,9 +116,11 @@ def _is_net_reachable_from_net(self, context, tenant_id, from_net_id,
     nets = set([from_net_id])
     while nets:
         if to_net_id in nets:
+            context = original_context
             return True
         visited |= nets
         nets = set((tup[0] for tup in nexthop_nets_query(nets, visited)))
+    context = original_context
     return False
 
 def _find_net_for_nexthop(self, context, tenant_id, router_id, nexthop):
@@ -161,6 +164,7 @@ def _find_routers_via_routes_for_floatingip(self, context, internal_port,
     @param external_network_id: the network of the floatingip
     @return: a sorted list of matching routers
     """
+    original_context = context
     context = elevate_context(context)
     internal_ip_address = [
         ip['ip_address'] for ip in internal_port['fixed_ips']
@@ -203,8 +207,7 @@ def _find_routers_via_routes_for_floatingip(self, context, internal_port,
                 prefix_routers.append(
                     (smallest_cidr.prefixlen, router['id']))
                 break
-
-
+    context = original_context
     return [p_r[1] for p_r in sorted(prefix_routers, reverse=True)]
 
 def elevate_context(context):
@@ -231,7 +234,6 @@ def _resource_owner_tenant_id():
 def _get_router_for_floatingip(self, context, internal_port,
                                internal_subnet_id,
                                external_network_id):
-    elevate_context(context)
     subnet = self._core_plugin.get_subnet(context, internal_subnet_id)
 
     if not subnet['gateway_ip']:
