@@ -84,11 +84,9 @@ def packer_build():
 
     image_path = "%s/output/%s.qcow2" % (cur_dir, "vyos")
     print("Image location: %s" % image_path)
-    with open("%s/../output/last_built_image_path" % cur_dir, "w") as f:
-        f.write(image_path)
-    f.close()
 
     return
+
 
 def check_packer_tool():
     if(os.path.isfile("/usr/local/bin/packer")):
