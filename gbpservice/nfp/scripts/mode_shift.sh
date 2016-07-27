@@ -90,14 +90,14 @@ function update_db {
            -e "s/down_revision = *.*/down_revision = $down_revision/" \
            -e "s/Revision ID:*.*/Revision ID: "$(echo $revision | tr -d "'")"/" \
            -e "s/Revises:*.*/Revises: "$(echo $down_revision | tr -d "'")"/"\
- $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$db_name.py
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/nfp/orchestrator/db/enterprise_migration/$db_name.py
 
     # The sleep here is necessary as we need to give db migration script
     # some time for processing the new revision file.
     sleep 5
 
     sudo cp\
- $ENTERPRISE_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/$db_name.py\
+ $ENTERPRISE_NFPSERVICE_DIR/gbpservice/nfp/orchestrator/db/enterprise_migration/$db_name.py\
  $INSTALLED_NFPSERVICE_DIR/gbpservice/neutron/db/migration/alembic_migrations/versions/*$db_name.py
 
     gbp-db-manage --config-file /etc/neutron/neutron.conf upgrade head
