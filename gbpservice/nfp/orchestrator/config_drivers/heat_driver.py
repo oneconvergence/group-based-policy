@@ -249,8 +249,7 @@ class HeatDriver(object):
     def _post_stack_create(self, nfp_context):
         service_details = self.get_service_details_from_nfp_context(
             nfp_context)
-        service_details = service_details['service_details']
-        service_type = service_details['service_type']
+        service_type = service_details['service_details']['service_type']
 
         if service_type in [pconst.LOADBALANCER]:
             logging_context = nfp_logging.get_logging_context()
