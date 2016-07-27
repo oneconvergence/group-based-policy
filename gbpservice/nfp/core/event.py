@@ -186,7 +186,7 @@ class EventDesc(object):
         self.worker = kwargs.get('worker')
         # Polling descriptor of event
         self.poll_desc = kwargs.get('poll_desc')
-        # Target module of this event
+        # Target module to which this event must be delivered
         self.target = None
 
     def from_desc(self, desc):
