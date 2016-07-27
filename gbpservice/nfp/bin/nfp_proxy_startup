@@ -1,0 +1,4 @@
+#!/usr/bin/sh
+NFP_PROXY_AGENT_INI=/etc/neutron/nfp/nfp_proxy.ini
+CONFIGURATOR_IP=`crudini --get $NFP_PROXY_AGENT_INI NFP_CONTROLLER rest_server_address`
+. /usr/lib/python2.7/site-packages/gbpservice/nfp/tools/nfp_namespace;namespace_delete ;namespace_create $CONFIGURATOR_IP
