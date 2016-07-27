@@ -3,8 +3,8 @@ Description=One Convergence NFP Orchestrator
 After=syslog.target network.target
 
 [Service]
-ExecStart=sudo /usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/nfp_orch_agent.ini --log-file /var/log/nfp/nfp_orchestrator.log
-Restart=on-abort
+User=neutron
+ExecStart=/usr/bin/nfp  --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini --config-file /etc/neutron/nfp/nfp_orchestrator.ini --log-file /var/log/nfp/nfp_orchestrator.log
 
 [Install]
 WantedBy=multi-user.target

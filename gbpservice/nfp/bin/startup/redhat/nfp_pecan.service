@@ -3,7 +3,7 @@ Description=One Convergence NFP Rest Server
 After=syslog.target network.target
 
 [Service]
-ExecStart=sudo pecan serve /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/api/config.py
+ExecStart=sudo pecan serve /usr/local/lib/python2.7/dist-packages/gbpservice/nfp/configurator/api/config.py
 Restart=on-abort
 
 [Install]

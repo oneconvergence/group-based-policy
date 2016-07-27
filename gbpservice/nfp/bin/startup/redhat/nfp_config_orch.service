@@ -3,8 +3,9 @@ Description=One Convergence NFP Config Orchestrator
 After=syslog.target network.target
 
 [Service]
-ExecStart=sudo /usr/bin/nfp --config-file /etc/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file /var/log/nfp/nfp_config_orch.log
-Restart=on-abort
+Type=simple
+User=neutron
+ExecStart=/usr/bin/nfp --config-file /etc/neutron/nfp/nfp_config_orch.ini --config-file /etc/neutron/neutron.conf --log-file /var/log/nfp/nfp_config_orch.log
 
 [Install]
 WantedBy=multi-user.target
