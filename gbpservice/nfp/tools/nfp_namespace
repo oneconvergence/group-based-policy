@@ -1,0 +1,101 @@
+#!/usr/bin/bash
+
+. /usr/lib/python2.7/site-packages/gbpservice/nfp/tools/ini-config
+NOVA_CONF=/etc/nova/nova.conf
+NOVA_SESSION=neutron
+
+get_openstack_creds () {
+    AUTH_URI=`iniget $NOVA_CONF $NOVA_SESSION admin_auth_url`
+    ADMIN_USER=`iniget $NOVA_CONF $NOVA_SESSION admin_username`
+    ADMIN_PASSWD=`iniget $NOVA_CONF $NOVA_SESSION admin_password`
+    ADMIN_TENANT_NAME=`iniget $NOVA_CONF $NOVA_SESSION admin_tenant_name`
+    export OS_USERNAME=$ADMIN_USER
+    export OS_TENANT_NAME=$ADMIN_TENANT_NAME
+    export OS_PASSWORD=$ADMIN_PASSWD
+    export OS_AUTH_URL=$AUTH_URI
+   
+}
+
+function namespace_delete {
+    get_openstack_creds
+
+    proxyPortId=`neutron port-list | grep pt_nfp_proxy_pt | awk '{print $2}'`
+    tapName="tap${proxyPortId:0:11}"
+
+
+    #Deletion namespace
+    NFP_P=`ip netns | grep "nfp-proxy"`
+    if [ ${#NFP_P} -ne 0 ]; then
+        ip netns delete nfp-proxy
+        echo "namespace removed"
+    fi
+
+    #pt1 port removing from ovs
+    PORT=`ovs-vsctl show | grep "$tapName"`
+    if [ ${#PORT} -ne 0 ]; then
+        ovs-vsctl del-port br-int $tapName
+        echo "ovs port is removed"
+    fi
+    pkill nfp_proxy
+
+    gbp pt-delete nfp_proxy_pt
+    
+    echo "nfp-proxy cleaning success.... "
+}
+
+function namespace_create {
+
+    get_openstack_creds
+    SERVICE_MGMT_GROUP="svc_management_ptg"
+    cidr="/24"
+    echo "Creating new namespace nfp-proxy...."
+
+    #new namespace with name proxy
+    NFP_P=`ip netns add nfp-proxy`
+    if [ ${#NFP_P} -eq 0 ]; then
+        echo "New namepace nfp-proxt create"
+    else
+        echo "nfp-proxy creation failed"
+        exit 0
+    fi
+
+    # create nfp_proxy pt
+    gbp pt-create --policy-target-group $SERVICE_MGMT_GROUP nfp_proxy_pt
+
+    # Get the nfp_proxy_pt port id, mac address
+    proxyPortId=`neutron port-list | grep pt_nfp_proxy_pt | awk '{print $2}'`
+    proxyMacAddr=`neutron port-list | grep pt_nfp_proxy_pt | awk '{print $6}'`
+    proxyPortIp=`neutron port-list | grep pt_nfp_proxy_pt | awk '{print $11}' | sed 's/^\"\(.*\)\"}$/\1/'`
+    tapName="tap${proxyPortId:0:11}"
+    new_ip_cidr="$proxyPortIp/24"
+    proxyBrd=`ipcalc -4 $proxyPortIp -m 255.255.255.0 -b | grep BROADCAST | awk -F '=' '{print $2}'`
+
+    # Create a tap interface and add it to the ovs bridge br-int
+    ovs-vsctl add-port br-int $tapName -- set Interface $tapName type=internal external_ids:iface-id=$proxyPortId external_ids:iface-status=active external_ids:attached-mac=$proxyMacAddr
+
+    # Add the tap interface to proxy
+    ip link set $tapName netns nfp-proxy
+    
+    # Get the link up
+    ip netns exec nfp-proxy ip link set $tapName up
+
+    # set the mac address on the tap interface
+    ip netns exec nfp-proxy ip link set $tapName address $proxyMacAddr 
+
+    # assign ip address to the proxy tap interface 
+    ip netns exec nfp-proxy ip -4 addr add $new_ip_cidr scope global dev $tapName brd $proxyBrd 
+
+    # Update the neutron port with the host id binding
+    neutron port-update $proxyPortId --binding:host_id=`hostname`
+    
+    PING=`ip netns exec nfp-proxy ping $1 -q -c 2 > /dev/null`
+    if [ ${#PING} -eq 0 ]
+    then
+        echo "nfp-proxy namespcace creation success and reaching to $1"
+    else
+        echo "Fails reaching to $1" 
+    fi
+
+    #ip netns exec nfp-proxy /usr/bin/nfp_proxy --config-file=/etc/neutron/nfp/nfp_proxy.ini --log-file /var/log/nfp/nfp_proxy.log 2>/dev/null &
+    ip netns exec nfp-proxy /usr/bin/nfp_proxy --config-file=/etc/neutron/nfp/nfp_proxy.ini --log-file /var/log/nfp/nfp_proxy.log
+}
