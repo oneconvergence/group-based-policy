@@ -10,8 +10,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from keystoneclient import exceptions as k_exceptions
+from keystoneclient.v2_0 import client as keyclient
+
 from gbpservice.contrib.nfp.config_orchestrator.common import topics
+from gbpservice.common import utils
 import netaddr
+
+from neutron import context as neutron_context
 from neutron.api.v2 import attributes as attr
 from neutron.common import constants as l3_constants
 from neutron.common import exceptions as n_exc
@@ -25,6 +31,7 @@ from neutron.extensions import l3
 import neutron_fwaas.extensions
 from neutron_fwaas.services.firewall import fwaas_plugin as ref_fw_plugin
 from oslo_config import cfg
+from oslo_utils import excutils
 from sqlalchemy import orm
 
 
@@ -96,6 +103,9 @@ def _is_net_reachable_from_net(self, context, tenant_id, from_net_id,
     @param to_net_id: the destination network for the search
     @return: True or False whether a path exists
     """
+    original_context = context
+    context = elevate_context(context)
+    tenant_id = context.tenant_id
     def nexthop_nets_query(nets, visited):
         """query networks connected to devices on nets but not visited."""
         Port = models_v2.Port
@@ -111,9 +121,11 @@ def _is_net_reachable_from_net(self, context, tenant_id, from_net_id,
     nets = set([from_net_id])
     while nets:
         if to_net_id in nets:
+            context = original_context
             return True
         visited |= nets
         nets = set((tup[0] for tup in nexthop_nets_query(nets, visited)))
+    context = original_context
     return False
 
 
@@ -128,7 +140,7 @@ def _find_net_for_nexthop(self, context, tenant_id, router_id, nexthop):
     @return: the network id of the nexthop or None if not found
     """
     interfaces = context.session.query(models_v2.Port).filter_by(
-        # tenant_id=tenant_id,
+        tenant_id=tenant_id,
         device_id=router_id,
         device_owner=DEVICE_OWNER_ROUTER_INTF)
     for interface in interfaces:
@@ -159,6 +171,8 @@ def _find_routers_via_routes_for_floatingip(self, context, internal_port,
     @param external_network_id: the network of the floatingip
     @return: a sorted list of matching routers
     """
+    original_context = context
+    context = elevate_context(context)
     internal_ip_address = [
         ip['ip_address'] for ip in internal_port['fixed_ips']
         if ip['subnet_id'] == internal_subnet_id
@@ -190,17 +204,38 @@ def _find_routers_via_routes_for_floatingip(self, context, internal_port,
             continue
         # validate that there exists a path to "internal_port"
         for nexthop in cidr_nexthops[smallest_cidr]:
-            net_id = self._find_net_for_nexthop(context, tenant_id,
+            net_id = self._find_net_for_nexthop(context, context.tenant_id,
                                                 router['id'], nexthop)
             if net_id and self._is_net_reachable_from_net(
                     context,
-                    tenant_id,
+                    context.tenant_id,
                     net_id,
                     internal_port['network_id']):
                 prefix_routers.append(
                     (smallest_cidr.prefixlen, router['id']))
                 break
+    context = original_context
     return [p_r[1] for p_r in sorted(prefix_routers, reverse=True)]
+
+def elevate_context(context):
+    context = context.elevated()
+    context.tenant_id = _resource_owner_tenant_id()
+    return context
+
+
+def _resource_owner_tenant_id():
+    user, pwd, tenant, auth_url = utils.get_keystone_creds()
+    keystoneclient = keyclient.Client(username=user, password=pwd,
+                                      auth_url=auth_url)
+    try:
+        tenant = keystoneclient.tenants.find(name=tenant)
+        return tenant.id
+    except k_exceptions.NotFound:
+        with excutils.save_and_reraise_exception(reraise=True):
+            LOG.error(_LE('No tenant with name %s exists.'), tenant)
+    except k_exceptions.NoUniqueMatch:
+        with excutils.save_and_reraise_exception(reraise=True):
+            LOG.error(_LE('Multiple tenants matches found for %s'), tenant)
 
 
 def _get_router_for_floatingip(self, context, internal_port,
