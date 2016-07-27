@@ -20,8 +20,8 @@ import unittest
 from gbpclient.v2_0 import client as gbp_client
 from gbpservice.neutron.tests.unit.nfp.orchestrator import mock_dicts
 from gbpservice.nfp.core import log as nfp_logging
-from gbpservice.nfp.orchestrator.config_drivers\
-    import heat_client as heat_client
+from gbpservice.nfp.orchestrator.config_drivers import (
+    heat_client as heat_client)
 from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from neutronclient.v2_0 import client as neutron_client
 
@@ -355,6 +355,8 @@ class TestHeatDriver(unittest.TestCase):
         tenant_id = '8ae6701128994ab281dde6b92207bb19'
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
             return_value=None)
+        nfp_logging.get_logging_context = mock.Mock(
+            return_value={'auth_token': '7fd6701128994ab281ccb6b92207bb15'})
         heat_get_mock_obj.return_value = MockStackObject(
             'DELETE_COMPLETE')
         identity_mock_obj.return_value.auth_token = "1234"
