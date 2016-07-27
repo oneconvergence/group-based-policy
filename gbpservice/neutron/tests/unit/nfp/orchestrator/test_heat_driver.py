@@ -73,7 +73,6 @@ RESOURCE_OWNER_TENANT_ID = '8ae6701128994ab281dde6b92207bb19'
 class TestHeatDriver(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        # import pdb;pdb.set_trace()
         super(TestHeatDriver, self).__init__(*args, **kwargs)
         with mock.patch.object(identity_client, "Client"):
             self.heat_driver_obj = heat_driver.HeatDriver(cfg.CONF)
@@ -469,7 +468,6 @@ class TestHeatDriver(unittest.TestCase):
         consumer = self.mock_dict.provider_ptg
         provider_port = self.mock_dict.port_info['port']
         mgmt_ip = self.mock_dict.mgmt_ip
-        import pdb;pdb.set_trace()
         stack_template, stack_params =\
             self.heat_driver_obj._create_node_config_data(
                 auth_token, tenant_id,
@@ -480,7 +478,6 @@ class TestHeatDriver(unittest.TestCase):
                 self.mock_dict.network_function_details['network_function'],
                 mgmt_ip,
                 self.mock_dict.service_details)
-        import pdb;pdb.set_trace()
         self.assertEqual(stack_template['resources']['VPNService'][
                             'properties']['name'], 'VPNService')
         self.assertEqual(stack_params['RouterId'],
