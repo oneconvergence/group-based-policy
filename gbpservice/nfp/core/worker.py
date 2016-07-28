@@ -107,7 +107,7 @@ class NfpWorker(Service):
         elif event.desc.type == nfp_event.POLL_EVENT:
             self.dispatch(self._handle_poll_event, event)
         elif event.desc.type == nfp_event.EVENT_EXPIRED:
-            eh = self.event_handlers.get_event_handler(event.id)
+            eh = self.event_handlers.get_event_handler(event.id, module=event.desc.target)
             self.dispatch(eh.event_cancelled, event, 'EXPIRED')
 
     def _build_poll_status(self, ret, event):
@@ -137,8 +137,8 @@ class NfpWorker(Service):
     def _handle_poll_event(self, event):
         ret = {}
         event.desc.poll_desc.max_times -= 1
-        poll_handler = self.event_handlers.get_poll_handler(event.id)
-        event_handler = self.event_handlers.get_event_handler(event.id)
+        poll_handler = self.event_handlers.get_poll_handler(event.id, module=event.desc.target)
+        event_handler = self.event_handlers.get_event_handler(event.id, module=event.desc.target)
         try:
             ret = poll_handler(event)
         except TypeError:

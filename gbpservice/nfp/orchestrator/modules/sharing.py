@@ -19,7 +19,7 @@ def events_init(controller, config, orchestrator):
         events_to_register.append(
             Event(id=event, handler=orchestrator))
     controller.register_events(
-        events_to_register, module='sharing', priority=1)
+        events_to_register, priority=1)
 
 
 def nfp_module_init(controller, config):

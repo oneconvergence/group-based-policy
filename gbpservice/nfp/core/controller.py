@@ -72,9 +72,11 @@ class NfpService(object):
     def get_event_handlers(self):
         return self._event_handlers
 
-    def register_events(self, event_descs, module='', priority=0):
+    def register_events(self, event_descs, priority=0):
         """Register event handlers with core. """
         # REVISIT (mak): change name to register_event_handlers() ?
+        # Get the module name of caller
+        module = nfp_common.callers_module_name()
         for event_desc in event_descs:
             self._event_handlers.register(
                 event_desc.id, event_desc.handler,
@@ -109,9 +111,12 @@ class NfpService(object):
             As base class, set only the required
             attributes of event.
         """
+        # Get the callers module name
+        module = nfp_common.callers_module_name()
         event.desc.type = nfp_event.EVENT_GRAPH
         event.desc.flag = ''
         event.desc.pid = os.getpid()
+        event.desc.target = module
         return event
 
     def post_event(self, event, target=None):
@@ -120,12 +125,14 @@ class NfpService(object):
             As a base class, it only does the descriptor preparation.
             NfpController class implements the required functionality.
         """
+        # Get the callers module name
+        module = nfp_common.callers_module_name()
         handler = self._event_handlers.get_event_handler(event.id, module=target)
         assert handler, "No handler registered for event %s" % (event.id)
         event.desc.type = nfp_event.SCHEDULE_EVENT
         event.desc.flag = nfp_event.EVENT_NEW
         event.desc.pid = os.getpid()
-        event.desc.target = target
+        event.desc.target = target or module
         return event
 
     # REVISIT (mak): spacing=0, caller must explicitly specify
@@ -136,18 +143,21 @@ class NfpService(object):
             descriptor preparation.
             NfpController class implements the required functionality.
         """
+        # Get the callers module name
+        module = nfp_common.callers_module_name()
         ev_spacing = self._event_handlers.get_poll_spacing(event.id)
         assert spacing or ev_spacing, "No spacing specified for polling"
         if ev_spacing:
             spacing = ev_spacing
 
-        handler = self._event_handlers.get_poll_handler(event.id)
+        handler = self._event_handlers.get_poll_handler(event.id, module=module)
         assert handler, "No poll handler found for event %s" % (event.id)
 
         refuuid = event.desc.uuid
         event = self._make_new_event(event)
         event.lifetime = 0
         event.desc.type = nfp_event.POLL_EVENT
+        event.desc.target = module
 
         kwargs = {'spacing': spacing,
                   'max_times': max_times,

@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import inspect
 import time
 
 from oslo_config import cfg as oslo_cfg
@@ -77,3 +78,11 @@ def time_stamp():
     """
     _time_ms = lambda: int(round(time.time() * 1000.0))
     return _time_ms()
+
+def callers_module_name():
+    stack = inspect.stack()
+    if len(stack) < 1:
+        return ''
+    pframe = stack[0][0]
+    module = inspect.getmodule(pframe)
+    return module.__name__
