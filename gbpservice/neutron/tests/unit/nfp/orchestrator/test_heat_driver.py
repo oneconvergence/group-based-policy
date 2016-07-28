@@ -19,8 +19,9 @@ import unittest
 
 from gbpclient.v2_0 import client as gbp_client
 from gbpservice.neutron.tests.unit.nfp.orchestrator import mock_dicts
-from gbpservice.nfp.orchestrator.config_drivers\
-    import heat_client as heat_client
+from gbpservice.nfp.core import log as nfp_logging
+from gbpservice.nfp.orchestrator.config_drivers import (
+    heat_client as heat_client)
 from gbpservice.nfp.orchestrator.config_drivers import heat_driver
 from neutronclient.v2_0 import client as neutron_client
 
@@ -118,9 +119,11 @@ class TestHeatDriver(unittest.TestCase):
         keystone_client.auth_token = True
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
             return_value=None)
-        resource_owner_tenant_id = '8ae6701128994ab281dde6b92207bb19'
+        nfp_logging.get_logging_context = mock.Mock(
+            return_value={'auth_token': '7fd6701128994ab281ccb6b92207bb15'})
+        tenant_id = '8ae6701128994ab281dde6b92207bb19'
         heat_client_obj = self.heat_driver_obj._get_heat_client(
-            resource_owner_tenant_id, tenant_id=None)
+            tenant_id)
         self.assertIsNotNone(heat_client_obj)
 
     @mock.patch.object(identity_client, "Client")
@@ -315,6 +318,8 @@ class TestHeatDriver(unittest.TestCase):
         heat_get_mock_obj.return_value = MockStackObject('DELETE_COMPLETE')
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
             return_value=None)
+        nfp_logging.get_logging_context = mock.Mock(
+            return_value={'auth_token': '7fd6701128994ab281ccb6b92207bb15'})
 
         instance = mock_obj.return_value
         instance.auth_token = True
@@ -329,6 +334,8 @@ class TestHeatDriver(unittest.TestCase):
         tenant_id = '8ae6701128994ab281dde6b92207bb19'
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
             return_value=None)
+        nfp_logging.get_logging_context = mock.Mock(
+            return_value={'auth_token': '7fd6701128994ab281ccb6b92207bb15'})
         self.heat_driver_obj.loadbalancer_post_stack_create = mock.Mock(
             return_value=None)
         heat_get_mock_obj.return_value = MockStackObject(
@@ -348,6 +355,8 @@ class TestHeatDriver(unittest.TestCase):
         tenant_id = '8ae6701128994ab281dde6b92207bb19'
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
             return_value=None)
+        nfp_logging.get_logging_context = mock.Mock(
+            return_value={'auth_token': '7fd6701128994ab281ccb6b92207bb15'})
         heat_get_mock_obj.return_value = MockStackObject(
             'DELETE_COMPLETE')
         identity_mock_obj.return_value.auth_token = "1234"
@@ -487,6 +496,8 @@ class TestHeatDriver(unittest.TestCase):
             'CREATE_COMPLETE')
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
             return_value=None)
+        nfp_logging.get_logging_context = mock.Mock(
+            return_value={'auth_token': '7fd6701128994ab281ccb6b92207bb15'})
         auth_token = 'dasddasda'
         resource_owner_tenant_id = '8ae6701128994ab281dde6b92207bb19'
         provider = self.mock_dict.provider_ptg
@@ -537,6 +548,8 @@ class TestHeatDriver(unittest.TestCase):
             'CREATE_COMPLETE')
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
             return_value=None)
+        nfp_logging.get_logging_context = mock.Mock(
+            return_value={'auth_token': '7fd6701128994ab281ccb6b92207bb15'})
 
         service_details = {}
         service_details['service_profile'] = self.mock_dict.service_profile
@@ -576,6 +589,8 @@ class TestHeatDriver(unittest.TestCase):
             'CREATE_COMPLETE')
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
             return_value=None)
+        nfp_logging.get_logging_context = mock.Mock(
+            return_value={'auth_token': '7fd6701128994ab281ccb6b92207bb15'})
 
         service_details = {}
         service_details['service_profile'] = self.mock_dict.lb_service_profile
@@ -616,6 +631,8 @@ class TestHeatDriver(unittest.TestCase):
             'CREATE_COMPLETE')
         self.heat_driver_obj._assign_admin_user_to_project = mock.Mock(
             return_value=None)
+        nfp_logging.get_logging_context = mock.Mock(
+            return_value={'auth_token': '7fd6701128994ab281ccb6b92207bb15'})
 
         service_details = {}
         service_details['service_profile'] = self.mock_dict.service_profile

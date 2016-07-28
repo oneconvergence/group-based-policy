@@ -14,20 +14,19 @@ import socket
 import time
 
 from gbpservice.contrib.nfp.config_orchestrator.common import topics
-from neutron_lib import exceptions
+from gbpservice.nfp.core import log as nfp_logging
 from neutron.common import rpc as n_rpc
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron import manager
-from neutron_vpnaas.services.vpn.plugin import VPNPlugin
+from neutron_lib import exceptions
 from neutron_vpnaas.services.vpn.plugin import VPNDriverPlugin
+from neutron_vpnaas.services.vpn.plugin import VPNPlugin
 from neutron_vpnaas.services.vpn.service_drivers import base_ipsec
 
-from oslo_log import log as logging
 import oslo_messaging
 
-LOG = logging.getLogger(__name__)
-
+LOG = nfp_logging.getLogger(__name__)
 BASE_VPN_VERSION = '1.0'
 AGENT_TYPE_VPN = 'NFP Vpn agent'
 ACTIVE = 'ACTIVE'
@@ -93,7 +92,7 @@ class NFPIPsecVpnAgentApi(base_ipsec.IPsecVpnAgentApi):
     def _get_agent_hosting_vpnservice(self, admin_context, vpnservice_id):
         filters = {'agent_type': [AGENT_TYPE_VPN]}
         agents = manager.NeutronManager.get_plugin().get_agents(
-            admin_context,  filters=filters)
+            admin_context, filters=filters)
 
         try:
             for agent in agents:
@@ -109,10 +108,11 @@ class NFPIPsecVpnAgentApi(base_ipsec.IPsecVpnAgentApi):
                 if not agent['alive']:
                     continue
                 return agent
-        except:
+        except Exception:
             raise VPNAgentNotFound()
 
-        LOG.error(_('No active vpn agent found. Configuration will fail.'))
+        msg = ('No active vpn agent found. Configuration will fail.')
+        LOG.error(msg)
         raise VPNAgentHostingServiceNotFound(vpnservice_id=vpnservice_id)
 
     def _agent_notification(self, context, method, vpnservice_id,
@@ -124,10 +124,12 @@ class NFPIPsecVpnAgentApi(base_ipsec.IPsecVpnAgentApi):
         vpn_agent = self._get_agent_hosting_vpnservice(
             admin_context, vpnservice_id)
 
-        LOG.debug(_('Notify agent at %(topic)s.%(host)s the message '
-                    '%(method)s %(args)s'), {
-            'topic': self.topic, 'host': vpn_agent['host'],
-            'method': method, 'args': kwargs})
+        msg = (('Notify agent at %(topic)s.%(host)s the message '
+                '%(method)s %(args)s')
+               % {'topic': self.topic,
+                  'host': vpn_agent['host'],
+                  'method': method, 'args': kwargs})
+        LOG.debug(msg)
 
         cctxt = self.client.prepare(server=vpn_agent['host'],
                                     version=version)
@@ -141,8 +143,9 @@ class NFPIPsecVpnAgentApi(base_ipsec.IPsecVpnAgentApi):
             self._agent_notification(
                 context, 'vpnservice_updated',
                 vpnservice_id, **kwargs)
-        except:
-            LOG.error(_('Notifying agent failed'))
+        except Exception:
+            msg = ('Notifying agent failed')
+            LOG.error(msg)
 
 
 class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):

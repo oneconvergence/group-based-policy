@@ -1409,7 +1409,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
     def handle_config_applied(self, event):
         nfp_context = event.data['nfp_context']
         base_mode = nfp_context['base_mode']
-        network_function_id = nfp_context['network_function']['id']
+        network_function_id = event.data['network_function_id']
         if base_mode:
             network_function = {
                 'status': nfp_constants.ACTIVE,
@@ -1424,7 +1424,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                       network_function_id})
         else:
             network_function_instance_id = (
-                nfp_context['network_function_instance']['id'])
+                event.data['network_function_instance_id'])
             if network_function_instance_id:
                 nfi = {
                     'status': nfp_constants.ACTIVE,
