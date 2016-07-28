@@ -56,10 +56,9 @@ class OrchestrationDriver(object):
     is launched for each Network Service Instance
     """
 
-    def __init__(self, config, supports_device_sharing=True,
+    def __init__(self, config,
                  supports_hotplug=True, max_interfaces=10):
         self.service_vendor = 'general'
-        self.supports_device_sharing = supports_device_sharing
         self.supports_hotplug = supports_hotplug
         self.maximum_interfaces = max_interfaces
         self.identity_handler = openstack_driver.KeystoneClient(config)
@@ -142,9 +141,6 @@ class OrchestrationDriver(object):
             LOG.error(_LE("Statistics failure. Failed to decrement"
                           " '%(metric)s' by %(by)d")
                       % {'metric': metric, 'by': by})
-
-    def _is_device_sharing_supported(self):
-        return self.supports_device_sharing
 
     def _create_management_interface(self, token, admin_tenant_id,
                                      device_data, network_handler):
@@ -297,8 +293,6 @@ class OrchestrationDriver(object):
                       {'image_name': image_name, 'error': e})
             return None
         vendor_data = self._verify_vendor_data(image_name, metadata)
-        if not vendor_data:
-            return None
         return vendor_data
 
     def _update_self_with_vendor_data(self, vendor_data, attr):
@@ -394,120 +388,6 @@ class OrchestrationDriver(object):
                     network_handler)
                 device_service_types_map[device['id']].add(service_type)
         return device_service_types_map
-
-    def get_network_function_device_sharing_info(self, device_data):
-        """ Get filters for NFD sharing
-
-        :param device_data: NFD data
-        :type device_data: dict
-
-        :returns: None -- when device sharing is not supported
-        :returns: dict -- It has the following scheme
-        {
-            'filters': {
-                'key': 'value',
-                ...
-            }
-        }
-
-        :raises: exceptions.IncompleteData
-        """
-
-        if (
-            any(key not in device_data
-                for key in ['tenant_id',
-                            'service_details']) or
-
-            type(device_data['service_details']) is not dict or
-
-            any(key not in device_data['service_details']
-                for key in ['service_vendor'])
-        ):
-            raise exceptions.IncompleteData()
-
-        if not self._is_device_sharing_supported():
-            return None
-
-        return {
-            'filters': {
-                'tenant_id': [device_data['tenant_id']],
-                'service_vendor': [device_data['service_details'][
-                    'service_vendor']],
-                'status': [nfp_constants.ACTIVE]
-            }
-        }
-
-    @_set_network_handler
-    def select_network_function_device(self, devices, device_data,
-                                       network_handler=None):
-        """ Select a NFD which is eligible for sharing
-
-        :param devices: NFDs
-        :type devices: list
-        :param device_data: NFD data
-        :type device_data: dict
-
-        :returns: None -- when device sharing is not supported, or
-                          when no device is eligible for sharing
-        :return: dict -- NFD which is eligible for sharing
-
-        :raises: exceptions.IncompleteData
-        """
-
-        if (
-            any(key not in device_data
-                for key in ['ports']) or
-
-            type(device_data['ports']) is not list or
-
-            any(key not in port
-                for port in device_data['ports']
-                for key in ['id',
-                            'port_classification',
-                            'port_model']) or
-
-            type(devices) is not list or
-
-            any(key not in device
-                for device in devices
-                for key in ['interfaces_in_use'])
-        ):
-            raise exceptions.IncompleteData()
-
-        token = self._get_token(device_data.get('token'))
-        if not token:
-            return None
-        image_name = self._get_image_name(device_data)
-        if image_name:
-            self._update_vendor_data(device_data,
-                                     device_data.get('token'))
-        if not self._is_device_sharing_supported():
-            return None
-
-        hotplug_ports_count = 1  # for provider interface (default)
-        if any(port['port_classification'] == nfp_constants.CONSUMER
-               for port in device_data['ports']):
-            hotplug_ports_count = 2
-
-        device_service_types_map = (
-            self._get_device_service_types_map(token, devices,
-                                               network_handler))
-        service_type = device_data['service_details']['service_type']
-        for device in devices:
-            if (
-                (device['interfaces_in_use'] + hotplug_ports_count) <=
-                self.maximum_interfaces
-            ):
-                if (service_type.lower() == nfp_constants.VPN.lower() and
-                        service_type in device_service_types_map[
-                            device['id']]):
-                    # Restrict multiple VPN services to share same device
-                    # If nfd request service type is VPN and current filtered
-                    # device already has VPN service instantiated, ignore this
-                    # device and checks for next one
-                    continue
-                return device
-        return None
 
     def get_image_id(self, nova, token, admin_tenant_id, image_name):
         try:

@@ -65,7 +65,8 @@ def events_init(controller, config, device_orchestrator):
     for event in events:
         events_to_register.append(
             Event(id=event, handler=device_orchestrator))
-    controller.register_events(events_to_register)
+    controller.register_events(events_to_register,
+                               module='device_orchestrator')
 
 
 def nfp_module_init(controller, config):
@@ -495,18 +496,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
     def _get_orchestration_driver(self, service_vendor):
         return self.orchestration_driver
 
-    def _get_device_to_reuse(self, device_data, dev_sharing_info):
-        device_filters = dev_sharing_info['filters']
-        orchestration_driver = self._get_orchestration_driver(
-            device_data['service_details']['service_vendor'])
-
-        devices = self._get_network_function_devices(device_filters)
-
-        device = orchestration_driver.select_network_function_device(
-            devices,
-            device_data)
-        return device
-
     def _get_device_data(self, nfd_request):
 
         device_data = {}
@@ -629,41 +618,18 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         device_data = self._prepare_device_data_from_nfp_context(nfp_context)
 
-        # dev_sharing_info = (
-        #     orchestration_driver.get_network_function_device_sharing_info(
-        #         device_data))
-
-        # if dev_sharing_info:
-        #     device = self._get_device_to_reuse(device_data, dev_sharing_info)
-        #     if device:
-        #         device = self._update_device_data(device, device_data)
-
-        # # To handle case, when device sharing is supported but device not
-        # # exists to share, so create a new device.
-        # if dev_sharing_info and device:
-        #     # Device is already active, no need to change status
-        #     device['network_function_device_id'] = device['id']
-        #     self._create_event(event_id='DEVICE_HEALTHY',
-        #                        event_data=device,
-        #                        is_internal_event=True)
-        #     LOG.info(_LI("Sharing existing device: %s(device)s for reuse"),
-        #              {'device': device})
-        # REVISIT(TODO): Removing sharing for cisco live demo
-        if 0:
-            pass
-        else:
-            LOG.info(_LI(
-                "No Device exists for sharing, Creating new device,"
-                "device request: %(device)s"), {'device': nfd_request})
-            driver_device_info = (
-                orchestration_driver.create_network_function_device(
-                    device_data))
-            if not driver_device_info:
-                LOG.info(_LI("Device creation failed"))
-                self._create_event(event_id='DEVICE_ERROR',
-                                   event_data=nfd_request,
-                                   is_internal_event=True)
-                return None
+        LOG.info(_LI(
+            "No Device exists for sharing, Creating new device,"
+            "device request: %(device)s"), {'device': nfd_request})
+        driver_device_info = (
+            orchestration_driver.create_network_function_device(
+                device_data))
+        if not driver_device_info:
+            LOG.info(_LI("Device creation failed"))
+            self._create_event(event_id='DEVICE_ERROR',
+                               event_data=nfd_request,
+                               is_internal_event=True)
+            return None
 
         nfp_context['vendor_data'] = driver_device_info.get('vendor_data')
         management = nfp_context['management']
@@ -693,7 +659,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                 nfp_context['network_function_instance']['id']),
             'network_function_device_id': device['id']
         }
-
+        nfp_context['event_desc'] = event.desc.to_dict()
         self._create_event(event_id='DEVICE_SPAWNING',
                            event_data=nfp_context,
                            is_poll_event=True,
@@ -834,6 +800,22 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         for result in results:
             if result.result.lower() != 'success':
                 return self._controller.event_complete(event, result='FAILED')
+        network_function_device = nfp_context['network_function_device']
+        self._update_network_function_device_db(
+            network_function_device, nfp_constants.ACTIVE)
+        LOG.info(_LI(
+            "Device Configuration completed for device: %(device_id)s"
+            "Updated DB status to ACTIVE, Incremented device "
+            "reference count for %(device)s"),
+            {'device_id': network_function_device['id'],
+             'device': network_function_device})
+
+        nfd_event = self._controller.new_event(
+            id='CREATE_NETWORK_FUNCTION_DEVICE',
+            key=nfp_context['network_function']['id'],
+            binding_key=nfp_context['service_chain_node']['id'],
+            desc_dict=nfp_context.pop('event_desc'))
+        self._controller.event_complete(nfd_event)
 
         self._post_configure_device_graph(nfp_context)
         self._controller.event_complete(event)
@@ -1116,13 +1098,6 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         if result.lower() == 'success':
             self._increment_device_ref_count(device)
-            self._update_network_function_device_db(
-                device, nfp_constants.ACTIVE)
-            LOG.info(_LI(
-                "Device Configuration completed for device: %(device_id)s"
-                "Updated DB status to ACTIVE, Incremented device "
-                "reference count for %(device)s"),
-                {'device_id': device['id'], 'device': device})
 
         # Invoke event_complete for original event which is
         # CREATE_DEVICE_CONFIGURATION
@@ -1267,7 +1242,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
     def handle_plug_interface_failed(self, event):
         nfp_context = event.data
         device = self._prepare_failure_case_device_data(nfp_context)
-        status = nfp_constants.ERROR
+        status = nfp_constants.ACTIVE
         desc = "Failed to plug interfaces"
         self._update_network_function_device_db(device, status, desc)
         self._create_event(event_id='DEVICE_CREATE_FAILED',

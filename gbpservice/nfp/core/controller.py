@@ -72,11 +72,13 @@ class NfpService(object):
     def get_event_handlers(self):
         return self._event_handlers
 
-    def register_events(self, event_descs):
+    def register_events(self, event_descs, module='', priority=0):
         """Register event handlers with core. """
         # REVISIT (mak): change name to register_event_handlers() ?
         for event_desc in event_descs:
-            self._event_handlers.register(event_desc.id, event_desc.handler)
+            self._event_handlers.register(
+                event_desc.id, event_desc.handler,
+                module=module, priority=priority)
 
     def register_rpc_agents(self, agents):
         """Register rpc handlers with core. """
@@ -112,17 +114,18 @@ class NfpService(object):
         event.desc.pid = os.getpid()
         return event
 
-    def post_event(self, event):
+    def post_event(self, event, target=None):
         """Post an event.
 
             As a base class, it only does the descriptor preparation.
             NfpController class implements the required functionality.
         """
-        handler = self._event_handlers.get_event_handler(event.id)
+        handler = self._event_handlers.get_event_handler(event.id, module=target)
         assert handler, "No handler registered for event %s" % (event.id)
         event.desc.type = nfp_event.SCHEDULE_EVENT
         event.desc.flag = nfp_event.EVENT_NEW
         event.desc.pid = os.getpid()
+        event.desc.target = target
         return event
 
     # REVISIT (mak): spacing=0, caller must explicitly specify
@@ -374,7 +377,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
             LOG.debug(message)
             self._manager.process_events([event])
 
-    def post_event(self, event):
+    def post_event(self, event, target=None):
         """Post a new event into the system.
 
             If distributor(main) process posts an event, it
@@ -387,7 +390,7 @@ class NfpController(nfp_launcher.NfpLauncher, NfpService):
 
             Returns: None
         """
-        event = super(NfpController, self).post_event(event)
+        event = super(NfpController, self).post_event(event, target=target)
         message = "(event - %s) - New event" % (event.identify())
         LOG.debug(message)
         if self.PROCESS_TYPE == "worker":
