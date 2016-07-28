@@ -882,11 +882,19 @@ class HeatDriver(object):
                 auth_token, stitching_ptg_id,
                 {'policy_target_group': {
                     'network_service_policy_id': nsp['id']}})
+            stitching_port_fip = ""
+
             if not base_mode_support:
-                filters = {'port_id': consumer_port['id']}
-                stitching_port_fip = self.neutron_client.get_floating_ips(
-                                             auth_token,
-                                             filters)[0]['floating_ip_address']
+                floatingips = (
+                    self.neutron_client.get_floating_ips(auth_token))
+            if not floatingips:
+                LOG.error(_LE("Floating IP for VPN Service has been "
+                              "disassociated Manually"))
+                return None, None
+            for fip in floatingips:
+                if consumer_port['id'] == fip['port_id']:
+                    stitching_port_fip = fip['floating_ip_address']
+
                 if not stitching_port_fip:
                     LOG.error(_LE("Floating IP for VPN Service has been "
                                   "disassociated Manually"))

@@ -219,20 +219,6 @@ class DummyDictionaries(object):
                     }
                 }
             },
-            u'SSLVPNConnection': {
-                u'type': u'OS::Neutron::SSLVPNConnection',
-                u'properties': {
-                    u'credential_id': u'',
-                    u'client_address_pool_cidr': {
-                        u'get_param': u'ClientAddressPoolCidr'
-                    },
-                    u'name': u'vtun0',
-                    u'vpnservice_id': {
-                        u'get_resource': u'VPNService'
-                    },
-                    u'admin_state_up': u'true'
-                }
-            },
             u'IPsecPolicy': {
                 u'type': u'OS::Neutron::IPsecPolicy',
                 u'properties': {
@@ -303,7 +289,9 @@ class DummyDictionaries(object):
     policy_targets = {
         'policy_targets': [
             {'name': 'provider_0132c_00b93',
-             'port_id': 'dde7d849-4c7c-4b48-8c21-f3f52c646fbe'}]
+             'port_id': 'dde7d849-4c7c-4b48-8c21-f3f52c646fbe',
+             'id': "dde7d849-4c7c-4b48-8c21-f3f52c646fbf",
+             'policy_target_group_id': "dde7d849-4c7c-4b48-8c21-f3f52c646fbg"}]
     }
 
     policy_target = {
@@ -559,9 +547,44 @@ class DummyDictionaries(object):
         \"properties\": {\"protocol_port\": 80, \"pool_id\": {\"get_resource\"\
         :\"LoadBalancerPool\"}}}}}"
 
+    vpn_scn_config = "{\"description\":\"Createsnewvpnservice-ike+ipsec+\
+        vpnservice+site-siteconnection(s)\", \"heat_template_version\
+        \":\"2013-05-23\", \"parameters\":{\"RouterId\":{\"description\
+        \":\"RouterID\", \"type\":\"string\"}, \"ServiceDescription\":{\
+        \"description\":\"fip;tunnel_local-cidr\", \"type\":\"string\"}, \
+        \"Subnet\":{\"description\":\"Subnetidonwhichvpnserviceislaunched\
+        \", \"type\":\"string\"}}, \"resources\":{\"IKEPolicy\":{\"properties\
+        \":{\"auth_algorithm\":\"sha1\", \"encryption_algorithm\":\"3des\", \
+        \"ike_version\":\"v1\", \"lifetime\":{\"units\":\"seconds\", \"value\
+        \":3600}, \"name\":\"IKEPolicy\", \"pfs\":\"group5\", \
+        \"phase1_negotiation_mode\":\"main\"}, \"type\":\
+        \"OS::Neutron::IKEPolicy\"}, \"IPsecPolicy\":{\"properties\":{\
+        \"auth_algorithm\":\"sha1\", \"encapsulation_mode\":\"tunnel\", \
+        \"encryption_algorithm\":\"3des\", \"lifetime\":{\"units\":\"seconds\
+        \", \"value\":3600}, \"name\":\"IPsecPolicy\", \"pfs\":\"group5\", \
+        \"transform_protocol\":\"esp\"}, \"type\":\"OS::Neutron::IPsecPolicy\
+        \"}, \"VPNService\":{\"properties\":{\"admin_state_up\":\"true\", \
+        \"description\":{\"get_param\":\"ServiceDescription\"}, \"name\":\
+        \"VPNService\", \"router_id\":{\"get_param\":\"RouterId\"}, \
+        \"subnet_id\":{\"get_param\":\"Subnet\"}}, \"type\":\
+        \"OS::Neutron::VPNService\"}, \"site_to_site_connection1\
+        \":{\"properties\":{\"admin_state_up\":\"true\", \"dpd\":{\"actions\
+        \":\"hold\", \"interval\":30, \"timeout\":120}, \"ikepolicy_id\":{\
+        \"get_resource\":\"IKEPolicy\"}, \"initiator\":\"bi-directional\", \
+        \"ipsecpolicy_id\":{\"get_resource\":\"IPsecPolicy\"}, \"mtu\":1500, \
+        \"name\":\"site_to_site_connection1\", \"peer_address\":\
+        \"192.168.102.117\", \"peer_cidrs\":[\"11.0.0.0/24\"], \"peer_id\":\
+        \"11.0.0.3\", \"psk\":\"secret\", \"vpnservice_id\":{\"get_resource\
+        \":\"VPNService\"}}, \"type\":\"OS::Neutron::IPsecSiteConnection\"}}}"
+
     service_profile = {
         u'service_flavor': u'vyos',
         u'service_type': u'FIREWALL'
+    }
+
+    vpn_service_profile = {
+        u'service_flavor': u'vyos',
+        u'service_type': u'VPN'
     }
 
     lb_service_profile = {
@@ -573,6 +596,12 @@ class DummyDictionaries(object):
         u'id': u'012345678919',
         u'name': u'scn_fw',
         u'config': fw_scn_config
+    }
+
+    vpn_service_chain_node = {
+        u'id': u'012345678919',
+        u'name': u'scn_vpn',
+        u'config': vpn_scn_config
     }
 
     lb_service_chain_node = {
@@ -590,7 +619,8 @@ class DummyDictionaries(object):
         u'fixed_ips': [{
             u'ip_address': u'11.0.3.4',
             u'subnet_id': u'9876256378888333'
-        }]
+        }],
+        u'id': u'af6a8a58-1e25-49c4-97a3-d5f50b3aa04b'
     }
 
     network_function_details = {
@@ -634,3 +664,69 @@ class DummyDictionaries(object):
             'name': 'LOADBALANCER.haproxy.507988d2-4b46-4df4-99d2-7466765008'
         }
     }
+
+    _service_details = {
+        'consuming_external_policies': [{
+            'status': None,
+            'consumed_policy_rule_sets': (
+                                ['46de9c30-3f87-4fb7-8e56-5e60827e1e8f']),
+            'external_segments': ['7648db78-f0e4-403d-91d4-c6d80963d56c'],
+            'description': '',
+            'tenant_id': '793827b52b3348929e97b23081dfac27',
+            'provided_policy_rule_sets': [],
+            'shared': False,
+            'status_details': None,
+            'id': 'aa06bb8b-1250-40e0-a1d0-e25a713cc978',
+            'name': 'vpn-consumer'}],
+        'service_vendor': 'vyos',
+        'image_name': 'vyos',
+        'network_mode': 'gbp',
+        'consuming_ptgs_details': [],
+        'device_type': 'nova',
+        'service_type': 'VPN'
+    }
+
+    _subnet = {
+        'shared': False,
+        'description': None,
+        'enable_dhcp': True,
+        'network_id': '1e8612e0-8099-4577-ac27-97e7db6f5841',
+        'tenant_id': '793827b52b3348929e97b23081dfac27',
+        'created_at': '2016-07-26T17:05:11',
+        'dns_nameservers': [],
+        'updated_at': '2016-07-26T17:05:21',
+        'ipv6_ra_mode': None,
+        'allocation_pools': [{
+                        'start': '192.168.0.2',
+                        'end': '192.168.0.14'}],
+        'gateway_ip': '192.168.0.1',
+        'ipv6_address_mode': None,
+        'ip_version': 4,
+        'host_routes': [{
+                    'nexthop': '192.168.0.3',
+                    'destination': '12.0.0.0/24'}],
+        'cidr': '192.168.0.0/28',
+        'id': 'bab31ffb-07e1-42e9-a2b0-776efbf10f4a',
+        'subnetpool_id': None,
+        'name': 'ptg_tscp_1_vpn-provider'
+    }
+
+    service_details = {
+        'service_details': _service_details,
+        'provider_subnet': _subnet,
+        'consumer_subnet': _subnet,
+        }
+    fip = [{'floating_ip_address': '192.168.102.118',
+            'port_id': 'af6a8a58-1e25-49c4-97a3-d5f50b3aa04b'}]
+    mgmt_ip = '11.3.4.5'
+    l2p = {
+           'l3_policy_id': '760d1763-9111-410a-a03e-61623afd7b25'
+    }
+
+    l3p = {
+        'routers': ['64803e64-7db7-4050-a343-cbafbd2d356a']
+           }
+    services_nsp = [{'id': '479982d1-7947-478f-bf6c-dc234f38677d'}]
+    stitching_pts = [{
+            'policy_target_group_id': '6fa92b57-69ee-4143-9cf9-fcef0d067e65'
+                }]
