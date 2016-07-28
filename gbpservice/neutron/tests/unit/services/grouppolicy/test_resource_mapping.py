@@ -107,6 +107,12 @@ class ResourceMappingTestCase(test_plugin.GroupPolicyPluginTestCase):
         plugins = manager.NeutronManager.get_service_plugins()
         self._gbp_plugin = plugins.get(pconst.GROUP_POLICY)
         self._l3_plugin = plugins.get(pconst.L3_ROUTER_NAT)
+        self.saved_keystone_client = resource_mapping.k_client.Client
+        resource_mapping.k_client.Client = mock.Mock()
+
+    def tearDown(self):
+        resource_mapping.k_client.Client = self.saved_keystone_client
+        super(ResourceMappingTestCase, self).tearDown()
 
     def get_plugin_context(self):
         return self._plugin, self._context
@@ -912,11 +918,6 @@ class TestPolicyTargetGroupWithoutDNSConfiguration(ResourceMappingTestCase):
 
 class TestPolicyTargetGroup(ResourceMappingTestCase):
 
-    def setUp(self):
-        config.cfg.CONF.set_override(
-                'extension_drivers', ['proxy_group'], group='group_policy')
-        super(TestPolicyTargetGroup, self).setUp()
-
     def _test_implicit_subnet_lifecycle(self, shared=False):
         # Use explicit L2 policy so network and subnet not deleted
         # with policy_target group.
@@ -1255,10 +1256,10 @@ class TestPolicyTargetGroup(ResourceMappingTestCase):
         for shared in [True, False]:
             res = self.create_policy_target_group(
                 name="ptg1", tenant_id='other', l2_policy_id=l2p_id,
-                shared=shared, expected_res_status=500)
+                shared=shared, expected_res_status=400)
 
             self.assertEqual(
-                'GroupPolicyDriverError',
+                'CrossTenantPolicyTargetGroupL2PolicyNotSupported',
                 res['NeutronError']['type'])
 
     def _test_cross_tenant_prs(self, admin=False):
@@ -1303,17 +1304,6 @@ class TestPolicyTargetGroup(ResourceMappingTestCase):
         data = self.deserialize(self.fmt, req.get_response(self.ext_api))
         self.assertEqual('CrossTenantPolicyTargetGroupL2PolicyNotSupported',
                          data['NeutronError']['type'])
-
-        ptg = self.create_policy_target_group(
-                tenant_id='user-tenant')['policy_target_group']
-        data = {'policy_target_group': {'proxied_group_id': ptg['id'],
-                                        'tenant_id': 'admin'}}
-        req = self.new_create_request('policy_target_groups', data)
-        data = self.deserialize(self.fmt, req.get_response(self.ext_api))
-        proxied_ptg = data['policy_target_group']
-
-        self.assertEqual(ptg['l2_policy_id'], proxied_ptg['l2_policy_id'])
-        self.assertEqual(ptg['id'], proxied_ptg['proxied_group_id'])
 
     def test_l2p_update_rejected(self):
         # Create two l2 policies.
@@ -1444,11 +1434,9 @@ class TestL2Policy(ResourceMappingTestCase):
             res = self.create_l2_policy(name="l2p1", tenant_id='other',
                                         l3_policy_id=l3p['l3_policy']['id'],
                                         shared=shared,
-                                        expected_res_status=201)
-
-            self.assertEqual('l2p1', res['l2_policy']['name'])
-            #self.assertEqual('CrossTenantL2PolicyL3PolicyNotSupported',
-            #                 res['NeutronError']['type'])
+                                        expected_res_status=400)
+            self.assertEqual('CrossTenantL2PolicyL3PolicyNotSupported',
+                             res['NeutronError']['type'])
 
         with self.network() as network:
             network_id = network['network']['id']

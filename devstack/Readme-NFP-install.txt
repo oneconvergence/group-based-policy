@@ -35,10 +35,13 @@ Fresh Installation Steps:
               HaproxyQcow2Image=
         # Public interface name
               PUBLIC_INTERFACE=
-        # Change the value of GBPSERVICE_BRANCH to use different branch(in OC repo)/patch(in Openstack repo)
 
 (4) Run stack.sh from the /home/stack/devstack/ directory
     # ./stack.sh
+
+(5) If GBPSERVICE_BRANCH is installed from Openstack review, apply the cross tenancy fix using the following commands
+    # cd /opt/stack/gbp/
+    # git fetch https://git.openstack.org/openstack/group-based-policy refs/changes/33/327033/15 && git cherry-pick FETCH_HEAD
 
 
 Re-installation Steps:
