@@ -32,7 +32,7 @@ from oslo_utils import uuidutils
 from oslo_utils import excutils
 from sqlalchemy import orm
 
-from gbpservice.nfp.config_orchestrator.common import topics
+from gbpservice.contrib.nfp.config_orchestrator.common import topics
 from gbpservice.common import utils
 import neutron_fwaas.extensions
 from neutron_fwaas.services.firewall import fwaas_plugin as ref_fw_plugin
