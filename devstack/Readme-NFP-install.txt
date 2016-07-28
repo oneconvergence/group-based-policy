@@ -35,7 +35,6 @@ Fresh Installation Steps:
               HaproxyQcow2Image=
         # Public interface name
               PUBLIC_INTERFACE=
-        # Change the value of GBPSERVICE_BRANCH to use different branch(in OC repo)/patch(in Openstack repo)
 
 (4) Run stack.sh from the /home/stack/devstack/ directory
     # ./stack.sh
