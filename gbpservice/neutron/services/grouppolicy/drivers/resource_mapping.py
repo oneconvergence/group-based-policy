@@ -416,15 +416,6 @@ class ResourceMappingDriver(api.PolicyDriver, local_api.LocalAPI,
         self._validate_ptg_subnets(context)
         self._validate_nat_pool_for_nsp(context)
         self._validate_proxy_ptg(context)
-        if context.current.get('proxied_group_id'):
-            # goes in same L2P as proxied group
-            proxied = context._plugin.get_policy_target_group(
-                context._plugin_context,
-                context.current['proxied_group_id'])
-            db_group = context._plugin._get_policy_target_group(
-                context._plugin_context, context.current['id'])
-            db_group.l2_policy_id = proxied['l2_policy_id']
-            context.current['l2_policy_id'] = proxied['l2_policy_id']
 
     @log.log_method_call
     def create_policy_target_group_postcommit(self, context):
