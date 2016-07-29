@@ -850,7 +850,9 @@ class OrchestrationDriver(object):
             # device instance deletion is done, delete remaining resources
             try:
                 interfaces = [device_data['mgmt_port_id']]
-                interfaces.extend(device_data['advance_sharing_interfaces'])
+                # REVISIT(dpak): Commenting out sharing code until
+                # enterprise mode separation
+                # interfaces.extend(device_data['advance_sharing_interfaces'])
                 self._delete_interfaces(device_data,
                                         interfaces,
                                         network_handler=network_handler)

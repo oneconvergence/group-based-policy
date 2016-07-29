@@ -434,9 +434,11 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         device_info['interfaces_in_use'] = 0
         device = self.nsf_db.create_network_function_device(self.db_session,
                                                             device_info)
-        if advance_sharing_interfaces:
-            self._create_advance_sharing_interfaces(device,
-                                                    advance_sharing_interfaces)
+        # REVISIT(dpak): Commenting out sharing code until
+        # enterprise mode separation
+        # if advance_sharing_interfaces:
+        #     self._create_advance_sharing_interfaces(device,
+        #                                             advance_sharing_interfaces)
         return device
 
     def _update_network_function_device_db(self, device, state,
@@ -446,11 +448,13 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                                                    device['id'], device)
 
     def _delete_network_function_device_db(self, device_id, device):
-        advance_sharing_interfaces = device.get(
-            'advance_sharing_interfaces', [])
-        if advance_sharing_interfaces:
-            self._delete_advance_sharing_interfaces(
-                advance_sharing_interfaces)
+        # REVISIT(dpak): Commenting out sharing code until
+        # enterprise mode separation
+        # advance_sharing_interfaces = device.get(
+        #     'advance_sharing_interfaces', [])
+        # if advance_sharing_interfaces:
+        #     self._delete_advance_sharing_interfaces(
+        #         advance_sharing_interfaces)
         self.nsf_db.delete_network_function_device(self.db_session, device_id)
 
     def _get_network_function_info(self, device_id):
@@ -921,8 +925,11 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         device['mgmt_port_id'] = mgmt_port_id
         device['network_function_id'] = network_function_id
 
-        device['advance_sharing_interfaces'] = (
-            self._get_advance_sharing_interfaces(device['id']))
+        # REVISIT(dpak): Commenting out sharing code until
+        # enterprise mode separation
+        device['advance_sharing_interfaces'] = None
+        # device['advance_sharing_interfaces'] = (
+        #    self._get_advance_sharing_interfaces(device['id']))
         return device
 
     def health_monitor_complete(self, event, result='SUCCESS'):
