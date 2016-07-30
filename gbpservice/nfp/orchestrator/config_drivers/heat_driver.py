@@ -887,18 +887,19 @@ class HeatDriver(object):
             if not base_mode_support:
                 floatingips = (
                     self.neutron_client.get_floating_ips(auth_token))
-            if not floatingips:
-                LOG.error(_LE("Floating IP for VPN Service has been "
-                              "disassociated Manually"))
-                return None, None
-            for fip in floatingips:
-                if consumer_port['id'] == fip['port_id']:
-                    stitching_port_fip = fip['floating_ip_address']
-
-                if not stitching_port_fip:
+                if not floatingips:
                     LOG.error(_LE("Floating IP for VPN Service has been "
                                   "disassociated Manually"))
                     return None, None
+
+                for fip in floatingips:
+                    if consumer_port['id'] == fip['port_id']:
+                        stitching_port_fip = fip['floating_ip_address']
+                        break
+                if not stitching_port_fip:
+                    LOG.error(_LE("Floatingip retrival has failed."))
+                    return None, None
+
                 try:
                     desc = ('fip=' + mgmt_ip +
                             ";tunnel_local_cidr=" +
