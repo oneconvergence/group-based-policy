@@ -42,15 +42,6 @@ rpc_opts = [
                default='', help='Topic for rpc connection'),
 ]
 
-OPTS = [
-    cfg.StrOpt(
-        'backend',
-        default='rpc',
-        help='Backend Support for communicationg with configurator.'
-    ),
-]
-
-oslo_config.CONF.register_opts(OPTS)
 oslo_config.CONF.register_opts(rest_opts, "REST")
 oslo_config.CONF.register_opts(rpc_opts, "RPC")
 n_rpc.init(cfg.CONF)

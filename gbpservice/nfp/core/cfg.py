@@ -24,8 +24,14 @@ NFP_OPTS = [
         default='gbpservice.nfp.core.test',
         help='Path for NFP modules.'
         'All modules from this path are autloaded by framework'
-    )
+    ),
+    oslo_config.StrOpt(
+        'backend',
+        default='rpc',
+        help='Backend Support for communicationg with configurator.'
+    ),
 ]
+
 
 es_openstack_opts = [
     oslo_config.StrOpt('auth_host',
@@ -54,7 +60,9 @@ es_openstack_opts = [
 
 def init(args, **kwargs):
     """Initialize the configuration. """
-    oslo_config.CONF.register_opts(NFP_OPTS)
+    oslo_config.CONF.register_opts(NFP_OPTS, "orchestrator")
+    oslo_config.CONF.register_opts(NFP_OPTS, "proxy_agent")
+    oslo_config.CONF.register_opts(NFP_OPTS, "config_orchestrator")
     oslo_config.CONF.register_opts(es_openstack_opts, "keystone_authtoken")
     oslo_config.CONF.set_override('use_syslog', 'True')
     oslo_config.CONF.set_override('syslog_log_facility', 'local1')

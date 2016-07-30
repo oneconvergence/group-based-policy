@@ -571,9 +571,29 @@ def nfp_modules_post_init(conf, nfp_modules, nfp_controller):
                        "nfp_module_post_init(), ignoring") % (identify(module))
             LOG.debug(message)
 
+def _module(args):
+    try:
+        index = args.index('--module')
+        module = args[index+1]
+        return module
+    except ValueError:
+        print "--module <name> missing from cmd args"
+        sys.exit(-1)
 
 def main():
-    conf = nfp_cfg.init(sys.argv[1:])
+    args = sys.argv[1:]
+    module = _module(args)
+    args.remove('--module')
+    args.remove(module)
+    conf = nfp_cfg.init(args)
+    conf.module = module
+    module_opts = eval('conf.%s.keys' %(module))()
+    for module_opt in module_opts:
+        module_cfg_opt = eval("conf.%s._group._opts['%s']['opt']" %(
+            module, module_opt))
+        module_cfg_opt_value = eval("conf.%s.%s" %(module, module_opt))
+        conf.register_opt(module_cfg_opt)
+        conf.set_override(module_opt, module_cfg_opt_value)
     nfp_common.init()
     nfp_controller = NfpController(conf)
     # Load all nfp modules from path configured
