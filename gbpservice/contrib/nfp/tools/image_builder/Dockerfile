@@ -10,7 +10,6 @@ RUN apt-get -y --force-yes install \
  build-essential libssl-dev libffi-dev\
  libyaml-dev\
  python-ipaddr\
- git\
  rabbitmq-server\
  python-dev \
  screen
@@ -41,7 +40,7 @@ COPY ./configurator_run.sh /configurator_run.sh
 ADD https://www.random.org/strings/?num=10&len=8&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new cache-buster
 
 # clean-up
-RUN apt-get remove -y --purge git && rm -rf /var/lib/apt/lists/* && apt-get autoremove -y
+RUN rm -rf /var/lib/apt/lists/* && apt-get autoremove -y
 
 RUN cp /usr/local/lib/python2.7/dist-packages/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
