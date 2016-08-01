@@ -24,7 +24,7 @@ NFPSERVICE_DIR=$DEST/gbp
 NEUTRON_CONF_DIR=/etc/neutron
 NEUTRON_CONF=$NEUTRON_CONF_DIR/neutron.conf
 NFP_CONF_DIR=/etc/nfp
-DISKIMAGE_CREATE_DIR=$NFPSERVICE_DIR/gbpservice/tests/contrib/diskimage-create
+DISKIMAGE_CREATE_DIR=$NFPSERVICE_DIR/gbpservice/contrib/nfp/tools/image_builder
 
 # Save trace setting
 XTRACE=$(set +o | grep xtrace)
@@ -244,7 +244,12 @@ function create_nfp_image {
     if [[ $NFP_DEVSTACK_MODE = base ]]; then
         RefConfiguratorQcow2ImageName=reference_configurator_image
         echo "Building Image: $RefConfiguratorQcow2ImageName"
-        sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/ref_configurator_conf.json
+        sudo python -c\
+ 'from gbpservice.contrib.nfp.tools.image_builder import disk_image_create as DIB;\
+ DIb.cur_dir = $DISKIMAGE_CREATE_DIR\
+ DIB.conf["ubuntu_release"] = {"release": "wily"};\
+ DIB.conf["dib"] = {"image_size": 3, "elements": ["nfp-reference-configurator", "dhcp-all-interfaces", "devuser"], "offline": True, "cache_dir": cache_dir};\
+ DIB.dib()'
         RefConfiguratorQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         echo "Uploading Image: $RefConfiguratorQcow2ImageName"
         glance image-create --name $RefConfiguratorQcow2ImageName --disk-format qcow2 --container-format bare --visibility public --file $RefConfiguratorQcow2Image
@@ -255,7 +260,16 @@ function create_nfp_image {
         create_port_for_vm $ConfiguratorQcow2ImageName $ConfiguratorInstanceName
         if [[ $ConfiguratorQcow2Image = build ]]; then
             echo "Building Image: $ConfiguratorQcow2ImageName"
-            sudo python $DISKIMAGE_CREATE_DIR/disk_image_create.py $DISKIMAGE_CREATE_DIR/configurator_conf.json $GBPSERVICE_BRANCH
+            sudo cp $DEST/neutron_lib/neutron_lib $DISKIMAGE_CREATE_DIR/neutron_lib
+            sudo cp $DEST/gbp/gbpservice $DISKIMAGE_CREATE_DIR/gbpservice
+            sudo cp $DEST/neutron/neutron $DISKIMAGE_CREATE_DIR/neutron
+            sudo cp $DEST/neutron_lbaas/neutron_lbaas $DISKIMAGE_CREATE_DIR/neutron_lbaas
+            sudo python -c\
+ 'from gbpservice.contrib.nfp.tools.image_builder import disk_image_create as DIB;\
+ DIb.cur_dir = $DISKIMAGE_CREATE_DIR\
+ DIB.conf["ubuntu_release"] = {"release": "trusty"};\
+ DIB.conf["dib"] = {"image_size": 10, "elements": ["configurator"], "offline": True, "cache_dir": cache_dir};\
+ DIB.dib()'
             ConfiguratorQcow2Image=$(cat $DISKIMAGE_CREATE_DIR/output/last_built_image_path)
         fi
         echo "Uploading Image: $ConfiguratorQcow2ImageName"

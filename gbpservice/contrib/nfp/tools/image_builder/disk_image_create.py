@@ -1,20 +1,31 @@
-#!/usr/bin/env python
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
-import commands
 import datetime
-import json
+from oslo_serialization import jsonutils
 import os
 import subprocess
 import sys
 
+
 conf = {}
 cur_dir = ''
+
 
 def parse_json(j_file):
     global conf
 
     with open(j_file) as json_data:
-        conf = json.load(json_data)
+        conf = jsonutils.load(json_data)
     return
 
 
@@ -29,7 +40,7 @@ def create_configurator_docker():
     docker_args = ['docker', 'build', '-t', 'configurator-docker', '.']
     ret = subprocess.call(docker_args)
     if(ret):
-        print "Failed to build docker image [configurator-docker]"
+        print("Failed to build docker image [configurator-docker]")
         return -1
 
     if not os.path.isdir(docker_images):
@@ -41,7 +52,7 @@ def create_configurator_docker():
     docker_args = ['docker', 'save', '-o', 'configurator-docker', 'configurator-docker']
     ret = subprocess.call(docker_args)
     if(ret):
-        print "Failed to save docker image [configurator-docker]"
+        print("Failed to save docker image [configurator-docker]")
         return -1
     # set environment variable, needed by 'extra-data.d'
     os.environ['DOCKER_IMAGES'] = docker_images
@@ -62,8 +73,24 @@ def dib():
     # basic elements
     dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu']
     image_name = conf['ubuntu_release']['release']
+
     # element for creating configurator image
-    if 'configurator' in dib['elements']:
+    if 'nfp-reference-configurator' in dib['elements']:
+        image_name = 'nfp_reference_service'
+        service_dir = "%s/../../../../tests/contrib/nfp_service/" % cur_dir
+        pecan_dir = os.path.abspath(os.path.join(cur_dir, '/../../../../nfp/')
+        service_dir = os.path.realpath(service_dir)
+        pecan_dir = os.path.realpath(pecan_dir)
+        os.environ['PECAN_GIT_PATH'] = pecan_dir
+        os.environ['SERVICE_GIT_PATH'] = service_dir
+        if 'devuser' in dib['elements']:
+            os.environ['DIB_DEV_USER_USERNAME'] = 'ubuntu'
+            os.environ['DIB_DEV_USER_SHELL'] = '/bin/bash'
+            os.environ['SSH_RSS_KEY'] = (
+                "%s/%s" % (cur_dir, image_name))
+            os.environ['DIB_DEV_USER_AUTHORIZED_KEYS'] = (
+                "%s.pub" % os.environ['SSH_RSS_KEY'])
+    elif 'configurator' in dib['elements']:
         if(create_configurator_docker()):
             return
         # for bigger size images
@@ -72,7 +99,7 @@ def dib():
         # append docker-opt element
         if not "docker-opt" in dib_args:
             dib_args.append("docker-opt")
-        
+     
     for element in dib['elements']:
         image_name = image_name + '_' + element
         dib_args.append(element)
@@ -89,6 +116,8 @@ def dib():
     timestamp = datetime.datetime.now().strftime('%I%M%p-%d-%m-%Y')
     image_name = image_name + '_' + timestamp
     dib_args.append('-o')
+    if 'nfp-reference-configurator' in dib['elements']:
+        image_name = 'nfp_reference_service'
     dib_args.append(str(image_name))
 
     os.chdir(cur_dir)
@@ -102,6 +131,11 @@ def dib():
         output_path = os.path.realpath('./')
         print "Output path: ", output_path
         output_image = output_path + '/' + image_name + '.qcow2'
+
+        print("Image location: %s" % output_image)
+        with open("%s/last_built_image_path" % output_path, "w") as f:
+            f.write(output_image)
+
         return output_image
     
     return 0
