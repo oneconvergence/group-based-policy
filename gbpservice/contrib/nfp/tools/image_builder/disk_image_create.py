@@ -78,7 +78,7 @@ def dib():
     if 'nfp-reference-configurator' in dib['elements']:
         image_name = 'nfp_reference_service'
         service_dir = "%s/../../../../tests/contrib/nfp_service/" % cur_dir
-        pecan_dir = os.path.abspath(os.path.join(cur_dir, '/../../../../nfp/')
+        pecan_dir = os.path.abspath(os.path.join(cur_dir, '/../../../../nfp/'))
         service_dir = os.path.realpath(service_dir)
         pecan_dir = os.path.realpath(pecan_dir)
         os.environ['PECAN_GIT_PATH'] = pecan_dir
