@@ -196,7 +196,6 @@ function create_nfp_gbp_resources {
 
     gbp l3policy-create\
  --ip-version 4\
- --proxy-ip-pool=192.168.0.0/16\
  --ip-pool 172.16.0.0/12\
  --subnet-prefix-length 24\
  service_management
