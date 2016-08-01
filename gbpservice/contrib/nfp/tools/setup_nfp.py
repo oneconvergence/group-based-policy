@@ -410,7 +410,7 @@ def create_nfp_resources():
     create nfp resources
     """
     get_openstack_creds()
-    os.system("gbp l3policy-create default-nfp --ip-pool 172.16.0.0/12 --proxy-ip-pool 192.168.0.0/16")
+    os.system("gbp l3policy-create default-nfp --ip-pool 172.16.0.0/16 --subnet-prefix-length 20 --proxy-ip-pool=172.17.0.0/16")
     l3policy_Id = commands.getstatusoutput("gbp l3policy-list | grep '\sdefault-nfp\s' | awk '{print $2}'")[1]
     os.system("gbp l2policy-create --l3-policy " + l3policy_Id + " svc_management_ptg")
     l2policy_Id = commands.getstatusoutput("gbp l2policy-list | grep '\ssvc_management_ptg\s' | awk '{print $2}'")[1]
