@@ -261,16 +261,21 @@ function create_nfp_image {
         if [[ $ConfiguratorQcow2Image = build ]]; then
             echo "Building Image: $ConfiguratorQcow2ImageName"
             # Prepare source for configurator
-            git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/neutron-lib.git
+            #git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/neutron-lib.git
+            git clone -b master https://github.com/openstack/neutron-lib.git
             cp neutron-lib/neutron_lib $DISKIMAGE_CREATE_DIR/neutron_lib
             rm -rf neutron-lib
             git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/group-based-policy.git
             cp group-based-policy/gbpservice $DISKIMAGE_CREATE_DIR/gbpservice
             rm -rf group-based-policy
-            git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/neutron.git neutron_$GBPSERVICE_BRANCH
-            cp neutron_$GBPSERVICE_BRANCH/neutron $DISKIMAGE_CREATE_DIR/neutron
-            rm -rf neutron_$GBPSERVICE_BRANCH
-            git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/neutron-lbaas.git
+            #git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/neutron.git neutron_$GBPSERVICE_BRANCH
+            git clone -b master https://github.com/openstack/neutron.git neutron_$GBPSERVICE_BRANCH
+            #cp neutron_$GBPSERVICE_BRANCH/neutron $DISKIMAGE_CREATE_DIR/neutron
+            cp neutron_master/neutron $DISKIMAGE_CREATE_DIR/neutron
+            #rm -rf neutron_$GBPSERVICE_BRANCH
+            rm -rf neutron_master
+            #git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/neutron-lbaas.git
+            git clone -b master https://github.com/openstack/neutron-lbaas.git
             cp neutron-lbaas/neutron_lbaas $DISKIMAGE_CREATE_DIR/neutron_lbaas
             rm -rf neutron-lbaas
             sudo python -c\
