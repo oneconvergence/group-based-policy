@@ -51,7 +51,7 @@ def get_src_dirs():
     (os_type, os_version, os_release) = platform.dist()
     if os_type == 'Ubuntu':
         src_path = "/usr/lib/python2.7/dist-packages/"
-    else if os_type == 'centos':
+    elif os_type == 'centos':
         src_path = "/usr/lib/python2.7/site-packages/"
     else:
         print "ERROR: Unsupported Operating System(%s)" % os_type

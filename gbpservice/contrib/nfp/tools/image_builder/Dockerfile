@@ -37,11 +37,6 @@ COPY ./neutron /usr/local/lib/python2.7/dist-packages/neutron
 COPY ./neutron_lbaas /usr/local/lib/python2.7/dist-packages/neutron_lbaas
 COPY ./configurator_run.sh /configurator_run.sh
 
-# removing loadbalance v2 agent, driver, and paloalto fw driver
-RUN rm -rf /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/drivers/loadbalancer/v2
-RUN rm -rf /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/agents/loadbalancer_v2.py
-RUN rm -rf /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/configurator/drivers/firewall/paloalto
-
 # Cache buster
 ADD https://www.random.org/strings/?num=10&len=8&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new cache-buster
 

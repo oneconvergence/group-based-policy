@@ -62,10 +62,7 @@ def dib():
     # basic elements
     dib_args = ['disk-image-create', 'base', 'vm', 'ubuntu']
     image_name = conf['ubuntu_release']['release']
-    # root login enabled, set password environment varaible
-    if 'root-passwd' in dib['elements']:
-        os.environ['DIB_PASSWORD'] = dib['root_pswd']
-    # element for creating visibility image
+    # element for creating configurator image
     if 'configurator' in dib['elements']:
         if(create_configurator_docker()):
             return
