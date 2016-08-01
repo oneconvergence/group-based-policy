@@ -83,7 +83,10 @@ def dib():
     # offline mode, assuming the image cache (tar) already exists
     if(dib['offline']):
         dib_args.append('--offline')
-
+    # set the image build cache dir
+    dib_args.append('--image-cache')
+    dib_args.append(dib['cache_dir'])
+    # set image size
     dib_args.append('--image-size')
     dib_args.append(str(dib['image_size']))
     timestamp = datetime.datetime.now().strftime('%I%M%p-%d-%m-%Y')
@@ -99,9 +102,12 @@ def dib():
     print "DIB-ARGS: ", dib_args
     ret = subprocess.call(dib_args)
     if not ret:
-        print "Output path: ", os.path.realpath('./') 
-
-    return
+        output_path = os.path.realpath('./')
+        print "Output path: ", output_path
+        output_image = output_path + '/' + image_name + '.qcow2'
+        return output_image
+    
+    return 0
 
 
 if __name__ == "__main__":

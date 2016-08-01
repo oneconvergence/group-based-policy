@@ -8,6 +8,7 @@ import subprocess
 import ConfigParser
 import commands
 import time
+import platform
 from image_builder import disk_image_create as DIB
 
 # Defines
@@ -28,6 +29,8 @@ src_dirs = ["gbpservice", "neutron", "neutron_lbaas", "neutron_lib"]
 parser = argparse.ArgumentParser()
 parser.add_argument('--build-controller-vm', action='store_true', dest='build_controller_vm',
                     default=False, help='enable building controller vm')
+parser.add_argument('--image-build-cache-dir', type=str,
+                    help='directory path where trusty image tar.gz can be found for building controller vm')
 parser.add_argument('--enable-orchestrator', action='store_true', dest='enable_orchestrator',
                     default=False, help='enable creating orchestrator systemctl file')
 parser.add_argument('--enable-proxy', action='store_true', dest='enable_proxy',
@@ -44,7 +47,15 @@ args = parser.parse_args()
 
 def get_src_dirs():
     print "Getting source dirs for copying inside the docker image"
-    src_path = "/usr/lib/python2.7/site-packages/"
+    # get the operating system type
+    (os_type, os_version, os_release) = platform.dist()
+    if os_type == 'Ubuntu':
+        src_path = "/usr/lib/python2.7/dist-packages/"
+    else if os_type == 'centos':
+        src_path = "/usr/lib/python2.7/site-packages/"
+    else:
+        print "ERROR: Unsupported Operating System(%s)" % os_type
+        return 1
     for src_dir in src_dirs:
         to_copy = src_path + src_dir
         if not os.path.isdir(to_copy):
@@ -87,12 +98,22 @@ def build_configuration_vm():
     # update configurator user_data with a fresh rsa ssh keypair  
     update_user_data()
  
+    # set the cache dir where trusty tar.gz will be present
+    if args.image_build_cache_dir:
+        cache_dir = args.image_build_cache_dir
+    else:
+        cache_dir = os.environ.get('HOME', '-1') + '/.cache/image-create'
+
     # create a configurattion dictionary needed by DIB
     DIB.conf['ubuntu_release']= {'release':'trusty'}
-    DIB.conf['dib'] = {"image_size":10, "elements": ["configurator"], "offline": True}
+    DIB.conf['dib'] = {"image_size":10, "elements": ["configurator"], "offline": True, "cache_dir": cache_dir}
 
     # Build configurator VM
-    DIB.dib()
+    ret = DIB.dib()
+    if not ret:
+        print "ERROR: Failed to create Configurator VM"
+    else:
+        print "SUCCESS, created Configurator VM: ", ret
 
     # clean the scr_dirs copied in PWD
     clean_src_dirs()
