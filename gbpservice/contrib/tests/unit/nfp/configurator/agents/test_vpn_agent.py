@@ -16,7 +16,7 @@ import mock
 from gbpservice.contrib.nfp.configurator.agents import vpn
 from gbpservice.contrib.nfp.configurator.lib import vpn_constants as const
 from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
-    vpn_test_data)
+        vpn_test_data as vpn_data)
 
 from neutron.tests import base
 
@@ -27,7 +27,7 @@ class VPNaasRpcManagerTestCase(base.BaseTestCase):
     """
     def __init__(self, *args, **kwargs):
         super(VPNaasRpcManagerTestCase, self).__init__(*args, **kwargs)
-        self.test_dict = vpn_test_data.VPNTestData()
+        self.test_dict = vpn_data.VPNTestData()
         self.conf = self.test_dict.conf
         self.sc = mock.Mock()
         self.rpcmgr = vpn.VPNaasRpcManager(self.conf, self.sc)
@@ -49,12 +49,12 @@ class VPNaasEventHandlerTestCase(base.BaseTestCase):
     """
     def __init__(self, *args, **kwargs):
         super(VPNaasEventHandlerTestCase, self).__init__(*args, **kwargs)
-        self.test_dict = vpn_test_data.VPNTestData()
+        self.test_dict = vpn_data.VPNTestData()
         self.sc = self.test_dict.sc
         self.conf = self.test_dict.conf
         self.handler = vpn.VPNaasEventHandler(self.test_dict.sc,
                                               self.test_dict.drivers)
-        self.ev = vpn_test_data.FakeEvent()
+        self.ev = vpn_data.FakeEvent()
         self.rpc_sender = vpn.VpnaasRpcSender(self.sc)
         self.driver = mock.Mock()
 
@@ -81,13 +81,11 @@ class VPNaasEventHandlerTestCase(base.BaseTestCase):
         after the configurations.
 
         """
-        with mock.patch.object(self.handler,
-                               '_get_driver',
-                               return_value=self.driver), (
-             mock.patch.object(self.rpc_sender,
-                               'get_vpn_servicecontext')), (
+        with mock.patch.object(self.rpc_sender,
+                               'get_vpn_servicecontext'), (
              mock.patch.object(self.driver,
                                'check_status',
                                return_value=const.STATE_ACTIVE)):
 
+            self.handler.service_driver = self.driver
             self.assertEqual(self.handler.sync(self.ev), {'poll': False})

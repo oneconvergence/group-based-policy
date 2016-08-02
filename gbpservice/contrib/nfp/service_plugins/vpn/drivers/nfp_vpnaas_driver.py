@@ -20,8 +20,7 @@ from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron import manager
 from neutron_lib import exceptions
-from neutron_vpnaas.services.vpn.plugin import VPNDriverPlugin
-from neutron_vpnaas.services.vpn.plugin import VPNPlugin
+from neutron_vpnaas.services.vpn import plugin
 from neutron_vpnaas.services.vpn.service_drivers import base_ipsec
 
 import oslo_messaging
@@ -42,7 +41,8 @@ class VPNAgentNotFound(exceptions.NeutronException):
     message = _("VPN Agent not found in agent_db")
 
 
-class VPNPluginExt(VPNPlugin, agentschedulers_db.AgentSchedulerDbMixin):
+class VPNPluginExt(plugin.VPNPlugin,
+                   agentschedulers_db.AgentSchedulerDbMixin):
     """
     Extends the base VPN Plugin class to inherit agentdb too.
     Required to get agent entry into the database.
@@ -224,9 +224,10 @@ class NFPIPsecVPNDriver(base_ipsec.BaseIPsecVPNDriver):
                 ipsec_site_connection['id']: {
                     'status': ERROR,
                     'updated_pending_status': True}}}]
-        driver = VPNDriverPlugin()._get_driver_for_ipsec_site_connection(
+        driver = (
+            plugin.VPNDriverPlugin()._get_driver_for_ipsec_site_connection(
                                                     context,
-                                                    ipsec_site_connection)
+                                                    ipsec_site_connection))
         NFPIPsecVPNDriverCallBack(driver).update_status(context,
                                                         vpnsvc_status)
 

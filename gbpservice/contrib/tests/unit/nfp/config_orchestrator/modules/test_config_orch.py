@@ -15,9 +15,9 @@ import uuid
 
 from gbpservice.contrib.nfp.config_orchestrator.common import common
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import (
-    firewall)
+    firewall as fw)
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import (
-    loadbalancer)
+    loadbalancer as lb)
 from gbpservice.contrib.nfp.config_orchestrator.handlers.config import vpn
 from gbpservice.contrib.nfp.config_orchestrator.handlers.notification import (
     handler as notif_handler)
@@ -187,7 +187,7 @@ class FirewallTestCase(base.BaseTestCase):
     def setUp(self):
         super(FirewallTestCase, self).setUp()
         self.conf = Conf()
-        self.fw_handler = firewall.FwAgent(self.conf, 'sc')
+        self.fw_handler = fw.FwAgent(self.conf, 'sc')
         self.context = TestContext().get_context()
         self.rpc_methods = RpcMethods()
         self.fw = self._firewall_data()
@@ -261,7 +261,7 @@ class LoadBalanceTestCase(base.BaseTestCase):
     def setUp(self):
         super(LoadBalanceTestCase, self).setUp()
         self.conf = Conf()
-        self.lb_handler = loadbalancer.LbAgent(self.conf, 'sc')
+        self.lb_handler = lb.LbAgent(self.conf, 'sc')
         self.context = TestContext().get_context()
         import_path = ("neutron_lbaas.db.loadbalancer.loadbalancer_db."
                        "LoadBalancerPluginDb")

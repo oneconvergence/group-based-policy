@@ -12,8 +12,8 @@
 
 from neutron.tests import base
 
-from gbpservice.contrib.nfp.configurator.drivers.nfp_service.heat.heat_driver \
-                                                        import HeatDriver
+from gbpservice.contrib.nfp.configurator.drivers.nfp_service.heat import (
+    heat_driver as h_driver)
 from gbpservice.contrib.nfp.configurator.lib import (
                                             nfp_service_constants as const)
 from gbpservice.contrib.tests.unit.nfp.configurator.test_data import (
@@ -37,7 +37,7 @@ class NfpServiceHeatDriverTestCase(base.BaseTestCase):
 
         """
 
-        driver = HeatDriver(self.fo.conf)
+        driver = h_driver.HeatDriver(self.fo.conf)
         actual_val = driver.run_heat(self.fo.context, self.fo.kwargs)
 
         expected_val = const.UNHANDLED_RESULT
