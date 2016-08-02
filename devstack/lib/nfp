@@ -246,7 +246,7 @@ function create_nfp_image {
         echo "Building Image: $RefConfiguratorQcow2ImageName"
         sudo python -c\
  'from gbpservice.contrib.nfp.tools.image_builder import disk_image_create as DIB;\
- DIB.cur_dir = '`echo \"$DISKIMAGE_CREATE_DIR\"`;'\
+ DIB.cur_dir = '`echo \"$DISKIMAGE_CREATE_DIR\"`';\
  DIB.conf["ubuntu_release"] = {"release": "wily"};\
  DIB.conf["dib"] = {"image_size": 3, "elements": ["nfp-reference-configurator", "dhcp-all-interfaces", "devuser"], "offline": True, "cache_dir": "~/.cache/image-create"};\
  DIB.dib()'
@@ -280,7 +280,7 @@ function create_nfp_image {
             rm -rf neutron-lbaas
             sudo python -c\
  'from gbpservice.contrib.nfp.tools.image_builder import disk_image_create as DIB;\
- DIB.cur_dir = '`echo \"$DISKIMAGE_CREATE_DIR\"`;'\
+ DIB.cur_dir = '`echo \"$DISKIMAGE_CREATE_DIR\"`';\
  DIB.conf["ubuntu_release"] = {"release": "trusty"};\
  DIB.conf["dib"] = {"image_size": 10, "elements": ["configurator"], "offline": True, "cache_dir": "~/.cache/image-create"};\
  DIB.dib()'
