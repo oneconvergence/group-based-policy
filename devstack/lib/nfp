@@ -246,7 +246,7 @@ function create_nfp_image {
         echo "Building Image: $RefConfiguratorQcow2ImageName"
         sudo python -c\
  'from gbpservice.contrib.nfp.tools.image_builder import disk_image_create as DIB;\
- DIb.cur_dir = $DISKIMAGE_CREATE_DIR\
+ DIB.cur_dir = '`echo \"$DISKIMAGE_CREATE_DIR\"`;'\
  DIB.conf["ubuntu_release"] = {"release": "wily"};\
  DIB.conf["dib"] = {"image_size": 3, "elements": ["nfp-reference-configurator", "dhcp-all-interfaces", "devuser"], "offline": True, "cache_dir": "~/.cache/image-create"};\
  DIB.dib()'
@@ -263,24 +263,24 @@ function create_nfp_image {
             # Prepare source for configurator
             #git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/neutron-lib.git
             git clone -b master https://github.com/openstack/neutron-lib.git
-            cp neutron-lib/neutron_lib $DISKIMAGE_CREATE_DIR/neutron_lib
+            cp -r neutron-lib/neutron_lib $DISKIMAGE_CREATE_DIR/neutron_lib
             rm -rf neutron-lib
-            git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/group-based-policy.git
-            cp group-based-policy/gbpservice $DISKIMAGE_CREATE_DIR/gbpservice
+            git clone -b $GBPSERVICE_BRANCH $GBPSERVICE_REPO
+            cp -r group-based-policy/gbpservice $DISKIMAGE_CREATE_DIR/gbpservice
             rm -rf group-based-policy
             #git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/neutron.git neutron_$GBPSERVICE_BRANCH
-            git clone -b master https://github.com/openstack/neutron.git neutron_$GBPSERVICE_BRANCH
+            git clone -b master https://github.com/openstack/neutron.git neutron_master
             #cp neutron_$GBPSERVICE_BRANCH/neutron $DISKIMAGE_CREATE_DIR/neutron
-            cp neutron_master/neutron $DISKIMAGE_CREATE_DIR/neutron
+            cp -r neutron_master/neutron $DISKIMAGE_CREATE_DIR/neutron
             #rm -rf neutron_$GBPSERVICE_BRANCH
             rm -rf neutron_master
             #git clone -b $GBPSERVICE_BRANCH https://github.com/openstack/neutron-lbaas.git
             git clone -b master https://github.com/openstack/neutron-lbaas.git
-            cp neutron-lbaas/neutron_lbaas $DISKIMAGE_CREATE_DIR/neutron_lbaas
+            cp -r neutron-lbaas/neutron_lbaas $DISKIMAGE_CREATE_DIR/neutron_lbaas
             rm -rf neutron-lbaas
             sudo python -c\
  'from gbpservice.contrib.nfp.tools.image_builder import disk_image_create as DIB;\
- DIb.cur_dir = $DISKIMAGE_CREATE_DIR\
+ DIB.cur_dir = '`echo \"$DISKIMAGE_CREATE_DIR\"`;'\
  DIB.conf["ubuntu_release"] = {"release": "trusty"};\
  DIB.conf["dib"] = {"image_size": 10, "elements": ["configurator"], "offline": True, "cache_dir": "~/.cache/image-create"};\
  DIB.dib()'
@@ -308,7 +308,7 @@ function create_nfp_image {
 function configure_configurator_user_data {
     CUR_DIR=$PWD
     sudo rm -rf /opt/configurator_user_data
-    sudo cp -r $NFPSERVICE_DIR/devstack/exercises/nfp_service/user-data/configurator_user_data /opt/.
+    sudo cp -r $DISKIMAGE_CREATE_DIR/configurator_user_data /opt/.
     cd /opt
     sudo rm -rf my.key my.key.pub
     sudo ssh-keygen -t rsa -N "" -f my.key
