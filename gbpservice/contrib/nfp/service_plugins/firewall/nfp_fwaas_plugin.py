@@ -10,36 +10,33 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import netaddr
+
 from keystoneclient import exceptions as k_exceptions
 from keystoneclient.v2_0 import client as keyclient
 
 from neutron.api.v2 import attributes as attr
-
-from neutron import context as neutron_context
-from neutron.api.v2 import attributes as attr
 from neutron.common import constants as l3_constants
-from neutron import manager
-from neutron.common import topics as n_topics
 from neutron.common import exceptions as n_exc
+from neutron.common import topics as n_topics
 from neutron.db import l3_db
-from neutron.db.l3_db import (
-        RouterPort, EXTERNAL_GW_INFO, DEVICE_OWNER_ROUTER_INTF, DEVICE_OWNER_ROUTER_GW)
+from neutron.db import models_v2
 from neutron.extensions import l3
 from neutron.plugins.common import constants as n_const
-import netaddr
-from oslo_config import cfg
-from oslo_utils import uuidutils
-from oslo_utils import excutils
-from sqlalchemy import orm
 
-from gbpservice.contrib.nfp.config_orchestrator.common import topics
+from oslo_config import cfg
+from oslo_utils import excutils
+from oslo_utils import uuidutils
+
 from gbpservice.common import utils
+from gbpservice.contrib.nfp.config_orchestrator.common import topics
+from gbpservice.nfp.core import log as nfp_logging
 import neutron_fwaas.extensions
 from neutron_fwaas.services.firewall import fwaas_plugin as ref_fw_plugin
 
-from neutron_fwaas.db.firewall import (
-         firewall_router_insertion_db as ref_fw_router_ins_db)
 from neutron_fwaas.db.firewall import firewall_db as n_firewall
+
+LOG = nfp_logging.getLogger(__name__)
 
 
 class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
@@ -94,6 +91,7 @@ class NFPFirewallPlugin(ref_fw_plugin.FirewallPlugin):
         """
         return fw
 
+
 # Monkey patching the create_firewall db method
 def create_firewall(self, context, firewall, status=None):
     fw = firewall['firewall']
@@ -121,6 +119,7 @@ n_firewall.Firewall_db_mixin.create_firewall = create_firewall
 # Monkey patching l3_db's _get_router_for_floatingip method to associate
 # floatingip if corresponding routes is present.
 
+
 def _is_net_reachable_from_net(self, context, tenant_id, from_net_id,
                                to_net_id):
     """Check whether a network is reachable.
@@ -136,6 +135,7 @@ def _is_net_reachable_from_net(self, context, tenant_id, from_net_id,
     original_context = context
     context = elevate_context(context)
     tenant_id = context.tenant_id
+
     def nexthop_nets_query(nets, visited):
         """query networks connected to devices on nets but not visited."""
         Port = models_v2.Port
@@ -172,7 +172,7 @@ def _find_net_for_nexthop(self, context, tenant_id, router_id, nexthop):
     interfaces = context.session.query(models_v2.Port).filter_by(
         tenant_id=tenant_id,
         device_id=router_id,
-        device_owner=DEVICE_OWNER_ROUTER_INTF)
+        device_owner=l3_db.DEVICE_OWNER_ROUTER_INTF)
     for interface in interfaces:
         cidrs = [self._core_plugin._get_subnet(context,
                                                ip['subnet_id'])['cidr']
@@ -215,7 +215,7 @@ def _find_routers_via_routes_for_floatingip(self, context, internal_port,
     prefix_routers = []
     for router in routers:
         # verify that the router is on "external_network"
-        gw_info = router.get(EXTERNAL_GW_INFO)
+        gw_info = router.get(l3_db.EXTERNAL_GW_INFO)
         if not gw_info or gw_info['network_id'] != external_network_id:
             continue
         # find a matching route
@@ -247,6 +247,7 @@ def _find_routers_via_routes_for_floatingip(self, context, internal_port,
     context = original_context
     return [p_r[1] for p_r in sorted(prefix_routers, reverse=True)]
 
+
 def elevate_context(context):
     context = context.elevated()
     context.tenant_id = _resource_owner_tenant_id()
@@ -262,10 +263,11 @@ def _resource_owner_tenant_id():
         return tenant.id
     except k_exceptions.NotFound:
         with excutils.save_and_reraise_exception(reraise=True):
-            LOG.error(_LE('No tenant with name %s exists.'), tenant)
+            LOG.error(_('No tenant with name %s exists.'), tenant)
     except k_exceptions.NoUniqueMatch:
         with excutils.save_and_reraise_exception(reraise=True):
-            LOG.error(_LE('Multiple tenants matches found for %s'), tenant)
+            LOG.error(_('Multiple tenants matches found for %s'),
+                      tenant)
 
 
 def _get_router_for_floatingip(self, context, internal_port,
@@ -293,7 +295,7 @@ def _get_router_for_floatingip(self, context, internal_port,
         has_gw_port = router_gw_qry.filter_by(
             network_id=external_network_id,
             device_id=router_id,
-            device_owner=DEVICE_OWNER_ROUTER_GW).count()
+            device_owner=l3_db.DEVICE_OWNER_ROUTER_GW).count()
         if has_gw_port:
             return router_id
 
@@ -311,8 +313,10 @@ def _get_router_for_floatingip(self, context, internal_port,
         port_id=internal_port['id'])
 
 
-l3_db.L3_NAT_dbonly_mixin._get_router_for_floatingip = _get_router_for_floatingip
-l3_db.L3_NAT_dbonly_mixin._find_routers_via_routes_for_floatingip = _find_routers_via_routes_for_floatingip
+l3_db.L3_NAT_dbonly_mixin._get_router_for_floatingip = (
+    _get_router_for_floatingip)
+l3_db.L3_NAT_dbonly_mixin._find_routers_via_routes_for_floatingip = (
+    _find_routers_via_routes_for_floatingip)
 l3_db.L3_NAT_dbonly_mixin._find_net_for_nexthop = _find_net_for_nexthop
-l3_db.L3_NAT_dbonly_mixin._is_net_reachable_from_net = _is_net_reachable_from_net
-
+l3_db.L3_NAT_dbonly_mixin._is_net_reachable_from_net = (
+    _is_net_reachable_from_net)
