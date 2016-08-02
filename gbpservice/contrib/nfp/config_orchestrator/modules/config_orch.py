@@ -22,13 +22,13 @@ from gbpservice.contrib.nfp.config_orchestrator.handlers.config import vpn
 from gbpservice.contrib.nfp.config_orchestrator.handlers.notification import (
     handler as notif_handler)
 
-from gbpservice.nfp.core.rpc import RpcAgent
+from gbpservice.nfp.core import rpc
 from oslo_config import cfg
 
 
 def rpc_init(sc, conf):
     fwrpcmgr = fw.FwAgent(conf, sc)
-    fwagent = RpcAgent(
+    fwagent = rpc.RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=a_topics.FW_NFP_CONFIGAGENT_TOPIC,
@@ -46,7 +46,7 @@ def rpc_init(sc, conf):
         'report_interval': 10
     }
     lbrpcmgr = lb.LbAgent(conf, sc)
-    lbagent = RpcAgent(
+    lbagent = rpc.RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=a_topics.LB_NFP_CONFIGAGENT_TOPIC,
@@ -65,7 +65,7 @@ def rpc_init(sc, conf):
         'report_interval': 10
     }
     lbv2rpcmgr = lbv2.Lbv2Agent(conf, sc)
-    lbv2agent = RpcAgent(
+    lbv2agent = rpc.RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=a_topics.LBV2_NFP_CONFIGAGENT_TOPIC,
@@ -84,7 +84,7 @@ def rpc_init(sc, conf):
         'report_interval': 10
     }
     vpnrpcmgr = vpn.VpnAgent(conf, sc)
-    vpnagent = RpcAgent(
+    vpnagent = rpc.RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=a_topics.VPN_NFP_CONFIGAGENT_TOPIC,
@@ -93,7 +93,7 @@ def rpc_init(sc, conf):
     )
 
     rpchandler = notif_handler.RpcHandler(conf, sc)
-    rpcagent = RpcAgent(
+    rpcagent = rpc.RpcAgent(
         sc,
         host=cfg.CONF.host,
         topic=a_topics.CONFIG_ORCH_TOPIC,

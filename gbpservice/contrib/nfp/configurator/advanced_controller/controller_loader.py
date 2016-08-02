@@ -13,7 +13,7 @@
 import pecan
 
 from gbpservice.contrib.nfp.configurator.advanced_controller import (
-    controller)
+    controller as controller)
 
 """This class forwards HTTP request to controller class.
 
@@ -58,7 +58,6 @@ class V1Controller(object):
 
     @pecan.expose()
     def get(self):
-        # TODO(blogan): decide what exactly should be here, if anything
         return {'versions': [{'status': 'CURRENT',
                               'updated': '2014-12-11T00:00:00Z',
                               'id': 'v1'}]}
