@@ -49,7 +49,8 @@ def create_configurator_docker():
     os.chdir(docker_images)
     del(docker_args)
     # save the docker image
-    docker_args = ['docker', 'save', '-o', 'configurator-docker', 'configurator-docker']
+    docker_args = ['docker', 'save', '-o', 'configurator-docker',
+                   'configurator-docker']
     ret = subprocess.call(docker_args)
     if(ret):
         print("Failed to save docker image [configurator-docker]")
@@ -94,12 +95,12 @@ def dib():
         if(create_configurator_docker()):
             return
         # for bigger size images
-        if not "--no-tmpfs" in dib_args:
+        if "--no-tmpfs" not in dib_args:
             dib_args.append('--no-tmpfs')
         # append docker-opt element
-        if not "docker-opt" in dib_args:
+        if "docker-opt" not in dib_args:
             dib_args.append("docker-opt")
-     
+
     for element in dib['elements']:
         image_name = image_name + '_' + element
         dib_args.append(element)
@@ -125,11 +126,11 @@ def dib():
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
     os.chdir(out_dir)
-    print "DIB-ARGS: ", dib_args
+    print("DIB-ARGS: ", dib_args)
     ret = subprocess.call(dib_args)
     if not ret:
         output_path = os.path.realpath('./')
-        print "Output path: ", output_path
+        print("Output path: ", output_path)
         output_image = output_path + '/' + image_name + '.qcow2'
 
         print("Image location: %s" % output_image)
@@ -137,33 +138,5 @@ def dib():
             f.write(output_image)
 
         return output_image
-    
+
     return 0
-
-
-if __name__ == "__main__":
-
-    if os.geteuid():
-        sys.exit("ERROR: Script should be run as sudo/root")
-    if len(sys.argv) != 2:
-        print "ERROR: Invalid Usage"
-        print "Usage:\n\t%s <json config file>" % sys.argv[0]
-	print "\twhere: <json config file> contains all the configuration"
-        exit()
-    # save PWD
-    cur_dir = os.path.dirname(__file__)
-    cur_dir = os.path.realpath(cur_dir)
-    if not cur_dir:
-        # if script is executed from current dir, get abs path
-        cur_dir = os.path.realpath('./')
-
-    # parse args from json file
-    try:
-        parse_json(sys.argv[1])
-    except Exception as e:
-        print "ERROR parsing json file"
-        print e
-        exit()
-
-    # run Disk Image Builder to create VM image
-    dib()
