@@ -19,7 +19,7 @@ import sys
 
 conf = {}
 cur_dir = ''
-docker_build_dir = './'
+docker_build_dir = None
 
 
 def parse_json(j_file):
@@ -64,6 +64,8 @@ def create_configurator_docker():
 
 def dib():
 
+    global docker_build_dir
+
     dib = conf['dib']
     elems = cur_dir + '/elements/'
 
@@ -93,6 +95,8 @@ def dib():
             os.environ['DIB_DEV_USER_AUTHORIZED_KEYS'] = (
                 "%s.pub" % os.environ['SSH_RSS_KEY'])
     elif 'configurator' in dib['elements']:
+        if not docker_build_dir:
+            docker_build_dir = cur_dir
         if(create_configurator_docker()):
             return (False, None)
         # for bigger size images
