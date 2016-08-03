@@ -50,7 +50,7 @@ RUN mkdir -p /var/log/nfp
 RUN touch /var/log/nfp/nfp_configurator.log
 RUN touch /var/log/nfp/nfp_pecan.log
 RUN sed -i "/version = version.encode('utf-8')/a\    version = '1.8.0'" /usr/local/lib/python2.7/dist-packages/pbr/packaging.py
-RUN chmod +777 /configurator_run.sh
+RUN chmod +555 /configurator_run.sh
 
 EXPOSE 8070:8080
 EXPOSE 5672:5672

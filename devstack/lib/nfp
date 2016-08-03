@@ -25,6 +25,7 @@ NEUTRON_CONF_DIR=/etc/neutron
 NEUTRON_CONF=$NEUTRON_CONF_DIR/neutron.conf
 NFP_CONF_DIR=/etc/nfp
 DISKIMAGE_CREATE_DIR=$NFPSERVICE_DIR/gbpservice/contrib/nfp/tools/image_builder
+NEUTRON_SRC_BRANCH_FOR_NFP_CONTROLLER=stable/mitaka
 
 # Save trace setting
 XTRACE=$(set +o | grep xtrace)
@@ -261,16 +262,16 @@ function create_nfp_image {
         if [[ $ConfiguratorQcow2Image = build ]]; then
             echo "Building Image: $ConfiguratorQcow2ImageName"
             # Prepare source for configurator
-            git clone -b stable/mitaka https://github.com/openstack/neutron-lib.git
+            git clone -b $NEUTRON_SRC_BRANCH_FOR_NFP_CONTROLLER https://github.com/openstack/neutron-lib.git
             cp -r neutron-lib/neutron_lib $DISKIMAGE_CREATE_DIR/neutron_lib
             rm -rf neutron-lib
-            git clone -b $GBPSERVICE_BRANCH $GBPSERVICE_REPO
+            git_clone $GBPSERVICE_REPO group-based-policy $GBPSERVICE_BRANCH
             cp -r group-based-policy/gbpservice $DISKIMAGE_CREATE_DIR/gbpservice
             rm -rf group-based-policy
-            git clone -b stable/mitaka https://github.com/openstack/neutron.git
+            git clone -b $NEUTRON_SRC_BRANCH_FOR_NFP_CONTROLLER https://github.com/openstack/neutron.git
             cp -r neutron/neutron $DISKIMAGE_CREATE_DIR/neutron
             rm -rf neutron
-            git clone -b stable/mitaka https://github.com/openstack/neutron-lbaas.git
+            git clone -b $NEUTRON_SRC_BRANCH_FOR_NFP_CONTROLLER https://github.com/openstack/neutron-lbaas.git
             cp -r neutron-lbaas/neutron_lbaas $DISKIMAGE_CREATE_DIR/neutron_lbaas
             rm -rf neutron-lbaas
             sudo python -c\

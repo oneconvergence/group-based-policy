@@ -59,9 +59,9 @@ def get_src_dirs():
     print("Getting source dirs for copying inside the docker image")
     # get the operating system type
     (os_type, os_version, os_release) = platform.dist()
-    if os_type == 'Ubuntu':
+    if os_type in ['Ubuntu']:
         src_path = "/usr/lib/python2.7/dist-packages/"
-    elif os_type == 'centos':
+    elif os_type in ['centos', 'redhat']:
         src_path = "/usr/lib/python2.7/site-packages/"
     else:
         print("ERROR: Unsupported Operating System(%s)" % os_type)
