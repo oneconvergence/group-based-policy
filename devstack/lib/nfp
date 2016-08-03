@@ -265,9 +265,9 @@ function create_nfp_image {
             git clone -b $NEUTRON_SRC_BRANCH_FOR_NFP_CONTROLLER https://github.com/openstack/neutron-lib.git
             cp -r neutron-lib/neutron_lib $DISKIMAGE_CREATE_DIR/neutron_lib
             rm -rf neutron-lib
-            git_clone $GBPSERVICE_REPO group-based-policy $GBPSERVICE_BRANCH
-            cp -r group-based-policy/gbpservice $DISKIMAGE_CREATE_DIR/gbpservice
-            rm -rf group-based-policy
+            git_clone $GBPSERVICE_REPO $DEVSTACK_DIR/group-based-policy $GBPSERVICE_BRANCH
+            cp -r $DEVSTACK_DIR/group-based-policy/gbpservice $DISKIMAGE_CREATE_DIR/gbpservice
+            rm -rf $DEVSTACK_DIR/group-based-policy
             git clone -b $NEUTRON_SRC_BRANCH_FOR_NFP_CONTROLLER https://github.com/openstack/neutron.git
             cp -r neutron/neutron $DISKIMAGE_CREATE_DIR/neutron
             rm -rf neutron
