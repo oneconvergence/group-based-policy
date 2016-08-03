@@ -23,6 +23,8 @@ TEMPLATES_PATH = FILE_PATH + "/templates/gbp_resources.yaml"
 # these src_dirs will be copied from host to inside docker image, these
 # diretories are assumed to present in src_path
 src_dirs = ["gbpservice", "neutron", "neutron_lbaas", "neutron_lib"]
+# create a temp directory for copying srcs
+dst_dir = "/tmp/controller_docker_build/"
 
 
 parser = argparse.ArgumentParser()
@@ -71,20 +73,26 @@ def get_src_dirs():
         if not os.path.isdir(to_copy):
             print("ERROR: directory not found: ", to_copy)
             return 1
-    os.chdir(DIB.cur_dir)
+    # create a tmp directory for creating configurator docker
+    subprocess.call(["rm", "-rf", dst_dir])
+    os.mkdir(dst_dir)
+    dockerfile = DIB.cur_dir + "/Dockerfile"
+    run_sh = DIB.cur_dir + "/configurator_run.sh"
     # these src_dirs will be copied from host to inside docker image
     for src_dir in src_dirs:
         to_copy = src_path + src_dir
-        if(subprocess.call(["cp", "-r", to_copy, "."])):
+        if(subprocess.call(["cp", "-r", to_copy, dst_dir])):
             print("ERROR: failed to copy %s to ./ directory" % to_copy)
             return 1
+    subprocess.call(["cp", dockerfile, dst_dir])
+    subprocess.call(["cp", run_sh, dst_dir])
+    DIB.docker_build_dir = dst_dir
+
     return 0
 
 
 def clean_src_dirs():
-    os.chdir(DIB.cur_dir)
-    for src_dir in src_dirs:
-        subprocess.call(["rm", "-rf", src_dir])
+    subprocess.call(["rm", "-rf", dst_dir])
 
 
 def update_user_data():
@@ -122,11 +130,11 @@ def build_configuration_vm():
                        "offline": True, "cache_dir": cache_dir}
 
     # Build configurator VM
-    ret = DIB.dib()
+    (ret, image) = DIB.dib()
     if not ret:
         print("ERROR: Failed to create Configurator VM")
     else:
-        print("SUCCESS, created Configurator VM: ", ret)
+        print("SUCCESS, created Configurator VM: ", image)
 
     # clean the scr_dirs copied in PWD
     clean_src_dirs()

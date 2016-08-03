@@ -19,6 +19,7 @@ import sys
 
 conf = {}
 cur_dir = ''
+docker_build_dir = None
 
 
 def parse_json(j_file):
@@ -35,7 +36,7 @@ def create_configurator_docker():
     docker_images = os.path.realpath(docker_images)
 
     # create a docker image
-    os.chdir(cur_dir)
+    os.chdir(docker_build_dir)
     # build configuratro docker
     docker_args = ['docker', 'build', '-t', 'configurator-docker', '.']
     ret = subprocess.call(docker_args)
@@ -62,6 +63,8 @@ def create_configurator_docker():
 
 
 def dib():
+
+    global docker_build_dir
 
     dib = conf['dib']
     elems = cur_dir + '/elements/'
@@ -92,8 +95,10 @@ def dib():
             os.environ['DIB_DEV_USER_AUTHORIZED_KEYS'] = (
                 "%s.pub" % os.environ['SSH_RSS_KEY'])
     elif 'configurator' in dib['elements']:
+        if not docker_build_dir:
+            docker_build_dir = cur_dir
         if(create_configurator_docker()):
-            return
+            return (False, None)
         # for bigger size images
         if "--no-tmpfs" not in dib_args:
             dib_args.append('--no-tmpfs')
@@ -137,6 +142,6 @@ def dib():
         with open("%s/last_built_image_path" % output_path, "w") as f:
             f.write(output_image)
 
-        return output_image
+        return (True, output_image)
 
-    return 0
+    return (False, None)
