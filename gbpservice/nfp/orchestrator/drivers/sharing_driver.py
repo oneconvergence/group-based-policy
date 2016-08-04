@@ -88,3 +88,18 @@ class SharingDriver(orchestration_driver.OrchestrationDriver):
                                                           device_data['token'],
                                                           port_id)
         return managemt_info
+
+    @orchestration_driver._set_network_handler
+    def get_neutron_port_details(self, device_data, token, port_id, network_handler=None):
+        neutron_info = (super(
+            SharingDriver, self).get_neutron_port_details(network_handler,
+                                                          token,
+                                                          port_id))
+        port = neutron_info['neutron_port']
+        subnet = neutron_info['neutron_subnet']
+        port['ip_address'] = neutron_info['ip_address']
+        port['mac_address'] = neutron_info['mac']
+        subnet['cidr'] = neutron_info['cidr']
+        subnet['gateway_ip'] = neutron_info['gateway_ip']
+        return {'port': port,
+                'subnet': subnet}

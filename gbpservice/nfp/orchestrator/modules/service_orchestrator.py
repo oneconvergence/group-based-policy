@@ -763,7 +763,6 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         nfp_context['service_details'] = service_details
         nfp_context['share_existing_device'] = False
         nfp_context['base_mode'] = base_mode_support
-
         if base_mode_support:
             # Store the context in current thread
             nfp_core_context.store_nfp_context(nfp_context)
@@ -773,9 +772,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                                                      service_config_str)
         else:
             # Create and event to perform Network service instance
-            self._create_event('CREATE_NETWORK_FUNCTION_INSTANCE',
-                               event_data=nfp_context,
-                               is_internal_event=True)
+            self.network_function_instance_db_create(nfp_context)
 
         nfp_logging.clear_logging_context()
         return network_function
@@ -854,25 +851,13 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                            event_data=request_data,
                            is_poll_event=True, original_event=event)
 
-    def create_network_function_instance(self, event):
-        nfp_context = event.data
+    def network_function_instance_db_create(self, nfp_context):
 
         network_function = nfp_context['network_function']
         # service_profile = nfp_context['service_profile']
         service_details = nfp_context['service_details']
-        consumer = nfp_context['consumer']
-        provider = nfp_context['provider']
 
         port_info = []
-        for ele in [consumer, provider]:
-            if ele['pt']:
-                # REVISIT(ashu): Only pick few chars from id
-                port_info.append(
-                    {'id': ele['pt']['id'],
-                     'port_model': ele['port_model'],
-                     'port_classification': ele['port_classification']
-                     })
-
         # REVISIT(ashu): Only pick few chars from id
         name = '%s_%s' % (network_function['name'],
                           network_function['id'])
@@ -896,9 +881,47 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                                   service_details['service_vendor'])
 
         nfp_context['network_function_instance'] = nfi_db
+        binding_key = nfp_context['service_chain_instance']['id']
 
-        LOG.info(_LI("[Event:CreateService]")),
-        binding_key = nfp_context['service_chain_node']['id']
+        LOG.info(_LI("[Event:CreateService]"))
+        ev = self._controller.new_event(
+            id='CREATE_NETWORK_FUNCTION_INSTANCE',
+            data=nfp_context,
+            key=network_function['id'],
+            binding_key=binding_key,
+            serialize=True)
+        self._controller.post_event(ev)
+
+    def create_network_function_instance(self, event):
+        nfp_context = event.data
+        network_function = nfp_context['network_function']
+        consumer = nfp_context['consumer']
+        provider = nfp_context['provider']
+        network_function_instance = nfp_context[
+            'network_function_instance']
+
+        port_info = []
+        for ele in [consumer, provider]:
+            if ele['pt']:
+                # REVISIT(ashu): Only pick few chars from id
+                port_info.append(
+                    {'id': ele['pt']['id'],
+                     'port_model': ele['port_model'],
+                     'port_classification': ele['port_classification']
+                     })
+
+        nfi = {
+            'port_info': port_info
+        }
+        nfi = self.db_handler.update_network_function_instance(
+            self.db_session, network_function_instance['id'], nfi)
+        LOG.error("NFI: %r" %(nfi))
+        nfp_context['network_function_instance'] = nfi
+
+        if 'binding_key' in nfp_context:
+            binding_key = nfp_context['binding_key']
+        else:
+            binding_key = nfp_context['service_chain_node']['id']
 
         ev = self._controller.new_event(
             id='CREATE_NETWORK_FUNCTION_DEVICE',
@@ -907,6 +930,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
             key=network_function['id'],
             serialize=True)
         self._controller.post_event(ev)
+        self._controller.event_complete(event)
 
     def handle_device_created(self, event):
         request_data = event.data
@@ -1183,36 +1207,18 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         nfi = self.db_handler.update_network_function_instance(
             self.db_session, nfi_id, nfi)
         if nfi['network_function_device_id']:
-
-            filters = {
-                'network_function_device_id': [
-                    nfi['network_function_device_id']],
-                'status': ['ACTIVE']
-            }
-            network_function_instances = (
-                self.db_handler.get_network_function_instances(
-                    self.db_session, filters=filters))
-            if network_function_instances:
-                device_deleted_event = {
-                    'network_function_instance_id': nfi['id']
-                }
-                network_function = self.db_handler.get_network_function(
-                    self.db_session, nfi['network_function_id'])
-                nf_id = network_function['id']
-                self.db_handler.delete_network_function(
-                    self.db_session, nfi['network_function_id'])
-                LOG.info(_LI("NSO: Deleted network function: %(nf_id)s"),
-                         {'nf_id': nf_id})
-
-                return
             delete_nfd_request = {
                 'network_function_device_id': nfi[
                     'network_function_device_id'],
                 'network_function_instance': nfi,
                 'network_function_id': nfi['network_function_id']
             }
-            self._create_event('DELETE_NETWORK_FUNCTION_DEVICE',
-                               event_data=delete_nfd_request)
+            del_nfd_event = (
+                self._controller.new_event(id='DELETE_NETWORK_FUNCTION_DEVICE',
+                                           key=nfi['network_function_id'],
+                                           data=delete_nfd_request))
+            self._controller.post_event(del_nfd_event)
+
         else:
             device_deleted_event = {
                 'network_function_instance_id': nfi['id']

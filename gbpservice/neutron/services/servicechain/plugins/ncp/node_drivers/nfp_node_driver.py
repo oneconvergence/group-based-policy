@@ -284,9 +284,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         # logical services in a single device
         plumbing_request = {'management': [], 'provider': [{}],
                             'consumer': [{}]}
-
         if service_type in [pconst.FIREWALL, pconst.VPN]:
             plumbing_request['plumbing_type'] = 'gateway'
+            '''
             # plumber will return stitching network PT instead of consumer
             # as chain is instantiated while creating provider group.
             if (self._check_for_fw_vpn_sharing(context, service_type) and
@@ -297,6 +297,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                 LOG.info(_("Not requesting plumber for PTs for service type "
                     "%(service_type)s"), {'service_type': service_type})
                 return {}
+            '''
         else:  # Loadbalancer which is one arm
             plumbing_request['consumer'] = []
             plumbing_request['plumbing_type'] = 'endpoint'
@@ -306,7 +307,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                  {'plumbing_request': plumbing_request,
                   'service_type': service_type})
         return plumbing_request
-
+    '''
     def _check_for_fw_vpn_sharing(self, context, service_type):
         shared_svc_type = pconst.FIREWALL
         if service_type == pconst.FIREWALL:
@@ -334,6 +335,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             service_profiles = context.sc_plugin.get_service_profiles(
                 context.plugin_context, filters)
             return True if service_profiles else False
+    '''
+
 
     def validate_create(self, context):
         if not context.current_profile:
@@ -390,6 +393,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             raise e
 
     def create(self, context):
+        LOG.error("Create came")
         try:
             context._plugin_context = self._get_resource_owner_context(
                 context._plugin_context)
@@ -659,7 +663,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                              {'nf_id': network_function_id})
         else:
             LOG.info(_LI("No action to take on update"))
-
+    '''
     def _get_shared_service_targets(self, context, service_type, relationship):
         current_specs = context.relevant_specs
         for spec in current_specs:
@@ -676,6 +680,19 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                         servicechain_node_id=node['id'],
                         relationship=relationship)
                     return service_targets
+    '''
+    def _get_service_chain_specs(self, context):
+        current_specs = context.relevant_specs
+        for spec in current_specs:
+            filters = {'id': spec['nodes']}
+            nodes = context.sc_plugin.get_servicechain_nodes(
+                context.plugin_context, filters)
+            for node in nodes:
+                profile = context.sc_plugin.get_service_profile(
+                    context.plugin_context, node['service_profile_id'])
+                node['sc_service_profile'] = profile
+            spec['sc_nodes'] = nodes
+        return current_specs
 
     def _get_service_targets(self, context):
         service_type = context.current_profile['service_type']
@@ -687,6 +704,7 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         # Bug with NCP. For create, its not setting service targets in context
         if not service_targets:
             service_targets = context.get_service_targets(update=True)
+        '''
         if (not service_targets and service_type in
             [pconst.FIREWALL, pconst.VPN]):
                 shared_service_type = {pconst.FIREWALL: pconst.VPN,
@@ -702,6 +720,13 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                     consumer_service_targets.append(service_target)
                 elif service_target.relationship == 'provider':
                     provider_service_targets.append(service_target)
+        '''
+        for service_target in service_targets:
+            if service_target.relationship == 'consumer':
+                consumer_service_targets.append(service_target)
+            elif service_target.relationship == 'provider':
+                provider_service_targets.append(service_target)
+
         LOG.debug("provider targets: %s consumer targets %s" % (
             provider_service_targets, consumer_service_targets))
         if (service_details['device_type'] != 'None' and (
@@ -804,22 +829,22 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
 
         consuming_ptgs_details = []
         consuming_eps_details = []
-
-        provided_prs_id = provider['provided_policy_rule_sets'][0]
-        provided_prs = context.gbp_plugin.get_policy_rule_set(
-            context.plugin_context, provided_prs_id)
-        consuming_ptg_ids = provided_prs['consuming_policy_target_groups']
-        consuming_ep_ids = provided_prs['consuming_external_policies']
+        if provider['provided_policy_rule_sets']:
+            provided_prs_id = provider['provided_policy_rule_sets'][0]
+            provided_prs = context.gbp_plugin.get_policy_rule_set(
+                context.plugin_context, provided_prs_id)
+            consuming_ptg_ids = provided_prs['consuming_policy_target_groups']
+            consuming_ep_ids = provided_prs['consuming_external_policies']
     
-        consuming_ptgs = context.gbp_plugin.get_policy_target_groups(
-                context.plugin_context, filters={'id':consuming_ptg_ids})
-        consuming_eps_details = context.gbp_plugin.get_external_policies(
-                context.plugin_context, filters={'id': consuming_ep_ids})
+            consuming_ptgs = context.gbp_plugin.get_policy_target_groups(
+                    context.plugin_context, filters={'id':consuming_ptg_ids})
+            consuming_eps_details = context.gbp_plugin.get_external_policies(
+                    context.plugin_context, filters={'id': consuming_ep_ids})
 
-        for ptg in consuming_ptgs:
-            subnet_ids = ptg['subnets']
-            subnets = context.core_plugin.get_subnets(context.plugin_context, filters={'id':subnet_ids})
-            consuming_ptgs_details.append({'ptg':ptg, 'subnets':subnets})
+            for ptg in consuming_ptgs:
+                subnet_ids = ptg['subnets']
+                subnets = context.core_plugin.get_subnets(context.plugin_context, filters={'id':subnet_ids})
+                consuming_ptgs_details.append({'ptg':ptg, 'subnets':subnets})
 
         return consuming_ptgs_details, consuming_eps_details
 
@@ -905,6 +930,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             'subnet': None,
             'port_model': nfp_constants.GBP_NETWORK,
             'port_classification': nfp_constants.MANAGEMENT}
+            
+        service_chain_specs = self._get_service_chain_specs(context)
+
         nfp_create_nf_data = {
             'resource_owner_context': context._plugin_context.to_dict(),
             'service_chain_instance': sc_instance,
@@ -918,7 +946,9 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
             'network_function_mode': nfp_constants.GBP_MODE,
             'tenant_id': context.provider['tenant_id'],
             'consuming_ptgs_details': consuming_ptgs_details,
-            'consuming_eps_details': consuming_eps_details}
+            'consuming_eps_details': consuming_eps_details,
+            'service_chain_specs': service_chain_specs}
+
         return self.nfp_notifier.create_network_function(
             context.plugin_context, network_function=nfp_create_nf_data)['id']
 
