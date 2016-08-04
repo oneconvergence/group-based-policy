@@ -1,0 +1,38 @@
+#!/bin/sh
+PID_FILE=/var/run/nfp_controller.pid
+
+start_nfp_controller () {
+    exec start-stop-daemon --quiet --start -m --pidfile $PID_FILE --background --exec  /usr/bin/python2 /usr/bin/nfp -- --log-file /var/log/nfp/nfp_configurator.log --config-file /etc/nfp_configurator.ini
+}
+
+stop_nfp_controller () {
+    exec start-stop-daemon --quiet --stop --signal KILL  --pidfile $PID_FILE
+}
+
+status_nfp_controller () {
+    set +e
+    wc=`ps -elf|grep nfp |wc -l`
+    if [ $wc -le 3 ] ; then
+       echo "nfp controller is NOT running"
+    else
+       echo "nfp controller is running"
+    fi
+}
+
+
+case "$1" in
+    start)
+        start_nfp_controller
+        ;;
+    stop)
+        stop_nfp_controller
+        ;;
+    status)
+        status_nfp_controller
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|status|restart}" >&2
+        RETVAL=1
+        ;;
+esac
+

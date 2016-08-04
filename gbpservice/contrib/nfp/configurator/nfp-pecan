@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+PID_FILE=/var/run/nfp_pecan.pid
+
+start_nfp_pecan () {
+    exec start-stop-daemon --quiet --start -m --pidfile $PID_FILE --background --chdir /usr/local/lib/python2.7/dist-packages/gbpservice/nfp/pecan/api --exec /usr/local/bin/pecan  configurator_decider config.py --  --mode  advanced
+}
+
+stop_nfp_pecan () {
+    exec start-stop-daemon --quiet --stop --signal KILL --pidfile $PID_FILE
+}
+
+status_nfp_pecan () {
+    set +e
+    wc=`ps -elf|grep pecan |wc -l`
+    if [ $wc -le 3 ] ; then
+       echo "nfp pecan is NOT running"
+    else
+       echo "nfp pecan is running"
+    fi
+}
+
+case "$1" in
+    start)
+        start_nfp_pecan
+        ;;
+    stop)
+        stop_nfp_pecan
+        ;;
+    status)
+        status_nfp_pecan
+        ;;
+   *)
+        echo "Usage: $0 {start|stop|status}" >&2
+        RETVAL=1
+        ;;
+esac
+
+
