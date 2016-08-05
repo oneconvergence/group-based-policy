@@ -518,6 +518,7 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
 
         elif event.id == 'DELETE_USER_CONFIG_IN_PROGRESS' or (
                 event.id == 'UPDATE_USER_CONFIG_PREPARING_TO_START'):
+            request_data=event.data
             event_data = {
                 'network_function_id': request_data['network_function_id']
             }

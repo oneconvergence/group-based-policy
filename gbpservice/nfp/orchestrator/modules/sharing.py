@@ -81,60 +81,20 @@ class Sharing(nfp_api.NfpEventHandler):
                         return True
         return False
 
-    def _check_and_update_nfp_context(self, nfp_context):
-        service_chain_id = nfp_context['service_chain_instance']['id']
-        filters = {'service_chain_id': [service_chain_id]}
-        network_functions = (
-            self.service_orchestrator.db_handler.get_network_functions(
-                self.service_orchestrator.db_session, filters=filters))
-        network_function_instances = []
-        for network_function in network_functions:
-            filters = {'network_function_id': [network_function['id']]}
-            network_function_instances = (
-                self.service_orchestrator.db_handler.get_network_function_instances(
-                    self.service_orchestrator.db_session, filters=filters))
-            if network_function_instances:
-                network_function_instance = network_function_instances[0]
-                if network_function_instance['port_info']:
-                    break;
-
-        if network_function_instances:
-            network_function_instance = network_function_instances[0]
-            port_info_ids = network_function_instance['port_info']
-            for port_info_id in port_info_ids:
-                port_info = (
-                    self.service_orchestrator.db_handler.get_port_info(
-                        self.service_orchestrator.db_session,
-                        port_info_id))
-                port_classification = port_info['port_classification']
-                if port_classification in ['provider', 'consumer']:
-                    pt_id = port_info['id']
-                    pt = (
-                        self.service_orchestrator.gbpclient.get_policy_target(
-                            nfp_context['resource_owner_context']['admin_token'], pt_id))
-                    ptg = (
-                        self.service_orchestrator.gbpclient.get_policy_target_group(
-                            nfp_context['resource_owner_context']['admin_token'],
-                            pt['policy_target_group_id']))
-                    neutron_info = (self.sharing_driver.get_neutron_port_details(
-                        {'service_details': nfp_context['service_details']},
-                        nfp_context['resource_owner_context']['admin_token'],
-                        pt['port_id']))
-                    nfp_context[port_classification]['pt'] = pt
-                    nfp_context[port_classification]['port'] = neutron_info['port']
-                    nfp_context[port_classification]['subnet'] = neutron_info['subnet']
-                    nfp_context[port_classification]['ptg'] = ptg
-                nfp_context['plug_interface'] = False
-
-        return nfp_context
-
     def create_network_function_instance(self, event):
         if self._check_fw_vpn_sharing(event.data):
-            nfp_context = self._check_and_update_nfp_context(event.data)
-            nfp_context['binding_key'] = (
-                nfp_context['service_chain_instance']['id'])
-            event.data = nfp_context
+            event.data['is_fw_vpn_sharing'] = True
+            event.data['binding_key'] = (
+                event.data['service_chain_instance']['id'])
         self._controller.post_event(event, target='service_orchestrator')
+
+    def _prepare_device_data_from_nfp_context(self, nfp_context):
+        device_data = (
+            self.device_orchestrator._prepare_device_data_from_nfp_context(
+                nfp_context))
+        # Donot update the name of the device
+        del device_data['name']
+        return device_data
 
     def create_network_function_device(self, event):
         nfp_context = event.data
@@ -142,24 +102,48 @@ class Sharing(nfp_api.NfpEventHandler):
                      " create network function "
                      "device request with data %(data)s"),
                  {'data': nfp_context})
-        device_data = (
-            self.device_orchestrator._prepare_device_data_from_nfp_context(
-                nfp_context))
+
+        device_data = self._prepare_device_data_from_nfp_context(nfp_context)
         device = self._get_device_to_reuse(device_data)
+
         if device:
             device.update(device_data)
             # Existing device to be shared
             # Trigger an event for Service Orchestrator
+            # from gbpservice.nfp.utils import forked_pdb
+            # forked_pdb.ForkedPdb().set_trace()
             device['network_function_device_id'] = device['id']
+            plug_interface = True
+            if ('is_fw_vpn_sharing' in nfp_context
+                    and nfp_context['is_fw_vpn_sharing']):
+                nf_filters = {'service_chain_id': [
+                    nfp_context['network_function']['service_chain_id']]}
+                sibling_network_functions = (
+                    self.service_orchestrator.db_handler.get_network_functions(
+                        self.service_orchestrator.db_session, filters=nf_filters))
+                for sibling_network_function in sibling_network_functions:
+                    nfi_filters= {'network_function_id': [sibling_network_function['id']],
+                                  'network_function_device_id': [device['network_function_device_id']]}
+                    network_function_instances = (
+                        self.service_orchestrator.db_handler.get_network_function_instances(
+                            self.service_orchestrator.db_session, filters=nfi_filters))
+                    if network_function_instances:
+                        plug_interface = False
+                        break
             # Create an event to NSO, to give device_id
+            if not plug_interface:
+                device['interfaces_in_use'] -= 2
+
             device_created_data = {
                 'network_function_instance_id': (
                     nfp_context['network_function_instance']['id']),
                 'network_function_device_id': device['id']
             }
-            self.device_orchestrator._create_event(
+            self.service_orchestrator._create_event(
                 event_id='DEVICE_CREATED',
-                event_data=device_created_data)
+                event_data=device_created_data,
+                is_internal_event=True)
+
             nfp_context['network_function_device'] = device
             nfp_context['vendor_data'] = device['vendor_data']
             management_info = self.sharing_driver.get_managment_info(device)
@@ -178,8 +162,7 @@ class Sharing(nfp_api.NfpEventHandler):
                                                   graph=True)
             graph = nfp_event.EventGraph(du_event)
             graph_nodes = [du_event]
-            if not ('plug_interface' in nfp_context and
-                    not nfp_context['plug_interface']):
+            if plug_interface:
                 plug_int_event = self._controller.new_event(id="PLUG_INTERFACES",
                                                             key=nf_id,
                                                             data=nfp_context,

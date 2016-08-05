@@ -65,6 +65,7 @@ cfg.CONF.register_opts(NFP_NODE_DRIVER_OPTS, "nfp_node_driver")
 
 LOG = logging.getLogger(__name__)
 
+GATEWAY_PLUMBER_TYPE = [pconst.FIREWALL, pconst.VPN]
 
 class InvalidServiceType(exc.NodeCompositionPluginBadRequest):
     message = _("The NFP Node driver only supports the services "
@@ -284,20 +285,18 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         # logical services in a single device
         plumbing_request = {'management': [], 'provider': [{}],
                             'consumer': [{}]}
-        if service_type in [pconst.FIREWALL, pconst.VPN]:
-            plumbing_request['plumbing_type'] = 'gateway'
-            '''
-            # plumber will return stitching network PT instead of consumer
-            # as chain is instantiated while creating provider group.
-            if (self._check_for_fw_vpn_sharing(context, service_type) and
-                    service_type == pconst.VPN):
-                # For fw, vpn sharing, request pts only once.
-                # Request pts only for firewall, if both fw, vpn is in chain,
-                # and current service type is vpn, dont request pts.
+        # plumber will return stitching network PT instead of consumer
+        # as chain is instantiated while creating provider group.
+        if service_type in GATEWAY_PLUMBER_TYPE:
+            sibling_gateway_type = self._sibling_gateway_type(context)
+            node_position = context.current_position
+            if sibling_gateway_type and  node_position>1:
                 LOG.info(_("Not requesting plumber for PTs for service type "
                     "%(service_type)s"), {'service_type': service_type})
                 return {}
-            '''
+
+            plumbing_request['plumbing_type'] = 'gateway'
+
         else:  # Loadbalancer which is one arm
             plumbing_request['consumer'] = []
             plumbing_request['plumbing_type'] = 'endpoint'
@@ -307,36 +306,10 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                  {'plumbing_request': plumbing_request,
                   'service_type': service_type})
         return plumbing_request
-    '''
-    def _check_for_fw_vpn_sharing(self, context, service_type):
-        shared_svc_type = pconst.FIREWALL
-        if service_type == pconst.FIREWALL:
-            shared_svc_type = pconst.VPN
-        return self._is_service_type_in_chain(context, shared_svc_type)
 
     def _get_service_type(self, profile):
         service_type = profile['service_type']
         return service_type
-
-    def _is_service_type_in_chain(self, context, service_type):
-        if service_type == self._get_service_type(context.current_profile):
-            return True
-        else:
-            current_specs = context.relevant_specs
-            service_profiles = []
-            for spec in current_specs:
-                filters = {'id': spec['nodes']}
-                nodes = context.sc_plugin.get_servicechain_nodes(
-                    context.plugin_context, filters)
-                for node in nodes:
-                    service_profiles.append(node['service_profile_id'])
-            filters = {'id': service_profiles,
-                       'service_type': [service_type]}
-            service_profiles = context.sc_plugin.get_service_profiles(
-                context.plugin_context, filters)
-            return True if service_profiles else False
-    '''
-
 
     def validate_create(self, context):
         if not context.current_profile:
@@ -663,8 +636,8 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                              {'nf_id': network_function_id})
         else:
             LOG.info(_LI("No action to take on update"))
-    '''
-    def _get_shared_service_targets(self, context, service_type, relationship):
+
+    def _get_sibling_service_targets(self, context, service_type, relationship):
         current_specs = context.relevant_specs
         for spec in current_specs:
             filters = {'id': spec['nodes']}
@@ -680,7 +653,22 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
                         servicechain_node_id=node['id'],
                         relationship=relationship)
                     return service_targets
-    '''
+
+    def _sibling_gateway_type(self, context):
+        service_type = context.current_profile['service_type']
+        current_specs = context.relevant_specs
+        for spec in current_specs:
+            filters = {'id': spec['nodes']}
+            nodes = context.sc_plugin.get_servicechain_nodes(
+                context.plugin_context, filters)
+            for node in nodes:
+                profile = context.sc_plugin.get_service_profile(
+                    context.plugin_context, node['service_profile_id'])
+                if (service_type != profile['service_type'] and
+                    profile['service_type'] in GATEWAY_PLUMBER_TYPE):
+                    return profile['service_type']
+        return None
+
     def _get_service_chain_specs(self, context):
         current_specs = context.relevant_specs
         for spec in current_specs:
@@ -704,28 +692,21 @@ class NFPNodeDriver(driver_base.NodeDriverBase):
         # Bug with NCP. For create, its not setting service targets in context
         if not service_targets:
             service_targets = context.get_service_targets(update=True)
-        '''
+        global GATEWAY_PLUMBER_TYPE
         if (not service_targets and service_type in
-            [pconst.FIREWALL, pconst.VPN]):
-                shared_service_type = {pconst.FIREWALL: pconst.VPN,
-                                       pconst.VPN: pconst.FIREWALL}
-                shared_service_type = shared_service_type[service_type]
-                provider_service_targets = self._get_shared_service_targets(
-                    context, shared_service_type, 'provider')
-                consumer_service_targets = self._get_shared_service_targets(
-                    context, shared_service_type, 'consumer')
+            GATEWAY_PLUMBER_TYPE):
+                use_sibling_gateway_type = self._sibling_gateway_type(context)
+                if use_sibling_gateway_type:
+                    provider_service_targets = self._get_sibling_service_targets(
+                        context, use_sibling_gateway_type, 'provider')
+                    consumer_service_targets = self._get_sibling_service_targets(
+                        context, use_sibling_gateway_type, 'consumer')
         else:
             for service_target in service_targets:
                 if service_target.relationship == 'consumer':
                     consumer_service_targets.append(service_target)
                 elif service_target.relationship == 'provider':
                     provider_service_targets.append(service_target)
-        '''
-        for service_target in service_targets:
-            if service_target.relationship == 'consumer':
-                consumer_service_targets.append(service_target)
-            elif service_target.relationship == 'provider':
-                provider_service_targets.append(service_target)
 
         LOG.debug("provider targets: %s consumer targets %s" % (
             provider_service_targets, consumer_service_targets))

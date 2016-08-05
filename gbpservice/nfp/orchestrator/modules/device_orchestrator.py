@@ -802,6 +802,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         for result in results:
             if result.result.lower() != 'success':
                 return self._controller.event_complete(event, result='FAILED')
+
         network_function_device = nfp_context['network_function_device']
         self._update_network_function_device_db(
             network_function_device, nfp_constants.ACTIVE)
@@ -979,6 +980,12 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             service_details['service_vendor'])
 
         ports = self._make_ports_dict(consumer, provider, 'port')
+        # Modify interface_in_use as dummy interfaces_in_use has been included
+        # for health check
+        if provider:
+            network_function_device['interfaces_in_use'] -= 1
+        if consumer:
+            network_function_device['interfaces_in_use'] -= 1
 
         device = {
             'id': network_function_device['id'],

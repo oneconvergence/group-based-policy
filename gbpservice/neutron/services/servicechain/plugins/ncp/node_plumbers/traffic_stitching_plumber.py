@@ -76,7 +76,8 @@ class TrafficStitchingPlumber(plumber_base.NodePlumberBase):
             for part in deployment:
                 info = part['plumbing_info']
                 if not info:
-                    return
+                    # return
+                    continue
                 part_context = part['context']
                 # Management PT can be created immediately
                 self._create_service_target(
