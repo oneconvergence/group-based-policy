@@ -58,8 +58,8 @@ RUN cp /group-based-policy/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
 RUN cp /group-based-policy/gbpservice/contrib/nfp/bin/nfp_configurator.ini /etc/
 RUN cp /group-based-policy/gbpservice/contrib/nfp/bin/policy.json /etc/
-RUN cp /group-base-policy/gbpservice/contrib/nfp/configurator/nfp-controller /etc/init.d/
-RUN cp /group-base-policy/gbpservice/contrib/nfp/configurator/nfp-pecan /etc/init.d/
+RUN cp /group-based-policy/gbpservice/contrib/nfp/configurator/nfp-controller /etc/init.d/
+RUN cp /group-based-policy/gbpservice/contrib/nfp/configurator/nfp-pecan /etc/init.d/
 RUN mkdir -p /var/log/nfp
 RUN touch /var/log/nfp/nfp_configurator.log
 RUN touch /var/log/nfp/nfp_pecan.log
