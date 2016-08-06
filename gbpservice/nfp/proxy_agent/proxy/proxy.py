@@ -51,15 +51,14 @@ parsing the proxy configuration file
 class Configuration(object):
 
     def __init__(self, conf):
-        self.thread_pool_size = conf.proxy.thread_pool_size
         self.unix_bind_path = conf.proxy.unix_bind_path
         self.max_connections = conf.proxy.max_connections
         self.worker_threads = conf.proxy.worker_threads
         self.connect_max_wait_timeout = conf.proxy.connect_max_wait_timeout
         self.idle_max_wait_timeout = conf.proxy.idle_max_wait_timeout
         self.idle_min_wait_timeout = conf.proxy.idle_min_wait_timeout
-        self.rest_server_address = conf.nfp_controller.rest_server_address
-        self.rest_server_port = conf.nfp_controller.rest_server_port
+        self.rest_server_address = conf.proxy.nfp_controller_ip
+        self.rest_server_port = conf.proxy.nfp_controller_port
 
 
 """
@@ -311,66 +310,53 @@ class Proxy(object):
             pc = ProxyConnection(self.conf, unixsocket, tcpsocket)
             ConnQ.put(pc)
 
-PROXY_AGENT_OPTS = [
-    oslo_config.IntOpt(
-        'thread_pool_size',
-        default=10,
-        help=''
-    ),
+PROXY_OPTS = [
     oslo_config.IntOpt(
         'max_connections',
         default=10,
-        help=''
+        help='Max num of client connections'
     ),
     oslo_config.IntOpt(
         'worker_threads',
         default=10,
-        help=''
+        help='Number of threads to be used.'
     ),
     oslo_config.FloatOpt(
         'connect_max_wait_timeout',
         default=10,
-        help=''
+        help='Max time to wait for connect.'
     ),
     oslo_config.FloatOpt(
         'idle_max_wait_timeout',
         default=10,
-        help=''
+        help='Max time to keep idle channel open.'
     ),
     oslo_config.FloatOpt(
         'idle_min_wait_timeout',
         default=10,
-        help=''
+        help='Minimum time to wait on idle channel.'
     ),
     oslo_config.StrOpt(
         'unix_bind_path',
-        default='gbpservice.nfp.core.test',
-        help=''
+        default='/var/run/uds_socket',
+        help='Path for unix server to bind.'
     ),
     oslo_config.StrOpt(
-        'nfp_controller_ip_address',
-        default='11.0.0.3',
-        help=''
+        'nfp_controller_ip',
+        default='172.16.0.3',
+        help='NFP controllers ip address'
     ),
+    oslo_config.IntOpt(
+        'nfp_controller_port',
+        default='8070',
+        help='NFP controllers port num'
+    )
 ]
 
-NFP_CONTROLLER_OPTS = [
-     oslo_config.IntOpt(
-        'rest_server_port',
-        default=8070,
-        help=''
-    ),
-    oslo_config.StrOpt(
-        'rest_server_address',
-        default='11.0.0.3',
-        help=''
-    ),
-]
       
     
 def main(argv):
-    oslo_config.CONF.register_opts(PROXY_AGENT_OPTS, 'proxy')
-    oslo_config.CONF.register_opts(NFP_CONTROLLER_OPTS, 'nfp_controller')
+    oslo_config.CONF.register_opts(PROXY_OPTS, 'proxy')
     oslo_config.CONF(args=sys.argv[1:])
     oslo_logging.setup(oslo_config.CONF, 'nfp')
     conf = Configuration(oslo_config.CONF)
