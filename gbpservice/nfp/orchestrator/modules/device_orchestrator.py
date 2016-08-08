@@ -65,8 +65,8 @@ def events_init(controller, config, device_orchestrator):
     for event in events:
         events_to_register.append(
             Event(id=event, handler=device_orchestrator))
-    controller.register_events(events_to_register,
-                               module='device_orchestrator')
+
+    controller.register_events(events_to_register)
 
 
 def nfp_module_init(controller, config):

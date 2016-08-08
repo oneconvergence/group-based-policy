@@ -80,7 +80,8 @@ def events_init(controller, config, service_orchestrator):
     for event in events:
         events_to_register.append(
             Event(id=event, handler=service_orchestrator))
-    controller.register_events(events_to_register, module='service_orchestrator')
+
+    controller.register_events(events_to_register)
 
 
 def nfp_module_init(controller, config):

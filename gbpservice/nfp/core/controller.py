@@ -74,13 +74,13 @@ class NfpService(object):
 
     def register_events(self, event_descs, priority=0):
         """Register event handlers with core. """
+        logging_context = nfp_logging.get_logging_context()
+        module=logging_context['namespace']
         # REVISIT (mak): change name to register_event_handlers() ?
-        # Get the module name of caller
-        module = nfp_common.callers_module_name()
         for event_desc in event_descs:
             self._event_handlers.register(
                 event_desc.id, event_desc.handler,
-                module=module, priority=priority)
+                module, priority=priority)
 
     def register_rpc_agents(self, agents):
         """Register rpc handlers with core. """
@@ -111,12 +111,9 @@ class NfpService(object):
             As base class, set only the required
             attributes of event.
         """
-        # Get the callers module name
-        module = nfp_common.callers_module_name()
         event.desc.type = nfp_event.EVENT_GRAPH
         event.desc.flag = ''
         event.desc.pid = os.getpid()
-        event.desc.target = module
         return event
 
     def post_event(self, event, target=None):
@@ -125,14 +122,12 @@ class NfpService(object):
             As a base class, it only does the descriptor preparation.
             NfpController class implements the required functionality.
         """
-        # Get the callers module name
-        module = nfp_common.callers_module_name()
-        handler = self._event_handlers.get_event_handler(event.id, module=target)
+        handler, module = self._event_handlers.get_event_handler(event.id, module=target)
         assert handler, "No handler registered for event %s" % (event.id)
         event.desc.type = nfp_event.SCHEDULE_EVENT
         event.desc.flag = nfp_event.EVENT_NEW
         event.desc.pid = os.getpid()
-        event.desc.target = target or module
+        event.desc.target = module
         return event
 
     # REVISIT (mak): spacing=0, caller must explicitly specify
@@ -143,13 +138,12 @@ class NfpService(object):
             descriptor preparation.
             NfpController class implements the required functionality.
         """
-        # Get the callers module name
-        module = nfp_common.callers_module_name()
         ev_spacing = self._event_handlers.get_poll_spacing(event.id)
         assert spacing or ev_spacing, "No spacing specified for polling"
         if ev_spacing:
             spacing = ev_spacing
-
+        logging_context = nfp_logging.get_logging_context()
+        module = logging_context['namespace']
         handler = self._event_handlers.get_poll_handler(event.id, module=module)
         assert handler, "No poll handler found for event %s" % (event.id)
 
@@ -542,6 +536,8 @@ def load_nfp_modules(conf, controller):
                                           [pyfile[:-3]], -1)
                     pymodule = eval('pymodule.%s' % (pyfile[:-3]))
                     try:
+                        namespace = pyfile[:-3].split(".")[-1]
+                        nfp_logging.store_logging_context(namespace=namespace)
                         pymodule.nfp_module_init(controller, conf)
                         pymodules += [pymodule]
                         message = "(module - %s) - Initialized" % (

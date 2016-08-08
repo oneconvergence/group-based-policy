@@ -285,7 +285,7 @@ class NfpEventHandlers(object):
         else:
             return "(event_id - %s) - (event_handler - None)" % (event_id)
 
-    def register(self, event_id, event_handler, module='', priority=0):
+    def register(self, event_id, event_handler, module, priority=0):
         """Registers a handler for event_id.
 
             Also fetches the decorated poll handlers if any
@@ -308,22 +308,22 @@ class NfpEventHandlers(object):
         try:
             try:
                 self._event_desc_table[event_id]['modules'][module].append(
-                    (event_handler, poll_handler, spacing))
+                    (event_handler, poll_handler, spacing, module))
             except KeyError:
                 self._event_desc_table[event_id]['modules'][module] = [
-                    (event_handler, poll_handler, spacing)]
+                    (event_handler, poll_handler, spacing, module)]
             try:
                 self._event_desc_table[event_id]['priority'][priority].append(
-                    (event_handler, poll_handler, spacing))
+                    (event_handler, poll_handler, spacing, module))
             except KeyError:
                 self._event_desc_table[event_id]['priority'][priority] = [
-                    (event_handler, poll_handler, spacing)]
+                    (event_handler, poll_handler, spacing, module)]
         except KeyError:
             self._event_desc_table[event_id] = {'modules':{}, 'priority':{}}
             self._event_desc_table[event_id]['modules'][module] = [
-                (event_handler, poll_handler, spacing)]
+                (event_handler, poll_handler, spacing, module)]
             self._event_desc_table[event_id]['priority'][priority] = [
-                (event_handler, poll_handler, spacing)]
+                (event_handler, poll_handler, spacing, module)]
         message = "%s - Registered handler" % (
             self._log_meta(event_id, event_handler))
         LOG.debug(message)
@@ -331,26 +331,32 @@ class NfpEventHandlers(object):
     def get_event_handler(self, event_id, module=None):
         """Get the handler for the event_id. """
         eh = None
+        rmodule = None
         try:
             if module:
                 eh = self._event_desc_table[event_id]['modules'][module][0][0]
+                rmodule = self._event_desc_table[event_id]['modules'][module][0][3]
             else:
                 priorities = self._event_desc_table[event_id]['priority'].keys()
                 priority = max(priorities)
                 eh = self._event_desc_table[event_id]['priority'][priority][0][0]
+                rmodule = self._event_desc_table[event_id]['priority'][priority][0][3]
         finally:
             message = "%s - Returning event handler" % (
                 self._log_meta(event_id, eh))
             LOG.debug(message)
-            return eh
+            return eh, rmodule
 
-    def get_poll_handler(self, event_id):
+    def get_poll_handler(self, event_id, module=None):
         """Get the poll handler for event_id. """
         ph = None
         try:
-            priorities = self._event_desc_table[event_id]['priority'].keys()
-            priority = max(priorities)
-            ph = self._event_desc_table[event_id]['priority'][priority][0][1]
+            if module:
+                ph = self._event_desc_table[event_id]['modules'][module][0][1]
+            else:
+                priorities = self._event_desc_table[event_id]['priority'].keys()
+                priority = max(priorities)
+                ph = self._event_desc_table[event_id]['priority'][priority][0][1]
         finally:
             message = "%s - Returning poll handler" % (
                 self._log_meta(event_id, ph))
