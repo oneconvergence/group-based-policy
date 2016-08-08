@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron import context
 
 from gbpservice.contrib.nfp.configurator.agents import agent_base
 from gbpservice.contrib.nfp.configurator.lib import data_filter
@@ -406,7 +405,15 @@ class LBaaSEventHandler(agent_base.AgentBaseEventHandler,
         poll event like collect_stats() does not have context, creating
         context here, but should get rid of this in future.
         """
-        self.context = context.get_admin_context_without_session()
+        """(mak)
+        Configurator will pass empty context.
+        Proxy agent will check if there is no context in response,
+        will get the admin context without session and does the
+        required rpc.
+        """
+
+        # self.context = context.get_admin_context_without_session()
+        self.context = {}
 
     def _get_driver(self, service_vendor):
         """Retrieves service driver instance based on service type

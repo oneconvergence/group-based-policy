@@ -409,7 +409,7 @@ def init_rpc(sc, cm, conf, demuxer):
 
     # Initializes RPC client
     rpc_mgr = ConfiguratorRpcManager(sc, cm, conf, demuxer)
-    configurator_agent = rpc.RpcAgent(sc,
+    configurator_agent = rpc.RpcAgent(
                                       topic=const.CONFIGURATOR_RPC_TOPIC,
                                       manager=rpc_mgr)
 

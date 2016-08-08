@@ -12,16 +12,15 @@
 
 import oslo_serialization.jsonutils as jsonutils
 
-from neutron.common import rpc as n_rpc
 from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 import pecan
 
 from gbpservice.nfp.pecan import base_controller
+from gbpservice.nfp.core  import rpc
 
 LOG = logging.getLogger(__name__)
-n_rpc.init(cfg.CONF)
 
 
 class Controller(base_controller.BaseController):
@@ -212,7 +211,7 @@ class RPCClient(object):
         target = oslo_messaging.Target(
             topic=self.topic,
             version=self.API_VERSION)
-        self.client = n_rpc.get_client(target)
+        self.client = rpc.get_client(target)
 
     def call(self, method_name):
         """Method for sending call request on behalf of REST Controller.
