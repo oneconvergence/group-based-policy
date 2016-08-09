@@ -69,7 +69,6 @@ def init(args, **kwargs):
     oslo_config.CONF.set_override('syslog_log_facility', 'local1')
     oslo_config.CONF(args=args, project='nfp',
                      version='%%(prog)s %s' % ('version'),
-                     #version.version_info.release_string()),
                      **kwargs)
 
     return oslo_config.CONF

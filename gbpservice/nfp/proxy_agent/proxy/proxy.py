@@ -353,8 +353,7 @@ PROXY_OPTS = [
     )
 ]
 
-      
-    
+
 def main(argv):
     oslo_config.CONF.register_opts(PROXY_OPTS, 'proxy')
     oslo_config.CONF(args=sys.argv[1:])
