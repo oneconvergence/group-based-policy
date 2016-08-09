@@ -60,6 +60,7 @@ es_openstack_opts = [
 
 def init(args, **kwargs):
     """Initialize the configuration. """
+    oslo_config.CONF.register_opts(NFP_OPTS)
     oslo_config.CONF.register_opts(NFP_OPTS, "orchestrator")
     oslo_config.CONF.register_opts(NFP_OPTS, "proxy_agent")
     oslo_config.CONF.register_opts(NFP_OPTS, "config_orchestrator")

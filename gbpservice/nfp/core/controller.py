@@ -577,23 +577,26 @@ def _module(args):
         module = args[index+1]
         return module
     except ValueError:
-        print "--module <name> missing from cmd args"
-        sys.exit(-1)
+        print "--module <name> missing from cmd args using default one"
+        return None
 
 def main():
     args = sys.argv[1:]
     module = _module(args)
-    args.remove('--module')
-    args.remove(module)
-    conf = nfp_cfg.init(args)
-    conf.module = module
-    module_opts = eval('conf.%s.keys' %(module))()
-    for module_opt in module_opts:
-        module_cfg_opt = eval("conf.%s._group._opts['%s']['opt']" %(
-            module, module_opt))
-        module_cfg_opt_value = eval("conf.%s.%s" %(module, module_opt))
-        conf.register_opt(module_cfg_opt)
-        conf.set_override(module_opt, module_cfg_opt_value)
+    if module:
+        args.remove('--module')
+        args.remove(module)
+        conf = nfp_cfg.init(args)
+        conf.module = module
+        module_opts = eval('conf.%s.keys' %(module))()
+        for module_opt in module_opts:
+            module_cfg_opt = eval("conf.%s._group._opts['%s']['opt']" %(
+                module, module_opt))
+            module_cfg_opt_value = eval("conf.%s.%s" %(module, module_opt))
+            conf.register_opt(module_cfg_opt)
+            conf.set_override(module_opt, module_cfg_opt_value)
+    else:
+       conf = nfp_cfg.init(sys.argv[1:])
     nfp_common.init()
     nfp_controller = NfpController(conf)
     # Load all nfp modules from path configured
