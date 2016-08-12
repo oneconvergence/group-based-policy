@@ -535,7 +535,7 @@ class LBaaSV2EventHandler(agent_base.AgentBaseEventHandler,
             else:
                 msg = ("Calling event done for event=%s" % (ev.id))
                 LOG.info(msg)
-                self.sc.event_done(ev)
+                self.sc.event_complete(ev)
 
     def _handle_event_loadbalancer(self, ev, operation):
         data = ev.data
