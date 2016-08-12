@@ -9,6 +9,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
+
 import exceptions
 
 from gbpservice.nfp.common import constants as nfp_constants
@@ -40,15 +42,6 @@ rpc_opts = [
                default='', help='Topic for rpc connection'),
 ]
 
-OPTS = [
-    cfg.StrOpt(
-        'backend',
-        default='rpc',
-        help='Backend Support for communicationg with configurator.'
-    ),
-]
-
-oslo_config.CONF.register_opts(OPTS)
 oslo_config.CONF.register_opts(rest_opts, "REST")
 oslo_config.CONF.register_opts(rpc_opts, "RPC")
 n_rpc.init(cfg.CONF)

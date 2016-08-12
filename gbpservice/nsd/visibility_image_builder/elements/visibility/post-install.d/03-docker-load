@@ -1,0 +1,14 @@
+#!/bin/bash
+set -eux
+
+# start docker for loading docker images inside VM
+docker daemon --raw-logs &
+
+# wait for docker daemon to come up
+sleep 10
+
+# preload the docker images inside VM
+# docker load -i /usr/share/SCUI/docker/images/configurator-docker
+docker load -i /usr/share/SCUI/docker/images/visibility-docker
+docker load -i /usr/share/SCUI/docker/images/elastic
+docker load -i /usr/share/SCUI/docker/images/graphite

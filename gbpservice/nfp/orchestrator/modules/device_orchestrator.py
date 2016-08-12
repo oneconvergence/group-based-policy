@@ -509,6 +509,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
 
         ports = self._make_ports_dict(consumer, provider, 'pt')
 
+        device_data['provider_name'] = provider['ptg']['name']
         device_data['management_network_info'] = management_network_info
 
         device_data['network_function_id'] = network_function['id']
@@ -559,6 +560,7 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
                                is_internal_event=True)
             return None
 
+        nfp_context['vendor_data'] = driver_device_info.get('vendor_data')
         management = nfp_context['management']
         management['port'] = driver_device_info[
             'mgmt_neutron_port_info']['neutron_port']
@@ -571,6 +573,12 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
         device = self._update_device_data(driver_device_info, device_data)
         device['network_function_device_id'] = device['id']
 
+        name = '%s_%s_%s_%s' % (
+                    device['provider_name'],
+                    service_details['service_type'],
+                    nfp_context['resource_owner_context']['tenant_name'][:6],
+                    device['network_function_device_id'][:3])
+        device['name'] = name
         # Create DB entry with status as DEVICE_SPAWNING
         network_function_device = (
             self._create_network_function_device_db(device,
@@ -876,7 +884,8 @@ class DeviceOrchestrator(nfp_api.NfpEventHandler):
             'token': token,
             'tenant_id': tenant_id,
             'interfaces_in_use': network_function_device['interfaces_in_use'],
-            'status': network_function_device['status']}
+            'status': network_function_device['status'],
+            'vendor_data': nfp_context['vendor_data']}
 
         _ifaces_plugged_in = (
             orchestration_driver.plug_network_function_device_interfaces(

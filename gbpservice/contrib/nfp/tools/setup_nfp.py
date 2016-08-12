@@ -237,10 +237,10 @@ def create_orchestrator_ctl():
 
     file.write("[Unit]\nDescription=One Convergence NFP Orchestrator\n")
     file.write("After=syslog.target network.target\n\n[Service]")
-    file.write("\nUser=neutron\nExecStart=/usr/bin/nfp  --config-file ")
-    file.write(" /etc/neutron/neutron.conf --config-file ")
+    file.write("\nUser=neutron\nExecStart=/usr/bin/nfp  --module orchestrator"
+    file.write(" --config-file /etc/neutron/neutron.conf --config-file ")
     file.write(" /etc/neutron/plugins/ml2/ml2_conf.ini ")
-    file.write(" --config-file /etc/nfp/nfp_orchestrator.ini ")
+    file.write(" --config-file /etc/nfp/nfp.ini ")
     file.write("--log-file /var/log/nfp/nfp_orchestrator.log\n\n")
     file.write("[Install]\nWantedBy=multi-user.target")
     file.close()
@@ -262,7 +262,8 @@ def create_orchestrator_ctl():
     file.write("\nAfter=syslog.target network.target")
     file.write("\n\n[Service]\nType=simple\nUser=neutron")
     file.write("\nExecStart=/usr/bin/nfp"
-               " --config-file /etc/nfp/nfp_config_orch.ini")
+               " --module config_orchestrator"
+               " --config-file /etc/nfp/nfp.ini")
     file.write(" --config-file /etc/neutron/neutron.conf"
                " --log-file /var/log/nfp/nfp_config_orch.log")
     file.write("\n\n[Install]\nWantedBy=multi-user.target")
@@ -415,7 +416,7 @@ def create_proxy_ctl():
         print("Error creating " + proxy_sup_file + " file")
         sys.exit(1)
 
-    filepx.write("#!/usr/bin/sh\nNFP_PROXY_AGENT_INI=/etc/nfp/nfp_proxy.ini")
+    filepx.write("#!/usr/bin/sh\nNFP_PROXY_AGENT_INI=/etc/nfp/nfp.ini")
     filepx.write("\nCONFIGURATOR_IP=`crudini --get $NFP_PROXY_AGENT_INI"
                  " NFP_CONTROLLER rest_server_address`\n")
     filepx.write(". /usr/lib/python2.7/site-packages/gbpservice/nfp/tools/"
@@ -474,9 +475,9 @@ def create_proxy_agent_ctl():
     file.write("[Unit]\nDescription=One Convergence NFP Proxy Agent")
     file.write("\nAfter=syslog.target network.target\n")
     file.write("\n[Service]\nUser=root")
-    file.write("\nExecStart=/usr/bin/nfp "
+    file.write("\nExecStart=/usr/bin/nfp --module proxy_agent "
                "--config-file /etc/neutron/neutron.conf ")
-    file.write("--config-file /etc/nfp/nfp_proxy_agent.ini ")
+    file.write("--config-file /etc/nfp/nfp.ini ")
     file.write("--log-file /var/log/nfp/nfp_proxy_agent.log\n")
     file.write("\n[Install]\nWantedBy=multi-user.target\n")
     file.close()

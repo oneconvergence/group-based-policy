@@ -27,7 +27,7 @@ class ConfiguratorUtils(object):
     def __init__(self):
         pass
 
-    def load_drivers(self, pkg):
+    def load_drivers(self, pkgs):
         """Load all the driver class objects inside pkg. In each class in the
            pkg it will look for keywork 'service_type' or/and 'vendor' and
            select that class as driver class
@@ -39,14 +39,16 @@ class ConfiguratorUtils(object):
                e.g driver_objects = {'loadbalancer': <driver class object>}
 
         """
+
         driver_objects = {}
-
-        base_driver = __import__(pkg,
-                                 globals(), locals(), ['drivers'], -1)
-        drivers_dir = base_driver.__path__[0]
-
         modules = []
-        subdirectories = [x[0] for x in os.walk(drivers_dir)]
+        subdirectories = []
+        for pkg in pkgs:
+            base_driver = __import__(pkg,
+                                     globals(), locals(), ['drivers'], -1)
+            drivers_dir = base_driver.__path__[0]
+            subdirectories += [x[0] for x in os.walk(drivers_dir)]
+
         for subd in subdirectories:
             syspath = sys.path
             sys.path = [subd] + syspath
