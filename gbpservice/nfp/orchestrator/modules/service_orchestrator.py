@@ -721,9 +721,10 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
         service_vendor = service_details['service_vendor']
         # REVISIT(ashu): take the first few characters just like neutron does
         # with ovs interfaces inside the name spaces..
-        name = "%s_%s_%s" % (service_profile['service_type'],
-                             service_vendor,
-                             service_chain_id or service_id)
+        name = "%s_%s" % (network_function_info[
+                                    'service_chain_node']['name'][:6],
+                          network_function_info[
+                                    'service_chain_instance']['name'][:6])
         service_config_str = network_function_info.get('service_config')
         network_function = {
             'name': name,
@@ -874,8 +875,8 @@ class ServiceOrchestrator(nfp_api.NfpEventHandler):
                      })
 
         # REVISIT(ashu): Only pick few chars from id
-        name = '%s_%s' % (network_function['name'],
-                          network_function['id'])
+        name = '%s_%s' % (network_function['id'][:3],
+                          network_function['name'])
         create_nfi_request = {
             'name': name,
             'tenant_id': network_function['tenant_id'],

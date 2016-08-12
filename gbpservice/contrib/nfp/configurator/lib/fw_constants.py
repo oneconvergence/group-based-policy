@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-DRIVERS_DIR = 'gbpservice.contrib.nfp.configurator.drivers.firewall'
+DRIVERS_DIR = ['gbpservice.contrib.nfp.configurator.drivers.firewall']
 SERVICE_TYPE = 'firewall'
 
 FIREWALL_CREATE_EVENT = 'CREATE_FIREWALL'

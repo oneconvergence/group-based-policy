@@ -13,8 +13,7 @@
 
 import copy
 from gbpservice.nfp.orchestrator.db import nfp_db as nfpdb
-from gbpservice.nfp.orchestrator.modules import (
-    device_orchestrator)
+
 
 from gbpservice.nfp.lib import transport
 import mock
@@ -23,6 +22,11 @@ from oslo_config import cfg
 import unittest
 
 import uuid as pyuuid
+
+
+with mock.patch('oslo_config.cfg.CONF.register_opts') as opt:
+    from gbpservice.nfp.orchestrator.modules import (
+        device_orchestrator)
 
 
 class DummyEvent(object):

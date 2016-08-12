@@ -1,0 +1,38 @@
+#cloud-config
+users:
+  - name: ubuntu
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh-authorized-keys:
+      - <SSH PUBLIC KEY>
+
+write_files:
+  - path: /usr/share/visibility/docker/config/visibility.ini
+    content: |
+      [DEFAULT]
+      # IP address of visibility VM
+      visibility_vm_ip=<VISIBILITY_VM_IP>
+
+      [UI]
+      # openstack controller ip
+      os_controller_ip=<OS_CONTROLLER_IP>
+  - path:  /usr/share/visibility/conf/visibility.ini
+    #permissions: '777'
+    content: |
+      [DEFAULT]
+      statsd_host=<STATSD_HOST>
+      statsd_port=8125
+      vis_app_log_dir=/var/log/visibility
+      vis_log_level=INFO
+      kombu_reconnect_delay=1.0
+      rabbit_host=<RABBIT_HOST>
+      policy_file=/etc/policy.json
+      rabbit_port=5672
+      rabbit_use_ssl=False
+      rabbit_virtual_host=/
+      nfp_modules_path=visibility.collector.modules
+      control_exchange=openstack
+
+runcmd:
+  - cd /usr/share/visibility/docker/ && bash rundocker.sh

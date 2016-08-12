@@ -10,9 +10,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import oslo_messaging as messaging
+
 from gbpservice.contrib.nfp.configurator.lib import constants as const
 from gbpservice.nfp.core import log as nfp_logging
 from gbpservice.nfp.core import module as nfp_api
+from neutron.common import rpc as n_rpc
+from neutron import context as n_context
+from oslo_config import cfg
+
+n_rpc.init(cfg.CONF)
 
 LOG = nfp_logging.getLogger(__name__)
 
@@ -115,11 +122,19 @@ class AgentBaseNotification(object):
     cloud components using this notification handle.
     """
 
+    API_VERSION = '1.0'
+
     def __init__(self, sc):
         self.sc = sc
+        self.topic = const.NOTIFICATION_QUEUE
+        target = messaging.Target(topic=self.topic,
+                                  version=self.API_VERSION)
+        self.client = n_rpc.get_client(target)
+        self.cctxt = self.client.prepare(version=self.API_VERSION,
+                                         topic=self.topic)
 
     def _notification(self, data):
-        """Enqueues notification event into notification queue
+        """Enqueues notification event into const.NOTIFICATION_QUEUE
 
         These events are enqueued into notification queue and are retrieved
         when get_notifications() API lands on configurator.
@@ -129,9 +144,9 @@ class AgentBaseNotification(object):
         Returns: None
 
         """
-        event = self.sc.new_event(
-                id=const.EVENT_STASH, key=const.EVENT_STASH, data=data)
-        self.sc.stash_event(event)
+        context = data['info']['context']['neutron_context']
+        ctx_obj = n_context.Context.from_dict(context)
+        self.cctxt.cast(ctx_obj, 'send_notification', notification_data=[data])
 
 
 class AgentBaseEventHandler(nfp_api.NfpEventHandler):
