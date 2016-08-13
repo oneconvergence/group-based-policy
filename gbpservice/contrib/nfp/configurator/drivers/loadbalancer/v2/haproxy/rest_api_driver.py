@@ -23,23 +23,23 @@ from stevedore import driver as stevedore_driver
 
 from oslo_config import cfg
 
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
-    amphorae.driver_exceptions import exceptions as driver_except
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
-    amphorae.drivers import driver_base as driver_base
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
-    amphorae.drivers.haproxy import exceptions as exc
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.\
+    octavia_lib.amphorae.driver_exceptions import exceptions as driver_except
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.\
+    octavia_lib.amphorae.drivers import driver_base as driver_base
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.\
+    octavia_lib.amphorae.drivers.haproxy import exceptions as exc
 # TODO(jiahao): drop vrrp temporarily
-# from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.
-#     amphorae.drivers.keepalived import vrrp_rest_driver
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
-    common.jinja.haproxy import jinja_cfg
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
-    common import constants
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
-    common.tls_utils import cert_parser
-from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.octavia_lib.\
-    i18n import _LW
+# from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.
+# octavia_lib.amphorae.drivers.keepalived import vrrp_rest_driver
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.\
+    octavia_lib.common.jinja.haproxy import jinja_cfg
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.\
+    octavia_lib.common import constants
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.\
+    octavia_lib.common.tls_utils import cert_parser
+from gbpservice.contrib.nfp.configurator.drivers.loadbalancer.v2.haproxy.\
+    octavia_lib.i18n import _LW
 from gbpservice.nfp.core import log as nfp_logging
 
 

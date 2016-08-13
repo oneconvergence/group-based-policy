@@ -25,14 +25,7 @@ These data models do provide methods for instantiation from SQLAlchemy models
 and also converting to dictionaries.
 """
 
-from neutron.db import model_base
-from neutron.db import models_v2
-from neutron.db import servicetype_db
-from sqlalchemy.ext import orderinglist
-from sqlalchemy.orm import collections
-
-from neutron_lbaas.db.loadbalancer import models
-from neutron_lbaas.services.loadbalancer import constants as l_const
+from gbpservice.contrib.nfp.configurator.lib import lbv2_constants as l_const
 
 
 class BaseDataModel(object):
@@ -69,50 +62,6 @@ class BaseDataModel(object):
         fields = {k: v for k, v in model_dict.items()
                   if k in cls.fields}
         return cls(**fields)
-
-    @classmethod
-    def from_sqlalchemy_model(cls, sa_model, calling_classes=None):
-        calling_classes = calling_classes or []
-        attr_mapping = vars(cls).get("attr_mapping")
-        instance = cls()
-        for attr_name in cls.fields:
-            if attr_name.startswith('_'):
-                continue
-            if attr_mapping and attr_name in attr_mapping.keys():
-                attr = getattr(sa_model, attr_mapping[attr_name])
-            else:
-                attr = getattr(sa_model, attr_name)
-            # Handles M:1 or 1:1 relationships
-            if isinstance(attr, model_base.BASEV2):
-                if hasattr(instance, attr_name):
-                    data_class = SA_MODEL_TO_DATA_MODEL_MAP[attr.__class__]
-                    # Don't recurse down object classes too far. If we have
-                    # seen the same object class more than twice, we are
-                    # probably in a loop.
-                    if data_class and calling_classes.count(data_class) < 2:
-                        setattr(instance, attr_name,
-                                data_class.from_sqlalchemy_model(
-                                    attr,
-                                    calling_classes=calling_classes + [cls]))
-            # Handles 1:M or N:M relationships
-            elif (isinstance(attr, collections.InstrumentedList) or
-                 isinstance(attr, orderinglist.OrderingList)):
-                for item in attr:
-                    if hasattr(instance, attr_name):
-                        data_class = SA_MODEL_TO_DATA_MODEL_MAP[item.__class__]
-                        # Don't recurse down object classes too far. If we have
-                        # seen the same object class more than twice, we are
-                        # probably in a loop.
-                        if (data_class and
-                            calling_classes.count(data_class) < 2):
-                            attr_list = getattr(instance, attr_name) or []
-                            attr_list.append(data_class.from_sqlalchemy_model(
-                                item, calling_classes=calling_classes + [cls]))
-                            setattr(instance, attr_name, attr_list)
-            # This isn't a relationship so it must be a "primitive"
-            else:
-                setattr(instance, attr_name, attr)
-        return instance
 
     @property
     def root_loadbalancer(self):
@@ -753,36 +702,3 @@ class LoadBalancer(BaseDataModel):
             model_dict['provider'] = ProviderResourceAssociation.from_dict(
                 provider)
         return super(LoadBalancer, cls).from_dict(model_dict)
-
-
-SA_MODEL_TO_DATA_MODEL_MAP = {
-    models.LoadBalancer: LoadBalancer,
-    models.HealthMonitorV2: HealthMonitor,
-    models.Listener: Listener,
-    models.SNI: SNI,
-    models.L7Rule: L7Rule,
-    models.L7Policy: L7Policy,
-    models.PoolV2: Pool,
-    models.MemberV2: Member,
-    models.LoadBalancerStatistics: LoadBalancerStatistics,
-    models.SessionPersistenceV2: SessionPersistence,
-    models_v2.IPAllocation: IPAllocation,
-    models_v2.Port: Port,
-    servicetype_db.ProviderResourceAssociation: ProviderResourceAssociation
-}
-
-DATA_MODEL_TO_SA_MODEL_MAP = {
-    LoadBalancer: models.LoadBalancer,
-    HealthMonitor: models.HealthMonitorV2,
-    Listener: models.Listener,
-    SNI: models.SNI,
-    L7Rule: models.L7Rule,
-    L7Policy: models.L7Policy,
-    Pool: models.PoolV2,
-    Member: models.MemberV2,
-    LoadBalancerStatistics: models.LoadBalancerStatistics,
-    SessionPersistence: models.SessionPersistenceV2,
-    IPAllocation: models_v2.IPAllocation,
-    Port: models_v2.Port,
-    ProviderResourceAssociation: servicetype_db.ProviderResourceAssociation
-}
