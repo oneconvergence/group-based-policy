@@ -45,6 +45,7 @@ function configure_nfp_loadbalancer {
     LBAAS_SERVICE_PROVIDER=LOADBALANCER:loadbalancer:gbpservice.contrib.nfp.service_plugins.loadbalancer.drivers.nfp_lbaas_plugin_driver.HaproxyOnVMPluginDriver:default
     if [[ $ENABLE_LBAASV2 = True ]]; then
         LBAAS_SERVICE_PROVIDER=LOADBALANCERV2:loadbalancerv2:gbpservice.contrib.nfp.service_plugins.loadbalancer.drivers.nfp_lbaasv2_plugin_driver.HaproxyOnVMPluginDriver:default
+    fi
     sudo\
  sed\
  -i\
