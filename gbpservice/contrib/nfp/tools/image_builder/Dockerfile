@@ -44,7 +44,7 @@ RUN rm -rf /var/lib/apt/lists/* && apt-get autoremove -y
 
 RUN cp /usr/local/lib/python2.7/dist-packages/gbpservice/nfp/bin/nfp /usr/bin/
 RUN chmod +x /usr/bin/nfp
-RUN cp /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/bin/nfp_configurator.ini /etc/
+RUN cp /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/bin/nfp_controller.ini /etc/
 RUN cp /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/bin/policy.json /etc/
 RUN cp /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/tools/image_builder/nfp-controller /etc/init.d/
 RUN cp /usr/local/lib/python2.7/dist-packages/gbpservice/contrib/nfp/tools/image_builder/nfp-pecan /etc/init.d/

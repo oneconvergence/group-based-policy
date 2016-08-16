@@ -2,7 +2,7 @@
 PID_FILE=/var/run/nfp_controller.pid
 
 start_nfp_controller () {
-    exec start-stop-daemon --quiet --start -m --pidfile $PID_FILE --background --exec  /usr/bin/python2 /usr/bin/nfp -- --log-file /var/log/nfp/nfp_configurator.log --config-file /etc/nfp_configurator.ini
+    exec start-stop-daemon --quiet --start -m --pidfile $PID_FILE --background --exec  /usr/bin/python2 /usr/bin/nfp -- --log-file /var/log/nfp/nfp_configurator.log --config-file /etc/nfp_controller.ini --module configurator
 }
 
 stop_nfp_controller () {
