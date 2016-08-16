@@ -43,7 +43,7 @@ nfp_configurator_opts = [
                        default='', help='Log collector host IP address'),
     oslo_config.IntOpt('log_forward_port',
                        default='514', help='Log collector port number'),
-    oslo_config.BoolOpt('log_level',
+    oslo_config.StrOpt('log_level',
                        default='debug', help='Log level info/error/debug/warning')
 ]
 
