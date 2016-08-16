@@ -38,7 +38,13 @@ nfp_configurator_opts = [
     oslo_config.BoolOpt('rabbit_use_ssl',
                         default=False, help='RabbitMq SSL mode True/False'),
     oslo_config.StrOpt('rabbit_virtual_host',
-                       default='/', help='RabbitMq virtual host path')
+                       default='/', help='RabbitMq virtual host path'),
+    oslo_config.StrOpt('log_forward_ip_address',
+                       default='', help='log collectror host IP address'),
+    oslo_config.IntOpt('log_forward_port',
+                       default='514', help='log collector port number'),
+    oslo_config.BoolOpt('log_level',
+                       default='debug', help='log level')
 ]
 
 oslo_config.CONF.register_opts(nfp_configurator_opts, "configurator")
